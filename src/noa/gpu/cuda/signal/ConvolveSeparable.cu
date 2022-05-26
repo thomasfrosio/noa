@@ -203,39 +203,50 @@ namespace noa::cuda::signal {
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   const shared_t<U[]>& filter0, size_t filter0_size,
                   const shared_t<U[]>& filter1, size_t filter1_size,
-                  const shared_t<U[]>& filter2, size_t filter2_size,
-                  const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream) {
+                  const shared_t<U[]>& filter2, size_t filter2_size, Stream& stream,
+                  const shared_t<T[]>& tmp, size4_t tmp_stride) {
         NOA_ASSERT(input != output);
+
+        int count = 0;
+        if (filter0)
+            count += 1;
+        if (filter1)
+            count += 1;
+        if (filter2)
+            count += 1;
+        const bool allocate = !tmp && count > 1;
+        const shared_t<T[]> buf = allocate ? memory::PtrDevice<T>::alloc(shape.elements(), stream) : tmp;
+        const size4_t buf_stride = allocate ? shape.stride() : tmp_stride;
 
         if (filter0 && filter1 && filter2) {
             NOA_ASSERT(filter0_size % 2);
             NOA_ASSERT(filter1_size % 2);
             NOA_ASSERT(filter2_size % 2);
             launchZ(input.get(), input_stride, output.get(), output_stride, shape, filter0.get(), filter0_size, stream);
-            launchY(output.get(), output_stride, tmp.get(), tmp_stride, shape, filter1.get(), filter1_size, stream);
-            launchX(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
-            stream.attach(input, output, tmp, filter0, filter1, filter2);
+            launchY(output.get(), output_stride, buf.get(), buf_stride, shape, filter1.get(), filter1_size, stream);
+            launchX(buf.get(), buf_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, buf, filter0, filter1, filter2);
 
         } else if (filter0 && filter1) {
             NOA_ASSERT(filter0_size % 2);
             NOA_ASSERT(filter1_size % 2);
-            launchZ(input.get(), input_stride, tmp.get(), tmp_stride, shape, filter0.get(), filter0_size, stream);
-            launchY(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter1.get(), filter1_size, stream);
-            stream.attach(input, output, tmp, filter0, filter1);
+            launchZ(input.get(), input_stride, buf.get(), buf_stride, shape, filter0.get(), filter0_size, stream);
+            launchY(buf.get(), buf_stride, output.get(), output_stride, shape, filter1.get(), filter1_size, stream);
+            stream.attach(input, output, buf, filter0, filter1);
 
         } else if (filter0 && filter2) {
             NOA_ASSERT(filter0_size % 2);
             NOA_ASSERT(filter2_size % 2);
-            launchZ(input.get(), input_stride, tmp.get(), tmp_stride, shape, filter0.get(), filter0_size, stream);
-            launchX(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
-            stream.attach(input, output, tmp, filter0, filter2);
+            launchZ(input.get(), input_stride, buf.get(), buf_stride, shape, filter0.get(), filter0_size, stream);
+            launchX(buf.get(), buf_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, buf, filter0, filter2);
 
         } else if (filter1 && filter2) {
             NOA_ASSERT(filter1_size % 2);
             NOA_ASSERT(filter2_size % 2);
-            launchY(input.get(), input_stride, tmp.get(), tmp_stride, shape, filter1.get(), filter1_size, stream);
-            launchX(tmp.get(), tmp_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
-            stream.attach(input, output, tmp, filter1, filter2);
+            launchY(input.get(), input_stride, buf.get(), buf_stride, shape, filter1.get(), filter1_size, stream);
+            launchX(buf.get(), buf_stride, output.get(), output_stride, shape, filter2.get(), filter2_size, stream);
+            stream.attach(input, output, buf, filter1, filter2);
 
         } else if (filter0) {
             NOA_ASSERT(filter0_size % 2);
@@ -257,8 +268,8 @@ namespace noa::cuda::signal {
                                      const shared_t<T[]>&, size4_t, size4_t, \
                                      const shared_t<T[]>&, size_t,           \
                                      const shared_t<T[]>&, size_t,           \
-                                     const shared_t<T[]>&, size_t,           \
-                                     const shared_t<T[]>&, size4_t, Stream&)
+                                     const shared_t<T[]>&, size_t,  Stream&, \
+                                     const shared_t<T[]>&, size4_t)
 
     NOA_INSTANTIATE_CONV_(half_t);
     NOA_INSTANTIATE_CONV_(float);

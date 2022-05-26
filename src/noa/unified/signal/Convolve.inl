@@ -100,21 +100,12 @@ namespace noa::filter {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            if (tmp.empty()) {
-                cpu::signal::convolve(input.share(), input_stride,
-                                      output.share(), output.stride(), output.shape(),
-                                      filter1.share(), filter1.shape()[3],
-                                      filter2.share(), filter2.shape()[3],
-                                      filter3.share(), filter3.shape()[3],
-                                      stream.cpu());
-            } else {
-                cpu::signal::convolve(input.share(), input_stride,
-                                      output.share(), output.stride(), output.shape(),
-                                      filter1.share(), filter1.shape()[3],
-                                      filter2.share(), filter2.shape()[3],
-                                      filter3.share(), filter3.shape()[3],
-                                      tmp.share(), tmp.stride(), stream.cpu());
-            }
+            cpu::signal::convolve(input.share(), input_stride,
+                                  output.share(), output.stride(), output.shape(),
+                                  filter1.share(), filter1.shape()[3],
+                                  filter2.share(), filter2.shape()[3],
+                                  filter3.share(), filter3.shape()[3],
+                                  stream.cpu(), tmp.share(), tmp.stride());
         } else {
             #ifdef NOA_ENABLE_CUDA
                 NOA_CHECK(filter1.shape()[3] * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES &&
@@ -122,21 +113,12 @@ namespace noa::filter {
                           filter3.shape()[3] * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES,
                           "In the CUDA backend, separable filters have a size limited to {} bytes",
                           details::CUDA_FILTER_MAX_BYTES);
-            if (tmp.empty()) {
-                cuda::signal::convolve(input.share(), input_stride,
-                                       output.share(), output.stride(), output.shape(),
-                                       filter1.share(), filter1.shape()[3],
-                                       filter2.share(), filter2.shape()[3],
-                                       filter3.share(), filter3.shape()[3],
-                                       stream.cuda());
-            } else {
-                cuda::signal::convolve(input.share(), input_stride,
-                                       output.share(), output.stride(), output.shape(),
-                                       filter1.share(), filter1.shape()[3],
-                                       filter2.share(), filter2.shape()[3],
-                                       filter3.share(), filter3.shape()[3],
-                                       tmp.share(), tmp.stride(), stream.cuda());
-            }
+            cuda::signal::convolve(input.share(), input_stride,
+                                   output.share(), output.stride(), output.shape(),
+                                   filter1.share(), filter1.shape()[3],
+                                   filter2.share(), filter2.shape()[3],
+                                   filter3.share(), filter3.shape()[3],
+                                   stream.cuda(), tmp.share(), tmp.stride());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

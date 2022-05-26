@@ -201,11 +201,22 @@ namespace noa::cpu::signal {
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   const shared_t<U[]>& filter0, size_t filter0_size,
                   const shared_t<U[]>& filter1, size_t filter1_size,
-                  const shared_t<U[]>& filter2, size_t filter2_size,
-                  const shared_t<T[]>& tmp, size4_t tmp_stride, Stream& stream) {
+                  const shared_t<U[]>& filter2, size_t filter2_size, Stream& stream,
+                  const shared_t<T[]>& tmp, size4_t tmp_stride) {
         NOA_ASSERT(input != output);
         const int3_t fs{filter0_size, filter1_size, filter2_size};
         const size_t threads = stream.threads();
+
+        int count = 0;
+        if (filter0)
+            count += 1;
+        if (filter1)
+            count += 1;
+        if (filter2)
+            count += 1;
+        const bool allocate = !tmp && count > 1;
+        const shared_t<T[]> buffer = allocate ? memory::PtrHost<T>::alloc(shape.elements()) : tmp;
+        const size4_t buffer_stride = allocate ? shape.stride() : tmp_stride;
 
         if (filter0 && filter1 && filter2) {
             NOA_ASSERT(filter0_size % 2);
@@ -216,9 +227,9 @@ namespace noa::cpu::signal {
                                       output.get(), output_stride, shape,
                                       filter0.get(), fs[0], threads);
                 convolveSep_<T, U, 1>(output.get(), output_stride,
-                                      tmp.get(), tmp_stride, shape,
+                                      buffer.get(), buffer_stride, shape,
                                       filter1.get(), fs[1], threads);
-                convolveSep_<T, U, 2>(tmp.get(), tmp_stride,
+                convolveSep_<T, U, 2>(buffer.get(), buffer_stride,
                                       output.get(), output_stride, shape,
                                       filter2.get(), fs[2], threads);
             });
@@ -227,9 +238,9 @@ namespace noa::cpu::signal {
             NOA_ASSERT(filter1_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 0>(input.get(), input_stride,
-                                      tmp.get(), tmp_stride, shape,
+                                      buffer.get(), buffer_stride, shape,
                                       filter0.get(), fs[0], threads);
-                convolveSep_<T, U, 1>(tmp.get(), tmp_stride,
+                convolveSep_<T, U, 1>(buffer.get(), buffer_stride,
                                       output.get(), output_stride, shape,
                                       filter1.get(), fs[1], threads);
             });
@@ -238,9 +249,9 @@ namespace noa::cpu::signal {
             NOA_ASSERT(filter2_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 1>(input.get(), input_stride,
-                                      tmp.get(), tmp_stride, shape,
+                                      buffer.get(), buffer_stride, shape,
                                       filter1.get(), fs[1], threads);
-                convolveSep_<T, U, 2>(tmp.get(), tmp_stride,
+                convolveSep_<T, U, 2>(buffer.get(), buffer_stride,
                                       output.get(), output_stride, shape,
                                       filter2.get(), fs[2], threads);
             });
@@ -249,9 +260,9 @@ namespace noa::cpu::signal {
             NOA_ASSERT(filter2_size % 2);
             stream.enqueue([=]() {
                 convolveSep_<T, U, 0>(input.get(), input_stride,
-                                      tmp.get(), tmp_stride, shape,
+                                      buffer.get(), buffer_stride, shape,
                                       filter0.get(), fs[0], threads);
-                convolveSep_<T, U, 2>(tmp.get(), tmp_stride,
+                convolveSep_<T, U, 2>(buffer.get(), buffer_stride,
                                       output.get(), output_stride, shape,
                                       filter2.get(), fs[2], threads);
             });
@@ -283,8 +294,8 @@ namespace noa::cpu::signal {
     template void convolve<T, U, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,                                           \
                                        const shared_t<U[]>&, size_t,                                                                                    \
                                        const shared_t<U[]>&, size_t,                                                                                    \
-                                       const shared_t<U[]>&, size_t,                                                                                    \
-                                       const shared_t<T[]>&, size4_t, Stream&)
+                                       const shared_t<U[]>&, size_t, Stream&,                                                                           \
+                                       const shared_t<T[]>&, size4_t)
 
     NOA_INSTANTIATE_CONV_(half_t, half_t);
     NOA_INSTANTIATE_CONV_(half_t, float);
