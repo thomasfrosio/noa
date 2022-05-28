@@ -1,93 +1,106 @@
 #include <benchmark/benchmark.h>
 
 #include <noa/cpu/Stream.h>
+#include <noa/cpu/math/Random.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fft/Transforms.h>
-
-#include "Helpers.h"
 
 using namespace ::noa;
 
 namespace {
-    constexpr size3_t shapes[] = {
-            {512, 512, 1},
-            {4096, 4096, 1},
-            {128, 128, 128},
-            {256, 256, 256},
-            {512, 512, 512},
+    constexpr size4_t shapes[] = {
+            {1, 1, 512, 512},
+            {1, 1, 4096, 4096},
+            {1, 256, 256, 256},
+            {1, 512, 512, 512},
     };
 
     template<typename T>
     void CPU_fft_r2c(benchmark::State& state) {
-        const size3_t shape = shapes[state.range(0)];
-        const size3_t shape_fft = noa::shapeFFT(shape);
+        const size4_t shape = shapes[state.range(0)];
 
         using complex_t = noa::Complex<T>;
-        cpu::memory::PtrHost<T> src(elements(shape));
-        cpu::memory::PtrHost<complex_t> dst(elements(shape_fft));
+        cpu::memory::PtrHost<T> src{shape.elements()};
+        cpu::memory::PtrHost<complex_t> dst{shape.fft().elements()};
 
-        test::Randomizer<T> randomizer(-5, 5);
-        test::randomize(src.get(), src.elements(), randomizer);
+        cpu::Stream stream{cpu::Stream::DEFAULT};
+        cpu::math::randomize(math::uniform_t{}, src.share(), src.elements(), T{-5}, T{5}, stream);
 
-        cpu::Stream stream;
         for (auto _: state) {
-            cpu::fft::r2c(src.get(), dst.get(), shape, 1, stream);
+            cpu::fft::r2c(src.share(), dst.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
 
     template<typename T>
     void CPU_fft_r2c_inplace(benchmark::State& state) {
-        const size3_t shape = shapes[state.range(0)];
+        const size4_t shape = shapes[state.range(0)];
 
-        cpu::memory::PtrHost<T> src(elements(shape + 2));
+        using complex_t = noa::Complex<T>;
+        cpu::memory::PtrHost<complex_t> dst{shape.fft().elements()};
+        const auto& src = std::reinterpret_pointer_cast<T[]>(dst.share());
 
-        test::Randomizer<T> randomizer(-5, 5);
-        test::randomize(src.get(), src.elements(), randomizer);
+        cpu::Stream stream{cpu::Stream::DEFAULT};
+        cpu::math::randomize(math::uniform_t{}, dst.share(), dst.elements(), T{-5}, T{5}, stream);
 
-        cpu::Stream stream;
         for (auto _: state) {
-            cpu::fft::r2c(src.get(), shape, 1, stream);
-            ::benchmark::DoNotOptimize(src.get());
+            cpu::fft::r2c(src, dst.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, stream);
+            ::benchmark::DoNotOptimize(dst.get());
         }
     }
 
     template<typename T>
-    void CPU_fft_r2c_save_plan(benchmark::State& state) {
-        const size3_t shape = shapes[state.range(0)];
-        const size3_t shape_fft = noa::shapeFFT(shape);
+    void CPU_fft_r2c_cache_plan(benchmark::State& state) {
+        const size4_t shape = shapes[state.range(0)];
 
         using complex_t = noa::Complex<T>;
-        cpu::memory::PtrHost<T> src(elements(shape));
-        cpu::memory::PtrHost<complex_t> dst(elements(shape_fft));
+        cpu::Stream stream{cpu::Stream::DEFAULT};
 
-        test::Randomizer<T> randomizer(-5, 5);
-        test::randomize(src.get(), src.elements(), randomizer);
+        cpu::memory::PtrHost<T> src{shape.elements()};
+        cpu::memory::PtrHost<complex_t> dst{shape.fft().elements()};
+        cpu::fft::Plan plan{src.share(), dst.share(), shape, cpu::fft::MEASURE, stream};
 
-        cpu::Stream stream;
-        // Use same flag for plan creation to see if FFTw3 is able to same the plan in a cache or something...
-        cpu::fft::Plan plan(src.get(), dst.get(), shape, 1, noa::cpu::fft::ESTIMATE, stream);
+        cpu::memory::PtrHost<T> new_src{src.elements()};
+        cpu::memory::PtrHost<complex_t> new_dst{dst.elements()};
+        cpu::math::randomize(math::uniform_t{}, new_src.share(), new_src.elements(), T{-5}, T{5}, stream);
+
         for (auto _: state) {
-            cpu::fft::r2c(src.get(), dst.get(), shape, 1, stream);
+            cpu::fft::r2c(new_src.share(), new_dst.share(), plan, stream);
+            ::benchmark::DoNotOptimize(new_dst.get());
+        }
+    }
+
+    template<typename T>
+    void CPU_fft_r2c_measure(benchmark::State& state) {
+        const size4_t shape = shapes[state.range(0)];
+
+        using complex_t = noa::Complex<T>;
+        cpu::memory::PtrHost<T> src{shape.elements()};
+        cpu::memory::PtrHost<complex_t> dst{shape.fft().elements()};
+
+        cpu::Stream stream{cpu::Stream::DEFAULT};
+        cpu::math::randomize(math::uniform_t{}, src.share(), src.elements(), T{-5}, T{5}, stream);
+
+        cpu::fft::r2c(src.share(), dst.share(), shape, cpu::fft::MEASURE, fft::NORM_NONE, stream);
+        for (auto _: state) {
+            cpu::fft::r2c(src.share(), dst.share(), shape, cpu::fft::MEASURE, fft::NORM_NONE, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
 
     template<typename T>
     void CPU_fft_c2r(benchmark::State& state) {
-        const size3_t shape = shapes[state.range(0)];
-        const size3_t shape_fft = noa::shapeFFT(shape);
+        const size4_t shape = shapes[state.range(0)];
 
         using complex_t = noa::Complex<T>;
-        cpu::memory::PtrHost<complex_t> src(elements(shape_fft));
-        cpu::memory::PtrHost<T> dst(elements(shape));
+        cpu::memory::PtrHost<complex_t> src{shape.fft().elements()};
+        cpu::memory::PtrHost<T> dst{shape.elements()};
 
-        test::Randomizer<complex_t> randomizer(-5, 5);
-        test::randomize(src.get(), src.elements(), randomizer);
+        cpu::Stream stream{cpu::Stream::DEFAULT};
+        cpu::math::randomize(math::uniform_t{}, src.share(), src.elements(), T{-5}, T{5}, stream);
 
-        cpu::Stream stream;
         for (auto _: state) {
-            cpu::fft::c2r(src.get(), dst.get(), shape, 1, stream);
+            cpu::fft::c2r(src.share(), dst.share(), shape, cpu::fft::ESTIMATE, fft::NORM_NONE, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -98,10 +111,11 @@ namespace {
 // In-place seems to be as fast as out-of place.
 // Multiple threads are quickly very beneficial (small 2D images can be done in 1 or 2 threads though).
 // Double precision is almost as fast as single precision.
-BENCHMARK_TEMPLATE(CPU_fft_r2c, float)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
-BENCHMARK_TEMPLATE(CPU_fft_r2c, double)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
-BENCHMARK_TEMPLATE(CPU_fft_r2c_inplace, float)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
-BENCHMARK_TEMPLATE(CPU_fft_r2c_save_plan, float)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_r2c, float)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_r2c, double)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_r2c_inplace, float)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_r2c_cache_plan, float)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_r2c_measure, float)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();
 
-BENCHMARK_TEMPLATE(CPU_fft_c2r, float)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
-BENCHMARK_TEMPLATE(CPU_fft_c2r, double)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_c2r, float)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CPU_fft_c2r, double)->DenseRange(0, 3)->Unit(benchmark::kMillisecond)->UseRealTime();

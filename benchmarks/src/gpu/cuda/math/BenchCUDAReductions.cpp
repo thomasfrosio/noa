@@ -1,149 +1,97 @@
-//#include <noa/gpu/cuda/math/Reductions.h>
-//
-//#include <noa/cpu/memory/PtrHost.h>
-//#include <noa/gpu/cuda/memory/PtrDevice.h>
-//#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
-//#include <noa/gpu/cuda/memory/Copy.h>
-//
-//#include "Helpers.h"
-//#include <catch2/catch.hpp>
-//
-//using namespace noa;
-//
-//TEMPLATE_TEST_CASE("cuda::Math: sumMean", "[noa][cuda][math]", float, double, cfloat_t, cdouble_t) {
-//    size_t batches = 5;
-//    size3_t shape(512, 512, 128);
-//    size3_t shape_batched(shape.x, shape.y, shape.z * batches);
-//    size_t elements = noa::elements(shape); // 33554432
-//
-//    test::Randomizer<TestType> randomizer(1., 10.);
-//    cpu::memory::PtrHost<TestType> h_data(elements * batches);
-//    test::randomize(h_data.get(), h_data.elements(), randomizer);
-//
-//    cuda::memory::PtrDevice<TestType> d_results(2 * batches);
-//
-//    {
-//        NOA_BENCHMARK_HEADER("cuda::Math: sumMean - contiguous");
-//
-//        cuda::Stream stream;
-//        cuda::memory::PtrDevice<TestType> d_data(elements * batches);
-//        cuda::memory::copy(h_data.get(), d_data.get(), d_data.size(), stream);
-//        cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get(), 65536, 1, stream); // warm up
-//
-//        noa::Session::logger.info("Type: {}, Batches 5", noa::string::typeName<TestType>());
-//        size_t i_elements;
-//        {
-//            i_elements = 1;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 512;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 1024;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 8192;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 65536;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 524288;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 2097152;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 16777216;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//        {
-//            i_elements = 33554432;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "elements:{}", i_elements);
-//            cuda::math::sumMean(d_data.get(), d_results.get(), d_results.get() + batches, i_elements, batches, stream);
-//        }
-//    }
-//
-//    {
-//        NOA_BENCHMARK_HEADER("cuda::Math: sumMean - padded");
-//
-//        cuda::memory::PtrDevicePadded<TestType> d_data(shape_batched);
-//
-//        cuda::Stream stream;
-//        cuda::memory::copy(h_data.get(), shape.x, d_data.get(), d_data.pitch(), shape_batched, stream);
-//        cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get(),
-//                            size3_t(256, 256, 1), 1, stream); // warm up
-//
-//        noa::Session::logger.info("Type: {}, Batches 5", noa::string::typeName<TestType>());
-//        size3_t i_shape;
-//        {
-//            i_shape = 1;
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {32, 16, 1};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {32, 32, 1};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {128, 64, 1};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {256, 256, 1};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {64, 64, 128};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {1024, 64, 32};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {256, 256, 256};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//        {
-//            i_shape = {1024, 1024, 32};
-//            NOA_BENCHMARK_CUDA_SCOPE(stream, "shape:{}, elements:{}", i_shape, noa::elements(i_shape));
-//            cuda::math::sumMean(d_data.get(), d_data.pitch(), d_results.get(), d_results.get() + batches,
-//                                i_shape, batches, stream);
-//        }
-//    }
-//}
+#include <benchmark/benchmark.h>
+
+#include <noa/gpu/cuda/Event.h>
+#include <noa/gpu/cuda/Stream.h>
+#include <noa/gpu/cuda/math/Random.h>
+#include <noa/gpu/cuda/math/Reduce.h>
+#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+
+using namespace ::noa;
+
+namespace {
+    constexpr size4_t shapes[] = {
+            {1, 1, 1, 2},
+            {1, 1, 1, 256},
+            {1, 1, 1, 512},
+            {1, 1, 1, 8192},
+            {1, 1, 1, 16384},
+            {1, 1, 1, 32768},
+            {1, 1, 1, 65536},
+            {1, 1, 1, 1048576},
+            {1, 1, 1, 4194304},
+            {1, 1, 1, 16777216},
+            {1, 1, 1, 33554432}
+    };
+
+    constexpr size4_t shapes2[] = {
+            {1, 1,   512,  512},
+            {1, 1,   4096, 4096},
+            {1, 128, 128,  256},
+            {1, 256, 256,  256},
+            {1, 256, 256,  512}
+    };
+
+    template<typename T>
+    void CUDA_reduce_sum_contiguous(benchmark::State& state) {
+        const size4_t shape = shapes[state.range(0)];
+
+        cuda::Stream stream{cuda::Stream::DEFAULT};
+
+        cuda::memory::PtrDevice<T> src{shape.elements(), stream};
+        cuda::memory::PtrDevice<T> dst{1, stream};
+        cuda::math::randomize(math::uniform_t{}, src.share(), src.elements(), T{-5}, T{5}, stream);
+        stream.synchronize();
+
+        for (auto _: state) {
+            cuda::Event start, end;
+            start.record(stream);
+
+            cuda::math::sum(src.share(), shape.stride(), shape, dst.share(), size4_t{}, size4_t{1}, stream);
+
+            end.record(stream);
+            end.synchronize();
+            state.SetIterationTime(cuda::Event::elapsed(start, end));
+            ::benchmark::DoNotOptimize(dst.get());
+        }
+    }
+
+    template<typename T>
+    void CUDA_reduce_sum_pitch(benchmark::State& state) {
+        const size4_t shape = shapes2[state.range(0)];
+
+        cuda::Stream stream{cuda::Stream::DEFAULT};
+
+        cuda::memory::PtrDevicePadded<T> src{shape};
+        cuda::memory::PtrDevice<T> dst{1, stream};
+        cuda::math::randomize(math::uniform_t{}, src.share(), src.pitch().elements(), T{-5}, T{5}, stream);
+        stream.synchronize();
+
+        for (auto _: state) {
+            cuda::Event start, end;
+            start.record(stream);
+
+            cuda::math::sum(src.share(), src.stride(), shape, dst.share(), size4_t{}, size4_t{1}, stream);
+
+            end.record(stream);
+            end.synchronize();
+            state.SetIterationTime(cuda::Event::elapsed(start, end));
+            ::benchmark::DoNotOptimize(dst.get());
+        }
+    }
+}
+
+// Compared to the CUDA 11.4 samples (the best of their kernels, kernel 7), our implementation is very similar
+// in terms of performance. For very small arrays (<=512 elements), we perform worst (0.006ms vs 0.030ms), probably
+// because we launch more threads (we have a fixed size block of 512 threads). For medium-sized arrays (8192 to 1M),
+// we are faster (0.12ms vs 0.025-0.07ms). For large arrays (millions of elements), it is very similar. It seems like
+// we have slightly better performance for single precision, but slightly worse for double precision. In any case,
+// I would say we are comparable to the CUDA samples.
+BENCHMARK_TEMPLATE(CUDA_reduce_sum_contiguous, float)->DenseRange(0, 10)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CUDA_reduce_sum_contiguous, double)->DenseRange(0, 10)->Unit(benchmark::kMillisecond)->UseRealTime();
+
+// Non-contiguous arrays (pitched in this case) have basically the same performance characteristics than contiguous ones,
+// which is great. Pitched arrays can still be vectorized. In fact, in this case, they have the same vectorization as
+// contiguous arrays (see reduceLarge4D_ kernel).
+BENCHMARK_TEMPLATE(CUDA_reduce_sum_pitch, float)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_TEMPLATE(CUDA_reduce_sum_pitch, double)->DenseRange(0, 4)->Unit(benchmark::kMillisecond)->UseRealTime();
