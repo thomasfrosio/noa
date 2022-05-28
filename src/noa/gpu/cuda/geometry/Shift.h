@@ -37,8 +37,8 @@ namespace noa::cuda::geometry {
     /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
@@ -78,8 +78,8 @@ namespace noa::cuda::geometry {
     /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,

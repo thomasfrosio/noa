@@ -31,7 +31,7 @@ namespace noa::cuda::geometry {
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
@@ -57,7 +57,7 @@ namespace noa::cuda::geometry {
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,

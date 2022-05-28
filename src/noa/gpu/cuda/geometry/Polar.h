@@ -26,7 +26,7 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Out-of-bounds elements are set to zero.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
@@ -55,7 +55,7 @@ namespace noa::cuda::geometry {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Out-of-bounds elements are set to zero.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note This function is asynchronous relative to the host and may return before completion.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,

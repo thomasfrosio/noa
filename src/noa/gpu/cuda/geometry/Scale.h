@@ -33,8 +33,8 @@ namespace noa::cuda::geometry {
     /// \param border_mode          Address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/cuda/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
@@ -62,7 +62,7 @@ namespace noa::cuda::geometry {
         }
     }
 
-    /// Applies one 2D scaling to a (batched) array.
+    /// Applies one 2D scaling/stretching to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     NOA_IH void scale2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
@@ -94,8 +94,8 @@ namespace noa::cuda::geometry {
     /// \param border_mode          Address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///                             The stream is synchronized when the function returns.
     ///
+    /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/cuda/geometry/Transform.h" for more details on the input and output parameters.
     /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
@@ -123,7 +123,7 @@ namespace noa::cuda::geometry {
         }
     }
 
-    /// Applies one 3D scaling to a (batched) array.
+    /// Applies one 3D scaling/stretching to a (batched) array.
     /// See overload above for more details.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     NOA_IH void scale3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
