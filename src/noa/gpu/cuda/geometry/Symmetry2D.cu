@@ -18,9 +18,9 @@ namespace {
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
     symmetrize2D_(cudaTextureObject_t texture, T* output, uint3_t output_stride, uint2_t shape,
                   const float33_t* symmetry_matrices, uint symmetry_count, float2_t center, float scaling) {
-        const uint3_t gid(blockIdx.z,
+        const uint3_t gid{blockIdx.z,
                           blockIdx.y * THREADS.y + threadIdx.y,
-                          blockIdx.x * THREADS.x + threadIdx.x);
+                          blockIdx.x * THREADS.x + threadIdx.x};
         if (gid[1] >= shape[0] || gid[2] >= shape[1])
             return;
 
@@ -31,7 +31,7 @@ namespace {
             const float33_t& m = symmetry_matrices[i];
             float22_t sym_matrix{m[1][1], m[1][2],
                                  m[2][1], m[2][2]};
-            float2_t i_coordinates(sym_matrix * coordinates);
+            float2_t i_coordinates{sym_matrix * coordinates};
             value += cuda::geometry::tex2D<T, INTERP>(texture, i_coordinates + center + 0.5f);
         }
 

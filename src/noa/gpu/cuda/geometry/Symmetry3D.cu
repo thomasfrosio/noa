@@ -31,7 +31,7 @@ namespace {
         T value = cuda::geometry::tex3D<T, INTERP>(texture, coordinates + 0.5f);
         coordinates -= center;
         for (uint i = 0; i < symmetry_count; ++i) {
-            float3_t i_coordinates(symmetry_matrices[i] * coordinates);
+            float3_t i_coordinates{symmetry_matrices[i] * coordinates};
             value += cuda::geometry::tex3D<T, INTERP>(texture, i_coordinates + center + 0.5f);
         }
 
@@ -47,8 +47,11 @@ namespace noa::cuda::geometry {
                       InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(shape[1] > 1);
 
-        if (!symmetry.count())
-            return memory::copy(input, input_stride, output, output_stride, shape, stream);
+        if (!symmetry.count()) {
+            if (input != output)
+                memory::copy(input, input_stride, output, output_stride, shape, stream);
+            return;
+        }
 
         size4_t input_shape{shape};
         if (input_stride[0] == 0)
