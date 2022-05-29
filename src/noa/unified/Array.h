@@ -244,6 +244,9 @@ namespace noa {
         Array permute(uint4_t permutation, bool copy = false) const;
 
     public: // Assignment operators
+        /// Clears the array. Equivalent to assigning *this with an empty array.
+        Array& operator=(std::nullptr_t);
+
         /// Fills the array with \p value.
         Array& operator=(T value);
 

@@ -314,6 +314,12 @@ namespace noa {
     }
 
     template<typename T>
+    Array<T>& Array<T>::operator=(std::nullptr_t) {
+        *this = Array<T>{};
+        return *this;
+    }
+
+    template<typename T>
     Array<T>& Array<T>::operator=(T value) {
         Stream& stream = Stream::current(device());
         if (device().cpu()) {
