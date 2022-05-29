@@ -217,7 +217,8 @@ namespace noa::cuda::signal::fft {
                     lhs.get(), lhs_stride, rhs.get(), rhs_stride, buffer.get(), buffer_stride, shape.fft(), stream,
                     []__device__(Complex<T> l, Complex<T> r) {
                         const Complex<T> product = l * noa::math::conj(r);
-                        return product / noa::math::abs(product);
+                        const T magnitude = noa::math::abs(product);
+                        return magnitude < static_cast<T>(1e-7) ? 0 : product / magnitude;
                     });
         } else {
             cuda::math::ewise(lhs, lhs_stride, rhs, rhs_stride, buffer, buffer_stride,

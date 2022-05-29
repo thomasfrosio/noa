@@ -113,7 +113,8 @@ namespace noa::cpu::signal::fft {
                     lhs, lhs_stride, rhs, rhs_stride, buffer, buffer_stride, shape.fft(),
                     [](Complex<T> l, Complex<T> r) {
                         const Complex<T> product = l * noa::math::conj(r);
-                        return product / noa::math::abs(product);
+                        const T magnitude = noa::math::abs(product);
+                        return magnitude < static_cast<T>(1e-7) ? 0 : product / magnitude;
                     }, stream);
         } else {
             cpu::math::ewise(lhs, lhs_stride, rhs, rhs_stride, buffer, buffer_stride,
