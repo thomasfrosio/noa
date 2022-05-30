@@ -33,7 +33,7 @@ namespace {
             magnitude_x = polar_coordinate[1] * step_radius[1] + start_radius[1];
         }
 
-        float2_t cartesian_coordinates{magnitude_y * math::sin(angle_rad) + center,
+        float2_t cartesian_coordinates{magnitude_y * math::sin(angle_rad),
                                        magnitude_x * math::cos(angle_rad)};
         float conj = 1;
         if (cartesian_coordinates[1] < 0) {
@@ -43,6 +43,7 @@ namespace {
         } else {
             (void) conj;
         }
+        cartesian_coordinates[0] += center; // center_x = 0;
 
         T value = cuda::geometry::tex2D<T, MODE>(cartesian, cartesian_coordinates + 0.5f);
         if constexpr (traits::is_complex_v<T>)
@@ -60,7 +61,7 @@ namespace noa::cuda::geometry::fft {
                          bool log, InterpMode interp, Stream& stream) {
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
-        NOA_ASSERT(indexing::isContiguous(cartesian_stride, cartesian_shape)[3]);
+        NOA_ASSERT(cartesian_stride[3] == 1);
 
         if (cartesian_stride[0] == 0)
             cartesian_shape[0] = 1;
@@ -70,7 +71,7 @@ namespace noa::cuda::geometry::fft {
                               polar_shape[1], polar_shape[2], polar_shape[3]};
 
         // Copy to texture and launch (per input batch):
-        const size3_t shape_3d{1, cartesian_shape[2], cartesian_shape[3]};
+        const size3_t shape_3d{1, cartesian_shape[2], cartesian_shape[3] / 2 + 1};
         cuda::memory::PtrArray<T> array{shape_3d};
         cuda::memory::PtrTexture texture{array.get(), interp, BORDER_ZERO};
         for (size_t i = 0; i < cartesian_shape[0]; ++i) {
@@ -119,37 +120,37 @@ namespace noa::cuda::geometry::fft {
                 return stream.enqueue("geometry::fft::cartesian2polar",
                                       cartesian2polar_<INTERP_NEAREST, T>,
                                       config, cartesian, polar, o_stride, o_shape,
-                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[1]},
+                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[0]},
                                       step_angle, float2_t{step_radius_y, step_radius_x}, log);
             case INTERP_LINEAR:
                 return stream.enqueue("geometry::fft::cartesian2polar",
                                       cartesian2polar_<INTERP_COSINE, T>,
                                       config, cartesian, polar, o_stride, o_shape,
-                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[1]},
+                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[0]},
                                       step_angle, float2_t{step_radius_y, step_radius_x}, log);
             case INTERP_COSINE:
                 return stream.enqueue("geometry::fft::cartesian2polar",
                                       cartesian2polar_<INTERP_COSINE, T>,
                                       config, cartesian, polar, o_stride, o_shape,
-                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[1]},
+                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[0]},
                                       step_angle, float2_t{step_radius_y, step_radius_x}, log);
             case INTERP_CUBIC:
                 return stream.enqueue("geometry::fft::cartesian2polar",
                                       cartesian2polar_<INTERP_CUBIC, T>,
                                       config, cartesian, polar, o_stride, o_shape,
-                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[1]},
+                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[0]},
                                       step_angle, float2_t{step_radius_y, step_radius_x}, log);
             case INTERP_LINEAR_FAST:
                 return stream.enqueue("geometry::fft::cartesian2polar",
                                       cartesian2polar_<INTERP_LINEAR_FAST, T>,
                                       config, cartesian, polar, o_stride, o_shape,
-                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[1]},
+                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[0]},
                                       step_angle, float2_t{step_radius_y, step_radius_x}, log);
             case INTERP_COSINE_FAST:
                 return stream.enqueue("geometry::fft::cartesian2polar",
                                       cartesian2polar_<INTERP_COSINE_FAST, T>,
                                       config, cartesian, polar, o_stride, o_shape,
-                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[1]},
+                                      half_shape[0], angle_range[0], float2_t{radius_y_range[0], radius_x_range[0]},
                                       step_angle, float2_t{step_radius_y, step_radius_x}, log);
             case INTERP_CUBIC_BSPLINE:
             case INTERP_CUBIC_BSPLINE_FAST:

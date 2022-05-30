@@ -33,7 +33,7 @@ namespace {
         }
 
         const float start_angle = angle_range[0];
-        const float2_t start_radius{radius_y_range[0], radius_x_range[1]};
+        const float2_t start_radius{radius_y_range[0], radius_x_range[0]};
         const float center = half_shape[0];
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
@@ -55,14 +55,15 @@ namespace {
                         radius_x = polar_coordinate[1] * step_radius_x + start_radius[1];
                     }
 
-                    float2_t cartesian_coordinates{radius_y * math::sin(angle_rad) + center,
-                                                   radius_x * math::cos(angle_rad)}; // center_x = 0
+                    float2_t cartesian_coordinates{radius_y * math::sin(angle_rad),
+                                                   radius_x * math::cos(angle_rad)};
                     [[maybe_unused]] real_t conj = 1;
                     if (cartesian_coordinates[1] < 0) {
                         cartesian_coordinates = -cartesian_coordinates;
                         if constexpr (traits::is_complex_v<T>)
                             conj = -1;
                     }
+                    cartesian_coordinates[0] += center; // center_x = 0
 
                     T value = interp.template get<INTERP, BORDER_ZERO>(cartesian_coordinates, offset * batch);
                     if constexpr (traits::is_complex_v<T>)
