@@ -28,7 +28,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/memory/TestCPUTranspose.cpp
 
         noa/cpu/signal/fft/TestCPUBandpass.cpp
-#        noa/cpu/signal/fft/TestCPUCorrelate.cpp
+        noa/cpu/signal/fft/TestCPUCorrelate.cpp
         noa/cpu/signal/fft/TestCPUShiftFFT.cpp
         noa/cpu/signal/fft/TestCPUStandardize.cpp
         noa/cpu/signal/TestCPUConvolve.cpp

@@ -18,7 +18,7 @@ namespace {
     // From the DC-centered frequency to a valid index in the non-centered output.
     // The input frequency should be in-bound, i.e. -n/2 <= frequency <= (n-1)/2
     constexpr NOA_FD int64_t getIndex_(int64_t frequency, int64_t volume_dim) {
-        return frequency + volume_dim / 2;
+        return frequency < 0 ? volume_dim + frequency : frequency;
     }
 
     // From a valid index to the DC-centered frequency.
@@ -32,6 +32,10 @@ namespace {
     constexpr NOA_FD int2_t getFrequency_(int2_t index, int2_t shape) {
         return {index[0] < (shape[0] + 1) / 2 ? index[0] : index[0] - shape[0],
                 index[1] < (shape[1] + 1) / 2 ? index[1] : index[1] - shape[1]};
+    }
+
+    constexpr NOA_FD int getFrequency_(int index, int shape) {
+        return index < (shape + 1) / 2 ? index : index - shape;
     }
 
     // Given values at three successive positions, y[0], y[1], y[2], where
@@ -51,22 +55,40 @@ namespace {
         return x;
     }
 
+    template<bool IS_CENTERED, typename T>
+    constexpr NOA_FD T fetchPeack1D_(const T* input, uint stride, int shape, int peak, int tidx, int offset) {
+        T value = 0;
+        if (tidx < 3) {
+            if constexpr (!IS_CENTERED) {
+                const int tid = getFrequency_(peak, shape) + offset;
+                if (-shape / 2 <= tid && tid <= (shape - 1) / 2) {
+                    value = input[getIndex_(tid, shape) * stride];
+                }
+            } else {
+                const int tid = peak + offset;
+                if (0 <= tid && tid < shape)
+                    value = input[tid * stride];
+            }
+        }
+        return value;
+    }
+
     // Fetch the 3x3 window around the peak
     // No coalescing here I'm afraid.
-    template<fft::Remap REMAP, typename T>
+    template<bool IS_CENTERED, typename T>
     constexpr NOA_FD T fetchPeack2D_(const T* input, uint2_t stride, int2_t shape, int2_t peak,
                                      int tidx, int2_t offset) {
         T value = 0;
         if (tidx < 9) {
-            if constexpr (REMAP == fft::F2F) {
-                const int2_t tid = getFrequency_(peak, shape) - offset;
+            if constexpr (!IS_CENTERED) {
+                const int2_t tid = getFrequency_(peak, shape) + offset;
                 if (all(-shape / 2 <= tid && tid <= (shape - 1) / 2)) {
                     value = input[indexing::at(getIndex_(tid[0], shape[0]),
                                                getIndex_(tid[1], shape[1]),
                                                stride)];
                 }
             } else {
-                const int2_t tid = peak - offset;
+                const int2_t tid = peak + offset;
                 if (all(0 <= tid && tid < shape))
                     value = input[indexing::at(tid, stride)];
             }
@@ -76,13 +98,13 @@ namespace {
 
     // Fetch the 3x3x3 window around the peak
     // No coalescing here I'm afraid.
-    template<fft::Remap REMAP, typename T>
+    template<bool IS_CENTERED, typename T>
     constexpr NOA_FD T fetchPeack3D_(const T* input, uint3_t stride, int3_t shape, int3_t peak,
                                      int tidx, int3_t offset) {
         T value = 0;
         if (tidx < 27) {
-            if constexpr (REMAP == fft::F2F) {
-                const int3_t tid = getFrequency_(peak, shape) - offset;
+            if constexpr (!IS_CENTERED) {
+                const int3_t tid = getFrequency_(peak, shape) + offset;
                 if (all(-shape / 2 <= tid && tid <= (shape - 1) / 2)) {
                     value = input[indexing::at(getIndex_(tid[0], shape[0]),
                                                getIndex_(tid[1], shape[1]),
@@ -90,7 +112,7 @@ namespace {
                                                stride)];
                 }
             } else {
-                const int3_t tid = peak - offset;
+                const int3_t tid = peak + offset;
                 if (all(0 <= tid && tid < shape))
                     value = input[indexing::at(tid, stride)];
             }
@@ -98,7 +120,51 @@ namespace {
         return value;
     }
 
-    template<fft::Remap REMAP, typename T>
+    template<bool IS_CENTERED, typename T>
+    __global__ __launch_bounds__(BLOCK_SIZE)
+    void singlePeak1D_(const T* __restrict__ input, uint stride, int shape,
+                       int peak, float* __restrict__ coordinates) {
+        using namespace cuda::util;
+        const auto tidx = static_cast<int>(threadIdx.x);
+        const int offset = tidx - 1;
+
+        __shared__ T square[BLOCK_SIZE];
+        square[tidx] = fetchPeack1D_<IS_CENTERED>(input, stride, shape, peak, tidx, offset);
+        block::synchronize();
+
+        if (tidx == 0) {
+            float refined_peak = IS_CENTERED ? peak : math::FFTShift(peak, shape);
+            refined_peak += getParabolicVertex_(square[0], square[1], square[2]);
+            *coordinates = refined_peak;
+        }
+    }
+
+    template<bool IS_CENTERED, typename T>
+    __global__ __launch_bounds__(BLOCK_SIZE)
+    void singlePeak1DBatched_(const T* __restrict__ input, uint batch_stride,
+                              uint stride, int shape,
+                              const uint32_t* __restrict__ peaks,
+                              float* __restrict__ coordinates) {
+        using namespace cuda::util;
+        const uint batch = blockIdx.x;
+        const auto tidx = static_cast<int>(threadIdx.x);
+        const int offset = tidx - 1;
+
+        const auto peak = static_cast<int>(peaks[batch] / stride);
+        input += batch_stride * batch;
+
+        __shared__ T square[BLOCK_SIZE];
+        square[tidx] = fetchPeack1D_<IS_CENTERED>(input, stride, shape, peak, tidx, offset);
+        block::synchronize();
+
+        if (tidx == 0) {
+            float refined_peak = IS_CENTERED ? peak : math::FFTShift(peak, shape);
+            refined_peak += getParabolicVertex_(square[0], square[1], square[2]);
+            coordinates[batch] = refined_peak;
+        }
+    }
+
+    template<bool IS_CENTERED, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
     void singlePeak2D_(const T* __restrict__ input, uint2_t stride, int2_t shape,
                        int2_t peak, float2_t* __restrict__ coordinates) {
@@ -107,19 +173,20 @@ namespace {
         const int2_t offset = indexing::indexes(tidx, 3) - 1;
 
         __shared__ T square[BLOCK_SIZE];
-        square[tidx] = fetchPeack2D_<REMAP>(input, stride, shape, peak, tidx, offset);
+        square[tidx] = fetchPeack2D_<IS_CENTERED>(input, stride, shape, peak, tidx, offset);
         block::synchronize();
 
         if (tidx == 0) {
-            float2_t output{peak};
+            float refined_peak0 = IS_CENTERED ? peak[0] : math::FFTShift(peak[0], shape[0]);
+            float refined_peak1 = IS_CENTERED ? peak[1] : math::FFTShift(peak[1], shape[1]);
             const T peak_value = square[4];
-            output[0] += getParabolicVertex_(square[1], peak_value, square[7]);
-            output[1] += getParabolicVertex_(square[3], peak_value, square[5]);
-            *coordinates = output;
+            refined_peak0 += getParabolicVertex_(square[1], peak_value, square[7]);
+            refined_peak1 += getParabolicVertex_(square[3], peak_value, square[5]);
+            *coordinates = float2_t{refined_peak0, refined_peak1};
         }
     }
 
-    template<fft::Remap REMAP, typename T>
+    template<bool IS_CENTERED, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
     void singlePeak2DBatched_(const T* __restrict__ input, uint batch_stride,
                               uint2_t stride, int2_t shape, uint pitch_x,
@@ -135,19 +202,20 @@ namespace {
         input += batch_stride * batch;
 
         __shared__ T square[BLOCK_SIZE];
-        square[tidx] = fetchPeack2D_<REMAP>(input, stride, shape, peak, tidx, offset);
+        square[tidx] = fetchPeack2D_<IS_CENTERED>(input, stride, shape, peak, tidx, offset);
         block::synchronize();
 
         if (tidx == 0) {
-            float2_t output{peak};
+            float refined_peak0 = IS_CENTERED ? peak[0] : math::FFTShift(peak[0], shape[0]);
+            float refined_peak1 = IS_CENTERED ? peak[1] : math::FFTShift(peak[1], shape[1]);
             const T peak_value = square[4];
-            output[0] += getParabolicVertex_(square[1], peak_value, square[7]);
-            output[1] += getParabolicVertex_(square[3], peak_value, square[5]);
-            coordinates[batch] = output;
+            refined_peak0 += getParabolicVertex_(square[1], peak_value, square[7]);
+            refined_peak1 += getParabolicVertex_(square[3], peak_value, square[5]);
+            coordinates[batch] = float2_t{refined_peak0, refined_peak1};
         }
     }
 
-    template<fft::Remap REMAP, typename T>
+    template<bool IS_CENTERED, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
     void singlePeak3D_(const T* __restrict__ input, uint3_t stride, int3_t shape,
                        int3_t peak, float3_t* __restrict__ coordinates) {
@@ -156,20 +224,22 @@ namespace {
         const int3_t offset = indexing::indexes(tidx, 3, 3) - 1;
 
         __shared__ T square[BLOCK_SIZE];
-        square[tidx] = fetchPeack3D_<REMAP>(input, stride, shape, peak, tidx, offset);
+        square[tidx] = fetchPeack3D_<IS_CENTERED>(input, stride, shape, peak, tidx, offset);
         block::synchronize();
 
         if (tidx == 0) {
-            float3_t output{peak};
+            float refined_peak0 = IS_CENTERED ? peak[0] : math::FFTShift(peak[0], shape[0]);
+            float refined_peak1 = IS_CENTERED ? peak[1] : math::FFTShift(peak[1], shape[1]);
+            float refined_peak2 = IS_CENTERED ? peak[2] : math::FFTShift(peak[2], shape[2]);
             const T peak_value = square[13];
-            output[0] += getParabolicVertex_(square[4], peak_value, square[22]);
-            output[1] += getParabolicVertex_(square[10], peak_value, square[16]);
-            output[1] += getParabolicVertex_(square[12], peak_value, square[14]);
-            *coordinates = output;
+            refined_peak0 += getParabolicVertex_(square[4], peak_value, square[22]);
+            refined_peak1 += getParabolicVertex_(square[10], peak_value, square[16]);
+            refined_peak2 += getParabolicVertex_(square[12], peak_value, square[14]);
+            *coordinates = float3_t{refined_peak0, refined_peak1, refined_peak2};
         }
     }
 
-    template<fft::Remap REMAP, typename T>
+    template<bool IS_CENTERED, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
     void singlePeak3DBatched_(const T* __restrict__ input, uint batch_stride,
                               uint3_t stride, int3_t shape, uint pitch_y, uint pitch_x,
@@ -185,16 +255,18 @@ namespace {
         input += batch_stride * batch;
 
         __shared__ T square[BLOCK_SIZE];
-        square[tidx] = fetchPeack3D_<REMAP>(input, stride, shape, peak, tidx, offset);
+        square[tidx] = fetchPeack3D_<IS_CENTERED>(input, stride, shape, peak, tidx, offset);
         block::synchronize();
 
         if (tidx == 0) {
-            float3_t output{peak};
+            float refined_peak0 = IS_CENTERED ? peak[0] : math::FFTShift(peak[0], shape[0]);
+            float refined_peak1 = IS_CENTERED ? peak[1] : math::FFTShift(peak[1], shape[1]);
+            float refined_peak2 = IS_CENTERED ? peak[2] : math::FFTShift(peak[2], shape[2]);
             const T peak_value = square[13];
-            output[0] += getParabolicVertex_(square[4], peak_value, square[22]);
-            output[1] += getParabolicVertex_(square[10], peak_value, square[16]);
-            output[1] += getParabolicVertex_(square[12], peak_value, square[14]);
-            coordinates[batch] = output;
+            refined_peak0 += getParabolicVertex_(square[4], peak_value, square[22]);
+            refined_peak1 += getParabolicVertex_(square[10], peak_value, square[16]);
+            refined_peak2 += getParabolicVertex_(square[12], peak_value, square[14]);
+            coordinates[batch] = float3_t{refined_peak0, refined_peak1, refined_peak2};
         }
     }
 }
@@ -218,7 +290,10 @@ namespace noa::cuda::signal::fft {
                     []__device__(Complex<T> l, Complex<T> r) {
                         const Complex<T> product = l * noa::math::conj(r);
                         const T magnitude = noa::math::abs(product);
-                        return magnitude < static_cast<T>(1e-7) ? 0 : product / magnitude;
+                        return product / (magnitude + static_cast<T>(1e-13));
+                        // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
+                        // for input values close to zero (less than 1e-10). In most cases, this is fine.
+                        // Note that the normalization can sharpen the peak considerably.
                     });
         } else {
             cuda::math::ewise(lhs, lhs_stride, rhs, rhs_stride, buffer, buffer_stride,
@@ -240,12 +315,50 @@ namespace noa::cuda::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void xpeak2D(const shared_t<T[]>& map, size4_t stride, size4_t shape,
-                 const shared_t<float2_t[]>& coordinates, Stream& stream) {
-        NOA_ASSERT(shape[1] == 0);
+    void xpeak1D(const shared_t<T[]>& map, size4_t stride, size4_t shape,
+                 const shared_t<float[]>& coordinates, Stream& stream) {
+        NOA_ASSERT(shape[1] == 1);
         NOA_ASSERT(stride[2] > 0);
         cuda::memory::PtrDevice<uint32_t> offsets{shape[0], stream};
-        cuda::math::find(noa::math::max_t{}, map, stride, shape, offsets.share(), false, stream);
+        cuda::math::find(noa::math::max_t{}, map, stride, shape, offsets.share(), true, stream);
+
+        float* coordinates_ptr = util::devicePointer(coordinates.get(), stream.device());
+        memory::PtrDevice<float> buffer;
+        if (!coordinates_ptr) {
+            buffer = memory::PtrDevice<float>{shape[0], stream};
+            coordinates_ptr = buffer.get();
+        }
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue("signal::fft::xpeak1D", singlePeak1DBatched_<IS_CENTERED, T>, LaunchConfig{shape[0], BLOCK_SIZE},
+                       map.get(), stride[0], stride[3], shape[3], offsets.get(), coordinates_ptr);
+
+        if (!buffer.empty())
+            memory::copy(coordinates_ptr, coordinates.get(), shape[0], stream);
+        stream.attach(map, coordinates);
+    }
+
+    template<Remap REMAP, typename T, typename>
+    float xpeak1D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(shape.ndim() == 1);
+        NOA_ASSERT(stride[3] > 0);
+        const auto peak_offset = cuda::math::find<uint32_t>(noa::math::max_t{}, xmap, stride, shape, stream);
+        const uint32_t peak_index = peak_offset / static_cast<uint32_t>(stride[3]);
+
+        cuda::memory::PtrPinned<float> coordinate{1};
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue("signal::fft::xpeak1D", singlePeak1D_<IS_CENTERED, T>, LaunchConfig{1, BLOCK_SIZE},
+                       xmap.get(), stride[3], shape[3], peak_index, coordinate.get());
+        stream.synchronize();
+        return coordinate[0];
+    }
+
+    template<Remap REMAP, typename T, typename>
+    void xpeak2D(const shared_t<T[]>& map, size4_t stride, size4_t shape,
+                 const shared_t<float2_t[]>& coordinates, Stream& stream) {
+        NOA_ASSERT(shape[1] == 1);
+        NOA_ASSERT(stride[2] > 0);
+        cuda::memory::PtrDevice<uint32_t> offsets{shape[0], stream};
+        cuda::math::find(noa::math::max_t{}, map, stride, shape, offsets.share(), true, stream);
 
         float2_t* coordinates_ptr = util::devicePointer(coordinates.get(), stream.device());
         memory::PtrDevice<float2_t> buffer;
@@ -253,7 +366,8 @@ namespace noa::cuda::signal::fft {
             buffer = memory::PtrDevice<float2_t>{shape[0], stream};
             coordinates_ptr = buffer.get();
         }
-        stream.enqueue("signal::fft::xpeak2D", singlePeak2DBatched_<REMAP, T>, {BLOCK_SIZE, shape[0]},
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue("signal::fft::xpeak2D", singlePeak2DBatched_<IS_CENTERED, T>, LaunchConfig{shape[0], BLOCK_SIZE},
                        map.get(), stride[0], uint2_t{stride.get() + 2}, int2_t{shape.get() + 2},
                        stride[2], offsets.get(), coordinates_ptr);
 
@@ -266,13 +380,14 @@ namespace noa::cuda::signal::fft {
     float2_t xpeak2D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 2);
         NOA_ASSERT(stride[2] > 0);
-        const auto peak_offset = cuda::math::find<uint32_t>(noa::math::max_t{}, xmap, stride, shape, false, stream);
-        const int2_t peak_index = indexing::indexes(peak_offset, static_cast<uint32_t>(stride[2]));
+        const auto peak_offset = cuda::math::find<uint32_t>(noa::math::max_t{}, xmap, stride, shape, stream);
+        const uint2_t peak_index = indexing::indexes(peak_offset, static_cast<uint32_t>(stride[2]));
 
         cuda::memory::PtrPinned<float2_t> coordinate{1};
-        stream.enqueue("signal::fft::xpeak2D", singlePeak2D_<REMAP>, {BLOCK_SIZE, 1},
-                       xmap.get(), uint2_t{stride.get() + 2}, uint2_t{shape.get() + 2},
-                       peak_index, coordinate.get());
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue("signal::fft::xpeak2D", singlePeak2D_<IS_CENTERED, T>, LaunchConfig{1, BLOCK_SIZE},
+                       xmap.get(), uint2_t{stride.get() + 2}, int2_t{shape.get() + 2},
+                       int2_t{peak_index}, coordinate.get());
         stream.synchronize();
         return coordinate[0];
     }
@@ -282,7 +397,7 @@ namespace noa::cuda::signal::fft {
                  const shared_t<float3_t[]>& coordinates, Stream& stream) {
         NOA_ASSERT(stride[1] > 0 && stride[2] > 0);
         cuda::memory::PtrPinned<uint32_t> offsets{shape[0]};
-        cuda::math::find(noa::math::max_t{}, map, stride, shape, offsets.share(), false, stream);
+        cuda::math::find(noa::math::max_t{}, map, stride, shape, offsets.share(), true, stream);
 
         float3_t* coordinates_ptr = util::devicePointer(coordinates.get(), stream.device());
         memory::PtrDevice<float3_t> buffer;
@@ -290,7 +405,8 @@ namespace noa::cuda::signal::fft {
             buffer = memory::PtrDevice<float3_t>{shape[0], stream};
             coordinates_ptr = buffer.get();
         }
-        stream.enqueue("signal::fft::xpeak3D", singlePeak3DBatched_<REMAP, T>, {BLOCK_SIZE, shape[0]},
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue("signal::fft::xpeak3D", singlePeak3DBatched_<IS_CENTERED, T>, LaunchConfig{shape[0], BLOCK_SIZE},
                        map.get(), stride[0], uint3_t{stride.get() + 1}, int3_t{shape.get() + 1},
                        stride[1] / stride[2], stride[2], offsets.get(), coordinates_ptr);
 
@@ -303,26 +419,35 @@ namespace noa::cuda::signal::fft {
     float3_t xpeak3D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 3);
         NOA_ASSERT(stride[1] > 0 && stride[2] > 0);
-        const auto peak_offset = cuda::math::find<uint32_t>(noa::math::max_t{}, xmap, stride, shape, false, stream);
-        const int3_t peak_index = indexing::indexes(peak_offset,
-                                                    static_cast<uint32_t>(stride[1] / stride[2]),
-                                                    static_cast<uint32_t>(stride[2]));
+        const auto peak_offset = cuda::math::find<uint32_t>(noa::math::max_t{}, xmap, stride, shape, stream);
+        const uint3_t peak_index = indexing::indexes(peak_offset,
+                                                     static_cast<uint32_t>(stride[1] / stride[2]),
+                                                     static_cast<uint32_t>(stride[2]));
 
         cuda::memory::PtrPinned<float3_t> coordinate{1};
-        stream.enqueue("signal::fft::xpeak3D", singlePeak3D_<REMAP>, {BLOCK_SIZE, 1},
-                       xmap.get(), uint3_t{stride.get() + 1}, uint3_t{shape.get() + 1},
-                       peak_index, coordinate.get());
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue("signal::fft::xpeak3D", singlePeak3D_<IS_CENTERED, T>, LaunchConfig{1, BLOCK_SIZE},
+                       xmap.get(), uint3_t{stride.get() + 1}, int3_t{shape.get() + 1},
+                       int3_t{peak_index}, coordinate.get());
         stream.synchronize();
         return coordinate[0];
     }
 
     #define INSTANTIATE_XMAP(T) \
-    template void xmap<Remap::H2F, T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, size4_t);   \
-    template void xmap<Remap::H2FC, T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, size4_t);  \
-    template void xpeak2D<Remap::F2F, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&);     \
-    template void xpeak2D<Remap::FC2FC, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&);   \
-    template void xpeak3D<Remap::F2F, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&);     \
-    template void xpeak3D<Remap::FC2FC, T>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&)
+    template void xmap<Remap::H2F, T, void>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, size4_t);   \
+    template void xmap<Remap::H2FC, T, void>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, size4_t);  \
+    template void xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float[]>&, Stream&);      \
+    template void xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float[]>&, Stream&);    \
+    template void xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&);   \
+    template void xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&); \
+    template void xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&);   \
+    template void xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&); \
+    template float xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);       \
+    template float xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);     \
+    template float2_t xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template float2_t xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template float3_t xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template float3_t xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     INSTANTIATE_XMAP(float);
     INSTANTIATE_XMAP(double);

@@ -56,6 +56,36 @@ namespace noa::cpu::signal::fft {
               size4_t shape, bool normalize, Norm norm, Stream& stream,
               const shared_t<Complex<T>[]>& tmp = nullptr, size4_t tmp_stride = {});
 
+    /// Find the highest peak in a cross-correlation line.
+    /// \details The highest value of the map is found. Then the sub-pixel position is determined
+    ///          by fitting a parabola separately to the peak and 2 adjacent points.
+    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T               float, double.
+    /// \param xmap             On the \b host. 1D cross-correlation map.
+    /// \param stride           Rightmost stride of \p map.
+    ///                         The innermost dimension should have a non-zero stride.
+    /// \param shape            Rightmost shape of \p map.
+    /// \param[out] peaks       On the \b host. Rightmost coordinates of the highest peak. One per batch.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
+    void xpeak1D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape,
+                 const shared_t<float[]>& peaks, Stream& stream);
+
+    /// Returns the rightmost coordinates of the highest peak in a cross-correlation line.
+    /// \details The highest value of the map is found. Then the sub-pixel position is determined
+    ///          by fitting a parabola separately to the peak and 2 adjacent points.
+    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T               float, double.
+    /// \param xmap             On the \b host. Unbatched 1D cross-correlation map.
+    /// \param stride           Rightmost stride of \p map.
+    ///                         The innermost dimension should have a non-zero stride.
+    /// \param shape            Rightmost shape of \p map.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///                         The stream is synchronized when the function returns.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
+    float xpeak1D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream);
+
     /// Find the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.

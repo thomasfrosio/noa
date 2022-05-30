@@ -1,13 +1,14 @@
 #include "noa/cpu/fft/Transforms.h"
 #include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/math/Find.h"
-#include "noa/cpu/math/Reduce.h"
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/signal/fft/Correlate.h"
 #include "noa/cpu/signal/fft/Shift.h"
 
 namespace {
     using namespace ::noa;
+    using long1_t = std::array<int64_t, 1>;
+    using float1_t = std::array<float, 1>;
 
     // From the DC-centered frequency to a valid index in the non-centered output.
     // The input frequency should be in-bound, i.e. -n/2 <= frequency <= (n-1)/2
@@ -28,6 +29,10 @@ namespace {
                 index[1] < (shape[1] + 1) / 2 ? index[1] : index[1] - shape[1]};
     }
 
+    inline constexpr long1_t getFrequency_(long1_t index, long1_t shape) noexcept {
+        return long1_t{index[0] < (shape[0] + 1) / 2 ? index[0] : index[0] - shape[0]};
+    }
+
     // Given values at three successive positions, y[0], y[1], y[2], where
     // y[1] is the peak value, this fits a parabola to the values and returns the
     // offset (from -0.5 to 0.5) from the center position.
@@ -45,41 +50,45 @@ namespace {
         return x;
     }
 
-    template<int NDIM, fft::Remap REMAP, typename T, typename U>
+    template<int NDIM, bool IS_CENTERED, typename T, typename U>
     inline constexpr auto getSinglePeak(const T* input, U stride, U shape, U peak) {
-        static_assert((NDIM == 2 && traits::is_almost_same_v<U, long2_t>) ||
+        static_assert((NDIM == 1 && traits::is_almost_same_v<U, long1_t>) ||
+                      (NDIM == 2 && traits::is_almost_same_v<U, long2_t>) ||
                       (NDIM == 3 && traits::is_almost_same_v<U, long3_t>));
         constexpr size_t ELEMENTS = 3 * NDIM;
 
         std::array<T, ELEMENTS> output{0};
         T* output_ptr = output.data();
 
-        if constexpr (REMAP == fft::F2F) {
+        if constexpr (!IS_CENTERED) {
             const U peak_ = getFrequency_(peak, shape);
-            for (int dim = 0; dim < NDIM; ++dim) {
+            for (size_t dim = 0; dim < NDIM; ++dim) {
                 const T* input_ = input;
 
                 // Add peak offset in the other dimensions.
-                for (int i = 0; i < NDIM; ++i)
+                for (size_t i = 0; i < NDIM; ++i)
                     input_ += peak[i] * stride[i] * (dim != i);
 
                 // Here the 2 adjacent points might be in a separate quadrant.
                 // Retrieve the frequency, add the offset, and if it's a valid
                 // frequency, convert back to an index.
-                for (int l = -(NDIM - 1); l < NDIM; ++l, ++output_ptr) {
+                for (int l = -1; l < 2; ++l, ++output_ptr) {
                     const int64_t il = peak_[dim] + l;
                     if (-shape[dim] / 2 <= il && il <= (shape[dim] - 1) / 2)
                         *output_ptr = input_[getIndex_(il, shape[dim]) * stride[dim]];
                 }
             }
             // The CC map was not centered, so center it here.
-            for (int dim = 0; dim < NDIM; ++dim)
+            for (size_t dim = 0; dim < NDIM; ++dim)
                 peak[dim] = math::FFTShift(peak[dim], shape[dim]);
 
         } else {
-            input += indexing::at(peak, stride);
-            for (int dim = 0; dim < NDIM; ++dim) {
-                for (int l = -(NDIM - 1); l < NDIM; ++l, ++output_ptr) {
+            if constexpr (NDIM == 1)
+                input += peak[0] * stride[0];
+            else
+                input += indexing::at(peak, stride);
+            for (size_t dim = 0; dim < NDIM; ++dim) {
+                for (int l = -1; l < 2; ++l, ++output_ptr) {
                     const int64_t il = peak[dim] + l;
                     if (il >= 0 && il < shape[dim])
                         *output_ptr = input[l * stride[dim]];
@@ -88,10 +97,11 @@ namespace {
         }
 
         // Add sub-pixel position by fitting a 1D parabola to the peak and its 2 adjacent points.
-        using peak_type = std::conditional_t<NDIM == 2, float2_t, float3_t>;
-        peak_type final_peak{peak};
-        for (int dim = 0; dim < NDIM; ++dim)
-            final_peak[dim] += static_cast<float>(getParabolicVertex_(output.data() + 3 * dim));
+        using peak_type = std::conditional_t<NDIM == 1, float1_t, std::conditional_t<NDIM == 2, float2_t, float3_t>>;
+        peak_type final_peak{0};
+        for (size_t dim = 0; dim < NDIM; ++dim)
+            final_peak[dim] = static_cast<float>(peak[dim]) +
+                              static_cast<float>(getParabolicVertex_(output.data() + 3 * dim));
         return final_peak;
     }
 }
@@ -114,7 +124,10 @@ namespace noa::cpu::signal::fft {
                     [](Complex<T> l, Complex<T> r) {
                         const Complex<T> product = l * noa::math::conj(r);
                         const T magnitude = noa::math::abs(product);
-                        return magnitude < static_cast<T>(1e-7) ? 0 : product / magnitude;
+                        return product / (magnitude + static_cast<T>(1e-13));
+                        // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
+                        // for input values close to zero (less than 1e-10). In most cases, this is fine.
+                        // Note that the normalization can sharpen the peak considerably.
                     }, stream);
         } else {
             cpu::math::ewise(lhs, lhs_stride, rhs, rhs_stride, buffer, buffer_stride,
@@ -136,8 +149,37 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
+    void xpeak1D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape,
+                 const shared_t<float[]>& peaks, Stream& stream) {
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        stream.enqueue([=]() mutable {
+            cpu::memory::PtrHost<int64_t> offsets{shape[0]};
+            math::find(noa::math::max_t{}, xmap, stride, shape, offsets.share(), true, stream);
+            const long1_t shape_1d{static_cast<int64_t>(shape[3])};
+            const long1_t stride_1d{static_cast<int64_t>(stride[3])};
+            for (size_t batch = 0; batch < shape[0]; ++batch) {
+                const long1_t peak{offsets[batch] / stride_1d[0]};
+                const T* imap = xmap.get() + stride[0] * batch;
+                peaks.get()[batch] = getSinglePeak<1, IS_CENTERED>(imap, stride_1d, shape_1d, peak)[0];
+            }
+        });
+    }
+
+    template<Remap REMAP, typename T, typename>
+    float xpeak1D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream) {
+        NOA_ASSERT(shape.ndim() == 1);
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+        const auto offset = math::find<int64_t>(noa::math::max_t{}, xmap, stride, shape, stream);
+        const long1_t peak{offset / static_cast<int64_t>(stride[3])};
+        const long1_t shape_1d{static_cast<int64_t>(shape[3])};
+        const long1_t stride_1d{static_cast<int64_t>(stride[3])};
+        return getSinglePeak<1, IS_CENTERED>(xmap.get(), stride_1d, shape_1d, peak)[0];
+    }
+
+    template<Remap REMAP, typename T, typename>
     void xpeak2D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape,
                  const shared_t<float2_t[]>& peaks, Stream& stream) {
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets{shape[0]};
             math::find(noa::math::max_t{}, xmap, stride, shape, offsets.share(), true, stream);
@@ -147,7 +189,7 @@ namespace noa::cpu::signal::fft {
             for (size_t batch = 0; batch < shape[0]; ++batch) {
                 const long2_t peak = noa::indexing::indexes(offsets[batch], pitch);
                 const T* imap = xmap.get() + stride[0] * batch;
-                peaks.get()[batch] = getSinglePeak<2, REMAP>(imap, stride_2d, shape_2d, peak);
+                peaks.get()[batch] = getSinglePeak<2, IS_CENTERED>(imap, stride_2d, shape_2d, peak);
             }
         });
     }
@@ -155,17 +197,19 @@ namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename T, typename>
     float2_t xpeak2D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 2);
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto offset = math::find<int64_t>(noa::math::max_t{}, xmap, stride, shape, stream);
         const auto pitch = static_cast<int64_t>(stride[2]);
         const long2_t shape_2d{shape.get() + 2};
         const long2_t stride_2d{stride.get() + 2};
         const long2_t peak = noa::indexing::indexes(offset, pitch);
-        return getSinglePeak<2, REMAP>(xmap.get(), stride_2d, shape_2d, peak);
+        return getSinglePeak<2, IS_CENTERED>(xmap.get(), stride_2d, shape_2d, peak);
     }
 
     template<Remap REMAP, typename T, typename>
     void xpeak3D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape,
                  const shared_t<float3_t[]>& peaks, Stream& stream) {
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets{shape[0]};
             math::find(noa::math::max_t{}, xmap, stride, shape, offsets.share(), true, stream);
@@ -175,31 +219,36 @@ namespace noa::cpu::signal::fft {
             for (size_t batch = 0; batch < shape[0]; ++batch) {
                 const long3_t peak = noa::indexing::indexes(offsets[batch], pitch[0], pitch[1]);
                 const T* imap = xmap.get() + stride[0] * batch;
-                peaks.get()[batch] = getSinglePeak<3, REMAP>(imap, stride_3d, shape_3d, peak);
+                peaks.get()[batch] = getSinglePeak<3, IS_CENTERED>(imap, stride_3d, shape_3d, peak);
             }
         });
     }
 
     template<Remap REMAP, typename T, typename>
     float3_t xpeak3D(const shared_t<T[]>& xmap, size4_t stride, size4_t shape, Stream& stream) {
+        constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto offset = math::find<int64_t>(noa::math::max_t{}, xmap, stride, shape, stream);
         const long2_t pitch{stride[1] / stride[2], stride[2]};
         const long3_t shape_3d{shape.get() + 1};
         const long3_t stride_3d{stride.get() + 1};
         const long3_t peak = noa::indexing::indexes(offset, pitch[0], pitch[1]);
-        return getSinglePeak<3, REMAP>(xmap.get(), stride_3d, shape_3d, peak);
+        return getSinglePeak<3, IS_CENTERED>(xmap.get(), stride_3d, shape_3d, peak);
     }
 
     #define INSTANTIATE_XMAP(T)                                                                                                                                                \
     template void xmap<Remap::H2F, T, void>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, size4_t);   \
     template void xmap<Remap::H2FC, T, void>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, size4_t);  \
-    template void xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&);     \
-    template void xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&);   \
-    template void xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&);     \
-    template void xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&);   \
-    template float2_t xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);     \
-    template float2_t xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);   \
-    template float3_t xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);     \
+    template void xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float[]>&, Stream&);      \
+    template void xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float[]>&, Stream&);    \
+    template void xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&);   \
+    template void xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, Stream&); \
+    template void xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&);   \
+    template void xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, Stream&); \
+    template float xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);       \
+    template float xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);     \
+    template float2_t xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template float2_t xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);  \
+    template float3_t xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
     template float3_t xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
     INSTANTIATE_XMAP(float);
