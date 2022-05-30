@@ -9,7 +9,7 @@
 #include "noa/gpu/cuda/signal/Shape.h"
 #endif
 
-namespace noa::filter {
+namespace noa::signal {
     template<bool INVERT, typename T, typename>
     void sphere(const Array<T>& input, const Array<T>& output,
                 float3_t center, float radius, float taper_size) {

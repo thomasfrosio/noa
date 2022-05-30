@@ -2,7 +2,7 @@
 
 #include "noa/unified/Array.h"
 
-namespace noa::filter {
+namespace noa::signal {
     /// Returns or applies a spherical mask.
     /// \tparam INVERT      Whether the mask should be inverted. If true, everything within the sphere is removed.
     /// \tparam T           half_t, float, double, chalf_t, cfloat_t, cdouble_t.

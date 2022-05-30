@@ -35,7 +35,7 @@ namespace noa::geometry::fft {
                     frequency_range, angle_range, log, interp, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<float, cfloat_t>) {
+            if constexpr (!traits::is_any_v<T, float, cfloat_t>) {
                 NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
             } else {
                 NOA_CHECK(cartesian.contiguous()[3],

@@ -43,6 +43,27 @@ namespace noa::signal::fft {
 
     /// Find the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
+    ///          by fitting a parabola separately to the peak and 2 adjacent points.
+    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T           float, double.
+    /// \param[in] xmap     1D cross-correlation map.
+    /// \param[out] peaks   Row vector with the rightmost coordinates of the highest peak. One per batch.
+    ///                     If \p xmap is on the CPU, it should be dereferencable by the CPU.
+    ///                     If \p xmap is on the CPU, it can be on any device, including the CPU.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
+    void xpeak1D(const Array<T>& xmap, const Array<float>& peaks);
+
+    /// Returns the rightmost coordinates of the highest peak in a cross-correlation map.
+    /// \details The highest value of the map is found. Then the sub-pixel position is determined
+    ///          by fitting a parabola separately to the peak and 2 adjacent points.
+    /// \tparam REMAP   Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T       float, double.
+    /// \param xmap     Unbatched 1D cross-correlation map.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
+    float xpeak1D(const Array<T>& xmap);
+
+    /// Find the highest peak in a cross-correlation map.
+    /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
     /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T           float, double.

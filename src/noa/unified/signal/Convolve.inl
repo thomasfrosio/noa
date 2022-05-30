@@ -7,12 +7,12 @@
 #include "noa/cpu/signal/Convolve.h"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/signal/Convolve.h"
-namespace noa::filter::details {
+namespace noa::signal::details {
     constexpr size_t CUDA_FILTER_MAX_BYTES = 1032;
 }
 #endif
 
-namespace noa::filter {
+namespace noa::signal {
     template<typename T, typename U, typename>
     void convolve(const Array<T>& input, const Array<T>& output, const Array<U>& filter) {
         size4_t input_stride = input.stride();

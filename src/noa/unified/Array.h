@@ -186,6 +186,9 @@ namespace noa {
         /// It guarantees safe access to the Array's managed memory using get(), data(), share() or view().
         const Array& eval() const;
 
+        /// Releases the array. *this is left empty.
+        Array release() noexcept;
+
     public: // Deep copy
         /// Performs a deep copy of the array to \p output.
         /// \details Contiguous regions of memory have no copy restrictions and can be copied to any device. This is

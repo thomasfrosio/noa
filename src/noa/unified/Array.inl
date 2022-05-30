@@ -169,6 +169,11 @@ namespace noa {
     }
 
     template<typename T>
+    Array<T> Array<T>::release() noexcept {
+        return std::exchange(*this, Array<T>{});
+    }
+
+    template<typename T>
     void Array<T>::to(const Array& output) const {
         size4_t input_stride = m_stride;
         if (!indexing::broadcast(m_shape, input_stride, output.shape())) {

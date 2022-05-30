@@ -2,7 +2,7 @@
 
 #include "noa/unified/Array.h"
 
-namespace noa::filter {
+namespace noa::signal {
     /// 1D convolution.
     /// \tparam T,U         half_t, float, double.
     /// \param[in] input    Array to convolve.
