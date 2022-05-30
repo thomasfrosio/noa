@@ -7,10 +7,7 @@
 #include <catch2/catch.hpp>
 #include "Helpers.h"
 
-#include "noa/common/io/ImageFile.h"
-#include "noa/gpu/cuda/memory/PtrManaged.h"
-
-TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float) {
+TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float, double) {
     using namespace ::noa;
     using real_t = TestType;
     using complex_t = Complex<real_t>;
@@ -23,8 +20,8 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float) 
     const size4_t shape_fft = shape.fft();
     const size4_t stride_fft = shape_fft.stride();
 
-    const bool normalize = false;//GENERATE(true, false);
-    const fft::Norm norm_mode = fft::NORM_FORWARD;//GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
+    const bool normalize = GENERATE(true, false);
+    const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
 
     test::Randomizer<float> randomizer{-30, 30};
     const float2_t lhs_center{shape[2] / 2, shape[3] / 2};
