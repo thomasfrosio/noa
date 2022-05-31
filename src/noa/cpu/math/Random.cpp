@@ -111,10 +111,12 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = uniform_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            const auto min_ = static_cast<result_t>(min);
-            const auto max_ = static_cast<result_t>(max);
-            distributor_t distributor{min_, max_};
-            generate_(output.get(), elements, distributor);
+            stream.enqueue([=]() {
+                const auto min_ = static_cast<result_t>(min);
+                const auto max_ = static_cast<result_t>(max);
+                distributor_t distributor{min_, max_};
+                generate_(output.get(), elements, distributor);
+            });
         }
     }
 
@@ -129,10 +131,12 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = normal_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            const auto mean_ = static_cast<result_t>(mean);
-            const auto stddev_ = static_cast<result_t>(stddev);
-            distributor_t distributor{mean_, stddev_};
-            generate_(output.get(), elements, distributor);
+            stream.enqueue([=]() {
+                const auto mean_ = static_cast<result_t>(mean);
+                const auto stddev_ = static_cast<result_t>(stddev);
+                distributor_t distributor{mean_, stddev_};
+                generate_(output.get(), elements, distributor);
+            });
         }
     }
 
@@ -147,10 +151,12 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = lognormal_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            const auto mean_ = static_cast<result_t>(mean);
-            const auto stddev_ = static_cast<result_t>(stddev);
-            distributor_t distributor{mean_, stddev_};
-            generate_(output.get(), elements, distributor);
+            stream.enqueue([=]() {
+                const auto mean_ = static_cast<result_t>(mean);
+                const auto stddev_ = static_cast<result_t>(stddev);
+                distributor_t distributor{mean_, stddev_};
+                generate_(output.get(), elements, distributor);
+            });
         }
     }
 
@@ -162,8 +168,10 @@ namespace noa::cpu::math {
                       lambda, stream);
         } else {
             using distributor_t = poisson_distributor_t<T>;
-            distributor_t distributor{static_cast<double>(lambda)};
-            generate_(output.get(), elements, distributor);
+            stream.enqueue([=]() {
+                distributor_t distributor{static_cast<double>(lambda)};
+                generate_(output.get(), elements, distributor);
+            });
         }
     }
 
@@ -183,10 +191,12 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = uniform_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            const auto min_ = static_cast<result_t>(min);
-            const auto max_ = static_cast<result_t>(max);
-            distributor_t distributor{min_, max_};
-            generate_(output.get(), stride, shape, distributor);
+            stream.enqueue([=]() {
+                const auto min_ = static_cast<result_t>(min);
+                const auto max_ = static_cast<result_t>(max);
+                distributor_t distributor{min_, max_};
+                generate_(output.get(), stride, shape, distributor);
+            });
         }
     }
 
@@ -203,10 +213,12 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = normal_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            const auto mean_ = static_cast<result_t>(mean);
-            const auto stddev_ = static_cast<result_t>(stddev);
-            distributor_t distributor{mean_, stddev_};
-            generate_(output.get(), stride, shape, distributor);
+            stream.enqueue([=]() {
+                const auto mean_ = static_cast<result_t>(mean);
+                const auto stddev_ = static_cast<result_t>(stddev);
+                distributor_t distributor{mean_, stddev_};
+                generate_(output.get(), stride, shape, distributor);
+            });
         }
     }
 
@@ -223,10 +235,12 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = lognormal_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            const auto mean_ = static_cast<result_t>(mean);
-            const auto stddev_ = static_cast<result_t>(stddev);
-            distributor_t distributor{mean_, stddev_};
-            generate_(output.get(), stride, shape, distributor);
+            stream.enqueue([=]() {
+                const auto mean_ = static_cast<result_t>(mean);
+                const auto stddev_ = static_cast<result_t>(stddev);
+                distributor_t distributor{mean_, stddev_};
+                generate_(output.get(), stride, shape, distributor);
+            });
         }
     }
 
@@ -240,8 +254,10 @@ namespace noa::cpu::math {
                       reinterpreted.stride, reinterpreted.shape, lambda, stream);
         } else {
             using distributor_t = poisson_distributor_t<T>;
-            distributor_t distributor{static_cast<double>(lambda)};
-            generate_(output.get(), stride, shape, distributor);
+            stream.enqueue([=]() {
+                distributor_t distributor{static_cast<double>(lambda)};
+                generate_(output.get(), stride, shape, distributor);
+            });
         }
     }
 
