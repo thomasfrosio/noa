@@ -73,6 +73,9 @@ namespace noa::signal::fft {
                   "of batches in the cross-correlation map, but got {} peaks and {} output batches",
                   peaks.shape()[3], xmap.shape()[0]);
         NOA_CHECK(xmap.stride()[3] > 0, "The cross-correlation map should not have its innermost stride set to 0");
+        NOA_CHECK(xmap.shape()[1] == 1 && xmap.shape()[2] == 1,
+                  "The 1D cross-correlation map(s) should be a (batch of) row vector(s), but got shape {}",
+                  xmap.shape());
 
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
@@ -94,6 +97,8 @@ namespace noa::signal::fft {
     template<Remap REMAP, typename T, typename>
     float xpeak1D(const Array<T>& xmap) {
         NOA_CHECK(xmap.stride()[3] > 0, "The cross-correlation map should not have its innermost stride set to 0");
+        NOA_CHECK(xmap.shape().ndim() == 1,
+                  "The 1D cross-correlation map should be a row vector, but got shape {}", xmap.shape());
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
             return cpu::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cpu());
@@ -114,6 +119,9 @@ namespace noa::signal::fft {
                   "of batches in the cross-correlation map, but got {} peaks and {} output batches",
                   peaks.shape()[3], xmap.shape()[0]);
         NOA_CHECK(xmap.stride()[2] > 0, "The cross-correlation map should not have its second-most stride set to 0");
+        NOA_CHECK(xmap.shape()[1] == 1,
+                  "The cross-correlation map(s) should be a (batch of) 2D array(s), but got shape {}",
+                  xmap.shape());
 
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
@@ -135,6 +143,8 @@ namespace noa::signal::fft {
     template<Remap REMAP, typename T, typename>
     float2_t xpeak2D(const Array<T>& xmap) {
         NOA_CHECK(xmap.stride()[2] > 0, "The cross-correlation map should not have its second-most stride set to 0");
+        NOA_CHECK(xmap.shape().ndim() == 2,
+                  "The cross-correlation map should be a single 2D array, but got shape {}", xmap.shape());
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
             return cpu::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cpu());
@@ -178,6 +188,8 @@ namespace noa::signal::fft {
     float3_t xpeak3D(const Array<T>& xmap) {
         NOA_CHECK(xmap.stride()[1] > 0 && xmap.stride()[2] > 0,
                   "The cross-correlation map should not have its second and third-most stride set to 0");
+        NOA_CHECK(xmap.shape().ndim() == 3,
+                  "The cross-correlation map should be a single 3D array, but got shape {}", xmap.shape());
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
             return cpu::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cpu());

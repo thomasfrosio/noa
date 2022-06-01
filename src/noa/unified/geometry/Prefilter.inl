@@ -10,7 +10,7 @@
 #endif
 
 namespace noa::geometry::bspline {
-    template<typename T>
+    template<typename T, typename>
     void prefilter(const Array<T>& input, const Array<T>& output) {
         size4_t input_stride = input.stride();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
