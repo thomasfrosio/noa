@@ -291,7 +291,7 @@ namespace {
     }
 
     template<typename T, typename U, typename ReduceOp>
-    inline void reduceAxis_(const char* func,
+    inline void reduceAxis_(const char* func, cpu::Stream& stream,
                             const shared_t<T[]> input, size4_t input_stride, size4_t input_shape,
                             const shared_t<U[]> output, size4_t output_stride, size4_t output_shape,
                             bool4_t mask, ReduceOp reduce) {
@@ -301,14 +301,23 @@ namespace {
                                  "Got input:{}, output:{}, reduce:{}", input_shape, output_shape, mask);
         }
 
-        if (mask[3])
-            reduceAxis_<3>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
-        else if (mask[2])
-            reduceAxis_<2>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
-        else if (mask[1])
-            reduceAxis_<1>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
-        else if (mask[0])
-            reduceAxis_<0>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
+        if (mask[3]) {
+            stream.enqueue([=]() {
+                reduceAxis_<3>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
+            });
+        } else if (mask[2]) {
+            stream.enqueue([=]() {
+                reduceAxis_<2>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
+            });
+        } else if (mask[1]) {
+            stream.enqueue([=]() {
+                reduceAxis_<1>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
+            });
+        } else if (mask[0]) {
+            stream.enqueue([=]() {
+                reduceAxis_<0>(input.get(), input_stride, input_shape, output.get(), output_stride, reduce);
+            });
+        }
     }
 
     bool4_t getMask_(const char* func, size4_t input_shape, size4_t output_shape) {
@@ -403,7 +412,7 @@ namespace noa::cpu::math {
                 }
             });
         } else {
-            reduceAxis_("min", input, input_stride, input_shape,
+            reduceAxis_("min", stream, input, input_stride, input_shape,
                         output, output_stride, output_shape, mask,
                         [](const T* axis, size_t stride, size_t elements) {
                             T min = *axis;
@@ -437,7 +446,7 @@ namespace noa::cpu::math {
                 }
             });
         } else {
-            reduceAxis_("max", input, input_stride, input_shape,
+            reduceAxis_("max", stream, input, input_stride, input_shape,
                         output, output_stride, output_shape, mask,
                         [](const T* axis, size_t stride, size_t elements) {
                             T max = *axis;
@@ -486,7 +495,7 @@ namespace noa::cpu::math {
                 }
             });
         } else {
-            reduceAxis_("sum", input, input_stride, input_shape, output, output_stride, output_shape, mask,
+            reduceAxis_("sum", stream, input, input_stride, input_shape, output, output_stride, output_shape, mask,
                         [](const T* axis, size_t stride, size_t elements) {
                             if constexpr (traits::is_complex_v<T> || traits::is_float_v<T>) {
                                 return reduceAxisAccurateSum_(axis, stride, elements);
@@ -523,7 +532,7 @@ namespace noa::cpu::math {
                 }
             });
         } else {
-            reduceAxis_("mean", input, input_stride, input_shape, output, output_stride, output_shape, mask,
+            reduceAxis_("mean", stream, input, input_stride, input_shape, output, output_stride, output_shape, mask,
                         [](const T* axis, size_t stride, size_t elements) {
                             if constexpr (traits::is_complex_v<T> || traits::is_float_v<T>) {
                                 const auto count = static_cast<double>(elements);
@@ -581,7 +590,7 @@ namespace noa::cpu::math {
                 }
             });
         } else {
-            reduceAxis_("var", input, input_stride, input_shape, output, output_stride, output_shape, mask,
+            reduceAxis_("var", stream, input, input_stride, input_shape, output, output_stride, output_shape, mask,
                         [](const T* axis, size_t stride, size_t elements) {
                         if constexpr (traits::is_complex_v<T>) {
                             return reduceAxisAccurateVarianceComplex_<DDOF>(axis, stride, elements);
