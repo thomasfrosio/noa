@@ -27,6 +27,7 @@ namespace {
             return static_cast<size_t>(noa::math::FFTShift(idx, dim));
     }
 
+    // NOTE: If n is odd, this function shifts by n/2, not n//2.
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
     void shiftHalf_(const T* input, size4_t input_stride,
                     T* output, size4_t output_stride,
