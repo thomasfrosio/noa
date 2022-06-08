@@ -344,9 +344,10 @@ namespace noa {
 
         template<>
         NOA_IHD float norm<float>(Complex<float> x) {
-            if (abs(x.real) < sqrt(FLT_MIN) && abs(x.imag) < sqrt(FLT_MIN)) {
-                float a = x.real * 4.0f;
-                float b = x.imag * 4.0f;
+            constexpr float THRESHOLD = 1.0842021724855044e-19f; // sqrt(FLT_MIN);
+            if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
+                const float a = x.real * 4.0f;
+                const float b = x.imag * 4.0f;
                 return (a * a + b * b) / 16.0f;
             }
             return x.real * x.real + x.imag * x.imag;
@@ -354,9 +355,10 @@ namespace noa {
 
         template<>
         NOA_IHD double norm<double>(Complex<double> x) {
-            if (abs(x.real) < sqrt(DBL_MIN) && abs(x.imag) < sqrt(DBL_MIN)) {
-                double a = x.real * 4.0;
-                double b = x.imag * 4.0;
+            constexpr double THRESHOLD = 1.4916681462400413e-154; // sqrt(DBL_MIN)
+            if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
+                const double a = x.real * 4.0;
+                const double b = x.imag * 4.0;
                 return (a * a + b * b) / 16.0;
             }
             return x.real * x.real + x.imag * x.imag;

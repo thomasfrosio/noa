@@ -43,6 +43,9 @@ namespace noa {
         NOA_HD constexpr explicit Float2(Float2<U> v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
 
+        NOA_HD constexpr explicit Float2(Bool2 v) noexcept
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
+
         template<typename U>
         NOA_HD constexpr explicit Float2(Int2<U> v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}

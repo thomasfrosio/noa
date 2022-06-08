@@ -43,6 +43,9 @@ namespace noa {
         NOA_HD constexpr explicit Float4(Float4<U> v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
 
+        NOA_HD constexpr explicit Float4(Bool4 v) noexcept
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
+
         template<typename U>
         NOA_HD constexpr explicit Float4(Int4<U> v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
