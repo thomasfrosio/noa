@@ -28,12 +28,12 @@ namespace noa::geometry::fft {
                       "batches in the output ({})", input.shape()[0], output.shape()[0]);
         }
 
-        NOA_CHECK(matrices.shape()[3] == output.shape()[0] && matrices.shape().ndim() == 1 && matrices.contiguous(),
+        NOA_CHECK(matrices.shape()[3] == output.shape()[0] && matrices.shape().ndim() == 1 && all(matrices.contiguous()),
                   "The number of matrices, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the output, got {} matrices and {} output batches",
                   matrices.shape()[3], output.shape()[0]);
         NOA_CHECK(shifts.empty() ||
-                  (shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && shifts.contiguous()),
+                  (shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && all(shifts.contiguous())),
                   "The number of shifts, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the output, got {} shifts and {} output batches",
                   shifts.shape()[3], output.shape()[0]);
@@ -146,12 +146,12 @@ namespace noa::geometry::fft {
                       "batches in the output ({})", input.shape()[0], output.shape()[0]);
         }
 
-        NOA_CHECK(matrices.shape()[3] == output.shape()[0] && matrices.shape().ndim() == 1 && matrices.contiguous(),
+        NOA_CHECK(matrices.shape()[3] == output.shape()[0] && matrices.shape().ndim() == 1 && all(matrices.contiguous()),
                   "The number of matrices, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the output, got {} matrices and {} output batches",
                   matrices.shape()[3], output.shape()[0]);
         NOA_CHECK(shifts.empty() ||
-                  (shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && shifts.contiguous()),
+                  (shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && all(shifts.contiguous())),
                   "The number of shifts, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the output, got {} shifts and {} output batches",
                   shifts.shape()[3], output.shape()[0]);
