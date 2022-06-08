@@ -176,7 +176,7 @@ namespace noa {
 
         /// Returns a view of the array.
         template<typename I = size_t>
-        [[nodiscard]] constexpr View <T, I> view() noexcept;
+        [[nodiscard]] constexpr View<T, I> view() noexcept;
 
         /// Returns a const view of the array.
         template<typename I = size_t>

@@ -44,6 +44,8 @@ set(NOA_UNIFIED_HEADERS
         # noa::geometry
         unified/geometry/fft/Polar.h
         unified/geometry/fft/Polar.inl
+        unified/geometry/fft/Project.h
+        unified/geometry/fft/Project.inl
         unified/geometry/fft/Symmetry.h
         unified/geometry/fft/Symmetry.inl
         unified/geometry/fft/Transform.h

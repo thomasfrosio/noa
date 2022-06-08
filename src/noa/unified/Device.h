@@ -62,13 +62,13 @@ namespace noa {
 
         /// Sets the amount of reserved memory in bytes by the device memory pool to hold onto before trying to
         /// release memory back to the OS. Defaults to 0 bytes (i.e. stream synchronization frees the cached memory).
-        /// \note This has no effect on the CPU device.
+        /// \note This has no effect on the CPU.
         void memoryThreshold(size_t threshold_bytes) const;
 
         /// Releases memory back to the OS until the device memory pool contains fewer than \p bytes_to_keep
         /// reserved bytes, or there is no more memory that the allocator can safely release. The allocator cannot
         /// release OS allocations that back outstanding asynchronous allocations.
-        /// \note This has no effect on the CPU device.
+        /// \note This has no effect on the CPU.
         void memoryTrim(size_t bytes_to_keep) const;
 
         /// Returns the type of device this instance is pointing to.

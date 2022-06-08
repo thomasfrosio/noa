@@ -43,7 +43,7 @@ namespace noa::cpu::geometry::fft {
     /// \param[in] rotations        On the \b host. 3x3 rightmost \e forward rotation matrices. One per slice.
     /// \param cutoff               Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           Rightmost Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.
@@ -76,7 +76,7 @@ namespace noa::cpu::geometry::fft {
     /// \param[in] rotations        On the \b host. 3x3 rightmost \e forward rotation matrices. One per slice.
     /// \param cutoff               Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           Rightmost Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.

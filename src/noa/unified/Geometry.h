@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/unified/geometry/fft/Polar.h"
+#include "noa/unified/geometry/fft/Project.h"
 #include "noa/unified/geometry/fft/Symmetry.h"
 #include "noa/unified/geometry/fft/Transform.h"
 

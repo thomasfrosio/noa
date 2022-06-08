@@ -279,6 +279,7 @@ namespace noa::cuda::geometry::fft {
                    float cutoff, float2_t ews_radius, Stream& stream) {
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
+        NOA_ASSERT(grid_stride[1] == 1 && indexing::isContiguous(grid_stride, grid_shape)[1]);
 
         memory::PtrArray<T> array{size3_t{grid_shape[1], grid_shape[2], grid_shape[3] / 2 + 1}};
         memory::PtrTexture texture{array.get(), INTERP_LINEAR, BORDER_ZERO}; // todo INTERP_LINEAR_FAST ?
