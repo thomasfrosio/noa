@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/unified/Array.h"
+#include "noa/unified/fft/Transform.h"
 
 namespace noa::signal::fft::details {
     using Remap = noa::fft::Remap;
@@ -23,7 +24,7 @@ namespace noa::signal::fft {
     /// \param shape        Rightmost (logical) shape of \p input and \p output.
     /// \param norm         Normalization mode of \p input.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_std_v<REMAP, T>>>
-    void standardize(const Array<T>& input, const Array<T>& output, size4_t shape, Norm norm = Norm::NORM_FORWARD);
+    void standardize(const Array<T>& input, const Array<T>& output, size4_t shape, Norm norm = noa::fft::NORM_DEFAULT);
 }
 
 #define NOA_UNIFIED_STANDARDIZE_

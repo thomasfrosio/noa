@@ -10,6 +10,29 @@
 #endif
 
 namespace noa::fft {
+    size_t nextFastSize(size_t size) {
+        #ifdef NOA_ENABLE_CUDA
+        return noa::cuda::fft::fastSize(size);
+        #else
+        return noa::cpu::fft::fastSize(size);
+        #endif
+    }
+
+    template<typename T>
+    Int4<T> nextFastShape(Int4<T> shape) {
+        #ifdef NOA_ENABLE_CUDA
+        return noa::cuda::fft::fastShape(shape);
+        #else
+        return noa::cpu::fft::fastShape(shape);
+        #endif
+    }
+
+    template<typename T, typename>
+    Array<T> alias(const Array<Complex<T>>& input, size4_t shape) {
+        Array<T> tmp = input.template as<T>();
+        return Array<T>(tmp.share(), shape, tmp.stride(), tmp.options());
+    }
+
     template<typename T, typename>
     void r2c(const Array<T>& input, const Array<Complex<T>>& output, Norm norm) {
         NOA_CHECK(all(output.shape() == input.shape().fft()),
@@ -36,6 +59,13 @@ namespace noa::fft {
             NOA_THROW("No GPU backend detected");
             #endif
         }
+    }
+
+    template<typename T, typename>
+    Array<Complex<T>> r2c(const Array<T>& input, Norm norm) {
+        Array<Complex<T>> output(input.shape().fft(), input.options());
+        r2c(input, output, norm);
+        return output;
     }
 
     template<typename T, typename>
@@ -67,6 +97,13 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
+    Array<T> c2r(const Array<Complex<T>>& input, size4_t shape, Norm norm) {
+        Array<T> output(shape, input.options());
+        c2r(input, output, norm);
+        return output;
+    }
+
+    template<typename T, typename>
     void c2c(const Array<Complex<T>>& input, const Array<Complex<T>>& output, Sign sign, Norm norm) {
         NOA_CHECK(all(input.shape() == output.shape()),
                   "The input and output shape should match (no broadcasting allowed), but got input {} and output {}",
@@ -92,5 +129,12 @@ namespace noa::fft {
             NOA_THROW("No GPU backend detected");
             #endif
         }
+    }
+
+    template<typename T, typename>
+    Array<Complex<T>> c2c(const Array<Complex<T>>& input, Sign sign, Norm norm) {
+        Array<Complex<T>> output(input.shape(), input.options());
+        c2c(input, output, sign, norm);
+        return output;
     }
 }

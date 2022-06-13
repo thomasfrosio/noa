@@ -136,29 +136,17 @@ namespace noa {
     }
 
     template<typename T>
-    constexpr T* Array<T>::get() noexcept { return m_ptr.get(); }
+    constexpr T* Array<T>::get() const noexcept { return m_ptr.get(); }
 
     template<typename T>
-    constexpr const T* Array<T>::get() const noexcept { return m_ptr.get(); }
-
-    template<typename T>
-    constexpr T* Array<T>::data() noexcept { return m_ptr.get(); }
-
-    template<typename T>
-    constexpr const T* Array<T>::data() const noexcept { return m_ptr.get(); }
+    constexpr T* Array<T>::data() const noexcept { return m_ptr.get(); }
 
     template<typename T>
     constexpr const std::shared_ptr<T[]>& Array<T>::share() const noexcept { return m_ptr; }
 
     template<typename T>
     template<typename I>
-    constexpr View<T, I> Array<T>::view() noexcept {
-        return {get(), Int4<I>{m_shape}, Int4<I>{m_stride}};
-    }
-
-    template<typename T>
-    template<typename I>
-    constexpr View<const T, I> Array<T>::view() const noexcept {
+    constexpr View<T, I> Array<T>::view() const noexcept {
         return {get(), Int4<I>{m_shape}, Int4<I>{m_stride}};
     }
 
@@ -227,13 +215,6 @@ namespace noa {
     template<typename T>
     template<typename U>
     Array<U> Array<T>::as() const {
-        const auto out = indexing::Reinterpret<T, size_t>{m_shape, m_stride, get()}.template as<U>();
-        return {std::shared_ptr<U[]>{m_ptr, out.ptr}, out.shape, out.stride, options()};
-    }
-
-    template<typename T>
-    template<typename U>
-    Array<U> Array<T>::as() {
         const auto out = indexing::Reinterpret<T, size_t>{m_shape, m_stride, get()}.template as<U>();
         return {std::shared_ptr<U[]>{m_ptr, out.ptr}, out.shape, out.stride, options()};
     }

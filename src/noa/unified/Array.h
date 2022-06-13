@@ -166,21 +166,15 @@ namespace noa {
 
     public: // Accessors
         /// Returns the pointer to the data.
-        [[nodiscard]] constexpr T* get() noexcept;
-        [[nodiscard]] constexpr const T* get() const noexcept;
-        [[nodiscard]] constexpr T* data() noexcept;
-        [[nodiscard]] constexpr const T* data() const noexcept;
+        [[nodiscard]] constexpr T* get() const noexcept;
+        [[nodiscard]] constexpr T* data() const noexcept;
 
         /// Returns a reference of the managed resource.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept;
 
-        /// Returns a view of the array.
-        template<typename I = size_t>
-        [[nodiscard]] constexpr View<T, I> view() noexcept;
-
         /// Returns a const view of the array.
         template<typename I = size_t>
-        [[nodiscard]] constexpr View<const T, I> view() const noexcept;
+        [[nodiscard]] constexpr View<T, I> view() const noexcept;
 
         /// Synchronizes the current stream of the Array's device.
         /// It guarantees safe access to the Array's managed memory using get(), data(), share() or view().
@@ -216,13 +210,6 @@ namespace noa {
         ///       complex and real floating-point numbers with the same precision.
         template<typename U>
         Array<U> as() const;
-
-        /// Reinterprets the managed array of \p T as an array of \p U.
-        /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
-        ///       when \p U is a unsigned char (to represent any data type as a array of bytes), or to switch between
-        ///       complex and real floating-point numbers with the same precision.
-        template<typename U>
-        Array<U> as();
 
         /// Changes the side (CPU<->GPU) on which the memory should be accessed.
         /// \details If the memory resource can be accessed by the CPU and/or a GPU, this function returns an array

@@ -389,4 +389,6 @@ namespace noa::cpu::geometry::fft {
 
     NOA_INSTANTIATE_PROJECT_(float);
     NOA_INSTANTIATE_PROJECT_(double);
+    NOA_INSTANTIATE_PROJECT_(cfloat_t);
+    NOA_INSTANTIATE_PROJECT_(cdouble_t);
 }

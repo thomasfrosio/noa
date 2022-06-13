@@ -10,7 +10,7 @@
 #endif
 
 namespace noa::geometry::fft {
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void insert3D(const Array<T>& slice, size4_t slice_shape,
                   const Array<T>& grid, size4_t grid_shape,
                   const Array<float22_t>& scaling_factors,

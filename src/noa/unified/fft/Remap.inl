@@ -43,4 +43,13 @@ namespace noa::fft {
             #endif
         }
     }
+
+    template<typename T, typename>
+    Array<T> remap(Remap remap, const Array<T>& input, size4_t shape) {
+        using enum_t = std::underlying_type_t<Layout>;
+        const size4_t output_shape = static_cast<enum_t>(remap) & Layout::DST_FULL ? shape : shape.fft();
+        Array<T> output(shape, input.options());
+        remap(remap, input, output, shape);
+        return output;
+    }
 }

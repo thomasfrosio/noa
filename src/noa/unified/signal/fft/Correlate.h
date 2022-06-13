@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/unified/Array.h"
+#include "noa/unified/fft/Transform.h"
 
 namespace noa::signal::fft::details {
     using Remap = ::noa::fft::Remap;
@@ -39,7 +40,7 @@ namespace noa::signal::fft {
     ///                     Can be \p lhs or \p rhs. If empty, use \p rhs instead.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xmap_v<REMAP, T>>>
     void xmap(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, const Array<T>& output, size4_t shape,
-              bool normalize = true, Norm norm = Norm::NORM_FORWARD, const Array<Complex<T>>& tmp = {});
+              bool normalize = true, Norm norm = noa::fft::NORM_DEFAULT, const Array<Complex<T>>& tmp = {});
 
     /// Find the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined

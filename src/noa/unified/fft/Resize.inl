@@ -12,7 +12,8 @@
 namespace noa::fft {
     template<Remap REMAP, typename T, typename>
     void resize(const Array<T>& input, size4_t input_shape, const Array<T>& output, size4_t output_shape) {
-        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        using enum_t = std::underlying_type_t<Layout>;
+        constexpr auto REMAP_ = static_cast<enum_t>(REMAP);
         constexpr bool IS_SRC_FULL = REMAP_ & Layout::SRC_FULL;
         constexpr bool IS_DST_FULL = REMAP_ & Layout::DST_FULL;
         static_assert(IS_SRC_FULL == IS_DST_FULL);
@@ -42,5 +43,14 @@ namespace noa::fft {
             NOA_THROW("No GPU backend detected");
             #endif
         }
+    }
+
+    template<Remap REMAP, typename T, typename>
+    Array<T> resize(const Array<T>& input, size4_t input_shape, size4_t output_shape) {
+        using enum_t = std::underlying_type_t<Layout>;
+        constexpr auto REMAP_ = static_cast<enum_t>(REMAP);
+        Array<T> output(REMAP_ & Layout::DST_FULL ? output_shape : output_shape.fft(), input.options());
+        resize(input, input_shape, output, output_shape);
+        return output;
     }
 }

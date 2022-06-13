@@ -12,7 +12,7 @@
 namespace noa::signal::fft {
     using Remap = noa::fft::Remap;
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  const Array<float2_t>& shifts, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
@@ -41,22 +41,22 @@ namespace noa::signal::fft {
         if (device.cpu()) {
             NOA_CHECK(shifts.dereferencable(), "The shifts should be accessible by the CPU");
             cpu::signal::fft::shift2D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift2D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
-                    shifts.share(), cutoff, stream.cpu());
+                    shifts.share(), cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  float2_t shift, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
@@ -80,22 +80,22 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::fft::shift2D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift2D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
-                    shift, cutoff, stream.cpu());
+                    shift, cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  const Array<float3_t>& shifts, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
@@ -124,22 +124,22 @@ namespace noa::signal::fft {
         if (device.cpu()) {
             NOA_CHECK(shifts.dereferencable(), "The matrices should be accessible to the host");
             cpu::signal::fft::shift3D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift3D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
-                    shifts.share(), cutoff, stream.cpu());
+                    shifts.share(), cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename T, typename>
     void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  float3_t shift, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
@@ -163,15 +163,15 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::fft::shift3D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift3D<REMAP>(
-                    input.share(), input.stride(),
+                    input.share(), input_stride,
                     output.share(), output.stride(), shape,
-                    shift, cutoff, stream.cpu());
+                    shift, cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

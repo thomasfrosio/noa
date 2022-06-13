@@ -373,6 +373,8 @@ namespace noa::cuda::geometry::fft {
 
     NOA_INSTANTIATE_PROJECT_(float);
     NOA_INSTANTIATE_PROJECT_(double);
+    NOA_INSTANTIATE_PROJECT_(cfloat_t);
+    NOA_INSTANTIATE_PROJECT_(cdouble_t);
 
     #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                              \
     template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
@@ -380,4 +382,6 @@ namespace noa::cuda::geometry::fft {
 
     NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2HC);
     NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2H);
+    NOA_INSTANTIATE_EXTRACT_(cfloat_t, Remap::HC2HC);
+    NOA_INSTANTIATE_EXTRACT_(cfloat_t, Remap::HC2H);
 }
