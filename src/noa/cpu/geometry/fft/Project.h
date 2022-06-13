@@ -13,11 +13,12 @@ namespace noa::cpu::geometry::fft::details {
     using Remap = noa::fft::Remap;
     template<Remap REMAP, typename T>
     constexpr bool is_valid_insert_v = traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
-                                       (REMAP == H2H || REMAP == H2HC || REMAP == HC2H || REMAP == HC2HC);
+                                       (REMAP == Remap::H2H || REMAP == Remap::H2HC ||
+                                        REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename T>
     constexpr bool is_valid_extract_v = traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
-                                        (REMAP == HC2H || REMAP == HC2HC);
+                                        (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 }
 
 namespace noa::cpu::geometry::fft {

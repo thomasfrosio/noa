@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef NOA_UNIFIED_GEOMETRY_FFT_PROOJECT_
+#ifndef NOA_UNIFIED_GEOMETRY_FFT_PROJECT_
 #error "This is a private header"
 #endif
 

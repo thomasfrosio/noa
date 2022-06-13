@@ -48,14 +48,15 @@ namespace {
         const int3_t base1{base0 + 1};
         const int3_t idx_max = (shape - 1) / 2;
 
-        o_bound[0][0] = base0[0] < -idx_max[0] || base0[0] > idx_max[0];
-        o_bound[0][1] = base1[0] < -idx_max[0] || base1[0] > idx_max[0];
+        o_bound[0][0] = base0[0] >= -idx_max[0] && base0[0] <= idx_max[0];
+        o_bound[0][1] = base1[0] >= -idx_max[0] && base1[0] <= idx_max[0];
 
-        o_bound[1][0] = base0[1] < -idx_max[1] || base0[1] > idx_max[1];
-        o_bound[1][1] = base1[1] < -idx_max[1] || base1[1] > idx_max[1];
+        o_bound[1][0] = base0[1] >= -idx_max[1] && base0[1] <= idx_max[1];
+        o_bound[1][1] = base1[1] >= -idx_max[1] && base1[1] <= idx_max[1];
 
-        o_bound[2][0] = base0[2] > idx_max[2];
-        o_bound[2][1] = base1[2] > idx_max[2];
+        // For the innermost dimension, the frequency should always be >= 0.
+        o_bound[2][0] = base0[2] <= idx_max[2];
+        o_bound[2][1] = base1[2] <= idx_max[2];
     }
 
     template<typename T>
@@ -220,7 +221,7 @@ namespace {
             for (int y = 0; y < slice_shape[1]; ++y) {
                 for (int u = 0; u < slice_shape[2] / 2 + 1; ++u) { // x == u
 
-                    // ---- Same as fourierInsert_ ---- //
+                    // -------------------------------- //
                     const int v = getFrequency_<IS_DST_CENTERED>(y, slice_shape[1]);
                     const float2_t orig_freq{v, u};
                     float2_t freq_2d = orig_freq / f_slice_shape;
@@ -241,6 +242,8 @@ namespace {
                         if constexpr(traits::is_complex_v<T>)
                             conj = -1;
                     }
+                    freq_3d[0] += 0.5f;
+                    freq_3d[1] += 0.5f;
                     freq_3d *= f_grid_shape;
                     // -------------------------------- //
 
