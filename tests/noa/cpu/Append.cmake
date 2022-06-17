@@ -39,8 +39,6 @@ set(TEST_CPU_SOURCES
 
         noa/cpu/TestCPUDevice.cpp
         noa/cpu/TestCPUStream.cpp
-
-        # noa/cpu/reconstruct/TestCPUProjections.cpp
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CPU_SOURCES})

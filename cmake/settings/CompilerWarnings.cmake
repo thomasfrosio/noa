@@ -1,9 +1,7 @@
 # Adds the C++ compiler warning (GCC or Clang) to the interface.
-# TODO Add MSVC
 # Use:
 #   - NOA_ENABLE_WARNINGS
 #   - NOA_ENABLE_WARNINGS_AS_ERRORS
-
 function(set_cxx_compiler_warnings interface)
     if (NOT NOA_ENABLE_WARNINGS)
         return()
@@ -45,6 +43,7 @@ function(set_cxx_compiler_warnings interface)
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(PRJ_WARNINGS ${PRJ_GCC_WARNINGS})
     else ()
+        # TODO Add MSVC
         message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
     endif ()
 
@@ -52,6 +51,10 @@ function(set_cxx_compiler_warnings interface)
     target_compile_options(${interface} INTERFACE $<$<COMPILE_LANGUAGE:CXX>: ${PRJ_WARNINGS}>)
 endfunction()
 
+# Adds the CUDA compiler warning (nvcc) to the interface.
+# Use:
+#   - NOA_ENABLE_WARNINGS
+#   - NOA_ENABLE_WARNINGS_AS_ERRORS
 function(set_cuda_compiler_warnings interface)
     if (NOT NOA_ENABLE_WARNINGS)
         set(PRJ_CUDA_WARNINGS --disable-warnings)

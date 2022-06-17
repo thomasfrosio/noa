@@ -1,4 +1,5 @@
-message(STATUS "Configuring target: noa::noa_benchmarks")
+message(STATUS "--------------------------------------")
+message(STATUS "noa::noa_benchmarks: configuring public target...")
 
 include(${PROJECT_SOURCE_DIR}/ext/google-benchmark/google-benchmark.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/yaml-cpp/yaml-cpp.cmake)
@@ -10,7 +11,7 @@ target_link_libraries(noa_benchmarks
         PRIVATE
         prj_common_option
         prj_compiler_warnings
-        noa::noa_static
+        noa::noa
         benchmark::benchmark
         yaml-cpp::yaml-cpp
         )
@@ -31,4 +32,5 @@ install(TARGETS noa_benchmarks
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
-message("")
+message(STATUS "noa::noa_benchmarks: configuring public target... done")
+message(STATUS "--------------------------------------\n")

@@ -47,7 +47,7 @@ namespace {
     // calls to FFTW should be protected by this mutex.
     std::mutex g_noa_fftw3_mutex_;
 
-#ifdef NOA_FFTW_USE_THREADS
+#ifdef NOA_FFTW_THREADS
     // To call once before anything
     template<bool IS_SINGLE_PRECISION>
     void initialize_() {
@@ -119,7 +119,7 @@ namespace noa::cpu::fft {
             fftwf_cleanup();
         else
             fftw_cleanup();
-        #ifdef NOA_FFTW_USE_THREADS
+        #ifdef NOA_FFTW_THREADS
         if constexpr (IS_SINGLE_PRECISION)
             fftwf_cleanup_threads();
         else
@@ -166,7 +166,7 @@ namespace noa::cpu::fft {
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_USE_THREADS
+            #ifdef NOA_FFTW_THREADS
             setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
@@ -202,7 +202,7 @@ namespace noa::cpu::fft {
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_USE_THREADS
+            #ifdef NOA_FFTW_THREADS
             setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
             #endif
 
@@ -233,7 +233,7 @@ namespace noa::cpu::fft {
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_USE_THREADS
+            #ifdef NOA_FFTW_THREADS
             setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
@@ -268,7 +268,7 @@ namespace noa::cpu::fft {
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_USE_THREADS
+            #ifdef NOA_FFTW_THREADS
             setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
@@ -305,7 +305,7 @@ namespace noa::cpu::fft {
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_USE_THREADS
+            #ifdef NOA_FFTW_THREADS
             setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
             #endif
 
@@ -347,7 +347,7 @@ namespace noa::cpu::fft {
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_USE_THREADS
+            #ifdef NOA_FFTW_THREADS
             setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
             #endif
 

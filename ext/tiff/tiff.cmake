@@ -1,16 +1,31 @@
-if (NOA_TIFF_USE_EXISTING)
-    message(STATUS "tiff: searching for existing libraries...")
-    # https://cmake.org/cmake/help/v3.15/module/FindTIFF.html
-    # There are two cached variables in v3.15:
-    #   TIFF_INCLUDE_DIR:   the directory containing the TIFF headers.
-    #   TIFF_LIBRARY:       the path to the TIFF library
-    find_package(TIFF)
-    if (NOT TIFF_FOUND)
-        message(FATAL_ERROR "The TIFF libraries were not found...")
-    else ()
-        message(STATUS "tiff: searching for existing libraries... found")
-    endif ()
-else ()
-    message(FATAL_ERROR "NOA_TIFF_USE_EXISTING=OFF. This option is currently not supported.")
+message(STATUS "libtiff: searching for existing libraries...")
+list(APPEND CMAKE_MESSAGE_INDENT "   ")
+
+# https://cmake.org/cmake/help/v3.15/module/FindTIFF.html
+
+message(STATUS "[input] NOA_TIFF_STATIC: ${NOA_TIFF_STATIC}")
+message(STATUS "[input (env)] NOA_ENV_TIFF_LIBRARIES: $ENV{NOA_ENV_TIFF_LIBRARIES}")
+message(STATUS "[input (env)] NOA_ENV_TIFF_INCLUDE: $ENV{NOA_ENV_TIFF_INCLUDE}")
+
+# Whether to search for static or dynamic libraries.
+set(NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD ${CMAKE_FIND_LIBRARY_SUFFIXES})
+if (NOA_TIFF_STATIC)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif ()
-message("")
+
+set(NOA_TIFF_ENV $ENV{NOA_ENV_TIFF_LIBRARIES} $ENV{NOA_ENV_TIFF_INCLUDE})
+if (NOA_TIFF_ENV)
+    find_package(TIFF REQUIRED PATH ${NOA_TIFF_ENV} NO_DEFAULT_PATH)
+else ()
+    find_package(TIFF REQUIRED)
+endif ()
+
+# Reset:
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${NOA_CMAKE_FIND_LIBRARY_SUFFIXES_OLD})
+
+message(STATUS "[output] TIFF_INCLUDE_DIR: ${TIFF_INCLUDE_DIR}")
+message(STATUS "[output] TIFF_LIBRARY: ${TIFF_LIBRARY}")
+message(STATUS "New imported target available: TIFF::TIFF")
+
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+message(STATUS "libtiff: searching for existing libraries... done")

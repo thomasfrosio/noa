@@ -1,7 +1,21 @@
-message(STATUS "Fetching static dependency: Catch2")
+message(STATUS "Catch2: fetching static dependency...")
+list(APPEND CMAKE_MESSAGE_INDENT "   ")
+
+set(Catch2_REPOSITORY https://github.com/catchorg/Catch2.git)
+set(Catch2_TAG v2.13.3)
+
+message(STATUS "Repository: ${Catch2_REPOSITORY}")
+message(STATUS "Git tag: ${Catch2_TAG}")
+
+include(FetchContent)
 FetchContent_Declare(
         Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v2.13.3
+        GIT_REPOSITORY ${Catch2_REPOSITORY}
+        GIT_TAG ${Catch2_TAG}
 )
 FetchContent_MakeAvailable(Catch2)
+
+message(STATUS "New imported target available: Catch2::Catch2")
+
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+message(STATUS "Catch2: fetching static dependency... done")

@@ -3,7 +3,6 @@
 #   - CMAKE_MODULE_PATH
 #   - CMAKE_CONFIGURATION_TYPES or CMAKE_BUILD_TYPE
 #   - PROJECT_VERSION
-#   - NOA_ENABLE_CUDA
 #
 # Introduces:
 #   - CMAKE_INSTALL_LIBDIR      : The standard install directories. See GNUInstallDirs.
@@ -18,6 +17,7 @@
 #
 # Created targets:
 #   - uninstall                 : Uninstall everything in the install_manifest.txt.
+message(STATUS "--------------------------------------")
 
 # Add the local modules.
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/find)
@@ -51,15 +51,22 @@ else ()
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "MinSizeRel" "RelWithDebInfo")
 endif ()
+
 message(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 message(STATUS "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
 message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
-if (NOA_ENABLE_CUDA)
+
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if("CUDA" IN_LIST languages)
+    message("")
     message(STATUS "CMAKE_CUDA_COMPILER: ${CMAKE_CUDA_COMPILER}")
-    message(STATUS "CMAKE_CUDA_HOST_COMPILER: ${CMAKE_CUDA_HOST_COMPILER}")
+    if (CMAKE_CUDA_HOST_COMPILER)
+        message(STATUS "CMAKE_CUDA_HOST_COMPILER: ${CMAKE_CUDA_HOST_COMPILER}")
+    endif ()
+    message(STATUS "CUDA Toolkit library path: ${CUDAToolkit_LIBRARY_DIR}")
     message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}")
     message(STATUS "CUDA architectures: ${NOA_CUDA_ARCH}")
-endif ()
+endif()
 
 # ---------------------------------------------------------------------------------------
 # CMake project packaging files
@@ -78,7 +85,7 @@ write_basic_package_version_file(
         "${NOA_CONFIG_VERSION_FILE}"
         VERSION "${PROJECT_VERSION}"
         COMPATIBILITY SameMajorVersion)
-# Since we currently only support STATIC builds, the ConfigVersion is not really useful, is it?.
+# Since we currently only support STATIC builds, the ConfigVersion is not really useful, is it?
 
 # ---------------------------------------------------------------------------------------
 # Uninstall target
@@ -89,30 +96,4 @@ configure_file("${PROJECT_SOURCE_DIR}/cmake/settings/Uninstall.cmake.in"
 add_custom_target(uninstall
         COMMAND ${CMAKE_COMMAND} -P ${NOA_GENERATED_DIR}/Uninstall.cmake)
 
-# ---------------------------------------------------------------------------------------
-# RPATH
-# ---------------------------------------------------------------------------------------
-# Always full RPATH (for shared libraries)
-#  https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
-#if (BUILD_SHARED_LIBS)
-#    # use, i.e. don't skip the full RPATH for the build tree
-#    set(CMAKE_SKIP_BUILD_RPATH FALSE)
-#
-#    # when building, don't use the install RPATH already
-#    # (but later on when installing)
-#    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-#
-#    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-#
-#    # add the automatically determined parts of the RPATH
-#    # which point to directories outside the build tree to the install RPATH
-#    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-#
-#    # the RPATH to be used when installing, but only if it's not a files directory
-#    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-#    if ("${isSystemDir}" STREQUAL "-1")
-#        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-#    endif ()
-#endif ()
-
-message("")
+message(STATUS "--------------------------------------\n")

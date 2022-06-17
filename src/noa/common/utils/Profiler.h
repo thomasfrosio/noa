@@ -5,6 +5,7 @@
 
 #pragma once
 
+//#define NOA_PROFILE
 #ifdef NOA_PROFILE
 
 #include <fstream>

@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.18)
-# CMAKE_CUDA_ARCHITECTURES was added in 3.18
 
 project(noa
         LANGUAGES CXX
         VERSION 0.1.0
         HOMEPAGE_URL https://github.com/ffyr2w/noa
         )
+
+# The library only supported static linking:
+if (BUILD_SHARED_LIBS)
+    message(FATAL_ERROR "Dynamic linking is not supported. Turn BUILD_SHARED_LIBS off")
+endif ()
 
 # ---------------------------------------------------------------------------------------
 # Whether or not this is the top-level (master) project
@@ -27,10 +31,9 @@ include(cmake/settings/ProjectOptions.cmake)
 if (NOA_ENABLE_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit)
-endif ()
-
-if (BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "noa is a static library. Turn BUILD_SHARED_LIBS OFF")
+    if (NOT NOA_CUDA_ARCH)
+        include(cmake/settings/CUDASelectArch.cmake)
+    endif ()
 endif ()
 
 # ---------------------------------------------------------------------------------------
@@ -46,32 +49,24 @@ add_library(prj_compiler_warnings INTERFACE)
 # Make sure everything in the project use C++17.
 target_compile_features(prj_common_option INTERFACE cxx_std_17)
 
-# Add the C++ warnings to the C++ compiler.
+# Add the warnings to the compiler(s).
 include(cmake/settings/CompilerWarnings.cmake)
 set_cxx_compiler_warnings(prj_compiler_warnings)
-set_cuda_compiler_warnings(prj_compiler_warnings)
-
-# Go fetch the necessary external contents and make them available to the project.
-set(NOA_EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext)
-
-include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
-include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
-include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
-include(${PROJECT_SOURCE_DIR}/ext/half/half.cmake)
+if (NOA_ENABLE_CUDA)
+    set_cuda_compiler_warnings(prj_compiler_warnings)
+endif ()
 
 # ---------------------------------------------------------------------------------------
 # Project targets
 # ---------------------------------------------------------------------------------------
 add_subdirectory(src/noa)
 
-# The test framework (using Catch2): noa_tests
 if (NOA_BUILD_TESTS)
     add_subdirectory(tests)
 else ()
     message(STATUS "Skipping target: noa::noa_tests")
 endif ()
 
-# The benchmark framework (using Catch2): noa_benchmarks
 if (NOA_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 else ()
