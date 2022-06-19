@@ -83,7 +83,7 @@ namespace noa::math {
     /// \param rhs          Right-hand side argument.
     /// \param[out] output  On the \b device. Transformed array.
     /// \param trinary_op   Trinary operation function object that will be applied.
-    /// \note Supported operators and types are limited to the following list:
+    /// \note On the GPU, supported operators and types are limited to the following list:
     ///     Integers:
     ///       - (within|within_equal|clamp)_t(A,A,A) -> A or bool
     ///       - (fma|plus_divide)_t(A,A,A) -> A
