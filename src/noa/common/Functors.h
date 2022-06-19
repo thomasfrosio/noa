@@ -253,6 +253,14 @@ namespace noa::math {
             return input * mul + add;
         }
     };
+    using multiply_plus_t = fma_t;
+
+    struct plus_divide_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& input, const U& add, const V& div) const {
+            return (input + add) / div;
+        }
+    };
 
     struct within_t {
         template<typename T, typename U>

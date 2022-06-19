@@ -17,6 +17,36 @@ namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
                const shared_t<U[]>& mhs, size4_t mhs_stride,
+               V rhs,
+               const shared_t<W[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream) {
+        cuda::util::ewise::trinary("math::ewise",
+                                   lhs.get(), lhs_stride,
+                                   mhs.get(), mhs_stride,
+                                   rhs,
+                                   output.get(), output_stride,
+                                   shape, stream, trinary_op);
+        stream.attach(lhs, mhs, output);
+    }
+
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               V mhs,
+               const shared_t<U[]>& rhs, size4_t rhs_stride,
+               const shared_t<W[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream) {
+        cuda::util::ewise::trinary("math::ewise",
+                                   lhs.get(), lhs_stride,
+                                   mhs,
+                                   rhs.get(), rhs_stride,
+                                   output.get(), output_stride,
+                                   shape, stream, trinary_op);
+        stream.attach(lhs, rhs, output);
+    }
+
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& mhs, size4_t mhs_stride,
                const shared_t<V[]>& rhs, size4_t rhs_stride,
                const shared_t<W[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
@@ -32,6 +62,12 @@ namespace noa::cuda::math {
     #define NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,TRINARY)                                                \
     template void ewise<T,U,V,TRINARY,void>(const shared_t<T[]>&, size4_t, U, U,                        \
                                             const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);  \
+    template void ewise<T,U,U,V,TRINARY,void>(const shared_t<T[]>&, size4_t,                            \
+                                              const shared_t<U[]>&, size4_t, U,                         \
+                                              const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);\
+    template void ewise<T,U,U,V,TRINARY,void>(const shared_t<T[]>&, size4_t, U,                         \
+                                              const shared_t<U[]>&, size4_t,                            \
+                                              const shared_t<V[]>&, size4_t, size4_t, TRINARY, Stream&);\
     template void ewise<T,U,U,V,TRINARY,void>(const shared_t<T[]>&, size4_t,                            \
                                               const shared_t<U[]>&, size4_t,                            \
                                               const shared_t<U[]>&, size4_t,                            \
@@ -74,8 +110,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(float);
     NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(double);
 
-    #define NOA_INSTANTIATE_EWISE_TRINARY_FMA(T,U)  \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::fma_t)
+    #define NOA_INSTANTIATE_EWISE_TRINARY_FMA(T,U)          \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::fma_t);\
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::plus_divide_t)
 
     NOA_INSTANTIATE_EWISE_TRINARY_FMA(chalf_t, chalf_t);
     NOA_INSTANTIATE_EWISE_TRINARY_FMA(cfloat_t, cfloat_t);

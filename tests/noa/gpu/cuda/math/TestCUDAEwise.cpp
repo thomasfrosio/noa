@@ -181,25 +181,53 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
     const size_t elements = shape.elements();
 
     cuda::Stream stream;
-    cuda::memory::PtrManaged<TestType> data(elements, stream);
-    cuda::memory::PtrManaged<TestType> multiplicands(elements, stream);
-    cuda::memory::PtrManaged<TestType> addends(elements, stream);
+    cuda::memory::PtrManaged<TestType> lhs(elements, stream);
+    cuda::memory::PtrManaged<TestType> mhs(elements, stream);
+    cuda::memory::PtrManaged<TestType> rhs(elements, stream);
     cuda::memory::PtrManaged<TestType> results(elements, stream);
     cpu::memory::PtrHost<TestType> expected(elements);
 
-    test::randomize(data.get(), data.elements(), randomizer);
-    test::randomize(multiplicands.get(), multiplicands.elements(), randomizer);
-    test::randomize(addends.get(), addends.elements(), randomizer);
+    test::randomize(lhs.get(), lhs.elements(), randomizer);
+    test::randomize(mhs.get(), mhs.elements(), randomizer);
+    test::randomize(rhs.get(), rhs.elements(), randomizer);
 
     double epsilon = std::is_same_v<TestType, half_t> ? 1e-3 : 1e-6;
 
     AND_THEN("value") {
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] *
-                                                    multiplicands[0] + addends[0];
-        cuda::math::ewise(data.share(), stride, multiplicands[0], addends[0],
+                expected[batch * stride[0] + idx] = lhs[batch * stride[0] + idx] *
+                                                    mhs[0] + rhs[0];
+        cuda::math::ewise(lhs.share(), stride, mhs[0], rhs[0],
                           results.share(), stride, shape, math::fma_t{}, stream);
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
+    }
+
+    AND_THEN("array-value") {
+        for (size_t batch{0}; batch < shape[0]; ++batch)
+            for (size_t idx{0}; idx < stride[0]; ++idx)
+                expected[batch * stride[0] + idx] = (lhs[batch * stride[0] + idx] + mhs[idx]) / rhs[0];
+        cuda::math::ewise(
+                lhs.share(), stride,
+                mhs.share(), {0, stride[1], stride[2], stride[3]},
+                rhs[0],
+                results.share(), stride,
+                shape, math::plus_divide_t{}, stream);
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
+    }
+
+    AND_THEN("value-array") {
+        for (size_t batch{0}; batch < shape[0]; ++batch)
+            for (size_t idx{0}; idx < stride[0]; ++idx)
+                expected[batch * stride[0] + idx] = (lhs[batch * stride[0] + idx] + mhs[0]) / rhs[idx];
+        cuda::math::ewise(
+                lhs.share(), stride,
+                mhs[0],
+                rhs.share(), {0, stride[1], stride[2], stride[3]},
+                results.share(), stride,
+                shape, math::plus_divide_t{}, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }
@@ -207,11 +235,11 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
     AND_THEN("array") {
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] * multiplicands[idx] + addends[idx];
+                expected[batch * stride[0] + idx] = lhs[batch * stride[0] + idx] * mhs[idx] + rhs[idx];
         cuda::math::ewise(
-                data.share(), stride,
-                multiplicands.share(), {0, stride[1], stride[2], stride[3]},
-                addends.share(), {0, stride[1], stride[2], stride[3]},
+                lhs.share(), stride,
+                mhs.share(), {0, stride[1], stride[2], stride[3]},
+                rhs.share(), {0, stride[1], stride[2], stride[3]},
                 results.share(), stride,
                 shape, math::fma_t{}, stream);
         stream.synchronize();
@@ -221,13 +249,13 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
     AND_THEN("array-batched") {
         for (size_t batch{0}; batch < shape[0]; ++batch)
             for (size_t idx{0}; idx < stride[0]; ++idx)
-                expected[batch * stride[0] + idx] = data[batch * stride[0] + idx] *
-                                                    multiplicands[batch * stride[0] + idx] +
-                                                    addends[batch * stride[0] + idx];
+                expected[batch * stride[0] + idx] = lhs[batch * stride[0] + idx] *
+                                                    mhs[batch * stride[0] + idx] +
+                                                    rhs[batch * stride[0] + idx];
         cuda::math::ewise(
-                data.share(), stride,
-                multiplicands.share(), stride,
-                addends.share(), stride,
+                lhs.share(), stride,
+                mhs.share(), stride,
+                rhs.share(), stride,
                 results.share(), stride,
                 shape, math::fma_t{}, stream);
         stream.synchronize();

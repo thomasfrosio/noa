@@ -40,10 +40,10 @@ namespace noa::cuda::math::details {
 
     template<typename lhs_t, typename mhs_t, typename rhs_t, typename out_t, typename op_t>
     constexpr bool is_valid_ewise_trinary_v =
-            (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, within_t, within_equal_t, clamp_t, fma_t>) ||
+            (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, within_t, within_equal_t, clamp_t, fma_t, plus_divide_t>) ||
             (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t> && std::is_same_v<out_t, bool> && is_any_v<op_t, within_t, within_equal_t, clamp_t>) ||
-            ((is_float_v<lhs_t> || is_complex_v<lhs_t>) && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && std::is_same_v<op_t, fma_t>) ||
-            (is_complex_v<lhs_t> && std::is_same_v<lhs_t, out_t> && are_all_same_v<mhs_t, rhs_t, value_type_t<out_t>> && std::is_same_v<op_t, fma_t>);
+            ((is_float_v<lhs_t> || is_complex_v<lhs_t>) && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && are_all_same_v<op_t, fma_t, plus_divide_t>) ||
+            (is_complex_v<lhs_t> && std::is_same_v<lhs_t, out_t> && are_all_same_v<mhs_t, rhs_t, value_type_t<out_t>> && are_all_same_v<op_t, fma_t, plus_divide_t>);
 }
 
 namespace noa::cuda::math {
@@ -170,13 +170,13 @@ namespace noa::cuda::math {
     /// \note Supported operators and types are limited to the following list:
     ///     Integers:
     ///       - (within|within_equal|clamp)_t(A,A,A) -> A or bool
-    ///       - fma_t(A,A,A) -> A
+    ///       - (fma|plus_divide)_t(A,A,A) -> A
     ///     Floating-points:
     ///       - (within|within_equal|clamp)_t(B,B,B) -> B or bool
-    ///       - fma_t(B,B,B) -> B
+    ///       - (fma|plus_divide)_t(B,B,B) -> B
     ///     Complex:
-    ///       - fma_t(C,C,C) -> C
-    ///       - fma_t(C,B,B) -> C
+    ///       - (fma|plus_divide)_t(C,C,C) -> C
+    ///       - (fma|plus_divide)_t(C,B,B) -> C
     ///     Where:
     ///         A = (u)int16_t, (u)int32_t, (u)int64_t
     ///         B = half_t, float, double
@@ -185,6 +185,48 @@ namespace noa::cuda::math {
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, U, V, TrinaryOp>>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
                const shared_t<V[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream);
+
+    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
+    /// \param[in] lhs          On the \b device. Left-hand side argument.
+    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param[in] mhs          On the \b device. Middle-hand side argument.
+    /// \param mhs_stride       Rightmost stride, in elements, of \p mhs.
+    /// \param rhs              Right-hand side argument.
+    /// \param[out] output      On the \b device. Transformed array.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p lhs, \p mhs and \p output.
+    /// \param trinary_op       Trinary operation function object that will be applied.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note The same operators and types are supported as the overload above.
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+               const shared_t<U[]>& mhs, size4_t mhs_stride, V rhs,
+               const shared_t<W[]>& output, size4_t output_stride,
+               size4_t shape, TrinaryOp trinary_op, Stream& stream);
+
+    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
+    /// \param[in] lhs          On the \b device. Left-hand side argument.
+    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param mhs              Middle-hand side argument.
+    /// \param[in] rhs          On the \b device. Right-hand side argument.
+    /// \param rhs_stride       Rightmost stride, in elements, of \p rhs.
+    /// \param[out] output      On the \b device. Transformed array.
+    /// \param output_stride    Rightmost stride, in elements, of \p output.
+    /// \param shape            Rightmost shape of \p lhs, \p rhs and \p output.
+    /// \param trinary_op       Trinary operation function object that will be applied.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
+    ///
+    /// \note This function may be asynchronous relative to the host and may return before completion.
+    /// \note The same operators and types are supported as the overload above.
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, V mhs,
+               const shared_t<U[]>& rhs, size4_t rhs_stride,
+               const shared_t<W[]>& output, size4_t output_stride,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
@@ -203,7 +245,7 @@ namespace noa::cuda::math {
     /// \note This function may be asynchronous relative to the host and may return before completion.
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, U, V, TrinaryOp>>>
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
                const shared_t<U[]>& mhs, size4_t mhs_stride,
                const shared_t<V[]>& rhs, size4_t rhs_stride,
