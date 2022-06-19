@@ -6,14 +6,14 @@ namespace noa::math::details {
     using namespace ::noa::traits;
     template<typename T, typename U>
     constexpr bool is_valid_random_v
-            = is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t,
-                       half_t, float, double, chalf_t, cfloat_t, cdouble_t> && traits::is_scalar_v<U>;
+            = is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double, chalf_t, cfloat_t, cdouble_t> &&
+              (traits::is_scalar_v<U> || (traits::is_complex_v<T> && traits::is_complex_v<U>));
 }
 
 namespace noa::math {
     /// Randomizes an array with uniform random values.
     /// \tparam T       Any data type.
-    /// \tparam U       Any scalar type.
+    /// \tparam U       Any scalar type. If \p T is complex, \p U can be complex.
     /// \param output   Array to randomize.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -21,7 +21,7 @@ namespace noa::math {
 
     /// Randomizes an array with normal random values.
     /// \tparam T           Any data type.
-    /// \tparam U           Any scalar type.
+    /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param output       Array to randomize.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -29,7 +29,7 @@ namespace noa::math {
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T           Any data type.
-    /// \tparam U           Any scalar type.
+    /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param output       Array to randomize.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -46,7 +46,7 @@ namespace noa::math {
 namespace noa::math {
     /// Randomizes an array with uniform random values.
     /// \tparam T       Any data type.
-    /// \tparam U       Any scalar type.
+    /// \tparam U       Any scalar type. If \p T is complex, \p U can be complex.
     /// \param shape    Rightmost shape of the array.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -54,7 +54,7 @@ namespace noa::math {
 
     /// Randomizes an array with normal random values.
     /// \tparam T           Any data type.
-    /// \tparam U           Any scalar type.
+    /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param shape        Rightmost shape of the array.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -62,7 +62,7 @@ namespace noa::math {
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T           Any data type.
-    /// \tparam U           Any scalar type.
+    /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param shape        Rightmost shape of the array.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -77,7 +77,7 @@ namespace noa::math {
 
     /// Randomizes an array with uniform random values.
     /// \tparam T       Any data type.
-    /// \tparam U       Any scalar type.
+    /// \tparam U       Any scalar type. If \p T is complex, \p U can be complex.
     /// \param elements Number of elements to generate.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -85,7 +85,7 @@ namespace noa::math {
 
     /// Randomizes an array with normal random values.
     /// \tparam T           Any data type.
-    /// \tparam U           Any scalar type.
+    /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param elements     Number of elements to generate.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
@@ -93,7 +93,7 @@ namespace noa::math {
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T           Any data type.
-    /// \tparam U           Any scalar type.
+    /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param elements     Number of elements to generate.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>

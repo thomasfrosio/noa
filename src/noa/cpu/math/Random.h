@@ -8,17 +8,18 @@ namespace noa::cpu::math::details {
     using namespace ::noa::traits;
     template<typename T, typename U>
     constexpr bool is_valid_random_v
-            = is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t,
-                       half_t, float, double, chalf_t, cfloat_t, cdouble_t> &&
-              ((is_any_v<T, half_t, chalf_t> && is_float_v<U>) || std::is_same_v<value_type_t<T>, U>);
+            = is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double, chalf_t, cfloat_t, cdouble_t> &&
+              (std::is_same_v<value_type_t<T>, U> || std::is_same_v<T, U> ||
+              (std::is_same_v<T, half_t> && is_float_v<U>) || (std::is_same_v<T, chalf_t> && is_float_v<value_type_t<U>>));
 }
 
 namespace noa::cpu::math {
     /// Randomizes an array with uniform random values.
     /// \tparam T               Any data type.
-    /// \tparam U               If \p T is half_t or chalf_t, \p U should be half_t, float or double.
-    ///                         If \p T is cfloat_t or cdouble_t, \p U should be float or double, respectively.
-    ///                         Otherwise, \p U should be equal to \p T.
+    /// \tparam U               If \p T is real, \p U should be equal to \p T.
+    ///                         If \p T is complex, \p U should be equal to \p T or its corresponding real type.
+    ///                         If \p T is half_t, \p U can also be float.
+    ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
     /// \param elements         Number of elements in \p output to randomize.
     /// \param min, max         Minimum and maximum value of the uniform range.
@@ -29,9 +30,10 @@ namespace noa::cpu::math {
 
     /// Randomizes an array with normal random values.
     /// \tparam T               Any data type.
-    /// \tparam U               If \p T is half_t or chalf_t, \p U should be half_t, float or double.
-    ///                         If \p T is cfloat_t or cdouble_t, \p U should be float or double, respectively.
-    ///                         Otherwise, \p U should be equal to \p T.
+    /// \tparam U               If \p T is real, \p U should be equal to \p T.
+    ///                         If \p T is complex, \p U should be equal to \p T or its corresponding real type.
+    ///                         If \p T is half_t, \p U can also be float.
+    ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
     /// \param elements         Number of elements in \p output to randomize.
     /// \param mean, stddev     Mean and standard-deviation of the normal range.
@@ -42,9 +44,10 @@ namespace noa::cpu::math {
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T               Any data type.
-    /// \tparam U               If \p T is half_t or chalf_t, \p U should be half_t, float or double.
-    ///                         If \p T is cfloat_t or cdouble_t, \p U should be float or double, respectively.
-    ///                         Otherwise, \p U should be equal to \p T.
+    /// \tparam U               If \p T is real, \p U should be equal to \p T.
+    ///                         If \p T is complex, \p U should be equal to \p T or its corresponding real type.
+    ///                         If \p T is half_t, \p U can also be float.
+    ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
     /// \param elements         Number of elements in \p output to randomize.
     /// \param mean, stddev     Mean and standard-deviation of the log-normal range.
@@ -65,9 +68,10 @@ namespace noa::cpu::math {
 
     /// Randomizes an array with uniform random values.
     /// \tparam T               Any data type.
-    /// \tparam U               If \p T is half_t or chalf_t, \p U should be half_t, float or double.
-    ///                         If \p T is cfloat_t or cdouble_t, \p U should be float or double, respectively.
-    ///                         Otherwise, \p U should be equal to \p T.
+    /// \tparam U               If \p T is real, \p U should be equal to \p T.
+    ///                         If \p T is complex, \p U should be equal to \p T or its corresponding real type.
+    ///                         If \p T is half_t, \p U can also be float.
+    ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
     /// \param stride           Rightmost stride of \p output.
     /// \param shape            Rightmost shape of \p output.
@@ -80,9 +84,10 @@ namespace noa::cpu::math {
 
     /// Randomizes an array with normal random values.
     /// \tparam T               Any data type.
-    /// \tparam U               If \p T is half_t or chalf_t, \p U should be half_t, float or double.
-    ///                         If \p T is cfloat_t or cdouble_t, \p U should be float or double, respectively.
-    ///                         Otherwise, \p U should be equal to \p T.
+    /// \tparam U               If \p T is real, \p U should be equal to \p T.
+    ///                         If \p T is complex, \p U should be equal to \p T or its corresponding real type.
+    ///                         If \p T is half_t, \p U can also be float.
+    ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
     /// \param stride           Rightmost stride of \p output.
     /// \param shape            Rightmost shape of \p output.
@@ -95,9 +100,10 @@ namespace noa::cpu::math {
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T               Any data type.
-    /// \tparam U               If \p T is half_t or chalf_t, \p U should be half_t, float or double.
-    ///                         If \p T is cfloat_t or cdouble_t, \p U should be float or double, respectively.
-    ///                         Otherwise, \p U should be equal to \p T.
+    /// \tparam U               If \p T is real, \p U should be equal to \p T.
+    ///                         If \p T is complex, \p U should be equal to \p T or its corresponding real type.
+    ///                         If \p T is half_t, \p U can also be float.
+    ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
     /// \param stride           Rightmost stride of \p output.
     /// \param shape            Rightmost shape of \p output.

@@ -10,9 +10,17 @@
 #endif
 
 namespace noa::math::details {
-    template<typename T>
-    using supported_type = std::conditional_t<
-            noa::traits::is_almost_same_v<noa::traits::value_type_t<T>, half_t>, double, noa::traits::value_type_t<T>>;
+    template<typename T, typename U>
+    auto castToSupportedType_(U value) {
+        if constexpr (traits::is_complex_v<T> && traits::is_complex_v<U>) {
+            using supported_t = std::conditional_t<traits::is_almost_same_v<T, chalf_t>, cfloat_t, T>;
+            return static_cast<supported_t>(value);
+        } else {
+            using real_t = traits::value_type_t<T>;
+            using supported_t = std::conditional_t<traits::is_almost_same_v<real_t, half_t>, float, real_t>;
+            return static_cast<supported_t>(value);
+        }
+    }
 }
 
 namespace noa::math {
@@ -22,14 +30,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::randomize(noa::math::uniform_t{}, output.share(), output.stride(), output.shape(),
-                                 static_cast<details::supported_type<T>>(min),
-                                 static_cast<details::supported_type<T>>(max), stream.cpu());
+                                 details::castToSupportedType_<T>(min),
+                                 details::castToSupportedType_<T>(max), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::randomize(noa::math::uniform_t{}, output.share(),
-                                  output.stride(), output.shape(),
-                                  static_cast<details::supported_type<T>>(min),
-                                  static_cast<details::supported_type<T>>(max), stream.cuda());
+            cuda::math::randomize(noa::math::uniform_t{}, output.share(), output.stride(), output.shape(),
+                                  details::castToSupportedType_<T>(min),
+                                  details::castToSupportedType_<T>(max), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -43,14 +50,14 @@ namespace noa::math {
         if (device.cpu()) {
             cpu::math::randomize(noa::math::normal_t{}, output.share(),
                                  output.stride(), output.shape(),
-                                 static_cast<details::supported_type<T>>(mean),
-                                 static_cast<details::supported_type<T>>(stddev), stream.cpu());
+                                 details::castToSupportedType_<T>(mean),
+                                 details::castToSupportedType_<T>(stddev), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::math::randomize(noa::math::normal_t{}, output.share(),
                                   output.stride(), output.shape(),
-                                  static_cast<details::supported_type<T>>(mean),
-                                  static_cast<details::supported_type<T>>(stddev), stream.cuda());
+                                  details::castToSupportedType_<T>(mean),
+                                  details::castToSupportedType_<T>(stddev), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -64,14 +71,14 @@ namespace noa::math {
         if (device.cpu()) {
             cpu::math::randomize(noa::math::log_normal_t{}, output.share(),
                                  output.stride(), output.shape(),
-                                 static_cast<details::supported_type<T>>(mean),
-                                 static_cast<details::supported_type<T>>(stddev), stream.cpu());
+                                 details::castToSupportedType_<T>(mean),
+                                 details::castToSupportedType_<T>(stddev), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::math::randomize(noa::math::log_normal_t{}, output.share(),
                                   output.stride(), output.shape(),
-                                  static_cast<details::supported_type<T>>(mean),
-                                  static_cast<details::supported_type<T>>(stddev), stream.cuda());
+                                  details::castToSupportedType_<T>(mean),
+                                  details::castToSupportedType_<T>(stddev), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
