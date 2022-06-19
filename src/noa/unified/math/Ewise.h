@@ -86,13 +86,13 @@ namespace noa::math {
     /// \note Supported operators and types are limited to the following list:
     ///     Integers:
     ///       - (within|within_equal|clamp)_t(A,A,A) -> A or bool
-    ///       - fma_t(A,A,A) -> A
+    ///       - (fma|plus_divide)_t(A,A,A) -> A
     ///     Floating-points:
     ///       - (within|within_equal|clamp)_t(B,B,B) -> B or bool
-    ///       - fma_t(B,B,B) -> B
+    ///       - (fma|plus_divide)_t(B,B,B) -> B
     ///     Complex:
-    ///       - fma_t(C,C,C) -> C
-    ///       - fma_t(C,B,B) -> C
+    ///       - (fma|plus_divide)_t(C,C,C) -> C
+    ///       - (fma|plus_divide)_t(C,B,B) -> C
     ///     Where:
     ///         A = (u)int16_t, (u)int32_t, (u)int64_t
     ///         B = half_t, float, double
@@ -100,6 +100,30 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
              typename = std::enable_if_t<noa::traits::is_data_v<U> && noa::traits::is_data_v<V>>>
     void ewise(const Array<T>& lhs, U mhs, V rhs, const Array<W>& output, TrinaryOp trinary_op);
+
+    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
+    /// \param[in] lhs      Left-hand side argument.
+    /// \param[in] mhs      Middle-hand side argument.
+    /// \param[in] rhs      Right-hand side argument.
+    /// \param[out] output  Transformed array.
+    /// \param trinary_op   Trinary operation function object that will be applied.
+    /// \note On the GPU, the same operators and types are supported as in the overload above.
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<V>>>
+    void ewise(const Array<T>& lhs, const Array<U>& mhs, V rhs,
+               const Array<W>& output, TrinaryOp trinary_op);
+
+    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
+    /// \param[in] lhs      Left-hand side argument.
+    /// \param[in] mhs      Middle-hand side argument.
+    /// \param[in] rhs      Right-hand side argument.
+    /// \param[out] output  Transformed array.
+    /// \param trinary_op   Trinary operation function object that will be applied.
+    /// \note On the GPU, the same operators and types are supported as in the overload above.
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    void ewise(const Array<T>& lhs, U mhs, const Array<V>& rhs,
+               const Array<W>& output, TrinaryOp trinary_op);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     /// \param[in] lhs      Left-hand side argument.
