@@ -81,7 +81,6 @@ message(STATUS "[output] NOA_OPENBLAS_BLAS_INC: ${NOA_OPENBLAS_BLAS_INC}")
 message(STATUS "[output] NOA_OPENBLAS_LAPACK_INC: ${NOA_OPENBLAS_LAPACK_INC}")
 
 # Targets:
-
 add_library(openblas::openblas INTERFACE IMPORTED)
 set_target_properties(openblas::openblas
         PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${NOA_OPENBLAS_INC}"

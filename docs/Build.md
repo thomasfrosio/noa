@@ -1,6 +1,6 @@
 ## `Dependencies`
 
-While some dependencies are directly fetched and install by the library, some are not.
+While some dependencies are directly fetched and installed by the library, some are not.
 
 - __CMake__. The minimum version is 3.18. Note that it has almost no dependencies and can be installed without root
   privileges.
@@ -10,8 +10,9 @@ While some dependencies are directly fetched and install by the library, some ar
   paths and is not found, by setting the `CMAKE_CXX_COMPILER` variable.
 
 - The [FFTW3](http://fftw.org/) libraries are required for the CPU backend. We ask for the single and double precision
-  libraries. The multithreaded libraries will be used if found and if `NOA_FFTW_THREADS=1` (see below). By default, the
-  common installation directories are used but the search can be guided by the following _environmental_ variables:
+  libraries. The multithreaded libraries will be used if found and if `NOA_FFTW_THREADS=1` (see
+  [options](../cmake/settings/ProjectOptions.cmake)). By default, the common installation directories are used but the
+  search can be guided by the following _environmental_ variables:
     - `NOA_ENV_FFTW_LIBRARIES`: If set and not empty, the libraries are exclusively searched under this path.
     - `NOA_ENV_FFTW_INCLUDE`: If set and not empty, the header `fftw3.h` is exclusively searched under this path.
 
