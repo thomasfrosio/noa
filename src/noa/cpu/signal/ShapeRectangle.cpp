@@ -139,7 +139,7 @@ namespace noa::cpu::signal {
     void rectangle(const shared_t<T[]>& input, size4_t input_stride,
                    const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
-        size3_t start{0}, end{shape.get() + 1};
+        size3_t start{0}, end{shape.get(1)};
         if (INVERT && input.get() == output.get()) {
             start = size3_t{noa::math::clamp(int3_t{center - (radius + taper_size)}, int3_t{}, int3_t{end})};
             end = size3_t{noa::math::clamp(int3_t{center + (radius + taper_size) + 1}, int3_t{}, int3_t{end})};

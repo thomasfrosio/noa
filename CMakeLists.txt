@@ -6,7 +6,7 @@ project(noa
         HOMEPAGE_URL https://github.com/ffyr2w/noa
         )
 
-# The library only supported static linking:
+# The library only supports static linking:
 if (BUILD_SHARED_LIBS)
     message(FATAL_ERROR "Dynamic linking is not supported. Turn BUILD_SHARED_LIBS off")
 endif ()

@@ -154,7 +154,7 @@ namespace noa::cuda::memory {
 
         const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const int4_t i_shape(input_shape);
-        const int2_t o_shape(subregion_shape.get() + 2);
+        const int2_t o_shape(subregion_shape.get(2));
 
         const uint blocks_x = math::divideUp(static_cast<uint>(o_shape[1]), BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(static_cast<uint>(o_shape[0]), BLOCK_WORK_SIZE_2D.y);
@@ -203,7 +203,7 @@ namespace noa::cuda::memory {
         NOA_ASSERT(subregions != output);
 
         const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
-        const int2_t i_shape{subregion_shape.get() + 2};
+        const int2_t i_shape{subregion_shape.get(2)};
         const uint blocks_x = math::divideUp(static_cast<uint>(i_shape[1]), BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(static_cast<uint>(i_shape[0]), BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks(blocks_x * blocks_y, subregion_shape[1], subregion_shape[0]);

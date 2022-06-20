@@ -288,7 +288,7 @@ namespace noa::cuda::geometry::fft {
         memory::PtrTexture texture{array.get(), INTERP_LINEAR, BORDER_ZERO}; // todo INTERP_LINEAR_FAST ?
         memory::copy(grid, grid_shape[2], array.share(), array.shape(), stream);
 
-        extract3D<REMAP>(texture.get(), int3_t{grid_shape.get() + 1}, slice.get(), slice_stride, slice_shape,
+        extract3D<REMAP>(texture.get(), int3_t{grid_shape.get(1)}, slice.get(), slice_stride, slice_shape,
                          scaling_factors.get(), rotations.get(), cutoff, ews_radius, stream);
         stream.attach(array.share(), texture.share(), slice, scaling_factors, rotations);
     }
@@ -314,7 +314,7 @@ namespace noa::cuda::geometry::fft {
         const float3_t f_grid_shape{grid_shape / 2 * 2 + int3_t{grid_shape == 1}};
 
         // Launch config:
-        const uint2_t tmp{slice_shape.get() + 2};
+        const uint2_t tmp{slice_shape.get(2)};
         const dim3 blocks(math::divideUp(tmp[1] / 2 + 1, THREADS.x),
                           math::divideUp(tmp[0], THREADS.y),
                           count);
@@ -341,7 +341,7 @@ namespace noa::cuda::geometry::fft {
     void griddingCorrection(const shared_t<T[]>& input, size4_t input_stride,
                             const shared_t<T[]>& output, size4_t output_stride,
                             size4_t shape, bool post_correction, Stream& stream) {
-        const uint2_t shape_{shape.get() + 2};
+        const uint2_t shape_{shape.get(2)};
         const uint blocks_x = math::divideUp(shape_[1], THREADS.x);
         const uint blocks_y = math::divideUp(shape_[0], THREADS.y);
         const dim3 blocks(blocks_x * blocks_y,
@@ -349,7 +349,7 @@ namespace noa::cuda::geometry::fft {
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
 
-        const int3_t l_shape{shape.get() + 1};
+        const int3_t l_shape{shape.get(1)};
         const float3_t f_shape{l_shape};
         const float3_t half{f_shape / 2 * float3_t{l_shape != 1}}; // if size == 1, half should be 0
 

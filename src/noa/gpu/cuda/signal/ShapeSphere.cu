@@ -92,7 +92,7 @@ namespace noa::cuda::signal {
     void sphere(const shared_t<T[]>& input, size4_t input_stride,
                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream) {
-        uint3_t start{0}, end{shape.get() + 1};
+        uint3_t start{0}, end{shape.get(1)};
         if (INVERT && input.get() == output.get()) {
             start = uint3_t{noa::math::clamp(int3_t{center - (radius + taper_size)}, int3_t{}, int3_t{end})};
             end = uint3_t{noa::math::clamp(int3_t{center + (radius + taper_size) + 1}, int3_t{}, int3_t{end})};
@@ -108,7 +108,7 @@ namespace noa::cuda::signal {
         const bool taper = taper_size > 1e-5f;
         stream.enqueue("signal::sphere", taper ? sphere_<true, INVERT, T> : sphere_<false, INVERT, T>, config,
                        input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
-                       uint2_t{start.get() + 1}, uint2_t{end.get() + 1}, shape[0],
+                       uint2_t{start.get(1)}, uint2_t{end.get(1)}, shape[0],
                        center, radius, taper_size);
         stream.attach(input, output);
     }

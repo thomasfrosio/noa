@@ -209,7 +209,7 @@ namespace noa::cuda::fft::details {
     void hc2h(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_fft{shape.fft().get() + 1};
+        const uint3_t shape_fft{shape.fft().get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
         const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
         stream.enqueue("hc2h_", hc2h_<T>, {blocks, threads},
@@ -220,7 +220,7 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2hc(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
-        const uint3_t shape_fft{shape.fft().get() + 1};
+        const uint3_t shape_fft{shape.fft().get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
 
         if (input == output) {
@@ -242,7 +242,7 @@ namespace noa::cuda::fft::details {
     void f2fc(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_full{shape.get() + 1};
+        const uint3_t shape_full{shape.get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2], Limits::WARP_SIZE));
         const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
         stream.enqueue("f2fc_", f2fc_<T>, {blocks, threads},
@@ -254,7 +254,7 @@ namespace noa::cuda::fft::details {
     void fc2f(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_full{shape.get() + 1};
+        const uint3_t shape_full{shape.get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2], Limits::WARP_SIZE));
         const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
         stream.enqueue("fc2f_", fc2f_<T>, {blocks, threads},
@@ -266,7 +266,7 @@ namespace noa::cuda::fft::details {
     void f2h(const shared_t<T[]>& input, size4_t input_stride,
              const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_fft{shape.fft().get() + 1};
+        const uint3_t shape_fft{shape.fft().get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
         const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
         stream.enqueue("f2h_", f2h_<T>, {blocks, threads},
@@ -278,7 +278,7 @@ namespace noa::cuda::fft::details {
     void h2f(const shared_t<T[]>& input, size4_t input_stride,
              const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_full{shape.get() + 1};
+        const uint3_t shape_full{shape.get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
         const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
         stream.enqueue("h2f_", h2f_<T>, {blocks, threads},
@@ -290,7 +290,7 @@ namespace noa::cuda::fft::details {
     void f2hc(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_fft{shape.fft().get() + 1};
+        const uint3_t shape_fft{shape.fft().get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
         const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
         stream.enqueue("f2hc_", f2hc_<T>, {blocks, threads},
@@ -302,7 +302,7 @@ namespace noa::cuda::fft::details {
     void hc2f(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_full{shape.get() + 1};
+        const uint3_t shape_full{shape.get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
         const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
         stream.enqueue("hc2f_", hc2f_<T>, {blocks, threads},
@@ -314,7 +314,7 @@ namespace noa::cuda::fft::details {
     void fc2h(const shared_t<T[]>& input, size4_t input_stride,
               const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_full{shape.get() + 1};
+        const uint3_t shape_full{shape.get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
         const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
         stream.enqueue("fc2h_", fc2h_<T>, {blocks, threads},
@@ -326,7 +326,7 @@ namespace noa::cuda::fft::details {
     void fc2hc(const shared_t<T[]>& input, size4_t input_stride,
                const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         NOA_ASSERT(input != output);
-        const uint3_t shape_full{shape.get() + 1};
+        const uint3_t shape_full{shape.get(1)};
         const uint threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
         const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
         stream.enqueue("fc2hc_", fc2hc_<T>, {blocks, threads},

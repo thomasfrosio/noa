@@ -158,7 +158,7 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, size4_t shape,
                                                    uint flag, size_t threads) {
-        const int3_t s_shape(shape.get() + 1);
+        const int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         const int how_many = static_cast<int>(shape[0]);
         const int odist = s_shape.fft().elements();
@@ -171,11 +171,11 @@ namespace noa::cpu::fft {
             #endif
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get() + 3 - rank, how_many, input, nullptr, 1, idist,
+                        rank, s_shape.get(3 - rank), how_many, input, nullptr, 1, idist,
                         reinterpret_cast<fftwf_complex*>(output), nullptr, 1, odist, flag);
             } else {
                 plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get() + 3 - rank, how_many, input, nullptr, 1, idist,
+                        rank, s_shape.get(3 - rank), how_many, input, nullptr, 1, idist,
                         reinterpret_cast<fftw_complex*>(output), nullptr, 1, odist, flag);
             }
         }
@@ -191,7 +191,7 @@ namespace noa::cpu::fft {
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_stride,
                                                    Complex<T>* output, size4_t output_stride,
                                                    size4_t shape, uint flag, size_t threads) {
-        const int3_t s_shape(shape.get() + 1);
+        const int3_t s_shape(shape.get(1));
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
         const int3_t inembed(i_stride.pitch());
@@ -208,12 +208,12 @@ namespace noa::cpu::fft {
 
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get() + off, how_many, input, inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_stride[3], i_stride[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.get(off), o_stride[3], o_stride[0], flag);
             } else {
                 plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get() + off, how_many, input, inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_stride[3], i_stride[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.get(off), o_stride[3], o_stride[0], flag);
             }
         }
         if (!plan)

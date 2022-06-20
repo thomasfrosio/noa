@@ -88,7 +88,7 @@ namespace {
 namespace noa::cuda::fft::details {
     std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t shape, int device) {
         const auto batch = static_cast<int>(shape[0]);
-        int3_t s_shape{shape.get() + 1};
+        int3_t s_shape{shape.get(1)};
         const int rank = s_shape.ndim();
 
         using enum_type = std::underlying_type_t<cufftType_t>;
@@ -110,7 +110,7 @@ namespace noa::cuda::fft::details {
         // Create and cache the plan:
         cufftHandle plan{};
         for (size_t i = 0; i < 2; ++i) {
-            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get() + 3 - rank,
+            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(3 - rank),
                                              nullptr, 1, 0, nullptr, 1, 0,
                                              type, batch);
             if (err == CUFFT_SUCCESS)
@@ -127,7 +127,7 @@ namespace noa::cuda::fft::details {
 
     std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t input_stride, size4_t output_stride,
                                          size4_t shape, int device) {
-        int3_t s_shape(shape.get() + 1);
+        int3_t s_shape(shape.get(1));
         const int4_t i_stride(input_stride);
         const int4_t o_stride(output_stride);
         int3_t i_pitch(i_stride.pitch());
@@ -171,9 +171,9 @@ namespace noa::cuda::fft::details {
         // Create and cache the plan:
         cufftHandle plan;
         for (size_t i = 0; i < 2; ++i) {
-            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get() + offset,
-                                             i_pitch.get() + offset, i_stride[3], i_stride[0],
-                                             o_pitch.get() + offset, o_stride[3], o_stride[0],
+            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(offset),
+                                             i_pitch.get(offset), i_stride[3], i_stride[0],
+                                             o_pitch.get(offset), o_stride[3], o_stride[0],
                                              type, batch);
             if (err == CUFFT_SUCCESS)
                 break;

@@ -64,6 +64,13 @@ namespace noa {
 
         NOA_HD [[nodiscard]] constexpr const bool* get() const noexcept { return m_data; }
         NOA_HD [[nodiscard]] constexpr bool* get() noexcept { return m_data; }
+
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD [[nodiscard]] constexpr const bool* get(I i) const noexcept { return m_data + i; }
+
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD [[nodiscard]] constexpr bool* get(I i) noexcept { return m_data + i; }
+
         NOA_HD [[nodiscard]] constexpr Bool4 flip() const noexcept { return {m_data[3], m_data[2], m_data[1], m_data[0]}; }
 
     private:

@@ -123,8 +123,8 @@ namespace noa::cuda::fft::details {
         if (all(input_shape == output_shape))
             return memory::copy(input, input_stride, output, output_stride, input_shape.fft(), stream);
 
-        const uint3_t old_shape(input_shape.get() + 1);
-        const uint3_t new_shape(output_shape.get() + 1);
+        const uint3_t old_shape(input_shape.get(1));
+        const uint3_t new_shape(output_shape.get(1));
         const uint blocks_x = math::divideUp(new_shape[2] / 2 + 1, BLOCK_WORK_SIZE.x);
         const uint blocks_y = math::divideUp(new_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, new_shape[0], output_shape[0]);
@@ -144,8 +144,8 @@ namespace noa::cuda::fft::details {
         if (all(input_shape == output_shape))
             return memory::copy(input, input_stride, output, output_stride, input_shape, stream);
 
-        const uint3_t old_shape(input_shape.get() + 1);
-        const uint3_t new_shape(output_shape.get() + 1);
+        const uint3_t old_shape(input_shape.get(1));
+        const uint3_t new_shape(output_shape.get(1));
         const uint blocks_x = math::divideUp(new_shape[2], BLOCK_WORK_SIZE.x);
         const uint blocks_y = math::divideUp(new_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, new_shape[0], output_shape[0]);
@@ -167,8 +167,8 @@ namespace noa::cuda::fft::details {
             return memory::copy(input, input_stride, output, output_stride, input_shape.fft(), stream);
 
         memory::set(output, output_stride, output_shape.fft(), T{0}, stream);
-        const uint3_t old_shape(input_shape.get() + 1);
-        const uint3_t new_shape(output_shape.get() + 1);
+        const uint3_t old_shape(input_shape.get(1));
+        const uint3_t new_shape(output_shape.get(1));
         const uint blocks_x = math::divideUp(old_shape[2] / 2 + 1, BLOCK_WORK_SIZE.x);
         const uint blocks_y = math::divideUp(old_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, old_shape[0], output_shape[0]);
@@ -190,8 +190,8 @@ namespace noa::cuda::fft::details {
             return memory::copy(input, input_stride, output, output_stride, input_shape, stream);
 
         memory::set(output, output_stride, output_shape, T{0}, stream);
-        const uint3_t old_shape(input_shape.get() + 1);
-        const uint3_t new_shape(output_shape.get() + 1);
+        const uint3_t old_shape(input_shape.get(1));
+        const uint3_t new_shape(output_shape.get(1));
         const uint blocks_x = math::divideUp(old_shape[2], BLOCK_WORK_SIZE.x);
         const uint blocks_y = math::divideUp(old_shape[1], BLOCK_WORK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, old_shape[0], output_shape[0]);

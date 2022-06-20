@@ -166,7 +166,7 @@ namespace {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
-        const int3_t s_shape{shape.get() + 1};
+        const int3_t s_shape{shape.get(1)};
         float3_t norm{s_shape / 2 * 2 + int3_t{s_shape == 1}};
         norm = 1.f / norm;
 
@@ -213,7 +213,7 @@ namespace noa::cuda::signal::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
-        const int3_t s_shape(shape.get() + 1);
+        const int3_t s_shape(shape.get(1));
         float3_t norm(s_shape / 2 * 2 + int3_t{s_shape == 1});
         norm = 1.f / norm;
 

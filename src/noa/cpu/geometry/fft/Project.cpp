@@ -129,7 +129,7 @@ namespace {
                         const float22_t* inv_scaling_factors, const float33_t* rotations,
                         float cutoff, float2_t ews_radius, size_t threads) {
         using real_t = traits::value_type_t<T>;
-        const int2_t l_shape{slice_shape.get() + 1};
+        const int2_t l_shape{slice_shape.get(1)};
         const float2_t f_slice_shape{l_shape / 2 * 2 + int2_t{l_shape == 1}};
         const float3_t f_grid_shape{grid_shape / 2 * 2 + int3_t{grid_shape == 1}};
 
@@ -199,7 +199,7 @@ namespace {
                          const float22_t* inv_scaling_factors, const float33_t* rotations,
                          float cutoff, float2_t ews_radius, size_t threads) {
         using real_t = traits::value_type_t<T>;
-        const int2_t l_shape{slice_shape.get() + 1};
+        const int2_t l_shape{slice_shape.get(1)};
         const float2_t f_slice_shape{l_shape / 2 * 2 + int2_t{l_shape == 1}};
         const float3_t f_grid_shape{grid_shape / 2 * 2 + int3_t{grid_shape == 1}};
 
@@ -261,7 +261,7 @@ namespace {
     void correctGriddingSinc2_(const T* input, size4_t input_stride,
                                T* output, size4_t output_stride, size4_t shape, size_t threads) {
         constexpr float PI = math::Constants<float>::PI;
-        const int3_t l_shape{shape.get() + 1};
+        const int3_t l_shape{shape.get(1)};
         const float3_t f_shape{l_shape};
         const float3_t half{f_shape / 2 * float3_t{l_shape != 1}}; // if size == 1, half should be 0
 

@@ -357,7 +357,7 @@ namespace noa::cuda::signal {
         if (window_size <= 1)
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
-        const uint2_t uint_shape{shape.get() + 2};
+        const uint2_t uint_shape{shape.get(2)};
         const uint4_t uint_input_stride{input_stride};
         const uint4_t uint_output_stride{output_stride};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_SIZE.x);
@@ -436,7 +436,7 @@ namespace noa::cuda::signal {
         if (window_size <= 1)
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
-        const uint2_t uint_shape{shape.get() + 2};
+        const uint2_t uint_shape{shape.get(2)};
         const uint4_t uint_input_stride{input_stride};
         const uint4_t uint_output_stride{output_stride};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_SIZE.x);
@@ -490,7 +490,7 @@ namespace noa::cuda::signal {
         if (window_size <= 1)
             return memory::copy(input, input_stride, output, output_stride, shape, stream);
 
-        const uint3_t uint_shape{shape.get() + 1};
+        const uint3_t uint_shape{shape.get(1)};
         const uint4_t uint_input_stride{input_stride};
         const uint4_t uint_output_stride{output_stride};
         const uint blocks_x = math::divideUp(uint_shape[2], BLOCK_SIZE.x);

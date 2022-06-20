@@ -106,7 +106,7 @@ namespace noa::cuda::signal {
     void cylinder(const shared_t<T[]>& input, size4_t input_stride,
                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream) {
-        uint3_t start{0}, end{shape.get() + 1};
+        uint3_t start{0}, end{shape.get(1)};
         if (INVERT && input.get() == output.get()) {
             float3_t radius_{length, radius, radius};
             radius_ += taper_size;
@@ -124,7 +124,7 @@ namespace noa::cuda::signal {
         const bool taper = taper_size > 1e-5f;
         stream.enqueue("signal::cylinder", taper ? cylinder_<true, INVERT, T> : cylinder_<false, INVERT, T>, config,
                        input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
-                       uint2_t{start.get() + 1}, uint2_t{end.get() + 1}, shape[0],
+                       uint2_t{start.get(1)}, uint2_t{end.get(1)}, shape[0],
                        center, radius, length, taper_size);
         stream.attach(input, output);
     }

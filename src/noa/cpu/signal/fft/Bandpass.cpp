@@ -75,7 +75,7 @@ namespace {
                     size4_t shape, size_t threads, U&& getPass) {
         using real_t = noa::traits::value_type_t<T>;
         const size_t batches = shape[0];
-        const long3_t l_shape(shape.get() + 1);
+        const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape / 2 * 2 + long3_t{l_shape == 1}); // if odd, subtract 1 to keep Nyquist at 0.5
 
         #pragma omp parallel for collapse(4) num_threads(threads) default(none) \
@@ -110,7 +110,7 @@ namespace {
     void applyPass_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
                     size4_t shape, U&& getPass) {
         using real_t = noa::traits::value_type_t<T>;
-        const long3_t l_shape(shape.get() + 1);
+        const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape / 2 * 2 + long3_t{l_shape == 1}); // if odd, subtract 1 to keep Nyquist at 0.5
 
         for (size_t ii = 0; ii < shape[0]; ++ii) {

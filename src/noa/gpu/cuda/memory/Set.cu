@@ -107,7 +107,7 @@ namespace noa::cuda::memory::details {
             const uint2_t uint_stride{stride[0], stride[3]};
             const uint elements_per_batch = is_contiguous[0] ?
                                             uint_shape.elements() :
-                                            uint3_t{uint_shape.get() + 1}.elements();
+                                            uint3_t{uint_shape.get(1)}.elements();
             const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
@@ -126,7 +126,7 @@ namespace noa::cuda::memory::details {
                                {blocks, BLOCK_SIZE}, src.get(), uint_stride, elements_per_batch, value);
             }
         } else {
-            const uint2_t i_shape{shape.get() + 2};
+            const uint2_t i_shape{shape.get(2)};
             const uint blocks_x = noa::math::divideUp(i_shape[1], BLOCK_WORK_SIZE_2D.x);
             const uint blocks_y = noa::math::divideUp(i_shape[0], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);

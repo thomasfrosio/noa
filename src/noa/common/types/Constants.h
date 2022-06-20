@@ -213,4 +213,6 @@ namespace noa::math {
     NOA_IH std::ostream& operator<<(std::ostream& os, normal_t) { return os << "normal"; }
     NOA_IH std::ostream& operator<<(std::ostream& os, log_normal_t) { return os << "log-normal"; }
     NOA_IH std::ostream& operator<<(std::ostream& os, poisson_t) { return os << "poisson"; }
+
+    enum BlasTranspose : int { BLAS_TRANSPOSE_NONE, BLAS_TRANSPOSE, BLAS_TRANSPOSE_CONJ };
 }

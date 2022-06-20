@@ -434,6 +434,13 @@ namespace noa {
 
         [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_data; }
         [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
+
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD [[nodiscard]] constexpr const T* get(I i) const noexcept { return m_data + i; }
+
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        NOA_HD [[nodiscard]] constexpr T* get(I i) noexcept { return m_data + i; }
+
         [[nodiscard]] NOA_HD constexpr Float4 flip() const noexcept { return {m_data[3], m_data[2], m_data[1], m_data[0]}; }
 
     private:

@@ -139,7 +139,7 @@ namespace noa::cuda::signal {
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter.get(), math::prod(filter_shape) * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
 
-        const uint3_t uint_shape(shape.get() + 1);
+        const uint3_t uint_shape(shape.get(1));
         const uint blocks_x = math::divideUp(uint_shape[2], BLOCK_SIZE.x);
         const uint blocks_y = math::divideUp(uint_shape[1], BLOCK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
