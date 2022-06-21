@@ -1,8 +1,9 @@
 ## `Dependencies`
 
-While some dependencies are directly fetched and installed by the library, some are not.
+While some dependencies are directly fetched and installed by the library, some are not:
 
-- __CMake__. The minimum version is 3.18. Note that it has almost no dependencies and can be installed without root
+- [CMake](https://cmake.org/download/). The minimum version is 3.18. Note that it has almost no dependencies and can 
+  be installed without root
   privileges.
 
 - __C++__ compiler. The supported C++ compilers are `gcc >= 9.3` and `clang >= 10`. The C++ compiler path can be

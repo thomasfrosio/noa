@@ -1,0 +1,84 @@
+Missing features that could be useful to add, in no particular order.
+
+cryoEM:
+    -   CTF
+        Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
+        e.g. compute value at a given frequency. Single side-band algorithm support (complex CTFs, cones).
+        Add related functions in `signal::fft`, e.g. compute CTF with a given shape, etc.
+
+    -   High-order aberrations and optics in general...
+        Look at Warp and RELION's code. I know very little about this...
+
+    -   Familiarise myself with: optimization/minimization/fitting/refinement, gradients, etc.
+        Also solve linear equations, look at robust statistics as well.
+        This would mostly be an interface to other libraries, e.g. LAPACK, vnl.
+
+    -   Conical FSC and spectral whitening: these two are very similar in terms of implementation. One way, which would
+        be more correct is to use geometry::fft::cartesian2polar to extract the lines. Having them in a polar grid makes
+        the normalization extremely easy. One other solution is to round the frequency and store it in its bin, which is
+        what cisTEM/RELION are doing I think. In this case, we need to keep track of the number of components added to
+        each bins (lower bins have fewer components than higher bins).
+
+    -   Binning: real space binning is a nice to have, although Fourier cropping is often preferred. Note that efficient
+        binning on the GPU requires some thinking.
+
+    -   Add center of mass, radial grid.
+
+    -   ImageFile:
+        - Refactor and move to unified API?
+        - Add compression.
+        - Better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the
+          non-redundant data. ImageFile treats the shape as the physical shape...
+
+Development:
+    -   Add support for Windows. It should not be that complicated. One thing to look at is OpenMP support.
+
+    -   Add nvrtc when necessary.
+        Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels
+        to cubin directory at runtime. The launch mechanism will be centralized and in .cpp files, the kernels in
+        .cu files. Ultimately, this will make us use the driver API, which gets rid of the triple-chevron and offers
+        better control over the parameter packing and kernel launch.
+        -   Note that the simple fact of having kernels and the launch in separate files is already beneficial.
+            For instance, we could refactor the code so that nvcc won't have to see and compile fmt/spdlog.
+        -   One other major optimization allowed by runtime compilation is the ability to bring some runtime evaluation
+            to compile time. For instance, in some cases, passing some dimensions or count as a template parameter
+            could be beneficial. Of course this needs to be tuned since we don't want to recompile everytime the
+            function is called because there's a different template parameter...
+        See: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp
+             https://github.com/eyalroz/cuda-api-wrappers/tree/master/src/cuda/nvrtc
+
+    -   Test CUDA LTO and unused kernels support from Toolkit 11.5.
+
+    -   CUDA constant memory: test the benefits of constant memory. The issue with this is the (host) thread-safety.
+        If multiple host threads use the same device but are on different streams, we need to lock guard the resource
+        and kernel launch since the resource is global to the device.
+
+    -   Add transform operator to the math reduce functions. cuda::util::reduce showed that this is useful and often
+        removes the need for a temporary array.
+
+    -   Add `ewise(...)` with indexes: iwise(...). The lambda parameters could be: (T*, i, j, k, l).
+        This is only for the CPU backend now since we cannot really pre-instantiate these operators...
+
+    -   JIT, lazy evaluation and kernel fusion.
+        This is cool, is efficient and uses fewer temporaries, BUT, I much prefer the simplicity of `std::transform` or
+        range-like APIs, where we define lambdas as transform operators. Also, it is much more flexible and versatile in
+        my opinion. ArrayFire is quite good at fusing kernels, but I'm not sure if I want to go that path.
+            The implementation in arrayfire seems fine, I think Cupy is similar but CUDA only. Pytorch should be the
+        same but the codebase is huge, and it's difficult to understand what is going on.
+            At the moment, the CPU backend math::ewise() can take any unary/binary/trinary element-wise transformation
+        operator, which is great. However, since we cannot include and compile CUDA kernels from .cpp files OR pass host
+        lambdas to CUDA kernels, we have to limit ourselves to pre-instantiated operators, which is super annoying.
+        Note that the kernels are already there and can take any operators like in the CPU backend, but they have to be
+        compiled by .cu files. I really hope nvc++ will solve this issue.
+        Links: https://arrayfire.com/performance-of-arrayfire-jit-code-generation/
+
+    -   Add vkFFT support? Also look at FFTW CPU port for Intel-MKL and AMD.
+        Zero-padding can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call-
+        back but there's no benchmark for that. It could be useful to contact the author about some of our applications,
+        e.g. convolution with small (compared to input) template. FastFFT from Ben Himes is also promising since it is
+        really fitted for cryoEM applications, however it is CUDA only and still in development.
+
+    -   Add Vulkan backend.
+        CUDA is nice and all, but it's NVIDIA only. Vulkan seems could be best option for proper unified GPU support.
+        GLSL for shading language and then glslangValidator or glslc to compile to SPIR-V? Apple doesn't support Vulkan
+        very well and it seems like they are doing a CUDA-like with Metal.

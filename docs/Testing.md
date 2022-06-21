@@ -1,6 +1,6 @@
 ## `Running tests`
 
-The library comes with the ``noa_tests`` executable.
+The library will install the ``noa_tests`` executable.
 
 To run the tests:
 1. Clone the [noa-data](https://github.com/ffyr2w/noa-data) repository, run the setup script to generate the assets
