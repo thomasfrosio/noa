@@ -112,6 +112,7 @@ namespace noa::cuda::fft {
 
         /// Gets the underlying cuFFT plan.
         [[nodiscard]] cufftHandle get() const noexcept { return *m_plan; }
+        [[nodiscard]] std::shared_ptr<cufftHandle> share() const noexcept { return m_plan; }
 
     private:
         std::shared_ptr<cufftHandle> m_plan{};

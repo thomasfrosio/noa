@@ -55,6 +55,7 @@ namespace noa::cuda::fft {
             NOA_THROW_IF(cufftExecR2C(plan.get(), input.get(), reinterpret_cast<cufftComplex*>(output.get())));
         else
             NOA_THROW_IF(cufftExecD2Z(plan.get(), input.get(), reinterpret_cast<cufftDoubleComplex*>(output.get())));
+        stream.attach(input, output, plan.share());
     }
 
     /// Computes the backward C2R transform encoded in \p plan.
@@ -73,6 +74,7 @@ namespace noa::cuda::fft {
             NOA_THROW_IF(cufftExecC2R(plan.get(), reinterpret_cast<cufftComplex*>(input.get()), output.get()));
         else
             NOA_THROW_IF(cufftExecZ2D(plan.get(), reinterpret_cast<cufftDoubleComplex*>(input.get()), output.get()));
+        stream.attach(input, output, plan.share());
     }
 
     /// Computes the C2C transform using the \p plan.
@@ -98,6 +100,7 @@ namespace noa::cuda::fft {
                                       reinterpret_cast<cufftDoubleComplex*>(input.get()),
                                       reinterpret_cast<cufftDoubleComplex*>(output.get()), sign));
         }
+        stream.attach(input, output, plan.share());
     }
 }
 
