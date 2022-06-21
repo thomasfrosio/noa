@@ -1,6 +1,9 @@
 #ifdef NOA_ENABLE_OPENMP
 #include <omp.h>
 #endif
+#ifdef NOA_ENABLE_CPU
+#include <cblas.h>
+#endif
 
 #include "noa/Session.h"
 #include "noa/common/string/Parse.h"
@@ -36,5 +39,10 @@ void noa::Session::threads(size_t threads) {
     }
     #ifdef NOA_ENABLE_OPENMP
     omp_set_num_threads(static_cast<int>(m_threads));
+    #endif
+    #ifdef NOA_ENABLE_CPU
+    // This can only be set once... subsequent calls have no effect.
+    if (openblas_get_parallel())
+        openblas_set_num_threads(static_cast<int>(m_threads)); // only the first call matters
     #endif
 }
