@@ -7,6 +7,9 @@
 #include "noa/common/string/Parse.h"
 #include "noa/cpu/Device.h"
 
+// Internal data to reset:
+#include "noa/cpu/fft/Plan.h"
+
 // TODO maybe use something a bit more robust like pytorch/cpuinfo?
 // FIXME should this be in noa/common ?
 
@@ -236,5 +239,11 @@ namespace noa::cpu {
                               cache3.size / 1024, cache3.line_size,
                               (sysmem.total - sysmem.free) / 1048576, sysmem.total / 1048576,
                               io::isBigEndian() ? "big" : "little");
+    }
+
+    void Device::reset() {
+        // Reset all internal data created and managed automatically by the CPU backend:
+        fft::Plan<float>::cleanup();
+        fft::Plan<double>::cleanup();
     }
 }

@@ -24,5 +24,8 @@ namespace noa::cpu {
 
         /// Retrieves a printable summary about the CPU and system memory.
         [[nodiscard]] NOA_HOST static std::string summary();
+
+        /// Clears the internal data of the CPU backend.
+        static void reset();
     };
 }

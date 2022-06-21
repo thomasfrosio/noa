@@ -1,22 +1,17 @@
 #include "noa/gpu/cuda/Device.h"
-
 #include "noa/gpu/cuda/fft/Plan.h"
-#ifdef NOA_ENABLE_UNIFIED
-#include "noa/unified/Stream.h"
-#endif
+
+// The library (i.e. the CUDA backend) keeps track of some global resources, e.g. FFT plans or cuBLAS handles.
+// While we expect users to destroy the resources they have created for the device they want to reset (this includes
+// streams, arrays, textures, CUDA arrays), we have to take care of our own internal resources, namely:
+//  - FFT plans
 
 namespace noa::cuda {
-    // Before resetting the device, we must ensure that all global resource on that device is deleted.
     void Device::reset() const {
         DeviceGuard guard(*this);
+        guard.synchronize(); // if called noa::Device::reset(), the device is already synchronized
 
         fft::PlanCache::cleanup();
-
-        // Reset the default stream for that device to the NULL stream.
-        #ifdef NOA_ENABLE_UNIFIED
-        noa::Stream stream{noa::Device{noa::Device::GPU, this->id(), true}, noa::Stream::DEFAULT};
-        noa::Stream::current(stream);
-        #endif
 
         NOA_THROW_IF(cudaDeviceReset());
     }

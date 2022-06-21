@@ -45,12 +45,15 @@ namespace noa {
 
     public:
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
-        /// This has no effect on the CPU. In almost all cases, it is better to synchronize the streams
-        /// instead of the devices.
+        /// On the CPU, the current stream for that device is synchronized. In almost all cases, it is better
+        /// to synchronize the streams instead of the devices.
         void synchronize() const;
 
-        /// Explicitly destroys and cleans up all resources associated with the current device in the
-        /// current process. This has no effect on the CPU.
+        /// Explicitly synchronizes, destroys and cleans up all resources associated with the current device in the
+        /// current process. The current stream for that device is synchronized and reset to the default stream.
+        /// \warning for CUDA devices: It is the caller's responsibility to ensure that resources in all host threads
+        ///          (streams and pinned|device arrays) attached to that device are destructed before calling this
+        ///          function. The library's internal data will be handled automatically, e.g. FFT plans or textures.
         void reset() const;
 
         /// Returns a brief printable summary about the device.

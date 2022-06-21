@@ -59,11 +59,11 @@ namespace noa::cuda {
             Device::current(previous_current);
         }
 
-        /// Explicitly destroys and cleans up all resources associated with the current device in the current process.
-        /// Any subsequent API call to this device will reinitialize the device.
-        /// \warning This function will reset the device immediately. It is the caller's responsibility to ensure that
-        ///          the device is not being accessed by any other host threads from the process when this function
-        ///          is called.
+        /// Explicitly synchronizes, destroys and cleans up all resources associated with the current device in the
+        /// current process. Any subsequent API call to this device will reinitialize the device.
+        /// \warning It is the caller's responsibility to ensure that resources (streams, pinned|device arrays,
+        ///          CUDA arrays, textures) attached to that device are destructed before calling this function.
+        ///          The library's internal data will be handled automatically, e.g. FFT plans.
         void reset() const;
 
         /// Retrieves the properties of the device.

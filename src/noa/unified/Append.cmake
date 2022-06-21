@@ -90,6 +90,7 @@ set(NOA_UNIFIED_HEADERS
         )
 
 set(NOA_UNIFIED_SOURCES
+        unified/Device.cpp
         unified/Stream.cpp
         )
 

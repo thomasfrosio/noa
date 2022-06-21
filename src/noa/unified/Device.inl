@@ -19,20 +19,6 @@ namespace noa {
         }
     }
 
-    NOA_IH void Device::synchronize() const {
-        #ifdef NOA_ENABLE_CUDA
-        if (this->gpu())
-            cuda::Device(this->id(), true).synchronize();
-        #endif
-    }
-
-    NOA_IH void Device::reset() const {
-        #ifdef NOA_ENABLE_CUDA
-        if (this->gpu())
-            cuda::Device(this->id(), true).reset();
-        #endif
-    }
-
     NOA_IH std::string Device::summary() const {
         if (cpu()) {
             return cpu::Device::summary();
