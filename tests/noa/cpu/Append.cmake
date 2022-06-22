@@ -16,6 +16,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/geometry/TestCPUTransform.cpp
         noa/cpu/geometry/TestCPUTransformSymmetry.cpp
 
+        noa/cpu/math/TestCPUBlas.cpp
         noa/cpu/math/TestCPUEwise.cpp
         noa/cpu/math/TestCPUFind.cpp
         noa/cpu/math/TestCPURandom.cpp

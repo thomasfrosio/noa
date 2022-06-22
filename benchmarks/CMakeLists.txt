@@ -12,6 +12,7 @@ set(BENCHMARK_CPU_SOURCES
         src/cpu/fft/BenchCPUResize.cpp
         src/cpu/fft/BenchCPUTransforms.cpp
 
+        src/cpu/math/BenchCPUBlas.cpp
         src/cpu/math/BenchCPUReductions.cpp
 
         src/cpu/signal/BenchCPUConvolve.cpp
