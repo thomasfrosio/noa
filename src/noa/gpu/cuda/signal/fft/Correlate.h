@@ -10,12 +10,12 @@ namespace noa::cuda::signal::fft::details {
     void xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
                const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
                size4_t shape, const shared_t<T[]>& coefficients,
-               Stream& stream, const shared_t<T[]>& tmp, bool is_half);
+               Stream& stream, bool is_half);
 
     template<typename T>
     T xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
             const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
-            size4_t shape, Stream& stream, const shared_t<T[]>& tmp, bool is_half);
+            size4_t shape, Stream& stream, bool is_half);
 
     template<Remap REMAP, typename T>
     constexpr bool is_valid_xmap_v = traits::is_any_v<T, float, double> &&
@@ -162,16 +162,14 @@ namespace noa::cuda::signal::fft {
     /// \param shape            Rightmost logical shape.
     /// \param[out] coeffs      On the \b host or \b device. Cross-correlation coefficient(s). One per batch.
     /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param[out] tmp         Contiguous temporary buffer able to fit the real components of \p lhs.
-    ///                         If nullptr, a temporary array is stream-allocated.
     /// \note This function is asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     void xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
                const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
                size4_t shape, const shared_t<T[]>& coeffs,
-               Stream& stream, const shared_t<T[]>& tmp = nullptr) {
+               Stream& stream) {
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
-        details::xcorr(lhs, lhs_stride, rhs, rhs_stride, shape, coeffs, stream, tmp, SRC_IS_HALF);
+        details::xcorr(lhs, lhs_stride, rhs, rhs_stride, shape, coeffs, stream, SRC_IS_HALF);
     }
 
     /// Computes the cross-correlation coefficient.
@@ -184,13 +182,11 @@ namespace noa::cuda::signal::fft {
     /// \param shape            Rightmost logical shape. Should be unbatched.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
-    /// \param[out] tmp         Contiguous temporary buffer able to fit the real components of \p lhs.
-    ///                         If nullptr, a temporary array is stream-allocated.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     T xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
             const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
-            size4_t shape, Stream& stream, const shared_t<T[]>& tmp = nullptr) {
+            size4_t shape, Stream& stream) {
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
-        return details::xcorr(lhs, lhs_stride, rhs, rhs_stride, shape, stream, tmp, SRC_IS_HALF);
+        return details::xcorr(lhs, lhs_stride, rhs, rhs_stride, shape, stream, SRC_IS_HALF);
     }
 }

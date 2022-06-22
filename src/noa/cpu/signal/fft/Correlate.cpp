@@ -264,7 +264,7 @@ namespace noa::cpu::signal::fft::details {
         double err = 0, err_lhs = 0, err_rhs = 0;
 
         auto abs_sqd = noa::math::abs_squared_t{};
-        auto reduce_sum = [](double value, double& s, double& e) {
+        auto accurate_sum = [](double value, double& s, double& e) {
             auto t = s + value;
             e += noa::math::abs(s) >= noa::math::abs(value) ? (s - t) + value : (value - t) + s;
             s = t;
@@ -272,7 +272,7 @@ namespace noa::cpu::signal::fft::details {
 
         #pragma omp parallel for collapse(3) num_threads(threads)               \
         reduction(+:sum, sum_lhs, sum_rhs, err, err_lhs, err_rhs) default(none) \
-        shared(lhs, lhs_stride, rhs, rhs_stride, shape, abs_sqd, reduce_sum)
+        shared(lhs, lhs_stride, rhs, rhs_stride, shape, abs_sqd, accurate_sum)
 
         for (size_t j = 0; j < shape[0]; ++j) {
             for (size_t k = 0; k < shape[1]; ++k) {
@@ -281,9 +281,9 @@ namespace noa::cpu::signal::fft::details {
                     const auto lhs_value = static_cast<cdouble_t>(lhs[indexing::at(j, k, l, lhs_stride)]);
                     const auto rhs_value = static_cast<cdouble_t>(rhs[indexing::at(j, k, l, rhs_stride)]);
 
-                    reduce_sum(abs_sqd(lhs_value), sum_lhs, err_lhs);
-                    reduce_sum(abs_sqd(rhs_value), sum_rhs, err_rhs);
-                    reduce_sum(noa::math::real(lhs_value * noa::math::conj(rhs_value)), sum, err);
+                    accurate_sum(abs_sqd(lhs_value), sum_lhs, err_lhs);
+                    accurate_sum(abs_sqd(rhs_value), sum_rhs, err_rhs);
+                    accurate_sum(noa::math::real(lhs_value * noa::math::conj(rhs_value)), sum, err);
                 }
             }
         }

@@ -204,7 +204,7 @@ namespace noa::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     void xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, size4_t shape,
-               const Array<T>& coeffs, const Array<T>& tmp) {
+               const Array<T>& coeffs) {
         NOA_CHECK(coeffs.shape()[3] == shape[0] && coeffs.shape().ndim() == 1 && coeffs.contiguous(),
                   "The number of coeffs, specified as a contiguous row vector, should be equal to the number "
                   "of batches, but got {} coeffs and {} output batches", coeffs.shape()[3], shape[0]);
@@ -235,12 +235,8 @@ namespace noa::signal::fft {
                                            shape, coeffs.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(tmp.empty() ||
-                      (tmp.device() == stream.device() && all(tmp.shape() > expected_shape) && tmp.contiguous()),
-                      "The temporary array should be contiguous and with a shape of at least {}, but got effective "
-                      "shape {}", expected_shape, indexing::effectiveShape(tmp.shape(), tmp.stride()));
             cuda::signal::fft::xcorr<REMAP>(lhs.share(), lhs_stride, rhs.share(), rhs_stride,
-                                            shape, coeffs.share(), stream.cpu(), tmp.share());
+                                            shape, coeffs.share(), stream.cpu());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -248,7 +244,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, size4_t shape, const Array<T>& tmp) {
+    T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, size4_t shape) {
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
         const size4_t expected_shape = SRC_IS_HALF ? shape.fft() : shape;
         size4_t lhs_stride = lhs.stride();
@@ -272,12 +268,8 @@ namespace noa::signal::fft {
                     lhs.share(), lhs_stride, rhs.share(), rhs_stride, shape, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(tmp.empty() ||
-                      (tmp.device() == stream.device() && all(tmp.shape() > expected_shape) && tmp.contiguous()),
-                      "The temporary array should be contiguous and with a shape of at least {}, but got effective "
-                      "shape {}", expected_shape, indexing::effectiveShape(tmp.shape(), tmp.stride()));
             return cuda::signal::fft::xcorr<REMAP>(
-                    lhs.share(), lhs_stride, rhs.share(), rhs_stride, shape, stream.cpu(), tmp.share());
+                    lhs.share(), lhs_stride, rhs.share(), rhs_stride, shape, stream.cpu());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

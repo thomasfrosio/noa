@@ -9,6 +9,7 @@
 
 #include "noa/gpu/cuda/util/EwiseBinary.cuh"
 #include "noa/gpu/cuda/util/ReduceUnary.cuh"
+#include "noa/gpu/cuda/util/ReduceBinary.cuh"
 #include "noa/gpu/cuda/util/Warp.cuh"
 
 namespace {
@@ -458,7 +459,7 @@ namespace noa::cuda::signal::fft::details {
     void xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
                const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
                size4_t shape, const shared_t<T[]>& coefficients,
-               Stream& stream, const shared_t<T[]>& tmp, bool is_half) {
+               Stream& stream, bool is_half) {
         const size_t batches = shape[0];
         const size4_t shape_fft = is_half ? shape.fft() : shape;
         const size4_t stride_fft = shape_fft.stride();
@@ -483,14 +484,14 @@ namespace noa::cuda::signal::fft::details {
                 null, 0, noa::math::copy_t{},
                 stream);
 
-        const shared_t<T[]>& tmp_ = tmp ? cuda::memory::PtrDevice<T>::alloc(shape_fft.elements(), stream) : tmp;
-        cuda::util::ewise::binary(
+        auto combine_op = []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * r); };
+        cuda::util::reduce<false, false>(
                 "signal::fft::xcorr",
-                lhs.get(), lhs_stride, rhs.get(), rhs_stride, tmp_.get(), stride_fft, shape_fft, stream,
-                []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * noa::math::conj(r)); });
-        cuda::math::sum(tmp_, stride_fft, shape_fft, buffer.share(), reduced_stride, reduced_shape, stream);
+                lhs.get(), uint4_t{lhs_stride}, rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
+                noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, T{0},
+                buffer.get(), 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, stream);
 
-        stream.synchronize();
+        stream.synchronize(); // FIXME Add callback
         for (size_t batch = 0; batch < batches; ++batch) {
             coefficients.get()[batch] =
                     buffer[batch] / noa::math::sqrt(denominator_lhs[batch] * denominator_rhs[batch]);
@@ -500,12 +501,12 @@ namespace noa::cuda::signal::fft::details {
     template<typename T>
     T xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_stride,
             const shared_t<Complex<T>[]>& rhs, size4_t rhs_stride,
-            size4_t shape, Stream& stream, const shared_t<T[]>& tmp, bool is_half) {
+            size4_t shape, Stream& stream, bool is_half) {
         NOA_ASSERT(shape[0] == 1);
         const size4_t shape_fft = is_half ? shape.fft() : shape;
         const size4_t stride_fft = shape_fft.stride();
 
-        T denominator_lhs, denominator_rhs;
+        T numerator{}, denominator_lhs{}, denominator_rhs{};
         T* null{};
         cuda::util::reduce<true>(
                 "signal::fft::xcorr", lhs.get(), uint4_t{lhs_stride}, uint4_t{shape_fft},
@@ -519,20 +520,22 @@ namespace noa::cuda::signal::fft::details {
                 &denominator_rhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
                 stream);
-        const T denominator = noa::math::sqrt(denominator_lhs * denominator_rhs);
 
-        const shared_t<T[]>& tmp_ = tmp ? cuda::memory::PtrDevice<T>::alloc(shape_fft.elements(), stream) : tmp;
-        cuda::util::ewise::binary<true>(
+        auto combine_op = []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * r); };
+        cuda::util::reduce<false, false>(
                 "signal::fft::xcorr",
-                lhs.get(), lhs_stride, rhs.get(), rhs_stride, tmp_.get(), stride_fft, shape_fft, stream,
-                []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * noa::math::conj(r)); });
-        T numerator = cuda::math::sum(tmp_, stride_fft, shape.fft(), stream);
+                lhs.get(), uint4_t{lhs_stride}, rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
+                noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, T{0},
+                &numerator, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, stream);
+
+        stream.synchronize();
+        const T denominator = noa::math::sqrt(denominator_lhs * denominator_rhs);
         return numerator / denominator;
     }
 
     #define INSTANTIATE_XCORR(T) \
-    template void xcorr<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, const shared_t<T[]>&, Stream&, const shared_t<T[]>&, bool); \
-    template T xcorr<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&, const shared_t<T[]>&, bool)
+    template void xcorr<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, const shared_t<T[]>&, Stream&, bool); \
+    template T xcorr<T>(const shared_t<Complex<T>[]>&, size4_t, const shared_t<Complex<T>[]>&, size4_t, size4_t, Stream&, bool)
 
     INSTANTIATE_XCORR(float);
     INSTANTIATE_XCORR(double);

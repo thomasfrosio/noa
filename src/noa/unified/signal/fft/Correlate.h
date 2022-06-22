@@ -113,12 +113,9 @@ namespace noa::signal::fft {
     /// \param shape        Rightmost logical shape.
     /// \param[out] coeffs  Row vector with the cross-correlation coefficient(s). One per batch.
     ///                     It should be dereferencable by the CPU.
-    /// \param[out] tmp     Contiguous temporary array with the same shape as \p lhs and \p rhs.
-    ///                     Only used by the CUDA backend. If empty, a temporary array is allocated.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     void xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs,
-               size4_t shape, const Array<T>& coeffs,
-               const Array<T>& tmp = {});
+               size4_t shape, const Array<T>& coeffs);
 
     /// Computes the cross-correlation coefficient.
     /// \tparam REMAP       Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.
@@ -126,8 +123,6 @@ namespace noa::signal::fft {
     /// \param[in] lhs      Left-hand side FFT.
     /// \param[in,out] rhs  Right-hand side FFT.
     /// \param shape        Rightmost logical shape. Should be unbatched.
-    /// \param[out] tmp     Contiguous temporary array with the same shape as \p lhs and \p rhs.
-    ///                     Only used by the CUDA backend. If empty, a temporary array is allocated.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, size4_t shape);
 }

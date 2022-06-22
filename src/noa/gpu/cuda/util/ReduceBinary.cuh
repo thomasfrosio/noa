@@ -378,18 +378,17 @@ namespace noa::cuda::util {
                     rhs_accessor, uint2_t{rhs_stride[0], rhs_stride[3]}, elements,
                     transform_op_lhs, transform_op_rhs, combine_op, reduce_op, init, tmp.get(), pitch);
 
-            // Here the input is already transformed, so copy.
             stream.enqueue(name, reduceBinaryLargeFinal_<reduce_value_t, post_value_t, reduce_op_t, post0_op_t, post1_op_t, 4>,
                            {batches, ReduceBinaryConfig::BLOCK_SIZE},
                            tmp.get(), pitch, blocks.x, reduce_op, init,
                            output0_ptr, output0_stride_, post_process0, output1_ptr, output1_stride_, post_process1);
 
         } else {
-            // In this config, the input cannot be easily interpreted as a 1D array.
+            // In this config, the inputs cannot be easily interpreted as a 1D array.
             // As such, the 3 outermost dimensions are batched in a set of rows. Each block reduces at least one row.
-            // Since the reduceLarge4D_ kernel will decompose the "row index" back to a (W,Z,Y) index, the 3 outermost
-            // dimensions can be strided. If the innermost dimension is contiguous, blocks can use vectorize loads
-            // to read their row(s).
+            // Since the reduceBinaryLarge4D_ kernel will decompose the "row index" back to a (W,Z,Y) index, the 3
+            // outermost dimensions can be strided. If the innermost dimension is contiguous, blocks can use vectorize
+            // loads to read their row(s).
 
             // If rows are large, switch to more threads per row.
             const uint block_dim_x = shape[3] > 512 ? 256 : 64;
@@ -429,7 +428,6 @@ namespace noa::cuda::util {
                         lhs_accessor, lhs_stride, rhs_accessor, rhs_stride, shape, rows,
                         transform_op_lhs, transform_op_rhs, combine_op, reduce_op, init, tmp.get(), pitch);
             }
-            // Here the input is already transformed, so copy.
             stream.enqueue(name, reduceBinaryLargeFinal_<reduce_value_t, post_value_t, reduce_op_t, post0_op_t, post1_op_t, 4>,
                            {batches, ReduceBinaryConfig::BLOCK_SIZE},
                            tmp.get(), pitch, blocks.x, reduce_op, init,
