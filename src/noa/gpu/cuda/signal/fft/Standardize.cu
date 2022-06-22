@@ -2,7 +2,7 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/signal/fft/Standardize.h"
-#include "noa/gpu/cuda/util/Reduce.cuh"
+#include "noa/gpu/cuda/util/ReduceUnary.cuh"
 
 namespace {
     using namespace ::noa;
@@ -25,11 +25,12 @@ namespace {
         }
 
         T factor;
-        cuda::util::reduce<false, Complex<T>, T>(
+        T* null{};
+        cuda::util::reduce<false>(
                 "signal::fft::standardize",
                 input.get(), uint4_t{input_stride}, uint4_t{shape},
                 math::abs_squared_t{}, math::plus_t{}, T{0},
-                &factor, 1, math::copy_t{}, nullptr, 1, math::copy_t{}, stream);
+                &factor, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
         Complex<T> dc;
         cuda::memory::copy(input.get() + indexing::at(index_dc, input_stride), &dc, 1, stream);
 
@@ -59,20 +60,21 @@ namespace {
         // Reduce unique chunk:
         auto subregion = original(ellipsis_t{}, slice_t{1, original.shape()[3] - even});
         T factor0;
-        cuda::util::reduce<false, Complex<T>, T>(
+        T* null{};
+        cuda::util::reduce<false>(
                 "signal::fft::standardize",
                 input.get() + subregion.offset(), uint4_t{subregion.stride()}, uint4_t{subregion.shape()},
                 math::abs_squared_t{}, math::plus_t{}, T{0},
-                &factor0, 1, math::copy_t{}, nullptr, 1, math::copy_t{}, stream);
+                &factor0, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
 
         // Reduce common column/plane containing the DC:
         subregion = original(ellipsis_t{}, 0);
         T factor1;
-        cuda::util::reduce<false, Complex<T>, T>(
+        cuda::util::reduce<false>(
                 "signal::fft::standardize",
                 input.get() + subregion.offset(), uint4_t{subregion.stride()}, uint4_t{subregion.shape()},
                 math::abs_squared_t{}, math::plus_t{}, T{0},
-                &factor1, 1, math::copy_t{}, nullptr, 1, math::copy_t{}, stream);
+                &factor1, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
         Complex<T> dc;
         cuda::memory::copy(input.get() + indexing::at(index_dc, input_stride), &dc, 1, stream);
 
@@ -80,11 +82,11 @@ namespace {
         if (even) {
             // Reduce common column/plane containing the real Nyquist:
             subregion = original(ellipsis_t{}, -1);
-            cuda::util::reduce<false, Complex<T>, T>(
+            cuda::util::reduce<false>(
                     "signal::fft::standardize",
                     input.get() + subregion.offset(), uint4_t{subregion.stride()}, uint4_t{subregion.shape()},
                     math::abs_squared_t{}, math::plus_t{}, T{0},
-                    &factor2, 1, math::copy_t{}, nullptr, 1, math::copy_t{}, stream);
+                    &factor2, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
         }
 
         stream.synchronize();

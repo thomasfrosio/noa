@@ -38,8 +38,8 @@ namespace noa::cuda::util::block {
     ///                                 the first element of the block's work space. It should be aligned to VEC_SIZE.
     /// \param[out] per_thread_output   Per thread output array. At least ELEMENTS_PER_THREAD elements.
     /// \param tidx                     Thread index in the 1D block. Usually threadIdx.x.
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T, typename U>
-    NOA_ID void vectorizedLoad(const T* per_block_input, U* per_thread_output, uint tidx) {
+    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T>
+    NOA_ID void vectorizedLoad(const T* __restrict__ per_block_input, T* __restrict__ per_thread_output, uint tidx) {
         static_assert(ELEMENTS_PER_THREAD >= VEC_SIZE); // TODO This could be improved...
         using vec_t = traits::aligned_vector_t<T, VEC_SIZE>;
         const auto* from = reinterpret_cast<const vec_t*>(per_block_input);
@@ -63,7 +63,7 @@ namespace noa::cuda::util::block {
     ///                                 the first element of the block's work space. It should be aligned to VEC_SIZE.
     /// \param tidx                     Thread index in the 1D block. Usually threadIdx.x.
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T>
-    NOA_ID void vectorizedStore(const T* per_thread_input, T* per_block_output, uint tidx) {
+    NOA_ID void vectorizedStore(const T* __restrict__ per_thread_input, T* __restrict__ per_block_output, uint tidx) {
         static_assert(ELEMENTS_PER_THREAD >= VEC_SIZE); // TODO This could be improved...
         using vec_t = traits::aligned_vector_t<T, VEC_SIZE>;
         auto* to = reinterpret_cast<vec_t*>(per_block_output);
@@ -84,8 +84,8 @@ namespace noa::cuda::util::block {
     /// \param tid              Thread index. From 0 to BLOCK_SIZE - 1.
     /// \param reduce_op        Reduction operator.
     /// \return Reduced value in tid 0 (undefined in other threads).
-    template<uint BLOCK_SIZE, typename T, typename ReduceOp>
-    NOA_ID T reduceShared1D(T* s_data, int tid, ReduceOp reduce_op) {
+    template<uint BLOCK_SIZE, typename T, typename reduce_op_t>
+    NOA_ID T reduceShared1D(T* s_data, int tid, reduce_op_t reduce_op) {
         static_assert(BLOCK_SIZE == 1024 || BLOCK_SIZE == 512 ||
                       BLOCK_SIZE == 256 || BLOCK_SIZE == 128 || BLOCK_SIZE == 64);
         T* s_data_tid = s_data + tid;
@@ -111,7 +111,8 @@ namespace noa::cuda::util::block {
     /// \note \p s_values and \p s_offsets should be at least BLOCK_SIZE elements.
     ///       The state in which they are left is undefined.
     template<uint BLOCK_SIZE, typename value_t, typename offset_t, typename find_op_t>
-    NOA_ID Pair<value_t, offset_t> findShared1D(value_t* s_values, offset_t* s_offsets, uint tid, find_op_t find_op) {
+    NOA_ID Pair<value_t, offset_t> findShared1D(value_t* __restrict__ s_values,
+                                                offset_t* __restrict__ s_offsets, uint tid, find_op_t find_op) {
         static_assert(BLOCK_SIZE == 1024 || BLOCK_SIZE == 512 ||
                       BLOCK_SIZE == 256 || BLOCK_SIZE == 128 || BLOCK_SIZE == 64);
         using pair_t = Pair<value_t, offset_t>;
@@ -144,15 +145,17 @@ namespace noa::cuda::util::block {
     /// \param elements             Maximum number of elements that can be reduced.
     ///                             The function tries to BLOCK_SIZE * ELEMENTS_PER_THREAD elements, but will
     ///                             stop if it reaches \p input + \p elements first.
-    /// \param transform_op         Transform operator, op(\p T) -> \p U, to apply on the input before reduction.
-    /// \param reduce_op            Reduction operator: op(\p U, \p U) -> \p U.
+    /// \param transform_op         Transform operator, op(\p value_t) -> X, to apply on the input before reduction.
+    ///                             Its output is explicitly casted to \p reduce_value_t.
+    /// \param reduce_op            Reduction operator: op(\p reduce_value_t, \p reduce_value_t) -> \p reduce_value_t.
     /// \param reduced              Per-thread left-hand side argument of \p reduce_op.
     ///                             It is updated with the final reduced value.
     /// \param tidx                 Thread index in the dimension to reduce.
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
-             typename T, typename U, typename TransformOp, typename ReduceOp>
-    NOA_ID void reduceGlobal1D(const T* input, [[maybe_unused]] uint stride, uint elements,
-                               TransformOp transform_op, ReduceOp reduce_op, U* reduced, uint tidx) {
+             typename value_t, typename reduce_value_t, typename transform_op_t, typename reduce_op_t>
+    NOA_ID void reduceUnaryGlobal1D(const value_t* __restrict__ input, [[maybe_unused]] uint stride, uint elements,
+                                    transform_op_t transform_op, reduce_op_t reduce_op,
+                                    reduce_value_t* __restrict__ reduced, uint tidx) {
         if constexpr (VEC_SIZE > 1) {
             (void) stride; // assume contiguous
             if (elements < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
@@ -160,17 +163,17 @@ namespace noa::cuda::util::block {
                 for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const uint tid = BLOCK_SIZE * i + tidx;
                     if (tid < elements) {
-                        const U transformed = static_cast<U>(transform_op(input[tid]));
-                        *reduced = reduce_op(*reduced, transformed);
+                        const auto transformed = transform_op(input[tid]);
+                        *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(transformed));
                     }
                 }
             } else {
-                T args[ELEMENTS_PER_THREAD];
+                value_t args[ELEMENTS_PER_THREAD];
                 util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const U transformed = static_cast<U>(transform_op(args[i]));
-                    *reduced = reduce_op(*reduced, transformed);
+                    const auto transformed = transform_op(args[i]);
+                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(transformed));
                 }
             }
         } else {
@@ -178,18 +181,83 @@ namespace noa::cuda::util::block {
             for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                 const uint tid = BLOCK_SIZE * i + tidx;
                 if (tid < elements) {
-                    const U transformed = static_cast<U>(transform_op(input[tid * stride]));
-                    *reduced = reduce_op(*reduced, transformed);
+                    const auto transformed = transform_op(input[tid * stride]);
+                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(transformed));
                 }
             }
         }
     }
 
+    /// Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from inputs.
+    /// \tparam BLOCK_SIZE          Number of threads in the dimension to reduce.
+    /// \tparam ELEMENTS_PER_THREAD Number of elements to load, for each thread. Should be >= \p VEC_SIZE
+    /// \tparam VEC_SIZE            Vector size. Either 4, 2, or 1. If 1, a sequential load is used.
+    /// \param[in] lhs, rhs         Left and right-hand side input arrays (usually pointing at global memory) to reduce.
+    ///                             Should start at the first element to reduce.
+    /// \param lhs_stride           Stride between each element in \p lhs. This is ignored if \p VEC_SIZE >= 1.
+    /// \param rhs_stride           Stride between each element in \p rhs. This is ignored if \p VEC_SIZE >= 1.
+    /// \param elements             Maximum number of elements that can be reduced.
+    ///                             The function tries to BLOCK_SIZE * ELEMENTS_PER_THREAD elements, but will
+    ///                             stop if it reaches the limit set by \p elements.
+    /// \param transform_op_lhs     Transform operator, op(\p lhs_value_t) -> Xl, to apply on \p lhs before combination.
+    /// \param transform_op_rhs     Transform operator, op(\p rhs_value_t) -> Xr, to apply on \p rhs before combination.
+    /// \param combine_op           Combine operator, op(Xl, Xr), to apply on the left and right transformed value before
+    ///                             reduction. The output value of this operator is casted to \p reduce_value_t.
+    /// \param reduce_op            Reduction operator: op(\p reduce_value_t, \p reduce_value_t) -> \p reduce_value_t.
+    /// \param reduced              Per-thread left-hand side argument of \p reduce_op.
+    ///                             It is updated with the final reduced value.
+    /// \param tidx                 Thread index in the dimension to reduce.
+    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
+             typename lhs_value_t, typename rhs_value_t, typename reduce_value_t,
+             typename transform_op_lhs_t, typename transform_op_rhs_t,
+             typename combine_op_t, typename reduce_op_t>
+    NOA_ID void reduceBinaryGlobal1D(const lhs_value_t* lhs, uint lhs_stride,
+                                     const rhs_value_t* rhs, uint rhs_stride, uint elements,
+                                     transform_op_lhs_t lhs_transform_op, transform_op_rhs_t rhs_transform_op,
+                                     combine_op_t combine_op, reduce_op_t reduce_op,
+                                     reduce_value_t* reduced, uint tidx) {
+        if constexpr (VEC_SIZE > 1) {
+            (void) lhs_stride; // assume contiguous
+            (void) rhs_stride; // assume contiguous
+            if (elements < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
+                #pragma unroll
+                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint tid = BLOCK_SIZE * i + tidx;
+                    if (tid < elements) {
+                        const auto combined = combine_op(lhs_transform_op(lhs[tid]), rhs_transform_op(rhs[tid]));
+                        *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(combined));
+                    }
+                }
+            } else {
+                lhs_value_t lhs_args[ELEMENTS_PER_THREAD];
+                rhs_value_t rhs_args[ELEMENTS_PER_THREAD];
+                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(lhs, lhs_args, tidx);
+                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(rhs, rhs_args, tidx);
+                #pragma unroll
+                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const auto combined = combine_op(lhs_transform_op(lhs_args[i]), rhs_transform_op(rhs_args[i]));
+                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(combined));
+                }
+            }
+        } else {
+            #pragma unroll
+            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint tid = BLOCK_SIZE * i + tidx;
+                if (tid < elements) {
+                    const auto combined = combine_op(lhs_transform_op(lhs[tid * lhs_stride]),
+                                                     rhs_transform_op(rhs[tid * rhs_stride]));
+                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(combined));
+                }
+            }
+        }
+    }
+
+    // TODO Add documentation
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
             typename value_t, typename transformed_t, typename offset_t, typename transform_op_t, typename find_op_t>
-    NOA_ID void findGlobal1D(const value_t* input, uint gidx, uint tidx, uint stride, uint elements,
+    NOA_ID void findGlobal1D(const value_t* __restrict__ input, uint gidx, uint tidx, uint stride, uint elements,
                              transform_op_t transform_op, find_op_t find_op,
-                             Pair<transformed_t, offset_t>* reduced) {
+                             Pair<transformed_t, offset_t>* __restrict__ reduced) {
         using pair_t = Pair<transformed_t, offset_t>;
         const uint remaining = elements - gidx;
         if constexpr (VEC_SIZE > 1) {
@@ -230,11 +298,13 @@ namespace noa::cuda::util::block {
         }
     }
 
+    // TODO Add documentation
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
             typename value_t, typename transformed_t, typename offset_t, typename transform_op_t, typename find_op_t>
-    NOA_ID void findGlobal1D(const value_t* values, const offset_t* offsets, uint gidx, uint tidx, uint elements,
+    NOA_ID void findGlobal1D(const value_t* __restrict__ values, const offset_t* __restrict__ offsets,
+                             uint gidx, uint tidx, uint elements,
                              transform_op_t transform_op, find_op_t find_op,
-                             Pair<transformed_t, offset_t>* reduced) {
+                             Pair<transformed_t, offset_t>* __restrict__ reduced) {
         using pair_t = Pair<transformed_t, offset_t>;
         const uint remaining = elements - gidx;
         values += gidx;

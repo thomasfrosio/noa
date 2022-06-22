@@ -19,7 +19,8 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/util/EwiseUnary.cuh
         gpu/cuda/util/Find.cuh
         gpu/cuda/util/Pointers.h
-        gpu/cuda/util/Reduce.cuh
+        gpu/cuda/util/ReduceUnary.cuh
+        gpu/cuda/util/ReduceBinary.cuh
         gpu/cuda/util/Traits.h
         gpu/cuda/util/Version.h
         gpu/cuda/util/Warp.cuh

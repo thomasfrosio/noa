@@ -52,7 +52,7 @@ namespace {
         const int4_t pad_left{math::max(border_left, 0)};
         const int4_t pad_right{math::max(border_right, 0)};
 
-        const uint2_t uint_shape{output_shape.get() + 2};
+        const uint2_t uint_shape{output_shape.get(2)};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(uint_shape[0], BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks{blocks_x * blocks_y, output_shape[1], output_shape[0]};
@@ -107,7 +107,7 @@ namespace {
         const int4_t pad_left{math::max(border_left, 0)};
         const int4_t pad_right{math::max(border_right, 0)};
 
-        const uint2_t uint_shape{output_shape.get() + 2};
+        const uint2_t uint_shape{output_shape.get(2)};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(uint_shape[0], BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks{blocks_x * blocks_y, output_shape[1], output_shape[0]};
@@ -156,7 +156,7 @@ namespace {
         const int4_t crop_left{math::min(border_left, 0) * -1};
         const int4_t pad_left{math::max(border_left, 0)};
 
-        const uint2_t uint_shape{output_shape.get() + 2};
+        const uint2_t uint_shape{output_shape.get(2)};
         const uint blocks_x = math::divideUp(uint_shape[1], BLOCK_WORK_SIZE_2D.x);
         const uint blocks_y = math::divideUp(uint_shape[0], BLOCK_WORK_SIZE_2D.y);
         const dim3 blocks{blocks_x * blocks_y, output_shape[1], output_shape[0]};

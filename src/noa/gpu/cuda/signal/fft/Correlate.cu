@@ -8,7 +8,7 @@
 #include "noa/gpu/cuda/signal/fft/Shift.h"
 
 #include "noa/gpu/cuda/util/EwiseBinary.cuh"
-#include "noa/gpu/cuda/util/Reduce.cuh"
+#include "noa/gpu/cuda/util/ReduceUnary.cuh"
 #include "noa/gpu/cuda/util/Warp.cuh"
 
 namespace {
@@ -469,17 +469,18 @@ namespace noa::cuda::signal::fft::details {
         auto denominator_lhs = buffer.get() + batches;
         auto denominator_rhs = buffer.get() + batches * 2;
 
-        cuda::util::reduce<false, Complex<T>, T>(
+        T* null{};
+        cuda::util::reduce<false>(
                 "signal::fft::xcorr", lhs.get(), uint4_t{lhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 denominator_lhs, 1, noa::math::copy_t{},
-                nullptr, 0, noa::math::copy_t{},
+                null, 0, noa::math::copy_t{},
                 stream);
-        cuda::util::reduce<false, Complex<T>, T>(
+        cuda::util::reduce<false>(
                 "signal::fft::xcorr", rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 denominator_rhs, 1, noa::math::copy_t{},
-                nullptr, 0, noa::math::copy_t{},
+                null, 0, noa::math::copy_t{},
                 stream);
 
         const shared_t<T[]>& tmp_ = tmp ? cuda::memory::PtrDevice<T>::alloc(shape_fft.elements(), stream) : tmp;
@@ -505,17 +506,18 @@ namespace noa::cuda::signal::fft::details {
         const size4_t stride_fft = shape_fft.stride();
 
         T denominator_lhs, denominator_rhs;
-        cuda::util::reduce<true, Complex<T>, T>(
+        T* null{};
+        cuda::util::reduce<true>(
                 "signal::fft::xcorr", lhs.get(), uint4_t{lhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 &denominator_lhs, 1, noa::math::copy_t{},
-                nullptr, 0, noa::math::copy_t{},
+                null, 0, noa::math::copy_t{},
                 stream);
-        cuda::util::reduce<true, Complex<T>, T>(
+        cuda::util::reduce<true>(
                 "signal::fft::xcorr", rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 &denominator_rhs, 1, noa::math::copy_t{},
-                nullptr, 0, noa::math::copy_t{},
+                null, 0, noa::math::copy_t{},
                 stream);
         const T denominator = noa::math::sqrt(denominator_lhs * denominator_rhs);
 

@@ -6,7 +6,7 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 
 #include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Reduce.cuh"
+#include "noa/gpu/cuda/util/ReduceUnary.cuh"
 
 namespace {
     using namespace ::noa;
