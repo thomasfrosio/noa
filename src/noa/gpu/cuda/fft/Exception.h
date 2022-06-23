@@ -17,6 +17,6 @@ namespace noa::cuda {
 
     NOA_IH void throwIf(cufftResult_t result, const char* file, const char* function, int line) {
         if (result != cufftResult_t::CUFFT_SUCCESS)
-        std::throw_with_nested(noa::Exception(file, function, line, toString(result)));
+            std::throw_with_nested(noa::Exception(file, function, line, toString(result)));
     }
 }

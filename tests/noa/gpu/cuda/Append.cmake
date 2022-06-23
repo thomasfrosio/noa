@@ -15,6 +15,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/geometry/TestCUDATransform.cpp
         noa/gpu/cuda/geometry/TestCUDATransformSymmetry.cpp
 
+        noa/gpu/cuda/math/TestCUDABlas.cpp
         noa/gpu/cuda/math/TestCUDAEwise.cpp
         noa/gpu/cuda/math/TestCUDAFind.cpp
         noa/gpu/cuda/math/TestCUDARandom.cpp
