@@ -17,22 +17,25 @@
 namespace noa::cuda::details {
     /// Registry to attach a stream and a shared_ptr.
     /// \details This object tries to solve the following issue: when a kernel is enqueued to a stream,
-    ///          we assume the device pointers will stay valid until the kernel is done. This assumption
-    ///          can be easily broken if the delete functions are called prematurely, e.g. during stack unrolling.
-    ///          The registry allows to attach some memory regions to a stream and releases them when the
-    ///          kernel is done executing. In practice, insert() copies the shared_ptr(s), update() marks the
-    ///          shared_ptr(s) at the back of the registry to be ready for delete (FIFO) and clear() removes
-    ///          everything marked by update().
+    ///          we assume the device pointers will stay valid until the kernel computation is completed.
+    ///          This assumption can be easily broken if the delete functions are called prematurely,
+    ///          e.g. during stack unrolling. This registry attaches some memory regions to a stream and
+    ///          releases them when the kernel is done executing. In practice, insert() copies the shared_ptr(s)
+    ///          into an internal buffer, update() marks the shared_ptr(s) at the back of the FIFO registry
+    ///          to be ready for delete and clear() removes everything marked by update(). As a result,
+    ///          if update() is called by a callback enqueued just after the kernel launch, it guarantees
+    ///          that the reference count of the inserted pointers never reaches zero while the kernel runs.
+    ///          In terms of performance, it seems to add an overhead of ~0.01 to 0.02 ms per callback.
     class StreamMemoryRegistry {
     public:
-        /// Adds one or multiple shared_ptr to the front of registry.
+        /// Adds one or multiple shared_ptr to the front of the registry.
         /// The shared_ptr reference count is increased by one.
         template<typename ...Args>
         void insert(Args&& ... args) {
             std::scoped_lock lock(m_mutex);
             clear_();
             const auto key = static_cast<int>(m_registry.size());
-            ([&](auto& input) { insertOne_(key, input); }(std::forward<Args>(args)), ...);
+            ([&key, this](auto&& input) { this->insertOne_(key, input); }(std::forward<Args>(args)), ...);
         }
 
         /// Removes from the registry the shared_ptr(s) flagged as unused.
@@ -45,35 +48,56 @@ namespace noa::cuda::details {
         }
 
         /// Flags as unused, and ready to be deleted from the register, the shared_ptr(s) at the back of registry.
-        /// This function can be called from a CUDA callback.
+        /// This function can and should be called from a CUDA callback.
         void update() {
             std::scoped_lock lock(m_mutex);
             // Make sure to take the "first in", excluding the elements already
             // marked as unused that haven't been cleared yet.
             int key = -1;
-            for (auto p = m_registry.rbegin(); p != m_registry.rend(); ++p) {
-                if (key == -1 && p->first != -1)
-                    key = p->first;
-                if (key != -1 && p->first == key)
-                    p->first = -1;
+            for (auto& p: m_registry) {
+                if (key == -1 && p.first != -1)
+                    key = p.first;
+                if (key != -1 && p.first == key)
+                    p.first = -1;
             }
         }
 
     private:
         void clear_(bool force = false) {
-            if (force)
+            if (force) {
                 m_registry.clear();
-            else
-                m_registry.remove_if([](auto& p) { return p.first == -1; });
+            } else {
+                for (auto& p: m_registry)
+                    if (p.first == -1)
+                        p.second = nullptr;
+
+                // Stack elements contiguously at the front while keeping the order and resize:
+                size_t last_available = 0;
+                for (size_t i = 0; i < m_registry.size(); ++i) {
+                    if (m_registry[i].second) {
+                        if (i > last_available)
+                            std::swap(m_registry[i], m_registry[last_available]);
+                        ++last_available;
+                    }
+                }
+                size_t count = 0;
+                for (auto& p: m_registry) {
+                    if (p.second)
+                        ++count;
+                    else
+                        break;
+                }
+                m_registry.resize(count);
+            }
         }
 
         template<typename T>
         void insertOne_(int key, const std::shared_ptr<T>& ptr) {
-            m_registry.emplace_front(key, std::reinterpret_pointer_cast<const void>(ptr)); // aliasing ctor
+            m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
         }
 
         std::mutex m_mutex;
-        std::list<std::pair<int, std::shared_ptr<const void>>> m_registry;
+        std::vector<std::pair<int, std::shared_ptr<const void>>> m_registry;
     };
 }
 
@@ -185,12 +209,12 @@ namespace noa::cuda {
             NOA_ASSERT(m_core);
             DeviceGuard guard(m_device);
             NOA_THROW_IF(cudaStreamSynchronize(m_core->handle));
-            clear();
+            clear(true);
         }
 
         /// Clears the registry from any unused attached data.
-        void clear() const {
-            m_core->registry.clear();
+        void clear(bool force = false) const {
+            m_core->registry.clear(force);
         }
 
         [[nodiscard]] cudaStream_t get() const noexcept {
