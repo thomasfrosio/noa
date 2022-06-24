@@ -143,6 +143,23 @@ namespace noa::indexing {
                        stride[3] == 1};
     }
 
+    /// Whether or not a shape describe vector.
+    /// \details A vector has one dimension with a size >= 1 and all of the other dimensions empty (i.e. size == 1).
+    ///          By this definition, the shapes {1,1,1,1}, {5,1,1,1} and {1,1,1,5} are all vectors.
+    ///          If \p can_be_batched is true, the shape can describe a batch of vectors. For instance {4,1,1,5} is
+    ///          describing 4 row vectors with a length of 5.
+    template<typename T>
+    NOA_FHD bool isVector(Int4<T> shape, bool can_be_batched = false) {
+        int non_empty_dimension = 0;
+        for (int i = 0; i < 4; ++i) {
+            if (shape[i] == 0)
+                return false; // empty/invalid shape
+            if (!(can_be_batched && i == 0) && shape[i] > 1)
+                ++non_empty_dimension;
+        }
+        return non_empty_dimension <= 1;
+    }
+
     /// Returns the rightmost order of the dimensions to have them in the most contiguous order.
     /// For instance, if stride is in the left-most order, this function returns {3,2,1,0}.
     template<typename T>

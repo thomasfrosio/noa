@@ -103,7 +103,7 @@ namespace noa::cuda::math::details {
 }
 
 namespace noa::cuda::math {
-    template<typename T>
+    template<typename T, typename>
     T dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
           const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
           Stream& stream) {
@@ -151,7 +151,7 @@ namespace noa::cuda::math {
         return output;
     }
 
-    template<typename T>
+    template<typename T, typename>
     void dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
              const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
              const std::shared_ptr<T[]>& output, Stream& stream) {
@@ -177,12 +177,12 @@ namespace noa::cuda::math {
         stream.attach(lhs, rhs, output);
     }
 
-    #define INSTANTIATE_DOT_(T)                                                     \
-    template T dot<T>(const std::shared_ptr<T[]>&, size4_t, size4_t,                \
-                      const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&);      \
-    template void dot<T>(const std::shared_ptr<T[]>&, size4_t, size4_t,             \
-                         const std::shared_ptr<T[]>&, size4_t, size4_t,             \
-                         const std::shared_ptr<T[]>&, Stream&)
+    #define INSTANTIATE_DOT_(T)                                                         \
+    template T dot<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,              \
+                            const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&);    \
+    template void dot<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,           \
+                               const std::shared_ptr<T[]>&, size4_t, size4_t,           \
+                               const std::shared_ptr<T[]>&, Stream&)
 
     INSTANTIATE_DOT_(int32_t);
     INSTANTIATE_DOT_(uint32_t);
@@ -193,7 +193,7 @@ namespace noa::cuda::math {
     INSTANTIATE_DOT_(cfloat_t);
     INSTANTIATE_DOT_(cdouble_t);
 
-    template<typename T>
+    template<typename T, typename>
     void matmul(BlasTranspose lhs_transpose, BlasTranspose rhs_transpose, T alpha,
                 const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
                 const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
@@ -232,9 +232,9 @@ namespace noa::cuda::math {
         stream.attach(lhs, rhs, output);
     }
 
-    #define INSTANTIATE_BLAS_(T)\
-    template void matmul<T>(BlasTranspose,  BlasTranspose, T, const std::shared_ptr<T[]>&, size4_t, size4_t,\
-                            const std::shared_ptr<T[]>&, size4_t, size4_t, T, const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
+    #define INSTANTIATE_BLAS_(T)                                                                                    \
+    template void matmul<T,void>(BlasTranspose,  BlasTranspose, T, const std::shared_ptr<T[]>&, size4_t, size4_t,   \
+                                 const std::shared_ptr<T[]>&, size4_t, size4_t, T, const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
 
     INSTANTIATE_BLAS_(float);
     INSTANTIATE_BLAS_(double);

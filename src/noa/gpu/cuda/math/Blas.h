@@ -6,6 +6,13 @@
 
 namespace noa::cuda::math::details {
     void cublasClearCache(int device);
+
+    template<typename T>
+    constexpr bool is_valid_dot_t = traits::is_any_v<uint32_t, uint64_t, int32_t, int64_t,
+                                                     float, double, cfloat_t, cdouble_t>;
+
+    template<typename T>
+    constexpr bool is_valid_matmul_t = traits::is_any_v<float, double, cfloat_t, cdouble_t>;
 }
 
 namespace noa::cuda::math {
@@ -22,7 +29,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
     T dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
           const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
           Stream& stream);
@@ -39,7 +46,7 @@ namespace noa::cuda::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
     void dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
              const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
              const std::shared_ptr<T[]>& output, Stream& stream);
@@ -63,7 +70,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note The innermost dimension of the matrices (before transposition) should be contiguous and
     ///       the second-most dimension cannot be broadcast.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
     void matmul(BlasTranspose lhs_transpose, BlasTranspose rhs_transpose, T alpha,
                 const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
                 const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
@@ -85,7 +92,7 @@ namespace noa::cuda::math {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note The innermost dimension of the matrices (before transposition) should be contiguous and
     ///       the second-most dimension cannot be broadcast.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
     void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
                 const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
                 const std::shared_ptr<T[]>& output, size4_t output_stride, size4_t output_shape,

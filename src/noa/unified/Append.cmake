@@ -79,6 +79,8 @@ set(NOA_UNIFIED_HEADERS
         unified/memory/Transpose.inl
 
         # noa::math
+        unified/math/Blas.h
+        unified/math/Blas.inl
         unified/math/Complex.h
         unified/math/Complex.inl
         unified/math/Ewise.h
