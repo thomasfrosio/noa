@@ -1,9 +1,9 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/memory/Transpose.h>
+#include <noa/cpu/memory/Permute.h>
 #include <noa/gpu/cuda/memory/PtrDevice.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
-#include <noa/gpu/cuda/memory/Transpose.h>
+#include <noa/gpu/cuda/memory/Permute.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -11,7 +11,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
+TEST_CASE("cuda::memory::permute()", "[assets][noa][cuda][memory]") {
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     io::ImageFile file;
@@ -47,7 +47,7 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
 
         if (inplace) {
             cuda::memory::copy<float>(data.share(), stride, d_data.share(), d_data.stride(), shape, stream);
-            cuda::memory::transpose<float>(d_data.share(), d_data.stride(), shape,
+            cuda::memory::permute<float>(d_data.share(), d_data.stride(), shape,
                                            d_data.share(), d_data.stride(), permutation, stream);
             cuda::memory::copy<float>(d_data.share(), d_data.stride(), data.share(), output_stride, output_shape, stream);
             stream.synchronize();
@@ -55,7 +55,7 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), data.get(), elements, 1e-8));
         } else {
             cuda::memory::copy<float>(data.share(), stride, d_data.share(), d_data.stride(), shape, stream);
-            cuda::memory::transpose<float>(d_data.share(), d_data.stride(), shape,
+            cuda::memory::permute<float>(d_data.share(), d_data.stride(), shape,
                                            d_result.share(), d_result.stride(), permutation, stream);
             cuda::memory::copy<float>(d_result.share(), d_result.stride(), result.share(), output_stride, output_shape, stream);
             stream.synchronize();
@@ -65,7 +65,7 @@ TEST_CASE("cuda::memory::transpose()", "[assets][noa][cuda][memory]") {
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layouts", "[noa][cuda][memory]",
+TEMPLATE_TEST_CASE("cuda::memory::permute() - random shapes - contiguous layouts", "[noa][cuda][memory]",
                    int, int64_t, double, cfloat_t) {
     const std::array<uint4_t, 6> permutations{uint4_t{0, 1, 2, 3},
                                               uint4_t{0, 1, 3, 2},
@@ -99,9 +99,9 @@ TEMPLATE_TEST_CASE("cuda::memory::transpose() - random shapes - contiguous layou
         return;
     }
 
-    cpu::memory::transpose<TestType>(h_data.share(), stride, shape, h_result.share(), output_stride, permutation, cpu_stream);
+    cpu::memory::permute<TestType>(h_data.share(), stride, shape, h_result.share(), output_stride, permutation, cpu_stream);
     cuda::memory::copy<TestType>(h_data.share(), d_data.share(), elements, gpu_stream);
-    cuda::memory::transpose<TestType>(d_data.share(), stride, shape, d_result.share(), output_stride, permutation, gpu_stream);
+    cuda::memory::permute<TestType>(d_data.share(), stride, shape, d_result.share(), output_stride, permutation, gpu_stream);
     cuda::memory::copy<TestType>(d_result.share(), h_cuda_result.share(), elements, gpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();

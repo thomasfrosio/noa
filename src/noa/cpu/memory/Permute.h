@@ -1,4 +1,4 @@
-/// \file noa/cpu/memory/Transpose.h
+/// \file noa/cpu/memory/Permute.h
 /// \brief Reverse or permute the axes of an array.
 /// \author Thomas - ffyr2w
 /// \date 29 Jun 2021
@@ -10,7 +10,7 @@
 #include "noa/cpu/Stream.h"
 
 namespace noa::cpu::memory {
-    /// Transposes, in memory, the axes of an array.
+    /// Permutes, in memory, the axes of an array.
     /// \tparam T               Any data type.
     /// \param[in] input        On the \b host. Input array to permute.
     /// \param input_stride     Rightmost strides, in elements, of \p input.
@@ -26,20 +26,20 @@ namespace noa::cpu::memory {
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     ///
-    /// \example Transpose the two innermost dimensions
+    /// \example Permute the two innermost dimensions
     /// \code
     /// const size4_t shape{2,63,64,65};
     /// PtrHost<T> input(shape.elements()), output(shape.elements());
     /// // initialize the input...
     /// const uint4_t permutation{0,1,3,2};
-    /// const size4_t transposed_shape = indexing::reorder(shape, permutation); // {2,63,65,64}
-    /// transpose(input, shape.stride(), shape, output, transposed_shape.stride(), permutation, stream);
+    /// const size4_t permuted_shape = indexing::reorder(shape, permutation); // {2,63,65,64}
+    /// permute(input, shape.stride(), shape, output, permuted_shape.stride(), permutation, stream);
     /// \endcode
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                   const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream);
+    void permute(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream);
 }
 
 #define NOA_TRANSPOSE_INL_
-#include "noa/cpu/memory/Transpose.inl"
+#include "noa/cpu/memory/Permute.inl"
 #undef NOA_TRANSPOSE_INL_

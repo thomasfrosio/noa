@@ -1,6 +1,6 @@
 #include <noa/common/io/ImageFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/memory/Transpose.h>
+#include <noa/cpu/memory/Permute.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -8,7 +8,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
+TEST_CASE("cpu::memory::permute()", "[assets][noa][cpu][memory]") {
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     io::ImageFile file;
@@ -38,12 +38,12 @@ TEST_CASE("cpu::memory::transpose()", "[assets][noa][cpu][memory]") {
         const size4_t output_stride = output_shape.stride();
 
         if (inplace) {
-            cpu::memory::transpose<float>(data.share(), stride, shape,
-                                          data.share(), output_stride, permutation, stream);
+            cpu::memory::permute<float>(data.share(), stride, shape,
+                                        data.share(), output_stride, permutation, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), data.get(), elements, 1e-8));
         } else {
-            cpu::memory::transpose<float>(data.share(), stride, shape,
-                                          result.share(), output_stride, permutation, stream);
+            cpu::memory::permute<float>(data.share(), stride, shape,
+                                        result.share(), output_stride, permutation, stream);
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), elements, 1e-8));
         }
     }

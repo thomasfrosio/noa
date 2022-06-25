@@ -69,14 +69,14 @@ set(NOA_UNIFIED_HEADERS
         unified/memory/Cast.h
         unified/memory/Cast.inl
         unified/memory/Copy.h
-        unified/memory/Index.h
-        unified/memory/Index.inl
         unified/memory/Factory.h
         unified/memory/Factory.inl
+        unified/memory/Index.h
+        unified/memory/Index.inl
+        unified/memory/Permute.h
+        unified/memory/Permute.inl
         unified/memory/Resize.h
         unified/memory/Resize.inl
-        unified/memory/Transpose.h
-        unified/memory/Transpose.inl
 
         # noa::math
         unified/math/Blas.h

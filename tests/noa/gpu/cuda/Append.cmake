@@ -24,12 +24,12 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDACopy.cpp
         noa/gpu/cuda/memory/TestCUDAIndex.cpp
         noa/gpu/cuda/memory/TestCUDAInitialize.cpp
+        noa/gpu/cuda/memory/TestCUDAPermute.cpp
         noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
         noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
         noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
         noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
         noa/gpu/cuda/memory/TestCUDAResize.cpp
-        noa/gpu/cuda/memory/TestCUDATranspose.cpp
 
         noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
         noa/gpu/cuda/signal/fft/TestCUDACorrelate.cpp
@@ -43,8 +43,6 @@ set(TEST_CUDA_SOURCES
 
         noa/gpu/cuda/TestCUDADevice.cpp
         noa/gpu/cuda/TestCUDAStream.cpp
-
-        # noa/gpu/cuda/reconstruct/TestCUDAProjections.cpp
 
         )
 

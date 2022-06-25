@@ -281,21 +281,21 @@ namespace noa {
             Array<T> out{permuted_shape, m_options};
             Stream& stream = Stream::current(device());
             if (device().cpu()) {
-                cpu::memory::transpose(m_ptr, m_stride, m_shape,
-                                       out.share(), out.stride(),
-                                       permutation, stream.cpu());
+                cpu::memory::permute(m_ptr, m_stride, m_shape,
+                                     out.share(), out.stride(),
+                                     permutation, stream.cpu());
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                cuda::memory::transpose(m_ptr, m_stride, m_shape,
-                                        out.share(), out.stride(),
-                                        permutation, stream.cuda());
+                cuda::memory::permute(m_ptr, m_stride, m_shape,
+                                      out.share(), out.stride(),
+                                      permutation, stream.cuda());
                 #else
                 NOA_THROW("No GPU backend detected");
                 #endif
             }
             return out;
         } else {
-            NOA_THROW("This type ({}) is not supported by memory::transpose()", string::human<T>());
+            NOA_THROW("This type ({}) is not supported by memory::permute()", string::human<T>());
         }
     }
 

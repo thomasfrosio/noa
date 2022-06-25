@@ -41,10 +41,11 @@ set(NOA_CPU_HEADERS
         cpu/memory/Index.h
         cpu/memory/Index.inl
         cpu/memory/Linspace.h
+        cpu/memory/Permute.h
+        cpu/memory/Permute.inl
         cpu/memory/PtrHost.h
         cpu/memory/Resize.h
         cpu/memory/Set.h
-        cpu/memory/Transpose.h
 
         # noa::cpu::geometry
         cpu/geometry/fft/Polar.h
@@ -90,8 +91,8 @@ set(NOA_CPU_SOURCES
 
         # noa::cpu::memory
         cpu/memory/Index.cpp
+        cpu/memory/Permute.cpp
         cpu/memory/Resize.cpp
-        cpu/memory/Transpose.cpp
 
         # noa::cpu::geometry
         cpu/geometry/fft/Polar.cpp

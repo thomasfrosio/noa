@@ -1,7 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/util/Traits.h"
-#include "noa/gpu/cuda/memory/Transpose.h"
+#include "noa/gpu/cuda/memory/Permute.h"
 
 #include "noa/gpu/cuda/util/Block.cuh"
 
@@ -24,9 +24,9 @@ namespace {
     // XY tile along Z becomes X'Y' (X'=Y, Y'=X) along Z' (Z'=Z)
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void transpose0132_(const T* __restrict__ input, uint4_t input_stride,
-                        T* __restrict__ output, uint4_t output_stride,
-                        uint2_t shape /* YX */, uint blocks_x) {
+    void permute0132_(const T* __restrict__ input, uint4_t input_stride,
+                      T* __restrict__ output, uint4_t output_stride,
+                      uint2_t shape /* YX */, uint blocks_x) {
         using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[TILE_DIM][TILE_DIM + 1]; // +1 so that elements in a column map to different banks.
         T(& tile)[TILE_DIM][TILE_DIM + 1] = *reinterpret_cast<T(*)[TILE_DIM][TILE_DIM + 1]>(&buffer);
@@ -48,7 +48,7 @@ namespace {
 
         util::block::synchronize();
 
-        // Write transposed tile to global memory.
+        // Write permuted tile to global memory.
         const uint2_t new_gid = offset.flip() + tid; // Y->X', X->Y'
         for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gy = new_gid[0] + repeat;
@@ -58,10 +58,10 @@ namespace {
     }
 
     // In-place.
-    // Since the last dimension is unchanged, we can simply in-place transpose the XY slices one at a time.
+    // Since the last dimension is unchanged, we can simply in-place permute the XY slices one at a time.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void transpose0132_inplace_(T* output, uint4_t output_stride, uint shape, uint blocks_x) {
+    void permute0132_inplace_(T* output, uint4_t output_stride, uint shape, uint blocks_x) {
         using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer_src[TILE_DIM][TILE_DIM + 1];
         __shared__ uninit_t buffer_dst[TILE_DIM][TILE_DIM + 1];
@@ -92,7 +92,7 @@ namespace {
 
             util::block::synchronize();
 
-            // Write transposed tiles to global memory.
+            // Write permuted tiles to global memory.
             for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
                 const uint dy = dst_gid[0] + repeat;
                 if (IS_MULTIPLE_OF_TILE || (dst_gid[1] < shape && dy < shape))
@@ -115,7 +115,7 @@ namespace {
 
             util::block::synchronize();
 
-            // Write transposed tile to global memory.
+            // Write permuted tile to global memory.
             for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
                 const uint gy = gid[0] + repeat;
                 if (IS_MULTIPLE_OF_TILE || (gid[1] < shape && gy < shape))
@@ -127,9 +127,9 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void transpose0132(const shared_t<T[]>& input, size4_t input_stride,
-                       const shared_t<T[]>& output, size4_t output_stride,
-                       size4_t shape, Stream& stream) {
+    void permute0132(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride,
+                     size4_t shape, Stream& stream) {
         const uint2_t uint_shape(shape.get() + 2);
         const bool are_multiple_tile = all((uint_shape % TILE_DIM) == 0);
 
@@ -137,11 +137,11 @@ namespace noa::cuda::memory::details {
         const uint blocks_x = math::divideUp(uint_shape[1], TILE_DIM);
         const dim3 blocks(blocks_y * blocks_x, shape[1], shape[0]);
         if (are_multiple_tile) {
-            stream.enqueue("memory::transpose0132", transpose0132_<T, true>, {blocks, BLOCK_SIZE},
+            stream.enqueue("memory::permute0132", permute0132_<T, true>, {blocks, BLOCK_SIZE},
                            input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
                            uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0132", transpose0132_<T, false>, {blocks, BLOCK_SIZE},
+            stream.enqueue("memory::permute0132", permute0132_<T, false>, {blocks, BLOCK_SIZE},
                            input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
                            uint_shape, blocks_x);
         }
@@ -151,7 +151,7 @@ namespace noa::cuda::memory::details {
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void transpose0132(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
+    void permute0132(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
         if (shape[3] != shape[2])
             NOA_THROW("For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape:{}", shape);
 
@@ -161,10 +161,10 @@ namespace noa::cuda::memory::details::inplace {
         const uint blocks_x = math::divideUp(uint_shape, TILE_DIM); // blocks_y == blocks_x
         const dim3 blocks(blocks_x * blocks_x, shape[1], shape[0]); // about less than half will be idle blocks.
         if (is_multiple_tile) {
-            stream.enqueue("memory::transpose0132_inplace", transpose0132_inplace_<T, true>, {blocks, BLOCK_SIZE},
+            stream.enqueue("memory::permute0132_inplace", permute0132_inplace_<T, true>, {blocks, BLOCK_SIZE},
                            output.get(), uint4_t{output_stride}, uint_shape, blocks_x);
         } else {
-            stream.enqueue("memory::transpose0132_inplace", transpose0132_inplace_<T, false>, {blocks, BLOCK_SIZE},
+            stream.enqueue("memory::permute0132_inplace", permute0132_inplace_<T, false>, {blocks, BLOCK_SIZE},
                            output.get(), uint4_t{output_stride}, uint_shape, blocks_x);
         }
         stream.attach(output);
@@ -172,8 +172,8 @@ namespace noa::cuda::memory::details::inplace {
 }
 
 #define NOA_INSTANTIATE_TRANSPOSE_(T)                                                                                                       \
-template void noa::cuda::memory::details::transpose0132<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
-template void noa::cuda::memory::details::inplace::transpose0132<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
+template void noa::cuda::memory::details::permute0132<T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&);   \
+template void noa::cuda::memory::details::inplace::permute0132<T>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
 
 NOA_INSTANTIATE_TRANSPOSE_(bool);
 NOA_INSTANTIATE_TRANSPOSE_(int8_t);

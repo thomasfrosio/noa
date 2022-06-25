@@ -24,9 +24,9 @@ set(TEST_CPU_SOURCES
 
         noa/cpu/memory/TestCPUIndex.cpp
         noa/cpu/memory/TestCPUInitialize.cpp
+        noa/cpu/memory/TestCPUPermute.cpp
         noa/cpu/memory/TestCPUPtrHost.cpp
         noa/cpu/memory/TestCPUResize.cpp
-        noa/cpu/memory/TestCPUTranspose.cpp
 
         noa/cpu/signal/fft/TestCPUBandpass.cpp
         noa/cpu/signal/fft/TestCPUCorrelate.cpp

@@ -4,14 +4,14 @@
 #error "This is an internal header"
 #endif
 
-#include "noa/cpu/memory/Transpose.h"
+#include "noa/cpu/memory/Permute.h"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/memory/Transpose.h"
+#include "noa/gpu/cuda/memory/Permute.h"
 #endif
 
 namespace noa::memory {
     template<typename T, typename>
-    void transpose(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
+    void permute(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
         size4_t input_stride = input.stride();
         size4_t input_shape = input.shape();
         for (size_t i = 0; i < 4; ++i) {
@@ -32,14 +32,14 @@ namespace noa::memory {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::transpose(input.share(), input_stride, input_shape,
-                                   output.share(), output.stride(),
-                                   permutation, stream.cpu());
+            cpu::memory::permute(input.share(), input_stride, input_shape,
+                                 output.share(), output.stride(),
+                                 permutation, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::transpose(input.share(), input_stride, input_shape,
-                                    output.share(), output.stride(),
-                                    permutation, stream.cuda());
+            cuda::memory::permute(input.share(), input_stride, input_shape,
+                                  output.share(), output.stride(),
+                                  permutation, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

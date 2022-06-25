@@ -1,4 +1,4 @@
-/// \file noa/gpu/cuda/memory/Transpose.h
+/// \file noa/gpu/cuda/memory/Permute.h
 /// \brief Permutes the axes of an array.
 /// \author Thomas - ffyr2w
 /// \date 29 Jun 2021
@@ -12,38 +12,38 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void transpose0213(const shared_t<T[]>& input, size4_t input_stride,
-                       const shared_t<T[]>& output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void permute0213(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride,
+                     size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0132(const shared_t<T[]>& input, size4_t input_stride,
-                       const shared_t<T[]>& output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void permute0132(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride,
+                     size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0312(const shared_t<T[]>& input, size4_t input_stride,
-                       const shared_t<T[]>& output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void permute0312(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride,
+                     size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0231(const shared_t<T[]>& input, size4_t input_stride,
-                       const shared_t<T[]>& output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void permute0231(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride,
+                     size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0321(const shared_t<T[]>& input, size4_t input_stride,
-                       const shared_t<T[]>& output, size4_t output_stride,
-                       size4_t shape, Stream& stream);
+    void permute0321(const shared_t<T[]>& input, size4_t input_stride,
+                     const shared_t<T[]>& output, size4_t output_stride,
+                     size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void transpose0213(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
+    void permute0213(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0132(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
+    void permute0132(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
     template<typename T>
-    void transpose0321(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
+    void permute0321(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory {
-    /// Transposes, in memory, the axes of an array.
+    /// Permutes, in memory, the axes of an array.
     /// \tparam T               Any data type.
     /// \param[in] input        On the \b device. Input array to permute.
     /// \param input_stride     Rightmost stride, in elements, of \p input.
@@ -60,8 +60,8 @@ namespace noa::cuda::memory {
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void transpose(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                   const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
+    void permute(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
         if (any(permutation > 3))
             NOA_THROW("Permutation {} is not valid", permutation);
 
@@ -71,11 +71,11 @@ namespace noa::cuda::memory {
                 case 123:
                     return;
                 case 213:
-                    return details::inplace::transpose0213(output, output_stride, input_shape, stream);
+                    return details::inplace::permute0213(output, output_stride, input_shape, stream);
                 case 132:
-                    return details::inplace::transpose0132(output, output_stride, input_shape, stream);
+                    return details::inplace::permute0132(output, output_stride, input_shape, stream);
                 case 321:
-                    return details::inplace::transpose0321(output, output_stride, input_shape, stream);
+                    return details::inplace::permute0321(output, output_stride, input_shape, stream);
                 default:
                     NOA_THROW("The in-place permutation {} is not supported", permutation);
             }
@@ -84,15 +84,15 @@ namespace noa::cuda::memory {
                 case 123:
                     return copy(input, input_stride, output, output_stride, input_shape, stream);
                 case 213:
-                    return details::transpose0213(input, input_stride, output, output_stride, input_shape, stream);
+                    return details::permute0213(input, input_stride, output, output_stride, input_shape, stream);
                 case 132:
-                    return details::transpose0132(input, input_stride, output, output_stride, input_shape, stream);
+                    return details::permute0132(input, input_stride, output, output_stride, input_shape, stream);
                 case 312:
-                    return details::transpose0312(input, input_stride, output, output_stride, input_shape, stream);
+                    return details::permute0312(input, input_stride, output, output_stride, input_shape, stream);
                 case 231:
-                    return details::transpose0231(input, input_stride, output, output_stride, input_shape, stream);
+                    return details::permute0231(input, input_stride, output, output_stride, input_shape, stream);
                 case 321:
-                    return details::transpose0321(input, input_stride, output, output_stride, input_shape, stream);
+                    return details::permute0321(input, input_stride, output, output_stride, input_shape, stream);
                 default:
                     NOA_THROW("Permutation {} is not supported", permutation);
             }

@@ -7,19 +7,19 @@
 
 #include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/memory/Copy.h"
+#include "noa/cpu/memory/Permute.h"
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/memory/Set.h"
-#include "noa/cpu/memory/Transpose.h"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/memory/Permute.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrDevicePadded.h"
 #include "noa/gpu/cuda/memory/PtrManaged.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
 #include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/memory/Transpose.h"
 #include "noa/gpu/cuda/util/Pointers.h"
 #endif
 

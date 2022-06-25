@@ -32,6 +32,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Index.h
         gpu/cuda/memory/Linspace.h
         gpu/cuda/memory/MemoryPool.h
+        gpu/cuda/memory/Permute.h
         gpu/cuda/memory/PtrArray.h
         gpu/cuda/memory/PtrDevice.h
         gpu/cuda/memory/PtrDevicePadded.h
@@ -40,7 +41,6 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/PtrTexture.h
         gpu/cuda/memory/Resize.h
         gpu/cuda/memory/Set.h
-        gpu/cuda/memory/Transpose.h
 
         # noa::cuda::fft
         gpu/cuda/fft/Exception.h
@@ -98,13 +98,13 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Index.cu
         gpu/cuda/memory/IndexSequence.cu
         gpu/cuda/memory/Linspace.cu
+        gpu/cuda/memory/Permute0132.cu
+        gpu/cuda/memory/Permute0213.cu
+        gpu/cuda/memory/Permute0231.cu
+        gpu/cuda/memory/Permute0312.cu
+        gpu/cuda/memory/Permute0321.cu
         gpu/cuda/memory/Resize.cu
         gpu/cuda/memory/Set.cu
-        gpu/cuda/memory/Transpose0132.cu
-        gpu/cuda/memory/Transpose0213.cu
-        gpu/cuda/memory/Transpose0231.cu
-        gpu/cuda/memory/Transpose0312.cu
-        gpu/cuda/memory/Transpose0321.cu
 
         # noa::cuda::math
         gpu/cuda/math/Blas.cu

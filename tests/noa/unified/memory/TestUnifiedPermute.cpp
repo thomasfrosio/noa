@@ -2,7 +2,7 @@
 #include <noa/unified/math/Random.h>
 #include <noa/unified/memory/Copy.h>
 #include <noa/unified/memory/Factory.h>
-#include <noa/unified/memory/Transpose.h>
+#include <noa/unified/memory/Permute.h>
 
 #include <catch2/catch.hpp>
 
@@ -10,7 +10,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("unified::memory::transpose", "[noa][unified]", int32_t, float, double, cfloat_t) {
+TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", int32_t, float, double, cfloat_t) {
     const std::array<uint4_t, 6> permutations{uint4_t{0, 1, 2, 3},
                                               uint4_t{0, 1, 3, 2},
                                               uint4_t{0, 3, 1, 2},
@@ -29,12 +29,12 @@ TEMPLATE_TEST_CASE("unified::memory::transpose", "[noa][unified]", int32_t, floa
     Array<TestType> data = math::random<TestType>(math::uniform_t{}, shape, -5, 5);
     Array<TestType> expected{permuted_shape};
 
-    cpu::memory::transpose<TestType>(data.share(), data.stride(), data.shape(),
+    cpu::memory::permute<TestType>(data.share(), data.stride(), data.shape(),
                                      expected.share(), expected.stride(), permutation, stream.cpu());
 
     {
         Array<TestType> result{permuted_shape};
-        memory::transpose(data, result, permutation);
+        memory::permute(data, result, permutation);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), permuted_shape.elements(), 1e-8));
     }
 
@@ -42,13 +42,13 @@ TEMPLATE_TEST_CASE("unified::memory::transpose", "[noa][unified]", int32_t, floa
         if (!Device::any(Device::GPU))
             return;
         Array<TestType> result{permuted_shape, ArrayOption{Device{"gpu"}, Allocator::MANAGED}};
-        memory::transpose(data.to(result.device()), result, permutation);
+        memory::permute(data.to(result.device()), result, permutation);
         result.eval();
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), permuted_shape.elements(), 1e-8));
     }
 }
 
-TEST_CASE("unified::memory::transpose, broadcast", "[noa][unified]") {
+TEST_CASE("unified::memory::permute, broadcast", "[noa][unified]") {
     const std::array<uint4_t, 6> permutations{uint4_t{0, 1, 2, 3},
                                               uint4_t{0, 1, 3, 2},
                                               uint4_t{0, 3, 1, 2},
@@ -76,8 +76,8 @@ TEST_CASE("unified::memory::transpose, broadcast", "[noa][unified]") {
         Array<float> data1{{1, 20, 50, 60}, options};
         memory::copy(data0, data1);
 
-        memory::transpose(data0, result0, permutation);
-        memory::transpose(data1, result1, permutation);
+        memory::permute(data0, result0, permutation);
+        memory::permute(data1, result1, permutation);
         result1.eval();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, result0.get(), result1.get(), permuted_shape.elements(), 1e-8));
