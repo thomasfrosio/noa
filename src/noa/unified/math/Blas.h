@@ -4,11 +4,11 @@
 
 namespace noa::math::details {
     template<typename T>
-    constexpr bool is_valid_dot_t = traits::is_any_v<uint32_t, uint64_t, int32_t, int64_t,
+    constexpr bool is_valid_dot_t = traits::is_any_v<T, uint32_t, uint64_t, int32_t, int64_t,
                                                      float, double, cfloat_t, cdouble_t>;
 
     template<typename T>
-    constexpr bool is_valid_matmul_t = traits::is_any_v<float, double, cfloat_t, cdouble_t>;
+    constexpr bool is_valid_matmul_t = traits::is_any_v<T, float, double, cfloat_t, cdouble_t>;
 }
 
 namespace noa::math {

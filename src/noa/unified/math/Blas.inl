@@ -44,9 +44,24 @@ namespace noa::math {
 
     template<typename T, typename>
     void dot(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output) {
+        NOA_CHECK(indexing::isVector(lhs.shape(), true) && indexing::isVector(rhs.shape(), true) &&
+                  lhs.shape()[1] == 1 && rhs.shape()[1] == 1,
+                  "The input should be (batched) column or row vectors, but got lhs:{} and rhs:{}",
+                  lhs.shape(), rhs.shape());
+        NOA_CHECK(lhs.shape()[2] * lhs.shape()[3] == rhs.shape()[2] * rhs.shape()[3],
+                  "The input vectors don't have the same number of elements. Got lhs:{} and rhs:{}",
+                  lhs.shape()[2] * lhs.shape()[3], rhs.shape()[2] * rhs.shape()[3]);
+
         NOA_CHECK(indexing::isVector(output.shape()) && all(output.contiguous()),
                   "The output should be a contiguous vector, but got shape {} and stride {}",
                   output.shape(), output.stride());
+
+        const size_t batches = output.shape().elements();
+        size4_t lhs_stride = lhs.stride(), rhs_stride = rhs.stride();
+        if (!indexing::broadcast(lhs.shape()[0], lhs_stride[0], batches))
+            NOA_THROW("Cannot broadcast a size of {} into a size of {}", lhs.shape()[0], batches);
+        if (!indexing::broadcast(rhs.shape()[0], rhs_stride[0], batches))
+            NOA_THROW("Cannot broadcast a size of {} into a size of {}", rhs.shape()[0], batches);
 
         const Device device = lhs.device();
         NOA_CHECK(device == rhs.device(),
@@ -59,13 +74,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(output.dereferencable(), "The output should be accessible to the CPU");
-            cpu::math::dot(lhs.share(), lhs.stride(), lhs.shape(),
-                           rhs.share(), rhs.stride(), rhs.shape(),
+            cpu::math::dot(lhs.share(), lhs_stride, lhs.shape(),
+                           rhs.share(), rhs_stride, rhs.shape(),
                            output.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::dot(lhs.share(), lhs.stride(), lhs.shape(),
-                            rhs.share(), rhs.stride(), rhs.shape(),
+            cuda::math::dot(lhs.share(), lhs_stride, lhs.shape(),
+                            rhs.share(), rhs_stride, rhs.shape(),
                             output.share(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

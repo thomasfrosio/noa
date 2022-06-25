@@ -189,6 +189,20 @@ namespace noa::indexing {
         return {v[order[0]], v[order[1]], v[order[2]], v[order[3]]};
     }
 
+    /// Sets the input stride so that the input can be iterated as if it as the same size as the output.
+    /// \param input_size           Size of the input. Should correspond to \p output_size or be 1.
+    /// \param[out] input_stride    Input stride. If broadcast, it is set to 0.
+    /// \param output_size          Size of the output.
+    /// \return Whether the input and output size are compatible.
+    template<typename T>
+    NOA_IH bool broadcast(T input_size, T& input_stride, T output_size) noexcept {
+        if (input_size == 1 && output_size != 1)
+            input_stride = 0; // broadcast this dimension
+        else if (input_size != output_size)
+            return false; // dimension sizes don't match
+        return true;
+    }
+
     /// Sets the input stride so that the input can be iterated as if it as the same shape as the output.
     /// \param input_shape          Rightmost shape of the input.
     ///                             Each dimension should correspond to \p output_shape or be 1.

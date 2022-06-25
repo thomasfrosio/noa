@@ -20,8 +20,9 @@ namespace {
             CUBLAS_THROW_IF_(cublasCreate_v2(&handle));
         }
         ~CuBlasHandle() {
-            [[maybe_unused]] cublasStatus_t err = cublasDestroy_v2(handle);
+            cublasStatus_t err = cublasDestroy_v2(handle);
             NOA_ASSERT(err == CUBLAS_STATUS_SUCCESS);
+            (void) err;
         }
     };
 
