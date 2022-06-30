@@ -30,9 +30,11 @@ set(NOA_CPU_HEADERS
         cpu/signal/fft/Correlate.h
         cpu/signal/fft/Shift.h
         cpu/signal/fft/Standardize.h
+        cpu/signal/fft/Whiten.h
         cpu/signal/Convolve.h
         cpu/signal/Median.h
         cpu/signal/Shape.h
+        cpu/signal/Window.h
 
         # noa::cpu::memory
         cpu/memory/Arange.h
