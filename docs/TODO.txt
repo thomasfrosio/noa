@@ -33,6 +33,11 @@ cryoEM:
 Development:
     -   Add support for Windows. It should not be that complicated. One thing to look at is OpenMP support.
 
+    -   Session: Not sure what `Session` should be. It only holds the main `Logger` and the number of internal threads.
+        Maybe we should link all global data to the session as well, but I don't think that's a good idea. Instead,
+        maybe remove `Session` and create a `GlobalLogger` and a free function keeping track of the thread number or
+        something like that.
+
     -   Add nvrtc when necessary.
         Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels
         to cubin directory at runtime. The launch mechanism will be centralized and in .cpp files, the kernels in
