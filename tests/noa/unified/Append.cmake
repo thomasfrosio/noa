@@ -24,7 +24,9 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/fft/TestUnifiedFFT.cpp
         noa/unified/fft/TestUnifiedResize.cpp
 
+        noa/unified/geometry/TestUnifiedBackproject.cpp
         noa/unified/geometry/TestUnifiedTransform.cpp
+        noa/unified/geometry/TestUnifiedCosineStretch.cpp
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})

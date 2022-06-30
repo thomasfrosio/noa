@@ -7,6 +7,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/fft/TestCPUResize.cpp
         noa/cpu/fft/TestCPUTransforms.cpp
 
+        noa/cpu/geometry/fft/TestCPUProjections.cpp
         noa/cpu/geometry/fft/TestCPUTransformFFT.cpp
         noa/cpu/geometry/TestCPUPolar.cpp
         noa/cpu/geometry/TestCPURotate.cpp
@@ -14,6 +15,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/geometry/TestCPUShift.cpp
         noa/cpu/geometry/TestCPUSymmetry.cpp
         noa/cpu/geometry/TestCPUTransform.cpp
+        noa/cpu/geometry/TestCPUTransformProject.cpp
         noa/cpu/geometry/TestCPUTransformSymmetry.cpp
 
         noa/cpu/math/TestCPUBlas.cpp

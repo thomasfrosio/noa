@@ -5,7 +5,7 @@
 #include "Helpers.h"
 using namespace ::noa;
 
-TEST_CASE("unified::fft::resize, crop", "[noa][unified]") {
+TEST_CASE("unified::fft::resize, crop", "[.]") {
     using real_t = float;
     using complex_t = Complex<real_t>;
 
@@ -37,7 +37,7 @@ TEST_CASE("unified::fft::resize, crop", "[noa][unified]") {
     file.writeAll(dst.eval().get());
 }
 
-TEST_CASE("unified::fft::resize, crop entire stack", "[noa][unified]") {
+TEST_CASE("unified::fft::resize, crop entire stack", "[.]") {
     using real_t = float;
     using complex_t = Complex<real_t>;
 

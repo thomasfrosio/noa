@@ -2,7 +2,7 @@
 
 #include <noa/cpu/Stream.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/memory/Transpose.h>
+#include <noa/cpu/memory/Permute.h>
 
 #include "Helpers.h"
 
@@ -22,7 +22,7 @@ namespace {
 
         cpu::Stream stream;
         for (auto _: state) {
-            cpu::memory::transpose(src.get(), shape, shape, dst.get(), shape, {0, 2, 1}, 1, stream);
+            cpu::memory::permute(src.get(), shape, shape, dst.get(), shape, {0, 2, 1}, 1, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
