@@ -15,18 +15,20 @@
 // TODO(TF) TIFF format is not tested! Add tests!
 
 namespace noa::io {
-    /// Manipulate image file.
+    /// Manipulate an image file.
     /// \details
-    ///     ImageFile is the unified interface to manipulate image file formats. Only MRC and TIFF files are
-    ///     currently supported. TIFF files only support 2D image(s).
-    ///     The 4D rightmost shape always puts the batch (number of volumes or number of images) in the outermost
-    ///     dimension. As such, stack of 2D images are noted as {batch, 1, height, width}.
-    ///     Whether dealing with an image, a stack of images, a volume, or a stack of volumes, this object will
-    ///     always use the rightmost ordering, i.e. row/width major order, during (de)serialization. Rightmost shapes
-    ///     {batch, depth, height, width} are used regardless of the actual order of the data in the file and the
-    ///     data passed to ImageFile should always be in the rightmost order. As such, reading operations might
-    ///     flip the data around before returning it, and writing operations will always write the data assuming
-    ///     it matches the rightmost order. Consequently, indexing image files is the same as indexing C-style arrays.
+    /// - \b Format: ImageFile is the unified interface to manipulate image file formats. Only MRC and TIFF files are
+    ///   currently supported. TIFF files only support (stack of) 2D image(s).\n
+    /// - \b Batches: The 4D rightmost shape always puts the batch (number of volumes or number of images) in the
+    ///   outermost dimension. As such, stack of 2D images are noted as {batch, 1, height, width} and stack of volumes
+    ///   are noted as {batch, depth, height, width}.\n
+    /// - \b Ordering: Whether dealing with an image, a stack of images, a volume, or a stack of volumes, this object
+    ///   will always use the rightmost ordering, i.e. row-major order, during (de)serialization. Rightmost shapes
+    ///   {batch, depth, height, width} are used regardless of the actual order of the data in the file and the
+    ///   data passed to ImageFile is assumed to be in the rightmost order. As such, reading operations might
+    ///   flip the data around before returning it (e.g. the data in the file is stored in column-major order), and
+    ///   writing operations will always write the data assuming it matches the rightmost order. Consequently,
+    ///   indexing image files is the same as indexing C-style arrays.
     /// \example
     /// \code
     /// const size4_t shape = file.shape(); // {1,60,124,124}
