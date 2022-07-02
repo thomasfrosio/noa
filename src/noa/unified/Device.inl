@@ -50,6 +50,7 @@ namespace noa {
             #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
             cuda::memory::Pool{cuda::Device{id(), true}}.threshold(threshold_bytes);
             #else
+            (void) threshold_bytes;
             return;
             #endif
         }
@@ -60,6 +61,7 @@ namespace noa {
             #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
             cuda::memory::Pool{cuda::Device{id(), true}}.trim(bytes_to_keep);
             #else
+            (void) bytes_to_keep;
             return;
             #endif
         }

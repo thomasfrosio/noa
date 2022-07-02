@@ -15,12 +15,25 @@ namespace noa {
 
     template<typename T>
     NOA_IH void Stream::StreamModel<T>::synchronize() {
-        stream.synchronize();
+        if constexpr (std::is_same_v<T, cpu::Stream>)
+            stream.synchronize();
+        else {
+            #ifdef NOA_ENABLE_CUDA
+            stream.synchronize();
+            #endif
+        }
     }
 
     template<typename T>
     NOA_IH bool Stream::StreamModel<T>::busy() {
-        return stream.busy();
+        if constexpr (std::is_same_v<T, cpu::Stream>)
+            return stream.busy();
+        else {
+            #ifdef NOA_ENABLE_CUDA
+            return stream.busy();
+            #endif
+        }
+        return false;
     }
 }
 
