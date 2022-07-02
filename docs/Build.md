@@ -17,13 +17,14 @@ While some dependencies are directly fetched and installed by the library, some 
     - `NOA_ENV_FFTW_LIBRARIES`: If set and not empty, the libraries are exclusively searched under this path.
     - `NOA_ENV_FFTW_INCLUDE`: If set and not empty, the header `fftw3.h` is exclusively searched under this path.
 
-- The [OpenBLAS](https://www.openblas.net/) libraries are required for the CPU backend. We recommend building the library from source since the
-  build checks for the best implementation given the current architecture. For instance:
+- The [OpenBLAS](https://www.openblas.net/) libraries are required for the CPU backend. We recommend building the
+  library from source since the build checks for the best implementation given the current architecture. To build the
+  LAPACK routines, a Fortran compiler is required. For instance:
     ```shell
     mkdir OpenBLAS && cd OpenBLAS
     git clone --depth 1 --branch v0.3.20 https://github.com/xianyi/OpenBLAS.git
     mkdir _build && cd _build
-    cmake -DCMAKE_INSTALL_PREFIX=../_install -DUSE_THREAD=1 -DUSE_OPENMP=1 ..
+    cmake -DCMAKE_INSTALL_PREFIX=../_install -DUSE_THREAD=1 -DUSE_OPENMP=1 ../OpenBlas
     cmake --build . --target install
     ```
   By default, the common installation directories are used but the search can be guided by the following _environmental_
