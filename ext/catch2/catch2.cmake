@@ -2,7 +2,7 @@ message(STATUS "Catch2: fetching static dependency...")
 list(APPEND CMAKE_MESSAGE_INDENT "   ")
 
 set(Catch2_REPOSITORY https://github.com/catchorg/Catch2.git)
-set(Catch2_TAG v2.13.3)
+set(Catch2_TAG v2.13.9)
 
 message(STATUS "Repository: ${Catch2_REPOSITORY}")
 message(STATUS "Git tag: ${Catch2_TAG}")
