@@ -4,35 +4,28 @@ message(STATUS "noa::noa: configuring public target...")
 # ---------------------------------------------------------------------------------------
 # Linking options and libraries
 # ---------------------------------------------------------------------------------------
-# Go fetch the necessary external contents and make them available to the project.
+# Common:
 include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
 include(${PROJECT_SOURCE_DIR}/ext/half/half.cmake)
 
-if (NOA_ENABLE_TIFF)
-    include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
-endif ()
-
-if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
-    include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
-    include(${PROJECT_SOURCE_DIR}/ext/OpenBLAS/OpenBLAS.cmake)
-endif ()
-
 add_library(noa_libraries INTERFACE)
-
 target_link_libraries(noa_libraries
         INTERFACE
-        Threads::Threads
         spdlog::spdlog
-        TIFF::TIFF
         half-ieee754
         )
 
 if (NOA_ENABLE_TIFF)
+    include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
     target_link_libraries(noa_libraries INTERFACE TIFF::TIFF)
 endif ()
 
 # CPU backend:
 if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
+    find_package(Threads REQUIRED)
+    include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
+    include(${PROJECT_SOURCE_DIR}/ext/OpenBLAS/OpenBLAS.cmake)
+
     if (NOA_ENABLE_OPENMP)
         find_package(OpenMP 4.5 REQUIRED)
         target_link_libraries(noa_libraries
@@ -43,6 +36,7 @@ if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
 
     target_link_libraries(noa_libraries
             INTERFACE
+            Threads::Threads
             fftw3::float
             fftw3::double
             openblas::openblas
