@@ -9,12 +9,10 @@
 #include "noa/common/Math.h"
 #include "noa/common/Types.h"
 
-// See docs/Usage.md for more details on Euler angles.
-
 namespace noa::geometry {
     /// Extracts the 3x3 rotation matrix from the Euler angles.
     /// \tparam T           float or double.
-    /// \param angles       Euler angles.
+    /// \param angles       Euler angles, in radians.
     /// \param axes         Euler angles axes.
     /// \param intrinsic    Whether the Euler angles are interpreted as intrinsic or extrinsic rotations.
     /// \param right_handed Whether the Euler angles are interpreted as right or left handed rotations.
@@ -25,7 +23,7 @@ namespace noa::geometry {
                           bool intrinsic = true,
                           bool right_handed = true);
 
-    /// Derives a the Euler angles from the rotation matrix.
+    /// Derives the Euler angles, in radians, from the rotation matrix.
     /// \tparam T           float or double.
     /// \param rotation     Rotation (orthogonal) matrix to decompose.
     /// \param axes         Euler angles axes.
@@ -40,7 +38,7 @@ namespace noa::geometry {
 
     /// Extracts a set of 3x3 rotation matrices from the Euler angles.
     /// \tparam T                   float or double.
-    /// \param[in] angles           Euler angles to convert.
+    /// \param[in] angles           Euler angles, in radians, to convert.
     /// \param[out] matrices        Output 3x3 matrices.
     /// \param batches              Number of sets to convert.
     /// \param axes                 Euler angles axes.
@@ -56,7 +54,7 @@ namespace noa::geometry {
             matrices[batch] = euler2matrix(angles[batch], axes, intrinsic, right_handed);
     }
 
-    /// Derives a set of the Euler angles from a set of rotation matrices.
+    /// Derives a set of Euler angles, in radians, from a set of rotation matrices.
     /// \tparam T                   float or double.
     /// \param[in] matrices         3x3 matrices to convert.
     /// \param[out] angles          Output Euler angles.

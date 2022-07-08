@@ -227,11 +227,11 @@ namespace {
 namespace noa::geometry {
     template<typename T>
     Mat33<T> euler2matrix(Float3<T> angles, std::string_view axes, bool intrinsic, bool right_handed) {
-        std::string lower_axes = string::upper(string::trim(axes));
+        const std::string lower_axes = string::upper(string::trim(axes));
         if (!isValid(lower_axes))
             NOA_THROW("Axes \"{}\" are not valid", lower_axes);
 
-        Float3<T> right_angles = right_handed ? angles : angles * -1;
+        const Float3<T> right_angles = right_handed ? angles : angles * -1;
         Mat33<T> r1, r2, r3;
         if (lower_axes == "ZYZ") { // TODO table lookup?
             r1 = rotateZ(right_angles[0]);

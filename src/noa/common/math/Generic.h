@@ -64,9 +64,13 @@ namespace noa::math {
 
     NOA_FHD constexpr double toDeg(double x) { return x * (180. / Constants<double>::PI); }
     NOA_FHD constexpr float toDeg(float x) { return x * (180.f / Constants<float>::PI); }
+    NOA_FHD constexpr double rad2deg(double x) { return x * (180. / Constants<double>::PI); }
+    NOA_FHD constexpr float rad2deg(float x) { return x * (180.f / Constants<float>::PI); }
 
     NOA_FHD constexpr double toRad(double x) { return x * (Constants<double>::PI / 180.); }
     NOA_FHD constexpr float toRad(float x) { return x * (Constants<float>::PI / 180.f); }
+    NOA_FHD constexpr double deg2rad(double x) { return x * (Constants<double>::PI / 180.); }
+    NOA_FHD constexpr float deg2rad(float x) { return x * (Constants<float>::PI / 180.f); }
 
     ///  Returns the hyperbolic cosine of x.
     NOA_FHD double cosh(double x) { return ::cosh(x); }
