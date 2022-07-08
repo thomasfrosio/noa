@@ -36,6 +36,7 @@ set(BENCHMARK_CUDA_SOURCES
         src/gpu/cuda/math/BenchCUDABlas.cpp
         src/gpu/cuda/math/BenchCUDAReductions.cpp
 
+        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
         src/gpu/cuda/geometry/BenchCUDARotate.cpp
         src/gpu/cuda/geometry/BenchCUDASymmetry.cpp
         )
