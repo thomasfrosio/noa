@@ -75,13 +75,14 @@ namespace noa::cuda::memory {
         /// \param[in,out] stream   Stream on which the returned memory will be attached to.
         /// \return Pointer pointing to device memory with an alignment of at least 256 bytes.
         static std::unique_ptr<T[], Deleter> alloc(size_t elements, Stream& stream) {
-            #if CUDART_VERSION >= 11020
             void* tmp{nullptr}; // X** to void** is not allowed
+            #if CUDART_VERSION >= 11020
             NOA_THROW_IF(cudaMallocAsync(&tmp, elements * sizeof(T), stream.id()));
             return {static_cast<T*>(tmp), Deleter{stream.core()}};
             #else
             DeviceGuard device(stream.device());
-            return {alloc(elements).release(), Deleter{stream}};
+            NOA_THROW_IF(cudaMalloc(&tmp, elements * sizeof(T)));
+            return {static_cast<T*>(tmp), Deleter{stream.core()}};
             #endif
         }
 
