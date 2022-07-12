@@ -23,8 +23,6 @@ endif ()
 # CPU backend:
 if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
     find_package(Threads REQUIRED)
-    include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
-    include(${PROJECT_SOURCE_DIR}/ext/OpenBLAS/OpenBLAS.cmake)
 
     if (NOA_ENABLE_OPENMP)
         find_package(OpenMP 4.5 REQUIRED)
@@ -34,12 +32,14 @@ if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
                 )
     endif ()
 
+    include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
+    include(${PROJECT_SOURCE_DIR}/ext/eigen/eigen.cmake)
     target_link_libraries(noa_libraries
             INTERFACE
             Threads::Threads
             fftw3::float
             fftw3::double
-            openblas::openblas
+            Eigen3::Eigen
             )
 endif ()
 

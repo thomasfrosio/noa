@@ -16,7 +16,7 @@
 #   - NOA_CONFIG_VERSION_FILE
 #
 # Created targets:
-#   - uninstall                 : Uninstall everything in the install_manifest.txt.
+#   - noa_uninstall             : Uninstall everything in the install_manifest.txt.
 message(STATUS "--------------------------------------")
 
 # Add the local modules.
@@ -93,7 +93,7 @@ write_basic_package_version_file(
 configure_file("${PROJECT_SOURCE_DIR}/cmake/settings/Uninstall.cmake.in"
         "${NOA_GENERATED_DIR}/Uninstall.cmake"
         IMMEDIATE @ONLY)
-add_custom_target(uninstall
+add_custom_target(noa_uninstall
         COMMAND ${CMAKE_COMMAND} -P ${NOA_GENERATED_DIR}/Uninstall.cmake)
 
 message(STATUS "--------------------------------------\n")
