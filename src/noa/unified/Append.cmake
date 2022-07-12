@@ -85,6 +85,8 @@ set(NOA_UNIFIED_HEADERS
         unified/math/Complex.inl
         unified/math/Ewise.h
         unified/math/Ewise.inl
+        unified/math/LinAlg.h
+        unified/math/LinAlg.inl
         unified/math/Random.h
         unified/math/Random.inl
         unified/math/Reduce.h

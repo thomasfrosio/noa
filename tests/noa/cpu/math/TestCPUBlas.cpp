@@ -1,5 +1,6 @@
 #include <noa/cpu/math/Blas.h>
 #include <noa/cpu/math/Ewise.h>
+#include <noa/cpu/math/LinAlg.h>
 #include <noa/cpu/math/Random.h>
 #include <noa/cpu/math/Reduce.h>
 #include <noa/cpu/memory/PtrHost.h>
@@ -136,4 +137,38 @@ TEMPLATE_TEST_CASE("cpu::math::matmul()", "[noa][cpu]", float, double, cfloat_t,
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, out.get(), exp.get(), exp.elements(),
                           std::is_same_v<real_t, double> ? 1e-7 : 5e-3));
+}
+
+TEST_CASE("cpu::math::lstsq - scipy example()", "[noa][cpu]") {
+    cpu::Stream stream;
+
+    constexpr size_t N = 7;
+    std::array<double, N> x{1.0, 2.5, 3.5, 4.0, 5.0, 7.0, 8.5};
+    std::array<double, N> y{0.3, 1.1, 1.5, 2.0, 3.2, 6.6, 8.6};
+
+    // We want to fit a quadratic polynomial of the form ``y = a + b*x**2``
+    // to this data.  We first form the "design matrix" M, with a constant
+    // column of 1s and a column containing ``x**2``:z`
+    std::shared_ptr<double[]> a = std::make_unique<double[]>(N);
+    std::shared_ptr<double[]> b(a, y.data());
+    std::shared_ptr<double[]> s = nullptr;
+    for (int i = 0; i < 7; ++i) {
+        a[i] = 1;
+        a[i + 1] = x[i] * x[i];
+    }
+    const size4_t a_shape{1, 1, 7, 2};
+    const size4_t b_shape{1, 1, 1, 7};
+
+    // We want to find the least-squares solution to ``a.dot(x) = b``,
+    // where ``x`` is a vector with length 2 that holds the parameters
+    // ``a`` and ``b``.
+    cpu::math::lstsq(a, a_shape.stride(), a_shape,
+                     b, b_shape.stride(), b_shape,
+                     0, s, stream);
+
+    // array([ 0.20925829,  0.12013861])
+
+    stream.synchronize();
+    REQUIRE_THAT(y[0], Catch::WithinAbs(0.20925829, 1e-7));
+    REQUIRE_THAT(y[0], Catch::WithinAbs(0.12013861, 1e-7));
 }
