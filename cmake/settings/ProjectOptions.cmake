@@ -27,7 +27,7 @@ NOA_ENV_FFTW_LIBRARIES and NOA_ENV_FFTW_INCLUDE" OFF)
 # =====================================================================================
 # CUDA backend
 # =====================================================================================
-option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires the CUDA Toolkit. See CMAKE_CUDA_COMPILER" ON)
+option(NOA_ENABLE_CUDA "Try to build the CUDA backend. Requires the CUDA Toolkit. See CMAKE_CUDA_COMPILER" ON)
 set(NOA_CUDA_ARCH "" CACHE STRING "\
 Architectures to generate device code for (see CUDA_ARCHITECTURES). \
 By default, the library tries to use the architecture(s) of the device(s) on the system")
