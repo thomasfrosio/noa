@@ -108,6 +108,11 @@ namespace {
         memory::resize(recons.release(), recons_trimmed);
         return recons_trimmed;
     }
+
+//    Array<float> extract_(Array<cfloat_t>&& fft_data, Array<cfloat_t> fft_weight, size4_t logial_shape, float angle) {
+//        Array<cfloat_t> tmp()
+//        geometry::fft::extract3D<fft::H2H>(fft_data, );
+//    }
 }
 
 TEST_CASE("geometry::fft, back-projection", "[.]") {

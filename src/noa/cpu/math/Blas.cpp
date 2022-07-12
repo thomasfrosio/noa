@@ -61,10 +61,10 @@ namespace {
                         alpha, lhs, lb[0], rhs, lb[1], beta, output, lb[2]);
         } else if constexpr (std::is_same_v<cfloat_t, T>) {
             cblas_cgemm3m(CblasRowMajor, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
-                        &alpha, lhs, lb[0], rhs, lb[1], &beta, output, lb[2]);
+                          &alpha, lhs, lb[0], rhs, lb[1], &beta, output, lb[2]);
         } else if constexpr (std::is_same_v<cdouble_t, T>) {
             cblas_zgemm3m(CblasRowMajor, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
-                        lhs, lb[0], rhs, lb[1], &beta, output, lb[2]);
+                          lhs, lb[0], rhs, lb[1], &beta, output, lb[2]);
         }
     }
 }
@@ -142,7 +142,7 @@ namespace noa::cpu::math {
         // Get the shape: MxK @ KxN = MxN
         using blas3_t = Int3<blasint>;
         auto should_be_transposed = [](math::BlasTranspose transpose) {
-            return transpose == noa::math::BLAS_TRANSPOSE_NONE ? false : true;
+            return transpose != noa::math::BLAS_TRANSPOSE_NONE;
         };
         const bool should_lhs_be_transposed = should_be_transposed(lhs_transpose);
         const bool should_rhs_be_transposed = should_be_transposed(rhs_transpose);
