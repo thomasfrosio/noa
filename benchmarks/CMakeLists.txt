@@ -51,7 +51,7 @@ if (NOA_ENABLE_CUDA)
     set(BENCHMARK_SOURCES
             ${BENCHMARK_SOURCES}
             ${BENCHMARK_CPU_SOURCES}
-            ${BENCHMARK_CUDA_SOURCES}
+#            ${BENCHMARK_CUDA_SOURCES}
             ${BENCHMARK_UNIFIED_SOURCES}
             )
 endif ()

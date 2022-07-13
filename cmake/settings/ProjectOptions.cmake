@@ -7,13 +7,11 @@
 # =====================================================================================
 option(NOA_ENABLE_CPU "\
 Build the CPU backend. The CPU backend must be enabled if the unified API is enabled or if tests are built" ON)
-option(NOA_ENABLE_OPENMP "Enable multithreading, using OpenMP, on the CPU backend" ON)
+option(NOA_ENABLE_OPENMP "Try to enable multithreading, using OpenMP, on the CPU backend" ON)
 
-# OpenBLAS:
-option(NOA_OPENBLAS_STATIC "\
-Use the OpenBLAS static libraries instead of the shared ones. Defaults to OFF. \
-The path search can be restricted using the environmental variables \
-NOA_ENV_OPENBLAS_LIBRARIES and NOA_ENV_OPENBLAS_INCLUDE" OFF)
+# BLAS:
+option(NOA_ENABLE_BLAS "Try to link and use a BLAS library. See CMake BLA_VENDOR to restrict the search" ON)
+option(NOA_BLAS_STATIC "Use the BLAS static libraries instead of the shared ones. Defaults to OFF" OFF)
 
 # FFTW3:
 option(NOA_FFTW_THREADS "\

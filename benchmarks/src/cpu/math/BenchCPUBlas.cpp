@@ -85,8 +85,9 @@ namespace {
     }
 }
 
-// Using cblas_ddot is faster than cblas_gemm in the dot-product case, so internally matmul checks for this.
-// Times are very similar to numpy's (which is also multithreaded), or slightly faster.
+// Internally, matmul checks if the matrix-matrix product is a dot product since dot implementations are ~4x faster.
+// With BLAS, times are very similar to NumPy's (which is also multithreaded), or slightly faster.
+// Without BLAS, it is often 2 or 3 times slower than NumPy.
 BENCHMARK_TEMPLATE(CPU_dot_dot, float)->DenseRange(0, 5)->Unit(benchmark::kMillisecond)->UseRealTime();
 BENCHMARK_TEMPLATE(CPU_dot_dot, double)->DenseRange(0, 5)->Unit(benchmark::kMillisecond)->UseRealTime();
 BENCHMARK_TEMPLATE(CPU_dot_dot, cfloat_t)->DenseRange(0, 5)->Unit(benchmark::kMillisecond)->UseRealTime();

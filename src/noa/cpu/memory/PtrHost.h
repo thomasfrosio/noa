@@ -20,6 +20,10 @@ namespace noa::cpu::memory {
     template<typename T>
     class PtrHost {
     public:
+        static constexpr size_t ALIGNMENT = traits::is_float_v<T> || traits::is_complex_v<T> ? 128 :
+                                            traits::is_int_v<T> ? 64 :
+                                            alignof(T);
+    public:
         struct Deleter {
             void operator()(T* ptr) noexcept {
                 if constexpr(traits::is_data_v<T>)
@@ -40,10 +44,8 @@ namespace noa::cpu::memory {
             if (!elements)
                 return {};
             T* out;
-            if constexpr(traits::is_float_v<T> || traits::is_complex_v<T>)
-                out = static_cast<T*>(std::aligned_alloc(128, elements * sizeof(T)));
-            else if constexpr(traits::is_int_v<T>)
-                out = static_cast<T*>(std::aligned_alloc(64, elements * sizeof(T)));
+            if constexpr(traits::is_data_v<T>)
+                out = static_cast<T*>(std::aligned_alloc(ALIGNMENT, elements * sizeof(T)));
             else
                 out = new(std::nothrow) T[elements];
             if (!out)
@@ -58,7 +60,6 @@ namespace noa::cpu::memory {
                 return {};
 
             // Make sure we have enough space to store the original value returned by calloc.
-            constexpr size_t ALIGNMENT = is_float_v<T> || is_complex_v<T> ? 128 : is_int_v<T> ? 64 : alignof(T);
             const size_t offset = ALIGNMENT - 1 + sizeof(void*);
 
             void* calloc_ptr = std::calloc(elements * sizeof(T) + offset, 1);

@@ -103,7 +103,7 @@ TEMPLATE_TEST_CASE("cpu::math::dot() vs matmul", "[noa][cpu]", float, double) {
                       stream);
 
     stream.synchronize();
-    REQUIRE_THAT(out_dot, Catch::WithinAbs(static_cast<double>(out[0]), std::is_same_v<real_t, double> ? 1e-7 : 5e-3));
+    REQUIRE_THAT(out_dot, Catch::WithinRel(static_cast<double>(out[0]), std::is_same_v<real_t, double> ? 1e-7 : 5e-3));
 }
 
 TEMPLATE_TEST_CASE("cpu::math::matmul()", "[noa][cpu]", float, double, cfloat_t, cdouble_t) {

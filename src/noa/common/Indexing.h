@@ -185,6 +185,25 @@ namespace noa::indexing {
                        stride[3] == 1};
     }
 
+    /// Whether or not the dimensions are contiguous.
+    /// \param shape    Rightmost shape.
+    /// \param stride   Rightmost stride.
+    template<typename T>
+    NOA_FHD auto isContiguous(Int3<T> stride, Int3<T> shape) {
+        return bool3_t{(shape[1] * stride[1]) == stride[0],
+                       (shape[2] * stride[2]) == stride[1],
+                       stride[2] == 1};
+    }
+
+    /// Whether or not the dimensions are contiguous.
+    /// \param shape    Rightmost shape.
+    /// \param stride   Rightmost stride.
+    template<typename T>
+    NOA_FHD auto isContiguous(Int2<T> stride, Int2<T> shape) {
+        return bool2_t{(shape[1] * stride[1]) == stride[0],
+                       stride[1] == 1};
+    }
+
     /// Whether or not a shape describe vector.
     /// \details A vector has one dimension with a size >= 1 and all of the other dimensions empty (i.e. size == 1).
     ///          By this definition, the shapes {1,1,1,1}, {5,1,1,1} and {1,1,1,5} are all vectors.
