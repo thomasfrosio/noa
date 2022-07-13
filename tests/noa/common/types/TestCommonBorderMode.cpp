@@ -6,7 +6,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
+TEST_CASE("common::BorderMode, indexing::at()", "[noa][common]") {
     AND_THEN("BORDER_PERIODIC") {
         int expected_odd[55] = {0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,
                                 0, 1, 2, 3, 4,
@@ -15,7 +15,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         int len = 5;
         cpu::memory::PtrHost<int> data(55);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_PERIODIC>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_PERIODIC>(static_cast<int>(idx) - starts_at, len);
 
         int diff = test::getDifference(expected_odd, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -27,7 +27,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         len = 4;
         data = cpu::memory::PtrHost<int>(32);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_PERIODIC>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_PERIODIC>(static_cast<int>(idx) - starts_at, len);
 
         diff = test::getDifference(expected_even, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -41,7 +41,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         int len = 5;
         cpu::memory::PtrHost<int> data(35);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_CLAMP>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_CLAMP>(static_cast<int>(idx) - starts_at, len);
 
         int diff = test::getDifference(expected_odd, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -53,7 +53,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         len = 4;
         data = cpu::memory::PtrHost<int>(34);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_CLAMP>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_CLAMP>(static_cast<int>(idx) - starts_at, len);
 
         diff = test::getDifference(expected_even, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -67,7 +67,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         int len = 5;
         cpu::memory::PtrHost<int> data(45);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_MIRROR>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_MIRROR>(static_cast<int>(idx) - starts_at, len);
 
         int diff = test::getDifference(expected_odd, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -79,7 +79,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         len = 4;
         data = cpu::memory::PtrHost<int>(52);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_MIRROR>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_MIRROR>(static_cast<int>(idx) - starts_at, len);
 
         diff = test::getDifference(expected_even, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -93,7 +93,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         int len = 5;
         cpu::memory::PtrHost<int> data(53);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_REFLECT>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_REFLECT>(static_cast<int>(idx) - starts_at, len);
 
         int diff = test::getDifference(expected_odd, data.get(), data.size());
         REQUIRE(diff == 0);
@@ -105,7 +105,7 @@ TEST_CASE("common::BorderMode, getBorderIndex()", "[noa][common]") {
         len = 4;
         data = cpu::memory::PtrHost<int>(40);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = getBorderIndex<BORDER_REFLECT>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = indexing::at<BORDER_REFLECT>(static_cast<int>(idx) - starts_at, len);
 
         diff = test::getDifference(expected_even, data.get(), data.size());
         REQUIRE(diff == 0);

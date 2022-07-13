@@ -95,15 +95,15 @@ namespace {
             const int4_t corner_left = origins[batch];
             // The outermost dimension of subregions is used as batch.
             // We don't use it to index the input.
-            const int ii = getBorderIndex<MODE>(corner_left[0], i_shape[0]);
+            const int ii = indexing::at<MODE>(corner_left[0], i_shape[0]);
 
             for (int oj = 0; oj < o_shape[1]; ++oj) {
                 for (int ok = 0; ok < o_shape[2]; ++ok) {
                     for (int ol = 0; ol < o_shape[3]; ++ol) {
 
-                        const int ij = getBorderIndex<MODE>(oj + corner_left[1], i_shape[1]);
-                        const int ik = getBorderIndex<MODE>(ok + corner_left[2], i_shape[2]);
-                        const int il = getBorderIndex<MODE>(ol + corner_left[3], i_shape[3]);
+                        const int ij = indexing::at<MODE>(oj + corner_left[1], i_shape[1]);
+                        const int ik = indexing::at<MODE>(ok + corner_left[2], i_shape[2]);
+                        const int il = indexing::at<MODE>(ol + corner_left[3], i_shape[3]);
                         subregions[indexing::at(batch, oj, ok, ol, subregion_stride)] =
                                 input[indexing::at(ii, ij, ik, il, input_stride)];
                     }

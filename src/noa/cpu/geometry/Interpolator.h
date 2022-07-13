@@ -187,7 +187,7 @@ namespace noa::cpu::geometry {
             out = idx >= 0 && idx < m_shape ? data[idx * m_stride] : static_cast<T>(m_value);
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            out = data[getBorderIndex<BORDER>(idx, m_shape) * m_stride];
+            out = data[indexing::at<BORDER>(idx, m_shape) * m_stride];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -211,8 +211,8 @@ namespace noa::cpu::geometry {
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            values[0] = data[getBorderIndex<BORDER>(idx0, m_shape) * m_stride];
-            values[1] = data[getBorderIndex<BORDER>(idx1, m_shape) * m_stride];
+            values[0] = data[indexing::at<BORDER>(idx0, m_shape) * m_stride];
+            values[1] = data[indexing::at<BORDER>(idx1, m_shape) * m_stride];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -249,10 +249,10 @@ namespace noa::cpu::geometry {
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            values[0] = data[getBorderIndex<BORDER>(idx0, m_shape) * m_stride];
-            values[1] = data[getBorderIndex<BORDER>(idx1, m_shape) * m_stride];
-            values[2] = data[getBorderIndex<BORDER>(idx2, m_shape) * m_stride];
-            values[3] = data[getBorderIndex<BORDER>(idx3, m_shape) * m_stride];
+            values[0] = data[indexing::at<BORDER>(idx0, m_shape) * m_stride];
+            values[1] = data[indexing::at<BORDER>(idx1, m_shape) * m_stride];
+            values[2] = data[indexing::at<BORDER>(idx2, m_shape) * m_stride];
+            values[3] = data[indexing::at<BORDER>(idx3, m_shape) * m_stride];
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -323,8 +323,8 @@ namespace noa::cpu::geometry {
                 out = data[indexing::at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            idx[0] = getBorderIndex<BORDER>(idx[0], m_shape[0]);
-            idx[1] = getBorderIndex<BORDER>(idx[1], m_shape[1]);
+            idx[0] = indexing::at<BORDER>(idx[0], m_shape[0]);
+            idx[1] = indexing::at<BORDER>(idx[1], m_shape[1]);
             out = data[indexing::at(idx, m_stride)];
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -355,10 +355,10 @@ namespace noa::cpu::geometry {
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp[4] = {getBorderIndex<BORDER>(idx0[1], m_shape[1]),
-                          getBorderIndex<BORDER>(idx1[1], m_shape[1]),
-                          getBorderIndex<BORDER>(idx0[0], m_shape[0]),
-                          getBorderIndex<BORDER>(idx1[0], m_shape[0])};
+            int tmp[4] = {indexing::at<BORDER>(idx0[1], m_shape[1]),
+                          indexing::at<BORDER>(idx1[1], m_shape[1]),
+                          indexing::at<BORDER>(idx0[0], m_shape[0]),
+                          indexing::at<BORDER>(idx1[0], m_shape[0])};
             values[0] = data[tmp[2] * m_stride[0] + tmp[0] * m_stride[1]]; // v00
             values[1] = data[tmp[2] * m_stride[0] + tmp[1] * m_stride[1]]; // v01
             values[2] = data[tmp[3] * m_stride[0] + tmp[0] * m_stride[1]]; // v10
@@ -400,14 +400,14 @@ namespace noa::cpu::geometry {
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp_y[4] = {getBorderIndex<BORDER>(idx[0] - 1, m_shape[0]),
-                            getBorderIndex<BORDER>(idx[0] + 0, m_shape[0]),
-                            getBorderIndex<BORDER>(idx[0] + 1, m_shape[0]),
-                            getBorderIndex<BORDER>(idx[0] + 2, m_shape[0])};
-            int tmp_x[4] = {getBorderIndex<BORDER>(idx[1] - 1, m_shape[1]),
-                            getBorderIndex<BORDER>(idx[1] + 0, m_shape[1]),
-                            getBorderIndex<BORDER>(idx[1] + 1, m_shape[1]),
-                            getBorderIndex<BORDER>(idx[1] + 2, m_shape[1])};
+            int tmp_y[4] = {indexing::at<BORDER>(idx[0] - 1, m_shape[0]),
+                            indexing::at<BORDER>(idx[0] + 0, m_shape[0]),
+                            indexing::at<BORDER>(idx[0] + 1, m_shape[0]),
+                            indexing::at<BORDER>(idx[0] + 2, m_shape[0])};
+            int tmp_x[4] = {indexing::at<BORDER>(idx[1] - 1, m_shape[1]),
+                            indexing::at<BORDER>(idx[1] + 0, m_shape[1]),
+                            indexing::at<BORDER>(idx[1] + 1, m_shape[1]),
+                            indexing::at<BORDER>(idx[1] + 2, m_shape[1])};
             for (int j = 0; j < 4; ++j) {
                 int offset = tmp_y[j] * m_stride[0];
                 for (int i = 0; i < 4; ++i) {
@@ -488,9 +488,9 @@ namespace noa::cpu::geometry {
                 out = data[indexing::at(idx, m_stride)];
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            idx[2] = getBorderIndex<BORDER>(idx[2], m_shape[2]);
-            idx[1] = getBorderIndex<BORDER>(idx[1], m_shape[1]);
-            idx[0] = getBorderIndex<BORDER>(idx[0], m_shape[0]);
+            idx[2] = indexing::at<BORDER>(idx[2], m_shape[2]);
+            idx[1] = indexing::at<BORDER>(idx[1], m_shape[1]);
+            idx[0] = indexing::at<BORDER>(idx[0], m_shape[0]);
             out = data[indexing::at(idx, m_stride)];
         } else {
             static_assert(noa::traits::always_false_v<T>);
@@ -530,12 +530,12 @@ namespace noa::cpu::geometry {
 
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp[6] = {getBorderIndex<BORDER>(idx[0][2], m_shape[2]),
-                          getBorderIndex<BORDER>(idx[1][2], m_shape[2]),
-                          getBorderIndex<BORDER>(idx[0][1], m_shape[1]),
-                          getBorderIndex<BORDER>(idx[1][1], m_shape[1]),
-                          getBorderIndex<BORDER>(idx[0][0], m_shape[0]),
-                          getBorderIndex<BORDER>(idx[1][0], m_shape[0])};
+            int tmp[6] = {indexing::at<BORDER>(idx[0][2], m_shape[2]),
+                          indexing::at<BORDER>(idx[1][2], m_shape[2]),
+                          indexing::at<BORDER>(idx[0][1], m_shape[1]),
+                          indexing::at<BORDER>(idx[1][1], m_shape[1]),
+                          indexing::at<BORDER>(idx[0][0], m_shape[0]),
+                          indexing::at<BORDER>(idx[1][0], m_shape[0])};
             values[0] = data[tmp[4] * m_stride[0] + tmp[2] * m_stride[1] + tmp[0] * m_stride[2]]; // v000
             values[1] = data[tmp[4] * m_stride[0] + tmp[2] * m_stride[1] + tmp[1] * m_stride[2]]; // v001
             values[2] = data[tmp[4] * m_stride[0] + tmp[3] * m_stride[1] + tmp[0] * m_stride[2]]; // v010
@@ -596,18 +596,18 @@ namespace noa::cpu::geometry {
             }
         } else if constexpr (BORDER == BORDER_CLAMP || BORDER == BORDER_PERIODIC ||
                              BORDER == BORDER_MIRROR || BORDER == BORDER_REFLECT) {
-            int tmp_z[4] = {getBorderIndex<BORDER>(idx[0] - 1, m_shape[0]),
-                            getBorderIndex<BORDER>(idx[0] + 0, m_shape[0]),
-                            getBorderIndex<BORDER>(idx[0] + 1, m_shape[0]),
-                            getBorderIndex<BORDER>(idx[0] + 2, m_shape[0])};
-            int tmp_y[4] = {getBorderIndex<BORDER>(idx[1] - 1, m_shape[1]),
-                            getBorderIndex<BORDER>(idx[1] + 0, m_shape[1]),
-                            getBorderIndex<BORDER>(idx[1] + 1, m_shape[1]),
-                            getBorderIndex<BORDER>(idx[1] + 2, m_shape[1])};
-            int tmp_x[4] = {getBorderIndex<BORDER>(idx[2] - 1, m_shape[2]),
-                            getBorderIndex<BORDER>(idx[2] + 0, m_shape[2]),
-                            getBorderIndex<BORDER>(idx[2] + 1, m_shape[2]),
-                            getBorderIndex<BORDER>(idx[2] + 2, m_shape[2])};
+            int tmp_z[4] = {indexing::at<BORDER>(idx[0] - 1, m_shape[0]),
+                            indexing::at<BORDER>(idx[0] + 0, m_shape[0]),
+                            indexing::at<BORDER>(idx[0] + 1, m_shape[0]),
+                            indexing::at<BORDER>(idx[0] + 2, m_shape[0])};
+            int tmp_y[4] = {indexing::at<BORDER>(idx[1] - 1, m_shape[1]),
+                            indexing::at<BORDER>(idx[1] + 0, m_shape[1]),
+                            indexing::at<BORDER>(idx[1] + 1, m_shape[1]),
+                            indexing::at<BORDER>(idx[1] + 2, m_shape[1])};
+            int tmp_x[4] = {indexing::at<BORDER>(idx[2] - 1, m_shape[2]),
+                            indexing::at<BORDER>(idx[2] + 0, m_shape[2]),
+                            indexing::at<BORDER>(idx[2] + 1, m_shape[2]),
+                            indexing::at<BORDER>(idx[2] + 2, m_shape[2])};
             for (int i = 0; i < 4; ++i) {
                 int off_z = tmp_z[i] * m_stride[0];
                 for (int j = 0; j < 4; ++j) {

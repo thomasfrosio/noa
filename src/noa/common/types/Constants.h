@@ -44,47 +44,6 @@ namespace noa {
     };
     std::ostream& operator<<(std::ostream& os, BorderMode border_mode);
 
-    /// Returns a valid index.
-    /// If \p index is out-of-bound, computes a valid index according to \p MODE. \p len should be > 0.
-    template<BorderMode MODE>
-    NOA_IHD int getBorderIndex(int idx, int len) {
-        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
-                      MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
-        // a % b == a - b * (a / b) == a + b * (-a / b)
-        // Having a < 0 is well-defined since C++11.
-        if constexpr (MODE == BORDER_CLAMP) {
-            if (idx < 0)
-                idx = 0;
-            else if (idx >= len)
-                idx = len - 1;
-        } else if constexpr (MODE == BORDER_PERIODIC) {
-            // 0 1 2 3 0 1 2 3 0 1 2 3 |  0 1 2 3  | 0 1 2 3 0 1 2 3 0 1 2 3
-            int rem = idx % len; // maybe enclose this, at the expense of two jumps?
-            idx = rem < 0 ? rem + len : rem;
-        } else if constexpr (MODE == BORDER_MIRROR) {
-            // 0 1 2 3 3 2 1 0 0 1 2 3 3 2 1 0 |  0 1 2 3  | 3 2 1 0 0 1 2 3 3 2 1 0
-            if (idx < 0)
-                idx = -idx - 1;
-            if (idx >= len) {
-                int period = 2 * len;
-                idx %= period;
-                if (idx >= len)
-                    idx = period - idx - 1;
-            }
-        } else if constexpr (MODE == BORDER_REFLECT) {
-            // 0 1 2 3 2 1 0 1 2 3 2 1 |  0 1 2 3  | 2 1 0 1 2 3 2 1 0
-            if (idx < 0)
-                idx = -idx;
-            if (idx >= len) {
-                int period = 2 * len - 2;
-                idx %= period;
-                if (idx >= len)
-                    idx = period - idx;
-            }
-        }
-        return idx;
-    }
-
     /// Interpolation methods.
     enum InterpMode {
         /// Nearest neighbour interpolation.

@@ -96,16 +96,16 @@ namespace {
             return;
 
         const int4_t origin = origins[gid[0]]; // TODO constant memory?
-        const int ii = getBorderIndex<MODE>(origin[0], input_shape[0]);
-        const int ij = getBorderIndex<MODE>(origin[1] + gid[1], input_shape[1]);
-        const int ik = getBorderIndex<MODE>(origin[2] + gid[2], input_shape[2]);
+        const int ii = indexing::at<MODE>(origin[0], input_shape[0]);
+        const int ij = indexing::at<MODE>(origin[1] + gid[1], input_shape[1]);
+        const int ik = indexing::at<MODE>(origin[2] + gid[2], input_shape[2]);
 
         input += indexing::at(ii, ij, ik, input_stride);
         subregions += indexing::at(gid[0], gid[1], gid[2], subregion_stride);
 
         for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
             const int ol = gid[2] + static_cast<int>(BLOCK_SIZE_2D.x) * i;
-            const int il = getBorderIndex<MODE>(origin[3] + ol, input_shape[3]);
+            const int il = indexing::at<MODE>(origin[3] + ol, input_shape[3]);
             if (ol < subregion_shape[1])
                 subregions[ol * subregion_stride[3]] = input[il * input_stride[3]];
         }

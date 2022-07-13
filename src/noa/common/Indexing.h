@@ -7,6 +7,7 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
+#include "noa/common/types/Constants.h"
 #include "noa/common/types/Int2.h"
 #include "noa/common/types/Int3.h"
 #include "noa/common/types/Int4.h"
@@ -82,6 +83,47 @@ namespace noa::indexing {
              typename = std::enable_if_t<noa::traits::is_intX_v<U>>>
     NOA_FHD constexpr auto at(Int2<T> index, U stride) noexcept {
         return at(index[0], index[1], stride);
+    }
+
+    /// Returns a valid index.
+    /// If \p idx is out-of-bound, computes a valid index according to \p MODE. \p len should be > 0.
+    template<BorderMode MODE, typename T, typename = std::enable_if_t<std::is_signed_v<T>>>
+    NOA_IHD T at(T idx, T len) {
+        static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
+                      MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
+        // a % b == a - b * (a / b) == a + b * (-a / b)
+        // Having a < 0 is well-defined since C++11.
+        if constexpr (MODE == BORDER_CLAMP) {
+            if (idx < 0)
+                idx = 0;
+            else if (idx >= len)
+                idx = len - 1;
+        } else if constexpr (MODE == BORDER_PERIODIC) {
+            // 0 1 2 3 0 1 2 3 0 1 2 3 |  0 1 2 3  | 0 1 2 3 0 1 2 3 0 1 2 3
+            T rem = idx % len; // FIXME maybe enclose this, at the expense of two jumps?
+            idx = rem < 0 ? rem + len : rem;
+        } else if constexpr (MODE == BORDER_MIRROR) {
+            // 0 1 2 3 3 2 1 0 0 1 2 3 3 2 1 0 |  0 1 2 3  | 3 2 1 0 0 1 2 3 3 2 1 0
+            if (idx < 0)
+                idx = -idx - 1;
+            if (idx >= len) {
+                T period = 2 * len;
+                idx %= period;
+                if (idx >= len)
+                    idx = period - idx - 1;
+            }
+        } else if constexpr (MODE == BORDER_REFLECT) {
+            // 0 1 2 3 2 1 0 1 2 3 2 1 |  0 1 2 3  | 2 1 0 1 2 3 2 1 0
+            if (idx < 0)
+                idx = -idx;
+            if (idx >= len) {
+                T period = 2 * len - 2;
+                idx %= period;
+                if (idx >= len)
+                    idx = period - idx;
+            }
+        }
+        return idx;
     }
 }
 

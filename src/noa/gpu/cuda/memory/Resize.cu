@@ -133,9 +133,9 @@ namespace {
         int3_t igid{ogid[0] - pad_left[0] + crop_left[0],
                     ogid[1] - pad_left[1] + crop_left[1],
                     ogid[2] - pad_left[2] + crop_left[2]};
-        igid[0] = getBorderIndex<MODE>(igid[0], static_cast<int>(input_shape[0]));
-        igid[1] = getBorderIndex<MODE>(igid[1], static_cast<int>(input_shape[1]));
-        igid[2] = getBorderIndex<MODE>(igid[2], static_cast<int>(input_shape[2]));
+        igid[0] = indexing::at<MODE>(igid[0], static_cast<int>(input_shape[0]));
+        igid[1] = indexing::at<MODE>(igid[1], static_cast<int>(input_shape[1]));
+        igid[2] = indexing::at<MODE>(igid[2], static_cast<int>(input_shape[2]));
         input += indexing::at(igid[0], igid[1], igid[2], input_stride);
         output += indexing::at(ogid[0], ogid[1], ogid[2], output_stride);
 
@@ -144,7 +144,7 @@ namespace {
             if (ol >= output_shape[1])
                 return;
             int il = ol - pad_left[3] + crop_left[3];
-            il = getBorderIndex<MODE>(il, static_cast<int>(input_shape[3]));
+            il = indexing::at<MODE>(il, static_cast<int>(input_shape[3]));
             output[ol * output_stride[3]] = input[il * input_stride[3]];
         }
     }

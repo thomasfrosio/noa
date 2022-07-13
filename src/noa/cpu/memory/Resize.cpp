@@ -88,10 +88,10 @@ namespace {
                 for (int ok = 0; ok < int_output_shape[2]; ++ok) {
                     for (int ol = 0; ol < int_output_shape[3]; ++ol) {
 
-                        const int ii = getBorderIndex<MODE>(oi - pad_left[0] + crop_left[0], int_input_shape[0]);
-                        const int ij = getBorderIndex<MODE>(oj - pad_left[1] + crop_left[1], int_input_shape[1]);
-                        const int ik = getBorderIndex<MODE>(ok - pad_left[2] + crop_left[2], int_input_shape[2]);
-                        const int il = getBorderIndex<MODE>(ol - pad_left[3] + crop_left[3], int_input_shape[3]);
+                        const int ii = indexing::at<MODE>(oi - pad_left[0] + crop_left[0], int_input_shape[0]);
+                        const int ij = indexing::at<MODE>(oj - pad_left[1] + crop_left[1], int_input_shape[1]);
+                        const int ik = indexing::at<MODE>(ok - pad_left[2] + crop_left[2], int_input_shape[2]);
+                        const int il = indexing::at<MODE>(ol - pad_left[3] + crop_left[3], int_input_shape[3]);
 
                         const bool skip_i = oi >= pad_left[0] && oi < valid_end[0];
                         const bool skip_j = oj >= pad_left[1] && oj < valid_end[1];
