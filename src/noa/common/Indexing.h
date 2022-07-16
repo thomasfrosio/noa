@@ -221,26 +221,31 @@ namespace noa::indexing {
         return non_empty_dimension <= 1;
     }
 
-    /// Returns the rightmost order of the dimensions to have them in the most contiguous order.
-    /// For instance, if stride is in the left-most order, this function returns {3,2,1,0}.
+    /// Returns the order of \p stride, from the less (0) to the most (3) contiguous dimension.
+    /// For instance, if \p stride is representing a column-major order, this function returns {0, 1, 3, 2}.
     template<typename T>
     NOA_FHD Int4<T> order(Int4<T> stride) {
-        auto swap = [](T& a, T& b) {
-            T tmp = a;
-            a = b;
-            b = tmp;
-        };
-        Int4<T> order{0, 1, 2, 3};
-        if (stride[0] < stride[1])
-            swap(order[0], order[1]);
-        if (stride[2] < stride[3])
-            swap(order[2], order[3]);
-        if (stride[0] < stride[2])
-            swap(order[0], order[2]);
-        if (stride[1] < stride[3])
-            swap(order[1], order[3]);
-        if (stride[2] < stride[3])
-            swap(order[2], order[3]);
+        Int4<T> order{0, 1, 2, 3}; // row-major
+        if (stride[0] < stride[1]) {
+            std::swap(stride[0], stride[1]);
+            std::swap(order[0], order[1]);
+        }
+        if (stride[2] < stride[3]) {
+            std::swap(stride[2], stride[3]);
+            std::swap(order[2], order[3]);
+        }
+        if (stride[0] < stride[2]) {
+            std::swap(stride[0], stride[2]);
+            std::swap(order[0], order[2]);
+        }
+        if (stride[1] < stride[3]) {
+            std::swap(stride[1], stride[3]);
+            std::swap(order[1], order[3]);
+        }
+        if (stride[1] < stride[2]) {
+            std::swap(stride[2], stride[3]);
+            std::swap(order[1], order[2]);
+        }
         return order;
     }
 
@@ -248,6 +253,36 @@ namespace noa::indexing {
     template<typename T, typename U>
     NOA_FHD Int4<T> reorder(Int4<T> v, Int4<U> order) {
         return {v[order[0]], v[order[1]], v[order[2]], v[order[3]]};
+    }
+
+    template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
+    NOA_FHD bool isColMajor(T&& stride) {
+        constexpr size_t N = std::decay_t<T>::COUNT;;
+        constexpr size_t COL = N - 2;
+        constexpr size_t ROW = N - 1;
+        return stride[COL] <= stride[ROW];
+    }
+
+    template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
+    NOA_FHD bool isColMajor(T&& stride, T&& shape) {
+        int second{-1}, first{-1};
+        for (int i = std::decay_t<T>::COUNT - 1; i >= 0; --i) {
+            if (shape[i] > 1) {
+                if (first == -1)
+                    first = i;
+                else if (second == -1)
+                    second = i;
+            }
+        }
+        return second == -1 || first == -1 || stride[second] <= stride[first];
+    }
+
+    template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
+    NOA_FHD bool isRowMajor(T&& stride) {
+        constexpr size_t N = std::decay_t<T>::COUNT;
+        constexpr size_t COL = N - 2;
+        constexpr size_t ROW = N - 1;
+        return stride[COL] >= stride[ROW];
     }
 
     /// Sets the input stride so that the input can be iterated as if it as the same size as the output.
@@ -283,11 +318,18 @@ namespace noa::indexing {
     }
 
     /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
-    template<typename T>
-    NOA_IH Int4<T> effectiveShape(Int4<T> shape, Int4<T> stride) noexcept {
-        for (size_t i = 0; i < Int4<T>::COUNT; ++i)
+    template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
+    NOA_IH T effectiveShape(T shape, T stride) noexcept {
+        for (size_t i = 0; i < std::decay_t<T>::COUNT; ++i)
             shape[i] = stride[i] ? shape[i] : 1;
         return shape;
+    }
+
+    template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
+    NOA_IH T effectiveStride(T shape, T stride) noexcept {
+        for (size_t i = 0; i < std::decay_t<T>::COUNT; ++i)
+            stride[i] = shape[i] > 1 ? stride[i] : 0;
+        return stride;
     }
 
     /// Computes the new rightmost stride of an array after reshaping.

@@ -5,7 +5,10 @@
 #include <noa/cpu/math/Reduce.h>
 #include <noa/cpu/memory/PtrHost.h>
 
+#include <noa/common/io/ImageFile.h>
+
 #include "Helpers.h"
+#include "Assets.h"
 #include <catch2/catch.hpp>
 
 using namespace noa;
@@ -139,7 +142,7 @@ TEMPLATE_TEST_CASE("cpu::math::matmul()", "[noa][cpu]", float, double, cfloat_t,
                           std::is_same_v<real_t, double> ? 1e-7 : 5e-3));
 }
 
-TEST_CASE("cpu::math::lstsq - scipy example()", "[noa][cpu]") {
+TEST_CASE("cpu::math::lstsq - scipy example()", "[cpu]") {
     cpu::Stream stream;
 
     constexpr size_t N = 7;
@@ -149,26 +152,66 @@ TEST_CASE("cpu::math::lstsq - scipy example()", "[noa][cpu]") {
     // We want to fit a quadratic polynomial of the form ``y = a + b*x**2``
     // to this data.  We first form the "design matrix" M, with a constant
     // column of 1s and a column containing ``x**2``:z`
-    std::shared_ptr<double[]> a = std::make_unique<double[]>(N);
+    std::shared_ptr<double[]> a = std::make_unique<double[]>(N * 2);
     std::shared_ptr<double[]> b(a, y.data());
-    std::shared_ptr<double[]> s = nullptr;
-    for (int i = 0; i < 7; ++i) {
-        a[i] = 1;
-        a[i + 1] = x[i] * x[i];
+    std::shared_ptr<double[]> s = std::make_unique<double[]>(N);
+    for (size_t i = 0; i < 7; ++i) {
+        a.get()[i * 2] = 1;
+        a.get()[i * 2 + 1] = x[i] * x[i];
     }
+
     const size4_t a_shape{1, 1, 7, 2};
-    const size4_t b_shape{1, 1, 1, 7};
+    const size4_t a_stride{14, 14, 2, 1};
+    const size4_t b_shape{1, 1, 7, 1};
+    const size4_t b_stride{7, 7, 1, 1};
 
     // We want to find the least-squares solution to ``a.dot(x) = b``,
     // where ``x`` is a vector with length 2 that holds the parameters
     // ``a`` and ``b``.
-    cpu::math::lstsq(a, a_shape.stride(), a_shape,
-                     b, b_shape.stride(), b_shape,
+    cpu::math::lstsq(a, a_stride, a_shape,
+                     b, b_stride, b_shape,
                      0, s, stream);
-
-    // array([ 0.20925829,  0.12013861])
 
     stream.synchronize();
     REQUIRE_THAT(y[0], Catch::WithinAbs(0.20925829, 1e-7));
-    REQUIRE_THAT(y[0], Catch::WithinAbs(0.12013861, 1e-7));
+    REQUIRE_THAT(y[1], Catch::WithinAbs(0.12013861, 1e-7));
+}
+
+TEST_CASE("cpu::math::surface()", "[assets][cpu]") {
+    const path_t path = test::NOA_DATA_PATH / "math";
+    io::ImageFile mrc_file(path / "surface_input.mrc", io::READ);
+    const size4_t shape = mrc_file.shape();
+    const size4_t stride = shape.stride();
+
+    cpu::memory::PtrHost<float> input(shape.elements());
+    cpu::memory::PtrHost<float> expected(input.elements());
+    cpu::memory::PtrHost<float> results(input.elements());
+    mrc_file.readAll(input.get());
+
+    const int order = GENERATE(1, 2, 3);
+    const auto parameters = static_cast<size_t>(order == 3 ? 10 : order * 3);
+    cpu::memory::PtrHost<float> solution_results(parameters);
+    cpu::memory::PtrHost<float> solution_expected(parameters);
+
+    cpu::Stream stream;
+    cpu::math::surface(input.share(), stride, shape,
+                       results.share(), stride, shape,
+                       true, order, solution_results.share(), stream);
+
+    mrc_file.open(path / string::format("tmp_surface_subtract_order{}.mrc", order), io::READ);
+    mrc_file.readAll(expected.get());
+
+    const YAML::Node yaml_file = YAML::LoadFile(path / "tmp_surface_solution.yaml");
+    for (size_t i = 0; i < parameters; ++i)
+        solution_expected[i] = yaml_file[order][i].as<float>();
+
+    stream.synchronize();
+
+    mrc_file.open(path / string::format("tmp_surface_subtract_order{}_noa.mrc", order), io::WRITE);
+    mrc_file.shape(shape);
+    mrc_file.writeAll(results.get());
+
+    INFO(order);
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, solution_results.get(), solution_expected.data(), parameters, 1e-5));
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results.get(), expected.get(), expected.elements(), 5e-3));
 }

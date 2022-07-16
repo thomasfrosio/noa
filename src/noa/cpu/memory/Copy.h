@@ -61,7 +61,14 @@ namespace noa::cpu::memory {
         if constexpr (CHECK_CONTIGUOUS) {
             if (all(indexing::isContiguous(src_stride, shape)) && all(indexing::isContiguous(dst_stride, shape)))
                 return copy(src, src + shape.elements(), dst);
+
+            // Loop through the destination in the most cache-friendly way:
+//            const size4_t order = indexing::order(indexing::effectiveStride(shape, dst_stride));
+//            dst_stride = indexing::reorder(dst_stride, order);
+//            src_stride = indexing::reorder(src_stride, order);
+//            shape = indexing::reorder(shape, order);
         }
+
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
