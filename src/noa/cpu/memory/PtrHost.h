@@ -20,10 +20,6 @@ namespace noa::cpu::memory {
     template<typename T>
     class PtrHost {
     public:
-        static constexpr size_t ALIGNMENT = traits::is_float_v<T> || traits::is_complex_v<T> ? 128 :
-                                            traits::is_int_v<T> ? 64 :
-                                            alignof(T);
-    public:
         struct Deleter {
             void operator()(T* ptr) noexcept {
                 if constexpr(traits::is_data_v<T>)
@@ -39,13 +35,21 @@ namespace noa::cpu::memory {
             }
         };
 
+    public:
+        using alloc_unique_t = unique_t<T[], Deleter>;
+        using calloc_unique_t = unique_t<T[], DeleterCalloc>;
+        static constexpr size_t ALIGNMENT = traits::is_float_v<T> || traits::is_complex_v<T> ?
+                                            128 : traits::is_int_v<T> ? 64 : alignof(T);
+
+    public:
         /// Allocates some elements of uninitialized storage. Throws if the allocation fails.
-        static unique_t<T[], Deleter> alloc(size_t elements) {
-            if (!elements)
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        static alloc_unique_t alloc(I elements) {
+            if (elements <= 0)
                 return {};
             T* out;
             if constexpr(traits::is_data_v<T>)
-                out = static_cast<T*>(std::aligned_alloc(ALIGNMENT, elements * sizeof(T)));
+                out = static_cast<T*>(std::aligned_alloc(ALIGNMENT, static_cast<size_t>(elements) * sizeof(T)));
             else
                 out = new(std::nothrow) T[elements];
             if (!out)
@@ -54,15 +58,16 @@ namespace noa::cpu::memory {
         }
 
         /// Allocates some elements, all initialized to 0. Throws if the allocation fails.
-        static unique_t<T[], DeleterCalloc> calloc(size_t elements) {
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        static calloc_unique_t calloc(I elements) {
             using namespace ::noa::traits;
-            if (!elements)
+            if (elements <= 0)
                 return {};
 
             // Make sure we have enough space to store the original value returned by calloc.
             const size_t offset = ALIGNMENT - 1 + sizeof(void*);
 
-            void* calloc_ptr = std::calloc(elements * sizeof(T) + offset, 1);
+            void* calloc_ptr = std::calloc(static_cast<size_t>(elements) * sizeof(T) + offset, 1);
             if (!calloc_ptr)
                 NOA_THROW("Failed to allocate {} {} on the heap", elements, string::human<T>());
 
@@ -78,7 +83,10 @@ namespace noa::cpu::memory {
         constexpr /*implicit*/ PtrHost(std::nullptr_t) {}
 
         /// Allocates \p elements elements of type \p T on the heap.
-        explicit PtrHost(size_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
+        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        explicit PtrHost(I elements) : m_ptr(alloc(elements)), m_elements(static_cast<size_t>(elements)) {
+            NOA_ASSERT(elements >= 0);
+        }
 
     public:
         /// Returns the host pointer.
