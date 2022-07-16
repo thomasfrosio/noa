@@ -58,13 +58,10 @@ message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 
 get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
 if("CUDA" IN_LIST languages)
-    message("")
     message(STATUS "CMAKE_CUDA_COMPILER: ${CMAKE_CUDA_COMPILER}")
     if (CMAKE_CUDA_HOST_COMPILER)
         message(STATUS "CMAKE_CUDA_HOST_COMPILER: ${CMAKE_CUDA_HOST_COMPILER}")
     endif ()
-    message(STATUS "CUDA Toolkit library path: ${CUDAToolkit_LIBRARY_DIR}")
-    message(STATUS "CUDA Toolkit version: ${CUDAToolkit_VERSION}")
     message(STATUS "CUDA architectures: ${NOA_CUDA_ARCH}")
 endif()
 

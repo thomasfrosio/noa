@@ -17,6 +17,21 @@ While some dependencies are directly fetched and installed by the library, some 
     - `NOA_ENV_FFTW_LIBRARIES`: If set and not empty, the libraries are exclusively searched under this path.
     - `NOA_ENV_FFTW_INCLUDE`: If set and not empty, the header `fftw3.h` is exclusively searched under this path.
 
+- The [OpenBLAS](https://www.openblas.net/) libraries are required for the CPU backend. We use the library for its 
+  CBLAS and LAPACKE API, so you need to make sure your OpenBLAS was compiled with LAPACK enabled, which requires a 
+  Fortran compiler. We recommend building the library from source since the build checks for the best implementation
+  given the current architecture and to make sure the OpenMP version is used (if multithreading).
+    ```shell
+    mkdir OpenBLAS && cd OpenBLAS
+    git clone --depth 1 --branch v0.3.20 https://github.com/xianyi/OpenBLAS.git
+    mkdir _build && cd _build
+    cmake -DCMAKE_INSTALL_PREFIX=../_install -DUSE_THREAD=1 -DUSE_OPENMP=1 ../OpenBLAS
+    cmake --build . --target install
+    ```
+  You can select a newer version or the develop branch directly. In that case, passing `-DC_LAPACK=1` will build the 
+  LAPACKE library without the need of a Fortran compiler. Then, simply add the pass of the `_install` directory to
+  `CMAKE_PREFIX_PATH`.
+
 - If the CUDA backend is built (see below), the [CUDA toolkit](https://docs.nvidia.com/cuda/index.html) version 11 is
   required, although version 11.2 or any newer version is recommended. The CUDA compiler path can be specified to ensure
   that the correct CUDA compiler is selected, or if the compiler is not installed in the default paths and is not found,

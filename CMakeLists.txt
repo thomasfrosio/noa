@@ -8,17 +8,16 @@ project(noa
 
 # The library only supports static linking:
 if (BUILD_SHARED_LIBS)
-    message(FATAL_ERROR "Dynamic linking is not supported. Turn BUILD_SHARED_LIBS off")
+    message(WARNING "Dynamic linking is not supported. Turning BUILD_SHARED_LIBS off")
+    set(BUILD_SHARED_LIBS OFF)
 endif ()
 
-# ---------------------------------------------------------------------------------------
-# Whether or not this is the top-level (master) project
-# ---------------------------------------------------------------------------------------
-if (NOT DEFINED NOA_IS_MASTER)
+# Whether or not this is the top-level project
+if (NOT DEFINED NOA_IS_TOP_LEVEL)
     if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-        set(NOA_IS_MASTER ON)
+        set(NOA_IS_TOP_LEVEL ON)
     else ()
-        set(NOA_IS_MASTER OFF)
+        set(NOA_IS_TOP_LEVEL OFF)
     endif ()
 endif ()
 include(cmake/settings/PreventInSourceBuilds.cmake)
@@ -33,12 +32,11 @@ if (NOA_ENABLE_CUDA)
     check_language(CUDA)
     if (CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
-        find_package(CUDAToolkit 11 QUIET REQUIRED)
         if (NOT NOA_CUDA_ARCH)
             include(cmake/settings/CUDASelectArch.cmake)
         endif ()
     else ()
-        message(STATUS "No CUDA support detected, so building without CUDA")
+        message(WARNING "No CUDA support detected, so building without CUDA")
         set(NOA_ENABLE_CUDA OFF)
     endif ()
 endif ()

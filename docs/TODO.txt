@@ -38,6 +38,21 @@ cryoEM:
           non-redundant data. ImageFile treats the shape as the physical shape...
 
 Development:
+    -   Atm, we need to compile OpenBLAS and add it to CMAKE_PREFIX_PATH. This is very annoying since it means the
+        build is not automatic and requires installing a dependency. I would like to either use an existing OpenBLAS
+        or BLAS library that contains CBLAS _and_ LAPACKE. One solution is also to build OpenBLAS ourselves with
+        a FetchContent call.
+
+    -   Many functions assume row-major ordering. While col-major is supported and should work, they're cases where
+        we should check for the ordering to know the fastest way to loop an array. This goes with changing the naming:
+        the library uses a Batch-Depth-Height-Width (aka BDHW) convention for shape and strides. Technically, and this
+        wasn't respected so far, this tells us nothing about the actual memory layout! It just tells us that the 4D
+        shape and stride represent, from left to right, the batches/channels, depth/pages, height/rows and width/columns.
+        If the stride {a,b,c,d} where a>b>c>d, then it is row major, however a>b>d>c is column-major.
+        Rightmost ordering is correct (rightmost dimension is the innermost dimension), but in many cases, we simply
+        don't care, i.e. we don't require rightmost order, however we often require BDHW. For memory::copy(), we don't
+        care at all. For signal::sphere() we care about BDHW but not about the memory ordering.
+
     -   Add support for Windows. It should not be that complicated. One thing to look at is OpenMP support.
 
     -   Session: Not sure what `Session` should be. It only holds the main `Logger` and the number of internal threads.

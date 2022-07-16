@@ -34,30 +34,20 @@ if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
         endif()
     endif ()
 
-    if (NOA_ENABLE_BLAS)
-        set(BLA_STATIC ${NOA_BLAS_STATIC})
-        find_package(BLAS)
-        if (BLAS_FOUND)
-            target_link_libraries(noa_libraries INTERFACE BLAS::BLAS)
-        else ()
-            message(WARN "NOA_ENABLE_BLAS is ON, but could not find library implementing the BLAS interface")
-            set(NOA_ENABLE_BLAS OFF)
-        endif ()
-    endif ()
-
+    include(${PROJECT_SOURCE_DIR}/ext/openblas/openblas.cmake)
     include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
-    include(${PROJECT_SOURCE_DIR}/ext/eigen/eigen.cmake)
     target_link_libraries(noa_libraries
             INTERFACE
             Threads::Threads
+            OpenBLAS::OpenBLAS
             fftw3::float
             fftw3::double
-            Eigen3::Eigen
             )
 endif ()
 
 # CUDA backend:
 if (NOA_ENABLE_CUDA)
+    include(${PROJECT_SOURCE_DIR}/ext/cuda-toolkit/cuda-toolkit.cmake)
     if (NOA_CUDA_CUDART_STATIC)
         target_link_libraries(noa_libraries INTERFACE CUDA::cudart_static)
     else ()
@@ -182,7 +172,6 @@ target_compile_definitions(noa
         "$<$<BOOL:${NOA_ENABLE_UNIFIED}>:NOA_ENABLE_UNIFIED>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
         "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"
-        "$<$<BOOL:${NOA_ENABLE_BLAS}>:NOA_ENABLE_BLAS>"
         "$<$<BOOL:${NOA_FFTW_THREADS}>:NOA_FFTW_THREADS>"
         "$<$<BOOL:${NOA_ENABLE_CHECKS_RELEASE}>:NOA_ENABLE_CHECKS_RELEASE>"
         )
