@@ -95,7 +95,7 @@ namespace noa::math {
 
     template<typename T, typename>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output,
-                T alpha, T beta, BlasTranspose lhs_transpose, BlasTranspose rhs_transpose) {
+                T alpha, T beta, bool lhs_transpose, bool rhs_transpose) {
         NOA_CHECK(lhs.stride()[3] == 1 && lhs.stride()[2] >= lhs.shape()[3],
                   "The innermost dimension of the left-hand side should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
@@ -116,16 +116,16 @@ namespace noa::math {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::matmul(lhs_transpose, rhs_transpose, alpha,
-                              lhs.share(), lhs.stride(), lhs.shape(),
-                              rhs.share(), rhs.stride(), rhs.shape(), beta,
+            cpu::math::matmul(lhs.share(), lhs.stride(), lhs.shape(),
+                              rhs.share(), rhs.stride(), rhs.shape(),
+                              alpha, beta, lhs_transpose, rhs_transpose,
                               output.share(), output.stride(), output.shape(),
                               stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::matmul(lhs_transpose, rhs_transpose, alpha,
-                               lhs.share(), lhs.stride(), lhs.shape(),
-                               rhs.share(), rhs.stride(), rhs.shape(), beta,
+            cuda::math::matmul(lhs.share(), lhs.stride(), lhs.shape(),
+                               rhs.share(), rhs.stride(), rhs.shape(),
+                               alpha, beta, lhs_transpose, rhs_transpose,
                                output.share(), output.stride(), output.shape(),
                                stream.cuda());
             #else

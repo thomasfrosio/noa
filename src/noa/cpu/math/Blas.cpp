@@ -1,48 +1,58 @@
-#include "noa/common/Definitions.h"
-
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wsign-conversion"
-    #pragma GCC diagnostic ignored "-Wuseless-cast"
-    #pragma GCC diagnostic ignored "-Wduplicated-branches"
-    #pragma GCC diagnostic ignored "-Wunused-parameter"
-#elif defined(NOA_COMPILER_MSVC)
-#pragma warning(push, 0)
-#endif
-
-#ifdef NOA_ENABLE_BLAS
-    #define EIGEN_USE_BLAS
-#endif
-#include <Eigen/Dense>
-
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-    #pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-    #pragma warning(pop)
-#endif
-
+#include <cblas.h>
 #include "noa/cpu/math/Blas.h"
-#include "noa/cpu/memory/PtrHost.h"
 
 namespace {
     using namespace ::noa;
 
     // Extract size and stride from a column or row vector.
-    template<typename T>
-    std::pair<T, T> vectorDim_(size2_t stride, size2_t shape) {
+    std::pair<size_t, size_t> extractDimFromVector_(size2_t stride, size2_t shape) {
         const bool is_column = shape.ndim() == 2;
-        NOA_ASSERT(shape[is_column] == 1); // require vector
-        const auto n = static_cast<T>(shape[1 - is_column]);
-        const auto s = static_cast<T>(stride[1 - is_column]);
+        NOA_ASSERT(shape[is_column] == 1); // this is a vector
+        const size_t n = shape[1 - is_column];
+        const size_t s = stride[1 - is_column];
         return {n, s};
     }
 
-    // Returns alignment. Only check for the most likely alignment since we don't necessarily want
-    //  to instantiate for every possibility.
     template<typename T>
-    bool isAligned_(const T* pointer) {
-        const auto address = reinterpret_cast<uint64_t>(pointer);
-        return !(address % Eigen::AlignedMax);
+    T cblasDot_(size_t n, const T* lhs, size_t lhs_stride, const T* rhs, size_t rhs_stride) {
+        if (n >= 2048) {
+            if constexpr (std::is_same_v<float, T>) {
+                return static_cast<float>(cblas_dsdot(static_cast<blasint>(n),
+                                                      lhs, static_cast<blasint>(lhs_stride),
+                                                      rhs, static_cast<blasint>(rhs_stride)));
+            } else if constexpr (std::is_same_v<double, T>) {
+                return cblas_ddot(static_cast<blasint>(n),
+                                  lhs, static_cast<blasint>(lhs_stride),
+                                  rhs, static_cast<blasint>(rhs_stride));
+            }
+        }
+
+        T sum{0};
+        for (size_t i = 0; i < n; ++i)
+            sum += lhs[i * lhs_stride] * rhs[i * rhs_stride];
+        return sum;
+    }
+
+    template<typename T>
+    void cblasGEMM_(bool lhs_transpose, bool rhs_transpose,
+                    Int3<blasint> mnk, Int3<blasint> lb, T alpha, T beta,
+                    const T* lhs, const T* rhs, T* output) {
+        const auto lhs_op = lhs_transpose ? CblasTrans : CblasNoTrans;
+        const auto rhs_op = rhs_transpose ? CblasTrans : CblasNoTrans;
+
+        if constexpr (std::is_same_v<float, T>) {
+            cblas_sgemm(CblasRowMajor, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], alpha,
+                        lhs, lb[0], rhs, lb[1], beta, output, lb[2]);
+        } else if constexpr (std::is_same_v<double, T>) {
+            cblas_dgemm(CblasRowMajor, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
+                        alpha, lhs, lb[0], rhs, lb[1], beta, output, lb[2]);
+        } else if constexpr (std::is_same_v<cfloat_t, T>) {
+            cblas_cgemm3m(CblasRowMajor, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
+                          &alpha, lhs, lb[0], rhs, lb[1], &beta, output, lb[2]);
+        } else if constexpr (std::is_same_v<cdouble_t, T>) {
+            cblas_zgemm3m(CblasRowMajor, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
+                          lhs, lb[0], rhs, lb[1], &beta, output, lb[2]);
+        }
     }
 }
 
@@ -54,32 +64,13 @@ namespace noa::cpu::math {
 
         // Get vector shape:
         NOA_ASSERT(lhs_shape.ndim() <= 2 && rhs_shape.ndim() <= 2);
-        auto[lhs_n, lhs_s] = vectorDim_<Eigen::Index>(size2_t{lhs_stride.get(2)}, size2_t{lhs_shape.get(2)});
-        auto[rhs_n, rhs_s] = vectorDim_<Eigen::Index>(size2_t{rhs_stride.get(2)}, size2_t{rhs_shape.get(2)});
+        auto[lhs_n, lhs_s] = extractDimFromVector_(size2_t{lhs_stride.get(2)}, size2_t{lhs_shape.get(2)});
+        auto[rhs_n, rhs_s] = extractDimFromVector_(size2_t{rhs_stride.get(2)}, size2_t{rhs_shape.get(2)});
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
-        using namespace Eigen;
-        using e_sca_t = std::conditional_t<traits::is_complex_v<T>, std::complex<traits::value_type_t<T>>, T>;
-        const auto* lhs_ptr = reinterpret_cast<const e_sca_t*>(lhs.get());
-        const auto* rhs_ptr = reinterpret_cast<const e_sca_t*>(rhs.get());
-
-        // If contiguous and aligned, vectorize if possible:
-        if (lhs_s == 1 && rhs_s == 1 && isAligned_(lhs_ptr) && isAligned_(rhs_ptr)) {
-            using e_lhs_t = Map<const Matrix<e_sca_t, 1, Dynamic>, AlignedMax>;
-            using e_rhs_t = Map<const Matrix<e_sca_t, Dynamic, 1>, AlignedMax>;
-            e_lhs_t lhs_(lhs_ptr, lhs_n);
-            e_rhs_t rhs_(rhs_ptr, rhs_n);
-            stream.synchronize();
-            return static_cast<T>((lhs_ * rhs_)(0));
-        } else {
-            using e_lhs_t = Map<const Matrix<e_sca_t, 1, Dynamic>, Unaligned, InnerStride<>>;
-            using e_rhs_t = Map<const Matrix<e_sca_t, Dynamic, 1>, Unaligned, InnerStride<>>;
-            e_lhs_t lhs_(lhs_ptr, lhs_n, InnerStride<>(lhs_s));
-            e_rhs_t rhs_(rhs_ptr, rhs_n, InnerStride<>(rhs_s));
-            stream.synchronize();
-            return static_cast<T>((lhs_ * rhs_)(0));
-        }
+        stream.synchronize();
+        return cblasDot_(lhs_n, lhs.get(), lhs_s, rhs.get(), rhs_s);
     }
 
     template<typename T, typename>
@@ -87,57 +78,32 @@ namespace noa::cpu::math {
              const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
              const std::shared_ptr<T[]>& output, Stream& stream) {
         NOA_ASSERT(lhs_shape[0] == rhs_shape[0] && lhs_shape[1] == 1 && rhs_shape[1] == 1);
+        const size_t batches = lhs_shape[0];
 
         // Get vector shape: lhs should be a row vector, rhs can be a column or row vector
-        Eigen::Index lhs_n, lhs_s, rhs_n, rhs_s;
-        std::tie(lhs_n, lhs_s) = vectorDim_<Eigen::Index>(size2_t{lhs_stride.get(2)}, size2_t{lhs_shape.get(2)});
-        std::tie(rhs_n, rhs_s) = vectorDim_<Eigen::Index>(size2_t{rhs_stride.get(2)}, size2_t{rhs_shape.get(2)});
+        size_t lhs_n, lhs_s, rhs_n, rhs_s;
+        std::tie(lhs_n, lhs_s) = extractDimFromVector_(size2_t{lhs_stride.get(2)}, size2_t{lhs_shape.get(2)});
+        std::tie(rhs_n, rhs_s) = extractDimFromVector_(size2_t{rhs_stride.get(2)}, size2_t{rhs_shape.get(2)});
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
-        const size_t lhs_bs = lhs_stride[0];
-        const size_t rhs_bs = rhs_stride[0];
-        const size_t batches = lhs_shape[0];
+        const size_t lhs_batch_stride = lhs_stride[0];
+        const size_t rhs_batch_stride = rhs_stride[0];
         stream.enqueue([=]() {
-            using namespace Eigen;
-            using e_sca_t = std::conditional_t<traits::is_complex_v<T>, std::complex<traits::value_type_t<T>>, T>;
-            const auto* lhs_ptr = reinterpret_cast<const e_sca_t*>(lhs.get());
-            const auto* rhs_ptr = reinterpret_cast<const e_sca_t*>(rhs.get());
-
-            // If contiguous and all batches are aligned, vectorize if possible:
-            if (lhs_s == 1 && rhs_s == 1 && isAligned_(lhs_ptr) && isAligned_(rhs_ptr) &&
-                (batches == 0 || (!(lhs_bs % AlignedMax) && !(rhs_bs % AlignedMax)))) {
-                using e_row_t = Map<const Matrix<e_sca_t, 1, Dynamic>, AlignedMax>;
-                using e_col_t = Map<const Matrix<e_sca_t, Dynamic, 1>, AlignedMax>;
-                e_row_t lhs_(nullptr, lhs_n);
-                e_col_t rhs_(nullptr, rhs_n);
-                T* out_ptr = output.get();
-                for (size_t batch = 0; batch < batches; ++batch) {
-                    new (&lhs_) e_row_t(lhs_ptr + lhs_bs * batch, lhs_n);
-                    new (&rhs_) e_col_t(rhs_ptr + rhs_bs * batch, rhs_n);
-                    auto a = lhs_.dot(rhs_);
-                    out_ptr[batch] = static_cast<T>((lhs_ * rhs_)(0));
-                }
-            } else {
-                using e_row_t = Map<const Matrix<e_sca_t, 1, Dynamic>, Unaligned, InnerStride<>>;
-                using e_col_t = Map<const Matrix<e_sca_t, Dynamic, 1>, Unaligned, InnerStride<>>;
-                e_row_t lhs_(nullptr, lhs_n, InnerStride<>(lhs_s));
-                e_col_t rhs_(nullptr, rhs_n, InnerStride<>(rhs_s));
-                T* out_ptr = output.get();
-                for (size_t batch = 0; batch < batches; ++batch) {
-                    new (&lhs_) e_row_t(lhs_ptr + lhs_bs * batch, lhs_n, InnerStride<>(lhs_s));
-                    new (&rhs_) e_col_t(rhs_ptr + rhs_bs * batch, rhs_n, InnerStride<>(rhs_s));
-                    out_ptr[batch] = static_cast<T>((lhs_ * rhs_)(0));
-                }
+            T* ptr = output.get();
+            for (size_t batch = 0; batch < batches; ++batch) {
+                ptr[batch] = cblasDot_(lhs_n,
+                                       lhs.get() + lhs_batch_stride * batch, lhs_s,
+                                       rhs.get() + rhs_batch_stride * batch, rhs_s);
             }
         });
     }
 
-    #define INSTANTIATE_DOT_(T)                                                         \
-    template T dot<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,              \
-                            const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&);    \
-    template void dot<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,           \
-                               const std::shared_ptr<T[]>&, size4_t, size4_t,           \
+    #define INSTANTIATE_DOT_(T)                                                           \
+    template T dot<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,                \
+                            const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&); \
+    template void dot<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,             \
+                               const std::shared_ptr<T[]>&, size4_t, size4_t,             \
                                const std::shared_ptr<T[]>&, Stream&)
 
     INSTANTIATE_DOT_(int32_t);
@@ -151,79 +117,48 @@ namespace noa::cpu::math {
 }
 
 namespace noa::cpu::math {
-    using BlasTranspose = noa::math::BlasTranspose;
-
     template<typename T, typename>
     void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
                 const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
+                T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
                 const std::shared_ptr<T[]>& output, size4_t output_stride, size4_t output_shape,
                 Stream& stream) {
+
         // Get the shape: MxK @ KxN = MxN
-        using eint3_t = Int3<Eigen::Index>;
-        using eint2_t = Int2<Eigen::Index>;
-        const eint3_t mnk{lhs_shape[2], rhs_shape[3], lhs_shape[3]};
-        NOA_ASSERT(output.get() != lhs.get() && output.get() != rhs.get());
+        using blas3_t = Int3<blasint>;
+        const auto m = lhs_shape[2 + lhs_transpose];
+        const auto n = rhs_shape[3 - rhs_transpose];
+        const auto k = lhs_shape[3 - lhs_transpose];
+        const blas3_t mnk{m, n, k};
         NOA_ASSERT(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1); // 2D matrices
-        NOA_ASSERT(mnk[0] == output_shape[2] && mnk[1] == output_shape[3]); // output fits the expected shape
-        NOA_ASSERT(mnk[2] == rhs_shape[2]); // left and right matrices have compatible shape
-        (void) output_shape;
+        NOA_ASSERT(m == output_shape[2] && n == output_shape[3]); // output fits the expected shape
+        NOA_ASSERT(k == rhs_shape[2 + rhs_transpose]); // left and right matrices have compatible shape
 
-        // Dot product is faster:
-        if (mnk[0] == 1 && mnk[0] == 1 && indexing::isContiguous(output_stride, output_shape)[0])
+        // dot is faster than gemm:
+        if (m == 1 && n == 1 && !lhs_transpose && !rhs_transpose &&
+            indexing::isContiguous(output_stride, output_shape)[0] && alpha == T{1} && beta == T{0}) {
             return dot(lhs, lhs_stride, lhs_shape, rhs, rhs_stride, rhs_shape, output, stream);
+        }
 
-        const eint2_t lhs_s{lhs_stride[2], lhs_stride[3]};
-        const eint2_t rhs_s{rhs_stride[2], rhs_stride[3]};
-        const eint2_t out_s{output_stride[2], output_stride[3]};
-        const size_t batches = lhs_shape[0];
-        const size3_t batch_s{lhs_stride[0], rhs_stride[0], output_stride[0]};
-        stream.enqueue([=]() {
-            using namespace Eigen;
-            using e_sca_t = std::conditional_t<traits::is_complex_v<T>, std::complex<traits::value_type_t<T>>, T>;
-            const auto* lhs_ptr = reinterpret_cast<const e_sca_t*>(lhs.get());
-            const auto* rhs_ptr = reinterpret_cast<const e_sca_t*>(rhs.get());
-            auto* out_ptr = reinterpret_cast<e_sca_t*>(output.get());
+        // Get the pitch:
+        const blas3_t lb{lhs_stride[2], rhs_stride[2], output_stride[2]};
+        NOA_ASSERT(all(lb >= blas3_t{lhs_shape[3], rhs_shape[3], output_shape[3]})); // 2nd dim can be padded, no broadcast
+        NOA_ASSERT(lhs_stride[3] == 1 && rhs_stride[3] == 1 && output_stride[3] == 1); // 1st dim is contiguous
 
-            // If contiguous and all batches are aligned, vectorize if possible:
-            if (isAligned_(lhs_ptr) && isAligned_(rhs_ptr) && isAligned_(out_ptr) &&
-                all(indexing::isContiguous(lhs_s, eint2_t{mnk[0], mnk[2]})) &&
-                all(indexing::isContiguous(rhs_s, eint2_t{mnk[2], mnk[1]})) &&
-                all(indexing::isContiguous(out_s, eint2_t{mnk[0], mnk[1]})) &&
-                (batches == 0 || all((batch_s % AlignedMax) == 0))) {
-                using e_imat_t = Map<const Matrix<e_sca_t, Dynamic, Dynamic, RowMajor>, AlignedMax>;
-                using e_omat_t = Map<Matrix<e_sca_t, Dynamic, Dynamic, RowMajor>, AlignedMax>;
-                e_imat_t lhs_(nullptr, mnk[0], mnk[2]);
-                e_imat_t rhs_(nullptr, mnk[2], mnk[1]);
-                e_omat_t out_(nullptr, mnk[0], mnk[1]);
-
-                for (size_t batch = 0; batch < batches; ++batch) {
-                    new(&lhs_) e_imat_t(lhs_ptr + batch_s[0] * batch, mnk[0], mnk[2]);
-                    new(&rhs_) e_imat_t(rhs_ptr + batch_s[1] * batch, mnk[2], mnk[1]);
-                    new(&out_) e_omat_t(out_ptr + batch_s[2] * batch, mnk[0], mnk[1]);
-                    out_.noalias() = lhs_ * rhs_;
-                }
-            } else {
-                using e_stride_t = Stride<Dynamic, Dynamic>;
-                using e_imat_t = Map<const Matrix<e_sca_t, Dynamic, Dynamic, RowMajor>, Unaligned, e_stride_t>;
-                using e_omat_t = Map<Matrix<e_sca_t, Dynamic, Dynamic, RowMajor>, Unaligned, e_stride_t>;
-                e_imat_t lhs_(nullptr, mnk[0], mnk[2], e_stride_t(lhs_s[0], lhs_s[1]));
-                e_imat_t rhs_(nullptr, mnk[2], mnk[1], e_stride_t(rhs_s[0], rhs_s[1]));
-                e_omat_t out_(nullptr, mnk[1], mnk[1], e_stride_t(out_s[0], out_s[1]));
-
-                for (size_t batch = 0; batch < batches; ++batch) {
-                    new(&lhs_) e_imat_t(lhs_ptr + batch_s[0] * batch, mnk[0], mnk[2], e_stride_t(lhs_s[0], lhs_s[1]));
-                    new(&rhs_) e_imat_t(rhs_ptr + batch_s[1] * batch, mnk[2], mnk[1], e_stride_t(rhs_s[0], rhs_s[1]));
-                    new(&out_) e_omat_t(out_ptr + batch_s[2] * batch, mnk[0], mnk[1], e_stride_t(out_s[0], out_s[1]));
-                    out_.noalias() = lhs_ * rhs_;
-                }
+        stream.enqueue([=](){
+            // TODO Intel MKL has gemm_batch...
+            for (size_t batch = 0; batch < output_shape[0]; ++batch) {
+                cblasGEMM_(lhs_transpose, rhs_transpose, mnk, lb, alpha, beta,
+                           lhs.get() + lhs_stride[0] * batch,
+                           rhs.get() + rhs_stride[0] * batch,
+                           output.get() + output_stride[0] * batch);
             }
         });
     }
 
-    #define INSTANTIATE_BLAS_(T)                                                            \
-    template void matmul<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t,            \
-                                  const std::shared_ptr<T[]>&, size4_t, size4_t,            \
-                                  const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
+    #define INSTANTIATE_BLAS_(T)                                                                                                \
+    template void matmul<T, void>(const std::shared_ptr<T[]>&, size4_t, size4_t, const std::shared_ptr<T[]>&, size4_t, size4_t, \
+                                  T, T, bool, bool, const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
 
     INSTANTIATE_BLAS_(float);
     INSTANTIATE_BLAS_(double);

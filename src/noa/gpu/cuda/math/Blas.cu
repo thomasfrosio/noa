@@ -46,24 +46,11 @@ namespace {
     }
 
     template<typename T>
-    void cublasGEMM_(cublasHandle_t handle, math::BlasTranspose lhs_transpose, math::BlasTranspose rhs_transpose,
+    void cublasGEMM_(cublasHandle_t handle, bool lhs_transpose, bool rhs_transpose,
                      int3_t mnk, int3_t labc, long3_t sabc, int batches, T alpha, T beta,
                      const T* lhs, const T* rhs, T* output) {
-        auto to_cblas_transpose = [](math::BlasTranspose transpose) {
-            switch (transpose) {
-                case noa::math::BLAS_TRANSPOSE_NONE:
-                    return CUBLAS_OP_N;
-                case noa::math::BLAS_TRANSPOSE:
-                    return CUBLAS_OP_T;
-                case noa::math::BLAS_TRANSPOSE_CONJ:
-                    return CUBLAS_OP_C;
-                default:
-                    NOA_THROW_FUNC("math::matmul", "Invalid math::BlasTranspose ({})", transpose);
-            }
-        };
-
-        const auto lhs_op = to_cblas_transpose(lhs_transpose);
-        const auto rhs_op = to_cblas_transpose(rhs_transpose);
+        const auto lhs_op = lhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
+        const auto rhs_op = rhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
 
         // Switch to row-major:
         // https://stackoverflow.com/questions/56043539/cublassgemm-row-major-multiplication
@@ -195,24 +182,19 @@ namespace noa::cuda::math {
     INSTANTIATE_DOT_(cdouble_t);
 
     template<typename T, typename>
-    void matmul(BlasTranspose lhs_transpose, BlasTranspose rhs_transpose, T alpha,
-                const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
+    void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
                 const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
-                T beta, const std::shared_ptr<T[]>& output, size4_t output_stride, size4_t output_shape,
+                T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
+                const std::shared_ptr<T[]>& output, size4_t output_stride, size4_t output_shape,
                 Stream& stream) {
         // Get the shape: MxK @ KxN = MxN
-        auto should_be_transposed = [](math::BlasTranspose transpose) {
-            return transpose == noa::math::BLAS_TRANSPOSE_NONE ? false : true;
-        };
-        const bool should_lhs_be_transposed = should_be_transposed(lhs_transpose);
-        const bool should_rhs_be_transposed = should_be_transposed(rhs_transpose);
-        const auto m = lhs_shape[2 + should_lhs_be_transposed];
-        const auto n = rhs_shape[3 - should_rhs_be_transposed];
-        const auto k = lhs_shape[3 - should_lhs_be_transposed];
+        const auto m = lhs_shape[2 + lhs_transpose];
+        const auto n = rhs_shape[3 - rhs_transpose];
+        const auto k = lhs_shape[3 - lhs_transpose];
         const int3_t mnk{m, n, k};
         NOA_ASSERT(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1); // 2D matrices
         NOA_ASSERT(m == output_shape[2] && n == output_shape[3]); // output fits the expected shape
-        NOA_ASSERT(k == rhs_shape[2 + should_rhs_be_transposed]); // left and right matrices have compatible shape
+        NOA_ASSERT(k == rhs_shape[2 + rhs_transpose]); // left and right matrices have compatible shape
 
         // In the CPU, in the case of dot products, OpenBlas GEMM is slower than its DOT function, so we check for
         // this condition and redirect to dot if necessary. Here, cublas GEMM is about as fast as the dot function,
@@ -234,8 +216,8 @@ namespace noa::cuda::math {
     }
 
     #define INSTANTIATE_BLAS_(T)                                                                                    \
-    template void matmul<T,void>(BlasTranspose,  BlasTranspose, T, const std::shared_ptr<T[]>&, size4_t, size4_t,   \
-                                 const std::shared_ptr<T[]>&, size4_t, size4_t, T, const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
+    template void matmul<T,void>(const std::shared_ptr<T[]>&, size4_t, size4_t, const std::shared_ptr<T[]>&, size4_t, size4_t, \
+                                 T, T, bool, bool, const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
 
     INSTANTIATE_BLAS_(float);
     INSTANTIATE_BLAS_(double);

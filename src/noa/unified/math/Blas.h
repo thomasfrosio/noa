@@ -61,9 +61,7 @@ namespace noa::math {
     ///       the second-most dimension cannot be broadcast.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output,
-                T alpha, T beta,
-                BlasTranspose lhs_transpose = BLAS_TRANSPOSE_NONE,
-                BlasTranspose rhs_transpose = BLAS_TRANSPOSE_NONE);
+                T alpha, T beta, bool lhs_transpose = false, bool rhs_transpose = false);
 }
 
 #define NOA_UNIFIED_BLAS_
