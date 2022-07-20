@@ -281,27 +281,56 @@ namespace noa {
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         [[nodiscard]] NOA_HD constexpr T* get(I i) noexcept { return m_data + i; }
 
+    public:
         [[nodiscard]] NOA_HD constexpr Int2 flip() const noexcept { return {m_data[1], m_data[0]}; }
 
+        /// Returns the logical number of dimensions assuming *this is a shape in the HW convention.
+        /// Note that both row and column vectors are considered to be 1D.
         [[nodiscard]] NOA_HD constexpr T ndim() const noexcept {
             NOA_ASSERT(all(*this >= T{1}));
-            return m_data[0] > 1 ? 2 : 1;
+            return m_data[0] > 1 && m_data[1] > 1 ? 2 : 1;
         }
 
-        [[nodiscard]] NOA_HD constexpr Int2 stride() const noexcept {
-            return {m_data[1], 1};
+        /// Returns the strides, in elements, assuming *this is a shape in the HW convention.
+        /// If the Height and Width dimensions are empty, 'C' and 'F' returns the same strides.
+        template<char ORDER = 'C'>
+        [[nodiscard]] NOA_HD constexpr Int2 strides() const noexcept {
+            if constexpr (ORDER == 'C' || ORDER == 'c') {
+                return {m_data[1], 1};
+            } else if constexpr (ORDER == 'F' || ORDER == 'f') {
+                return {1, m_data[0]};
+            } else {
+                static_assert(traits::always_false_v<T>);
+            }
         }
 
+        /// Returns the pitch, i.e. physical size of the rows (if 'C') or of the columns (if 'F'),
+        /// in elements, assuming *this are strides in the HW convention.
+        template<char ORDER = 'C'>
         [[nodiscard]] NOA_HD constexpr T pitch() const noexcept {
-            return m_data[0];
+            NOA_ASSERT(all(*this != 0) && "Cannot recover pitch from broadcast strides");
+            if constexpr (ORDER == 'C' || ORDER == 'c') {
+                return m_data[0];
+            } else if constexpr (ORDER == 'F' || ORDER == 'f') {
+                return m_data[1];
+            } else {
+                static_assert(traits::always_false_v<T>);
+            }
         }
 
+        /// Returns the number of elements in an array with *this as its shape.
         [[nodiscard]] NOA_HD constexpr T elements() const noexcept {
             return m_data[0] * m_data[1];
         }
 
+        /// Returns the shape of the non-redundant FFT, in elements,
+        /// assuming *this is the logical shape in the HW convention.
         [[nodiscard]] NOA_HD constexpr Int2 fft() const noexcept {
             return {m_data[0], m_data[1] / 2 + 1};
+        }
+
+        [[nodiscard]] NOA_HD constexpr Int2 stride() const noexcept { // deprecated
+            return {m_data[1], 1};
         }
 
     private:

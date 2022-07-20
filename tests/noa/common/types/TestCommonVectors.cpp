@@ -117,7 +117,8 @@ TEMPLATE_TEST_CASE("Int2", "[noa][common][types]",
     REQUIRE(all(test.stride() == Int{52, 1}));
     REQUIRE(all(test.fft().stride() == Int{27, 1}));
     REQUIRE(test.ndim() == 2);
-    REQUIRE(Int{2, 1}.ndim() == 2);
+    REQUIRE(Int{2, 2}.ndim() == 2);
+    REQUIRE(Int{2, 1}.ndim() == 1);
     REQUIRE(Int{1, 10}.ndim() == 1);
 
     REQUIRE((string::format("{}", test) == "(23,52)"));
@@ -218,8 +219,10 @@ TEMPLATE_TEST_CASE("Int3", "[noa][common][types]",
     REQUIRE(all(test.fft().stride() == Int{3380, 65, 1}));
     REQUIRE(test.ndim() == 3);
     REQUIRE(Int{2, 2, 1}.ndim() == 3);
-    REQUIRE(Int{1, 2, 1}.ndim() == 2);
+    REQUIRE(Int{1, 2, 2}.ndim() == 2);
     REQUIRE(Int{2, 1, 5}.ndim() == 3);
+    REQUIRE(Int{1, 1, 5}.ndim() == 1);
+    REQUIRE(Int{1, 5, 1}.ndim() == 1);
 
     REQUIRE((string::format("{}", test) == std::string{"(23,52,128)"}));
 
@@ -321,7 +324,8 @@ TEMPLATE_TEST_CASE("Int4", "[noa][common][types]",
     REQUIRE(all(test.fft().stride() == Int{199680, 3840, 30, 1}));
     REQUIRE(test.ndim() == 4);
     REQUIRE(Int{2, 2, 1, 1}.ndim() == 4);
-    REQUIRE(Int{1, 1, 2, 1}.ndim() == 2);
+    REQUIRE(Int{1, 1, 2, 2}.ndim() == 2);
+    REQUIRE(Int{1, 1, 4, 1}.ndim() == 1);
     REQUIRE(Int{1, 1, 1, 4}.ndim() == 1);
 
     REQUIRE((string::format("{}", test) == std::string{"(4,52,128,58)"}));
