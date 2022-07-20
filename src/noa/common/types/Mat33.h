@@ -57,13 +57,13 @@ namespace noa {
         static constexpr size_t COLS = 3;
         static constexpr size_t COUNT = ROWS * COLS;
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr Float3<T>& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
         }
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr const Float3<T>& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];

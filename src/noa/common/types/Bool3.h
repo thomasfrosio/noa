@@ -49,13 +49,13 @@ namespace noa {
     public: // Component accesses
         static constexpr size_t COUNT = 3;
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr bool& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr const bool& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
@@ -64,10 +64,10 @@ namespace noa {
         NOA_HD [[nodiscard]] constexpr const bool* get() const noexcept { return m_data; }
         NOA_HD [[nodiscard]] constexpr bool* get() noexcept { return m_data; }
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD [[nodiscard]] constexpr const bool* get(I i) const noexcept { return m_data + i; }
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD [[nodiscard]] constexpr bool* get(I i) noexcept { return m_data + i; }
 
         NOA_HD [[nodiscard]] constexpr Bool3 flip() const noexcept { return {m_data[2], m_data[1], m_data[0]}; }

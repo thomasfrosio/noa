@@ -36,7 +36,7 @@ namespace noa {
     public: // Component accesses
         static constexpr size_t COUNT = 2;
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr T& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
@@ -45,7 +45,7 @@ namespace noa {
                 return this->real;
         }
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr const T& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
