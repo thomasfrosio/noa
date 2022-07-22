@@ -62,7 +62,7 @@ namespace noa {
         template<typename U, typename J = I>
         View<U, J> as() const {
             const auto out = indexing::Reinterpret<T, J>{m_shape, m_strides, get()}.template as<U>();
-            return {out.ptr, out.shape, out.stride};
+            return {out.ptr, out.shape, out.strides};
         }
 
         /// Reshapes the view.

@@ -216,7 +216,7 @@ namespace noa {
     template<typename U>
     Array<U> Array<T>::as() const {
         const auto out = indexing::Reinterpret<T, size_t>{m_shape, m_stride, get()}.template as<U>();
-        return {std::shared_ptr<U[]>{m_ptr, out.ptr}, out.shape, out.stride, options()};
+        return {std::shared_ptr<U[]>{m_ptr, out.ptr}, out.shape, out.strides, options()};
     }
 
     template<typename T>

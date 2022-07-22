@@ -356,7 +356,7 @@ namespace noa::cuda::math {
             using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
             const auto reinterpreted = indexing::Reinterpret<T>{shape, stride, output.get()}.template as<real_t>();
             randomize(noa::math::uniform_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                      reinterpreted.stride, reinterpreted.shape,
+                      reinterpreted.strides, reinterpreted.shape,
                       static_cast<supported_float>(min), static_cast<supported_float>(max), stream);
         } else {
             randomize4D_(noa::math::uniform_t{}, output, stride, shape, min, max, stream);
@@ -371,7 +371,7 @@ namespace noa::cuda::math {
             using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
             const auto reinterpreted = indexing::Reinterpret<T>{shape, stride, output.get()}.template as<real_t>();
             randomize(noa::math::normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                      reinterpreted.stride, reinterpreted.shape,
+                      reinterpreted.strides, reinterpreted.shape,
                       static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
         } else {
             randomize4D_(noa::math::normal_t{}, output, stride, shape, mean, stddev, stream);
@@ -386,7 +386,7 @@ namespace noa::cuda::math {
             using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
             const auto reinterpreted = indexing::Reinterpret<T>{shape, stride, output.get()}.template as<real_t>();
             randomize(noa::math::log_normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                      reinterpreted.stride, reinterpreted.shape,
+                      reinterpreted.strides, reinterpreted.shape,
                       static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
         } else {
             randomize4D_(noa::math::log_normal_t{}, output, stride, shape, mean, stddev, stream);
@@ -400,7 +400,7 @@ namespace noa::cuda::math {
             using real_t = noa::traits::value_type_t<T>;
             const auto reinterpreted = indexing::Reinterpret<T>{shape, stride, output.get()}.template as<real_t>();
             randomize(noa::math::poisson_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                      reinterpreted.stride, reinterpreted.shape, lambda, stream);
+                      reinterpreted.strides, reinterpreted.shape, lambda, stream);
         } else {
             randomize4D_(noa::math::poisson_t{}, output, stride, shape, lambda, 0.f, stream);
         }
