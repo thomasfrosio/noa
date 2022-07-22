@@ -29,12 +29,12 @@ namespace noa::math {
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::randomize(noa::math::uniform_t{}, output.share(), output.stride(), output.shape(),
+            cpu::math::randomize(noa::math::uniform_t{}, output.share(), output.strides(), output.shape(),
                                  details::castToSupportedType_<T>(min),
                                  details::castToSupportedType_<T>(max), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::randomize(noa::math::uniform_t{}, output.share(), output.stride(), output.shape(),
+            cuda::math::randomize(noa::math::uniform_t{}, output.share(), output.strides(), output.shape(),
                                   details::castToSupportedType_<T>(min),
                                   details::castToSupportedType_<T>(max), stream.cuda());
             #else
@@ -49,13 +49,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::randomize(noa::math::normal_t{}, output.share(),
-                                 output.stride(), output.shape(),
+                                 output.strides(), output.shape(),
                                  details::castToSupportedType_<T>(mean),
                                  details::castToSupportedType_<T>(stddev), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::math::randomize(noa::math::normal_t{}, output.share(),
-                                  output.stride(), output.shape(),
+                                  output.strides(), output.shape(),
                                   details::castToSupportedType_<T>(mean),
                                   details::castToSupportedType_<T>(stddev), stream.cuda());
             #else
@@ -70,13 +70,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::randomize(noa::math::log_normal_t{}, output.share(),
-                                 output.stride(), output.shape(),
+                                 output.strides(), output.shape(),
                                  details::castToSupportedType_<T>(mean),
                                  details::castToSupportedType_<T>(stddev), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::math::randomize(noa::math::log_normal_t{}, output.share(),
-                                  output.stride(), output.shape(),
+                                  output.strides(), output.shape(),
                                   details::castToSupportedType_<T>(mean),
                                   details::castToSupportedType_<T>(stddev), stream.cuda());
             #else
@@ -91,12 +91,12 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::randomize(noa::math::poisson_t{}, output.share(),
-                                 output.stride(), output.shape(),
+                                 output.strides(), output.shape(),
                                  lambda, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::math::randomize(noa::math::poisson_t{}, output.share(),
-                                  output.stride(), output.shape(),
+                                  output.strides(), output.shape(),
                                   lambda, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

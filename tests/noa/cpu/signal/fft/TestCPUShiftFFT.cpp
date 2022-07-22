@@ -23,7 +23,7 @@ TEST_CASE("cpu::signal::fft::shift2D()", "[assets][noa][cpu][signal]") {
         const auto cutoff = param["cutoff"].as<float>();
         const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<path_t>();
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
         const size_t elements = stride[0] * shape[0];
 
         cpu::memory::PtrHost<cfloat_t> input(elements);
@@ -54,7 +54,7 @@ TEST_CASE("cpu::signal::fft::shift2D()", "[assets][noa][cpu][signal]") {
 
 TEMPLATE_TEST_CASE("cpu::signal::fft::shift2D(), h2hc", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShapeBatched(2, true); // even for inplace remap
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
     const float2_t shift = {31.5, -15.2};
     const float cutoff = 0.5f;
 
@@ -78,7 +78,7 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::shift2D(), h2hc", "[noa][cpu][signal]", cf
 
 TEMPLATE_TEST_CASE("cpu::signal::fft::shift2D(), hc2h", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShapeBatched(2, true); // even for inplace remap
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
     const float2_t shift = {31.5, -15.2};
     const float cutoff = 0.5f;
 
@@ -113,7 +113,7 @@ TEST_CASE("cpu::signal::fft::shift3D()", "[assets][noa][cpu][signal]") {
         const auto cutoff = param["cutoff"].as<float>();
         const auto path_output = path_base / param["output"].as<path_t>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<path_t>();
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
         const size_t elements = stride[0] * shape[0];
 
         cpu::memory::PtrHost<cfloat_t> input(elements);
@@ -144,7 +144,7 @@ TEST_CASE("cpu::signal::fft::shift3D()", "[assets][noa][cpu][signal]") {
 
 TEMPLATE_TEST_CASE("cpu::signal::fft::shift3D(), h2hc", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShape(3, true);
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
     const float3_t shift = {31.5, -15.2, 25.8};
     const float cutoff = 0.5f;
 
@@ -168,7 +168,7 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::shift3D(), h2hc", "[noa][cpu][signal]", cf
 
 TEMPLATE_TEST_CASE("cpu::signal::fft::shift3D(), hc2h", "[noa][cpu][signal]", cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShape(3, true);
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
     const float3_t shift = {31.5, -15.2, 25.8};
     const float cutoff = 0.5f;
 

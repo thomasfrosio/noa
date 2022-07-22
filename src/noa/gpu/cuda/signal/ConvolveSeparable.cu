@@ -216,7 +216,7 @@ namespace noa::cuda::signal {
             count += 1;
         const bool allocate = !tmp && count > 1;
         const shared_t<T[]> buf = allocate ? memory::PtrDevice<T>::alloc(shape.elements(), stream) : tmp;
-        const size4_t buf_stride = allocate ? shape.stride() : tmp_stride;
+        const size4_t buf_stride = allocate ? shape.strides() : tmp_stride;
 
         if (filter0 && filter1 && filter2) {
             NOA_ASSERT(filter0_size % 2);

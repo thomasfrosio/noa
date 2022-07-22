@@ -14,7 +14,7 @@ TEST_CASE("cpu::geometry::symmetrize2D()", "[noa][cpu][geometry]") {
 
     // Get input.
     const size4_t shape = test::getRandomShapeBatched(2);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const float2_t center{shape[2] / 2, shape[3] / 2};
     cpu::memory::PtrHost<float> input(elements);
@@ -43,7 +43,7 @@ TEST_CASE("cpu::geometry::symmetrize3D()", "[noa][cpu][geometry]") {
 
     // Get input.
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const float3_t center{size3_t{shape.get() + 1} / 2};
     cpu::memory::PtrHost<float> input(elements);

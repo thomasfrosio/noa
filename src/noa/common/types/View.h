@@ -6,7 +6,7 @@
 #include "noa/common/Indexing.h"
 
 namespace noa {
-    /// View of a 4-dimensional array.
+    /// View over a 4-dimensional array.
     /// \tparam T Type of the viewed memory region. Any (const-qualified) data type.
     /// \tparam I Type to hold sizes, strides and used for indexing. Any integral type.
     template<typename T, typename I = size_t>
@@ -34,34 +34,34 @@ namespace noa {
         NOA_HD constexpr View() = default;
 
         /// Creates a contiguous view.
-        NOA_HD constexpr View(T* data, Int4<I> shape)
-                : m_shape(shape), m_stride(shape.stride()), m_ptr(data) {}
+        NOA_HD constexpr View(T* data, const Int4<I>& shape)
+                : m_shape(shape), m_strides(shape.strides()), m_ptr(data) {}
 
         /// Creates a (strided) view.
-        NOA_HD constexpr View(T* data, Int4<I> shape, Int4<I> stride)
-                : m_shape(shape), m_stride(stride), m_ptr(data) {}
+        NOA_HD constexpr View(T* data, const Int4<I>& shape, const Int4<I>& stride)
+                : m_shape(shape), m_strides(stride), m_ptr(data) {}
 
         /// Creates a const view from an existing non-const view.
         template<typename U, typename = std::enable_if_t<std::is_const_v<T> && std::is_same_v<U, std::remove_const_t<T>>>>
         NOA_HD constexpr /* implicit */ View(const View<U>& view)
-                : m_shape(view.shape()), m_stride(view.stride()), m_ptr(view.data()) {}
+                : m_shape(view.shape()), m_strides(view.strides()), m_ptr(view.data()) {}
 
     public: // Getters
         [[nodiscard]] NOA_HD constexpr T* data() const noexcept { return m_ptr; }
         [[nodiscard]] NOA_HD constexpr T* get() const noexcept { return m_ptr; }
         [[nodiscard]] NOA_HD constexpr const dim4_t& shape() const noexcept { return m_shape; }
-        [[nodiscard]] NOA_HD constexpr const dim4_t& stride() const noexcept { return m_stride; }
-        [[nodiscard]] NOA_HD constexpr bool4_t contiguous() const noexcept { return indexing::isContiguous(m_stride, m_shape); }
+        [[nodiscard]] NOA_HD constexpr const dim4_t& strides() const noexcept { return m_strides; }
+        [[nodiscard]] NOA_HD constexpr bool4_t contiguous() const noexcept { return indexing::isContiguous(m_strides, m_shape); }
         [[nodiscard]] NOA_HD constexpr bool empty() const noexcept { return !(m_ptr && m_shape.elements()); }
 
     public: // Data reinterpretation
         /// Reinterpret the managed array of \p T as an array of \p U.
         /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
-        ///       when \p U is a unsigned char (represent any data type as a array of bytes), or to switch between
-        ///       complex and real floating-point numbers with the same precision.
+        ///       when \p U is a unsigned char or std::byte (represent any data type as a array of bytes),
+        ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U, typename J = I>
         View<U, J> as() const {
-            const auto out = indexing::Reinterpret<T, J>{m_shape, m_stride, get()}.template as<U>();
+            const auto out = indexing::Reinterpret<T, J>{m_shape, m_strides, get()}.template as<U>();
             return {out.ptr, out.shape, out.stride};
         }
 
@@ -69,23 +69,25 @@ namespace noa {
         /// \param shape Rightmost shape. Must contain the same number of elements as the current shape.
         View reshape(Int4<I> shape) const {
             Int4<I> new_stride;
-            if (!indexing::reshape(m_shape, m_stride, shape, new_stride))
-                NOA_THROW("An view of shape {} cannot be reshaped to an view of shape {}", m_shape, shape);
+            if (!indexing::reshape(m_shape, m_strides, shape, new_stride))
+                NOA_THROW("A view of shape {} and stride {} cannot be reshaped to a view of shape {}",
+                          m_shape, m_strides, shape);
             return {m_ptr, shape, new_stride};
         }
 
         /// Permutes the dimensions of the view.
-        /// \param permutation  Rightmost permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
-        View permute(uint4_t permutation) const {
-            return {m_ptr, indexing::reorder(m_shape, permutation), indexing::reorder(m_stride, permutation)};
+        /// \param permutation  Rightmost permutation. Axes are numbered from [0 to 3].
+        template<typename U>
+        View permute(const Int4<U>& permutation) const {
+            return {m_ptr, indexing::reorder(m_shape, permutation), indexing::reorder(m_strides, permutation)};
         }
 
     public: // Setters
         NOA_HD constexpr void shape(size4_t shape) noexcept { m_shape = shape; }
-        NOA_HD constexpr void stride(size4_t stride) noexcept { m_stride = stride; }
+        NOA_HD constexpr void strides(size4_t strides) noexcept { m_strides = strides; }
         NOA_HD constexpr void data(T* data) noexcept { m_ptr = data; }
 
-    public: // Contiguous views
+    public: // Iteration on contiguous views
         [[nodiscard]] NOA_HD constexpr T* begin() const noexcept { return m_ptr; }
         [[nodiscard]] NOA_HD constexpr T* end() const noexcept { return m_ptr + m_shape.elements(); }
 
@@ -100,25 +102,25 @@ namespace noa {
 
         template<typename I0>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0) const noexcept {
-            return m_ptr[static_cast<size_t>(i0) * m_stride[0]];
+            return m_ptr[static_cast<size_t>(i0) * m_strides[0]];
         }
 
         template<typename I0, typename I1>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1) const noexcept {
-            return m_ptr[indexing::at(i0, i1, m_stride)];
+            return m_ptr[indexing::at(i0, i1, m_strides)];
         }
 
         template<typename I0, typename I1, typename I2>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
-            return m_ptr[indexing::at(i0, i1, i2, m_stride)];
+            return m_ptr[indexing::at(i0, i1, i2, m_strides)];
         }
 
         template<typename I0, typename I1, typename I2, typename I3>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
-            return m_ptr[indexing::at(i0, i1, i2, i3, m_stride)];
+            return m_ptr[indexing::at(i0, i1, i2, i3, m_strides)];
         }
 
-    public: // Subview
+    public: // Subregion
         template<typename A,
                  typename B = indexing::full_extent_t,
                  typename C = indexing::full_extent_t,
@@ -126,8 +128,8 @@ namespace noa {
                  typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B> &&
                                              is_indexable_v<C> && is_indexable_v<D>>>
         constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
-            const auto indexer = indexing::Subregion{m_shape, m_stride}(i0, i1, i2, i3);
-            return {m_ptr + indexer.offset(), indexer.shape(), indexer.stride()};
+            const auto indexer = indexing::Subregion{m_shape, m_strides}(i0, i1, i2, i3);
+            return {m_ptr + indexer.offset(), indexer.shape(), indexer.strides()};
         }
 
         constexpr View subregion(indexing::ellipsis_t) const {
@@ -153,7 +155,7 @@ namespace noa {
 
     private:
         dim4_t m_shape;
-        dim4_t m_stride;
+        dim4_t m_strides;
         T* m_ptr{};
     };
 }

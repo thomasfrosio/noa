@@ -25,14 +25,14 @@ TEMPLATE_TEST_CASE("cuda::math::dot()", "[noa][cuda]", float, double, cfloat_t, 
     stream.synchronize();
 
     // Compute output:
-    const TestType output0 = cuda::math::dot(lhs.share(), shape.stride(), shape,
-                                             rhs.share(), shape.stride(), shape, stream);
+    const TestType output0 = cuda::math::dot(lhs.share(), shape.strides(), shape,
+                                             rhs.share(), shape.strides(), shape, stream);
 
     // Compute expected:
-    cuda::math::ewise(lhs.share(), shape.stride(),
-                      rhs.share(), shape.stride(),
-                      lhs.share(), shape.stride(), shape, math::multiply_t{}, stream);
-    const TestType output1 = cuda::math::sum(lhs.share(), shape.stride(), shape, stream);
+    cuda::math::ewise(lhs.share(), shape.strides(),
+                      rhs.share(), shape.strides(),
+                      lhs.share(), shape.strides(), shape, math::multiply_t{}, stream);
+    const TestType output1 = cuda::math::sum(lhs.share(), shape.strides(), shape, stream);
 
     stream.synchronize();
     if constexpr (traits::is_complex_v<TestType>) {
@@ -59,15 +59,15 @@ TEMPLATE_TEST_CASE("cuda::math::dot(), batches", "[noa][cuda]", float, double, c
     stream.synchronize();
 
     // Compute output:
-    cuda::math::dot(lhs.share(), shape.stride(), shape,
-                    rhs.share(), shape.stride(), shape,
+    cuda::math::dot(lhs.share(), shape.strides(), shape,
+                    rhs.share(), shape.strides(), shape,
                     out.share(), stream);
 
     // Compute expected:
     cuda::memory::PtrManaged<TestType> exp(batches, stream);
     const size4_t reduced_shape{batches, 1, 1, 1};
-    cuda::math::ewise(lhs.share(), shape.stride(), rhs.share(), shape.stride(), lhs.share(), shape.stride(), shape, math::multiply_t{}, stream);
-    cuda::math::sum(lhs.share(), shape.stride(), shape, exp.share(), reduced_shape.stride(), reduced_shape, stream);
+    cuda::math::ewise(lhs.share(), shape.strides(), rhs.share(), shape.strides(), lhs.share(), shape.strides(), shape, math::multiply_t{}, stream);
+    cuda::math::sum(lhs.share(), shape.strides(), shape, exp.share(), reduced_shape.strides(), reduced_shape, stream);
 
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, out.get(), exp.get(), exp.elements(),
@@ -94,12 +94,12 @@ TEMPLATE_TEST_CASE("cuda::math::matmul()", "[noa][cuda]", float, double, cfloat_
     cuda::math::randomize(math::uniform_t{}, rhs.share(), rhs.elements(), real_t{-5}, real_t{5}, gpu_stream);
     gpu_stream.synchronize();
 
-    cuda::math::matmul(lhs.share(), lhs_shape.stride(), lhs_shape,
-                       rhs.share(), rhs_shape.stride(), rhs_shape,
-                       out_gpu.share(), out_shape.stride(), out_shape, gpu_stream);
-    cpu::math::matmul(lhs.share(), lhs_shape.stride(), lhs_shape,
-                      rhs.share(), rhs_shape.stride(), rhs_shape,
-                      out_cpu.share(), out_shape.stride(), out_shape, cpu_stream);
+    cuda::math::matmul(lhs.share(), lhs_shape.strides(), lhs_shape,
+                       rhs.share(), rhs_shape.strides(), rhs_shape,
+                       out_gpu.share(), out_shape.strides(), out_shape, gpu_stream);
+    cpu::math::matmul(lhs.share(), lhs_shape.strides(), lhs_shape,
+                      rhs.share(), rhs_shape.strides(), rhs_shape,
+                      out_cpu.share(), out_shape.strides(), out_shape, cpu_stream);
 
     cpu_stream.synchronize();
     gpu_stream.synchronize();

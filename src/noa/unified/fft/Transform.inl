@@ -30,7 +30,7 @@ namespace noa::fft {
     template<typename T, typename>
     Array<T> alias(const Array<Complex<T>>& input, size4_t shape) {
         Array<T> tmp = input.template as<T>();
-        return Array<T>(tmp.share(), shape, tmp.stride(), tmp.options());
+        return Array<T>(tmp.share(), shape, tmp.strides(), tmp.options());
     }
 
     template<typename T, typename>
@@ -46,14 +46,14 @@ namespace noa::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::fft::r2c(input.share(), input.stride(),
-                          output.share(), output.stride(),
+            cpu::fft::r2c(input.share(), input.strides(),
+                          output.share(), output.strides(),
                           input.shape(), cpu::fft::ESTIMATE | cpu::fft::PRESERVE_INPUT,
                           norm, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::fft::r2c(input.share(), input.stride(),
-                           output.share(), output.stride(),
+            cuda::fft::r2c(input.share(), input.strides(),
+                           output.share(), output.strides(),
                            input.shape(), norm, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -81,14 +81,14 @@ namespace noa::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::fft::c2r(input.share(), input.stride(),
-                          output.share(), output.stride(),
+            cpu::fft::c2r(input.share(), input.strides(),
+                          output.share(), output.strides(),
                           output.shape(), cpu::fft::ESTIMATE,
                           norm, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::fft::c2r(input.share(), input.stride(),
-                           output.share(), output.stride(),
+            cuda::fft::c2r(input.share(), input.strides(),
+                           output.share(), output.strides(),
                            output.shape(), norm, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -116,14 +116,14 @@ namespace noa::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::fft::c2c(input.share(), input.stride(),
-                          output.share(), output.stride(),
+            cpu::fft::c2c(input.share(), input.strides(),
+                          output.share(), output.strides(),
                           input.shape(), sign, cpu::fft::ESTIMATE | cpu::fft::PRESERVE_INPUT,
                           norm, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::fft::c2c(input.share(), input.stride(),
-                           output.share(), output.stride(),
+            cuda::fft::c2c(input.share(), input.strides(),
+                           output.share(), output.strides(),
                            input.shape(), sign, norm, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

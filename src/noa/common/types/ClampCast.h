@@ -18,20 +18,20 @@ namespace noa {
     /// \see https://en.cppreference.com/w/cpp/language/implicit_conversion
     /// \note For floating-point to integral types, NaN returns 0, -/+Inf returns the min/max integral value.
     template<typename TTo, typename TFrom>
-    NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
-        static_assert(noa::traits::is_data_v<TTo> && noa::traits::is_data_v<TFrom>);
+    [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
+        static_assert(traits::is_data_v<TTo> && traits::is_data_v<TFrom>);
         if constexpr (std::is_same_v<TTo, TFrom>) {
             return src;
 
-        } else if constexpr(noa::traits::is_complex_v<TFrom>) {
-            static_assert(noa::traits::is_complex_v<TTo>); // only Complex<T>->Complex<U>
+        } else if constexpr(traits::is_complex_v<TFrom>) {
+            static_assert(traits::is_complex_v<TTo>); // only Complex<T>->Complex<U>
             return {clamp_cast<typename TTo::value_type>(src.real),
                     clamp_cast<typename TTo::value_type>(src.imag)};
 
-        } else if constexpr(noa::traits::is_complex_v<TTo>) {
+        } else if constexpr(traits::is_complex_v<TTo>) {
             return clamp_cast<typename TTo::value_type>(src); // calls implicit constructor Complex(U); imaginary is 0.
 
-        } else if constexpr(noa::traits::is_float_v<TTo>) {
+        } else if constexpr(traits::is_float_v<TTo>) {
             // Floating-point conversions:
             //      - If smaller -> larger type, it is a promotion and the value does not change.
             //      - The larger type may be represented exactly by the smaller type. In this case, the value doesn't
@@ -69,7 +69,7 @@ namespace noa {
                                        TFrom(math::Limits<TTo>::max())));
             }
 
-        } else if constexpr (std::is_integral_v<TTo> && noa::traits::is_float_v<TFrom>) {
+        } else if constexpr (std::is_integral_v<TTo> && traits::is_float_v<TFrom>) {
             // Floating-point to integral conversions:
             //      - Floating-point type can be converted to any integer type. The fractional part is truncated.
             //      - If bool, this is a bool conversion, i.e. a value of zero gives false, anything else gives true.

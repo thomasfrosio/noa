@@ -28,8 +28,8 @@ namespace noa::geometry {
             NOA_CHECK(cartesian.get() != polar.get(), "In-place transformations are not supported");
 
             cpu::geometry::cartesian2polar<PREFILTER>(
-                    cartesian.share(), cartesian.stride(), cartesian.shape(),
-                    polar.share(), polar.stride(), polar.shape(),
+                    cartesian.share(), cartesian.strides(), cartesian.shape(),
+                    polar.share(), polar.strides(), polar.shape(),
                     cartesian_center, radius_range, angle_range, log, interp, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -43,11 +43,11 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", cartesian.device(), device);
                 NOA_CHECK(cartesian.contiguous()[3],
                           "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          cartesian.shape(), cartesian.stride());
+                          cartesian.shape(), cartesian.strides());
 
                 cuda::geometry::cartesian2polar<PREFILTER>(
-                        cartesian.share(), cartesian.stride(), cartesian.shape(),
-                        polar.share(), polar.stride(), polar.shape(),
+                        cartesian.share(), cartesian.strides(), cartesian.shape(),
+                        polar.share(), polar.strides(), polar.shape(),
                         cartesian_center, radius_range, angle_range, log, interp, stream.cuda());
             }
             #else
@@ -73,8 +73,8 @@ namespace noa::geometry {
             NOA_CHECK(polar.get() != cartesian.get(), "In-place transformations are not supported");
 
             cpu::geometry::cartesian2polar<PREFILTER>(
-                    polar.share(), polar.stride(), polar.shape(),
-                    cartesian.share(), cartesian.stride(), cartesian.shape(),
+                    polar.share(), polar.strides(), polar.shape(),
+                    cartesian.share(), cartesian.strides(), cartesian.shape(),
                     cartesian_center, radius_range, angle_range, log, interp, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -88,11 +88,11 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", polar.device(), device);
                 NOA_CHECK(polar.contiguous()[3],
                           "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          polar.shape(), polar.stride());
+                          polar.shape(), polar.strides());
 
                 cuda::geometry::cartesian2polar<PREFILTER>(
-                        polar.share(), polar.stride(), polar.shape(),
-                        cartesian.share(), cartesian.stride(), cartesian.shape(),
+                        polar.share(), polar.strides(), polar.shape(),
+                        cartesian.share(), cartesian.strides(), cartesian.shape(),
                         cartesian_center, radius_range, angle_range, log, interp, stream.cuda());
             }
             #else

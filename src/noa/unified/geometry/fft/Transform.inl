@@ -20,7 +20,7 @@ namespace noa::geometry::fft {
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -55,7 +55,7 @@ namespace noa::geometry::fft {
 
             cpu::geometry::fft::transform2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     matrices.share(), shifts.share(), cutoff, interp_mode, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -69,8 +69,8 @@ namespace noa::geometry::fft {
                 if (input.device().cpu() || matrices.device().cpu() || (!shifts.empty() && shifts.device().cpu()))
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::fft::transform2D<REMAP>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), shape,
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), shape,
                         matrices.share(), shifts.share(), cutoff, interp_mode, stream.cuda());
             }
             #else
@@ -87,7 +87,7 @@ namespace noa::geometry::fft {
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -105,7 +105,7 @@ namespace noa::geometry::fft {
 
             cpu::geometry::fft::transform2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     matrix, shift, cutoff, interp_mode, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -119,8 +119,8 @@ namespace noa::geometry::fft {
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::fft::transform2D<REMAP>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), shape,
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), shape,
                         matrix, shift, cutoff, interp_mode, stream.cuda());
             }
             #else
@@ -138,7 +138,7 @@ namespace noa::geometry::fft {
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -173,7 +173,7 @@ namespace noa::geometry::fft {
 
             cpu::geometry::fft::transform3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     matrices.share(), shifts.share(), cutoff, interp_mode, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -187,8 +187,8 @@ namespace noa::geometry::fft {
                 if (input.device().cpu() || matrices.device().cpu() || (!shifts.empty() && shifts.device().cpu()))
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::fft::transform3D<REMAP>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), shape,
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), shape,
                         matrices.share(), shifts.share(), cutoff, interp_mode, stream.cuda());
             }
             #else
@@ -206,7 +206,7 @@ namespace noa::geometry::fft {
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -224,7 +224,7 @@ namespace noa::geometry::fft {
 
             cpu::geometry::fft::transform3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     matrix, shift, cutoff, interp_mode, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -238,8 +238,8 @@ namespace noa::geometry::fft {
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::fft::transform3D<REMAP>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), shape,
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), shape,
                         matrix, shift, cutoff, interp_mode, stream.cuda());
             }
             #else
@@ -260,7 +260,7 @@ namespace noa::geometry::fft {
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -278,7 +278,7 @@ namespace noa::geometry::fft {
 
             cpu::geometry::fft::transform2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     matrix, symmetry, shift, cutoff, interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -292,8 +292,8 @@ namespace noa::geometry::fft {
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::fft::transform2D<REMAP>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), shape,
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), shape,
                         matrix, symmetry, shift, cutoff, interp_mode, normalize, stream.cuda());
             }
             #else
@@ -311,7 +311,7 @@ namespace noa::geometry::fft {
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -329,7 +329,7 @@ namespace noa::geometry::fft {
 
             cpu::geometry::fft::transform3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     matrix, symmetry, shift, cutoff, interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -343,8 +343,8 @@ namespace noa::geometry::fft {
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::fft::transform3D<REMAP>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), shape,
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), shape,
                         matrix, symmetry, shift, cutoff, interp_mode, normalize, stream.cuda());
             }
             #else

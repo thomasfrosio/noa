@@ -20,10 +20,10 @@ namespace noa::memory {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::set(output.share(), output.stride(), output.shape(), value, stream.cpu());
+            cpu::memory::set(output.share(), output.strides(), output.shape(), value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::set(output.share(), output.stride(), output.shape(), value, stream.cuda());
+            cuda::memory::set(output.share(), output.strides(), output.shape(), value, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -39,7 +39,7 @@ namespace noa::memory {
                                                option.allocator() == Allocator::DEFAULT_ASYNC ||
                                                option.allocator() == Allocator::PITCHED))) {
                 shared_t<T[]> ptr = cpu::memory::PtrHost<T>::calloc(shape.elements());
-                return Array<T>{ptr, shape, shape.stride(), option};
+                return Array<T>{ptr, shape, shape.strides(), option};
             }
         }
         Array<T> out{shape, option};
@@ -74,10 +74,10 @@ namespace noa::memory {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::arange(output.share(), output.stride(), output.shape(), start, step, stream.cpu());
+            cpu::memory::arange(output.share(), output.strides(), output.shape(), start, step, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::arange(output.share(), output.stride(), output.shape(), start, step, stream.cuda());
+            cuda::memory::arange(output.share(), output.strides(), output.shape(), start, step, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -105,11 +105,11 @@ namespace noa::memory {
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::linspace(output.share(), output.stride(), output.shape(),
+            cpu::memory::linspace(output.share(), output.strides(), output.shape(),
                                   start, stop, endpoint, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::linspace(output.share(), output.stride(), output.shape(),
+            cuda::memory::linspace(output.share(), output.strides(), output.shape(),
                                    start, stop, endpoint, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

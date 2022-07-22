@@ -33,7 +33,7 @@ namespace {
     template<typename T>
     void CUDA_geometry_rotate2D(benchmark::State& state) {
         const size4_t shape = g_shapes[0];
-        const size4_t stride = shape.stride();
+        const size4_t strides = shape.strides();
         const size_t elements = shape.elements();
 
         const InterpMode interp = g_interp[state.range(0)];
@@ -52,8 +52,8 @@ namespace {
             cuda::Event start, end;
             start.record(stream);
 
-            cuda::geometry::rotate2D(src.share(), stride, shape,
-                                     dst.share(), stride, shape,
+            cuda::geometry::rotate2D(src.share(), strides, shape,
+                                     dst.share(), strides, shape,
                                      rotation, center, interp, border, stream);
 
             end.record(stream);
@@ -67,7 +67,7 @@ namespace {
     template<typename T>
     void CUDA_geometry_rotate2D_texture(benchmark::State& state) {
         const size4_t shape = g_shapes[0];
-        const size4_t stride = shape.stride();
+        const size4_t strides = shape.strides();
         const size_t elements = shape.elements();
 
         const InterpMode interp = INTERP_LINEAR_FAST;
@@ -95,9 +95,9 @@ namespace {
             cuda::Event start, end;
             start.record(stream);
 
-            cuda::memory::copy(src.share(), stride[2], array.share(), shape_3d, stream);
+            cuda::memory::copy(src.share(), strides[2], array.share(), shape_3d, stream);
             cuda::geometry::transform2D(texture.get(), size2_t{shape[2], shape[3]}, interp, border,
-                                        dst.get(), stride, shape,
+                                        dst.get(), strides, shape,
                                         matrix, stream);
 
             end.record(stream);
@@ -112,7 +112,7 @@ namespace {
     template<typename T>
     void CUDA_geometry_rotate3D(benchmark::State& state) {
         const size4_t shape = g_shapes[1];
-        const size4_t stride = shape.stride();
+        const size4_t strides = shape.strides();
         const size_t elements = shape.elements();
 
         const InterpMode interp = g_interp[state.range(0)];
@@ -130,8 +130,8 @@ namespace {
             cuda::Event start, end;
             start.record(stream);
 
-            cuda::geometry::rotate3D(src.share(), stride, shape,
-                                     src.share(), stride, shape,
+            cuda::geometry::rotate3D(src.share(), strides, shape,
+                                     src.share(), strides, shape,
                                      rotm, center, interp, border, stream);
 
             end.record(stream);

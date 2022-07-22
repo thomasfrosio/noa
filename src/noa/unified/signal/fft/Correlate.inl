@@ -15,12 +15,12 @@ namespace noa::signal::fft {
               const Array<T>& output, size4_t shape,
               bool normalize, Norm norm, const Array<Complex<T>>& tmp) {
         const size4_t expected_shape = shape.fft();
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), expected_shape);
         }
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), expected_shape);
@@ -42,23 +42,23 @@ namespace noa::signal::fft {
             NOA_CHECK(device == tmp.device(),
                       "The temporary and output arrays must be on the same device, tmp:{} and output:{}",
                       tmp.device(), device);
-            NOA_CHECK(all(tmp.shape() >= expected_shape) && all(tmp.stride() >= 0),
+            NOA_CHECK(all(tmp.shape() >= expected_shape) && all(tmp.strides() >= 0),
                       "The temporary buffer should be able to fit an array of shape {}, but got effective shape of {}",
-                      expected_shape, indexing::effectiveShape(tmp.shape(), tmp.stride()));
+                      expected_shape, indexing::effectiveShape(tmp.shape(), tmp.strides()));
         }
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::fft::xmap<REMAP>(
                     lhs.share(), lhs_stride, rhs.share(), rhs_stride,
-                    output.share(), output.stride(),
-                    shape, normalize, norm, stream.cpu(), tmp.share(), tmp.stride());
+                    output.share(), output.strides(),
+                    shape, normalize, norm, stream.cpu(), tmp.share(), tmp.strides());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::xmap<REMAP>(
                     lhs.share(), lhs_stride, rhs.share(), rhs_stride,
-                    output.share(), output.stride(),
-                    shape, normalize, norm, stream.cuda(), tmp.share(), tmp.stride());
+                    output.share(), output.strides(),
+                    shape, normalize, norm, stream.cuda(), tmp.share(), tmp.strides());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -72,7 +72,7 @@ namespace noa::signal::fft {
                   "The number of peaks, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the cross-correlation map, but got {} peaks and {} output batches",
                   peaks.shape()[3], xmap.shape()[0]);
-        NOA_CHECK(xmap.stride()[3] > 0, "The cross-correlation map should not have its innermost stride set to 0");
+        NOA_CHECK(xmap.strides()[3] > 0, "The cross-correlation map should not have its innermost stride set to 0");
         NOA_CHECK(xmap.shape()[1] == 1 && xmap.shape()[2] == 1,
                   "The 1D cross-correlation map(s) should be a (batch of) row vector(s), but got shape {}",
                   xmap.shape());
@@ -82,12 +82,12 @@ namespace noa::signal::fft {
             NOA_CHECK(peaks.dereferencable(), "The peak coordinates should be accessible to the CPU");
             if (peaks.device().gpu())
                 Stream::current(peaks.device()).synchronize();
-            cpu::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), peaks.share(), stream.cpu());
+            cpu::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), peaks.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if (peaks.device().cpu())
                 Stream::current(Device{}).synchronize();
-            cuda::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), peaks.share(), stream.cuda());
+            cuda::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), peaks.share(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -96,15 +96,15 @@ namespace noa::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     float xpeak1D(const Array<T>& xmap) {
-        NOA_CHECK(xmap.stride()[3] > 0, "The cross-correlation map should not have its innermost stride set to 0");
+        NOA_CHECK(xmap.strides()[3] > 0, "The cross-correlation map should not have its innermost stride set to 0");
         NOA_CHECK(xmap.shape().ndim() == 1,
                   "The 1D cross-correlation map should be a row vector, but got shape {}", xmap.shape());
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
-            return cpu::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cpu());
+            return cpu::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cuda());
+            return cuda::signal::fft::xpeak1D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -118,7 +118,7 @@ namespace noa::signal::fft {
                   "The number of peaks, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the cross-correlation map, but got {} peaks and {} output batches",
                   peaks.shape()[3], xmap.shape()[0]);
-        NOA_CHECK(xmap.stride()[2] > 0, "The cross-correlation map should not have its second-most stride set to 0");
+        NOA_CHECK(xmap.strides()[2] > 0, "The cross-correlation map should not have its second-most stride set to 0");
         NOA_CHECK(xmap.shape()[1] == 1,
                   "The cross-correlation map(s) should be a (batch of) 2D array(s), but got shape {}",
                   xmap.shape());
@@ -128,12 +128,12 @@ namespace noa::signal::fft {
             NOA_CHECK(peaks.dereferencable(), "The peak coordinates should be accessible to the CPU");
             if (peaks.device().gpu())
                 Stream::current(peaks.device()).synchronize();
-            cpu::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), peaks.share(), stream.cpu());
+            cpu::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), peaks.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if (peaks.device().cpu())
                 Stream::current(Device{}).synchronize();
-            cuda::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), peaks.share(), stream.cuda());
+            cuda::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), peaks.share(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -142,15 +142,15 @@ namespace noa::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     float2_t xpeak2D(const Array<T>& xmap) {
-        NOA_CHECK(xmap.stride()[2] > 0, "The cross-correlation map should not have its second-most stride set to 0");
+        NOA_CHECK(xmap.strides()[2] > 0, "The cross-correlation map should not have its second-most stride set to 0");
         NOA_CHECK(xmap.shape().ndim() == 2,
                   "The cross-correlation map should be a single 2D array, but got shape {}", xmap.shape());
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
-            return cpu::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cpu());
+            return cpu::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cuda());
+            return cuda::signal::fft::xpeak2D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -164,7 +164,7 @@ namespace noa::signal::fft {
                   "The number of peaks, specified as a contiguous row vector, should be equal to the number "
                   "of batches in the cross-correlation map, but got {} peaks and {} output batches",
                   peaks.shape()[3], xmap.shape()[0]);
-        NOA_CHECK(xmap.stride()[1] > 0 && xmap.stride()[2] > 0,
+        NOA_CHECK(xmap.strides()[1] > 0 && xmap.strides()[2] > 0,
                   "The cross-correlation map should not have its second and third-most stride set to 0");
 
         Stream& stream = Stream::current(xmap.device());
@@ -172,12 +172,12 @@ namespace noa::signal::fft {
             NOA_CHECK(peaks.dereferencable(), "The peak coordinates should be accessible to the CPU");
             if (peaks.device().gpu())
                 Stream::current(peaks.device()).synchronize();
-            cpu::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), peaks.share(), stream.cpu());
+            cpu::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), peaks.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if (peaks.device().cpu())
                 Stream::current(Device{}).synchronize();
-            cuda::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), peaks.share(), stream.cuda());
+            cuda::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), peaks.share(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -186,16 +186,16 @@ namespace noa::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     float3_t xpeak3D(const Array<T>& xmap) {
-        NOA_CHECK(xmap.stride()[1] > 0 && xmap.stride()[2] > 0,
+        NOA_CHECK(xmap.strides()[1] > 0 && xmap.strides()[2] > 0,
                   "The cross-correlation map should not have its second and third-most stride set to 0");
         NOA_CHECK(xmap.shape().ndim() == 3,
                   "The cross-correlation map should be a single 3D array, but got shape {}", xmap.shape());
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
-            return cpu::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cpu());
+            return cpu::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.stride(), xmap.shape(), stream.cuda());
+            return cuda::signal::fft::xpeak3D<REMAP>(xmap.share(), xmap.strides(), xmap.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -211,12 +211,12 @@ namespace noa::signal::fft {
 
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
         const size4_t expected_shape = SRC_IS_HALF ? shape.fft() : shape;
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), expected_shape);
         }
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), expected_shape);
@@ -247,12 +247,12 @@ namespace noa::signal::fft {
     T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, size4_t shape) {
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
         const size4_t expected_shape = SRC_IS_HALF ? shape.fft() : shape;
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), expected_shape);
         }
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), expected_shape);

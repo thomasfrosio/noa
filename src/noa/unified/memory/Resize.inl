@@ -29,15 +29,15 @@ namespace noa::memory {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::resize(input.share(), input.stride(), input.shape(),
+            cpu::memory::resize(input.share(), input.strides(), input.shape(),
                                 border_left, border_right,
-                                output.share(), output.stride(),
+                                output.share(), output.strides(),
                                 border_mode, border_value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::resize(input.share(), input.stride(), input.shape(),
+            cuda::memory::resize(input.share(), input.strides(), input.shape(),
                                  border_left, border_right,
-                                 output.share(), output.stride(),
+                                 output.share(), output.strides(),
                                  border_mode, border_value, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -58,15 +58,15 @@ namespace noa::memory {
         const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::resize(input.share(), input.stride(), input.shape(),
+            cpu::memory::resize(input.share(), input.strides(), input.shape(),
                                 border_left, border_right,
-                                output.share(), output.stride(),
+                                output.share(), output.strides(),
                                 border_mode, border_value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::resize(input.share(), input.stride(), input.shape(),
+            cuda::memory::resize(input.share(), input.strides(), input.shape(),
                                  border_left, border_right,
-                                 output.share(), output.stride(),
+                                 output.share(), output.strides(),
                                  border_mode, border_value, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

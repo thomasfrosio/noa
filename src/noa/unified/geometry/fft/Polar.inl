@@ -30,8 +30,8 @@ namespace noa::geometry::fft {
             NOA_CHECK(cartesian.get() != polar.get(), "In-place transformations are not supported");
 
             cpu::geometry::fft::cartesian2polar<REMAP>(
-                    cartesian.share(), cartesian.stride(), cartesian_shape,
-                    polar.share(), polar.stride(), polar.shape(),
+                    cartesian.share(), cartesian.strides(), cartesian_shape,
+                    polar.share(), polar.strides(), polar.shape(),
                     frequency_range, angle_range, log, interp, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -40,11 +40,11 @@ namespace noa::geometry::fft {
             } else {
                 NOA_CHECK(cartesian.contiguous()[3],
                           "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          cartesian.shape(), cartesian.stride());
+                          cartesian.shape(), cartesian.strides());
 
                 cuda::geometry::fft::cartesian2polar<REMAP>(
-                        cartesian.share(), cartesian.stride(), cartesian_shape,
-                        polar.share(), polar.stride(), polar.shape(),
+                        cartesian.share(), cartesian.strides(), cartesian_shape,
+                        polar.share(), polar.strides(), polar.shape(),
                         frequency_range, angle_range, log, interp, stream.cuda());
             }
             #else

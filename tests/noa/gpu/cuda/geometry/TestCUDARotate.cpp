@@ -39,7 +39,7 @@ TEST_CASE("cuda::geometry::rotate2D()", "[assets][noa][cuda][geometry]") {
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -52,11 +52,11 @@ TEST_CASE("cuda::geometry::rotate2D()", "[assets][noa][cuda][geometry]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
-        cuda::geometry::rotate2D(d_input.share(), d_input.stride(), shape,
-                                 d_input.share(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
+        cuda::geometry::rotate2D(d_input.share(), d_input.strides(), shape,
+                                 d_input.share(), d_input.strides(), shape,
                                  rotate, center, interp, border, stream);
-        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- accurate modes", "[noa][cuda][
     const TestType value = test::Randomizer<TestType>(-3., 3.).get();
     const float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
     const size4_t shape = test::getRandomShapeBatched(2u);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     float2_t center{shape.get() + 2};
     center /= test::Randomizer<float>(1, 4).get();
@@ -93,13 +93,13 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- accurate modes", "[noa][cuda][
     cuda::Stream gpu_stream;
     cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
-    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, gpu_stream);
-    cuda::geometry::rotate2D(d_input.share(), d_input.stride(), shape, d_input.share(), d_input.stride(), shape,
+    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, gpu_stream);
+    cuda::geometry::rotate2D(d_input.share(), d_input.strides(), shape, d_input.share(), d_input.strides(), shape,
                               rotation, center, interp, border, gpu_stream);
 
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
-    cuda::memory::copy(d_input.share(), d_input.stride(), output_cuda.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
     cpu::geometry::rotate2D(input.share(), stride, shape, output.share(), stride, shape,
                             rotation, center, interp, border, value, cpu_stream);
     gpu_stream.synchronize();
@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- fast modes", "[noa][cuda][geom
     const TestType value = test::Randomizer<TestType>(-3., 3.).get();
     const float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
     const size4_t shape = test::getRandomShapeBatched(2u);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     float2_t center{shape.get() + 2};
     center /= test::Randomizer<float>(1, 4).get();
@@ -133,13 +133,13 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- fast modes", "[noa][cuda][geom
     cuda::Stream gpu_stream;
     cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
-    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, gpu_stream);
-    cuda::geometry::rotate2D(d_input.share(), d_input.stride(), shape, d_input.share(), d_input.stride(), shape,
+    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, gpu_stream);
+    cuda::geometry::rotate2D(d_input.share(), d_input.strides(), shape, d_input.share(), d_input.strides(), shape,
                              rotation, center, interp, border, gpu_stream);
 
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
-    cuda::memory::copy(d_input.share(), d_input.stride(), output_cuda.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
     cpu::geometry::rotate2D(input.share(), stride, shape, output.share(), stride, shape,
                             rotation, center, interp, border, value, cpu_stream);
     gpu_stream.synchronize();
@@ -178,7 +178,7 @@ TEST_CASE("cuda::geometry::rotate3D()", "[assets][noa][cuda][geometry]") {
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -191,11 +191,11 @@ TEST_CASE("cuda::geometry::rotate3D()", "[assets][noa][cuda][geometry]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
-        cuda::geometry::rotate3D(d_input.share(), d_input.stride(), shape,
-                                 d_input.share(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
+        cuda::geometry::rotate3D(d_input.share(), d_input.strides(), shape,
+                                 d_input.share(), d_input.strides(), shape,
                                  matrix, center, interp, border, stream);
-        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
@@ -224,7 +224,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- accurate modes", "[noa][cuda][
     const float33_t matrix = geometry::euler2matrix(eulers).transpose();
 
     const size4_t shape = test::getRandomShapeBatched(3u);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     float3_t center{shape.get() + 1};
     center /= test::Randomizer<float>(1, 4).get();
@@ -237,13 +237,13 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- accurate modes", "[noa][cuda][
     cuda::Stream gpu_stream;
     cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
-    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, gpu_stream);
-    cuda::geometry::rotate3D(d_input.share(), d_input.stride(), shape, d_input.share(), d_input.stride(), shape,
+    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, gpu_stream);
+    cuda::geometry::rotate3D(d_input.share(), d_input.strides(), shape, d_input.share(), d_input.strides(), shape,
                              matrix, center, interp, border, gpu_stream);
 
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
-    cuda::memory::copy(d_input.share(), d_input.stride(), output_cuda.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
     cpu::geometry::rotate3D(input.share(), stride, shape, output.share(), stride, shape,
                             matrix, center, interp, border, value, cpu_stream);
     gpu_stream.synchronize();
@@ -268,7 +268,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- fast modes", "[noa][cuda][geom
     eulers = math::toRad(eulers);
     const float33_t matrix = geometry::euler2matrix(eulers).transpose();
     const size4_t shape = test::getRandomShapeBatched(3u);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     float3_t center{shape.get() + 1};
     center /= test::Randomizer<float>(1, 4).get();
@@ -281,13 +281,13 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- fast modes", "[noa][cuda][geom
     cuda::Stream gpu_stream;
     cpu::Stream cpu_stream;
     cuda::memory::PtrDevicePadded<TestType> d_input(shape);
-    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, gpu_stream);
-    cuda::geometry::rotate3D(d_input.share(), d_input.stride(), shape, d_input.share(), d_input.stride(), shape,
+    cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, gpu_stream);
+    cuda::geometry::rotate3D(d_input.share(), d_input.strides(), shape, d_input.share(), d_input.strides(), shape,
                              matrix, center, interp, border, gpu_stream);
 
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
-    cuda::memory::copy(d_input.share(), d_input.stride(), output_cuda.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
     cpu::geometry::rotate3D(input.share(), stride, shape, output.share(), stride, shape,
                             matrix, center, interp, border, value, cpu_stream);
     gpu_stream.synchronize();

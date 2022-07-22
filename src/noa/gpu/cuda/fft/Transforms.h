@@ -143,7 +143,7 @@ namespace noa::cuda::fft {
                     size4_t shape, Norm norm, Stream& stream) {
         Plan<T> plan(fft::R2C, shape, stream.device());
         r2c(input, output, plan, stream);
-        details::normalize<true>(output, shape.fft().stride(), shape, Sign::FORWARD, norm, stream);
+        details::normalize<true>(output, shape.fft().strides(), shape, Sign::FORWARD, norm, stream);
     }
 
     /// Computes the in-place R2C transform.
@@ -174,8 +174,8 @@ namespace noa::cuda::fft {
         // Since it is in-place, the pitch (in real elements) in the innermost dimension should be:
         //  1: even, since complex elements take 2 real elements
         //  2: have at least 1 (if odd) or 2 (if even) extract real element in the innermost dimension
-        NOA_ASSERT(!(stride.pitch()[2] % 2));
-        NOA_ASSERT(stride.pitch()[2] >= shape[3] + 1 + size_t(!(shape[3] % 2)));
+        NOA_ASSERT(!(stride.pitches()[2] % 2));
+        NOA_ASSERT(stride.pitches()[2] >= shape[3] + 1 + size_t(!(shape[3] % 2)));
 
         const size4_t complex_stride{stride[0] / 2, stride[1] / 2, stride[2] / 2, stride[3]};
         r2c(data, stride, std::reinterpret_pointer_cast<Complex<T>[]>(data), complex_stride, shape, norm, stream);
@@ -218,7 +218,7 @@ namespace noa::cuda::fft {
                     size4_t shape, Norm norm, Stream& stream) {
         const Plan<T> plan{fft::C2R, shape, stream.device()};
         c2r(input, output, plan, stream);
-        details::normalize<false>(output, shape.stride(), shape, Sign::BACKWARD, norm, stream);
+        details::normalize<false>(output, shape.strides(), shape, Sign::BACKWARD, norm, stream);
     }
 
     /// Computes the in-place C2R transform.
@@ -292,7 +292,7 @@ namespace noa::cuda::fft {
                     size4_t shape, Sign sign, Norm norm, Stream& stream) {
         const Plan<T> fast_plan{fft::C2C, shape, stream.device()};
         c2c(input, output, sign, fast_plan, stream);
-        details::normalize<false>(output, shape.stride(), shape, sign, norm, stream);
+        details::normalize<false>(output, shape.strides(), shape, sign, norm, stream);
     }
 
     /// Computes the in-place C2C transform.

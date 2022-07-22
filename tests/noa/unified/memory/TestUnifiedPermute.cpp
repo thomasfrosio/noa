@@ -29,8 +29,8 @@ TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", int32_t, float,
     Array<TestType> data = math::random<TestType>(math::uniform_t{}, shape, -5, 5);
     Array<TestType> expected{permuted_shape};
 
-    cpu::memory::permute<TestType>(data.share(), data.stride(), data.shape(),
-                                     expected.share(), expected.stride(), permutation, stream.cpu());
+    cpu::memory::permute<TestType>(data.share(), data.strides(), data.shape(),
+                                     expected.share(), expected.strides(), permutation, stream.cpu());
 
     {
         Array<TestType> result{permuted_shape};

@@ -15,10 +15,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::min(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::min(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::min(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::min(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -30,10 +30,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::max(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::max(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::max(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::max(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -45,10 +45,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::sum(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::sum(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::sum(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::sum(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -60,10 +60,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::mean(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::mean(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::mean(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::mean(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -75,10 +75,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::var<DDOF>(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::var<DDOF>(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::var<DDOF>(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::var<DDOF>(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -90,10 +90,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::std<DDOF>(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::std<DDOF>(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::std<DDOF>(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::std<DDOF>(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -105,10 +105,10 @@ namespace noa::math {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::statistics<DDOF>(array.share(), array.stride(), array.shape(), stream.cpu());
+            return cpu::math::statistics<DDOF>(array.share(), array.strides(), array.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::statistics<DDOF>(array.share(), array.stride(), array.shape(), stream.cuda());
+            return cuda::math::statistics<DDOF>(array.share(), array.strides(), array.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -128,15 +128,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::min(input.share(), input.stride(), input.shape(),
-                           output.share(), output.stride(), output.shape(), stream.cpu());
+            cpu::math::min(input.share(), input.strides(), input.shape(),
+                           output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::min(input.share(), input.stride(), input.shape(),
-                            output.share(), output.stride(), output.shape(), stream.cuda());
+            cuda::math::min(input.share(), input.strides(), input.shape(),
+                            output.share(), output.strides(), output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -153,15 +153,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::max(input.share(), input.stride(), input.shape(),
-                           output.share(), output.stride(), output.shape(), stream.cpu());
+            cpu::math::max(input.share(), input.strides(), input.shape(),
+                           output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::max(input.share(), input.stride(), input.shape(),
-                            output.share(), output.stride(), output.shape(), stream.cuda());
+            cuda::math::max(input.share(), input.strides(), input.shape(),
+                            output.share(), output.strides(), output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -178,15 +178,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::sum(input.share(), input.stride(), input.shape(),
-                           output.share(), output.stride(), output.shape(), stream.cpu());
+            cpu::math::sum(input.share(), input.strides(), input.shape(),
+                           output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::sum(input.share(), input.stride(), input.shape(),
-                            output.share(), output.stride(), output.shape(), stream.cuda());
+            cuda::math::sum(input.share(), input.strides(), input.shape(),
+                            output.share(), output.strides(), output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -203,15 +203,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::mean(input.share(), input.stride(), input.shape(),
-                            output.share(), output.stride(), output.shape(), stream.cpu());
+            cpu::math::mean(input.share(), input.strides(), input.shape(),
+                            output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::mean(input.share(), input.stride(), input.shape(),
-                             output.share(), output.stride(), output.shape(), stream.cuda());
+            cuda::math::mean(input.share(), input.strides(), input.shape(),
+                             output.share(), output.strides(), output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -228,15 +228,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::var<DDOF>(input.share(), input.stride(), input.shape(),
-                                 output.share(), output.stride(), output.shape(), stream.cpu());
+            cpu::math::var<DDOF>(input.share(), input.strides(), input.shape(),
+                                 output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::var<DDOF>(input.share(), input.stride(), input.shape(),
-                                  output.share(), output.stride(), output.shape(), stream.cuda());
+            cuda::math::var<DDOF>(input.share(), input.strides(), input.shape(),
+                                  output.share(), output.strides(), output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -253,15 +253,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::std<DDOF>(input.share(), input.stride(), input.shape(),
-                                 output.share(), output.stride(), output.shape(), stream.cpu());
+            cpu::math::std<DDOF>(input.share(), input.strides(), input.shape(),
+                                 output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::std<DDOF>(input.share(), input.stride(), input.shape(),
-                                  output.share(), output.stride(), output.shape(), stream.cuda());
+            cuda::math::std<DDOF>(input.share(), input.strides(), input.shape(),
+                                  output.share(), output.strides(), output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

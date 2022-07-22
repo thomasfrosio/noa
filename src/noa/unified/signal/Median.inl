@@ -13,7 +13,7 @@ namespace noa::signal {
     template<typename T, typename>
     void median1(const Array<T>& input, const Array<T>& output,
                  size_t window_size, BorderMode border_mode) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -27,12 +27,12 @@ namespace noa::signal {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::median1(input.share(), input_stride,
-                                 output.share(), output.stride(), output.shape(),
+                                 output.share(), output.strides(), output.shape(),
                                  border_mode, window_size, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::median1(input.share(), input_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   border_mode, window_size, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -43,7 +43,7 @@ namespace noa::signal {
     template<typename T, typename>
     void median2(const Array<T>& input, const Array<T>& output,
                  size_t window_size, BorderMode border_mode) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -57,12 +57,12 @@ namespace noa::signal {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::median2(input.share(), input_stride,
-                                 output.share(), output.stride(), output.shape(),
+                                 output.share(), output.strides(), output.shape(),
                                  border_mode, window_size, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::median2(input.share(), input_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   border_mode, window_size, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -73,7 +73,7 @@ namespace noa::signal {
     template<typename T, typename>
     void median3(const Array<T>& input, const Array<T>& output,
                  size_t window_size, BorderMode border_mode) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -87,12 +87,12 @@ namespace noa::signal {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::median3(input.share(), input_stride,
-                                 output.share(), output.stride(), output.shape(),
+                                 output.share(), output.strides(), output.shape(),
                                  border_mode, window_size, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::median3(input.share(), input_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   border_mode, window_size, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

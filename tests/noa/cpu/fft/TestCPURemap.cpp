@@ -18,7 +18,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
 
     AND_THEN("fc > f > fc") {
         const size4_t shape = test::getRandomShapeBatched(ndim);
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<TestType> full_centered_in(elements);
         cpu::memory::PtrHost<TestType> full_centered_out(elements);
@@ -36,7 +36,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
 
     AND_THEN("f > fc > f") {
         const size4_t shape = test::getRandomShapeBatched(ndim);
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<TestType> full_in(elements);
         cpu::memory::PtrHost<TestType> full_out(elements);
@@ -62,7 +62,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
     AND_THEN("2D") {
         file.open(path / tests["2D"]["input"].as<path_t>(), io::READ);
         const size4_t shape{file.shape()};
-        const size4_t stride{shape.stride()};
+        const size4_t stride{shape.strides()};
         const size_t size{shape.elements()};
         cpu::memory::PtrHost<float> array(size);
         file.readAll(array.get());
@@ -91,7 +91,7 @@ TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
     AND_THEN("3D") {
         file.open(path / tests["3D"]["input"].as<path_t>(), io::READ);
         const size4_t shape{file.shape()};
-        const size4_t stride{shape.stride()};
+        const size4_t stride{shape.strides()};
         const size_t size{shape.elements()};
         cpu::memory::PtrHost<float> array(size);
         file.readAll(array.get());
@@ -127,7 +127,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
 
     AND_THEN("hc > h > hc") {
         const size4_t shape = test::getRandomShapeBatched(ndim);
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
         const size_t elements = shape.fft().elements();
         cpu::memory::PtrHost<TestType> half_centered_in(elements);
         cpu::memory::PtrHost<TestType> half_centered_out(elements);
@@ -145,7 +145,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
 
     AND_THEN("h > hc > h") {
         const size4_t shape = test::getRandomShapeBatched(ndim);
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
         const size_t elements = shape.fft().elements();
         cpu::memory::PtrHost<TestType> half_in(elements);
         cpu::memory::PtrHost<TestType> half_out(elements);
@@ -163,7 +163,7 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
 
     AND_THEN("in-place") {
         const size4_t shape = test::getRandomShapeBatched(ndim, true); // even
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
         const size_t elements = shape.fft().elements();
         cpu::memory::PtrHost<TestType> half_in(elements);
         cpu::memory::PtrHost<TestType> half_out(elements);
@@ -185,8 +185,8 @@ TEMPLATE_TEST_CASE("cpu::fft::h2f(), f2h()", "[noa][cpu][fft]",
 
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
-    const size4_t stride_fft = shape.fft().stride();
+    const size4_t stride = shape.strides();
+    const size4_t stride_fft = shape.fft().strides();
     const size_t elements = shape.elements();
     const size_t elements_fft = shape.fft().elements();
 
@@ -211,8 +211,8 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]",
     cpu::Stream stream;
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
-    const size4_t stride_fft = shape.fft().stride();
+    const size4_t stride = shape.strides();
+    const size4_t stride_fft = shape.fft().strides();
     const size_t elements = shape.elements();
     const size_t elements_fft = shape.fft().elements();
 
@@ -247,8 +247,8 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2h()", "[noa][cpu][fft]",
     cpu::Stream stream;
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
-    const size4_t stride_fft = shape.fft().stride();
+    const size4_t stride = shape.strides();
+    const size4_t stride_fft = shape.fft().strides();
     const size_t elements = shape.elements();
     const size_t elements_fft = shape.fft().elements();
 

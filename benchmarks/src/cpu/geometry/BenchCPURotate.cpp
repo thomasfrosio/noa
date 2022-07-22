@@ -31,7 +31,7 @@ namespace {
     template<typename T>
     void CPU_transform_rotate2D(benchmark::State& state) {
         const size4_t shape = g_shapes[0];
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
 
         const InterpMode interp = g_interp[state.range(0)];

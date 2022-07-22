@@ -14,10 +14,10 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak2D}()", "[noa][cpu]", float, do
     size4_t shape = test::getRandomShape(2);
     shape[2] += 200;
     shape[3] += 200;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = GENERATE(true, false);
     const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
@@ -66,10 +66,10 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cpu]", 
     size4_t shape = test::getRandomShapeBatched(2);
     shape[2] += 200;
     shape[3] += 200;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = false;
     const fft::Norm norm_mode = fft::NORM_FORWARD;
@@ -124,10 +124,10 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak3D}()", "[noa][cpu]", float, do
     shape[1] += 100;
     shape[2] += 100;
     shape[3] += 100;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = GENERATE(true, false);
     const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
@@ -178,10 +178,10 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cpu]", 
     shape[1] += 100;
     shape[2] += 100;
     shape[3] += 100;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = false;
     const fft::Norm norm_mode = fft::NORM_FORWARD;
@@ -233,11 +233,11 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cpu]", 
 //    io::ImageFile file{test::NOA_DATA_PATH / "signal" / "fft" / "tilt1.mrc", io::READ};
 //    const size4_t shape_stack = file.shape();
 //    const size4_t shape{1, 1, shape_stack[2], shape_stack[3]};
-//    const size4_t stride = shape.stride();
+//    const size4_t stride = shape.strides();
 //    const size_t elements = stride[0];
 //
 //    const size4_t shape_fft = shape.fft();
-//    const size4_t stride_fft = shape_fft.stride();
+//    const size4_t stride_fft = shape_fft.strides();
 //
 //    const float2_t center = {shape[2] / 2, shape[3] / 2};
 //

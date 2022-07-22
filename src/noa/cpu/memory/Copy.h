@@ -48,32 +48,36 @@ namespace noa::cpu::memory {
     }
 
     /// Copies all logical elements from \p src to \p dst.
-    /// \tparam CHECK_CONTIGUOUS    Copying a contiguous block of memory is often more efficient.
-    ///                             If true, the function checks if a contiguous copy can be done instead.
+    /// \tparam OPTIMIZE_SRC_ORDER  Tries to loop through the source in the most efficient way.
+    ///                             Otherwise, the copy is in the rightmost order (inner loop is the rightmost dimension).
     /// \tparam T                   Any type with a copy assignment operator.
     /// \param[in] src              On the \b host. Input array to copy.
-    /// \param src_stride           Rightmost strides, in elements, of \p src.
+    /// \param src_strides          Strides, in elements, of \p src.
     /// \param[out] dst             On the \b host. Output array.
-    /// \param dst_stride           Rightmost strides, in elements, of \p dst.
-    /// \param shape                Rightmost shape of \p src and \p dst.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void copy(const T* src, size4_t src_stride, T* dst, size4_t dst_stride, size4_t shape) {
-        if constexpr (CHECK_CONTIGUOUS) {
-            if (all(indexing::isContiguous(src_stride, shape)) && all(indexing::isContiguous(dst_stride, shape)))
-                return copy(src, src + shape.elements(), dst);
+    /// \param dst_strides          Strides, in elements, of \p dst.
+    /// \param shape                Shape of \p src and \p dst.
+    template<bool OPTIMIZE_SRC_ORDER = true, typename T>
+    NOA_IH void copy(const T* src, size4_t src_strides, T* dst, size4_t dst_strides, size4_t shape) {
+        if constexpr (OPTIMIZE_SRC_ORDER) {
+            // Loop through the source in the most cache-friendly way:
+            const size4_t order = indexing::order(src_strides, shape);
+            shape = indexing::reorder(shape, order);
+            dst_strides = indexing::reorder(dst_strides, order);
+            src_strides = indexing::reorder(src_strides, order);
+            // We could have selected the destination, but since the source is more likely to be
+            // broadcast, we want to have the broadcast dimensions in the innermost loops.
+            // Note: This could make things worse for some edge cases.
 
-            // Loop through the destination in the most cache-friendly way:
-//            const size4_t order = indexing::order(indexing::effectiveStride(shape, dst_stride));
-//            dst_stride = indexing::reorder(dst_stride, order);
-//            src_stride = indexing::reorder(src_stride, order);
-//            shape = indexing::reorder(shape, order);
+            // No need to check for F-contiguous, since the reordering switched it to C-contiguous already.
+            if (all(indexing::isContiguous(src_strides, shape)) && all(indexing::isContiguous(dst_strides, shape)))
+                return copy(src, src + shape.elements(), dst);
         }
 
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l)
-                        dst[indexing::at(i, j, k, l, dst_stride)] = src[indexing::at(i, j, k, l, src_stride)];
+                        dst[indexing::at(i, j, k, l, dst_strides)] = src[indexing::at(i, j, k, l, src_strides)];
     }
 
     /// Copies all logical elements from \p src to \p dst.

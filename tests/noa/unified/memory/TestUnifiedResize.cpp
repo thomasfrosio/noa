@@ -22,8 +22,8 @@ TEMPLATE_TEST_CASE("unified::memory::resize, borders", "[noa][unified]", int32_t
     const size4_t output_shape{int4_t{shape} + border_left + border_right};
 
     Array<TestType> expected{output_shape};
-    cpu::memory::resize(data.share(), data.stride(), data.shape(),
-                        border_left, border_right, expected.share(), expected.stride(),
+    cpu::memory::resize(data.share(), data.strides(), data.shape(),
+                        border_left, border_right, expected.share(), expected.strides(),
                         border_mode, border_value, cpu_stream.cpu());
 
     std::vector<Device> devices = {Device{"cpu"}};

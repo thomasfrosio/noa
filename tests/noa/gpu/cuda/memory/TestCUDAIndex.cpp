@@ -29,8 +29,8 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
         auto subregion_origins = test["sub_origins"].as<std::vector<int4_t>>();
         const auto border_mode = test["border"].as<BorderMode>();
         const auto border_value = test["border_value"].as<float>();
-        const size4_t stride = shape.stride();
-        const size4_t subregion_stride = subregion_shape.stride();
+        const size4_t stride = shape.strides();
+        const size4_t subregion_stride = subregion_shape.strides();
 
         cpu::memory::PtrHost<float> input(shape.elements());
         cpu::memory::PtrHost<float> subregions(subregion_shape.elements());
@@ -66,7 +66,7 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
         // Insert:
         cuda::memory::set<float>(d_input.share(), d_input.elements(), 4.f, stream);
         cuda::memory::insert<float>(d_subregions.share(), subregion_stride, subregion_shape,
-                                    d_input.share(), shape.stride(), shape,
+                                    d_input.share(), shape.strides(), shape,
                                     origins, stream);
         cuda::memory::copy<float>(d_input.share(), stride, input.share(), stride, shape, stream);
 
@@ -83,7 +83,7 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
 TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda][memory]", float, int) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
     cuda::Stream gpu_stream;
@@ -132,17 +132,17 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
 
     THEN("padded") {
         cuda::memory::PtrDevicePadded<TestType> padded(shape);
-        cuda::memory::set(padded.share(), padded.stride(), padded.shape(), TestType(2), gpu_stream);
+        cuda::memory::set(padded.share(), padded.strides(), padded.shape(), TestType(2), gpu_stream);
 
         const auto d_extracted = cuda::memory::extract<TestType, uint64_t>(
-                padded.share(), padded.stride(), padded.share(), padded.stride(), TestType(1), shape,
+                padded.share(), padded.strides(), padded.share(), padded.strides(), TestType(1), shape,
                 noa::math::greater_equal_t{}, false, true, gpu_stream);
         cpu::memory::PtrHost<uint64_t> h_seq_indexes(d_extracted.count);
         cuda::memory::copy<uint64_t>(d_extracted.offsets, h_seq_indexes.share(), d_extracted.count, gpu_stream);
         gpu_stream.synchronize();
 
         REQUIRE(d_extracted.count == elements); // elements in pitch should not be selected
-        const size_t last = indexing::at(shape - 1, padded.stride());
+        const size_t last = indexing::at(shape - 1, padded.strides());
         REQUIRE(h_seq_indexes[d_extracted.count - 1] == last); // indexes should follow the physical layout of the input
     }
 }
@@ -155,17 +155,17 @@ TEMPLATE_TEST_CASE("cuda::memory::atlasLayout(), insert()", "[noa][cuda][memory]
                                   dim_randomizer.get(),
                                   dim_randomizer.get());
     cuda::memory::PtrDevicePadded<TestType> d_subregions(subregion_shape);
-    const size4_t subregion_stride = subregion_shape.stride();
+    const size4_t subregion_stride = subregion_shape.strides();
     INFO(subregion_shape);
 
     cuda::Stream stream;
     for (uint idx = 0; idx < subregion_shape[0]; ++idx)
-        cuda::memory::set(d_subregions.attach(d_subregions.get() + idx * d_subregions.stride()[0]),
-                          d_subregions.stride()[0], static_cast<TestType>(idx), stream);
+        cuda::memory::set(d_subregions.attach(d_subregions.get() + idx * d_subregions.strides()[0]),
+                          d_subregions.strides()[0], static_cast<TestType>(idx), stream);
 
     // Copy to host for assertion
     cpu::memory::PtrHost<TestType> h_subregions(subregion_shape.elements());
-    cuda::memory::copy<TestType>(d_subregions.share(), d_subregions.stride(),
+    cuda::memory::copy<TestType>(d_subregions.share(), d_subregions.strides(),
                                  h_subregions.share(), subregion_stride, subregion_shape, stream);
 
     // Insert atlas
@@ -174,19 +174,19 @@ TEMPLATE_TEST_CASE("cuda::memory::atlasLayout(), insert()", "[noa][cuda][memory]
     INFO(atlas_shape);
 
     cuda::memory::PtrDevicePadded<TestType> atlas(atlas_shape);
-    cuda::memory::insert<TestType>(d_subregions.share(), d_subregions.stride(), subregion_shape,
-                                   atlas.share(), atlas.stride(), atlas_shape,
+    cuda::memory::insert<TestType>(d_subregions.share(), d_subregions.strides(), subregion_shape,
+                                   atlas.share(), atlas.strides(), atlas_shape,
                                    origins.share(), stream);
 
     // Extract atlas
     cuda::memory::PtrDevicePadded<TestType> o_subregions(subregion_shape);
-    cuda::memory::extract<TestType>(atlas.share(), atlas.stride(), atlas_shape,
-                                    o_subregions.share(), o_subregions.stride(), subregion_shape,
+    cuda::memory::extract<TestType>(atlas.share(), atlas.strides(), atlas_shape,
+                                    o_subregions.share(), o_subregions.strides(), subregion_shape,
                                     origins.share(), BORDER_VALUE, TestType{0}, stream);
 
     // Copy to host for assertion
     cpu::memory::PtrHost<TestType> h_o_subregions(subregion_shape.elements());
-    cuda::memory::copy<TestType>(o_subregions.share(), o_subregions.stride(),
+    cuda::memory::copy<TestType>(o_subregions.share(), o_subregions.strides(),
                                  h_o_subregions.share(), subregion_stride, subregion_shape, stream);
 
     stream.synchronize();

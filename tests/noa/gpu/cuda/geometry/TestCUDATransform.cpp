@@ -51,7 +51,7 @@ TEST_CASE("cuda::geometry::transform2D()", "[assets][noa][cuda][geometry]") {
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -65,11 +65,11 @@ TEST_CASE("cuda::geometry::transform2D()", "[assets][noa][cuda][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
 
-        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
-        cuda::geometry::transform2D(d_input.share(), d_input.stride(), shape,
-                                    d_input.share(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
+        cuda::geometry::transform2D(d_input.share(), d_input.strides(), shape,
+                                    d_input.share(), d_input.strides(), shape,
                                     matrix, interp, border, stream);
-        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
@@ -116,7 +116,7 @@ TEST_CASE("cuda::geometry::transform3D()", "[assets][noa][cuda][geometry]") {
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -130,11 +130,11 @@ TEST_CASE("cuda::geometry::transform3D()", "[assets][noa][cuda][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
 
-        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.stride(), shape, stream);
-        cuda::geometry::transform3D(d_input.share(), d_input.stride(), shape,
-                                    d_input.share(), d_input.stride(), shape,
+        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
+        cuda::geometry::transform3D(d_input.share(), d_input.strides(), shape,
+                                    d_input.share(), d_input.strides(), shape,
                                     matrix, interp, border, stream);
-        cuda::memory::copy(d_input.share(), d_input.stride(), output.share(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {

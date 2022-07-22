@@ -8,7 +8,7 @@ using namespace noa;
 
 TEMPLATE_TEST_CASE("cpu::math::find(), batched", "[noa][cpu][math]", int32_t, uint64_t, float, double) {
     const size4_t shape{3, 64, 128, 128};
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size_t elements_unbatched = shape[1] * shape[2] * shape[3];
     cpu::Stream stream;

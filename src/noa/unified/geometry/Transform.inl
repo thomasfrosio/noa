@@ -33,8 +33,8 @@ namespace noa::geometry {
             if (matrices.device().gpu())
                 Stream::current(matrices.device()).synchronize();
             cpu::geometry::transform2D<PREFILTER>(
-                    input.share(), input.stride(), input.shape(),
-                    output.share(), output.stride(), output.shape(),
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
                     matrices.share(), interp_mode, border_mode, value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -48,13 +48,13 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", input.device(), device);
                 NOA_CHECK(input.contiguous()[3],
                           "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          input.shape(), input.stride());
+                          input.shape(), input.strides());
 
                 if (input.device().cpu() || matrices.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::transform2D<PREFILTER>(
-                        input.share(), input.stride(), input.shape(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(), input.shape(),
+                        output.share(), output.strides(), output.shape(),
                         matrices.share(), interp_mode, border_mode, stream.cuda());
             }
             #else
@@ -79,8 +79,8 @@ namespace noa::geometry {
             NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform2D<PREFILTER>(
-                    input.share(), input.stride(), input.shape(),
-                    output.share(), output.stride(), output.shape(),
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
                     matrix, interp_mode, border_mode, value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -94,13 +94,13 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", input.device(), device);
                 NOA_CHECK(input.contiguous()[3],
                           "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          input.shape(), input.stride());
+                          input.shape(), input.strides());
 
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::transform2D<PREFILTER>(
-                        input.share(), input.stride(), input.shape(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(), input.shape(),
+                        output.share(), output.strides(), output.shape(),
                         matrix, interp_mode, border_mode, stream.cuda());
             }
             #else
@@ -131,8 +131,8 @@ namespace noa::geometry {
             if (matrices.device().gpu())
                 Stream::current(matrices.device()).synchronize();
             cpu::geometry::transform3D<PREFILTER>(
-                    input.share(), input.stride(), input.shape(),
-                    output.share(), output.stride(), output.shape(),
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
                     matrices.share(), interp_mode, border_mode, value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -146,13 +146,13 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", input.device(), device);
                 NOA_CHECK(input.contiguous()[1] && input.contiguous()[3],
                           "The third-most and innermost dimension of the input should be contiguous, "
-                          "but got shape {} and stride {}", input.shape(), input.stride());
+                          "but got shape {} and stride {}", input.shape(), input.strides());
 
                 if (input.device().cpu() || matrices.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::transform3D<PREFILTER>(
-                        input.share(), input.stride(), input.shape(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(), input.shape(),
+                        output.share(), output.strides(), output.shape(),
                         matrices.share(), interp_mode, border_mode, stream.cuda());
             }
             #else
@@ -177,8 +177,8 @@ namespace noa::geometry {
             NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform3D<PREFILTER>(
-                    input.share(), input.stride(), input.shape(),
-                    output.share(), output.stride(), output.shape(),
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
                     matrix, interp_mode, border_mode, value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -192,13 +192,13 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", input.device(), device);
                 NOA_CHECK(input.contiguous()[1] && input.contiguous()[3],
                           "The third-most and innermost dimension of the input should be contiguous, "
-                          "but got shape {} and stride {}", input.shape(), input.stride());
+                          "but got shape {} and stride {}", input.shape(), input.strides());
 
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::transform3D<PREFILTER>(
-                        input.share(), input.stride(), input.shape(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(), input.shape(),
+                        output.share(), output.strides(), output.shape(),
                         matrix, interp_mode, border_mode, stream.cuda());
             }
             #else
@@ -226,8 +226,8 @@ namespace noa::geometry {
             NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform2D<PREFILTER>(
-                    input.share(), input.stride(), input.shape(),
-                    output.share(), output.stride(), output.shape(),
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
                     shift, matrix, symmetry, center, interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -241,13 +241,13 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", input.device(), device);
                 NOA_CHECK(input.contiguous()[3],
                           "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          input.shape(), input.stride());
+                          input.shape(), input.strides());
 
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::transform2D<PREFILTER>(
-                        input.share(), input.stride(), input.shape(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(), input.shape(),
+                        output.share(), output.strides(), output.shape(),
                         shift, matrix, symmetry, center, interp_mode, normalize, stream.cuda());
             }
             #else
@@ -273,8 +273,8 @@ namespace noa::geometry {
             NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             cpu::geometry::transform3D<PREFILTER>(
-                    input.share(), input.stride(), input.shape(),
-                    output.share(), output.stride(), output.shape(),
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
                     shift, matrix, symmetry, center, interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -288,13 +288,13 @@ namespace noa::geometry {
                           "but got input:{} and output:{}", input.device(), device);
                 NOA_CHECK(input.contiguous()[1] && input.contiguous()[3],
                           "The third-most and innermost dimension of the input should be contiguous, "
-                          "but got shape {} and stride {}", input.shape(), input.stride());
+                          "but got shape {} and stride {}", input.shape(), input.strides());
 
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::transform3D<PREFILTER>(
-                        input.share(), input.stride(), input.shape(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(), input.shape(),
+                        output.share(), output.strides(), output.shape(),
                         shift, matrix, symmetry, center, interp_mode, normalize, stream.cuda());
             }
             #else

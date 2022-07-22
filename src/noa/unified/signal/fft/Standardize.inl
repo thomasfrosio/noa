@@ -25,13 +25,13 @@ namespace noa::signal::fft {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::signal::fft::standardize<REMAP>(input.share(), input.stride(),
-                                                 output.share(), output.stride(),
+            cpu::signal::fft::standardize<REMAP>(input.share(), input.strides(),
+                                                 output.share(), output.strides(),
                                                  shape, norm, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::signal::fft::standardize<REMAP>(input.share(), input.stride(),
-                                                  output.share(), output.stride(),
+            cuda::signal::fft::standardize<REMAP>(input.share(), input.strides(),
+                                                  output.share(), output.strides(),
                                                   shape, norm, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

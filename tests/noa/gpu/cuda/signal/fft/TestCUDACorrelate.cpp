@@ -15,10 +15,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float, 
     size4_t shape = test::getRandomShape(2);
     shape[2] += 200;
     shape[3] += 200;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = GENERATE(true, false);
     const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
@@ -66,10 +66,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cuda]"
     size4_t shape = test::getRandomShapeBatched(2);
     shape[2] += 200;
     shape[3] += 200;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = false;
     const fft::Norm norm_mode = fft::NORM_FORWARD;
@@ -124,10 +124,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}()", "[noa][cuda]", float, 
     shape[1] += 100;
     shape[2] += 100;
     shape[3] += 100;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = GENERATE(true, false);
     const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
@@ -177,10 +177,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cuda]"
     shape[1] += 100;
     shape[2] += 100;
     shape[3] += 100;
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
 
     const bool normalize = false;
     const fft::Norm norm_mode = fft::NORM_FORWARD;

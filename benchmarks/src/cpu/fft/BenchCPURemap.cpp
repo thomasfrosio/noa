@@ -29,7 +29,7 @@ namespace {
         cpu::math::randomize(math::uniform_t{}, src.share(), src.elements(), real_t{-5}, real_t{5}, stream);
 
         for (auto _: state) {
-            cpu::fft::remap(permutation, src.share(), src_pitch.stride(), dst.share(), dst_pitch.stride(), shape, stream);
+            cpu::fft::remap(permutation, src.share(), src_pitch.strides(), dst.share(), dst_pitch.strides(), shape, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }
@@ -37,7 +37,7 @@ namespace {
     template<typename T>
     void CPU_fft_remap_h2hc(benchmark::State& state) {
         const size4_t shape = {1, 256, 256, 256};
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
 
         cpu::memory::PtrHost<T> src{shape.fft().elements()};
         cpu::memory::PtrHost<T> dst{shape.fft().elements()};
@@ -55,7 +55,7 @@ namespace {
     template<typename T>
     void CPU_fft_remap_h2hc_inplace(benchmark::State& state) {
         const size4_t shape = {1, 256, 256, 256};
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
 
         cpu::memory::PtrHost<T> src{shape.fft().elements()};
 

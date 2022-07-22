@@ -20,7 +20,7 @@ namespace {
         constexpr size_t filter1_size[] = {3, 5, 9, 11};
 
         const size4_t shape = g_shapes[state.range(0)];
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t filter_size = filter1_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter{filter_size};
@@ -44,7 +44,7 @@ namespace {
                                             {5, 5}};
 
         const size4_t shape = g_shapes[state.range(0)];
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size2_t filter_size = filter2_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter{filter_size.elements()};
@@ -68,7 +68,7 @@ namespace {
                                             {5, 5, 5}};
 
         const size4_t shape = g_shapes[state.range(0)];
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size3_t filter_size = filter3_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter{filter_size.elements()};
@@ -91,7 +91,7 @@ namespace {
         constexpr size_t filter1_size[] = {3, 5, 9, 11};
 
         const size4_t shape = g_shapes[state.range(0)];
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t filter_size = filter1_size[state.range(1)];
 
         cpu::memory::PtrHost<T> filter{filter_size};

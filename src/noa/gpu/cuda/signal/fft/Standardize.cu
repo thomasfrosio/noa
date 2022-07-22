@@ -63,7 +63,7 @@ namespace {
         T* null{};
         cuda::util::reduce<false>(
                 "signal::fft::standardize",
-                input.get() + subregion.offset(), uint4_t{subregion.stride()}, uint4_t{subregion.shape()},
+                input.get() + subregion.offset(), uint4_t{subregion.strides()}, uint4_t{subregion.shape()},
                 math::abs_squared_t{}, math::plus_t{}, T{0},
                 &factor0, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
 
@@ -72,7 +72,7 @@ namespace {
         T factor1;
         cuda::util::reduce<false>(
                 "signal::fft::standardize",
-                input.get() + subregion.offset(), uint4_t{subregion.stride()}, uint4_t{subregion.shape()},
+                input.get() + subregion.offset(), uint4_t{subregion.strides()}, uint4_t{subregion.shape()},
                 math::abs_squared_t{}, math::plus_t{}, T{0},
                 &factor1, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
         Complex<T> dc;
@@ -84,7 +84,7 @@ namespace {
             subregion = original(ellipsis_t{}, -1);
             cuda::util::reduce<false>(
                     "signal::fft::standardize",
-                    input.get() + subregion.offset(), uint4_t{subregion.stride()}, uint4_t{subregion.shape()},
+                    input.get() + subregion.offset(), uint4_t{subregion.strides()}, uint4_t{subregion.shape()},
                     math::abs_squared_t{}, math::plus_t{}, T{0},
                     &factor2, 1, math::copy_t{}, null, 1, math::copy_t{}, stream);
         }

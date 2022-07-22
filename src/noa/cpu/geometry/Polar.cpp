@@ -148,7 +148,7 @@ namespace noa::cpu::geometry {
                     if constexpr (PREFILTER) {
                         if (cartesian_stride[0] == 0)
                             cartesian_shape[0] = 1;
-                        const size4_t stride = cartesian_shape.stride();
+                        const size4_t stride = cartesian_shape.strides();
                         buffer = memory::PtrHost<T>{cartesian_shape.elements()};
                         bspline::prefilter(cartesian, cartesian_stride, buffer.share(), stride, cartesian_shape, stream);
                         src = buffer.get();
@@ -212,7 +212,7 @@ namespace noa::cpu::geometry {
                     if constexpr (PREFILTER) {
                         if (polar_stride[0] == 0)
                             polar_shape[0] = 1;
-                        const size4_t stride = polar_shape.stride();
+                        const size4_t stride = polar_shape.strides();
                         buffer = memory::PtrHost<T>{polar_shape.elements()};
                         bspline::prefilter(polar, polar_stride, buffer.share(), stride, polar_shape, stream);
                         src = buffer.get();

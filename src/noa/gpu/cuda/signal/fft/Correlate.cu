@@ -462,9 +462,9 @@ namespace noa::cuda::signal::fft::details {
                Stream& stream, bool is_half) {
         const size_t batches = shape[0];
         const size4_t shape_fft = is_half ? shape.fft() : shape;
-        const size4_t stride_fft = shape_fft.stride();
+        const size4_t stride_fft = shape_fft.strides();
         const size4_t reduced_shape{batches, 1, 1, 1};
-        const size4_t reduced_stride = reduced_shape.stride();
+        const size4_t reduced_stride = reduced_shape.strides();
 
         cuda::memory::PtrPinned<T> buffer{batches * 3};
         auto denominator_lhs = buffer.get() + batches;
@@ -504,7 +504,7 @@ namespace noa::cuda::signal::fft::details {
             size4_t shape, Stream& stream, bool is_half) {
         NOA_ASSERT(shape[0] == 1);
         const size4_t shape_fft = is_half ? shape.fft() : shape;
-        const size4_t stride_fft = shape_fft.stride();
+        const size4_t stride_fft = shape_fft.strides();
 
         T numerator{}, denominator_lhs{}, denominator_rhs{};
         T* null{};

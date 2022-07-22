@@ -25,7 +25,7 @@ TEST_CASE("cpu::memory::permute()", "[assets][noa][cpu][memory]") {
 
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> data(elements);
         cpu::memory::PtrHost<float> result(elements);
@@ -35,7 +35,7 @@ TEST_CASE("cpu::memory::permute()", "[assets][noa][cpu][memory]") {
         file.readAll(expected.get());
 
         const size4_t output_shape = indexing::reorder(shape, permutation);
-        const size4_t output_stride = output_shape.stride();
+        const size4_t output_stride = output_shape.strides();
 
         if (inplace) {
             cpu::memory::permute<float>(data.share(), stride, shape,

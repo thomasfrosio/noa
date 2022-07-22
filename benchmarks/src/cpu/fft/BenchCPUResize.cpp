@@ -15,8 +15,8 @@ namespace {
     void CPU_fft_resize_cropH2H(benchmark::State& state) {
         const size4_t src_shape = {1, 512, 512, 512};
         const size4_t dst_shape = {1, 256, 256, 256};
-        const size4_t src_stride = src_shape.fft().stride();
-        const size4_t dst_stride = dst_shape.fft().stride();
+        const size4_t src_stride = src_shape.fft().strides();
+        const size4_t dst_stride = dst_shape.fft().strides();
 
         cpu::memory::PtrHost<T> src{src_stride[0]};
         cpu::memory::PtrHost<T> dst{dst_stride[0]};
@@ -35,8 +35,8 @@ namespace {
     void CPU_fft_resize_cropF2F(benchmark::State& state) {
         const size4_t src_shape = {1, 512, 512, 512};
         const size4_t dst_shape = {1, 256, 256, 256};
-        const size4_t src_stride = src_shape.stride();
-        const size4_t dst_stride = dst_shape.stride();
+        const size4_t src_stride = src_shape.strides();
+        const size4_t dst_stride = dst_shape.strides();
 
         cpu::memory::PtrHost<T> src{src_stride[0]};
         cpu::memory::PtrHost<T> dst{dst_stride[0]};
@@ -55,8 +55,8 @@ namespace {
     void CPU_fft_resize_padH2H(benchmark::State& state) {
         const size4_t src_shape = {1, 256, 256, 256};
         const size4_t dst_shape = {1, 512, 512, 512};
-        const size4_t src_stride = src_shape.fft().stride();
-        const size4_t dst_stride = dst_shape.fft().stride();
+        const size4_t src_stride = src_shape.fft().strides();
+        const size4_t dst_stride = dst_shape.fft().strides();
 
         cpu::memory::PtrHost<T> src{src_stride[0]};
         cpu::memory::PtrHost<T> dst{dst_stride[0]};
@@ -75,8 +75,8 @@ namespace {
     void CPU_fft_resize_padF2F(benchmark::State& state) {
         const size4_t src_shape = {1, 256, 256, 256};
         const size4_t dst_shape = {1, 512, 512, 512};
-        const size4_t src_stride = src_shape.stride();
-        const size4_t dst_stride = dst_shape.stride();
+        const size4_t src_stride = src_shape.strides();
+        const size4_t dst_stride = dst_shape.strides();
 
         cpu::memory::PtrHost<T> src{src_stride[0]};
         cpu::memory::PtrHost<T> dst{dst_stride[0]};
@@ -119,7 +119,7 @@ namespace {
     template<typename T>
     void CPU_fft_resize_copyH2H_trigger(benchmark::State& state) {
         const size4_t shape = {1, 256, 256, 256};
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
 
         cpu::memory::PtrHost<T> src{stride[0]};
         cpu::memory::PtrHost<T> dst{stride[0]};
@@ -137,7 +137,7 @@ namespace {
     template<typename T>
     void CPU_fft_resize_copyH2H(benchmark::State& state) {
         const size4_t shape = {1, 256, 256, 256};
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
 
         cpu::memory::PtrHost<T> src{stride[0]};
         cpu::memory::PtrHost<T> dst{stride[0]};
@@ -155,7 +155,7 @@ namespace {
     template<typename T>
     void CPU_fft_resize_copyF2F_trigger(benchmark::State& state) {
         const size4_t shape = {1, 256, 256, 256};
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
 
         cpu::memory::PtrHost<T> src{stride[0]};
         cpu::memory::PtrHost<T> dst{stride[0]};
@@ -173,7 +173,7 @@ namespace {
     template<typename T>
     void CPU_fft_resize_copyF2F(benchmark::State& state) {
         const size4_t shape = {1, 256, 256, 256};
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
 
         cpu::memory::PtrHost<T> src{stride[0]};
         cpu::memory::PtrHost<T> dst{stride[0]};

@@ -35,7 +35,7 @@ namespace noa {
         NOA_HD constexpr Int2(X x, Y y) noexcept
                 : m_data{static_cast<T>(x), static_cast<T>(y)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Int2(U x) noexcept
                 : m_data{static_cast<T>(x), static_cast<T>(x)} {}
 
@@ -50,7 +50,7 @@ namespace noa {
         NOA_HD constexpr explicit Int2(Float2<U> v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Int2(const U* ptr) noexcept
                 : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1])} {}
 
@@ -114,146 +114,146 @@ namespace noa {
 
     public: // Non-member functions
         // -- Unary operators --
-        friend NOA_HD constexpr Int2 operator+(Int2 v) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator+(Int2 v) noexcept {
             return v;
         }
 
-        friend NOA_HD constexpr Int2 operator-(Int2 v) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator-(Int2 v) noexcept {
             return {-v[0], -v[1]};
         }
 
         // -- Binary Arithmetic Operators --
-        friend NOA_HD constexpr Int2 operator+(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator+(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] + rhs[0], lhs[1] + rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator+(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator+(T lhs, Int2 rhs) noexcept {
             return {lhs + rhs[0], lhs + rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator+(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator+(Int2 lhs, T rhs) noexcept {
             return {lhs[0] + rhs, lhs[1] + rhs};
         }
 
-        friend NOA_HD constexpr Int2 operator-(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator-(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] - rhs[0], lhs[1] - rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator-(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator-(T lhs, Int2 rhs) noexcept {
             return {lhs - rhs[0], lhs - rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator-(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator-(Int2 lhs, T rhs) noexcept {
             return {lhs[0] - rhs, lhs[1] - rhs};
         }
 
-        friend NOA_HD constexpr Int2 operator*(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator*(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] * rhs[0], lhs[1] * rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator*(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator*(T lhs, Int2 rhs) noexcept {
             return {lhs * rhs[0], lhs * rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator*(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator*(Int2 lhs, T rhs) noexcept {
             return {lhs[0] * rhs, lhs[1] * rhs};
         }
 
-        friend NOA_HD constexpr Int2 operator/(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator/(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] / rhs[0], lhs[1] / rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator/(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator/(T lhs, Int2 rhs) noexcept {
             return {lhs / rhs[0], lhs / rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator/(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator/(Int2 lhs, T rhs) noexcept {
             return {lhs[0] / rhs, lhs[1] / rhs};
         }
 
         // -- Comparison Operators --
-        friend NOA_HD constexpr Bool2 operator>(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] > rhs[0], lhs[1] > rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator>(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>(Int2 lhs, T rhs) noexcept {
             return {lhs[0] > rhs, lhs[1] > rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator>(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>(T lhs, Int2 rhs) noexcept {
             return {lhs > rhs[0], lhs > rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] < rhs[0], lhs[1] < rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<(Int2 lhs, T rhs) noexcept {
             return {lhs[0] < rhs, lhs[1] < rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator<(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<(T lhs, Int2 rhs) noexcept {
             return {lhs < rhs[0], lhs < rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator>=(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>=(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] >= rhs[0], lhs[1] >= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator>=(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>=(Int2 lhs, T rhs) noexcept {
             return {lhs[0] >= rhs, lhs[1] >= rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator>=(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>=(T lhs, Int2 rhs) noexcept {
             return {lhs >= rhs[0], lhs >= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<=(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<=(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] <= rhs[0], lhs[1] <= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<=(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<=(Int2 lhs, T rhs) noexcept {
             return {lhs[0] <= rhs, lhs[1] <= rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator<=(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<=(T lhs, Int2 rhs) noexcept {
             return {lhs <= rhs[0], lhs <= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator==(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator==(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] == rhs[0], lhs[1] == rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator==(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator==(Int2 lhs, T rhs) noexcept {
             return {lhs[0] == rhs, lhs[1] == rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator==(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator==(T lhs, Int2 rhs) noexcept {
             return {lhs == rhs[0], lhs == rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator!=(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator!=(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] != rhs[0], lhs[1] != rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator!=(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator!=(Int2 lhs, T rhs) noexcept {
             return {lhs[0] != rhs, lhs[1] != rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator!=(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator!=(T lhs, Int2 rhs) noexcept {
             return {lhs != rhs[0], lhs != rhs[1]};
         }
 
         // -- Other Operators --
-        friend NOA_HD constexpr Int2 operator%(Int2 lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator%(Int2 lhs, Int2 rhs) noexcept {
             return {lhs[0] % rhs[0], lhs[1] % rhs[1]};
         }
 
-        friend NOA_HD constexpr Int2 operator%(Int2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator%(Int2 lhs, T rhs) noexcept {
             return {lhs[0] % rhs, lhs[1] % rhs};
         }
 
-        friend NOA_HD constexpr Int2 operator%(T lhs, Int2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Int2 operator%(T lhs, Int2 rhs) noexcept {
             return {lhs % rhs[0], lhs % rhs[1]};
         }
 
@@ -261,13 +261,13 @@ namespace noa {
         static constexpr size_t COUNT = 2;
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr T& operator[](I i) noexcept {
+        [[nodiscard]] NOA_HD constexpr T& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr const T& operator[](I i) const noexcept {
+        [[nodiscard]] NOA_HD constexpr const T& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
@@ -329,78 +329,74 @@ namespace noa {
             return {m_data[0], m_data[1] / 2 + 1};
         }
 
-        [[nodiscard]] NOA_HD constexpr Int2 stride() const noexcept { // deprecated
-            return {m_data[1], 1};
-        }
-
     private:
-        static_assert(noa::traits::is_int_v<T> && !noa::traits::is_bool_v<T>);
+        static_assert(traits::is_int_v<T> && !traits::is_bool_v<T>);
         T m_data[2]{};
     };
 
     namespace math {
         template<typename T>
-        NOA_FHD constexpr T sum(Int2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T sum(Int2<T> v) noexcept {
             return v[0] + v[1];
         }
 
         template<typename T>
-        NOA_FHD constexpr T prod(Int2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T prod(Int2<T> v) noexcept {
             return v[0] * v[1];
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> abs(Int2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> abs(Int2<T> v) noexcept {
             return {abs(v[0]), abs(v[1])};
         }
 
         template<typename T>
-        NOA_FHD constexpr T min(Int2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T min(Int2<T> v) noexcept {
             return min(v[0], v[1]);
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> min(Int2<T> lhs, Int2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> min(Int2<T> lhs, Int2<T> rhs) noexcept {
             return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1])};
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> min(Int2<T> lhs, T rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> min(Int2<T> lhs, T rhs) noexcept {
             return {min(lhs[0], rhs), min(lhs[1], rhs)};
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> min(T lhs, Int2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> min(T lhs, Int2<T> rhs) noexcept {
             return {min(lhs, rhs[0]), min(lhs, rhs[1])};
         }
 
         template<typename T>
-        NOA_FHD constexpr T max(Int2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T max(Int2<T> v) noexcept {
             return max(v[0], v[1]);
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> max(Int2<T> lhs, Int2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> max(Int2<T> lhs, Int2<T> rhs) noexcept {
             return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1])};
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> max(Int2<T> lhs, T rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> max(Int2<T> lhs, T rhs) noexcept {
             return {max(lhs[0], rhs), max(lhs[1], rhs)};
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> max(T lhs, Int2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> max(T lhs, Int2<T> rhs) noexcept {
             return {max(lhs, rhs[0]), max(lhs, rhs[1])};
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, Int2<T> low, Int2<T> high) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, Int2<T> low, Int2<T> high) noexcept {
             return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1])};
         }
 
         template<typename T>
-        NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, T low, T high) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, T low, T high) noexcept {
             return {clamp(lhs[0], low, high), clamp(lhs[1], low, high)};
         }
     }
@@ -415,37 +411,36 @@ namespace noa {
         template<typename>
         struct p_is_int2 : std::false_type {};
         template<typename T>
-        struct p_is_int2<noa::Int2<T>> : std::true_type {};
-        template<typename T> using is_int2 = std::bool_constant<p_is_int2<noa::traits::remove_ref_cv_t<T>>::value>;
+        struct p_is_int2<Int2<T>> : std::true_type {};
+        template<typename T> using is_int2 = std::bool_constant<p_is_int2<remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_int2_v = is_int2<T>::value;
 
         template<typename>
         struct p_is_uint2 : std::false_type {};
         template<typename T>
-        struct p_is_uint2<noa::Int2<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
-        template<typename T> using is_uint2 = std::bool_constant<p_is_uint2<noa::traits::remove_ref_cv_t<T>>::value>;
+        struct p_is_uint2<Int2<T>> : std::bool_constant<is_uint_v<T>> {};
+        template<typename T> using is_uint2 = std::bool_constant<p_is_uint2<remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_uint2_v = is_uint2<T>::value;
 
         template<typename T>
-        struct proclaim_is_intX<noa::Int2<T>> : std::true_type {};
+        struct proclaim_is_intX<Int2<T>> : std::true_type {};
         template<typename T>
-        struct proclaim_is_uintX<noa::Int2<T>> : std::bool_constant<noa::traits::is_uint_v<T>> {};
+        struct proclaim_is_uintX<Int2<T>> : std::bool_constant<is_uint_v<T>> {};
     }
 
-
     template<typename T>
-    NOA_IH constexpr std::array<T, 2> toArray(Int2<T> v) noexcept {
+    [[nodiscard]] NOA_IH constexpr std::array<T, 2> toArray(Int2<T> v) noexcept {
         return {v[0], v[1]};
     }
 
     template<>
-    NOA_IH std::string string::human<int2_t>() { return "int2"; }
+    [[nodiscard]] NOA_IH std::string string::human<int2_t>() { return "int2"; }
     template<>
-    NOA_IH std::string string::human<uint2_t>() { return "uint2"; }
+    [[nodiscard]] NOA_IH std::string string::human<uint2_t>() { return "uint2"; }
     template<>
-    NOA_IH std::string string::human<long2_t>() { return "long2"; }
+    [[nodiscard]] NOA_IH std::string string::human<long2_t>() { return "long2"; }
     template<>
-    NOA_IH std::string string::human<ulong2_t>() { return "ulong2"; }
+    [[nodiscard]] NOA_IH std::string string::human<ulong2_t>() { return "ulong2"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Int2<T> v) {

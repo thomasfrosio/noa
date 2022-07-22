@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
         cpu::memory::PtrHost<TestType> results(elements);
         cpu::memory::PtrHost<TestType> expected(elements);
 
-        cpu::memory::arange(results.share(), shape.stride(), shape, TestType(3), TestType(5), stream);
+        cpu::memory::arange(results.share(), shape.strides(), shape, TestType(3), TestType(5), stream);
         TestType v = 3;
         for (size_t i = 0; i < elements; ++i, v += TestType(5))
             expected[i] = v;
@@ -66,7 +66,7 @@ TEST_CASE("cpu::memory::linspace()", "[noa][cpu][memory]") {
         cpu::memory::PtrHost<double> results(elements);
         cpu::memory::PtrHost<double> expected(elements);
         cpu::memory::linspace(expected.share(), elements, 0., 5., false, stream);
-        cpu::memory::linspace(results.share(), shape.stride(), shape, 0., 5., false, stream);
+        cpu::memory::linspace(results.share(), shape.strides(), shape, 0., 5., false, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.data(), elements, 1e-7));
     }
 

@@ -12,7 +12,7 @@
 namespace noa::geometry::bspline {
     template<typename T, typename>
     void prefilter(const Array<T>& input, const Array<T>& output) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -27,13 +27,13 @@ namespace noa::geometry::bspline {
         if (device.cpu()) {
             cpu::geometry::bspline::prefilter(
                     input.share(), input_stride,
-                    output.share(), output.stride(),
+                    output.share(), output.strides(),
                     output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::geometry::bspline::prefilter(
                     input.share(), input_stride,
-                    output.share(), output.stride(),
+                    output.share(), output.strides(),
                     output.shape(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

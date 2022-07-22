@@ -51,7 +51,7 @@ namespace {
     void extractStride4D_(const T* input, uint4_t stride, uint4_t shape,
                           const uint* __restrict__ map, const uint* __restrict__ map_scan,
                           T* __restrict__ sequence_elements, I* __restrict__ sequence_offsets, uint blocks_x) {
-        const uint4_t contiguous_stride = shape.stride();
+        const uint4_t contiguous_stride = shape.strides();
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,
@@ -227,7 +227,7 @@ namespace noa::cuda::memory {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.stride();
+        const size4_t contiguous_stride = shape.strides();
         const size_t elements = shape.elements();
         PtrDevice<uint> map{elements, stream};
         util::ewise::unary<true>("memory::extract",
@@ -265,7 +265,7 @@ namespace noa::cuda::memory {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.stride();
+        const size4_t contiguous_stride = shape.strides();
         const size_t elements = shape.elements();
         PtrDevice<uint> map{elements, stream};
         util::ewise::binary<true>("memory::extract",
@@ -286,7 +286,7 @@ namespace noa::cuda::memory {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.stride();
+        const size4_t contiguous_stride = shape.strides();
         const size_t elements = shape.elements();
         PtrDevice<uint> map{elements, stream};
         util::ewise::binary<true>("memory::extract",
@@ -308,7 +308,7 @@ namespace noa::cuda::memory {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.stride();
+        const size4_t contiguous_stride = shape.strides();
         const size_t elements = shape.elements();
         PtrDevice<uint> map{elements, stream};
         util::ewise::binary<true>("memory::extract",

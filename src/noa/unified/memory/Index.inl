@@ -26,13 +26,13 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(origins.dereferencable(), "The origins should be accessible to the CPU");
-            cpu::memory::extract<T>(input.share(), input.stride(), input.shape(),
-                                    subregions.share(), subregions.stride(), subregions.shape(),
+            cpu::memory::extract<T>(input.share(), input.strides(), input.shape(),
+                                    subregions.share(), subregions.strides(), subregions.shape(),
                                     origins.share(), border_mode, border_value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::extract<T>(input.share(), input.stride(), input.shape(),
-                                     subregions.share(), subregions.stride(), subregions.shape(),
+            cuda::memory::extract<T>(input.share(), input.strides(), input.shape(),
+                                     subregions.share(), subregions.strides(), subregions.shape(),
                                      origins.share(), border_mode, border_value, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -54,13 +54,13 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(origins.dereferencable(), "The origins should be accessible to the CPU");
-            cpu::memory::insert<T>(subregions.share(), subregions.stride(), subregions.shape(),
-                                   output.share(), output.stride(), output.shape(),
+            cpu::memory::insert<T>(subregions.share(), subregions.strides(), subregions.shape(),
+                                   output.share(), output.strides(), output.shape(),
                                    origins.share(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::insert<T>(subregions.share(), subregions.stride(), subregions.shape(),
-                                    output.share(), output.stride(), output.shape(),
+            cuda::memory::insert<T>(subregions.share(), subregions.strides(), subregions.shape(),
+                                    output.share(), output.strides(), output.shape(),
                                     origins.share(), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -89,7 +89,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
-                    input.share(), input.stride(), lhs.share(), lhs.stride(), input.shape(),
+                    input.share(), input.strides(), lhs.share(), lhs.strides(), input.shape(),
                     unary_op, extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device}};
             out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device}};
@@ -97,7 +97,7 @@ namespace noa::memory {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_unary_v<T, U, value_t, offset_t, UnaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
-                        input.share(), input.stride(), lhs.share(), lhs.stride(), input.shape(),
+                        input.share(), input.strides(), lhs.share(), lhs.strides(), input.shape(),
                         unary_op, extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
@@ -128,7 +128,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
-                    input.share(), input.stride(), lhs.share(), lhs.stride(), rhs, lhs.shape(),
+                    input.share(), input.strides(), lhs.share(), lhs.strides(), rhs, lhs.shape(),
                     binary_op, extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
             out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
@@ -136,7 +136,7 @@ namespace noa::memory {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, offset_t, BinaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
-                        input.share(), input.stride(), lhs.share(), lhs.stride(), static_cast<T>(rhs), lhs.shape(),
+                        input.share(), input.strides(), lhs.share(), lhs.strides(), static_cast<T>(rhs), lhs.shape(),
                         binary_op, extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
@@ -167,7 +167,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
-                    input.share(), input.stride(), lhs, rhs.share(), rhs.stride(), rhs.shape(),
+                    input.share(), input.strides(), lhs, rhs.share(), rhs.strides(), rhs.shape(),
                     binary_op, extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
             out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
@@ -175,7 +175,7 @@ namespace noa::memory {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, offset_t, BinaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
-                        input.share(), input.stride(), static_cast<T>(lhs), rhs.share(), rhs.stride(), rhs.shape(),
+                        input.share(), input.strides(), static_cast<T>(lhs), rhs.share(), rhs.strides(), rhs.shape(),
                         binary_op, extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};
@@ -206,8 +206,8 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
-                    input.share(), input.stride(), lhs.share(), lhs.stride(),
-                    rhs.share(), rhs.stride(), rhs.shape(), binary_op,
+                    input.share(), input.strides(), lhs.share(), lhs.strides(),
+                    rhs.share(), rhs.strides(), rhs.shape(), binary_op,
                     extract_values, extract_offsets, stream.cpu());
             out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
             out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
@@ -215,8 +215,8 @@ namespace noa::memory {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, V, value_t, offset_t, BinaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
-                        input.share(), input.stride(), lhs.share(), lhs.stride(),
-                        rhs.share(), rhs.stride(), rhs.shape(), binary_op,
+                        input.share(), input.strides(), lhs.share(), lhs.strides(),
+                        rhs.share(), rhs.strides(), rhs.shape(), binary_op,
                         extract_values, extract_offsets, stream.cuda());
                 const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
                 out.values = Array<value_t>{extracted.values, extracted.count, option};

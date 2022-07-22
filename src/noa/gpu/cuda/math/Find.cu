@@ -55,7 +55,7 @@ namespace noa::cuda::math {
     offset_t find(noa::math::min_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
         offset_t offset;
         const uint4_t shape_{1, 1, 1, elements};
-        util::find<true>("math::find(min_t)", input.get(), shape_.stride(), shape_, noa::math::copy_t{},
+        util::find<true>("math::find(min_t)", input.get(), shape_.strides(), shape_, noa::math::copy_t{},
                          FindFirstMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, stream);
         stream.synchronize();
         return offset;
@@ -87,7 +87,7 @@ namespace noa::cuda::math {
     offset_t find(noa::math::max_t, const shared_t<T[]>& input, size_t elements, Stream& stream) {
         offset_t offset;
         const uint4_t shape_{1, 1, 1, elements};
-        util::find<true>("math::find(max_t)", input.get(), shape_.stride(), shape_, noa::math::copy_t{},
+        util::find<true>("math::find(max_t)", input.get(), shape_.strides(), shape_, noa::math::copy_t{},
                          FindFirstMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, stream);
         stream.synchronize();
         return offset;

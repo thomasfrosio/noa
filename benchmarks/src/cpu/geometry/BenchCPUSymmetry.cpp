@@ -23,7 +23,7 @@ namespace {
     template<typename T>
     void CPU_geometry_symmetrize3D(benchmark::State& state) {
         const size4_t shape{1, 256, 256, 256};
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         const float3_t center = float3_t{shape.get() + 1} / 2;
 
@@ -46,7 +46,7 @@ namespace {
     template<typename T>
     void CPU_geometry_symmetrize3D_normalize(benchmark::State& state) {
         const size4_t shape{1, 256, 256, 256};
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         const float3_t center = float3_t{shape.get() + 1} / 2;
 

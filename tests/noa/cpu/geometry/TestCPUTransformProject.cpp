@@ -16,18 +16,18 @@
 using namespace ::noa;
 
 namespace {
-    void transform3DProject_(const float* input, size4_t input_stride, size4_t input_shape,
-                             float* output, size4_t output_stride, size4_t output_shape,
+    void transform3DProject_(const float* input, size4_t input_strides, size4_t input_shape,
+                             float* output, size4_t output_strides, size4_t output_shape,
                              float44_t fwd_matrix, float* mask) {
-        cpu::memory::set(output, output_stride, output_shape, 0.f);
+        cpu::memory::set(output, output_strides, output_shape, 0.f);
         cpu::memory::set(mask, 257*257*257, 0.f);
 
         const auto inv_matrix = math::inverse(fwd_matrix);
 
         // Broadcast the input if it is not batched.
-        const size3_t stride{0, input_stride[2], input_stride[3]};
+        const size3_t strides{0, input_strides[2], input_strides[3]};
         const size3_t shape{1, input_shape[2], input_shape[3]};
-        const cpu::geometry::Interpolator3D<float> interp(input, stride, shape, 0.f);
+        const cpu::geometry::Interpolator3D<float> interp(input, strides, shape, 0.f);
 
         // Check YX range in output to not go through pixels that are OOB.
 
@@ -50,14 +50,14 @@ namespace {
                                                   math::floor(output_coords[1]),
                                                   math::floor(output_coords[2])};
 
-                        mask[indexing::at(0, output_idx[0]+128, output_idx[1], output_idx[2], output_stride)] += 1;
+                        mask[indexing::at(0, output_idx[0]+128, output_idx[1], output_idx[2], output_strides)] += 1;
 
                         // Apply inverse transform on the ZYX output index.
                         const float3_t input_coords =
                                 inv_matrix_ * float4_t{output_idx[0], output_idx[1], output_idx[2], 1.f};
 
                         // Add the interpolated value at output index 0YZ
-                        output[indexing::at(0, 0, output_idx[1], output_idx[2], output_stride)] +=
+                        output[indexing::at(0, 0, output_idx[1], output_idx[2], output_strides)] +=
                                 interp.get<INTERP_LINEAR, BORDER_ZERO>(input_coords);
                     }
 
@@ -69,7 +69,7 @@ namespace {
 
 TEST_CASE("cpu::geometry::transform3D(), project2", "[.]") {
     const size4_t shape{1, 1, 257, 257};
-    const size4_t stride = shape.stride();
+    const size4_t strides = shape.strides();
     const size_t elements = shape.elements();
 
     const float3_t center{size3_t{shape.get() + 1} / 2};
@@ -82,14 +82,14 @@ TEST_CASE("cpu::geometry::transform3D(), project2", "[.]") {
 
     cpu::memory::PtrHost<float> input{elements};
     cpu::memory::PtrHost<float> output{elements};
-    cpu::memory::arange(input.get(), stride, shape, 0.f, 1.f);
+    cpu::memory::arange(input.get(), strides, shape, 0.f, 1.f);
 
     io::ImageFile file{test::NOA_DATA_PATH / "geometry" / "test_xform_project2_input.mrc", io::WRITE};
     file.shape(shape);
     file.writeAll(input.get());
 
     cpu::memory::PtrHost<float> mask{elements * 257};
-    transform3DProject_(input.get(), stride, shape, output.get(), stride, shape, matrix, mask.get());
+    transform3DProject_(input.get(), strides, shape, output.get(), strides, shape, matrix, mask.get());
 
     file.open(test::NOA_DATA_PATH / "geometry" / "test_xform_project2_output.mrc", io::WRITE);
     file.shape(shape);
@@ -102,7 +102,7 @@ TEST_CASE("cpu::geometry::transform3D(), project2", "[.]") {
 
 TEST_CASE("cpu::geometry::transform3D(), project", "[.]") {
     const size4_t shape{1, 257, 257, 257};
-    const size4_t stride = shape.stride();
+    const size4_t strides = shape.strides();
     const size_t elements = shape.elements();
 
     const float3_t center{size3_t{shape.get() + 1} / 2};
@@ -116,22 +116,22 @@ TEST_CASE("cpu::geometry::transform3D(), project", "[.]") {
 
     cpu::memory::PtrHost<float> input{elements};
     cpu::memory::PtrHost<float> output{elements};
-    cpu::memory::set(input.share(), stride, shape, 0.f, stream);
-    cpu::memory::set(output.share(), stride, shape, 0.f, stream);
-    cpu::memory::set(input.get() + 128 * stride[1], stride, size4_t{1, 1, 257, 257}, 1.f);
+    cpu::memory::set(input.share(), strides, shape, 0.f, stream);
+    cpu::memory::set(output.share(), strides, shape, 0.f, stream);
+    cpu::memory::set(input.get() + 128 * strides[1], strides, size4_t{1, 1, 257, 257}, 1.f);
 
     io::ImageFile file{test::NOA_DATA_PATH / "geometry" / "test_xform_project_input.mrc", io::WRITE};
     file.shape(shape);
     file.writeAll(input.get());
 
-    cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+    cpu::geometry::transform3D(input.share(), strides, shape, output.share(), strides, shape,
                                matrix, INTERP_LINEAR, BORDER_ZERO, 0.f, stream);
 
     file.open(test::NOA_DATA_PATH / "geometry" / "test_xform_project_output.mrc", io::WRITE);
     file.shape(shape);
     file.writeAll(output.get());
 
-    cpu::math::sum(output.share(), stride, shape, input.share(), stride, {1, 1, 257, 257}, stream);
+    cpu::math::sum(output.share(), strides, shape, input.share(), strides, {1, 1, 257, 257}, stream);
     file.open(test::NOA_DATA_PATH / "geometry" / "test_xform_project_output_sum.mrc", io::WRITE);
     file.shape({1, 1, 257, 257});
     file.writeAll(input.get());

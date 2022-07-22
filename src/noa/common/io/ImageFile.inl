@@ -149,26 +149,6 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::readLine(T* output, size_t start, size_t end, bool clamp) {
-        try {
-            if (m_header)
-                m_header->readLine(output, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
-    }
-
-    template<typename T>
-    inline void ImageFile::readShape(T* output, size4_t offset, size4_t shape, bool clamp) {
-        try {
-            if (m_header)
-                m_header->readShape(output, getDataType<T>(), offset, shape, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
-    }
-
-    template<typename T>
     inline void ImageFile::readSlice(T* output, size_t start, size_t end, bool clamp) {
         try {
             if (m_header)
@@ -193,26 +173,6 @@ namespace noa::io {
         try {
             if (m_header)
                 m_header->write(input, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
-    }
-
-    template<typename T>
-    inline void ImageFile::writeLine(const T* input, size_t start, size_t end, bool clamp) {
-        try {
-            if (m_header)
-                m_header->writeLine(input, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
-    }
-
-    template<typename T>
-    inline void ImageFile::writeShape(const T* input, size4_t offset, size4_t shape, bool clamp) {
-        try {
-            if (m_header)
-                m_header->writeShape(input, getDataType<T>(), offset, shape, clamp);
         } catch (...) {
             NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
         }

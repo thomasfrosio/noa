@@ -14,8 +14,8 @@ using namespace ::noa;
 TEST_CASE("cpu::geometry::fft::insert3D", "[.]") {
     const size4_t slices_shape{1, 1, 512, 512};
     const size4_t grid_shape{1, 512, 512, 512};
-    const size4_t slices_stride = slices_shape.fft().stride();
-    const size4_t grid_stride = grid_shape.fft().stride();
+    const size4_t slices_stride = slices_shape.fft().strides();
+    const size4_t grid_stride = grid_shape.fft().strides();
 
     cpu::memory::PtrHost<float> slices(slices_shape.fft().elements());
     cpu::memory::PtrHost<float> grid(grid_shape.fft().elements());

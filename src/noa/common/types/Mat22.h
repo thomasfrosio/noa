@@ -48,13 +48,13 @@ namespace noa {
         static constexpr size_t COLS = 2;
         static constexpr size_t COUNT = ROWS * COLS;
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr Float2<T>& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
         }
 
-        template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         NOA_HD constexpr const Float2<T>& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
@@ -68,7 +68,7 @@ namespace noa {
         constexpr Mat22(Mat22&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat22(U s) noexcept
                 : m_row{Float2<T>(s, 0),
                         Float2<T>(0, s)} {}
@@ -100,7 +100,7 @@ namespace noa {
                 : m_row{Float2<T>(x00, x01),
                         Float2<T>(y10, y11)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat22(U* ptr) noexcept
                 : m_row{Float2<T>(ptr[0], ptr[1]),
                         Float2<T>(ptr[2], ptr[3])} {}
@@ -183,94 +183,94 @@ namespace noa {
 
     public: // Non-member functions
         // -- Unary operators --
-        friend NOA_HD constexpr Mat22 operator+(Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator+(Mat22 m) noexcept {
             return m;
         }
 
-        friend NOA_HD constexpr Mat22 operator-(Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator-(Mat22 m) noexcept {
             return Mat22(-m[0], -m[1]);
         }
 
         // -- Binary arithmetic operators --
-        friend NOA_HD constexpr Mat22 operator+(Mat22 m1, Mat22 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator+(Mat22 m1, Mat22 m2) noexcept {
             return Mat22(m1[0] + m2[0], m1[1] + m2[1]);
         }
 
-        friend NOA_HD constexpr Mat22 operator+(T s, Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator+(T s, Mat22 m) noexcept {
             return Mat22(s + m[0], s + m[1]);
         }
 
-        friend NOA_HD constexpr Mat22 operator+(Mat22 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator+(Mat22 m, T s) noexcept {
             return Mat22(m[0] + s, m[1] + s);
         }
 
-        friend NOA_HD constexpr Mat22 operator-(Mat22 m1, Mat22 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator-(Mat22 m1, Mat22 m2) noexcept {
             return Mat22(m1[0] - m2[0], m1[1] - m2[1]);
         }
 
-        friend NOA_HD constexpr Mat22 operator-(T s, Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator-(T s, Mat22 m) noexcept {
             return Mat22(s - m[0], s - m[1]);
         }
 
-        friend NOA_HD constexpr Mat22 operator-(Mat22 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator-(Mat22 m, T s) noexcept {
             return Mat22(m[0] - s, m[1] - s);
         }
 
-        friend NOA_HD constexpr Mat22 operator*(Mat22 m1, Mat22 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator*(Mat22 m1, Mat22 m2) noexcept {
             Mat22 out(m1);
             out *= m2;
             return out;
         }
 
-        friend NOA_HD constexpr Mat22 operator*(T s, Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator*(T s, Mat22 m) noexcept {
             return Mat22(m[0] * s,
                          m[1] * s);
         }
 
-        friend NOA_HD constexpr Mat22 operator*(Mat22 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator*(Mat22 m, T s) noexcept {
             return Mat22(m[0] * s,
                          m[1] * s);
         }
 
-        friend NOA_HD constexpr Float2<T> operator*(Mat22 m, Float2<T> column) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2<T> operator*(Mat22 m, Float2<T> column) noexcept {
             return Float2<T>(math::dot(m[0], column),
                              math::dot(m[1], column));
         }
 
-        friend NOA_HD constexpr Float2<T> operator*(Float2<T> row, Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2<T> operator*(Float2<T> row, Mat22 m) noexcept {
             return Float2<T>(math::dot(Float2<T>(m[0][0], m[1][0]), row),
                              math::dot(Float2<T>(m[0][1], m[1][1]), row));
         }
 
-        friend NOA_HD constexpr Mat22 operator/(Mat22 m1, Mat22 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator/(Mat22 m1, Mat22 m2) noexcept {
             Mat22 out(m1);
             out /= m2;
             return out;
         }
 
-        friend NOA_HD constexpr Mat22 operator/(T s, Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator/(T s, Mat22 m) noexcept {
             return Mat22(s / m[0],
                          s / m[1]);
         }
 
-        friend NOA_HD constexpr Mat22 operator/(Mat22 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat22 operator/(Mat22 m, T s) noexcept {
             return Mat22(m[0] / s,
                          m[1] / s);
         }
 
-        friend NOA_HD constexpr Float2<T> operator/(Mat22 m, Float2<T> column) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2<T> operator/(Mat22 m, Float2<T> column) noexcept {
             return math::inverse(m) * column;
         }
 
-        friend NOA_HD constexpr Float2<T> operator/(Float2<T> row, Mat22 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2<T> operator/(Float2<T> row, Mat22 m) noexcept {
             return row * math::inverse(m);
         }
 
-        friend NOA_HD constexpr bool operator==(Mat22 m1, Mat22 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(Mat22 m1, Mat22 m2) noexcept {
             return all(m1[0] == m2[0]) && all(m1[1] == m2[1]);
         }
 
-        friend NOA_HD constexpr bool operator!=(Mat22 m1, Mat22 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Mat22 m1, Mat22 m2) noexcept {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]);
         }
 
@@ -289,7 +289,7 @@ namespace noa {
     namespace math {
         /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
         template<typename T>
-        NOA_IHD constexpr Mat22<T> elementMultiply(const Mat22<T>& m1, const Mat22<T>& m2) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat22<T> elementMultiply(const Mat22<T>& m1, const Mat22<T>& m2) noexcept {
             Mat22<T> out;
             for (size_t i = 0; i < Mat22<T>::ROWS; ++i)
                 out[i] = m1[i] * m2[i];
@@ -299,24 +299,24 @@ namespace noa {
         /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
-        NOA_IHD constexpr Mat22<T> outerProduct(Float2<T> column, Float2<T> row) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat22<T> outerProduct(Float2<T> column, Float2<T> row) noexcept {
             return Mat22<T>(column[0] * row[0], column[0] * row[1],
                             column[1] * row[0], column[1] * row[1]);
         }
 
         template<typename T>
-        NOA_IHD constexpr Mat22<T> transpose(Mat22<T> m) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat22<T> transpose(Mat22<T> m) noexcept {
             return Mat22<T>(m[0][0], m[1][0],
                             m[0][1], m[1][1]);
         }
 
         template<typename T>
-        NOA_IHD constexpr T determinant(Mat22<T> m) noexcept {
+        [[nodiscard]] NOA_IHD constexpr T determinant(Mat22<T> m) noexcept {
             return m[0][0] * m[1][1] - m[0][1] * m[1][0];
         }
 
         template<typename T>
-        NOA_IHD constexpr Mat22<T> inverse(Mat22<T> m) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat22<T> inverse(Mat22<T> m) noexcept {
             T det = determinant(m);
             NOA_ASSERT(!isEqual(det, static_cast<T>(0))); // non singular
             T one_over_determinant = 1 / det;
@@ -327,7 +327,7 @@ namespace noa {
         }
 
         template<uint ULP = 2, typename T>
-        NOA_IHD constexpr bool isEqual(Mat22<T> m1, Mat22<T> m2, T e = 1e-6f) {
+        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat22<T> m1, Mat22<T> m2, T e = 1e-6f) {
             return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
         }
     }
@@ -336,25 +336,23 @@ namespace noa {
         template<typename>
         struct p_is_float22 : std::false_type {};
         template<typename T>
-        struct p_is_float22<noa::Mat22<T>> : std::true_type {};
-        template<typename T> using is_float22 = std::bool_constant<p_is_float22<noa::traits::remove_ref_cv_t<T>>::value>;
+        struct p_is_float22<Mat22<T>> : std::true_type {};
+        template<typename T> using is_float22 = std::bool_constant<p_is_float22<traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_float22_v = is_float22<T>::value;
 
         template<typename T>
-        struct proclaim_is_floatXX<noa::Mat22<T>> : std::true_type {};
+        struct proclaim_is_floatXX<Mat22<T>> : std::true_type {};
     }
 
     using float22_t = Mat22<float>;
     using double22_t = Mat22<double>;
 
     template<typename T>
-    NOA_IH constexpr std::array<T, 4> toArray(const Mat22<T>& v) noexcept {
+    [[nodiscard]] NOA_IH constexpr std::array<T, 4> toArray(const Mat22<T>& v) noexcept {
         return {v[0][0], v[0][1],
                 v[1][0], v[1][1]};
     }
 
-    template<>
-    NOA_IH std::string string::human<float22_t>() { return "float22"; }
-    template<>
-    NOA_IH std::string string::human<double22_t>() { return "double22"; }
+    template<> [[nodiscard]] NOA_IH std::string string::human<float22_t>() { return "float22"; }
+    template<> [[nodiscard]] NOA_IH std::string string::human<double22_t>() { return "double22"; }
 }

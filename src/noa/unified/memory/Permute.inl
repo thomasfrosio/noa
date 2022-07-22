@@ -12,7 +12,7 @@
 namespace noa::memory {
     template<typename T, typename>
     void permute(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         size4_t input_shape = input.shape();
         for (size_t i = 0; i < 4; ++i) {
             const size_t d = permutation[i];
@@ -33,12 +33,12 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::memory::permute(input.share(), input_stride, input_shape,
-                                 output.share(), output.stride(),
+                                 output.share(), output.strides(),
                                  permutation, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::memory::permute(input.share(), input_stride, input_shape,
-                                  output.share(), output.stride(),
+                                  output.share(), output.strides(),
                                   permutation, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

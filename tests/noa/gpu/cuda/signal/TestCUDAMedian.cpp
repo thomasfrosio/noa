@@ -31,7 +31,7 @@ TEST_CASE("cuda::signal::median()", "[assets][noa][cuda][filter]") {
 
         file.open(filename_input, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cuda::memory::PtrManaged<float> input(elements, stream);
         file.readAll(input.get());
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("cuda::signal::median(), random", "[noa][cuda][filter]", int,
     size4_t shape = test::getRandomShapeBatched(3);
     if (ndim != 3 && random_size.get() % 2)
         shape[1] = 1; // randomly switch to 2D
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     INFO(string::format("ndim:{}, mode:{}, window:{}, shape:{}", ndim, mode, window, shape));
 
@@ -83,31 +83,31 @@ TEMPLATE_TEST_CASE("cuda::signal::median(), random", "[noa][cuda][filter]", int,
     cuda::memory::PtrDevicePadded<TestType> d_result(shape);
     cpu::memory::PtrHost<TestType> cuda_result(elements);
     cpu::memory::PtrHost<TestType> h_result(elements);
-    cuda::memory::copy<TestType>(data.share(), stride, d_data.share(), d_data.stride(), shape, gpu_stream);
+    cuda::memory::copy<TestType>(data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
     if (ndim == 1) {
-        cuda::signal::median1<TestType>(d_data.share(), d_data.stride(),
-                                        d_result.share(), d_result.stride(),
+        cuda::signal::median1<TestType>(d_data.share(), d_data.strides(),
+                                        d_result.share(), d_result.strides(),
                                         shape, mode, window, gpu_stream);
         cpu::signal::median1<TestType>(data.share(), stride,
                                        h_result.share(), stride,
                                        shape, mode, window, cpu_stream);
     } else if (ndim == 2) {
-        cuda::signal::median2<TestType>(d_data.share(), d_data.stride(),
-                                        d_result.share(), d_result.stride(),
+        cuda::signal::median2<TestType>(d_data.share(), d_data.strides(),
+                                        d_result.share(), d_result.strides(),
                                         shape, mode, window, gpu_stream);
         cpu::signal::median2<TestType>(data.share(), stride,
                                        h_result.share(), stride,
                                        shape, mode, window, cpu_stream);
     } else {
-        cuda::signal::median3<TestType>(d_data.share(), d_data.stride(),
-                                        d_result.share(), d_result.stride(),
+        cuda::signal::median3<TestType>(d_data.share(), d_data.strides(),
+                                        d_result.share(), d_result.strides(),
                                         shape, mode, window, gpu_stream);
         cpu::signal::median3<TestType>(data.share(), stride,
                                        h_result.share(), stride,
                                        shape, mode, window, cpu_stream);
     }
-    cuda::memory::copy<TestType>(d_result.share(), d_result.stride(), cuda_result.share(), stride, shape, gpu_stream);
+    cuda::memory::copy<TestType>(d_result.share(), d_result.strides(), cuda_result.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
 

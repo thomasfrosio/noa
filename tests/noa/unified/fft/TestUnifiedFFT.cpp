@@ -23,7 +23,7 @@ TEMPLATE_TEST_CASE("unified::fft::r2c|c2r", "[noa][unified]", float, double) {
 
         Array image_fft = math::random<complex_t>(math::uniform_t{}, shape.fft(), -50, 50, options);
         Array image = image_fft.template as<real_t>();
-        image = Array{image.share(), shape, image.stride(), options};
+        image = Array{image.share(), shape, image.strides(), options};
 
         Array result = image.copy();
 

@@ -258,7 +258,7 @@ namespace noa::cpu::geometry {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
                     shape[0] = 1;
-                const size4_t stride = shape.stride();
+                const size4_t stride = shape.strides();
                 memory::PtrHost<T> buffer{shape.elements()};
                 bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 launch_(buffer.get(), size3_t{stride[0], stride[2], stride[3]}, ishape_2d,
@@ -293,7 +293,7 @@ namespace noa::cpu::geometry {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
                     shape[0] = 1;
-                const size4_t stride = shape.stride();
+                const size4_t stride = shape.strides();
                 memory::PtrHost<T> buffer{shape.elements()};
                 bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 launch_(buffer.get(), size3_t{stride[0], stride[2], stride[3]}, ishape_2d,
@@ -322,7 +322,7 @@ namespace noa::cpu::geometry {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
                     shape[0] = 1;
-                const size4_t stride = shape.stride();
+                const size4_t stride = shape.strides();
                 memory::PtrHost<T> buffer(shape.elements());
                 bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 launch_(buffer.get(), stride, input_shape, output.get(), output_stride, output_shape,
@@ -350,7 +350,7 @@ namespace noa::cpu::geometry {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
                     shape[0] = 1;
-                const size4_t stride = shape.stride();
+                const size4_t stride = shape.strides();
                 memory::PtrHost<T> buffer(shape.elements());
                 bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 launch_(buffer.get(), stride, input_shape, output.get(), output_stride, output_shape,

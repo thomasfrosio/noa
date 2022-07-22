@@ -185,11 +185,11 @@ TEMPLATE_TEST_CASE("cpu::fft::c2c(), padded", "[noa][cpu][fft]", float, double) 
     test::Randomizer<complex_t> randomizer(-5., 5.);
 
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
 
     const size4_t shape_padded = shape + 10 * size4_t{shape != 1};
-    const size4_t stride_padded = shape_padded.stride();
+    const size4_t stride_padded = shape_padded.strides();
     const size_t elements_padded = shape_padded.elements();
 
     double abs_epsilon;
@@ -244,19 +244,19 @@ TEMPLATE_TEST_CASE("cpu::fft::c2r(), padded", "[noa][cpu][fft]", float, double) 
 
     cpu::Stream stream(cpu::Stream::DEFAULT);
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
 
     const size4_t shape_padded = shape + 10 * size4_t{shape != 1};
-    const size4_t stride_padded = shape_padded.stride();
+    const size4_t stride_padded = shape_padded.strides();
     const size_t elements_padded = shape_padded.elements();
 
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
     const size_t elements_fft = shape_fft.elements();
 
     const size4_t shape_fft_padded = shape_padded.fft();
-    const size4_t stride_fft_padded = shape_fft_padded.stride();
+    const size4_t stride_fft_padded = shape_fft_padded.strides();
     const size_t elements_fft_padded = shape_fft_padded.elements();
 
     AND_THEN("in-place") {
@@ -308,20 +308,20 @@ TEMPLATE_TEST_CASE("cpu::fft::r2c(), padded", "[noa][cpu][fft]", float, double) 
 
     cpu::Stream stream(cpu::Stream::DEFAULT);
     const size4_t shape = test::getRandomShapeBatched(3, true);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     INFO(shape);
 
     const size4_t shape_padded = shape + 10 * size4_t{shape != 1};
-    const size4_t stride_padded = shape_padded.stride();
+    const size4_t stride_padded = shape_padded.strides();
     const size_t elements_padded = shape_padded.elements();
 
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
     const size_t elements_fft = shape_fft.elements();
 
     const size4_t shape_fft_padded = shape_padded.fft();
-    const size4_t stride_fft_padded = shape_fft_padded.stride();
+    const size4_t stride_fft_padded = shape_fft_padded.strides();
     const size_t elements_fft_padded = shape_fft_padded.elements();
 
     AND_THEN("in-place") {

@@ -14,7 +14,7 @@ using namespace ::noa;
 
 TEST_CASE("cpu::geometry::cartesian2polar()", "[noa][cpu][geometry]") {
     const size4_t shape{1,1,256,256};
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
 
     const float2_t center{128,128};
@@ -31,7 +31,7 @@ TEST_CASE("cpu::geometry::cartesian2polar()", "[noa][cpu][geometry]") {
     file.writeAll(cartesian.get());
 
     const size4_t polar_shape{1, 1, 512, 128};
-    const size4_t polar_stride = polar_shape.stride();
+    const size4_t polar_stride = polar_shape.strides();
     const size_t polar_elements = polar_shape.elements();
     cpu::memory::PtrHost<float> polar{polar_elements};
     cpu::geometry::cartesian2polar(cartesian.share(), stride, shape,
@@ -47,11 +47,11 @@ TEST_CASE("cpu::geometry::cartesian2polar()", "[noa][cpu][geometry]") {
 
 TEST_CASE("cpu::geometry::polar2cartesian()", "[noa][cpu][geometry]") {
     const size4_t cartesian_shape{1,1,256,256};
-    const size4_t cartesian_stride = cartesian_shape.stride();
+    const size4_t cartesian_stride = cartesian_shape.strides();
     const size_t cartesian_elements = cartesian_shape.elements();
 
     const size4_t polar_shape{1, 1, 512, 128};
-    const size4_t polar_stride = polar_shape.stride();
+    const size4_t polar_stride = polar_shape.strides();
     const size_t polar_elements = polar_shape.elements();
 
     const float2_t center{100,140};

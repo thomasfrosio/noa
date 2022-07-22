@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cuda::signal::sphere()", "[noa][cuda][filter]", half_t, floa
 
     uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     INFO(shape);
 
@@ -43,12 +43,12 @@ TEMPLATE_TEST_CASE("cuda::signal::sphere()", "[noa][cuda][filter]", half_t, floa
 
     AND_THEN("INVERT = false") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.stride(), shape, gpu_stream);
+        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
         // Test saving the mask.
-        cuda::signal::sphere<false, TestType>(nullptr, {}, d_mask.share(), d_mask.stride(), shape,
+        cuda::signal::sphere<false, TestType>(nullptr, {}, d_mask.share(), d_mask.strides(), shape,
                                               center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_mask.share(), d_mask.stride(),
+        cuda::memory::copy<TestType>(d_mask.share(), d_mask.strides(),
                                      h_cuda_mask.share(), stride,
                                      d_mask.shape(), gpu_stream);
         cpu::signal::sphere<false, TestType>(nullptr, {}, h_mask.share(), stride, shape,
@@ -58,9 +58,9 @@ TEMPLATE_TEST_CASE("cuda::signal::sphere()", "[noa][cuda][filter]", half_t, floa
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, epsilon));
 
         // Test on-the-fly, in-place.
-        cuda::signal::sphere<false, TestType>(d_data.share(), d_data.stride(), d_data.share(), d_data.stride(), shape,
+        cuda::signal::sphere<false, TestType>(d_data.share(), d_data.strides(), d_data.share(), d_data.strides(), shape,
                                               center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_data.share(), d_data.stride(), h_cuda_data.share(), stride, shape, gpu_stream);
+        cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
         cpu::signal::sphere<false, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
                                              center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -70,12 +70,12 @@ TEMPLATE_TEST_CASE("cuda::signal::sphere()", "[noa][cuda][filter]", half_t, floa
 
     AND_THEN("INVERT = true") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.stride(), shape, gpu_stream);
+        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
         // Test saving the mask.
-        cuda::signal::sphere<true, TestType>(nullptr, {}, d_mask.share(), d_mask.stride(), shape,
+        cuda::signal::sphere<true, TestType>(nullptr, {}, d_mask.share(), d_mask.strides(), shape,
                                              center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_mask.share(), d_mask.stride(),
+        cuda::memory::copy<TestType>(d_mask.share(), d_mask.strides(),
                                      h_cuda_mask.share(), stride,
                                      d_mask.shape(), gpu_stream);
         cpu::signal::sphere<true, TestType>(nullptr, {}, h_mask.share(), stride, shape,
@@ -85,9 +85,9 @@ TEMPLATE_TEST_CASE("cuda::signal::sphere()", "[noa][cuda][filter]", half_t, floa
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, epsilon));
 
         // Test on-the-fly, in-place.
-        cuda::signal::sphere<true, TestType>(d_data.share(), d_data.stride(), d_data.share(), d_data.stride(), shape,
+        cuda::signal::sphere<true, TestType>(d_data.share(), d_data.strides(), d_data.share(), d_data.strides(), shape,
                                              center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_data.share(), d_data.stride(), h_cuda_data.share(), stride, shape, gpu_stream);
+        cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
         cpu::signal::sphere<true, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
                                             center, radius, taper, cpu_stream);
         gpu_stream.synchronize();

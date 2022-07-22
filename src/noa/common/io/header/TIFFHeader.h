@@ -33,7 +33,8 @@ namespace noa::io::details {
         void close() override;
 
         [[nodiscard]] size4_t getShape() const noexcept override {
-            return size4_t{m_shape.flip().get()};
+            const uint3_t tmp = m_shape.flip();
+            return size4_t{tmp[0], 1, tmp[1], tmp[2]};
         }
 
         [[nodiscard]] stats_t getStats() const noexcept override {

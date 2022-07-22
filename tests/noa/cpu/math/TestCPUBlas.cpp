@@ -15,19 +15,19 @@ using namespace noa;
 
 namespace {
     template<typename T>
-    void naiveMatmul_(const T* lhs, size4_t lhs_stride,
-                      const T* rhs, size4_t rhs_stride,
-                      T* out, size4_t out_stride,
+    void naiveMatmul_(const T* lhs, size4_t lhs_strides,
+                      const T* rhs, size4_t rhs_strides,
+                      T* out, size4_t out_strides,
                       size4_t bmnk) {
-        std::fill(out, out + out_stride[0] * bmnk[0], T{0});
+        std::fill(out, out + out_strides[0] * bmnk[0], T{0});
 
         for (size_t batch = 0; batch < bmnk[0]; ++batch) {
             for (size_t m = 0; m < bmnk[1]; ++m) {
                 for (size_t n = 0; n < bmnk[2]; ++n) {
                     for (size_t k = 0; k < bmnk[3]; ++k) {
-                        out[indexing::at(batch, 0, m, n, out_stride)] +=
-                                lhs[indexing::at(batch, 0, m, k, lhs_stride)] *
-                                rhs[indexing::at(batch, 0, k, n, rhs_stride)];
+                        out[indexing::at(batch, 0, m, n, out_strides)] +=
+                                lhs[indexing::at(batch, 0, m, k, lhs_strides)] *
+                                rhs[indexing::at(batch, 0, k, n, rhs_strides)];
                     }
                 }
             }
@@ -35,13 +35,13 @@ namespace {
     }
 
     template<typename T>
-    void naiveDot_(const T* lhs, size_t lhs_stride,
-                   const T* rhs, size_t rhs_stride,
+    void naiveDot_(const T* lhs, size_t lhs_strides,
+                   const T* rhs, size_t rhs_strides,
                    size_t n, size_t batches, T* out) {
         for (size_t batch = 0; batch < batches; ++batch) {
             T sum{0};
             for (size_t i = 0; i < n; ++i)
-                sum += lhs[batch * n + i * lhs_stride] * rhs[batch * n +i * rhs_stride];
+                sum += lhs[batch * n + i * lhs_strides] * rhs[batch * n +i * rhs_strides];
             out[batch] = sum;
         }
     }
@@ -63,16 +63,16 @@ TEMPLATE_TEST_CASE("cpu::math::dot()", "[noa][cpu]", float, double, cfloat_t, cd
     stream.synchronize();
 
     // Compute output:
-    cpu::math::dot(lhs.share(), shape.stride(), shape,
-                   rhs.share(), shape.stride(), shape,
+    cpu::math::dot(lhs.share(), shape.strides(), shape,
+                   rhs.share(), shape.strides(), shape,
                    out.share(), stream);
 
     // Compute expected:
     cpu::memory::PtrHost<TestType> exp(batches);
     const size4_t reduced_shape{batches, 1, 1, 1};
     stream.synchronize();
-    cpu::math::ewise(lhs.share(), shape.stride(), rhs.share(), shape.stride(), lhs.share(), shape.stride(), shape, math::multiply_t{}, stream);
-    cpu::math::sum(lhs.share(), shape.stride(), shape, exp.share(), reduced_shape.stride(), reduced_shape, stream);
+    cpu::math::ewise(lhs.share(), shape.strides(), rhs.share(), shape.strides(), lhs.share(), shape.strides(), shape, math::multiply_t{}, stream);
+    cpu::math::sum(lhs.share(), shape.strides(), shape, exp.share(), reduced_shape.strides(), reduced_shape, stream);
 
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, out.get(), exp.get(), exp.elements(),
@@ -96,13 +96,13 @@ TEMPLATE_TEST_CASE("cpu::math::dot() vs matmul", "[noa][cpu]", float, double) {
     cpu::math::randomize(math::uniform_t{}, rhs.share(), rhs.elements(), real_t{-5}, real_t{5}, stream);
     stream.synchronize();
 
-    TestType out_dot = cpu::math::dot(lhs.share(), lhs_shape.stride(), lhs_shape,
-                                      rhs.share(), rhs_shape.stride(), rhs_shape, stream);
+    TestType out_dot = cpu::math::dot(lhs.share(), lhs_shape.strides(), lhs_shape,
+                                      rhs.share(), rhs_shape.strides(), rhs_shape, stream);
 
     cpu::memory::PtrHost<TestType> out(1);
-    cpu::math::matmul(lhs.share(), lhs_shape.stride(), lhs_shape,
-                      rhs.share(), rhs_shape.stride(), rhs_shape,
-                      out.share(), out_shape.stride(), out_shape,
+    cpu::math::matmul(lhs.share(), lhs_shape.strides(), lhs_shape,
+                      rhs.share(), rhs_shape.strides(), rhs_shape,
+                      out.share(), out_shape.strides(), out_shape,
                       stream);
 
     stream.synchronize();
@@ -128,13 +128,13 @@ TEMPLATE_TEST_CASE("cpu::math::matmul()", "[noa][cpu]", float, double, cfloat_t,
     stream.synchronize();
 
     // Compute output:
-    cpu::math::matmul(lhs.share(), lhs_shape.stride(), lhs_shape,
-                      rhs.share(), rhs_shape.stride(), rhs_shape,
-                      out.share(), out_shape.stride(), out_shape, stream);
+    cpu::math::matmul(lhs.share(), lhs_shape.strides(), lhs_shape,
+                      rhs.share(), rhs_shape.strides(), rhs_shape,
+                      out.share(), out_shape.strides(), out_shape, stream);
 
     // Compute expected:
     cpu::memory::PtrHost<TestType> exp(out_shape.elements());
-    naiveMatmul_(lhs.get(), lhs_shape.stride(), rhs.get(), rhs_shape.stride(), exp.get(), out_shape.stride(),
+    naiveMatmul_(lhs.get(), lhs_shape.strides(), rhs.get(), rhs_shape.strides(), exp.get(), out_shape.strides(),
                 size4_t{batches, m, n, k});
 
     stream.synchronize();
@@ -161,15 +161,15 @@ TEST_CASE("cpu::math::lstsq - scipy example()", "[cpu]") {
     }
 
     const size4_t a_shape{1, 1, 7, 2};
-    const size4_t a_stride{14, 14, 2, 1};
+    const size4_t a_strides{14, 14, 2, 1};
     const size4_t b_shape{1, 1, 7, 1};
-    const size4_t b_stride{7, 7, 1, 1};
+    const size4_t b_strides{7, 7, 1, 1};
 
     // We want to find the least-squares solution to ``a.dot(x) = b``,
     // where ``x`` is a vector with length 2 that holds the parameters
     // ``a`` and ``b``.
-    cpu::math::lstsq(a, a_stride, a_shape,
-                     b, b_stride, b_shape,
+    cpu::math::lstsq(a, a_strides, a_shape,
+                     b, b_strides, b_shape,
                      0, s, stream);
 
     stream.synchronize();
@@ -181,7 +181,7 @@ TEST_CASE("cpu::math::surface()", "[assets][cpu]") {
     const path_t path = test::NOA_DATA_PATH / "math";
     io::ImageFile mrc_file(path / "surface_input.mrc", io::READ);
     const size4_t shape = mrc_file.shape();
-    const size4_t stride = shape.stride();
+    const size4_t strides = shape.strides();
 
     cpu::memory::PtrHost<float> input(shape.elements());
     cpu::memory::PtrHost<float> expected(input.elements());
@@ -194,8 +194,8 @@ TEST_CASE("cpu::math::surface()", "[assets][cpu]") {
     cpu::memory::PtrHost<float> solution_expected(parameters);
 
     cpu::Stream stream;
-    cpu::math::surface(input.share(), stride, shape,
-                       results.share(), stride, shape,
+    cpu::math::surface(input.share(), strides, shape,
+                       results.share(), strides, shape,
                        true, order, solution_results.share(), stream);
 
     mrc_file.open(path / string::format("tmp_surface_subtract_order{}.mrc", order), io::READ);

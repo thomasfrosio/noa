@@ -27,11 +27,11 @@ namespace noa {
         NOA_HD constexpr Bool3(X x, Y y, Z z) noexcept
                 : m_data{static_cast<bool>(x), static_cast<bool>(y), static_cast<bool>(z)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Bool3(U x) noexcept
                 : m_data{static_cast<bool>(x), static_cast<bool>(x), static_cast<bool>(x)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Bool3(const U* ptr)
                 : m_data{static_cast<bool>(ptr[0]), static_cast<bool>(ptr[1]), static_cast<bool>(ptr[2])} {}
 
@@ -50,85 +50,85 @@ namespace noa {
         static constexpr size_t COUNT = 3;
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr bool& operator[](I i) noexcept {
+        [[nodiscard]] NOA_HD constexpr bool& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr const bool& operator[](I i) const noexcept {
+        [[nodiscard]] NOA_HD constexpr const bool& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
-        NOA_HD [[nodiscard]] constexpr const bool* get() const noexcept { return m_data; }
-        NOA_HD [[nodiscard]] constexpr bool* get() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr const bool* get() const noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr bool* get() noexcept { return m_data; }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD [[nodiscard]] constexpr const bool* get(I i) const noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr const bool* get(I i) const noexcept { return m_data + i; }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD [[nodiscard]] constexpr bool* get(I i) noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr bool* get(I i) noexcept { return m_data + i; }
 
-        NOA_HD [[nodiscard]] constexpr Bool3 flip() const noexcept { return {m_data[2], m_data[1], m_data[0]}; }
+        [[nodiscard]] NOA_HD constexpr Bool3 flip() const noexcept { return {m_data[2], m_data[1], m_data[0]}; }
 
     private:
         bool m_data[3]{};
     };
 
     // -- Boolean operators --
-    NOA_FHD constexpr Bool3 operator!(Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator!(Bool3 rhs) noexcept {
         return {!rhs[0], !rhs[1], !rhs[2]};
     }
 
-    NOA_FHD constexpr Bool3 operator==(Bool3 lhs, Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator==(Bool3 lhs, Bool3 rhs) noexcept {
         return {lhs[0] == rhs[0], lhs[1] == rhs[1], lhs[2] == rhs[2]};
     }
 
-    NOA_FHD constexpr Bool3 operator==(Bool3 lhs, bool rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator==(Bool3 lhs, bool rhs) noexcept {
         return {lhs[0] == rhs, lhs[1] == rhs, lhs[2] == rhs};
     }
 
-    NOA_FHD constexpr Bool3 operator==(bool lhs, Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator==(bool lhs, Bool3 rhs) noexcept {
         return {lhs == rhs[0], lhs == rhs[1], lhs == rhs[2]};
     }
 
-    NOA_FHD constexpr Bool3 operator!=(Bool3 lhs, Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator!=(Bool3 lhs, Bool3 rhs) noexcept {
         return {lhs[0] != rhs[0], lhs[1] != rhs[1], lhs[2] != rhs[2]};
     }
 
-    NOA_FHD constexpr Bool3 operator!=(Bool3 lhs, bool rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator!=(Bool3 lhs, bool rhs) noexcept {
         return {lhs[0] != rhs, lhs[1] != rhs, lhs[2] != rhs};
     }
 
-    NOA_FHD constexpr Bool3 operator!=(bool lhs, Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator!=(bool lhs, Bool3 rhs) noexcept {
         return {lhs != rhs[0], lhs != rhs[1], lhs != rhs[2]};
     }
 
-    NOA_FHD constexpr Bool3 operator&&(Bool3 lhs, Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator&&(Bool3 lhs, Bool3 rhs) noexcept {
         return {lhs[0] && rhs[0], lhs[1] && rhs[1], lhs[2] && rhs[2]};
     }
 
-    NOA_FHD constexpr Bool3 operator||(Bool3 lhs, Bool3 rhs) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Bool3 operator||(Bool3 lhs, Bool3 rhs) noexcept {
         return {lhs[0] || rhs[0], lhs[1] || rhs[1], lhs[2] || rhs[2]};
     }
 
-    NOA_FHD constexpr bool any(Bool3 v) noexcept {
+    [[nodiscard]] NOA_FHD constexpr bool any(Bool3 v) noexcept {
         return v[0] || v[1] || v[2];
     }
 
-    NOA_FHD constexpr bool all(Bool3 v) noexcept {
+    [[nodiscard]] NOA_FHD constexpr bool all(Bool3 v) noexcept {
         return v[0] && v[1] && v[2];
     }
 
     using bool3_t = Bool3;
 
-    [[nodiscard]] NOA_HOST constexpr std::array<bool, 3> toArray(Bool3 v) noexcept {
+    [[nodiscard]] NOA_IH constexpr std::array<bool, 3> toArray(Bool3 v) noexcept {
         return {v[0], v[1], v[2]};
     }
 
     template<>
-    NOA_IH std::string string::human<Bool3>() {
+    [[nodiscard]] NOA_IH std::string string::human<Bool3>() {
         return "bool3";
     }
 

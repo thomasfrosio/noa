@@ -12,8 +12,8 @@ using namespace ::noa;
 
 TEMPLATE_TEST_CASE("cuda::signal::fft::standardize(), half", "[noa][cuda]", float, double) {
     const size4_t shape{1, 1, 128, 128};
-    const size4_t stride = shape.stride();
-    const size4_t stride_fft = shape.fft().stride();
+    const size4_t stride = shape.strides();
+    const size4_t stride_fft = shape.fft().strides();
     const size_t elements = shape.elements();
 
     fft::Norm norm = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO, fft::NORM_NONE);
@@ -54,8 +54,8 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::standardize(), half", "[noa][cuda]", floa
 
 TEMPLATE_TEST_CASE("cuda::signal::fft::standardize(), full", "[noa][cuda]", float, double) {
     const size4_t shape{1, 1, 128, 128};
-    const size4_t stride = shape.stride();
-    const size4_t stride_fft = shape.fft().stride();
+    const size4_t stride = shape.strides();
+    const size4_t stride_fft = shape.fft().strides();
     const size_t elements = shape.elements();
 
     fft::Norm norm = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO, fft::NORM_NONE);

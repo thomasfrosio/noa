@@ -216,7 +216,7 @@ namespace noa::cpu::signal {
             count += 1;
         const bool allocate = !tmp && count > 1;
         const shared_t<T[]> buffer = allocate ? memory::PtrHost<T>::alloc(shape.elements()) : tmp;
-        const size4_t buffer_stride = allocate ? shape.stride() : tmp_stride;
+        const size4_t buffer_stride = allocate ? shape.strides() : tmp_stride;
 
         if (filter0 && filter1 && filter2) {
             NOA_ASSERT(filter0_size % 2);

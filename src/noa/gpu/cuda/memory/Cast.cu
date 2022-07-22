@@ -10,7 +10,7 @@ namespace noa::cuda::memory {
             copy(input, output, elements, stream);
         } else {
             const size4_t shape{1, 1, 1, elements};
-            const size4_t stride = shape.stride();
+            const size4_t stride = shape.strides();
             ::noa::cuda::util::ewise::unary<true>(
                     "memory::cast", input.get(), stride, output.get(), stride, shape, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });

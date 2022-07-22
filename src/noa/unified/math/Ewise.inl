@@ -13,7 +13,7 @@
 namespace noa::math {
     template<typename T, typename U, typename UnaryOp>
     void ewise(const Array<T>& input, const Array<U>& output, UnaryOp unary_op) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -27,13 +27,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(input.share(), input_stride,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              unary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_unary_v<T, U, UnaryOp>) {
                 cuda::math::ewise(input.share(), input_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   unary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -50,7 +50,7 @@ namespace noa::math {
 namespace noa::math {
     template<typename T, typename U, typename V, typename BinaryOp, typename>
     void ewise(const Array<T>& lhs, U rhs, const Array<V>& output, BinaryOp binary_op) {
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
@@ -64,13 +64,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs.share(), lhs_stride, rhs,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              binary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, V, BinaryOp>) {
                 cuda::math::ewise(lhs.share(), lhs_stride, rhs,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   binary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -84,7 +84,7 @@ namespace noa::math {
 
     template<typename T, typename U, typename V, typename BinaryOp, typename>
     void ewise(T lhs, const Array<U>& rhs, const Array<V>& output, BinaryOp binary_op) {
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -98,13 +98,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs, rhs.share(), rhs_stride,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              binary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, V, BinaryOp>) {
                 cuda::math::ewise(lhs, rhs.share(), rhs_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   binary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -118,12 +118,12 @@ namespace noa::math {
 
     template<typename T, typename U, typename V, typename BinaryOp>
     void ewise(const Array<T>& lhs, const Array<U>& rhs, const Array<V>& output, BinaryOp binary_op) {
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -137,13 +137,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs.share(), lhs_stride, rhs.share(), rhs_stride,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              binary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, V, BinaryOp>) {
                 cuda::math::ewise(lhs.share(), lhs_stride, rhs.share(), rhs_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   binary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -160,7 +160,7 @@ namespace noa::math {
 namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const Array<T>& lhs, U mhs, V rhs, const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
@@ -174,13 +174,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs.share(), lhs_stride, mhs, rhs,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              trinary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>) {
                 cuda::math::ewise(lhs.share(), lhs_stride, mhs, rhs,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   trinary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -195,12 +195,12 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const Array<T>& lhs, const Array<U>& mhs, V rhs,
                const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t mhs_stride = mhs.stride();
+        size4_t mhs_stride = mhs.strides();
         if (!indexing::broadcast(mhs.shape(), mhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       mhs.shape(), output.shape());
@@ -214,13 +214,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs.share(), lhs_stride, mhs.share(), mhs_stride, rhs,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              trinary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>) {
                 cuda::math::ewise(lhs.share(), lhs_stride, mhs.share(), mhs_stride, rhs,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   trinary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -235,12 +235,12 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const Array<T>& lhs, U mhs, const Array<V>& rhs,
                const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -254,13 +254,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs.share(), lhs_stride, mhs, rhs.share(), rhs_stride,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              trinary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>) {
                 cuda::math::ewise(lhs.share(), lhs_stride, mhs, rhs.share(), rhs_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   trinary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -275,17 +275,17 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
     void ewise(const Array<T>& lhs, const Array<U>& mhs, const Array<V>& rhs,
                const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.stride();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t mhs_stride = mhs.stride();
+        size4_t mhs_stride = mhs.strides();
         if (!indexing::broadcast(mhs.shape(), mhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       mhs.shape(), output.shape());
         }
-        size4_t rhs_stride = rhs.stride();
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -299,13 +299,13 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::math::ewise(lhs.share(), lhs_stride, mhs.share(), mhs_stride, rhs.share(), rhs_stride,
-                             output.share(), output.stride(), output.shape(),
+                             output.share(), output.strides(), output.shape(),
                              trinary_op, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::math::details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>) {
                 cuda::math::ewise(lhs.share(), lhs_stride, mhs.share(), mhs_stride, rhs.share(), rhs_stride,
-                                  output.share(), output.stride(), output.shape(),
+                                  output.share(), output.strides(), output.shape(),
                                   trinary_op, stream.cuda());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "

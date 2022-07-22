@@ -155,7 +155,7 @@ namespace {
 
             // Prepare the target column-major column vector(s):
             m_b = cpu::memory::PtrHost <T>::alloc(m_m * m_nrhs);
-            cpu::memory::copy(input, input_stride, m_b.get(), input_shape.stride(), input_shape);
+            cpu::memory::copy(input, input_stride, m_b.get(), input_shape.strides(), input_shape);
 
             // Solve x by minimizing (A @ x - b):
             const int m = static_cast<int>(m_m);
@@ -288,6 +288,7 @@ namespace noa::cpu::math {
                    (lda >= n && ldb >= nrhs && a_stride_[1] == 1 && indexing::isRowMajor(b_stride_)) :
                    (lda >= m && ldb >= mn_max && a_stride_[0] == 1 && indexing::isColMajor(b_stride_)));
         NOA_ASSERT(b_stride_[is_row_major] == 1 && b_shape_[0] == mn_max);
+        (void) mn_max;
 
         stream.enqueue([=]() {
             const LAPACKDriver driver = svd ? GELSD : GELSY;

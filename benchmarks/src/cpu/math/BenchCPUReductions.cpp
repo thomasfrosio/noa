@@ -26,7 +26,7 @@ namespace {
         cpu::math::randomize(math::uniform_t{}, src.share(), src.elements(), T{-5}, T{5}, stream);
 
         for (auto _: state) {
-            T sum = cpu::math::sum(src.share(), shape.stride(), shape, stream);
+            T sum = cpu::math::sum(src.share(), shape.strides(), shape, stream);
             ::benchmark::DoNotOptimize(sum);
         }
     }

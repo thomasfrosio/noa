@@ -20,7 +20,7 @@ namespace noa::signal::fft {
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -42,13 +42,13 @@ namespace noa::signal::fft {
             NOA_CHECK(shifts.dereferencable(), "The shifts should be accessible by the CPU");
             cpu::signal::fft::shift2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -64,7 +64,7 @@ namespace noa::signal::fft {
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -81,13 +81,13 @@ namespace noa::signal::fft {
         if (device.cpu()) {
             cpu::signal::fft::shift2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift2D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shift, cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -103,7 +103,7 @@ namespace noa::signal::fft {
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -125,13 +125,13 @@ namespace noa::signal::fft {
             NOA_CHECK(shifts.dereferencable(), "The matrices should be accessible to the host");
             cpu::signal::fft::shift3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -147,7 +147,7 @@ namespace noa::signal::fft {
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -164,13 +164,13 @@ namespace noa::signal::fft {
         if (device.cpu()) {
             cpu::signal::fft::shift3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift3D<REMAP>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), shape,
+                    output.share(), output.strides(), shape,
                     shift, cutoff, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

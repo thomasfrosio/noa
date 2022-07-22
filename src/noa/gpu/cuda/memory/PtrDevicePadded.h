@@ -107,7 +107,7 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr size4_t shape() const noexcept { return m_shape; }
 
         /// Returns the rightmost strides that can be used to access the managed data.
-        [[nodiscard]] constexpr size4_t stride() const noexcept {
+        [[nodiscard]] constexpr size4_t strides() const noexcept {
             return {m_pitch * m_shape[2] * m_shape[1],
                     m_pitch * m_shape[2],
                     m_pitch,
@@ -115,7 +115,7 @@ namespace noa::cuda::memory {
         }
 
         /// Returns the rightmost pitches of the managed object.
-        [[nodiscard]] constexpr size3_t pitch() const noexcept {
+        [[nodiscard]] constexpr size3_t pitches() const noexcept {
             return {m_shape[1], m_shape[2], m_pitch};
         }
 

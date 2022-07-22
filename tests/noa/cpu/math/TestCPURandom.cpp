@@ -10,7 +10,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cpu::math::randomize() - all", "[noa][cpu][math]", float, double) {
     using value_t = noa::traits::value_type_t<TestType>;
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     cpu::memory::PtrHost<TestType> data{elements};
     test::memset(data.get(), elements, 20);

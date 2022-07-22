@@ -84,7 +84,7 @@ namespace noa::cuda::geometry {
         size_t buffer_offset;
         if (PREFILTER && (interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST)) {
             buffer = cuda::memory::PtrDevice<T>{cartesian_shape.elements(), stream};
-            const size4_t contiguous_stride = cartesian_shape.stride();
+            const size4_t contiguous_stride = cartesian_shape.strides();
             cuda::geometry::bspline::prefilter(cartesian, cartesian_stride,
                                                buffer.share(), contiguous_stride, cartesian_shape, stream);
             buffer_ptr = buffer.get();
@@ -134,7 +134,7 @@ namespace noa::cuda::geometry {
         size_t buffer_offset;
         if (PREFILTER && (interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST)) {
             buffer = cuda::memory::PtrDevice<T>{polar_shape.elements(), stream};
-            const size4_t contiguous_stride = polar_shape.stride();
+            const size4_t contiguous_stride = polar_shape.strides();
             cuda::geometry::bspline::prefilter(polar, polar_stride,
                                                buffer.share(), contiguous_stride, polar_shape, stream);
             buffer_ptr = buffer.get();

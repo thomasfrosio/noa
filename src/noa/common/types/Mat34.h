@@ -61,7 +61,7 @@ namespace noa {
         constexpr Mat34(Mat34&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat34(U s) noexcept
                 : m_row{Float4<T>(s, 0, 0, 0),
                         Float4<T>(0, s, 0, 0),
@@ -113,7 +113,7 @@ namespace noa {
                         Float4<T>(y10, y11, y12, y13),
                         Float4<T>(z20, z21, z22, z23)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat34(U* ptr) noexcept
                 : m_row{Float4<T>(ptr[0], ptr[1], ptr[2], ptr[3]),
                         Float4<T>(ptr[4], ptr[5], ptr[6], ptr[7]),
@@ -183,73 +183,73 @@ namespace noa {
 
     public: // Assignment operators
         // -- Unary operators --
-        friend NOA_HD constexpr Mat34 operator+(Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(Mat34 m) noexcept {
             return m;
         }
 
-        friend NOA_HD constexpr Mat34 operator-(Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(Mat34 m) noexcept {
             return Mat34(-m[0], -m[1], -m[2]);
         }
 
         // -- Binary arithmetic operators --
-        friend NOA_HD constexpr Mat34 operator+(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(Mat34 m1, Mat34 m2) noexcept {
             return Mat34(m1[0] + m2[0], m1[1] + m2[1], m1[2] + m2[2]);
         }
 
-        friend NOA_HD constexpr Mat34 operator+(T s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(T s, Mat34 m) noexcept {
             return Mat34(s + m[0], s + m[1], s + m[2]);
         }
 
-        friend NOA_HD constexpr Mat34 operator+(Mat34 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(Mat34 m, T s) noexcept {
             return Mat34(m[0] + s, m[1] + s, m[2] + s);
         }
 
-        friend NOA_HD constexpr Mat34 operator-(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(Mat34 m1, Mat34 m2) noexcept {
             return Mat34(m1[0] - m2[0], m1[1] - m2[1], m1[2] - m2[2]);
         }
 
-        friend NOA_HD constexpr Mat34 operator-(T s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(T s, Mat34 m) noexcept {
             return Mat34(s - m[0], s - m[1], s - m[2]);
         }
 
-        friend NOA_HD constexpr Mat34 operator-(Mat34 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(Mat34 m, T s) noexcept {
             return Mat34(m[0] - s, m[1] - s, m[2] - s);
         }
 
-        friend NOA_HD constexpr Mat34 operator*(T s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator*(T s, Mat34 m) noexcept {
             return Mat34(m[0] * s, m[1] * s, m[2] * s);
         }
 
-        friend NOA_HD constexpr Mat34 operator*(Mat34 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator*(Mat34 m, T s) noexcept {
             return Mat34(m[0] * s, m[1] * s, m[2] * s);
         }
 
-        friend NOA_HD constexpr Float3<T> operator*(Mat34 m, const Float4<T>& column) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float3<T> operator*(Mat34 m, const Float4<T>& column) noexcept {
             return Float3<T>(math::dot(m[0], column),
                              math::dot(m[1], column),
                              math::dot(m[2], column));
         }
 
-        friend NOA_HD constexpr Float4<T> operator*(const Float3<T>& row, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float4<T> operator*(const Float3<T>& row, Mat34 m) noexcept {
             return Float4<T>(math::dot(Float3<T>(m[0][0], m[1][0], m[2][0]), row),
                              math::dot(Float3<T>(m[0][1], m[1][1], m[2][1]), row),
                              math::dot(Float3<T>(m[0][2], m[1][2], m[2][2]), row),
                              math::dot(Float3<T>(m[0][3], m[1][3], m[2][3]), row));
         }
 
-        friend NOA_HD constexpr Mat34 operator/(T s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator/(T s, Mat34 m) noexcept {
             return Mat34(s / m[0], s / m[1], s / m[2]);
         }
 
-        friend NOA_HD constexpr Mat34 operator/(Mat34 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator/(Mat34 m, T s) noexcept {
             return Mat34(m[0] / s, m[1] / s, m[2] / s);
         }
 
-        friend NOA_HD constexpr bool operator==(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(Mat34 m1, Mat34 m2) noexcept {
             return all(m1[0] == m2[0]) && all(m1[1] == m2[1]) && all(m1[2] == m2[2]);
         }
 
-        friend NOA_HD constexpr bool operator!=(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Mat34 m1, Mat34 m2) noexcept {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]);
         }
 
@@ -264,7 +264,7 @@ namespace noa {
     namespace math {
         /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
         template<typename T>
-        NOA_IHD constexpr Mat34<T> elementMultiply(Mat34<T> m1, Mat34<T> m2) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat34<T> elementMultiply(Mat34<T> m1, Mat34<T> m2) noexcept {
             Mat34<T> out;
             for (size_t i = 0; i < Mat34<T>::ROWS; ++i)
                 out[i] = m1[i] * m2[i];
@@ -272,7 +272,7 @@ namespace noa {
         }
 
         template<uint ULP = 2, typename T>
-        NOA_IHD constexpr bool isEqual(Mat34<T> m1, Mat34<T> m2, T e = 1e-6f) noexcept {
+        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat34<T> m1, Mat34<T> m2, T e = 1e-6f) noexcept {
             return all(isEqual<ULP>(m1[0], m2[0], e)) &&
                    all(isEqual<ULP>(m1[1], m2[1], e));
         }
@@ -282,26 +282,24 @@ namespace noa {
         template<typename>
         struct p_is_float34 : std::false_type {};
         template<typename T>
-        struct p_is_float34<noa::Mat34<T>> : std::true_type {};
-        template<typename T> using is_float34 = std::bool_constant<p_is_float34<noa::traits::remove_ref_cv_t<T>>::value>;
+        struct p_is_float34<Mat34<T>> : std::true_type {};
+        template<typename T> using is_float34 = std::bool_constant<p_is_float34<traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_float34_v = is_float34<T>::value;
 
         template<typename T>
-        struct proclaim_is_floatXX<noa::Mat34<T>> : std::true_type {};
+        struct proclaim_is_floatXX<Mat34<T>> : std::true_type {};
     }
 
     using float34_t = Mat34<float>;
     using double34_t = Mat34<double>;
 
     template<typename T>
-    NOA_IH constexpr std::array<T, 12> toArray(Mat34<T> v) noexcept {
+    [[nodiscard]] NOA_IH constexpr std::array<T, 12> toArray(Mat34<T> v) noexcept {
         return {v[0][0], v[0][1], v[0][2], v[0][3],
                 v[1][0], v[1][1], v[1][2], v[1][3],
                 v[2][0], v[2][1], v[2][2], v[2][3]};
     }
 
-    template<>
-    NOA_IH std::string string::human<float34_t>() { return "float34"; }
-    template<>
-    NOA_IH std::string string::human<double34_t>() { return "double34"; }
+    template<> [[nodiscard]] NOA_IH std::string string::human<float34_t>() { return "float34"; }
+    template<> [[nodiscard]] NOA_IH std::string string::human<double34_t>() { return "double34"; }
 }

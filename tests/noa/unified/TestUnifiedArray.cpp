@@ -106,26 +106,26 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
         Array<double> c{{2, 3, 4, 5}};
         Array<unsigned char> d = c.as<unsigned char>();
         REQUIRE(all(d.shape() == size4_t{2, 3, 4, 40}));
-        REQUIRE(all(d.stride() == size4_t{480, 160, 40, 1}));
+        REQUIRE(all(d.strides() == size4_t{480, 160, 40, 1}));
 
         Array<cdouble_t> e{{2, 3, 4, 5}};
         Array<double> f = e.as<double>();
         REQUIRE(all(f.shape() == size4_t{2, 3, 4, 10}));
-        REQUIRE(all(f.stride() == size4_t{120, 40, 10, 1}));
+        REQUIRE(all(f.strides() == size4_t{120, 40, 10, 1}));
 
         e = f.as<cdouble_t>();
         REQUIRE(all(e.shape() == size4_t{2, 3, 4, 5}));
-        REQUIRE(all(e.stride() == size4_t{60, 20, 5, 1}));
+        REQUIRE(all(e.strides() == size4_t{60, 20, 5, 1}));
     }
 
     AND_THEN("reshape") {
         Array<TestType> a{{4, 10, 50, 30}};
         a = a.reshape({1, 1, 1, a.shape().elements()});
-        REQUIRE(all(a.stride() == a.shape().stride()));
+        REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({4, 10, 50, 30});
-        REQUIRE(all(a.stride() == a.shape().stride()));
+        REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({10, 4, 30, 50});
-        REQUIRE(all(a.stride() == a.shape().stride()));
+        REQUIRE(all(a.strides() == a.shape().strides()));
         REQUIRE(all(a.shape() == size4_t{10, 4, 30, 50}));
     }
 
@@ -133,14 +133,14 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
         Array<TestType> a{{4, 10, 50, 30}};
         Array<TestType> b = a.permute({0, 1, 2, 3});
         REQUIRE(all(b.shape() == size4_t{4, 10, 50, 30}));
-        REQUIRE(all(b.stride() == size4_t{15000, 1500, 30, 1}));
+        REQUIRE(all(b.strides() == size4_t{15000, 1500, 30, 1}));
 
         b = a.permute({1, 0, 3, 2});
         REQUIRE(all(b.shape() == size4_t{10, 4, 30, 50}));
-        REQUIRE(all(b.stride() == size4_t{1500, 15000, 1, 30}));
+        REQUIRE(all(b.strides() == size4_t{1500, 15000, 1, 30}));
 
         b = a.permute({1, 0, 3, 2}, true);
         REQUIRE(all(b.shape() == size4_t{10, 4, 30, 50}));
-        REQUIRE(all(b.stride() == size4_t{6000, 1500, 50, 1}));
+        REQUIRE(all(b.strides() == size4_t{6000, 1500, 50, 1}));
     }
 }

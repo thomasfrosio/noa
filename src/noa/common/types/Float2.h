@@ -35,7 +35,7 @@ namespace noa {
         NOA_HD constexpr Float2(X x, Y y) noexcept
                 : m_data{static_cast<T>(x), static_cast<T>(y)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Float2(U x) noexcept
                 : m_data{static_cast<T>(x), static_cast<T>(x)} {}
 
@@ -50,7 +50,7 @@ namespace noa {
         NOA_HD constexpr explicit Float2(Int2<U> v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Float2(U* ptr) noexcept
                 : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1])} {}
 
@@ -106,11 +106,11 @@ namespace noa {
 
     public: // Non-member functions
         // -- Unary operators --
-        friend NOA_HD constexpr Float2 operator+(Float2 v) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator+(Float2 v) noexcept {
             return v;
         }
 
-        friend NOA_HD constexpr Float2 operator-(Float2 v) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator-(Float2 v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
@@ -122,7 +122,7 @@ namespace noa {
         }
 
         // -- Binary Arithmetic Operators --
-        friend NOA_HD constexpr Float2 operator+(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator+(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -133,7 +133,7 @@ namespace noa {
             return {lhs[0] + rhs[0], lhs[1] + rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator+(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator+(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&rhs);
@@ -144,11 +144,11 @@ namespace noa {
             return {lhs + rhs[0], lhs + rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator+(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator+(Float2 lhs, T rhs) noexcept {
             return rhs + lhs;
         }
 
-        friend NOA_HD constexpr Float2 operator-(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator-(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -159,7 +159,7 @@ namespace noa {
             return {lhs[0] - rhs[0], lhs[1] - rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator-(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator-(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 __half2 tmp = __half2half2(lhs.native());
@@ -170,7 +170,7 @@ namespace noa {
             return {lhs - rhs[0], lhs - rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator-(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator-(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -181,7 +181,7 @@ namespace noa {
             return {lhs[0] - rhs, lhs[1] - rhs};
         }
 
-        friend NOA_HD constexpr Float2 operator*(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator*(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -192,7 +192,7 @@ namespace noa {
             return {lhs[0] * rhs[0], lhs[1] * rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator*(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator*(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&rhs);
@@ -203,11 +203,11 @@ namespace noa {
             return {lhs * rhs[0], lhs * rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator*(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator*(Float2 lhs, T rhs) noexcept {
             return rhs * lhs;
         }
 
-        friend NOA_HD constexpr Float2 operator/(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator/(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -218,7 +218,7 @@ namespace noa {
             return {lhs[0] / rhs[0], lhs[1] / rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator/(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator/(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 __half2 tmp = __half2half2(lhs.native());
@@ -229,7 +229,7 @@ namespace noa {
             return {lhs / rhs[0], lhs / rhs[1]};
         }
 
-        friend NOA_HD constexpr Float2 operator/(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float2 operator/(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -241,7 +241,7 @@ namespace noa {
         }
 
         // -- Comparison Operators --
-        friend NOA_HD constexpr Bool2 operator>(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
@@ -253,7 +253,7 @@ namespace noa {
             return {lhs[0] > rhs[0], lhs[1] > rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator>(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float2(rhs);
@@ -261,7 +261,7 @@ namespace noa {
             return {lhs[0] > rhs, lhs[1] > rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator>(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return Float2(lhs) > rhs;
@@ -269,7 +269,7 @@ namespace noa {
             return {lhs > rhs[0], lhs > rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
@@ -281,7 +281,7 @@ namespace noa {
             return {lhs[0] < rhs[0], lhs[1] < rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float2(rhs);
@@ -289,7 +289,7 @@ namespace noa {
             return {lhs[0] < rhs, lhs[1] < rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator<(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return Float2(lhs) > rhs;
@@ -297,7 +297,7 @@ namespace noa {
             return {lhs < rhs[0], lhs < rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator>=(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>=(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
@@ -309,7 +309,7 @@ namespace noa {
             return {lhs[0] >= rhs[0], lhs[1] >= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator>=(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>=(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float2(rhs);
@@ -317,7 +317,7 @@ namespace noa {
             return {lhs[0] >= rhs, lhs[1] >= rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator>=(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator>=(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return Float2(lhs) > rhs;
@@ -325,7 +325,7 @@ namespace noa {
             return {lhs >= rhs[0], lhs >= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<=(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<=(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
@@ -337,7 +337,7 @@ namespace noa {
             return {lhs[0] <= rhs[0], lhs[1] <= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator<=(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<=(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float2(rhs);
@@ -345,7 +345,7 @@ namespace noa {
             return {lhs[0] <= rhs, lhs[1] <= rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator<=(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator<=(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return Float2(lhs) > rhs;
@@ -353,7 +353,7 @@ namespace noa {
             return {lhs <= rhs[0], lhs <= rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator==(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator==(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
@@ -365,7 +365,7 @@ namespace noa {
             return {lhs[0] == rhs[0], lhs[1] == rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator==(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator==(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float2(rhs);
@@ -373,7 +373,7 @@ namespace noa {
             return {lhs[0] == rhs, lhs[1] == rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator==(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator==(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return Float2(lhs) > rhs;
@@ -381,7 +381,7 @@ namespace noa {
             return {lhs == rhs[0], lhs == rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator!=(Float2 lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator!=(Float2 lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp0 = reinterpret_cast<__half2*>(&lhs);
@@ -393,7 +393,7 @@ namespace noa {
             return {lhs[0] != rhs[0], lhs[1] != rhs[1]};
         }
 
-        friend NOA_HD constexpr Bool2 operator!=(Float2 lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator!=(Float2 lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return lhs > Float2(rhs);
@@ -401,7 +401,7 @@ namespace noa {
             return {lhs[0] != rhs, lhs[1] != rhs};
         }
 
-        friend NOA_HD constexpr Bool2 operator!=(T lhs, Float2 rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Bool2 operator!=(T lhs, Float2 rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>)
                 return Float2(lhs) > rhs;
@@ -413,36 +413,36 @@ namespace noa {
         static constexpr size_t COUNT = 2;
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr T& operator[](I i) noexcept {
+        [[nodiscard]] NOA_HD constexpr T& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr const T& operator[](I i) const noexcept {
+        [[nodiscard]] NOA_HD constexpr const T& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             return m_data[i];
         }
 
-        NOA_HD [[nodiscard]] constexpr const T* get() const noexcept { return m_data; }
-        NOA_HD [[nodiscard]] constexpr T* get() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr const T* get() const noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD [[nodiscard]] constexpr const T* get(I i) const noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr const T* get(I i) const noexcept { return m_data + i; }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD [[nodiscard]] constexpr T* get(I i) noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr T* get(I i) noexcept { return m_data + i; }
 
         [[nodiscard]] NOA_HD constexpr Float2 flip() const noexcept { return {m_data[1], m_data[0]}; }
 
     private:
-        static_assert(noa::traits::is_float_v<T>);
+        static_assert(traits::is_float_v<T>);
         T m_data[2]{};
     };
 
     namespace math {
         template<typename T>
-        NOA_FHD constexpr Float2<T> floor(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> floor(Float2<T> v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
@@ -454,7 +454,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> ceil(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> ceil(Float2<T> v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
@@ -466,7 +466,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> rint(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> rint(Float2<T> v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
@@ -478,7 +478,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> abs(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> abs(Float2<T> v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
@@ -490,19 +490,19 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr T dot(Float2<T> a, Float2<T> b) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T dot(Float2<T> a, Float2<T> b) noexcept {
             if constexpr (std::is_same_v<T, half_t>)
                 return fma(a[0], b[0], a[1] * b[1]);
             return a[0] * b[0] + a[1] * b[1];
         }
 
         template<typename T>
-        NOA_FHD constexpr T innerProduct(Float2<T> a, Float2<T> b) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T innerProduct(Float2<T> a, Float2<T> b) noexcept {
             return dot(a, b);
         }
 
         template<typename T>
-        NOA_FHD constexpr T norm(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T norm(Float2<T> v) noexcept {
             if constexpr (std::is_same_v<T, half_t>) {
                 Float2<float> tmp(v);
                 return {sqrt(dot(tmp, tmp))};
@@ -511,12 +511,12 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr T length(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T length(Float2<T> v) noexcept {
             return norm(v);
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> normalize(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> normalize(Float2<T> v) noexcept {
             if constexpr (std::is_same_v<T, half_t>) {
                 Float2<float> tmp(v);
                 return {tmp / sqrt(dot(tmp, tmp))};
@@ -525,22 +525,22 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr T sum(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T sum(Float2<T> v) noexcept {
             return v[0] + v[1];
         }
 
         template<typename T>
-        NOA_FHD constexpr T prod(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T prod(Float2<T> v) noexcept {
             return v[0] * v[1];
         }
 
         template<typename T>
-        NOA_FHD constexpr T min(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T min(Float2<T> v) noexcept {
             return min(v[0], v[1]);
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> min(Float2<T> lhs, Float2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> min(Float2<T> lhs, Float2<T> rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -552,7 +552,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> min(Float2<T> lhs, T rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> min(Float2<T> lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -564,7 +564,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> min(T lhs, Float2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> min(T lhs, Float2<T> rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&rhs);
@@ -576,12 +576,12 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr T max(Float2<T> v) noexcept {
+        [[nodiscard]] NOA_FHD constexpr T max(Float2<T> v) noexcept {
             return max(v[0], v[1]);
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> max(Float2<T> lhs, Float2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> max(Float2<T> lhs, Float2<T> rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -593,7 +593,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> max(Float2<T> lhs, T rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> max(Float2<T> lhs, T rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
@@ -605,7 +605,7 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> max(T lhs, Float2<T> rhs) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> max(T lhs, Float2<T> rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             if constexpr (std::is_same_v<T, half_t>) {
                 auto* tmp = reinterpret_cast<__half2*>(&rhs);
@@ -617,12 +617,12 @@ namespace noa {
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> clamp(Float2<T> lhs, Float2<T> low, Float2<T> high) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> clamp(Float2<T> lhs, Float2<T> low, Float2<T> high) noexcept {
             return min(max(lhs, low), high);
         }
 
         template<typename T>
-        NOA_FHD constexpr Float2<T> clamp(Float2<T> lhs, T low, T high) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Float2<T> clamp(Float2<T> lhs, T low, T high) noexcept {
             return min(max(lhs, low), high);
         }
 
@@ -630,17 +630,17 @@ namespace noa {
         #define NOA_EPSILON_ 1e-6f
 
         template<uint ULP = NOA_ULP_, typename T>
-        NOA_FHD constexpr Bool2 isEqual(Float2<T> a, Float2<T> b, T e = NOA_EPSILON_) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Bool2 isEqual(Float2<T> a, Float2<T> b, T e = NOA_EPSILON_) noexcept {
             return {isEqual<ULP>(a[0], b[0], e), isEqual<ULP>(a[1], b[1], e)};
         }
 
         template<uint ULP = NOA_ULP_, typename T>
-        NOA_FHD constexpr Bool2 isEqual(Float2<T> a, T b, T e = NOA_EPSILON_) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Bool2 isEqual(Float2<T> a, T b, T e = NOA_EPSILON_) noexcept {
             return {isEqual<ULP>(a[0], b, e), isEqual<ULP>(a[1], b, e)};
         }
 
         template<uint ULP = NOA_ULP_, typename T>
-        NOA_FHD constexpr Bool2 isEqual(T a, Float2<T> b, T e = NOA_EPSILON_) noexcept {
+        [[nodiscard]] NOA_FHD constexpr Bool2 isEqual(T a, Float2<T> b, T e = NOA_EPSILON_) noexcept {
             return {isEqual<ULP>(a, b[0], e), isEqual<ULP>(a, b[1], e)};
         }
 
@@ -652,12 +652,12 @@ namespace noa {
         template<typename T>
         struct p_is_float2 : std::false_type {};
         template<typename T>
-        struct p_is_float2<noa::Float2<T>> : std::true_type {};
-        template<typename T> using is_float2 = std::bool_constant<p_is_float2<noa::traits::remove_ref_cv_t<T>>::value>;
+        struct p_is_float2<Float2<T>> : std::true_type {};
+        template<typename T> using is_float2 = std::bool_constant<p_is_float2<traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_float2_v = is_float2<T>::value;
 
         template<typename T>
-        struct proclaim_is_floatX<noa::Float2<T>> : std::true_type {};
+        struct proclaim_is_floatX<Float2<T>> : std::true_type {};
     }
 
     using half2_t = Float2<half_t>;
@@ -665,16 +665,16 @@ namespace noa {
     using double2_t = Float2<double>;
 
     template<typename T>
-    NOA_IH constexpr std::array<T, 2> toArray(Float2<T> v) noexcept {
+    [[nodiscard]] NOA_IH constexpr std::array<T, 2> toArray(Float2<T> v) noexcept {
         return {v[0], v[1]};
     }
 
     template<>
-    NOA_IH std::string string::human<half2_t>() { return "half2"; }
+    [[nodiscard]] NOA_IH std::string string::human<half2_t>() { return "half2"; }
     template<>
-    NOA_IH std::string string::human<float2_t>() { return "float2"; }
+    [[nodiscard]] NOA_IH std::string string::human<float2_t>() { return "float2"; }
     template<>
-    NOA_IH std::string string::human<double2_t>() { return "double2"; }
+    [[nodiscard]] NOA_IH std::string string::human<double2_t>() { return "double2"; }
 
     template<typename T>
     NOA_IH std::ostream& operator<<(std::ostream& os, Float2<T> v) {

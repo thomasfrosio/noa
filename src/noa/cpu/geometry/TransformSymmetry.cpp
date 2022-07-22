@@ -112,7 +112,7 @@ namespace noa::cpu::geometry {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
                     shape[0] = 1;
-                const size4_t stride = shape.stride();
+                const size4_t stride = shape.strides();
                 buffer = memory::PtrHost<T>{shape.elements()};
                 bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 tmp = buffer.get();
@@ -173,7 +173,7 @@ namespace noa::cpu::geometry {
                 size4_t shape = input_shape;
                 if (input_stride[0] == 0)
                     shape[0] = 1;
-                const size4_t stride = shape.stride();
+                const size4_t stride = shape.strides();
                 buffer = memory::PtrHost<T>{shape.elements()};
                 bspline::prefilter(input, input_stride, buffer.share(), stride, shape, stream);
                 tmp = buffer.get();

@@ -79,7 +79,7 @@ namespace noa {
         constexpr Mat33(Mat33&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat33(U s) noexcept
                 : m_row{Float3<T>(s, 0, 0),
                         Float3<T>(0, s, 0),
@@ -143,7 +143,7 @@ namespace noa {
                         Float3<T>(y10, y11, y12),
                         Float3<T>(z20, z21, z22)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat33(U* ptr) noexcept
                 : m_row{Float3<T>(ptr[0], ptr[1], ptr[2]),
                         Float3<T>(ptr[3], ptr[4], ptr[5]),
@@ -251,92 +251,92 @@ namespace noa {
 
     public: // Non-member functions
         // -- Unary operators --
-        friend NOA_HD constexpr Mat33 operator+(Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator+(Mat33 m) noexcept {
             return m;
         }
 
-        friend NOA_HD constexpr Mat33 operator-(Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator-(Mat33 m) noexcept {
             return Mat33(-m[0], -m[1], -m[2]);
         }
 
         // -- Binary arithmetic operators --
-        friend NOA_HD constexpr Mat33 operator+(Mat33 m1, Mat33 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator+(Mat33 m1, Mat33 m2) noexcept {
             return Mat33(m1[0] + m2[0], m1[1] + m2[1], m1[2] + m2[2]);
         }
 
-        friend NOA_HD constexpr Mat33 operator+(T s, Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator+(T s, Mat33 m) noexcept {
             return Mat33(s + m[0], s + m[1], s + m[2]);
         }
 
-        friend NOA_HD constexpr Mat33 operator+(Mat33 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator+(Mat33 m, T s) noexcept {
             return Mat33(m[0] + s, m[1] + s, m[2] + s);
         }
 
-        friend NOA_HD constexpr Mat33 operator-(Mat33 m1, Mat33 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator-(Mat33 m1, Mat33 m2) noexcept {
             return Mat33(m1[0] - m2[0], m1[1] - m2[1], m1[2] - m2[2]);
         }
 
-        friend NOA_HD constexpr Mat33 operator-(T s, Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator-(T s, Mat33 m) noexcept {
             return Mat33(s - m[0], s - m[1], s - m[2]);
         }
 
-        friend NOA_HD constexpr Mat33 operator-(Mat33 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator-(Mat33 m, T s) noexcept {
             return Mat33(m[0] - s, m[1] - s, m[2] - s);
         }
 
-        friend NOA_HD constexpr Mat33 operator*(Mat33 m1, Mat33 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator*(Mat33 m1, Mat33 m2) noexcept {
             Mat33 out(m1);
             out *= m2;
             return out;
         }
 
-        friend NOA_HD constexpr Mat33 operator*(T s, Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator*(T s, Mat33 m) noexcept {
             return Mat33(m[0] * s, m[1] * s, m[2] * s);
         }
 
-        friend NOA_HD constexpr Mat33 operator*(Mat33 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator*(Mat33 m, T s) noexcept {
             return Mat33(m[0] * s, m[1] * s, m[2] * s);
         }
 
-        friend NOA_HD constexpr Float3<T> operator*(Mat33 m, const Float3<T>& column) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float3<T> operator*(Mat33 m, const Float3<T>& column) noexcept {
             return Float3<T>(math::dot(m[0], column),
                              math::dot(m[1], column),
                              math::dot(m[2], column));
         }
 
-        friend NOA_HD constexpr Float3<T> operator*(const Float3<T>& row, Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float3<T> operator*(const Float3<T>& row, Mat33 m) noexcept {
             return Float3<T>(math::dot(Float3<T>(m[0][0], m[1][0], m[2][0]), row),
                              math::dot(Float3<T>(m[0][1], m[1][1], m[2][1]), row),
                              math::dot(Float3<T>(m[0][2], m[1][2], m[2][2]), row));
         }
 
-        friend NOA_HD constexpr Mat33 operator/(Mat33 m1, Mat33 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator/(Mat33 m1, Mat33 m2) noexcept {
             Mat33 out(m1);
             out /= m2;
             return out;
         }
 
-        friend NOA_HD constexpr Mat33 operator/(T s, Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator/(T s, Mat33 m) noexcept {
             return Mat33(s / m[0], s / m[1], s / m[2]);
         }
 
-        friend NOA_HD constexpr Mat33 operator/(Mat33 m, T s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat33 operator/(Mat33 m, T s) noexcept {
             return Mat33(m[0] / s, m[1] / s, m[2] / s);
         }
 
-        friend NOA_HD constexpr Float3<T> operator/(Mat33 m, const Float3<T>& column) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float3<T> operator/(Mat33 m, const Float3<T>& column) noexcept {
             return math::inverse(m) * column;
         }
 
-        friend NOA_HD constexpr Float3<T> operator/(const Float3<T>& row, Mat33 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Float3<T> operator/(const Float3<T>& row, Mat33 m) noexcept {
             return row * math::inverse(m);
         }
 
-        friend NOA_HD constexpr bool operator==(Mat33 m1, Mat33 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(Mat33 m1, Mat33 m2) noexcept {
             return all(m1[0] == m2[0]) && all(m1[1] == m2[1]) && all(m1[2] == m2[2]);
         }
 
-        friend NOA_HD constexpr bool operator!=(Mat33 m1, Mat33 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Mat33 m1, Mat33 m2) noexcept {
             return all(m1[0] != m2[0]) && all(m1[1] != m2[1]) && all(m1[2] != m2[2]);
         }
 
@@ -355,7 +355,7 @@ namespace noa {
     namespace math {
         /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
         template<typename T>
-        NOA_IHD constexpr Mat33<T> elementMultiply(const Mat33<T>& m1, const Mat33<T>& m2) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat33<T> elementMultiply(const Mat33<T>& m1, const Mat33<T>& m2) noexcept {
             Mat33<T> out;
             for (size_t i = 0; i < Mat33<T>::ROWS; ++i)
                 out[i] = m1[i] * m2[i];
@@ -365,28 +365,28 @@ namespace noa {
         /// Given the column vector \a column and row vector \a row,
         /// computes the linear algebraic matrix multiply `c * r`.
         template<typename T>
-        NOA_IHD constexpr Mat33<T> outerProduct(Float3<T> column, Float3<T> row) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat33<T> outerProduct(Float3<T> column, Float3<T> row) noexcept {
             return Mat33<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2],
                             column[1] * row[0], column[1] * row[1], column[1] * row[2],
                             column[2] * row[0], column[2] * row[1], column[2] * row[2]);
         }
 
         template<typename T>
-        NOA_IHD constexpr Mat33<T> transpose(Mat33<T> m) noexcept {
+        [[nodiscard]] NOA_IHD constexpr Mat33<T> transpose(Mat33<T> m) noexcept {
             return Mat33<T>(m[0][0], m[1][0], m[2][0],
                             m[0][1], m[1][1], m[2][1],
                             m[0][2], m[1][2], m[2][2]);
         }
 
         template<typename T>
-        NOA_IHD constexpr T determinant(Mat33<T> m) noexcept {
+        [[nodiscard]] NOA_IHD constexpr T determinant(Mat33<T> m) noexcept {
             return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
                    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
                    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
         }
 
         template<typename T>
-        NOA_HD constexpr Mat33<T> inverse(Mat33<T> m) noexcept {
+        [[nodiscard]] NOA_HD constexpr Mat33<T> inverse(Mat33<T> m) noexcept {
             T det = determinant(m);
             NOA_ASSERT(!isEqual(det, static_cast<T>(0))); // non singular
             T one_over_determinant = 1 / det;
@@ -402,7 +402,7 @@ namespace noa {
         }
 
         template<uint ULP = 2, typename T>
-        NOA_IHD constexpr bool isEqual(Mat33<T> m1, Mat33<T> m2, T e = 1e-6f) noexcept {
+        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat33<T> m1, Mat33<T> m2, T e = 1e-6f) noexcept {
             return all(isEqual<ULP>(m1[0], m2[0], e)) &&
                    all(isEqual<ULP>(m1[1], m2[1], e)) &&
                    all(isEqual<ULP>(m1[2], m2[2], e));
@@ -413,12 +413,12 @@ namespace noa {
         template<typename>
         struct p_is_float33 : std::false_type {};
         template<typename T>
-        struct p_is_float33<noa::Mat33<T>> : std::true_type {};
-        template<typename T> using is_float33 = std::bool_constant<p_is_float33<noa::traits::remove_ref_cv_t<T>>::value>;
+        struct p_is_float33<Mat33<T>> : std::true_type {};
+        template<typename T> using is_float33 = std::bool_constant<p_is_float33<traits::remove_ref_cv_t<T>>::value>;
         template<typename T> constexpr bool is_float33_v = is_float33<T>::value;
 
         template<typename T>
-        struct proclaim_is_floatXX<noa::Mat33<T>> : std::true_type {};
+        struct proclaim_is_floatXX<Mat33<T>> : std::true_type {};
     }
 
     using float33_t = Mat33<float>;

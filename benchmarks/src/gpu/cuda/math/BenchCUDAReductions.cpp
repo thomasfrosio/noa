@@ -47,7 +47,7 @@ namespace {
             cuda::Event start, end;
             start.record(stream);
 
-            cuda::math::sum(src.share(), shape.stride(), shape, dst.share(), size4_t{}, size4_t{1}, stream);
+            cuda::math::sum(src.share(), shape.strides(), shape, dst.share(), size4_t{}, size4_t{1}, stream);
 
             end.record(stream);
             end.synchronize();
@@ -64,14 +64,14 @@ namespace {
 
         cuda::memory::PtrDevicePadded<T> src{shape};
         cuda::memory::PtrDevice<T> dst{1, stream};
-        cuda::math::randomize(math::uniform_t{}, src.share(), src.pitch().elements(), T{-5}, T{5}, stream);
+        cuda::math::randomize(math::uniform_t{}, src.share(), src.pitches().elements(), T{-5}, T{5}, stream);
         stream.synchronize();
 
         for (auto _: state) {
             cuda::Event start, end;
             start.record(stream);
 
-            cuda::math::sum(src.share(), src.stride(), shape, dst.share(), size4_t{}, size4_t{1}, stream);
+            cuda::math::sum(src.share(), src.strides(), shape, dst.share(), size4_t{}, size4_t{1}, stream);
 
             end.record(stream);
             end.synchronize();

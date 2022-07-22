@@ -55,7 +55,7 @@ namespace {
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
     void arange4D_(T* src, uint4_t stride, uint4_t shape, T start, T step, uint blocks_x) {
-        const uint4_t logical_stride = shape.stride();
+        const uint4_t logical_stride = shape.strides();
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid(blockIdx.z,
                          blockIdx.y,

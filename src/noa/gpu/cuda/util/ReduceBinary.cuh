@@ -230,7 +230,7 @@ namespace noa::cuda::util::details {
                          const T** output, uint2_t* output_stride) {
         allocator = memory::PtrDevice<T>(elements, stream);
         memory::copy(allocator.attach(const_cast<T*>(input)), size4_t{stride},
-                     allocator.share(), size4_t{shape}.stride(),
+                     allocator.share(), size4_t{shape}.strides(),
                      size4_t{shape}, stream);
         *output = allocator.get();
         *output_stride = {elements, 1};

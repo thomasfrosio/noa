@@ -33,7 +33,7 @@ namespace noa::cpu::memory {
     /// // initialize the input...
     /// const uint4_t permutation{0,1,3,2};
     /// const size4_t permuted_shape = indexing::reorder(shape, permutation); // {2,63,65,64}
-    /// permute(input, shape.stride(), shape, output, permuted_shape.stride(), permutation, stream);
+    /// permute(input, shape.strides(), shape, output, permuted_shape.strides(), permutation, stream);
     /// \endcode
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void permute(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,

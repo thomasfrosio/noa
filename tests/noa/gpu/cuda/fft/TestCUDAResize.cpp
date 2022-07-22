@@ -28,8 +28,8 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
     cpu::Stream cpu_stream;
 
     AND_THEN("pad then crop") {
-        const size4_t stride = shape.fft().stride();
-        const size4_t stride_padded = shape_padded.fft().stride();
+        const size4_t stride = shape.fft().strides();
+        const size4_t stride_padded = shape_padded.fft().strides();
         const size_t elements = shape.fft().elements();
         const size_t elements_padded = shape_padded.fft().elements();
         cuda::memory::PtrManaged<TestType> d_original(elements, gpu_stream);
@@ -56,8 +56,8 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
     }
 
     AND_THEN("padFull then cropFull") {
-        const size4_t stride = shape.stride();
-        const size4_t stride_padded = shape_padded.stride();
+        const size4_t stride = shape.strides();
+        const size4_t stride_padded = shape_padded.strides();
         const size_t elements = shape.elements();
         const size_t elements_padded = shape_padded.elements();
         cuda::memory::PtrManaged<TestType> d_original(elements, gpu_stream);

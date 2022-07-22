@@ -40,7 +40,7 @@ TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -108,7 +108,7 @@ TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]"
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -164,7 +164,7 @@ TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
@@ -231,7 +231,7 @@ TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]")
         // Get input.
         file.open(input_filename, io::READ);
         const size4_t shape = file.shape();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());

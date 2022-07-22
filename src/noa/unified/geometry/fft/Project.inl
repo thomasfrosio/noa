@@ -53,8 +53,8 @@ namespace noa::geometry::fft {
                 Stream::current(scaling_factors.device()).synchronize();
 
             cpu::geometry::fft::insert3D<REMAP>(
-                    slice.share(), slice.stride(), slice_shape,
-                    grid.share(), grid.stride(), grid_shape,
+                    slice.share(), slice.strides(), slice_shape,
+                    grid.share(), grid.strides(), grid_shape,
                     scaling_factors.share(), rotations.share(),
                     cutoff, ews_radius, stream.cpu());
         } else {
@@ -64,8 +64,8 @@ namespace noa::geometry::fft {
                 Stream::current(Device{}).synchronize();
 
             cuda::geometry::fft::insert3D<REMAP>(
-                    slice.share(), slice.stride(), slice_shape,
-                    grid.share(), grid.stride(), grid_shape,
+                    slice.share(), slice.strides(), slice_shape,
+                    grid.share(), grid.strides(), grid_shape,
                     scaling_factors.share(), rotations.share(),
                     cutoff, ews_radius, stream.cuda());
             #else
@@ -116,8 +116,8 @@ namespace noa::geometry::fft {
                 Stream::current(scaling_factors.device()).synchronize();
 
             cpu::geometry::fft::extract3D<REMAP>(
-                    grid.share(), grid.stride(), grid_shape,
-                    slice.share(), slice.stride(), slice_shape,
+                    grid.share(), grid.strides(), grid_shape,
+                    slice.share(), slice.strides(), slice_shape,
                     scaling_factors.share(), rotations.share(),
                     cutoff, ews_radius, stream.cpu());
         } else {
@@ -125,16 +125,16 @@ namespace noa::geometry::fft {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
-                NOA_CHECK(indexing::isContiguous(grid.stride(), grid.shape())[1] && grid.stride()[3] == 1,
+                NOA_CHECK(indexing::isContiguous(grid.strides(), grid.shape())[1] && grid.strides()[3] == 1,
                           "The third-most and innermost dimension of the grid should be contiguous, but got shape {} "
-                          "and stride {}", grid.shape(), grid.stride());
+                          "and stride {}", grid.shape(), grid.strides());
                 if (rotations.device().cpu() ||
                     (!scaling_factors.empty() && scaling_factors.device().cpu()))
                     Stream::current(Device{}).synchronize();
 
                 cuda::geometry::fft::extract3D<REMAP>(
-                        grid.share(), grid.stride(), grid_shape,
-                        slice.share(), slice.stride(), slice_shape,
+                        grid.share(), grid.strides(), grid_shape,
+                        slice.share(), slice.strides(), slice_shape,
                         scaling_factors.share(), rotations.share(),
                         cutoff, ews_radius, stream.cuda());
             }
@@ -146,7 +146,7 @@ namespace noa::geometry::fft {
 
     template<typename T, typename>
     void griddingCorrection(const Array<T>& input, const Array<T>& output, bool post_correction) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -161,13 +161,13 @@ namespace noa::geometry::fft {
         if (device.cpu()) {
             cpu::geometry::fft::griddingCorrection(
                     input.share(), input_stride,
-                    output.share(), output.stride(),
+                    output.share(), output.strides(),
                     output.shape(), post_correction, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::geometry::fft::griddingCorrection(
                     input.share(), input_stride,
-                    output.share(), output.stride(),
+                    output.share(), output.strides(),
                     output.shape(), post_correction, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

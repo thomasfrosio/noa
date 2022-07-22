@@ -28,13 +28,13 @@ namespace noa::math {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::dot(lhs.share(), lhs.stride(), lhs.shape(),
-                           rhs.share(), rhs.stride(), rhs.shape(),
+            cpu::math::dot(lhs.share(), lhs.strides(), lhs.shape(),
+                           rhs.share(), rhs.strides(), rhs.shape(),
                            stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::dot(lhs.share(), lhs.stride(), lhs.shape(),
-                            rhs.share(), rhs.stride(), rhs.shape(),
+            cuda::math::dot(lhs.share(), lhs.strides(), lhs.shape(),
+                            rhs.share(), rhs.strides(), rhs.shape(),
                             stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
@@ -54,10 +54,10 @@ namespace noa::math {
 
         NOA_CHECK(indexing::isVector(output.shape()) && all(output.contiguous()),
                   "The output should be a contiguous vector, but got shape {} and stride {}",
-                  output.shape(), output.stride());
+                  output.shape(), output.strides());
 
         const size_t batches = output.shape().elements();
-        size4_t lhs_stride = lhs.stride(), rhs_stride = rhs.stride();
+        size4_t lhs_stride = lhs.strides(), rhs_stride = rhs.strides();
         if (!indexing::broadcast(lhs.shape()[0], lhs_stride[0], batches))
             NOA_THROW("Cannot broadcast a size of {} into a size of {}", lhs.shape()[0], batches);
         if (!indexing::broadcast(rhs.shape()[0], rhs_stride[0], batches))
@@ -96,18 +96,18 @@ namespace noa::math {
     template<typename T, typename>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose) {
-        NOA_CHECK(lhs.stride()[3] == 1 && lhs.stride()[2] >= lhs.shape()[3],
+        NOA_CHECK(lhs.strides()[3] == 1 && lhs.strides()[2] >= lhs.shape()[3],
                   "The innermost dimension of the left-hand side should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
-                  lhs.shape(), lhs.stride());
-        NOA_CHECK(rhs.stride()[3] == 1 && rhs.stride()[2] >= rhs.shape()[3],
+                  lhs.shape(), lhs.strides());
+        NOA_CHECK(rhs.strides()[3] == 1 && rhs.strides()[2] >= rhs.shape()[3],
                   "The innermost dimension of the right-hand side should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
-                  rhs.shape(), rhs.stride());
-        NOA_CHECK(output.stride()[3] == 1 && output.stride()[2] >= output.shape()[3],
+                  rhs.shape(), rhs.strides());
+        NOA_CHECK(output.strides()[3] == 1 && output.strides()[2] >= output.shape()[3],
                   "The innermost dimension of the output should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
-                  output.shape(), output.stride());
+                  output.shape(), output.strides());
 
         const Device device = output.device();
         NOA_CHECK(device == lhs.device() && device == rhs.device(),
@@ -116,17 +116,17 @@ namespace noa::math {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::math::matmul(lhs.share(), lhs.stride(), lhs.shape(),
-                              rhs.share(), rhs.stride(), rhs.shape(),
+            cpu::math::matmul(lhs.share(), lhs.strides(), lhs.shape(),
+                              rhs.share(), rhs.strides(), rhs.shape(),
                               alpha, beta, lhs_transpose, rhs_transpose,
-                              output.share(), output.stride(), output.shape(),
+                              output.share(), output.strides(), output.shape(),
                               stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::math::matmul(lhs.share(), lhs.stride(), lhs.shape(),
-                               rhs.share(), rhs.stride(), rhs.shape(),
+            cuda::math::matmul(lhs.share(), lhs.strides(), lhs.shape(),
+                               rhs.share(), rhs.strides(), rhs.shape(),
                                alpha, beta, lhs_transpose, rhs_transpose,
-                               output.share(), output.stride(), output.shape(),
+                               output.share(), output.strides(), output.shape(),
                                stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

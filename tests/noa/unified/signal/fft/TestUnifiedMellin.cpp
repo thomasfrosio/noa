@@ -52,8 +52,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]", float) {
         signal::fft::highpass<fft::HC2HC>(rhs_fft, rhs_fft, shape, 0.4f, 0.4f);
 
         // Compute the abs log-polar transforms:
-        Array<float> lhs_cart = Array{lhs.share(), lhs_fft.shape(), lhs_fft.stride(), options};
-        Array<float> rhs_cart = Array{rhs.share(), rhs_fft.shape(), rhs_fft.stride(), options};
+        Array<float> lhs_cart = Array{lhs.share(), lhs_fft.shape(), lhs_fft.strides(), options};
+        Array<float> rhs_cart = Array{rhs.share(), rhs_fft.shape(), rhs_fft.strides(), options};
         math::ewise(lhs_fft.release(), lhs_cart, math::abs_t{});
         math::ewise(rhs_fft.release(), rhs_cart, math::abs_t{});
 

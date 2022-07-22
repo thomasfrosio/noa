@@ -12,7 +12,7 @@
 namespace noa::memory {
     template<typename T, typename U>
     void cast(const Array<T>& input, const Array<U>& output, bool clamp) {
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -25,11 +25,11 @@ namespace noa::memory {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::cast(input.share(), input_stride, output.share(), output.stride(),
+            cpu::memory::cast(input.share(), input_stride, output.share(), output.strides(),
                               output.shape(), clamp, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::cast(input.share(), input_stride, output.share(), output.stride(),
+            cuda::memory::cast(input.share(), input_stride, output.share(), output.strides(),
                                output.shape(), clamp, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");

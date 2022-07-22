@@ -12,7 +12,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::math::find()", "[noa][cuda][math]", int32_t, int64_t, float, double) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     cpu::Stream cpu_stream{cpu::Stream::DEFAULT};
     cuda::Stream gpu_stream;
@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("cuda::math::find()", "[noa][cuda][math]", int32_t, int64_t, 
 TEMPLATE_TEST_CASE("cuda::math::find(), padded", "[noa][cuda][math]", int32_t, int64_t, float, double) {
     const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     cpu::Stream cpu_stream{cpu::Stream::DEFAULT};
     cuda::Stream gpu_stream;
@@ -56,25 +56,25 @@ TEMPLATE_TEST_CASE("cuda::math::find(), padded", "[noa][cuda][math]", int32_t, i
 
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::randomize(data.get(), data.elements(), randomizer);
-    cuda::memory::copy(data.share(), stride, d_data.share(), d_data.stride(), shape, gpu_stream);
+    cuda::memory::copy(data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
     cpu::math::find(math::min_t{}, data.share(), stride, shape, offset_expected.share(), batch, cpu_stream);
-    cuda::math::find(math::min_t{}, d_data.share(), d_data.stride(), shape, offset_results.share(), batch, gpu_stream);
+    cuda::math::find(math::min_t{}, d_data.share(), d_data.strides(), shape, offset_results.share(), batch, gpu_stream);
     gpu_stream.synchronize();
     int4_t diff;
     for (size_t i = 0; i < output_size; ++i) {
         const auto idx0 = noa::indexing::indexes(offset_expected[0], shape[1], shape[2], shape[3]);
-        const auto idx1 = noa::indexing::indexes(offset_results[0], shape[1], shape[2], d_data.pitch()[2]);
+        const auto idx1 = noa::indexing::indexes(offset_results[0], shape[1], shape[2], d_data.pitches()[2]);
         diff += int4_t{idx0} - int4_t{idx1};
     }
     REQUIRE(all(diff == 0));
 
     cpu::math::find(math::max_t{}, data.share(), stride, shape, offset_expected.share(), batch, cpu_stream);
-    cuda::math::find(math::max_t{}, d_data.share(), d_data.stride(), shape, offset_results.share(), batch, gpu_stream);
+    cuda::math::find(math::max_t{}, d_data.share(), d_data.strides(), shape, offset_results.share(), batch, gpu_stream);
     gpu_stream.synchronize();
     for (size_t i = 0; i < output_size; ++i) {
         const auto idx0 = noa::indexing::indexes(offset_expected[0], shape[1], shape[2], shape[3]);
-        const auto idx1 = noa::indexing::indexes(offset_results[0], shape[1], shape[2], d_data.pitch()[2]);
+        const auto idx1 = noa::indexing::indexes(offset_results[0], shape[1], shape[2], d_data.pitches()[2]);
         diff += int4_t{idx0} - int4_t{idx1};
     }
     REQUIRE(all(diff == 0));

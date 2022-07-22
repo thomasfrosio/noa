@@ -25,7 +25,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         auto subregion_origins = test["sub_origins"].as<std::vector<int4_t>>();
         const auto border_mode = test["border"].as<BorderMode>();
         const auto border_value = test["border_value"].as<float>();
-        const size4_t subregion_stride = subregion_shape.stride();
+        const size4_t subregion_stride = subregion_shape.strides();
 
         cpu::memory::PtrHost<float> input(shape.elements());
         cpu::memory::PtrHost<float> subregions(subregion_shape.elements());
@@ -35,7 +35,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         const shared_t<int4_t[]> origins = input.attach(subregion_origins.data());
 
         // Extract:
-        cpu::memory::extract<float>(input.share(), shape.stride(), shape,
+        cpu::memory::extract<float>(input.share(), shape.strides(), shape,
                                     subregions.share(), subregion_stride, subregion_shape,
                                     origins, border_mode, border_value, stream);
 
@@ -61,7 +61,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
         // Insert:
         cpu::memory::set(input.begin(), input.end(), 4.f);
         cpu::memory::insert<float>(subregions.share(), subregion_stride, subregion_shape,
-                                   input.share(), shape.stride(), shape,
+                                   input.share(), shape.strides(), shape,
                                    origins, stream);
 
         path_t expected_insert_filename = path_base / test["expected_insert"][0].as<path_t>();
@@ -81,7 +81,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
 
 TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][memory]", float, int) {
     const size4_t shape = test::getRandomShapeBatched(3);
-    const size4_t stride = shape.stride();
+    const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
     // Prepare expected data.
     test::Randomizer<int> mask_randomizer(0, 4);
     const size4_t mask_shape{1, shape[1], shape[2], shape[3]};
-    size4_t mask_stride = mask_shape.stride();
+    size4_t mask_stride = mask_shape.strides();
     mask_stride[0] = 0; // mask is not batched
     cpu::memory::PtrHost<int> mask(mask_shape.elements());
     test::randomize(mask.get(), mask.elements(), mask_randomizer);
@@ -134,11 +134,11 @@ TEMPLATE_TEST_CASE("cpu::memory::extract(), insert() - sequences", "[noa][cpu][m
         cpu::memory::PtrHost<TestType> padded(pitch.elements());
         test::memset(padded.get(), padded.elements(), 2);
         cpu::memory::Extracted<TestType, size_t> extracted = cpu::memory::extract<TestType, size_t>(
-                padded.share(), pitch.stride(), padded.share(), pitch.stride(), shape,
+                padded.share(), pitch.strides(), padded.share(), pitch.strides(), shape,
                 [](TestType v) { return v > 1; }, false, true, stream);
 
         REQUIRE(extracted.count == elements); // elements in pitch should not be selected
-        const size_t last = indexing::at(shape - 1, pitch.stride());
+        const size_t last = indexing::at(shape - 1, pitch.strides());
         REQUIRE(extracted.offsets.get()[extracted.count - 1] == last); // indexes should follow the physical layout
     }
 }
@@ -148,7 +148,7 @@ TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]",
     test::Randomizer<uint> dim_randomizer(40, 60);
     const size4_t subregion_shape{test::Randomizer<size_t>(1, 40).get(), // subregion count
                                   ndim == 3 ? dim_randomizer.get() : 1, dim_randomizer.get(), dim_randomizer.get()};
-    const size4_t subregion_stride = subregion_shape.stride();
+    const size4_t subregion_stride = subregion_shape.strides();
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
     // Prepare subregions.
@@ -165,12 +165,12 @@ TEMPLATE_TEST_CASE("cpu::memory::atlasLayout(), insert()", "[noa][cpu][memory]",
 
     cpu::memory::PtrHost<TestType> atlas(atlas_shape.elements());
     cpu::memory::insert<TestType>(subregions.share(), subregion_stride, subregion_shape,
-                                  atlas.share(), atlas_shape.stride(), atlas_shape,
+                                  atlas.share(), atlas_shape.strides(), atlas_shape,
                                   atlas_origins.share(), stream);
 
     // Extract from atlas
     cpu::memory::PtrHost<TestType> o_subregions(subregions.elements());
-    cpu::memory::extract<TestType>(atlas.share(), atlas_shape.stride(), atlas_shape,
+    cpu::memory::extract<TestType>(atlas.share(), atlas_shape.strides(), atlas_shape,
                                    o_subregions.share(), subregion_stride, subregion_shape,
                                    atlas_origins.share(), BORDER_ZERO, TestType{0}, stream);
 

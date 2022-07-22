@@ -14,10 +14,10 @@ namespace {
     template<typename T>
     void CUDA_geometry_insert3D(benchmark::State& state) {
         const size4_t slice_shape{1, 1, 256, 256};
-        const size4_t slice_stride = slice_shape.stride();
+        const size4_t slice_stride = slice_shape.strides();
 
         const size4_t grid_shape{1, 512, 512, 512};
-        const size4_t grid_stride = grid_shape.stride();
+        const size4_t grid_stride = grid_shape.strides();
 
         cuda::Stream stream{cuda::Stream::DEFAULT};
         cuda::memory::PtrDevice<T> slice{slice_shape.elements(), stream};

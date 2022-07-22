@@ -23,7 +23,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::lowpass()", "[noa][cuda][signal][fft]",
     const uint ndim = GENERATE(2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
     const size_t elements_fft = shape_fft.elements();
 
     cuda::Stream gpu_stream;
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::lowpass(), remap", "[noa][cuda][signal][f
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
 
     cuda::Stream stream;
     cuda::memory::PtrManaged<float> filter_expected(elements, stream);
@@ -106,7 +106,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::highpass()", "[noa][cuda][signal][fft]",
     const uint ndim = GENERATE(2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
     const size_t elements_fft = shape_fft.elements();
 
     cuda::Stream gpu_stream;
@@ -146,7 +146,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::highpass(), remap", "[noa][cuda][signal][
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
 
     cuda::Stream stream;
     cuda::memory::PtrManaged<float> filter_expected(elements, stream);
@@ -188,7 +188,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::bandpass()", "[noa][cuda][signal][fft]", 
     const uint ndim = GENERATE(2U, 3U);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.stride();
+    const size4_t stride_fft = shape_fft.strides();
     const size_t elements_fft = shape_fft.elements();
 
     cuda::Stream gpu_stream;
@@ -232,7 +232,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::bandpass(), remap", "[noa][cuda][signal][
     const float width = 0.1f;
 
     const size_t elements = shape.fft().elements();
-    const size4_t stride = shape.fft().stride();
+    const size4_t stride = shape.fft().strides();
 
     cuda::Stream stream;
     cuda::memory::PtrManaged<float> filter_expected(elements, stream);

@@ -21,7 +21,7 @@ namespace {
         const auto cutoff = benchmarks["cutoff"].as<float>();
         const auto width = benchmarks["width"].as<float>();
 
-        const size4_t stride = shape.fft().stride();
+        const size4_t stride = shape.fft().strides();
         const size_t elements = shape.fft().elements();
         cpu::memory::PtrHost<T> h_input_result(elements);
         cuda::memory::PtrDevice<T> d_input_result(elements);

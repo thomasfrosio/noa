@@ -17,7 +17,7 @@ namespace noa::geometry {
         NOA_CHECK(input.shape()[3] == input.shape()[3] &&
                   input.shape()[2] == input.shape()[2],
                   "The input {} and output {} shapes don't match", input.shape(), output.shape());
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -35,7 +35,7 @@ namespace noa::geometry {
 
             cpu::geometry::symmetrize2D<PREFILTER>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), output.shape(),
+                    output.share(), output.strides(), output.shape(),
                     symmetry, center, interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -54,8 +54,8 @@ namespace noa::geometry {
                 if (input.device().cpu())
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::symmetrize2D<PREFILTER>(
-                        input.share(), input.stride(),
-                        output.share(), output.stride(), output.shape(),
+                        input.share(), input.strides(),
+                        output.share(), output.strides(), output.shape(),
                         symmetry, center, interp_mode, normalize, stream.cuda());
             }
             #else
@@ -72,7 +72,7 @@ namespace noa::geometry {
                   input.shape()[2] == input.shape()[2] &&
                   input.shape()[1] == input.shape()[1],
                   "The input {} and output {} shapes don't match", input.shape(), output.shape());
-        size4_t input_stride = input.stride();
+        size4_t input_stride = input.strides();
         if (input.shape()[0] == 1) {
             input_stride[0] = 0;
         } else if (input.shape()[0] == output.shape()[0]) {
@@ -90,7 +90,7 @@ namespace noa::geometry {
 
             cpu::geometry::symmetrize3D<PREFILTER>(
                     input.share(), input_stride,
-                    output.share(), output.stride(), output.shape(),
+                    output.share(), output.strides(), output.shape(),
                     symmetry, center, interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -110,7 +110,7 @@ namespace noa::geometry {
                     Stream::current(Device{}).synchronize();
                 cuda::geometry::symmetrize3D<PREFILTER>(
                         input.share(), input_stride,
-                        output.share(), output.stride(), output.shape(),
+                        output.share(), output.strides(), output.shape(),
                         symmetry, center, interp_mode, normalize, stream.cuda());
             }
             #else

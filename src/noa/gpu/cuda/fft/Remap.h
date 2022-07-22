@@ -119,14 +119,14 @@ namespace noa::cuda::fft {
                 return details::fc2hc(input, input_stride, output, output_stride, shape, stream);
             case Remap::H2FC: {
                 memory::PtrDevice<T> tmp{shape.elements(), stream};
-                details::h2f(input, input_stride, tmp.share(), shape.stride(), shape, stream);
-                details::f2fc(tmp.share(), shape.stride(), output, output_stride, shape, stream);
+                details::h2f(input, input_stride, tmp.share(), shape.strides(), shape, stream);
+                details::f2fc(tmp.share(), shape.strides(), output, output_stride, shape, stream);
                 break;
             }
             case noa::fft::HC2FC: {
                 memory::PtrDevice<T> tmp{shape.elements(), stream};
-                details::hc2f(input, input_stride, tmp.share(), shape.stride(), shape, stream);
-                details::f2fc(tmp.share(), shape.stride(), output, output_stride, shape, stream);
+                details::hc2f(input, input_stride, tmp.share(), shape.strides(), shape, stream);
+                details::f2fc(tmp.share(), shape.strides(), output, output_stride, shape, stream);
                 break;
             }
         }

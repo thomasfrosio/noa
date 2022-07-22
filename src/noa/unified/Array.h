@@ -159,7 +159,7 @@ namespace noa {
         [[nodiscard]] const size4_t& shape() const noexcept;
 
         /// Returns the rightmost stride of the array.
-        [[nodiscard]] const size4_t& stride() const noexcept;
+        [[nodiscard]] const size4_t& strides() const noexcept;
 
         /// Whether the dimensions of the array are contiguous.
         [[nodiscard]] bool4_t contiguous() const noexcept;

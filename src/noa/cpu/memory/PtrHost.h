@@ -88,12 +88,10 @@ namespace noa::cpu::memory {
             NOA_ASSERT(elements >= 0);
         }
 
-    public:
+    public: // Getters
         /// Returns the host pointer.
-        [[nodiscard]] constexpr T* get() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* get() const noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr T* data() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* data() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* data() const noexcept { return m_ptr.get(); }
 
         /// Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
@@ -112,6 +110,12 @@ namespace noa::cpu::memory {
         [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
         [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
 
+        /// Returns the shape of the allocated data as a row vector.
+        [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
+
+        /// Returns the strides of the allocated data as a C-contiguous row vector.
+        [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
+
         /// How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
 
@@ -119,22 +123,21 @@ namespace noa::cpu::memory {
         [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
-        /// Returns a pointer pointing at the beginning of the managed data.
-        constexpr T* begin() noexcept { return m_ptr.get(); }
-        constexpr const T* begin() const noexcept { return m_ptr.get(); }
+        /// Returns a View of the allocated data as a C-contiguous row vector.
+        template<typename I>
+        [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr, shape(), strides()}; }
 
-        /// Returns a pointer pointing at the last + 1 element of the managed data.
-        constexpr T* end() noexcept { return m_ptr.get() + m_elements; }
-        constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
+    public: // Iterators
+        [[nodiscard]] constexpr T* begin() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* end() const noexcept { return m_ptr.get() + m_elements; }
 
-        constexpr std::reverse_iterator<T> rbegin() noexcept { return m_ptr.get(); }
-        constexpr std::reverse_iterator<const T> rbegin() const noexcept { return m_ptr.get(); }
-        constexpr std::reverse_iterator<T> rend() noexcept { return m_ptr.get() + m_elements; }
-        constexpr std::reverse_iterator<const T> rend() const noexcept { return m_ptr.get() + m_elements; }
+        [[nodiscard]] constexpr T& front() const noexcept { return *begin(); }
+        [[nodiscard]] constexpr T& back() const noexcept { return *(end() - 1); }
 
+    public: // Accessors
         /// Returns a reference at index \p idx. There's no bound check.
-        constexpr T& operator[](size_t idx) { return m_ptr.get()[idx]; }
-        constexpr const T& operator[](size_t idx) const { return m_ptr.get()[idx]; }
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
+        constexpr T& operator[](I idx) const { return m_ptr.get()[idx]; }
 
         /// Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {

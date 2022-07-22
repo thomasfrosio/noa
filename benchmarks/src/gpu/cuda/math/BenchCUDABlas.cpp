@@ -31,7 +31,7 @@ namespace {
     template<typename T>
     void CUDA_dot(benchmark::State& state) {
         const size4_t shape = shapes[state.range(0)];
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
 
         cuda::Stream stream{cuda::Stream::DEFAULT};
 
@@ -76,12 +76,12 @@ namespace {
             cuda::Event start, end;
             start.record(stream);
 
-            cuda::math::ewise(lhs.share(), shape.stride(),
-                              rhs.share(), shape.stride(),
-                              tmp.share(), shape.stride(),
+            cuda::math::ewise(lhs.share(), shape.strides(),
+                              rhs.share(), shape.strides(),
+                              tmp.share(), shape.strides(),
                               shape, math::multiply_t{}, stream);
-            cuda::math::sum(tmp.share(), shape.stride(), shape,
-                            dst.share(), reduced_shape.stride(), reduced_shape, stream);
+            cuda::math::sum(tmp.share(), shape.strides(), shape,
+                            dst.share(), reduced_shape.strides(), reduced_shape, stream);
 
             end.record(stream);
             end.synchronize();
@@ -97,9 +97,9 @@ namespace {
         const size4_t lhs_shape{1, 1, 1, size};
         const size4_t rhs_shape{1, 1, size, 1};
         const size4_t out_shape{1, 1, 1, 1};
-        const size4_t lhs_stride = lhs_shape.stride();
-        const size4_t rhs_stride = rhs_shape.stride();
-        const size4_t out_stride = out_shape.stride();
+        const size4_t lhs_stride = lhs_shape.strides();
+        const size4_t rhs_stride = rhs_shape.strides();
+        const size4_t out_stride = out_shape.strides();
 
         cuda::Stream stream(cuda::Stream::DEFAULT);
 
@@ -132,9 +132,9 @@ namespace {
         const size4_t lhs_shape{1, 1, size, size};
         const size4_t rhs_shape{1, 1, size, size};
         const size4_t out_shape{1, 1, size, size};
-        const size4_t lhs_stride = lhs_shape.stride();
-        const size4_t rhs_stride = rhs_shape.stride();
-        const size4_t out_stride = out_shape.stride();
+        const size4_t lhs_stride = lhs_shape.strides();
+        const size4_t rhs_stride = rhs_shape.strides();
+        const size4_t out_stride = out_shape.strides();
 
         cuda::Stream stream(cuda::Stream::DEFAULT);
 

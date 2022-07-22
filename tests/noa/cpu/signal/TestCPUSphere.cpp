@@ -27,7 +27,7 @@ TEST_CASE("cpu::signal::sphere()", "[assets][noa][cpu][filter]") {
         const auto radius = test["radius"].as<float>();
         const auto taper = test["taper"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
-        const size4_t stride = shape.stride();
+        const size4_t stride = shape.strides();
         const size_t elements = shape.elements();
 
         file.open(filename_expected, io::READ);

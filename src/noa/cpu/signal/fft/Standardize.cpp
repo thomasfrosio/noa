@@ -51,8 +51,8 @@ namespace {
         // Reduce unique chunk:
         auto subregion = original(ellipsis_t{}, slice_t{1, original.shape()[3] - even});
         auto subregion_ptr = shared_t<Complex<T>[]>{input, input.get() + subregion.offset()};
-        auto buffer_stride = subregion.shape().stride();
-        cpu::math::ewise(subregion_ptr, subregion.stride(),
+        auto buffer_stride = subregion.shape().strides();
+        cpu::math::ewise(subregion_ptr, subregion.strides(),
                          buffer, buffer_stride,
                          subregion.shape(), math::abs_squared_t{}, stream);
         T factor = 2 * cpu::math::sum(buffer, buffer_stride, subregion.shape(), stream);
@@ -60,8 +60,8 @@ namespace {
         // Reduce common column/plane containing the DC:
         subregion = original(ellipsis_t{}, 0);
         subregion_ptr = shared_t<Complex<T>[]>{input, input.get() + subregion.offset()};
-        buffer_stride = subregion.shape().stride();
-        cpu::math::ewise(subregion_ptr, subregion.stride(),
+        buffer_stride = subregion.shape().strides();
+        cpu::math::ewise(subregion_ptr, subregion.strides(),
                          buffer, buffer_stride,
                          subregion.shape(), math::abs_squared_t{}, stream);
         buffer.get()[at(index_dc, buffer_stride)] = 0; // make sure DC is set to 0 when computing the energy
@@ -71,8 +71,8 @@ namespace {
             // Reduce common column/plane containing the real Nyquist:
             subregion = original(ellipsis_t{}, -1);
             subregion_ptr = shared_t<Complex<T>[]>{input, input.get() + subregion.offset()};
-            buffer_stride = subregion.shape().stride();
-            cpu::math::ewise(subregion_ptr, subregion.stride(),
+            buffer_stride = subregion.shape().strides();
+            cpu::math::ewise(subregion_ptr, subregion.strides(),
                              buffer, buffer_stride,
                              subregion.shape(), math::abs_squared_t{}, stream);
             factor += cpu::math::sum(buffer, buffer_stride, subregion.shape(), stream);
@@ -103,7 +103,7 @@ namespace noa::cpu::signal::fft {
             for (size_t batch = 0; batch < shape[0]; ++batch) {
                 if constexpr (REMAP == Remap::F2F || REMAP == Remap::FC2FC) {
                     standardizeFull_<REMAP>(input, input_stride, output, output_stride,
-                                            buffer, shape_.stride(), shape_, norm, stream);
+                                            buffer, shape_.strides(), shape_, norm, stream);
                 } else if constexpr (REMAP == Remap::H2H || REMAP == Remap::HC2HC) {
                     standardizeHalf_<REMAP>(input, input_stride, output, output_stride,
                                             buffer, shape_, shape_fft, norm, stream);
