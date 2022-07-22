@@ -286,6 +286,21 @@ namespace noa::indexing {
         return non_empty_dimension <= 1;
     }
 
+    /// Whether or not a shape describes vector.
+    /// \details A vector has one dimension with a size >= 1 and all of the other dimensions empty (i.e. size == 1).
+    ///          By this definition, the shapes {1,1,1}, {5,1,1} and {1,1,5} are all vectors.
+    template<typename T>
+    NOA_FHD constexpr bool isVector(Int3<T> shape) {
+        int non_empty_dimension = 0;
+        for (int i = 0; i < 3; ++i) {
+            if (shape[i] == 0)
+                return false; // empty/invalid shape
+            if (shape[i] > 1)
+                ++non_empty_dimension;
+        }
+        return non_empty_dimension <= 1;
+    }
+
     /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
     NOA_IH T effectiveShape(T shape, T strides) noexcept {

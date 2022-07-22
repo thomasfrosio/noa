@@ -5,14 +5,14 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape) {
+    void cropH2H(const T* input, size4_t input_strides, size4_t input_shape,
+                 T* output, size4_t output_strides, size4_t output_shape) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape.fft());
+            return cpu::memory::copy(input, input_strides, output, output_strides, input_shape.fft());
 
         for (size_t i = 0; i < output_shape[0]; ++i) {
             for (size_t oj = 0; oj < output_shape[1]; ++oj) {
@@ -20,8 +20,8 @@ namespace noa::cpu::fft::details {
                     for (size_t l = 0; l < output_shape[3] / 2 + 1; ++l) {
                         const size_t ij = oj < (output_shape[1] + 1) / 2 ? oj : oj + input_shape[1] - output_shape[1];
                         const size_t ik = ok < (output_shape[2] + 1) / 2 ? ok : ok + input_shape[2] - output_shape[2];
-                        output[indexing::at(i, oj, ok, l, output_stride)] =
-                                input[indexing::at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_strides)] =
+                                input[indexing::at(i, ij, ik, l, input_strides)];
                     }
                 }
             }
@@ -29,14 +29,14 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void cropF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape) {
+    void cropF2F(const T* input, size4_t input_strides, size4_t input_shape,
+                 T* output, size4_t output_strides, size4_t output_shape) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape);
+            return cpu::memory::copy(input, input_strides, output, output_strides, input_shape);
 
         const size4_t offset(input_shape - output_shape);
         const size4_t limit((output_shape + 1) / 2);
@@ -47,28 +47,27 @@ namespace noa::cpu::fft::details {
                     const size_t ij = oj < limit[1] ? oj : oj + offset[1];
                     const size_t ik = ok < limit[2] ? ok : ok + offset[2];
 
-
                     for (size_t l = 0; l < limit[3]; ++l)
-                        output[indexing::at(i, oj, ok, l, output_stride)] =
-                                input[indexing::at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_strides)] =
+                                input[indexing::at(i, ij, ik, l, input_strides)];
                     for (size_t l = 0; l < output_shape[3] / 2; ++l)
-                        output[indexing::at(i, oj, ok, l, output_stride) + limit[3]] =
-                                input[indexing::at(i, ij, ik, l, input_stride) + limit[3] + offset[3]];
+                        output[indexing::at(i, oj, ok, l, output_strides) + limit[3]] =
+                                input[indexing::at(i, ij, ik, l, input_strides) + limit[3] + offset[3]];
                 }
             }
         }
     }
 
     template<typename T>
-    void padH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                T* output, size4_t output_stride, size4_t output_shape) {
+    void padH2H(const T* input, size4_t input_strides, size4_t input_shape,
+                T* output, size4_t output_strides, size4_t output_shape) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape.fft());
+            return cpu::memory::copy(input, input_strides, output, output_strides, input_shape.fft());
 
-        cpu::memory::set(output, output_stride, output_shape.fft(), T{0});
+        cpu::memory::set(output, output_strides, output_shape.fft(), T{0});
 
         for (size_t i = 0; i < input_shape[0]; ++i) {
             for (size_t ij = 0; ij < input_shape[1]; ++ij) {
@@ -76,8 +75,8 @@ namespace noa::cpu::fft::details {
                     for (size_t l = 0; l < input_shape[3] / 2 + 1; ++l) {
                         const size_t oj = ij < (input_shape[1] + 1) / 2 ? ij : ij + output_shape[1] - input_shape[1];
                         const size_t ok = ik < (input_shape[2] + 1) / 2 ? ik : ik + output_shape[2] - input_shape[2];
-                        output[indexing::at(i, oj, ok, l, output_stride)] =
-                                input[indexing::at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_strides)] =
+                                input[indexing::at(i, ij, ik, l, input_strides)];
                     }
                 }
             }
@@ -85,16 +84,16 @@ namespace noa::cpu::fft::details {
     }
 
     template<typename T>
-    void padF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                T* output, size4_t output_stride, size4_t output_shape) {
+    void padF2F(const T* input, size4_t input_strides, size4_t input_shape,
+                T* output, size4_t output_strides, size4_t output_shape) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
         if (all(input_shape == output_shape))
-            return cpu::memory::copy(input, input_stride, output, output_stride, input_shape);
+            return cpu::memory::copy(input, input_strides, output, output_strides, input_shape);
 
-        cpu::memory::set(output, output_stride, output_shape, T{0});
+        cpu::memory::set(output, output_strides, output_shape, T{0});
 
         const size4_t offset(output_shape - input_shape);
         const size4_t limit((input_shape + 1) / 2);
@@ -106,11 +105,11 @@ namespace noa::cpu::fft::details {
                     const size_t ok = ik < limit[2] ? ik : ik + offset[2];
 
                     for (size_t l = 0; l < limit[3]; ++l)
-                        output[indexing::at(i, oj, ok, l, output_stride)] =
-                                input[indexing::at(i, ij, ik, l, input_stride)];
+                        output[indexing::at(i, oj, ok, l, output_strides)] =
+                                input[indexing::at(i, ij, ik, l, input_strides)];
                     for (size_t l = 0; l < input_shape[3] / 2; ++l)
-                        output[indexing::at(i, oj, ok, l, output_stride) + limit[3] + offset[3]] =
-                                input[indexing::at(i, ij, ik, l, input_stride) + limit[3]];
+                        output[indexing::at(i, oj, ok, l, output_strides) + limit[3] + offset[3]] =
+                                input[indexing::at(i, ij, ik, l, input_strides) + limit[3]];
                 }
             }
         }

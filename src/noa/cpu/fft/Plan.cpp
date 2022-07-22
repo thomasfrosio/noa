@@ -158,8 +158,12 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, size4_t shape,
                                                    uint flag, size_t threads) {
-        const int3_t s_shape(shape.get(1));
+        int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
+
         const int how_many = static_cast<int>(shape[0]);
         const int odist = s_shape.fft().elements();
         const int idist = input == reinterpret_cast<T*>(output) ? odist * 2 : s_shape.elements();
@@ -188,15 +192,22 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_stride,
-                                                   Complex<T>* output, size4_t output_stride,
+    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_strides,
+                                                   Complex<T>* output, size4_t output_strides,
                                                    size4_t shape, uint flag, size_t threads) {
-        const int3_t s_shape(shape.get(1));
-        const int4_t i_stride(input_stride);
-        const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches());
-        const int3_t onembed(o_stride.pitches());
+        int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const int4_t i_strides(input_strides);
+        const int4_t o_strides(output_strides);
+        const int3_t inembed(i_strides.pitches());
+        const int3_t onembed(o_strides.pitches());
         const int how_many = static_cast<int>(shape[0]);
         const int off = 3 - rank;
         fftw_plan_t plan;
@@ -208,25 +219,28 @@ namespace noa::cpu::fft {
 
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_stride[3], i_stride[0],
-                        reinterpret_cast<fftwf_complex*>(output), onembed.get(off), o_stride[3], o_stride[0], flag);
+                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_strides[3], i_strides[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.get(off), o_strides[3], o_strides[0], flag);
             } else {
                 plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_stride[3], i_stride[0],
-                        reinterpret_cast<fftw_complex*>(output), onembed.get(off), o_stride[3], o_stride[0], flag);
+                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_strides[3], i_strides[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.get(off), o_strides[3], o_strides[0], flag);
             }
         }
         if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istride:{}, ostride:{}",
-                      s_shape, input_stride, output_stride);
+            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                      s_shape, input_strides, output_strides);
         return plan;
     }
 
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
                                                    size4_t shape, uint flag, size_t threads) {
-        const int3_t s_shape(shape.get() + 1);
+        int3_t s_shape(shape.get() + 1);
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
         const int idist = s_shape.fft().elements();
         const int odist = reinterpret_cast<T*>(input) == output ? idist * 2 : s_shape.elements();
         const int how_many = static_cast<int>(shape[0]);
@@ -254,15 +268,22 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_stride,
-                                                   T* output, size4_t output_stride,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_strides,
+                                                   T* output, size4_t output_strides,
                                                    size4_t shape, uint flag, size_t threads) {
-        const int3_t s_shape(shape.get() + 1);
-        const int4_t i_stride(input_stride);
-        const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches());
-        const int3_t onembed(o_stride.pitches());
+        int3_t s_shape(shape.get() + 1);
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const int4_t i_strides(input_strides);
+        const int4_t o_strides(output_strides);
+        const int3_t inembed(i_strides.pitches());
+        const int3_t onembed(o_strides.pitches());
         const int off = 3 - rank;
         const int how_many = static_cast<int>(shape[0]);
         fftw_plan_t plan;
@@ -274,21 +295,21 @@ namespace noa::cpu::fft {
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft_c2r(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
-                        output, onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
+                        output, onembed.get() + off, o_strides[3], o_strides[0], flag);
             } else {
                 plan = fftw_plan_many_dft_c2r(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
-                        output, onembed.get() + off, o_stride[3], o_stride[0], flag);
+                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
+                        output, onembed.get() + off, o_strides[3], o_strides[0], flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms or with the PRESERVE_INPUT flag
         // with a multi-dimensional out-of-place c2r transform.
         if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istride:{}, ostride:{}",
-                      s_shape, input_stride, output_stride);
+            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                      s_shape, input_strides, output_strides);
         return plan;
     }
 
@@ -299,9 +320,12 @@ namespace noa::cpu::fft {
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
         int3_t s_shape(shape.get() + 1);
-        int rank = s_shape.ndim();
-        int how_many = static_cast<int>(shape[0]);
-        int dist = s_shape.elements();
+        const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
+        const int how_many = static_cast<int>(shape[0]);
+        const int dist = s_shape.elements();
         fftw_plan_t plan;
         {
             std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
@@ -329,19 +353,27 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, size4_t input_stride,
-                                                   Complex<T>* output, size4_t output_stride,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, size4_t input_strides,
+                                                   Complex<T>* output, size4_t output_strides,
                                                    size4_t shape, Sign sign, uint flag,
                                                    size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
-        const int3_t s_shape(shape.get() + 1);
-        const int4_t i_stride(input_stride);
-        const int4_t o_stride(output_stride);
-        const int3_t inembed(i_stride.pitches());
-        const int3_t onembed(o_stride.pitches());
+        int3_t s_shape(shape.get() + 1);
+        if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
+            // column major -> row major
+            std::swap(s_shape[1], s_shape[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const int4_t i_strides(input_strides);
+        const int4_t o_strides(output_strides);
+        const int3_t inembed(i_strides.pitches());
+        const int3_t onembed(o_strides.pitches());
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         const int how_many = static_cast<int>(shape[0]);
         const int off = 3 - rank;
         fftw_plan_t plan;
@@ -354,22 +386,22 @@ namespace noa::cpu::fft {
             if constexpr (IS_SINGLE_PRECISION) {
                 plan = fftwf_plan_many_dft(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0],
+                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_strides[3], o_strides[0],
                         sign, flag);
             } else {
                 plan = fftw_plan_many_dft(
                         rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_stride[3], i_stride[0],
-                        reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_stride[3], o_stride[0],
+                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_strides[3], o_strides[0],
                         sign, flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms.
         if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istride:{}, ostride:{}",
-                      s_shape, input_stride, output_stride);
+            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                      s_shape, input_strides, output_strides);
         return plan;
     }
 

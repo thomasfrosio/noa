@@ -16,17 +16,17 @@ namespace noa::cpu::fft::details {
                                      (REMAP == Remap::H2H || REMAP == Remap::F2F);
 
     template<typename T>
-    void cropH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape);
+    void cropH2H(const T* input, size4_t input_strides, size4_t input_shape,
+                 T* output, size4_t output_strides, size4_t output_shape);
     template<typename T>
-    void cropF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, size4_t output_shape);
+    void cropF2F(const T* input, size4_t input_strides, size4_t input_shape,
+                 T* output, size4_t output_strides, size4_t output_shape);
     template<typename T>
-    void padH2H(const T* input, size4_t input_stride, size4_t input_shape,
-                T* output, size4_t output_stride, size4_t output_shape);
+    void padH2H(const T* input, size4_t input_strides, size4_t input_shape,
+                T* output, size4_t output_strides, size4_t output_shape);
     template<typename T>
-    void padF2F(const T* input, size4_t input_stride, size4_t input_shape,
-                T* output, size4_t output_stride, size4_t output_shape);
+    void padF2F(const T* input, size4_t input_strides, size4_t input_shape,
+                T* output, size4_t output_strides, size4_t output_shape);
 }
 
 namespace noa::cpu::fft {
@@ -36,28 +36,28 @@ namespace noa::cpu::fft {
     /// \tparam REMAP           FFT Remap. Only H2H and F2F are currently supported.
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. FFT to resize.
-    /// \param input_stride     Rightmost strides of \p input.
-    /// \param input_shape      Rightmost shape of \p input.
+    /// \param input_strides    BDHW strides of \p input.
+    /// \param input_shape      BDHW shape of \p input.
     /// \param[out] output      On the \b host. Resized FFT.
-    /// \param output_stride    Rightmost strides of \p output.
-    /// \param output_shape     Rightmost shape of \p output.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param output_shape     BDHW shape of \p output.
     ///                         All dimensions should either be <= or >= than \p input_shape.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note The outermost dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].
+    /// \note The batch dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
-    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                       const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                       const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H) {
                 stream.enqueue([=]() {
-                    details::cropH2H<T>(input.get(), input_stride, input_shape,
-                                        output.get(), output_stride, output_shape);
+                    details::cropH2H<T>(input.get(), input_strides, input_shape,
+                                        output.get(), output_strides, output_shape);
                 });
             } else if constexpr (REMAP == Remap::F2F) {
                 stream.enqueue([=]() {
-                    details::cropF2F<T>(input.get(), input_stride, input_shape,
-                                        output.get(), output_stride, output_shape);
+                    details::cropF2F<T>(input.get(), input_strides, input_shape,
+                                        output.get(), output_strides, output_shape);
                 });
             } else {
                 static_assert(noa::traits::always_false_v<T>);
@@ -65,13 +65,13 @@ namespace noa::cpu::fft {
         } else {
             if constexpr (REMAP == Remap::H2H) {
                 stream.enqueue([=]() {
-                    details::padH2H<T>(input.get(), input_stride, input_shape,
-                                       output.get(), output_stride, output_shape);
+                    details::padH2H<T>(input.get(), input_strides, input_shape,
+                                       output.get(), output_strides, output_shape);
                 });
             } else if constexpr (REMAP == Remap::F2F) {
                 stream.enqueue([=]() {
-                    details::padF2F<T>(input.get(), input_stride, input_shape,
-                                       output.get(), output_stride, output_shape);
+                    details::padF2F<T>(input.get(), input_strides, input_shape,
+                                       output.get(), output_strides, output_shape);
                 });
             } else {
                 static_assert(noa::traits::always_false_v<T>);

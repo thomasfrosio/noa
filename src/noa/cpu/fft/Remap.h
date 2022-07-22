@@ -51,14 +51,13 @@ namespace noa::cpu::fft {
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t or cdouble_t.
     /// \param remap            Remapping operation. See noa::fft::Remap for more details.
     /// \param[in] input        On the \b host. Input FFT to remap.
-    /// \param input_strides    Rightmost strides, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Remapped FFT.
-    /// \param output_strides   Rightmost strides, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note If no remapping is done, e.g. H2H, a copy is performed for if \p input is not equal to \p output.
     /// \note If \p remap is \c H2HC, \p input can be equal to \p output, only iff \p shape[2] is even,
     ///       and \p shape[1] is even or 1.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
