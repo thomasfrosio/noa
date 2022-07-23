@@ -13,11 +13,11 @@ namespace noa::cpu::memory {
     /// Permutes, in memory, the axes of an array.
     /// \tparam T               Any data type.
     /// \param[in] input        On the \b host. Input array to permute.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
-    /// \param input_shape      Rightmost shape of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
+    /// \param input_shape      Shape of \p input.
     /// \param[out] output      On the \b host. Output permuted array.
-    /// \param output_stride    Rightmost strides, in elements, of \p output.
-    /// \param permutation      Rightmost permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param permutation      Permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
@@ -26,7 +26,7 @@ namespace noa::cpu::memory {
     ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     ///
-    /// \example Permute the two innermost dimensions
+    /// \example Permute the last two dimensions:
     /// \code
     /// const size4_t shape{2,63,64,65};
     /// PtrHost<T> input(shape.elements()), output(shape.elements());
@@ -36,8 +36,8 @@ namespace noa::cpu::memory {
     /// permute(input, shape.strides(), shape, output, permuted_shape.strides(), permutation, stream);
     /// \endcode
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void permute(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream);
+    void permute(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, uint4_t permutation, Stream& stream);
 }
 
 #define NOA_TRANSPOSE_INL_

@@ -11,28 +11,26 @@ right-to-left. This is similar to what Numpy uses by default, expect that Numpy 
 where we encode everything in number of elements. In the BDHW convention, the rightmost order is synonym to row-major
 and a rightmost contiguous array is said to be C-contiguous. For instance, a C-contiguous 3D array of
 shape `{1,30,64,128}` has its strides equal to `{245760,8192,128,1}`. Following the BDHW convention, a F-contiguous
-array of the same shape has its strides equal to `{245760,8192,1,128}` and is therefore not in the rightmost order.
-
-__F vs C__: When referring to C- or F-ordering, it is important to note that this often only affects the Height and 
-Width of the array, so the last two dimensions in the BDHW convention.
+array of the same shape has its strides equal to `{245760,8192,1,64}` and is therefore not in the rightmost order. When
+referring to C- or F-ordering, it is important to note that this often only affects the Height and Width of the array,
+so the last two dimensions in the BDHW convention. Similarly, for indexing, dimensions are entered left-to-right, like
+in Numpy.
 
 Empty dimensions are set to 1. A shape with a dimension of size 0 is referring to an empty array. Strides, which
 contains the memory offset between consecutive indexes for each dimension, can be 0. In fact, broadcasting an array
 along a particular dimension is achieved by setting a stride of 0 for that said dimension. Note that the library 
 currently doesn't support negative strides.
 
-For indexing, dimensions are entered left-to-right, like in Numpy.
-
 As mentioned above, when the order of the dimensions has a meaning (e.g. we expect a 2D array), we always use the BDHW
 convention. This results in the ability to differentiate between a stack of 2D images and a 3D volume or a stack of 3D
 volumes. For instance, `{64,1,32,32}` is a set of 64 arrays each with 32x32 elements. On the other hand, `{1,64,32, 32}`
 is a 3D array with 64x32x32 elements. This is quite important since some functions behave differently with 2D or 3D
 array(s). For example, `geometry::transform2D` expects (batched) 2D arrays and will throw an error if a 3D array is
-passed.
+passed. Similarly, the shape `{1,1,1,5}` describes a row vector, while `{1,1,5,1}` describes a column vector.
 
-__Performance__: The library tries to find the fastest way to iterate through arrays by looking at the shape and 
-strides of the input and/or outputs. However, it is not always possible. In these documented cases, the rightmost 
-order is always assumed.
+__Performance__: The library tries to find the fastest way to iterate through arrays by looking at the shape and strides
+of the inputs and/or outputs. However, it is not always possible. In these cases, the rightmost order is always assumed.
+As such, whenever possible, it is often much simpler to use rightmost arrays.
 
 ## `Complex numbers`
 

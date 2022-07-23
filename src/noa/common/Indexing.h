@@ -321,7 +321,7 @@ namespace noa::indexing {
         using int_t = traits::value_type_t<T>;
         constexpr size_t COUNT = vec_t::COUNT;
 
-        size4_t order;
+        vec_t order;
         for (size_t i = 0; i < COUNT; ++i) {
             order[i] = static_cast<int_t>(i);
             strides[i] = shape[i] <= 1 ? math::Limits<int_t>::max() : strides[i];

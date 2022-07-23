@@ -10,9 +10,9 @@ namespace {
     // Copy the valid elements in the input into the output.
     // So it performs the cropping, and padding with BORDER_NOTHING.
     template<typename T>
-    void copyValidRegion_(const T* input, size4_t input_stride, size4_t input_shape,
+    void copyValidRegion_(const T* input, size4_t input_strides, size4_t input_shape,
                           int4_t border_left, int4_t crop_left, int4_t crop_right,
-                          T* output, size4_t output_stride) {
+                          T* output, size4_t output_strides) {
         const int4_t valid_end{int4_t{input_shape} - crop_right};
         for (int ii = crop_left[0]; ii < valid_end[0]; ++ii) {
             for (int ij = crop_left[1]; ij < valid_end[1]; ++ij) {
@@ -22,31 +22,9 @@ namespace {
                         int oj = ij + border_left[1];
                         int ok = ik + border_left[2];
                         int ol = il + border_left[3];
-                        output[indexing::at(oi, oj, ok, ol, output_stride)] =
-                                input[indexing::at(ii, ij, ik, il, input_stride)];
+                        output[indexing::at(oi, oj, ok, ol, output_strides)] =
+                                input[indexing::at(ii, ij, ik, il, input_strides)];
                     }
-                }
-            }
-        }
-    }
-
-    // TODO benchmark to see if copying rows contiguously really helps
-    template<typename T>
-    void copyValidRegionContiguous_(const T* input, size4_t input_stride, size4_t input_shape,
-                                    int4_t border_left, int4_t crop_left, int4_t crop_right,
-                                    T* output, size4_t output_stride) {
-        const int4_t valid_end{int4_t{input_shape} - crop_right};
-        const int ol = crop_left[3] + border_left[3];
-        for (int ii = crop_left[0]; ii < valid_end[0]; ++ii) {
-            for (int ij = crop_left[1]; ij < valid_end[1]; ++ij) {
-                for (int ik = crop_left[2]; ik < valid_end[2]; ++ik) {
-
-                    int oi = ii + border_left[0];
-                    int oj = ij + border_left[1];
-                    int ok = ik + border_left[2];
-                    cpu::memory::copy(input + indexing::at(ii, ij, ik, crop_left[3], input_stride),
-                                      output + indexing::at(oi, oj, ok, ol, output_stride),
-                                      static_cast<uint>(valid_end[3] - crop_left[3]));
                 }
             }
         }
@@ -54,7 +32,7 @@ namespace {
 
     // Sets the elements within the padding to a given value.
     template<typename T>
-    void applyBorderValue_(T* output, size4_t stride, size4_t shape,
+    void applyBorderValue_(T* output, size4_t strides, size4_t shape,
                            int4_t pad_left, int4_t pad_right, T value) {
         const int4_t int_shape{shape};
         const int4_t valid_end = int_shape - pad_right;
@@ -68,7 +46,7 @@ namespace {
                         const bool skip_k = k >= pad_left[2] && k < valid_end[2];
                         const bool skip_l = l >= pad_left[3] && l < valid_end[3];
                         if (!skip_i || !skip_j || !skip_k || !skip_l)
-                            output[indexing::at(i, j, k, l, stride)] = value;
+                            output[indexing::at(i, j, k, l, strides)] = value;
                     }
                 }
             }
@@ -76,8 +54,8 @@ namespace {
     }
 
     template<BorderMode MODE, typename T>
-    void applyBorder_(const T* input, size4_t input_stride, size4_t input_shape,
-                      T* output, size4_t output_stride, size4_t output_shape,
+    void applyBorder_(const T* input, size4_t input_strides, size4_t input_shape,
+                      T* output, size4_t output_strides, size4_t output_shape,
                       int4_t pad_left, int4_t pad_right, int4_t crop_left) {
         const int4_t int_input_shape{input_shape};
         const int4_t int_output_shape{output_shape};
@@ -99,8 +77,8 @@ namespace {
                         const bool skip_l = ol >= pad_left[3] && ol < valid_end[3];
 
                         if (!skip_i || !skip_j || !skip_k || !skip_l)
-                            output[indexing::at(oi, oj, ok, ol, output_stride)] =
-                                    input[indexing::at(ii, ij, ik, il, input_stride)];
+                            output[indexing::at(oi, oj, ok, ol, output_strides)] =
+                                    input[indexing::at(ii, ij, ik, il, input_strides)];
                     }
                 }
             }
@@ -110,32 +88,39 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T, typename>
-    void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                int4_t border_left, int4_t border_right, const shared_t<T[]>& output, size4_t output_stride,
+    void resize(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                int4_t border_left, int4_t border_right, const shared_t<T[]>& output, size4_t output_strides,
                 BorderMode border_mode, T border_value, Stream& stream) {
         if (all(border_left == 0) && all(border_right == 0))
-            return copy(input, input_stride, output, output_stride, input_shape, stream);
+            return copy(input, input_strides, output, output_strides, input_shape, stream);
 
-        stream.enqueue([=]() {
+        stream.enqueue([=]() mutable {
             NOA_ASSERT(input != output);
 
-            const size4_t output_shape{int4_t{input_shape} + border_left + border_right}; // assumed to be > 0
+            const int4_t tmp = int4_t{input_shape} + border_left + border_right;
+            NOA_ASSERT(all(tmp > 1));
+            size4_t output_shape{tmp};
+
+            // Optimize reads/writes for output:
+            const size4_t order = indexing::order(output_strides, output_shape);
+            if (!all(order == size4_t{0, 1, 2, 3})) {
+                input_strides = indexing::reorder(input_strides, order);
+                input_shape = indexing::reorder(input_shape, order);
+                border_left = indexing::reorder(border_left, order);
+                border_right = indexing::reorder(border_right, order);
+                output_strides = indexing::reorder(output_strides, order);
+                output_shape = indexing::reorder(output_shape, order);
+            }
+
             const int4_t crop_left{math::min(border_left, 0) * -1};
             const int4_t crop_right{math::min(border_right, 0) * -1};
             const int4_t pad_left{math::max(border_left, 0)};
             const int4_t pad_right{math::max(border_right, 0)};
 
             // Copy the valid elements in the input into the output.
-            if (indexing::isContiguous(input_stride, input_shape)[3] &&
-                indexing::isContiguous(output_stride, output_shape)[3]) {
-                copyValidRegionContiguous_(input.get(), input_stride, input_shape,
-                                           border_left, crop_left, crop_right,
-                                           output.get(), output_stride);
-            } else {
-                copyValidRegion_(input.get(), input_stride, input_shape,
-                                 border_left, crop_left, crop_right,
-                                 output.get(), output_stride);
-            }
+            copyValidRegion_(input.get(), input_strides, input_shape,
+                             border_left, crop_left, crop_right,
+                             output.get(), output_strides);
 
             // Shortcut: if there's nothing to pad, we are done here.
             if (border_mode == BORDER_NOTHING || (all(pad_left == 0) && all(pad_right == 0)))
@@ -145,29 +130,29 @@ namespace noa::cpu::memory {
             switch (border_mode) {
                 case BORDER_ZERO:
                     return applyBorderValue_(
-                            output.get(), output_stride, output_shape, pad_left, pad_right, T{0});
+                            output.get(), output_strides, output_shape, pad_left, pad_right, T{0});
                 case BORDER_VALUE:
                     return applyBorderValue_(
-                            output.get(), output_stride, output_shape, pad_left, pad_right, border_value);
+                            output.get(), output_strides, output_shape, pad_left, pad_right, border_value);
                 case BORDER_CLAMP:
                     return applyBorder_<BORDER_CLAMP>(
-                            input.get(), input_stride, input_shape,
-                            output.get(), output_stride, output_shape,
+                            input.get(), input_strides, input_shape,
+                            output.get(), output_strides, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_PERIODIC:
                     return applyBorder_<BORDER_PERIODIC>(
-                            input.get(), input_stride, input_shape,
-                            output.get(), output_stride, output_shape,
+                            input.get(), input_strides, input_shape,
+                            output.get(), output_strides, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_REFLECT:
                     return applyBorder_<BORDER_REFLECT>(
-                            input.get(), input_stride, input_shape,
-                            output.get(), output_stride, output_shape,
+                            input.get(), input_strides, input_shape,
+                            output.get(), output_strides, output_shape,
                             pad_left, pad_right, crop_left);
                 case BORDER_MIRROR:
                     return applyBorder_<BORDER_MIRROR>(
-                            input.get(), input_stride, input_shape,
-                            output.get(), output_stride, output_shape,
+                            input.get(), input_strides, input_shape,
+                            output.get(), output_strides, output_shape,
                             pad_left, pad_right, crop_left);
                 default:
                     NOA_THROW("BorderMode not supported. Got: {}", border_mode);

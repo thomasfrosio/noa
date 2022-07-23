@@ -5,7 +5,6 @@
 #endif
 
 #include "noa/common/Exception.h"
-#include "noa/cpu/memory/Copy.h"
 
 namespace noa::cpu::memory::details {
     template<typename T>
@@ -23,9 +22,9 @@ namespace noa::cpu::memory::details::inplace {
 
 namespace noa::cpu::memory {
     template<typename T, typename>
-    void permute(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, uint4_t permutation, Stream& stream) {
-        if (any(permutation > 3))
+    void permute(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, uint4_t permutation, Stream& stream) {
+        if (any(permutation > 3) || noa::math::sum(permutation) != 6)
             NOA_THROW("Permutation {} is not valid", permutation);
 
         if (input == output) {
@@ -35,28 +34,24 @@ namespace noa::cpu::memory {
                     return;
                 case 213:
                     return stream.enqueue([=]() {
-                        details::inplace::permute0213<T>(output.get(), output_stride, input_shape);
+                        details::inplace::permute0213<T>(output.get(), output_strides, input_shape);
                     });
                 case 132:
                     return stream.enqueue([=]() {
-                        details::inplace::permute0132<T>(output.get(), output_stride, input_shape);
+                        details::inplace::permute0132<T>(output.get(), output_strides, input_shape);
                     });
                 case 321:
                     return stream.enqueue([=]() {
-                        details::inplace::permute0321<T>(output.get(), output_stride, input_shape);
+                        details::inplace::permute0321<T>(output.get(), output_strides, input_shape);
                     });
                 default:
                     NOA_THROW("The in-place permutation {} is not supported", permutation);
             }
         } else {
-            if (all(permutation == uint4_t{0, 1, 2, 3})) {
-                return copy(input, input_stride, output, output_stride, input_shape, stream);
-            } else {
-                return stream.enqueue([=]() {
-                    details::permute<T>(input.get(), input_stride, input_shape,
-                                        output.get(), output_stride, permutation);
-                });
-            }
+            return stream.enqueue([=]() {
+                details::permute<T>(input.get(), input_strides, input_shape,
+                                    output.get(), output_strides, permutation);
+            });
         }
     }
 }

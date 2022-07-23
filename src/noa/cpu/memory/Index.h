@@ -14,63 +14,63 @@ namespace noa::cpu::memory {
     /// Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.
     /// \tparam T                   Any data type.
     /// \param[in] input            On the \b host. Input array to use for the extraction.
-    /// \param input_stride         Rightmost strides, in elements, of \p input.
-    /// \param input_shape          Rightmost shape of \p input.
+    /// \param input_strides        BDHW strides, in elements, of \p input.
+    /// \param input_shape          BDHW shape of \p input.
     /// \param[out] subregions      On the \b host. Output subregions.
-    /// \param subregion_stride     Rightmost strides, in elements, of \p subregions.
-    /// \param subregion_shape      Rightmost shape of subregions.
+    /// \param subregion_strides    BDHW strides, in elements, of \p subregions.
+    /// \param subregion_shape      BDHW shape of subregions.
     /// \param[in] origins          On the \b host. One per batch.
-    ///                             Rightmost indexes, defining the origin where to extract subregions from \p input.
+    ///                             BDHW indexes, defining the origin where to extract subregions from \p input.
     ///                             While usually within the input frame, subregions can be (partially) out-of-bound.
-    ///                             The outermost dimension of \p subregion_shape is the batch dimension and sets the
-    ///                             number of subregions to extract. Thus, subregions can be up to 3 dimensions.
+    ///                             The batch dimension of \p subregion_shape sets the number of subregions to extract.
     /// \param border_mode          Border mode used for out-of-bound conditions. Can be BORDER_NOTHING, BORDER_ZERO,
     ///                             BORDER_VALUE, BORDER_CLAMP, BORDER_MIRROR or BORDER_REFLECT.
     /// \param border_value         Constant value to use for out-of-bound. Only used if \p border_mode is BORDER_VALUE.
     /// \param[in,out] stream       Stream on which to enqueue this function.
-    ////
+    ///
     /// \note \p input and \p subregions should not overlap.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void extract(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
+    void extract(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& subregions, size4_t subregion_strides, size4_t subregion_shape,
                  const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
                  Stream& stream);
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
     /// \tparam T                   Any data type.
     /// \param[in] subregions       On the \b host. Subregion(s) to insert into \p output.
-    /// \param subregion_stride     Rightmost strides, in elements, of \p subregions.
-    /// \param subregion_shape      Rightmost shape \p subregions.
+    /// \param subregion_strides    BDHW strides, in elements, of \p subregions.
+    /// \param subregion_shape      BDHW shape \p subregions.
     /// \param[out] output          On the \b host. Output array.
-    /// \param output_stride        Rightmost strides, in elements, of \p output.
-    /// \param output_shape         Rightmost shape of \p output.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape of \p output.
     /// \param[in] origins          On the \b host. One per batch.
-    ///                             Rightmost indexes, defining the origin where to insert subregions into \p output.
+    ///                             BDHW indexes, defining the origin where to insert subregions into \p output.
     ///                             While usually within the output frame, subregions can be (partially) out-of-bound.
-    ///                             The outermost dimension of \p subregion_shape is the batch dimension and sets the
-    ///                             number of subregions to insert. Thus, subregions can be up to 3 dimensions.
+    ///                             The batch dimension of \p subregion_shape sets the number of subregions to insert.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \note \p outputs and \p subregions should not overlap.
-    /// \note This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \warning This function assumes no overlap between subregions. There's no guarantee on the order of insertion.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void insert(const shared_t<T[]>& subregions, size4_t subregion_stride, size4_t subregion_shape,
-                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void insert(const shared_t<T[]>& subregions, size4_t subregion_strides, size4_t subregion_shape,
+                const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                 const shared_t<int4_t[]>& origins, Stream& stream);
 
     /// Gets the atlas layout (shape + subregion origins).
-    /// \param subregion_shape          Rightmost shape of the subregion(s).
-    ///                                 The outermost dimension is the number of subregion(s) to place into the atlas.
+    /// \param subregion_shape          BDHW shape of the subregion(s).
+    ///                                 The batch dimension is the number of subregion(s) to place into the atlas.
     /// \param[out] origins             On the \b host. Subregion origin(s), relative to the atlas shape.
+    ///                                 The Batch and Depth dimensions are always set to 0, hence the possibility
+    ///                                 to return only the Height and Width dimension.
     /// \return                         Atlas shape.
     ///
     /// \note The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
-    ///       is `2x2`, but with 5 subregions is goes to `3x2` with one empty region. Subregions are in row-major order.
-    /// \note The origin is always 0 for the two outermost dimensions. The function is effectively un-batching the
-    ///       2D/3D subregions into a 2D/3D atlas.
-    NOA_IH size4_t atlasLayout(size4_t subregion_shape, int4_t* origins);
+    ///       is `2x2`, but with 5 subregions it goes to `3x2` with one empty region. Subregions are saved in
+    ///       \p origins in row-major order.
+    template<typename T, typename = std::enable_if_t<traits::is_int2_v<T> || traits::is_int4_v<T>>>
+    inline size4_t atlasLayout(size4_t subregion_shape, T* origins);
 }
 
 // -- Using a sequence of linear indexes -- //
@@ -88,10 +88,10 @@ namespace noa::cpu::memory {
     /// \tparam T, U            Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
     ///                         Can be nullptr if \p extract_values is false.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
-    /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
-    /// \param shape            Rightmost shape of \p input and \p lhs.
+    /// \param lhs_strides      Strides, in elements, of \p lhs.
+    /// \param shape            Shape of \p input and \p lhs.
     /// \param unary_op         Unary operation device function object that will be used as criterion to extract elements.
     ///                         Each element of \p lhs is passed through that operator and if the return value
     ///                         evaluates to true, the corresponding element in \p input is extracted.
@@ -105,8 +105,8 @@ namespace noa::cpu::memory {
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         const shared_t<U[]>& lhs, size4_t lhs_strides, size4_t shape,
                                          UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream);
 
     /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
@@ -115,11 +115,11 @@ namespace noa::cpu::memory {
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
     ///                         Can be nullptr if \p extract_values is false.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
-    /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
+    /// \param lhs_strides      Strides, in elements, of \p lhs.
     /// \param rhs              Value to use as right-hand side argument.
-    /// \param shape            Rightmost shape of \p input and \p lhs.
+    /// \param shape            Shape of \p input and \p lhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         Each element of \p lhs and \p rhs are passed through that operator and if the return
     ///                         value evaluates to true, the corresponding element in \p input is extracted.
@@ -134,8 +134,8 @@ namespace noa::cpu::memory {
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         const shared_t<U[]>& lhs, size4_t lhs_strides, V rhs, size4_t shape,
                                          BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream);
 
     /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
@@ -144,11 +144,11 @@ namespace noa::cpu::memory {
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
     ///                         Can be nullptr if \p extract_values is false.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param lhs              Value to use as left-hand side argument.
     /// \param[in] rhs          On the \b host. Used as right-hand side argument.
-    /// \param rhs_stride       Rightmost strides, in elements, of \p rhs.
-    /// \param shape            Rightmost shape of \p input and \p rhs.
+    /// \param rhs_strides      Strides, in elements, of \p rhs.
+    /// \param shape            Shape of \p input and \p rhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         \p lhs and each element of \p rhs are passed through that operator and if the return
     ///                         value evaluates to true, the corresponding element in \p input is extracted.
@@ -163,8 +163,8 @@ namespace noa::cpu::memory {
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_strides, size4_t shape,
                                          BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream);
 
     /// Extracts elements (and/or offsets) from the input array based on an binary bool operator.
@@ -173,12 +173,12 @@ namespace noa::cpu::memory {
     /// \tparam T, U, V         Any data type.
     /// \param[in] input        On the \b host. Input array to extract from.
     ///                         Can be nullptr if \p extract_values is false.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
-    /// \param lhs_stride       Rightmost strides, in elements, of \p lhs.
+    /// \param lhs_strides      Strides, in elements, of \p lhs.
     /// \param[in] rhs          On the \b host. Used as right-hand side argument.
-    /// \param rhs_stride       Rightmost strides, in elements, of \p rhs.
-    /// \param shape            Rightmost shape of \p input, \p lhs and \p rhs.
+    /// \param rhs_strides      Strides, in elements, of \p rhs.
+    /// \param shape            Shape of \p input, \p lhs and \p rhs.
     /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
     ///                         Each element of both \p lhs and \p rhs are passed through that operator and if the
     ///                         return value evaluates to true, the corresponding element in \p input is extracted.
@@ -193,9 +193,9 @@ namespace noa::cpu::memory {
     ///                         3: Number of extracted elements.
     /// \note This function may be asynchronous relative to the host and may return before completion.
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         const shared_t<U[]>& lhs, size4_t lhs_stride,
-                                         const shared_t<V[]>& rhs, size4_t rhs_stride,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         const shared_t<U[]>& lhs, size4_t lhs_strides,
+                                         const shared_t<V[]>& rhs, size4_t rhs_strides,
                                          size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream);
 

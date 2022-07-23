@@ -1,4 +1,5 @@
 #include "noa/common/Assert.h"
+#include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/Permute.h"
 
 // TODO Use BLAS copy for out-of-place permute
@@ -6,31 +7,18 @@
 
 namespace noa::cpu::memory::details {
     template<typename T>
-    void permute(const T* input, size4_t input_stride, size4_t input_shape,
-                 T* output, size4_t output_stride, uint4_t permutation) {
+    void permute(const T* input, size4_t input_strides, size4_t input_shape,
+                 T* output, size4_t output_strides, uint4_t permutation) {
         NOA_ASSERT(input != output);
-        size4_t offset;
         const size4_t output_shape = indexing::reorder(input_shape, permutation);
-        const size4_t input_stride_permuted = indexing::reorder(input_stride, permutation);
-        for (size_t i = 0; i < output_shape[0]; ++i) {
-            offset[0] = i * input_stride_permuted[0];
-            for (size_t j = 0; j < output_shape[1]; ++j) {
-                offset[1] = j * input_stride_permuted[1];
-                for (size_t k = 0; k < output_shape[2]; ++k) {
-                    offset[2] = k * input_stride_permuted[2];
-                    for (size_t l = 0; l < output_shape[3]; ++l) {
-                        offset[3] = l * input_stride_permuted[3];
-                        output[indexing::at(i, j, k, l, output_stride)] = input[math::sum(offset)];
-                    }
-                }
-            }
-        }
+        const size4_t input_strides_permuted = indexing::reorder(input_strides, permutation);
+        copy(input, input_strides_permuted, output, output_strides, output_shape);
     }
 }
 
 namespace noa::cpu::memory::details::inplace {
     template<typename T>
-    void permute0213(T* output, size4_t stride, size4_t shape) {
+    void permute0213(T* output, size4_t strides, size4_t shape) {
         if (shape[2] != shape[1])
             NOA_THROW("For a \"0213\" in-place permutation, shape[2] should be equal to shape[1]. Got {}", shape);
 
@@ -40,14 +28,14 @@ namespace noa::cpu::memory::details::inplace {
                 // Transpose YZ: swap bottom triangle with upper triangle.
                 for (size_t j = 0; j < shape[1]; ++j)
                     for (size_t k = j + 1; k < shape[2]; ++k)
-                        std::swap(output[indexing::at(i, j, k, l, stride)],
-                                  output[indexing::at(i, k, j, l, stride)]);
+                        std::swap(output[indexing::at(i, j, k, l, strides)],
+                                  output[indexing::at(i, k, j, l, strides)]);
             }
         }
     }
 
     template<typename T>
-    void permute0132(T* output, size4_t stride, size4_t shape) {
+    void permute0132(T* output, size4_t strides, size4_t shape) {
         if (shape[3] != shape[2])
             NOA_THROW("For a \"0132\" in-place permutation, shape[3] should be equal to shape[2]. Got {}", shape);
 
@@ -57,14 +45,14 @@ namespace noa::cpu::memory::details::inplace {
                 // Transpose XY: swap upper triangle with lower triangle.
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = k + 1; l < shape[3]; ++l)
-                        std::swap(output[indexing::at(i, j, k, l, stride)],
-                                  output[indexing::at(i, j, l, k, stride)]);
+                        std::swap(output[indexing::at(i, j, k, l, strides)],
+                                  output[indexing::at(i, j, l, k, strides)]);
             }
         }
     }
 
     template<typename T>
-    void permute0321(T* output, size4_t stride, size4_t shape) {
+    void permute0321(T* output, size4_t strides, size4_t shape) {
         if (shape[3] != shape[1])
             NOA_THROW("For a \"0321\" in-place permutation, shape[3] should be equal to shape[1]. Got {}", shape);
 
@@ -74,8 +62,8 @@ namespace noa::cpu::memory::details::inplace {
                 // Transpose XZ: swap upper triangle with lower triangle.
                 for (size_t j = 0; j < shape[1]; ++j)
                     for (size_t l = j + 1; l < shape[3]; ++l)
-                        std::swap(output[indexing::at(i, j, k, l, stride)],
-                                  output[indexing::at(i, l, k, j, stride)]);
+                        std::swap(output[indexing::at(i, j, k, l, strides)],
+                                  output[indexing::at(i, l, k, j, strides)]);
             }
         }
     }

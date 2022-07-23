@@ -16,7 +16,11 @@
 #include "noa/common/traits/BaseTypes.h"
 
 namespace noa::cpu::memory {
-    /// Manages a host pointer.
+    /// Allocates and manages a heap-allocated memory region.
+    /// Also provides memory-aligned alloc and calloc functions.
+    /// \note Floating-points and complex floating-points are aligned to 128 bytes.
+    ///       Integral types are aligned to 64 bytes.
+    ///       Anything else uses the type's alignment as reported by alignof().
     template<typename T>
     class PtrHost {
     public:
@@ -48,7 +52,7 @@ namespace noa::cpu::memory {
             if (elements <= 0)
                 return {};
             T* out;
-            if constexpr(traits::is_data_v<T>)
+            if constexpr (traits::is_data_v<T>)
                 out = static_cast<T*>(std::aligned_alloc(ALIGNMENT, static_cast<size_t>(elements) * sizeof(T)));
             else
                 out = new(std::nothrow) T[elements];
@@ -60,7 +64,6 @@ namespace noa::cpu::memory {
         /// Allocates some elements, all initialized to 0. Throws if the allocation fails.
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         static calloc_unique_t calloc(I elements) {
-            using namespace ::noa::traits;
             if (elements <= 0)
                 return {};
 
@@ -96,13 +99,14 @@ namespace noa::cpu::memory {
         /// Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
-        /// Attach the lifetime of the managed object with an \p alias.
+        /// Attach the lifetime of the managed object with \p alias.
         /// \details Constructs a shared_ptr which shares ownership information with the managed object,
         ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
         ///          the last of the group to go out of scope, it will call the stored deleter for the
         ///          managed object of this instance. However, calling get() on this shared_ptr will always
         ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
-        ///          \p alias remains valid as long as the managed object exists.
+        ///          \p alias remains valid as long as the managed object exists. This functions performs no
+        ///          heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename U>
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
@@ -137,7 +141,7 @@ namespace noa::cpu::memory {
     public: // Accessors
         /// Returns a reference at index \p idx. There's no bound check.
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        constexpr T& operator[](I idx) const { return m_ptr.get()[idx]; }
+        [[nodiscard]] constexpr T& operator[](I idx) const { return m_ptr.get()[idx]; }
 
         /// Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {
@@ -146,7 +150,7 @@ namespace noa::cpu::memory {
         }
 
     private:
-        static_assert(noa::traits::is_valid_ptr_type_v<T>);
+        static_assert(traits::is_valid_ptr_type_v<T>);
         std::shared_ptr<T[]> m_ptr{};
         size_t m_elements{0};
     };

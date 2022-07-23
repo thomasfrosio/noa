@@ -16,13 +16,16 @@ namespace noa::cpu::memory {
     /// \param[out] last    On the \b host. The end of range to set.
     /// \param value        The value to assign.
     template<typename T>
-    NOA_IH void set(T* first, T* last, T value) {
-        // calling memset, https://godbolt.org/z/1zEzTnoTK
-        // the cast is not necessary for basic types, but for Complex<>, IntX<> or FloatX<>, it could help...
-        if constexpr (noa::traits::is_data_v<T> || noa::traits::is_intX_v<T> || noa::traits::is_floatX_v<T>)
-            if (value == static_cast<T>(0))
-                return std::fill(reinterpret_cast<char*>(first), reinterpret_cast<char*>(last), 0);
-        return std::fill(first, last, value);
+    inline void set(T* first, T* last, T value) {
+        if constexpr (traits::is_complex_v<T> || traits::is_intX_v<T> ||
+                      traits::is_floatX_v<T> || traits::is_floatXX_v<T>) {
+            using value_t = traits::value_type_t<T>;
+            // the cast is not necessary for basic types, but for Complex<>, IntX<> or FloatX<>, it could help...
+            return std::fill(reinterpret_cast<value_t*>(first), reinterpret_cast<value_t*>(last), value_t{0});
+        } else {
+            // std::fill is calling memset, https://godbolt.org/z/1zEzTnoTK
+            return std::fill(first, last, value);
+        }
     }
 
     /// Sets an array to a given value.
@@ -31,7 +34,7 @@ namespace noa::cpu::memory {
     /// \param elements Number of elements to set.
     /// \param value    The value to assign.
     template<typename T>
-    NOA_IH void set(T* src, size_t elements, T value) {
+    inline void set(T* src, size_t elements, T value) {
         set(src, src + elements, value);
     }
 
@@ -43,43 +46,45 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
+    inline void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         stream.enqueue([=]() { return set(src.get(), elements, value); });
     }
 
     /// Sets an array to a given value.
-    /// \tparam CHECK_CONTIGUOUS    Writing to a contiguous block of memory can be often more efficient.
-    ///                             If true, the function checks if the data can be accessed contiguously.
-    /// \tparam T                   Any type with a copy assignment operator.
-    //// \param[out] src            On the \b host. The beginning of range to set.
-    /// \param stride               Rightmost strides, in elements, of \p src.
-    /// \param shape                Rightmost shape to set.
-    /// \param value                The value to assign.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void set(T* src, size4_t stride, size4_t shape, T value) {
-        if constexpr (CHECK_CONTIGUOUS) {
-            if (all(indexing::isContiguous(stride, shape)))
+    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize cache writes. If false, assume rightmost order.
+    /// \tparam T               Any type with a copy assignment operator.
+    /// \param[out] src         On the \b host. The beginning of range to set.
+    /// \param strides          Strides, in elements, of \p src.
+    /// \param shape            Shape to set.
+    /// \param value            The value to assign.
+    template<bool CHECK_LAYOUT = true, typename T>
+    inline void set(T* src, size4_t strides, size4_t shape, T value) {
+        if constexpr (CHECK_LAYOUT) {
+            const size4_t order = indexing::order(strides, shape);
+            shape = indexing::reorder(shape, order);
+            strides = indexing::reorder(strides, order);
+
+            if (indexing::areContiguous(strides, shape))
                 return set(src, shape.elements(), value);
         }
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l)
-                        src[indexing::at(i, j, k, l, stride)] = value;
+                        src[indexing::at(i, j, k, l, strides)] = value;
     }
 
     /// Sets an array to a given value.
-    /// \tparam CHECK_CONTIGUOUS    Writing to a contiguous block of memory can be often more efficient.
-    ///                             If true, the function checks if the data can be accessed contiguously.
-    /// \tparam T                   Any type with a copy assignment operator.
-    /// \param[out] src             On the \b host. The beginning of range to set.
-    /// \param stride               Rightmost strides, in elements, of \p src.
-    /// \param shape                Rightmost shape to set.
-    /// \param value                The value to assign.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
+    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize cache writes. If false, assume rightmost order.
+    /// \tparam T               Any type with a copy assignment operator.
+    /// \param[out] src         On the \b host. The beginning of range to set.
+    /// \param strides          Strides, in elements, of \p src.
+    /// \param shape            Shape to set.
+    /// \param value            The value to assign.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
-        stream.enqueue([=]() { return set<CHECK_CONTIGUOUS>(src.get(), stride, shape, value); });
+    template<bool CHECK_LAYOUT = true, typename T>
+    inline void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream) {
+        stream.enqueue([=]() { return set<CHECK_LAYOUT>(src.get(), strides, shape, value); });
     }
 }

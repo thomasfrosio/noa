@@ -19,7 +19,7 @@ namespace noa::cpu::memory {
     /// \param[in] last         On the \b host. The end of range to copy.
     /// \param[out] dst_first   On the \b host. The beginning of the destination range.
     template<typename T>
-    NOA_IH void copy(const T* first, const T* last, T* dst_first) {
+    inline void copy(const T* first, const T* last, T* dst_first) {
         std::copy(first, last, dst_first);
     }
 
@@ -29,7 +29,7 @@ namespace noa::cpu::memory {
     /// \param[out] dst         On the \b host. The beginning of the destination range.
     /// \param elements         Number of elements to copy.
     template<typename T>
-    NOA_IH void copy(const T* src, T* dst, size_t elements) {
+    inline void copy(const T* src, T* dst, size_t elements) {
         copy(src, src + elements, dst);
     }
 
@@ -41,35 +41,35 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
+    inline void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
         stream.enqueue([=](){
             copy(src.get(), dst.get(), elements);
         });
     }
 
     /// Copies all logical elements from \p src to \p dst.
-    /// \tparam OPTIMIZE_SRC_ORDER  Tries to loop through the source in the most efficient way.
-    ///                             Otherwise, the copy is in the rightmost order (inner loop is the rightmost dimension).
-    /// \tparam T                   Any type with a copy assignment operator.
-    /// \param[in] src              On the \b host. Input array to copy.
-    /// \param src_strides          Strides, in elements, of \p src.
-    /// \param[out] dst             On the \b host. Output array.
-    /// \param dst_strides          Strides, in elements, of \p dst.
-    /// \param shape                Shape of \p src and \p dst.
-    template<bool OPTIMIZE_SRC_ORDER = true, typename T>
-    NOA_IH void copy(const T* src, size4_t src_strides, T* dst, size4_t dst_strides, size4_t shape) {
-        if constexpr (OPTIMIZE_SRC_ORDER) {
-            // Loop through the source in the most cache-friendly way:
-            const size4_t order = indexing::order(src_strides, shape);
+    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize the \p dst cache writes.
+    ///                         If false, assume rightmost order.
+    /// \tparam T               Any type with a copy assignment operator.
+    /// \param[in] src          On the \b host. Input array to copy.
+    /// \param src_strides      Strides, in elements, of \p src.
+    /// \param[out] dst         On the \b host. Output array.
+    /// \param dst_strides      Strides, in elements, of \p dst.
+    /// \param shape            Shape of \p src and \p dst.
+    template<bool CHECK_LAYOUT = true, typename T>
+    inline void copy(const T* src, size4_t src_strides, T* dst, size4_t dst_strides, size4_t shape) {
+        if constexpr (CHECK_LAYOUT) {
+            // Loop through the destination in the most cache-friendly way:
+            const size4_t order = indexing::order(dst_strides, shape);
             shape = indexing::reorder(shape, order);
             dst_strides = indexing::reorder(dst_strides, order);
             src_strides = indexing::reorder(src_strides, order);
-            // We could have selected the destination, but since the source is more likely to be
-            // broadcast, we want to have the broadcast dimensions in the innermost loops.
+            // We could have selected the source, but since the destination is less likely to be
+            // broadcast, it seems safer. Broadcast dimensions can really make things worse.
             // Note: This could make things worse for some edge cases.
 
             // No need to check for F-contiguous, since the reordering switched it to C-contiguous already.
-            if (all(indexing::isContiguous(src_strides, shape)) && all(indexing::isContiguous(dst_strides, shape)))
+            if (indexing::areContiguous(src_strides, shape) && indexing::areContiguous(dst_strides, shape))
                 return copy(src, src + shape.elements(), dst);
         }
 
@@ -81,21 +81,21 @@ namespace noa::cpu::memory {
     }
 
     /// Copies all logical elements from \p src to \p dst.
-    /// \tparam CHECK_CONTIGUOUS    Copying a contiguous block of memory is often more efficient.
-    ///                             If true, the function checks if a contiguous copy can be done instead.
-    /// \tparam T                   Any type with a copy assignment operator.
-    /// \param[in] src              On the \b host. Input array to copy.
-    /// \param src_stride           Rightmost strides, in elements, of \p src.
-    /// \param[out] dst             On the \b host. Output array.
-    /// \param dst_stride           Rightmost strides, in elements, of \p dst.
-    /// \param shape                Rightmost shape of \p src and \p dst.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
+    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize the \p dst cache writes.
+    ///                         If false, assume rightmost order.
+    /// \tparam T               Any type with a copy assignment operator.
+    /// \param[in] src          On the \b host. Input array to copy.
+    /// \param src_strides      Strides, in elements, of \p src.
+    /// \param[out] dst         On the \b host. Output array.
+    /// \param dst_strides      Strides, in elements, of \p dst.
+    /// \param shape            Shape of \p src and \p dst.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void copy(const shared_t<T[]>& src, size4_t src_stride,
-                     const shared_t<T[]>& dst, size4_t dst_stride, size4_t shape, Stream& stream) {
+    template<bool CHECK_LAYOUT = true, typename T>
+    inline void copy(const shared_t<T[]>& src, size4_t src_strides,
+                     const shared_t<T[]>& dst, size4_t dst_strides, size4_t shape, Stream& stream) {
         stream.enqueue([=]() {
-            return copy<CHECK_CONTIGUOUS>(src.get(), src_stride, dst.get(), dst_stride, shape);
+            return copy<CHECK_LAYOUT>(src.get(), src_strides, dst.get(), dst_strides, shape);
         });
     }
 }

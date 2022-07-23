@@ -12,22 +12,22 @@ namespace noa::cpu::memory {
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
     template<typename T>
-    NOA_IH void arange(T* src, size_t elements, T start = T(0), T step = T(1)) {
+    inline void arange(T* src, size_t elements, T start = T(0), T step = T(1)) {
         T value = start;
         for (size_t i = 0; i < elements; ++i, value += step)
             src[i] = value;
     }
 
-    /// Returns evenly spaced values within a given interval.
+    /// Returns evenly spaced values within a given interval, in the rightmost order.
     /// \tparam T           Any built-in or complex type.
     /// \param[in,out] src  On the \b host. Array with evenly spaced values.
-    /// \param stride       Rightmost strides, in elements, of \p src.
-    /// \param shape        Rightmost shape of \p src.
+    /// \param strides      BDHW strides, in elements, of \p src.
+    /// \param shape        BDHW shape of \p src.
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
     template<typename T>
-    NOA_IH void arange(T* src, size4_t stride, size4_t shape, T start = T(0), T step = T(1)) {
-        if (all(indexing::isContiguous(stride, shape)))
+    inline void arange(T* src, size4_t strides, size4_t shape, T start = T(0), T step = T(1)) {
+        if (indexing::areContiguous(strides, shape))
             return arange(src, shape.elements(), start, step);
 
         T value = start;
@@ -35,7 +35,7 @@ namespace noa::cpu::memory {
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
                     for (size_t l = 0; l < shape[3]; ++l, value += step)
-                        src[indexing::at(i, j, k, l, stride)] = value;
+                        src[indexing::at(i, j, k, l, strides)] = value;
         }
     }
 
@@ -48,7 +48,7 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream) {
+    inline void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream) {
         stream.enqueue([=]() {
             arange(src.get(), elements, start, step);
         });
@@ -61,35 +61,35 @@ namespace noa::cpu::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
+    inline void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
         arange(src, elements, T(0), T(1), stream);
     }
 
-    /// Returns evenly spaced values within a given interval.
+    /// Returns evenly spaced values within a given interval, in the rightmost order.
     /// \tparam T               Any built-in or complex type.
     /// \param[in,out] src      On the \b host. Array with evenly spaced values.
-    /// \param stride           Rightmost strides, in elements, of \p src.
-    /// \param shape            Rightmost shape of \p src.
+    /// \param strides          BDHW strides, in elements, of \p src.
+    /// \param shape            BDHW shape of \p src.
     /// \param start            Start of interval.
     /// \param step             Spacing between values.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
+    inline void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, T start, T step, Stream& stream) {
         stream.enqueue([=]() {
-            arange(src.get(), stride, shape, start, step);
+            arange(src.get(), strides, shape, start, step);
         });
     }
 
-    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1.
+    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1, in the rightmost order.
     /// \tparam T               Any built-in or complex type.
     /// \param[in,out] src      On the \b host. Array with evenly spaced values.
-    /// \param stride           Rightmost strides, in elements, of \p src.
-    /// \param shape            Rightmost shape of \p src.
+    /// \param strides          BDHW strides, in elements, of \p src.
+    /// \param shape            BDHW shape of \p src.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T>
-    NOA_IH void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, Stream& stream) {
-        arange(src, stride, shape, T(0), T(1), stream);
+    inline void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, Stream& stream) {
+        arange(src, strides, shape, T(0), T(1), stream);
     }
 }
