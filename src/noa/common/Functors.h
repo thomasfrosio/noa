@@ -243,6 +243,11 @@ namespace noa::math {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return ::noa::math::max(lhs, rhs); }
     };
+
+    struct first_min_t {}; // undefined implementation
+    struct last_min_t {}; // undefined implementation
+    struct first_max_t {}; // undefined implementation
+    struct last_max_t {}; // undefined implementation
 }
 
 // -- Trinary operators -- //

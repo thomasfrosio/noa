@@ -13,7 +13,7 @@ namespace noa::cpu::math::details {
 
 namespace noa::cpu::math {
     // TODO Add solve(...), like https://github.com/scipy/linalg/_basic.py#L40 using e.g. genv
-    // TODO Add svd, inverse and determinant
+    // TODO Add svd
 
     /// Computes least-squares solution to equation Ax = b.
     /// \details Computes a vector x such that the 2-norm |b - A x| is minimized. Several right hand side vectors b
@@ -22,16 +22,12 @@ namespace noa::cpu::math {
     ///
     /// \tparam T               float, double, cfloat_t or cdouble_t.
     /// \param[in,out] a        On the \b host. Dense MxN matrix. Can be batched. It is overwritten.
-    /// \param a_stride         Rightmost stride of \p a. The two innermost dimension should not be broadcast.
-    ///                         If row-major: the rows (i.e. the second-most dimension) can be padded.
-    ///                         If column-major: the columns (i.e. the innermost dimension) can be padded.
-    /// \param a_shape          Rightmost shape of \p a.
+    /// \param a_strides        BDHW strides of \p a. The two innermost dimension should not be broadcast.
+    /// \param a_shape          BDHW shape of \p a.
     /// \param[in,out] b        On the \b host. Dense MxK matrix, where K can be 1. Can be batched.
     ///                         It is overwritten with the NxK solution matrix.
-    /// \param b_stride         Rightmost stride of \p b.
-    ///                         If row-major: the rows (i.e. the second-most dimension) can be padded.
-    ///                         If column-major: the columns (i.e. the innermost dimension) can be padded.
-    /// \param b_shape          Rightmost shape of \p b.
+    /// \param b_strides        BDHW strides of \p b.
+    /// \param b_shape          BDHW shape of \p b.
     ///                         In the case of M < N, \p b should be extended to fit the output and its shape should
     ///                         reflect that, i.e. its second-most dimension should have max(M,N) elements.
     /// \param cond             Used to determine effective rank of \p a. Cutoff for "small" singular values.
@@ -44,24 +40,27 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    /// \note The memory layout is restricted: \p a and \p b should not overlap and should either be row-major or
+    ///       column-major. The innermost dimension of the matrices should be contiguous and the second-most dimension
+    ///       cannot be broadcast but can be padded.
     /// \note Some LAPACKE interfaces (e.g. OpenBLAS) do not natively support row-major matrices and transposes
-    ///       them internally, requiring more memory and running slower. If the matrices \p a and \p b (if K > 1)
-    ///       are column major, this function will correctly identify it and will call the column-major implementation.
+    ///       them internally, requiring more memory and running slower. As such, it might be more efficient to for
+    ///       the matrices \p a and \p b (if K > 1) to be column major.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_lstsq_t<T, U>>>
-    void lstsq(const shared_t<T[]>& a, size4_t a_stride, size4_t a_shape,
-               const shared_t<T[]>& b, size4_t b_stride, size4_t b_shape,
+    void lstsq(const shared_t<T[]>& a, size4_t a_strides, size4_t a_shape,
+               const shared_t<T[]>& b, size4_t b_strides, size4_t b_shape,
                float cond, const shared_t<U[]>& svd,
                Stream& stream);
 
     /// Fits a polynomial 2D surface onto a regular grid represented by a 2D image.
     /// \tparam T               float or double.
     /// \param[in] input        On the \b host. Input 2D array(s).
-    /// \param input_stride     Rightmost stride of \p input.
-    /// \param input_shape      Rightmost shape of \p input.
+    /// \param input_strides    BDHW strides of \p input.
+    /// \param input_shape      BDHW shape of \p input.
     /// \param[out] output      On the \b host. Output surface or image subtracted with the surface.
     ///                         Can be equal to input. If nullptr, it is ignored.
-    /// \param output_stride    Rightmost shape of \p output.
-    /// \param output_shape     Rightmost shape of \p output.
+    /// \param output_strides   BDHW shape of \p output.
+    /// \param output_shape     BDHW shape of \p output.
     /// \param subtract         Whether \p input should be subtracted by the surface and saved in \p output.
     ///                         If true, the input and output should have the same shape.
     /// \param order            Order of the polynomial, plane: 1, quadratic: 2 or cubic: 3.
@@ -73,8 +72,9 @@ namespace noa::cpu::math {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     /// \note This function can allocate a lot of memory, at least (\p order + 1) times the input size.
+    /// \note The current implementation is faster if \p input is in the rightmost order.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
-    void surface(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, bool subtract,
+    void surface(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, bool subtract,
                  int order, const shared_t<T[]>& parameters, Stream& stream);
 }

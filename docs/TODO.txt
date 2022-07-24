@@ -1,13 +1,6 @@
 Missing features that could be useful to add, in no particular order.
 
 cryoEM:
-    -   Surface: fit and possibly subtract surface to 2D image.
-        Should be able to fit a plane or quadratic surface. Benchmark "on-the-fly" least-square vs LAPACK.
-        Order 1 or 2 using LAPACK requires alloc for the matrix A, where min(Ap=z).
-        Add the option for stride, although this is just a shortcut since users can set the stride themselves.
-        Add option to only return the surface parameters (3 or 6), return the surface or subtract the surface to input.
-        Requires LAPACK lstsq (gelsy and gelsd). Good opportunity to add SVD as well.
-
     -   CTF
         Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
         e.g. compute value at a given frequency. Single side-band algorithm support (complex CTFs, cones).
@@ -32,7 +25,7 @@ cryoEM:
     -   Add center of mass, radial grid.
 
     -   ImageFile:
-        - Refactor and move to unified API?
+        - Add support for View<T>
         - Add compression.
         - Better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the
           non-redundant data. ImageFile treats the shape as the physical shape...
@@ -52,6 +45,10 @@ Development:
         Rightmost ordering is correct (rightmost dimension is the innermost dimension), but in many cases, we simply
         don't care, i.e. we don't require rightmost order, however we often require BDHW. For memory::copy(), we don't
         care at all. For signal::sphere() we care about BDHW but not about the memory ordering.
+
+    -   Functions returning something by value, that currently requires to synchronize the stream: use std::future?
+    -   Move the CPU reduction kernels in a details header and add a transform operator. This is especially useful
+        when we want to apply a transform operator (e.g. abs_t) for the high precision sum reductions.
 
     -   Add support for Windows. It should not be that complicated. One thing to look at is OpenMP support.
 

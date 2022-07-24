@@ -142,7 +142,7 @@ namespace {
         using unique_t = typename cpu::memory::PtrHost<T>::alloc_unique_t;
 
     public:
-        SurfaceFitter(const T* input, size4_t input_stride, size4_t input_shape, int order)
+        SurfaceFitter(const T* input, size4_t input_strides, size4_t input_shape, int order)
                 : m_shape(input_shape[2], input_shape[3]),
                   m_m(m_shape.elements()),
                   m_n(nbParameters_(order)),
@@ -153,9 +153,15 @@ namespace {
             m_A = cpu::memory::PtrHost<T>::alloc(m_m * m_n);
             computeRegularGrid_();
 
-            // Prepare the target column-major column vector(s):
+            // Prepare the F-contiguous target column vector(s):
+            // TODO The input is "transformed" into this column vector in the row-major order.
+            //      Reordering is difficult here because it means the columns of the matrix A should
+            //      be reordered as well since we probably want the solution to always be in the same order,
+            //      i.e. p[0] + p[1]*x + p[2]*y + ...
+            //      For now, the cpu::memory::copy will enforce the current row-major layout, which results
+            //      in a permutation if the input is passed as column-major.
             m_b = cpu::memory::PtrHost <T>::alloc(m_m * m_nrhs);
-            cpu::memory::copy(input, input_stride, m_b.get(), input_shape.strides(), input_shape);
+            cpu::memory::copy(input, input_strides, m_b.get(), input_shape.strides(), input_shape);
 
             // Solve x by minimizing (A @ x - b):
             const int m = static_cast<int>(m_m);
@@ -166,24 +172,38 @@ namespace {
         }
 
         void saveParameters(T* parameters) {
-            const size4_t b_stride{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
+            const size4_t b_strides{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
             const size4_t x_shape{1, 1, m_n, m_nrhs};
-            const size4_t x_stride{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
-            cpu::memory::copy(m_b.get(), b_stride, parameters, x_stride, x_shape);
+            const size4_t x_strides{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
+            cpu::memory::copy(m_b.get(), b_strides, parameters, x_strides, x_shape);
         }
 
-        void computeSurface(T* input, size4_t input_stride,
-                            T* output, size4_t output_stride, size4_t shape) {
-            const size2_t output_stride_2d(output_stride.get(2));
-            const size2_t input_stride_2d(input_stride.get(2));
+        void computeSurface(T* input, size4_t input_strides,
+                            T* output, size4_t output_strides, size4_t shape) {
+            size2_t output_strides_2d(output_strides.get(2));
+            size2_t input_strides_2d(input_strides.get(2));
+
+            // If arrays are column-major, make sure to loop in the column major order.
+            const bool swap = indexing::isColMajor(output_strides) && (!input || indexing::isColMajor(input_strides));
+            if (swap) {
+                std::swap(shape[2], shape[3]);
+                std::swap(input_strides_2d[0], input_strides_2d[1]);
+                std::swap(output_strides_2d[0], output_strides_2d[1]);
+            }
 
             std::array<T, 10> p{};
             for (size_t batch = 0; batch < shape[0]; ++batch) {
-                T* output_ptr = output + output_stride[0] * batch;
-                T* input_ptr = input + input_stride[0] * batch;
+                T* output_ptr = output + output_strides[0] * batch;
+                T* input_ptr = input + input_strides[0] * batch;
 
                 const int order = order_();
                 std::copy(m_b.get() + batch * m_m, m_b.get() + batch * m_m + m_n, p.data());
+                if (swap) {
+                    std::swap(p[1], p[2]);
+                    std::swap(p[4], p[5]);
+                    std::swap(p[6], p[7]);
+                    std::swap(p[8], p[9]);
+                }
 
                 T surface;
                 for (size_t iy = 0; iy < shape[2]; ++iy) {
@@ -197,8 +217,8 @@ namespace {
                         if (order == 3)
                             surface += x * x * y * p[6] + x * y * y * p[7] + x * x * x * p[8] + y * y * y * p[9];
 
-                        output_ptr[indexing::at(iy, ix, output_stride_2d)] =
-                                input ? input_ptr[indexing::at(iy, ix, input_stride_2d)] - surface : surface;
+                        output_ptr[indexing::at(iy, ix, output_strides_2d)] =
+                                input ? input_ptr[indexing::at(iy, ix, input_strides_2d)] - surface : surface;
                     }
                 }
             }
@@ -253,8 +273,8 @@ namespace {
 
 namespace noa::cpu::math {
     template<typename T, typename U, typename>
-    void lstsq(const shared_t<T[]>& a, size4_t a_stride, size4_t a_shape,
-               const shared_t<T[]>& b, size4_t b_stride, size4_t b_shape,
+    void lstsq(const shared_t<T[]>& a, size4_t a_strides, size4_t a_shape,
+               const shared_t<T[]>& b, size4_t b_strides, size4_t b_shape,
                float cond, const shared_t<U[]>& svd,
                Stream& stream) {
         NOA_ASSERT(a_shape[0] == b_shape[0]);
@@ -263,8 +283,8 @@ namespace noa::cpu::math {
 
         const int2_t a_shape_{a_shape.get(2)};
         const int2_t b_shape_{b_shape.get(2)};
-        const int2_t a_stride_{a_stride.get(2)};
-        const int2_t b_stride_{b_stride.get(2)};
+        const int2_t a_strides_{a_strides.get(2)};
+        const int2_t b_strides_{b_strides.get(2)};
 
         // Ax = b, where A is m-by-n, x is n-by-nrhs and b is m-by-nrhs. Most often, nrhs is 1.
         const int m = a_shape_[0];
@@ -277,33 +297,33 @@ namespace noa::cpu::math {
         // Check memory layout of a. Since most LAPACKE implementations are using column major and simply transposing
         // the row major matrices before and after decomposition, it is beneficial to detect the column major case
         // instead of assuming it's always row major.
-        const bool is_row_major = indexing::isRowMajor(a_stride_);
+        const bool is_row_major = indexing::isRowMajor(a_strides_);
         const int matrix_layout = is_row_major ? LAPACK_ROW_MAJOR : LAPACK_COL_MAJOR;
-        const int lda = a_stride_[!is_row_major];
-        const int ldb = b_stride_[!is_row_major];
+        const int lda = a_strides_[!is_row_major];
+        const int ldb = b_strides_[!is_row_major];
 
         // Check the size of the problem makes sense and that the innermost dimension of the matrices is contiguous.
-        // Note that the secondmost dimension can be padded (i.e. lda and ldb).
+        // Note that the second-most dimension can be padded (i.e. lda and ldb).
         NOA_ASSERT(is_row_major ?
-                   (lda >= n && ldb >= nrhs && a_stride_[1] == 1 && indexing::isRowMajor(b_stride_)) :
-                   (lda >= m && ldb >= mn_max && a_stride_[0] == 1 && indexing::isColMajor(b_stride_)));
-        NOA_ASSERT(b_stride_[is_row_major] == 1 && b_shape_[0] == mn_max);
+                   (lda >= n && ldb >= nrhs && a_strides_[1] == 1 && indexing::isRowMajor(b_strides_)) :
+                   (lda >= m && ldb >= mn_max && a_strides_[0] == 1 && indexing::isColMajor(b_strides_)));
+        NOA_ASSERT(b_strides_[is_row_major] == 1 && b_shape_[0] == mn_max);
         (void) mn_max;
 
         stream.enqueue([=]() {
             const LAPACKDriver driver = svd ? GELSD : GELSY;
             LinearLeastSquareSolver<T> solver(driver, matrix_layout, m, n, nrhs, lda, ldb, cond);
             for (size_t batch = 0; batch < batches; ++batch) {
-                solver.solve(a.get() + a_stride[0] * batch,
-                             b.get() + b_stride[0] * batch,
+                solver.solve(a.get() + a_strides[0] * batch,
+                             b.get() + b_strides[0] * batch,
                              svd.get() + mn_min);
             }
         });
     }
 
     template<typename T, typename>
-    void surface(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, bool subtract,
+    void surface(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, bool subtract,
                  int order, const shared_t<T[]>& parameters, Stream& stream) {
         if (!output && !parameters)
             return;
@@ -311,12 +331,12 @@ namespace noa::cpu::math {
         NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
         NOA_ASSERT(order >= 1 && order <= 3);
         stream.enqueue([=]() {
-            SurfaceFitter<GELSY, T> surface(input.get(), input_stride, input_shape, order);
+            SurfaceFitter<GELSY, T> surface(input.get(), input_strides, input_shape, order);
             if (parameters)
                 surface.saveParameters(parameters.get());
             if (output)
-                surface.computeSurface(subtract ? input.get() : nullptr,
-                                       input_stride, output.get(),  output_stride, output_shape);
+                surface.computeSurface(subtract ? input.get() : nullptr, input_strides,
+                                       output.get(), output_strides, output_shape);
         });
     }
 
