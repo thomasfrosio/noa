@@ -25,9 +25,9 @@ namespace noa {
 
         template<typename U>
         static constexpr bool is_indexable_v =
-                std::bool_constant<noa::traits::is_int_v<U> ||
-                                   noa::traits::is_almost_same_v<U, indexing::full_extent_t> ||
-                                   noa::traits::is_almost_same_v<U, indexing::slice_t>>::value;
+                std::bool_constant<traits::is_int_v<U> ||
+                                   traits::is_almost_same_v<U, indexing::full_extent_t> ||
+                                   traits::is_almost_same_v<U, indexing::slice_t>>::value;
 
     public: // Constructors
         /// Creates an empty view.

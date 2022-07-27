@@ -10,12 +10,12 @@
 
 namespace noa::io::details {
     template<size_t BYTES_IN_ELEMENTS>
-    inline void reverse(char* element) noexcept {
+    inline void reverse(byte_t* element) noexcept {
         std::reverse(element, element + BYTES_IN_ELEMENTS);
     }
 
     template<size_t BYTES_PER_ELEMENTS>
-    inline void swapEndian(char* ptr, size_t elements) noexcept {
+    inline void swapEndian(byte_t* ptr, size_t elements) noexcept {
         for (size_t i{0}; i < elements * BYTES_PER_ELEMENTS; i += BYTES_PER_ELEMENTS)
             reverse<BYTES_PER_ELEMENTS>(ptr + i);
     }
@@ -58,120 +58,107 @@ namespace noa::io {
     }
 
     template<typename T>
-    constexpr DataType getDataType() noexcept {
-        if constexpr (noa::traits::is_almost_same_v<T, int8_t> ||
-                      (noa::traits::is_almost_same_v<T, char> && noa::traits::is_sint_v<char>)) {
+    constexpr DataType dtype() noexcept {
+        if constexpr (traits::is_almost_same_v<T, int8_t> ||
+                      (traits::is_almost_same_v<T, char> && traits::is_sint_v<char>)) {
             return DataType::INT8;
-        } else if constexpr (noa::traits::is_almost_same_v<T, uint8_t> ||
-                             (noa::traits::is_almost_same_v<T, char> && noa::traits::is_uint_v<char>)) {
+        } else if constexpr (traits::is_almost_same_v<T, uint8_t> ||
+                             (traits::is_almost_same_v<T, char> && traits::is_uint_v<char>)) {
             return DataType::UINT8;
-        } else if constexpr (noa::traits::is_almost_same_v<T, int16_t>) {
+        } else if constexpr (traits::is_almost_same_v<T, int16_t>) {
             return DataType::INT16;
-        } else if constexpr (noa::traits::is_almost_same_v<T, uint16_t>) {
+        } else if constexpr (traits::is_almost_same_v<T, uint16_t>) {
             return DataType::UINT16;
-        } else if constexpr ((noa::traits::is_almost_same_v<T, long> && sizeof(long) == 4) ||
-                             noa::traits::is_almost_same_v<T, int32_t>) {
+        } else if constexpr ((traits::is_almost_same_v<T, long> && sizeof(long) == 4) ||
+                             traits::is_almost_same_v<T, int32_t>) {
             return DataType::INT32;
-        } else if constexpr ((noa::traits::is_almost_same_v<T, long> && sizeof(unsigned long) == 4) ||
-                             noa::traits::is_almost_same_v<T, uint32_t>) {
+        } else if constexpr ((traits::is_almost_same_v<T, long> && sizeof(unsigned long) == 4) ||
+                             traits::is_almost_same_v<T, uint32_t>) {
             return DataType::UINT32;
-        } else if constexpr ((noa::traits::is_almost_same_v<T, long> && sizeof(long) == 8) ||
-                             noa::traits::is_almost_same_v<T, long long>) {
+        } else if constexpr ((traits::is_almost_same_v<T, long> && sizeof(long) == 8) ||
+                             traits::is_almost_same_v<T, long long>) {
             return DataType::INT64;
-        } else if constexpr ((noa::traits::is_almost_same_v<T, unsigned long> && sizeof(unsigned long) == 8) ||
-                             noa::traits::is_almost_same_v<T, unsigned long long>) {
+        } else if constexpr ((traits::is_almost_same_v<T, unsigned long> && sizeof(unsigned long) == 8) ||
+                             traits::is_almost_same_v<T, unsigned long long>) {
             return DataType::UINT64;
-        } else if constexpr (noa::traits::is_almost_same_v<T, half_t>) {
+        } else if constexpr (traits::is_almost_same_v<T, half_t>) {
             return DataType::FLOAT16;
-        } else if constexpr (noa::traits::is_almost_same_v<T, float>) {
+        } else if constexpr (traits::is_almost_same_v<T, float>) {
             return DataType::FLOAT32;
-        } else if constexpr (noa::traits::is_almost_same_v<T, double>) {
+        } else if constexpr (traits::is_almost_same_v<T, double>) {
             return DataType::FLOAT64;
-        } else if constexpr (noa::traits::is_almost_same_v<T, chalf_t>) {
+        } else if constexpr (traits::is_almost_same_v<T, chalf_t>) {
             return DataType::CFLOAT16;
-        } else if constexpr (noa::traits::is_almost_same_v<T, cfloat_t>) {
+        } else if constexpr (traits::is_almost_same_v<T, cfloat_t>) {
             return DataType::CFLOAT32;
-        } else if constexpr (noa::traits::is_almost_same_v<T, cdouble_t>) {
+        } else if constexpr (traits::is_almost_same_v<T, cdouble_t>) {
             return DataType::CFLOAT64;
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(traits::always_false_v<T>);
         }
     }
 
     template<typename T>
-    constexpr void getDataTypeMinMax(DataType data_type, T* min, T* max) noexcept {
-        if constexpr (noa::traits::is_scalar_v<T>) {
+    constexpr std::pair<T, T> typeMinMax(DataType data_type) noexcept {
+        if constexpr (traits::is_scalar_v<T>) {
             switch (data_type) {
                 case DataType::UINT4:
-                    *min = T(0);
-                    *max = T(15);
-                    break;
+                    return {T{0}, T{15}};
                 case DataType::INT8:
-                    *min = clamp_cast<T>(math::Limits<int8_t>::min());
-                    *max = clamp_cast<T>(math::Limits<int8_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<int8_t>::min()),
+                            clamp_cast<T>(math::Limits<int8_t>::max())};
                 case DataType::UINT8:
-                    *min = clamp_cast<T>(math::Limits<uint8_t>::min());
-                    *max = clamp_cast<T>(math::Limits<uint8_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<uint8_t>::min()),
+                            clamp_cast<T>(math::Limits<uint8_t>::max())};
                 case DataType::INT16:
-                    *min = clamp_cast<T>(math::Limits<int16_t>::min());
-                    *max = clamp_cast<T>(math::Limits<int16_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<int16_t>::min()),
+                            clamp_cast<T>(math::Limits<int16_t>::max())};
                 case DataType::UINT16:
-                    *min = clamp_cast<T>(math::Limits<uint16_t>::min());
-                    *max = clamp_cast<T>(math::Limits<uint16_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<uint16_t>::min()),
+                            clamp_cast<T>(math::Limits<uint16_t>::max())};
                 case DataType::INT32:
-                    *min = clamp_cast<T>(math::Limits<int32_t>::min());
-                    *max = clamp_cast<T>(math::Limits<int32_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<int32_t>::min()),
+                            clamp_cast<T>(math::Limits<int32_t>::max())};
                 case DataType::UINT32:
-                    *min = clamp_cast<T>(math::Limits<uint32_t>::min());
-                    *max = clamp_cast<T>(math::Limits<uint32_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<uint32_t>::min()),
+                            clamp_cast<T>(math::Limits<uint32_t>::max())};
                 case DataType::INT64:
-                    *min = clamp_cast<T>(math::Limits<int64_t>::min());
-                    *max = clamp_cast<T>(math::Limits<int64_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<int64_t>::min()),
+                            clamp_cast<T>(math::Limits<int64_t>::max())};
                 case DataType::UINT64:
-                    *min = clamp_cast<T>(math::Limits<uint64_t>::min());
-                    *max = clamp_cast<T>(math::Limits<uint64_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<uint64_t>::min()),
+                            clamp_cast<T>(math::Limits<uint64_t>::max())};
                 case DataType::CINT16:
-                    *min = clamp_cast<T>(math::Limits<int16_t>::min());
-                    *max = clamp_cast<T>(math::Limits<int16_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<int16_t>::min()),
+                            clamp_cast<T>(math::Limits<int16_t>::max())};
                 case DataType::FLOAT16:
                 case DataType::CFLOAT16:
-                    *min = clamp_cast<T>(math::Limits<half_t>::lowest());
-                    *max = clamp_cast<T>(math::Limits<half_t>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<half_t>::lowest()),
+                            clamp_cast<T>(math::Limits<half_t>::max())};
                 case DataType::FLOAT32:
                 case DataType::CFLOAT32:
-                    *min = clamp_cast<T>(math::Limits<float>::lowest());
-                    *max = clamp_cast<T>(math::Limits<float>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<float>::lowest()),
+                            clamp_cast<T>(math::Limits<float>::max())};
                 case DataType::FLOAT64:
                 case DataType::CFLOAT64:
-                    *min = clamp_cast<T>(math::Limits<double>::lowest());
-                    *max = clamp_cast<T>(math::Limits<double>::max());
-                    break;
+                    return {clamp_cast<T>(math::Limits<double>::lowest()),
+                            clamp_cast<T>(math::Limits<double>::max())};
                 default:
                     break;
             }
-        } else if constexpr (noa::traits::is_complex_v<T>) {
-            getDataTypeMinMax(data_type, &min->real, &max->real);
-            min->imag = min->real;
-            max->imag = max->real;
+        } else if constexpr (traits::is_complex_v<T>) {
+            using real_t = traits::value_type_t<T>;
+            auto[min, max] = typeMinMax<real_t>(data_type);
+            return {T{min, min}, T{max, max}};
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(traits::always_false_v<T>);
         }
+        return {}; // unreachable
     }
 
     bool isBigEndian() noexcept {
         int16_t number = 1;
-        return *reinterpret_cast<char*>(&number) == 0; // char[0] == 0
+        return *reinterpret_cast<unsigned char*>(&number) == 0; // char[0] == 0
     }
 
     std::ostream& operator<<(std::ostream& os, DataType data_type) {
@@ -214,7 +201,7 @@ namespace noa::io {
         return os;
     }
 
-    void swapEndian(char* ptr, size_t elements, size_t bytes_per_elements) noexcept {
+    void swapEndian(byte_t* ptr, size_t elements, size_t bytes_per_elements) noexcept {
         if (bytes_per_elements == 2) {
             details::swapEndian<2>(ptr, elements);
         } else if (bytes_per_elements == 4) {
@@ -226,10 +213,10 @@ namespace noa::io {
 
     template<typename T>
     void swapEndian(T* ptr, size_t elements) noexcept {
-        swapEndian(reinterpret_cast<char*>(ptr), elements, sizeof(T));
+        swapEndian(reinterpret_cast<byte_t*>(ptr), elements, sizeof(T));
     }
 
-    size_t getSerializedSize(DataType data_type, size_t elements, size_t elements_per_row) noexcept {
+    size_t serializedSize(DataType data_type, size_t elements, size_t elements_per_row) noexcept {
         switch (data_type) {
             case DataType::UINT4: {
                 if (elements_per_row == 0 || !(elements_per_row % 2)) {

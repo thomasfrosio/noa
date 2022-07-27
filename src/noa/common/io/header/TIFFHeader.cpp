@@ -42,7 +42,7 @@ namespace noa::io::details {
         m_is_read = open_mode & io::READ;
         if (write) {
             if (m_is_read)
-                NOA_THROW("Cannot open the file in READ|WRITE mode. Should be READ or WRITE");
+                NOA_THROW("Opening a TIFF file in READ|WRITE mode is not supported. Should be READ or WRITE");
         } else if (!m_is_read) {
             NOA_THROW("Open mode not recognized. Should be READ or WRITE");
         }
@@ -81,13 +81,13 @@ namespace noa::io::details {
         uint16_t directories{};
         while (::TIFFSetDirectory(m_tiff, directories)) {
             // Shape:
-            uint2_t shape; // YX
+            uint2_t shape; // height-width
             if (!::TIFFGetField(m_tiff, TIFFTAG_IMAGEWIDTH, shape.get() + 1) ||
                 !::TIFFGetField(m_tiff, TIFFTAG_IMAGELENGTH, shape.get())) {
                 NOA_THROW("The input TIFF file does not have the width or height field.");
             }
 
-            float2_t pixel_size{1.f}; // YX ang/pixel
+            float2_t pixel_size{1.f}; // height-width ang/pixel
             { // Pixel sizes:
                 uint16_t resolution_unit; // 1: no units, 2: inch, 3: cm
                 int has_resolution = TIFFGetField(m_tiff, TIFFTAG_XRESOLUTION, &pixel_size[1]);
@@ -156,22 +156,23 @@ namespace noa::io::details {
         }
     }
 
-    void TIFFHeader::setShape(size4_t shape) {
+    void TIFFHeader::shape(size4_t shape) {
         if (m_is_read)
             NOA_THROW("Trying to change the shape of the data in read mode is not allowed");
-        else if (shape[0] > 1)
-            NOA_THROW("TIFF files do not support 4D shapes, got {}", shape);
-        m_shape = uint3_t{shape.get() + 1};
+        else if (shape[1] > 1)
+            NOA_THROW("TIFF files do not support 3D volumes, but got shape {}. To set a stack of 2D images, "
+                      "use the batch dimension instead of the depth", shape);
+        m_shape = uint3_t{shape[0], shape[2], shape[3]};
     }
 
-    void TIFFHeader::setPixelSize(float3_t pixel_size) {
+    void TIFFHeader::pixelSize(float3_t pixel_size) {
         if (m_is_read)
             NOA_THROW("Trying to change the pixel size of the data in read mode is not allowed");
-        m_pixel_size[0] = pixel_size[0];
-        m_pixel_size[1] = pixel_size[1];
+        m_pixel_size[0] = pixel_size[1];
+        m_pixel_size[1] = pixel_size[2];
     }
 
-    void TIFFHeader::setDataType(DataType data_type) {
+    void TIFFHeader::dtype(DataType data_type) {
         if (m_is_read)
             NOA_THROW("Trying to change the data type of the data in read mode is not allowed");
         m_data_type = data_type;
@@ -179,75 +180,84 @@ namespace noa::io::details {
 
     std::string TIFFHeader::infoString(bool brief) const noexcept {
         if (brief)
-            return string::format("Shape: {}; Pixel size: {:.3f}", m_shape, m_pixel_size);
+            return string::format("Shape: {}; Pixel size: {:.3f}", shape(), pixelSize());
 
-        return string::format("Format: MRC File\n"
-                              "Shape (sections, rows, columns): {}\n"
-                              "Pixel size (sections, rows, columns): {:.3f}\n"
-                              "Data type: {}\n",
-                              m_shape,
-                              m_pixel_size,
+        return string::format("Format: TIFF File\n"
+                              "Shape (batches, depth, height, width): {}\n"
+                              "Pixel size (depth, height, width): {:.3f}\n"
+                              "Data type: {}",
+                              shape(),
+                              pixelSize(),
                               m_data_type);
     }
 
     void TIFFHeader::read(void*, DataType, size_t, size_t, bool) {
-        NOA_THROW("Function is currently not supported");
+        NOA_THROW("This function is currently not supported");
     }
 
-    void TIFFHeader::readLine(void*, DataType, size_t, size_t, bool) {
-        NOA_THROW("Function is currently not supported");
-    }
-
-    void TIFFHeader::readShape(void*, DataType, size4_t, size4_t, bool) {
-        NOA_THROW("Function is currently not supported");
-    }
-
-    void TIFFHeader::readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
-        NOA_ASSERT(end >= start);
-        size_t slices = end - start;
+    void TIFFHeader::readSlice(void* output, size4_t strides, size4_t shape,
+                               DataType data_type, size_t start, bool clamp) {
+        if (m_shape[1] != shape[2] || m_shape[2] != shape[3]) {
+            NOA_THROW("The file shape {} is not compatible with the output shape {}", this->shape(), shape);
+        } else if (shape[1] != 1) {
+            NOA_THROW("The file shape {} describes a (stack of) 2D image(s). To read a slice, the provided "
+                      "shape should have a depth of 1, but got shape {}", this->shape(), shape);
+        } else if (m_shape[0] <= start + shape[0]) {
+            NOA_THROW("The file has less slices ({}) that what is about to be read (start:{}, count:{})",
+                      m_shape[0], start, shape[0]);
+        }
 
         // Output as array of bytes:
-        char* tmp = static_cast<char*>(output);
-        size_t o_bytes_per_elements = getSerializedSize(data_type, 1);
-        size_t i_bytes_per_elements = getSerializedSize(m_data_type, 1);
+        auto* output_ptr = static_cast<byte_t*>(output);
+        const size_t o_bytes_per_elements = serializedSize(data_type, 1);
+        const size_t i_bytes_per_elements = serializedSize(m_data_type, 1);
 
         // The strip size should not change between slices since we know they have the same shape and data layout.
         // The compression could be different, but worst case scenario, the strip size is not as optimal
         // as it could have been. Since in most cases we expect the directories to have exactly the same
         // tags, allocate once according to the first directory.
-        std::unique_ptr<char[]> buffer, buffer_row;
-        for (size_t slice = 0; slice < slices; ++slice) {
-            ::TIFFSetDirectory(m_tiff, static_cast<uint16_t>(slice));
+        std::unique_ptr<byte_t[]> buffer, buffer_flip_row;
+        for (size_t slice = start; slice < start + shape[0]; ++slice) {
+            [[maybe_unused]] const int err = ::TIFFSetDirectory(m_tiff, static_cast<uint16_t>(slice));
+            NOA_ASSERT(err); // should be fine since we checked boundary
 
             // A directory can be divided into multiple strips.
             // For every strip, allocate enough memory to get decoded data.
             // Then send it for conversion.
-            tsize_t strip_size = ::TIFFStripSize(m_tiff);
+            const tsize_t strip_size = ::TIFFStripSize(m_tiff);
             if (!buffer)
-                buffer = std::make_unique<char[]>(static_cast<size_t>(strip_size));
+                buffer = std::make_unique<byte_t[]>(static_cast<size_t>(strip_size));
 
-            size_t element_offset = 0;
+            size_t row_offset = 0;
             for (tstrip_t strip = 0; strip < ::TIFFNumberOfStrips(m_tiff); ++strip) {
-                tsize_t bytes_read = ::TIFFReadEncodedStrip(m_tiff, strip, buffer.get(), strip_size);
+                const tsize_t bytes_read = ::TIFFReadEncodedStrip(m_tiff, strip, buffer.get(), strip_size);
                 if (bytes_read == -1)
                     NOA_THROW("An error occurred while reading slice:{}, strip:{}. {}", slice, strip, s_error_buffer);
 
-                size_t elements_in_buffer = static_cast<size_t>(bytes_read) / i_bytes_per_elements;
+                // Convert the bytes read in number of rows read:
+                NOA_ASSERT(!(static_cast<size_t>(bytes_read) % i_bytes_per_elements));
+                const size_t elements_in_buffer = static_cast<size_t>(bytes_read) / i_bytes_per_elements;
+                NOA_ASSERT(elements_in_buffer % m_shape[2]);
+                const size_t rows_in_buffer = elements_in_buffer / m_shape[2];
+                const size4_t shape_buffer{1, 1, rows_in_buffer, m_shape[2]};
+
+                // Convert and transfer to output:
+                const size_t output_offset = indexing::at(slice, 0, row_offset, strides) * o_bytes_per_elements;
                 deserialize(buffer.get(), m_data_type,
-                            tmp + element_offset * o_bytes_per_elements, data_type,
-                            elements_in_buffer, clamp, m_shape[2]); // TODO UINT4 strip might not be multiple row
-                element_offset += element_offset;
+                            output_ptr + output_offset, data_type, strides,
+                            shape_buffer, clamp);
+                row_offset += rows_in_buffer;
             }
 
             // Origin must be in the bottom left corner:
             uint16_t orientation;
             ::TIFFGetFieldDefaulted(m_tiff, TIFFTAG_ORIENTATION, &orientation);
-            if (orientation == ORIENTATION_TOPLEFT) {
-                size_t bytes_per_row = m_shape[2] * o_bytes_per_elements;
-                if (!buffer_row)
-                    buffer_row = std::make_unique<char[]>(bytes_per_row);
-                flipY_(tmp + m_shape[0] * m_shape[1] * o_bytes_per_elements, bytes_per_row,
-                       m_shape[1], buffer_row.get());
+            if (orientation == ORIENTATION_TOPLEFT) { // this is the default
+                const size_t bytes_per_row = m_shape[2] * o_bytes_per_elements;
+                if (!buffer_flip_row)
+                    buffer_flip_row = std::make_unique<byte_t[]>(bytes_per_row);
+                flipY_(output_ptr + slice * strides[0] * o_bytes_per_elements, bytes_per_row,
+                       m_shape[1], buffer_flip_row.get());
             } else if (orientation != ORIENTATION_BOTLEFT) {
                 NOA_THROW("Orientation of the slice(s) is not supported. "
                           "The origin should be at the bottom left or top left.");
@@ -255,32 +265,64 @@ namespace noa::io::details {
         }
     }
 
-    void TIFFHeader::readAll(void* output, DataType data_type, bool clamp) {
-        readSlice(output, data_type, 0, m_shape[0], clamp);
+    void TIFFHeader::readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
+        NOA_ASSERT(end >= start);
+        const size4_t slice_shape{end - start, 1, m_shape[2], m_shape[3]};
+        return readSlice(output, slice_shape.strides(), slice_shape, data_type, start, clamp);
     }
 
-    void TIFFHeader::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
+    void TIFFHeader::readAll(void* output, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
+        if (shape[0] != m_shape[0] || shape[2] != m_shape[1] || shape[3] != m_shape[2])
+            NOA_THROW("The file shape {} is not compatible with the output shape {}", this->shape(), shape);
+        return readSlice(output, strides, shape, data_type, 0, clamp);
+    }
+
+    void TIFFHeader::readAll(void* output, DataType data_type, bool clamp) {
+        return readSlice(output, data_type, 0, m_shape[0], clamp);
+    }
+
+    void TIFFHeader::write(const void*, DataType, size_t, size_t, bool) {
+        NOA_THROW("This function is currently not supported");
+    }
+
+    void TIFFHeader::writeSlice(const void* input, size4_t strides, size4_t shape,
+                                DataType data_type, size_t start, bool clamp) {
+        if (m_data_type == DataType::DATA_UNKNOWN)
+            m_data_type = data_type;
+
+        if (any(m_shape == 0)) {
+            NOA_THROW("The shape of the file is not set or is empty. "
+                      "Set the shape first, and then write a slice to the file");
+        } else if (m_shape[1] != shape[2] || m_shape[2] != shape[3]) {
+            NOA_THROW("The file shape {} is not compatible with the input shape {}", this->shape(), shape);
+        } else if (shape[1] != 1) {
+            NOA_THROW("The file shape {} describes a (stack of) 2D image(s). To write a slice, the provided "
+                      "shape should have a depth of 1, but got shape {}", this->shape(), shape);
+        } else if (m_shape[0] <= start + shape[0]) {
+            NOA_THROW("The file has less slices ({}) that what is about to be written (start:{}, count:{})",
+                      m_shape[0], start, shape[0]);
+        }
+
         // Output as array of bytes:
-        const char* tmp = static_cast<const char*>(input);
-        size_t i_bytes_per_elements = getSerializedSize(data_type, 1);
-        size_t o_bytes_per_elements = getSerializedSize(m_data_type, 1);
+        const auto* input_ptr = static_cast<const byte_t*>(input);
+        const size_t i_bytes_per_elements = serializedSize(data_type, 1);
+        const size_t o_bytes_per_elements = serializedSize(m_data_type, 1);
 
         // Target 8K per strip. Ensure strip is multiple of a line and if too many strips,
         // increase strip size (double or more).
-        size_t bytes_per_line = m_shape[2] * o_bytes_per_elements;
-        size_t rows_per_strip = math::divideUp(size_t{8192}, bytes_per_line);
+        const size_t bytes_per_row = m_shape[2] * o_bytes_per_elements;
+        size_t rows_per_strip = math::divideUp(size_t{8192}, bytes_per_row);
         size_t strip_count = math::divideUp(size_t{m_shape[1]}, rows_per_strip);
         if (strip_count > 4096) {
             rows_per_strip *= (1 + m_shape[1] / 4096);
             strip_count = math::divideUp(rows_per_strip, size_t{m_shape[1]});
         }
-        size_t elements_per_strip = rows_per_strip * m_shape[2];
-        size_t bytes_per_strip = rows_per_strip * bytes_per_line;
-        std::unique_ptr<char[]> buffer = std::make_unique<char[]>(bytes_per_strip);
+        const size4_t strip_shape{1, 1, rows_per_strip, m_shape[2]};
+        const size_t bytes_per_strip = rows_per_strip * bytes_per_row;
+        std::unique_ptr<byte_t[]> buffer = std::make_unique<byte_t[]>(bytes_per_strip);
 
-        NOA_ASSERT(end >= start);
-        size_t slices = end - start;
-        for (size_t slice = 0; slice < slices; ++slice) {
+        NOA_ASSERT(shape[0] >= start);
+        for (size_t slice = start; slice < shape[0] + start; ++slice) {
             ::TIFFSetDirectory(m_tiff, static_cast<uint16_t>(slice));
 
             { // Set up relevant tags
@@ -306,7 +348,7 @@ namespace noa::io::details {
                 // For now, no compression.
                 ::TIFFSetField(m_tiff, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
 
-                // TODO Check with David. I don't see why they don't check the orientation...
+                // TODO I don't get why IMOD doesn't check the orientation...
                 ::TIFFSetField(m_tiff, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT);
 
                 if (!s_error_buffer.empty())
@@ -314,34 +356,37 @@ namespace noa::io::details {
             }
 
             for (tstrip_t strip = 0; strip < strip_count; ++strip) {
-                char* i_buffer = buffer.get() + strip * bytes_per_strip;
-                serialize(tmp + strip * elements_per_strip * i_bytes_per_elements, data_type,
-                          i_buffer, m_data_type,
-                          elements_per_strip, clamp, false, m_shape[2]);
+                byte_t* i_buffer = buffer.get() + strip * bytes_per_strip;
+                const size_t input_offset = indexing::at(slice, 0, strip * rows_per_strip, strides);
+                serialize(input_ptr + input_offset * i_bytes_per_elements, data_type, strides, strip_shape,
+                          i_buffer, m_data_type, clamp);
 
-                tsize_t bytes_read = ::TIFFWriteEncodedStrip(m_tiff, strip, i_buffer,
-                                                             static_cast<tmsize_t>(bytes_per_strip));
-                if (bytes_read == -1)
+                if (::TIFFWriteEncodedStrip(m_tiff, strip, i_buffer, static_cast<tmsize_t>(bytes_per_strip)) == -1)
                     NOA_THROW("An error occurred while writing slice:{}, strip:{}. {}", slice, strip, s_error_buffer);
             }
-            TIFFWriteDirectory(m_tiff);
+            if (!::TIFFWriteDirectory(m_tiff))
+                NOA_THROW("Failed to write slice {} into the file", slice);
         }
     }
 
-    void TIFFHeader::write(const void*, DataType, size_t, size_t, bool) {
-        NOA_THROW("Function is currently not supported");
+    void TIFFHeader::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
+        NOA_ASSERT(end >= start);
+        const size4_t slice_shape{end - start, 1, m_shape[1], m_shape[2]};
+        return writeSlice(input, slice_shape.strides(), slice_shape, data_type, start, clamp);
     }
 
-    void TIFFHeader::writeLine(const void*, DataType, size_t, size_t, bool) {
-        NOA_THROW("Function is currently not supported");
-    }
-
-    void TIFFHeader::writeShape(const void*, DataType, size4_t, size4_t, bool) {
-        NOA_THROW("Function is currently not supported");
+    void TIFFHeader::writeAll(const void* input, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
+        if (all(m_shape == 0)) // first write, set the shape
+            this->shape(shape);
+        return writeSlice(input, strides, shape, data_type, 0, clamp);
     }
 
     void TIFFHeader::writeAll(const void* input, DataType data_type, bool clamp) {
-        writeSlice(input, data_type, 0, m_shape[0], clamp);
+        if (any(m_shape == 0)) {
+            NOA_THROW("The shape of the file is not set or is empty. "
+                      "Set the shape first, and then write something to the file");
+        }
+        return writeSlice(input, data_type, 0, m_shape[0], clamp);
     }
 
     DataType TIFFHeader::getDataType_(uint16_t sample_format, uint16_t bits_per_sample) {
@@ -467,10 +512,10 @@ namespace noa::io::details {
         }
     }
 
-    void TIFFHeader::flipY_(char* slice, size_t bytes_per_row, size_t rows, char* buffer) {
+    void TIFFHeader::flipY_(byte_t* slice, size_t bytes_per_row, size_t rows, byte_t* buffer) {
         for (size_t row = 0; row < rows / 2; ++row) {
-            char* current_row = slice + row * bytes_per_row;
-            char* opposite_row = slice + (rows - row - 1) * bytes_per_row;
+            byte_t* current_row = slice + row * bytes_per_row;
+            byte_t* opposite_row = slice + (rows - row - 1) * bytes_per_row;
             std::memcpy(buffer, current_row, bytes_per_row);
             std::memcpy(current_row, opposite_row, bytes_per_row);
             std::memcpy(opposite_row, buffer, bytes_per_row);

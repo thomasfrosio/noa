@@ -9,10 +9,18 @@
 #include "noa/common/io/header/TIFFHeader.h"
 
 #define NOA_IMAGEFILE_THROW_STRING_ "File {}: header failed"
+#define NOA_IMAGEFILE_TRY_HEADER_(func, ...)        \
+try {                                               \
+    if (m_header)                                   \
+        m_header->func(__VA_ARGS__);                \
+} catch (...) {                                     \
+    NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path); \
+}
+
 namespace noa::io {
     template<typename T>
     ImageFile::ImageFile(T&& filename, open_mode_t mode)
-            : m_path(std::forward<T>(filename)), m_header_format(getFormat_(m_path.extension())) {
+            : m_path(std::forward<T>(filename)), m_header_format(format_(m_path.extension())) {
         setHeader_(m_header_format);
         open_(mode);
     }
@@ -29,7 +37,7 @@ namespace noa::io {
         close();
         Format old_format = m_header_format;
         m_path = std::forward<T>(filename);
-        m_header_format = getFormat_(m_path.extension());
+        m_header_format = format_(m_path.extension());
         if (!m_header || m_header_format != old_format) {
             setHeader_(m_header_format);
         } else {
@@ -87,115 +95,87 @@ namespace noa::io {
     }
 
     inline size4_t ImageFile::shape() const noexcept {
-        return m_header ? m_header->getShape() : size4_t{};
+        return m_header ? m_header->shape() : size4_t{};
     }
 
     inline float3_t ImageFile::pixelSize() const noexcept {
-        return m_header ? m_header->getPixelSize() : float3_t{};
+        return m_header ? m_header->pixelSize() : float3_t{};
     }
 
     inline DataType ImageFile::dtype() const noexcept {
-        return m_header ? m_header->getDataType() : DATA_UNKNOWN;
+        return m_header ? m_header->dtype() : DATA_UNKNOWN;
     }
 
     inline stats_t ImageFile::stats() const noexcept {
-        return m_header ? m_header->getStats() : stats_t{};
+        return m_header ? m_header->stats() : stats_t{};
     }
 
     inline void ImageFile::shape(size4_t shape) {
-        try {
-            if (m_header)
-                m_header->setShape(shape);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(shape, shape)
     }
 
     inline void ImageFile::pixelSize(float3_t pixel_size) {
-        try {
-            if (m_header)
-                m_header->setPixelSize(pixel_size);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(pixelSize, pixel_size)
     }
 
     inline void ImageFile::dtype(io::DataType data_type) {
-        try {
-            if (m_header)
-                m_header->setDataType(data_type);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(dtype, data_type)
     }
 
     inline void ImageFile::stats(stats_t stats) {
-        try {
-            if (m_header)
-                m_header->setStats(stats);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(stats, stats)
     }
 
     template<typename T>
     inline void ImageFile::read(T* output, size_t start, size_t end, bool clamp) {
-        try {
-            if (m_header)
-                m_header->read(output, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(read, output, io::dtype<T>(), start, end, clamp)
     }
 
     template<typename T>
     inline void ImageFile::readSlice(T* output, size_t start, size_t end, bool clamp) {
-        try {
-            if (m_header)
-                m_header->readSlice(output, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(readSlice, output, io::dtype<T>(), start, end, clamp)
+    }
+
+    template<typename T, typename I>
+    inline void ImageFile::readSlice(const View<T, I>& output, size_t start, bool clamp) {
+        NOA_IMAGEFILE_TRY_HEADER_(readSlice,
+                                  output.get(), output.strides(), output.shape(), io::dtype<T>(), start, clamp)
     }
 
     template<typename T>
     inline void ImageFile::readAll(T* output, bool clamp) {
-        try {
-            if (m_header)
-                m_header->readAll(output, getDataType<T>(), clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(readAll, output, io::dtype<T>(), clamp)
+    }
+
+    template<typename T, typename I>
+    inline void ImageFile::readAll(const View<T, I>& output, bool clamp) {
+        NOA_IMAGEFILE_TRY_HEADER_(readAll, output.get(), output.strides(), output.shape(), io::dtype<T>(), clamp)
     }
 
     template<typename T>
     inline void ImageFile::write(const T* input, size_t start, size_t end, bool clamp) {
-        try {
-            if (m_header)
-                m_header->write(input, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(write, input, io::dtype<T>(), start, end, clamp)
     }
 
     template<typename T>
     inline void ImageFile::writeSlice(const T* input, size_t start, size_t end, bool clamp) {
-        try {
-            if (m_header)
-                m_header->writeSlice(input, getDataType<T>(), start, end, clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(writeSlice, input, io::dtype<T>(), start, end, clamp)
+    }
+
+    template<typename T, typename I>
+    void ImageFile::writeSlice(const View<T, I>& input, size_t start, bool clamp) {
+        NOA_IMAGEFILE_TRY_HEADER_(writeSlice,
+                                  input.get(), io::dtype<T>(), input.strides(), input.shape(), start, clamp)
     }
 
     template<typename T>
     inline void ImageFile::writeAll(const T* input, bool clamp) {
-        try {
-            if (m_header)
-                m_header->writeAll(input, getDataType<T>(), clamp);
-        } catch (...) {
-            NOA_THROW(NOA_IMAGEFILE_THROW_STRING_, m_path);
-        }
+        NOA_IMAGEFILE_TRY_HEADER_(writeAll, input, io::dtype<T>(), clamp)
+    }
+
+    template<typename T, typename I>
+    void ImageFile::writeAll(const View<T, I>& input, bool clamp) {
+        NOA_IMAGEFILE_TRY_HEADER_(writeAll, input.get(), io::dtype<T>(), input.strides(), input.shape(), clamp)
     }
 
     inline void ImageFile::setHeader_(Format new_format) {
@@ -215,7 +195,7 @@ namespace noa::io {
         }
     }
 
-    inline Format ImageFile::getFormat_(const path_t& extension) noexcept {
+    inline Format ImageFile::format_(const path_t& extension) noexcept {
         if (extension == ".mrc" || extension == ".st" || extension == ".rec" || extension == ".mrcs")
             return Format::MRC;
         else

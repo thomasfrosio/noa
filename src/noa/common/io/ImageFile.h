@@ -19,20 +19,13 @@ namespace noa::io {
     /// \details
     /// - \b Format: ImageFile is an unified interface to manipulate image file formats. Only MRC and TIFF files are
     ///   currently supported. TIFF files only support (stack of) 2D image(s).\n
-    /// - \b Batches: The library, including this class, uses the batch-depth-height-width order. As such, a stack of
-    ///   2D images is {batch, 1, height, width} and a 3D volume is {1, depth, height, width}.\n
-    /// - \b Ordering: Functions without strides assume rightmost contiguity (C-contiguous/row-major). Serialization
-    ///   writes the data assuming it is C-contiguous. Deserialization might have to reorder the data before returning
-    ///   it if the data in the file is not stored in C-contiguous order. On the other hand, functions taking a View
-    ///   (which contains strides) will return the data in the same order as it is saved in the file.
-    /// \example
-    /// \code
-    /// const size4_t shape = file.shape(); // {1,60,124,124}
-    /// const size_t end = at(0, 0, shape[2] - 1, shape[3] - 1, shape.strides()); // end of first YX slice
-    /// assert(end == 15375);
-    /// file.read(output, 0, end); // which is equivalent to:
-    /// file.readSlice(output, 0, 1);
-    /// \endcode
+    /// - \b Batches: The library, including this class, uses the batch-depth-height-width (BDHW) order.
+    ///   As such, a stack of 2D images is {batch, 1, height, width} and a 3D volume is {1, depth, height, width}.\n
+    /// - \b Ordering: Data is always writen into the file in the BDHW rightmost order (i.e. row-major). For reading
+    ///   operations, it is either 1) a contiguous array is provided, we assume BDHW rightmost order and we might have
+    ///   to reorder the data before returning it if the data in the file is not stored in BDHW rightmost order, or
+    ///   2) a View (which contains strides) is provided and we will return the data in the same order as it is saved
+    ///   in the file because the order is saved in the strides.\n
     class ImageFile {
     public:
         /// Creates an empty instance. Use open(), otherwise all other function calls will be ignored.
@@ -130,6 +123,7 @@ namespace noa::io {
         /// file format, this might have no effect on the file.
         void stats(stats_t stats);
 
+    public: // Read
         /// Deserializes some elements from the file.
         /// \tparam T           Any data type (integer, floating-point, complex).
         /// \param[out] output  Output array where the deserialized elements are saved.
@@ -142,19 +136,26 @@ namespace noa::io {
         template<typename T>
         void read(T* output, size_t start, size_t end, bool clamp = true);
 
-        /// Deserializes some slices from the file.
+        /// Deserializes some 2D slices from the file.
+        /// The file should describe a (stack of) 2D array(s), or a single volume.
         /// \tparam T           Any data type (integer, floating-point, complex).
         /// \param[out] output  Output array where the deserialized slices are saved.
-        ///                     Should be able to hold at least \p end - \p start slices.
-        /// \param start        Slice, in the file, where the deserialization starts, in \p T elements.
-        /// \param end          Slice, in the file, where the deserialization stops, in \p T elements.
+        /// \param start        Index of the slice, in the file, where the deserialization starts.
+        /// \param end          Index of the slice, in the file, where the deserialization stops.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         template<typename T>
         void readSlice(T* output, size_t start, size_t end, bool clamp = true);
 
+        /// Deserializes some 2D slices from the file.
+        /// The file should describe a (stack of) 2D array(s), or a single volume.
+        /// \tparam T           Any data type (integer, floating-point, complex).
+        /// \param[out] output  View of the output BDHW array where the deserialized slice(s) are saved.
+        /// \param start        Index of the slice, in the file, where the deserialization starts.
+        /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
+        ///                     If false, out of range values are undefined.
         template<typename T, typename I>
-        void readSlice(const View<T, I>& view, size_t start = 0, bool clamp = true);
+        void readSlice(const View<T, I>& output, size_t start, bool clamp = true);
 
         /// Deserializes the entire file.
         /// \tparam T           Any data type (integer, floating-point, complex).
@@ -168,16 +169,17 @@ namespace noa::io {
         /// Deserializes the entire file.
         /// \tparam T           Any data type (integer, floating-point, complex).
         /// \param[out] output  View of the output array where the deserialized values are saved.
-        ///                     Should be able to hold the entire shape.
+        ///                     Should match the shape of the file.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         template<typename T, typename I>
         void readAll(const View<T, I>& output, bool clamp = true);
 
+    public: // Write
         /// Serializes some elements into the file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
-        ///                     If the file data type is UINT4, \p T should not be complex.
-        ///                     If the file data type is complex, \p T should be complex.
+        ///                     If the data type of the file is set, \p T should be compatible with it.
+        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
         /// \param[in] input    Input array to serialize. Read from index 0 to index (\p end - start).
         /// \param start        Position, in the file, where the serialization starts, in \p T elements.
         /// \param end          Position, in the file, where the serialization stops, in \p T elements.
@@ -187,25 +189,35 @@ namespace noa::io {
         template<typename T>
         void write(const T* input, size_t start, size_t end, bool clamp = true);
 
-        /// Serializes some slices into the file.
+        /// Serializes some 2D slices into the file.
+        /// The file should describe a (stack of) 2D array(s), or a single volume.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
-        ///                     If the file data type is UINT4, \p T should not be complex.
-        ///                     If the file data type is complex, \p T should be complex.
+        ///                     If the data type of the file is set, \p T should be compatible with it.
+        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
         /// \param[in] input    Input array to serialize. Read from index 0 to index (\p end - start).
-        /// \param start        Slice, in the file, where the serialization starts, in \p T elements.
-        /// \param end          Slice, in the file, where the serialization stops, in \p T elements.
+        /// \param start        Index of the slice, in the file, where the serialization starts.
+        /// \param end          Index of the slice, in the file, where the serialization stops.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename T>
         void writeSlice(const T* input, size_t start, size_t end, bool clamp = true);
 
-        template<typename T>
-        void writeSlice(const View<T>& input, size_t start, bool clamp = true);
+        /// Serializes some 2D slices into the file.
+        /// The file should describe a (stack of) 2D array(s), or a single volume.
+        /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
+        ///                     If the data type of the file is set, \p T should be compatible with it.
+        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
+        /// \param[in] input    Input array to serialize. Should correspond to the file shape.
+        /// \param start        Index of the slice, in the file, where the serialization starts.
+        /// \param clamp        Whether the input values should be clamped to fit the file data type.
+        ///                     If false, out of range values are undefined.
+        template<typename T, typename I>
+        void writeSlice(const View<T, I>& input, size_t start, bool clamp = true);
 
         /// Serializes the entire file.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
-        ///                     If the file data type is UINT4, \p T should not be complex.
-        ///                     If the file data type is complex, \p T should be complex.
+        ///                     If the data type of the file is set, \p T should be compatible with it.
+        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
         /// \param[in] input    Input array to serialize. An entire shape is read from this array.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
@@ -213,16 +225,16 @@ namespace noa::io {
         void writeAll(const T* input, bool clamp = true);
 
         /// Serializes \p input into the file.
+        /// \details If the shape of the file is set, \p input should have the same shape.
+        ///          Otherwise, the shape of the file is set to the shape of \p input.
         /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
-        ///                     If the file data type is UINT4, \p T should not be complex.
-        ///                     If the file data type is complex, \p T should be complex.
+        ///                     If the data type of the file is set, \p T should be compatible with it.
+        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
         /// \param[in] input    Input array to serialize.
-        ///                     If the shape of the file is set, this view should have the same shape.
-        ///                     If the shape of the file is not set, it will be set to the shape of this view.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
-        template<typename T>
-        void writeAll(const View<T>& input, bool clamp = true);
+        template<typename T, typename I>
+        void writeAll(const View<T, I>& input, bool clamp = true);
 
     private:
         path_t m_path{};
@@ -232,7 +244,7 @@ namespace noa::io {
 
     private:
         void setHeader_(Format new_format);
-        static Format getFormat_(const path_t& extension) noexcept;
+        static Format format_(const path_t& extension) noexcept;
         void open_(open_mode_t mode);
         void close_();
     };

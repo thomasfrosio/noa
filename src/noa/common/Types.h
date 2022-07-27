@@ -51,6 +51,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 namespace noa {
     namespace fs = std::filesystem;
     using path_t = fs::path;
+    using byte_t = std::byte;
 
     template<typename T>
     using shared_t = std::shared_ptr<T>;
