@@ -165,7 +165,7 @@ namespace noa::io {
     template<typename T, typename I>
     void ImageFile::writeSlice(const View<T, I>& input, size_t start, bool clamp) {
         NOA_IMAGEFILE_TRY_HEADER_(writeSlice,
-                                  input.get(), io::dtype<T>(), input.strides(), input.shape(), start, clamp)
+                                  input.get(), input.strides(), input.shape(), io::dtype<T>(), start, clamp)
     }
 
     template<typename T>
@@ -175,7 +175,7 @@ namespace noa::io {
 
     template<typename T, typename I>
     void ImageFile::writeAll(const View<T, I>& input, bool clamp) {
-        NOA_IMAGEFILE_TRY_HEADER_(writeAll, input.get(), io::dtype<T>(), input.strides(), input.shape(), clamp)
+        NOA_IMAGEFILE_TRY_HEADER_(writeAll, input.get(), input.strides(), input.shape(), io::dtype<T>(), clamp)
     }
 
     inline void ImageFile::setHeader_(Format new_format) {

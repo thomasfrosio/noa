@@ -39,7 +39,7 @@ TEST_CASE("io::Stats", "[noa][common][io]") {
 }
 
 TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
-    auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
+    const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
     const std::string fixture_expected_header = "Format: MRC File\n"
                                                 "Shape (batches, depth, height, width): (11,1,576,410)\n"
                                                 "Pixel size (depth, height, width): (2.100,21.000,21.000)\n"
@@ -238,5 +238,6 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
             diff += static_cast<float>(static_cast<int16_t>(to_write[i])) - to_read[i];
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
     }
-    fs::remove_all(test_dir);
+    std::error_code er;
+    fs::remove_all(test_dir, er); // silence error
 }

@@ -1,4 +1,7 @@
 #include <noa/unified/Array.h>
+#include <noa/unified/memory/Factory.h>
+#include <noa/unified/IO.h>
+
 #include <catch2/catch.hpp>
 
 #include "Helpers.h"
@@ -143,4 +146,23 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
         REQUIRE(all(b.shape() == size4_t{10, 4, 30, 50}));
         REQUIRE(all(b.strides() == size4_t{6000, 1500, 50, 1}));
     }
+}
+
+TEST_CASE("unified::io, quick load and save", "[noa][unified][io]") {
+    const path_t directory = fs::current_path() / "test_unified_io";
+    const path_t file_path = directory / "test_quick_save.mrc";
+    fs::create_directory(directory);
+
+    const size4_t shape = test::getRandomShapeBatched(2);
+    Array input = memory::linspace<float>(shape, -10, 10);
+    io::save(input, file_path);
+
+    Array output = io::load<float>(file_path);
+
+    REQUIRE(all(input.shape() == output.shape()));
+    REQUIRE(all(input.strides() == output.strides()));
+    REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), shape.elements(), 1e-7));
+
+    std::error_code er;
+    fs::remove_all(directory, er); // silence possible error
 }
