@@ -116,10 +116,7 @@ namespace noa {
     constexpr Allocator Array<T>::allocator() const noexcept { return m_options.allocator(); }
 
     template<typename T>
-    constexpr bool Array<T>::dereferencable() const noexcept {
-        return m_options.device().cpu() || allocator() == Allocator::PINNED ||
-               allocator() == Allocator::MANAGED || allocator() == Allocator::MANAGED_GLOBAL;
-    }
+    constexpr bool Array<T>::dereferencable() const noexcept { return m_options.dereferencable(); }
 
     template<typename T>
     bool Array<T>::empty() const noexcept { return !m_ptr || !m_shape.elements(); }
