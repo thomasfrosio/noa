@@ -26,12 +26,12 @@ namespace noa::cpu::geometry {
     /// \tparam T                   float, double, cfloat_t or cdouble_t.
     /// \tparam MAT                 float23_t or float33_t.
     /// \param[in] input            On the \b host. Input 2D array.
-    /// \param input_stride         Rightmost stride, in elements, of \p input.
-    /// \param input_shape          Rightmost shape of \p input.
+    /// \param input_strides        BDHW strides, in elements, of \p input.
+    /// \param input_shape          BDHW shape of \p input.
     /// \param[out] output          On the \b host. Output 2D array.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
-    /// \param[in] matrices         One the \b host. 2x3 or 3x3 inverse rightmost affine matrices. One per batch.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape of \p output. The outermost dimension is the batch dimension.
+    /// \param[in] matrices         One the \b host. 2x3 or 3x3 inverse HW affine matrices. One per batch.
     /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
@@ -44,8 +44,8 @@ namespace noa::cpu::geometry {
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
                                          (traits::is_float23_v<MAT> || traits::is_float33_v<MAT>)>>
-    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
 
@@ -54,8 +54,8 @@ namespace noa::cpu::geometry {
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
                                          (traits::is_float23_v<MAT> || traits::is_float33_v<MAT>)>>
-    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
 
@@ -74,12 +74,12 @@ namespace noa::cpu::geometry {
     /// \tparam T                   float, double, cfloat_t or cdouble_t.
     /// \tparam MAT                 float34_t or float44_t.
     /// \param[in] input            On the \b host. Input 3D array.
-    /// \param input_stride         Rightmost stride, in elements, of \p input.
-    /// \param input_shape          Rightmost shape of \p input.
+    /// \param input_strides        BDHW strides, in elements, of \p input.
+    /// \param input_shape          BDHW shape of \p input.
     /// \param[out] output          On the \b host. Output 3D array.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape of \p output. The outermost dimension is the batch dimension.
-    /// \param[in] matrices         One the \b host. 3x4 or 4x4 inverse rightmost affine matrices. One per batch.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape of \p output. The outermost dimension is the batch dimension.
+    /// \param[in] matrices         One the \b host. 3x4 or 4x4 inverse DHW affine matrices. One per batch.
     /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
     /// \param value                Constant value to use for out-of-bounds coordinates.
@@ -92,8 +92,8 @@ namespace noa::cpu::geometry {
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
                                          (traits::is_float34_v<MAT> || traits::is_float44_v<MAT>)>>
-    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
 
@@ -102,8 +102,8 @@ namespace noa::cpu::geometry {
     template<bool PREFILTER = true, typename T, typename MAT,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
                                          (traits::is_float34_v<MAT> || traits::is_float44_v<MAT>)>>
-    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      MAT matrix, InterpMode interp_mode, BorderMode border_mode,
                      T value, Stream& stream);
 }
@@ -125,16 +125,16 @@ namespace noa::cpu::geometry {
     ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Input array to transform.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
-    /// \param input_shape      Rightmost shape, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
+    /// \param input_shape      BDHW shape, in elements, of \p input.
     /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param output_shape     Rightmost shape, in elements, of \p output.
-    /// \param shift            Rightmost forward shifts to apply before the other transformations.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param output_shape     BDHW shape, in elements, of \p output.
+    /// \param shift            HW forward shifts to apply before the other transformations.
     ///                         Positive shifts translate the object to the right.
-    /// \param matrix           Rightmost inverse rotation/scaling to apply after the shifts.
+    /// \param matrix           BDHW inverse rotation/scaling to apply after the shifts.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Rightmost index of the transformation center.
+    /// \param center           HW index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
@@ -146,8 +146,8 @@ namespace noa::cpu::geometry {
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void transform2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream);
 
@@ -164,16 +164,16 @@ namespace noa::cpu::geometry {
     ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Input array to transform.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
-    /// \param input_shape      Rightmost shape, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
+    /// \param input_shape      BDHW shape, in elements, of \p input.
     /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param output_shape     Rightmost shape, in elements, of \p output.
-    /// \param shift            Rightmost forward shifts to apply before the other transformations.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param output_shape     BDHW shape, in elements, of \p output.
+    /// \param shift            DHW forward shifts to apply before the other transformations.
     ///                         Positive shifts translate the object to the right.
-    /// \param matrix           Rightmost inverse rotation/scaling to apply after the shifts.
+    /// \param matrix           BDHW inverse rotation/scaling to apply after the shifts.
     /// \param[in] symmetry     Symmetry operator to apply after the rotation/scaling.
-    /// \param center           Rightmost index of the transformation center.
+    /// \param center           DHW index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
@@ -185,8 +185,8 @@ namespace noa::cpu::geometry {
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void transform3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream);
 }

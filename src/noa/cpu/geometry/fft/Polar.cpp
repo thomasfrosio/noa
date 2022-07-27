@@ -5,21 +5,21 @@ namespace {
     using namespace ::noa;
 
     template<typename T, InterpMode INTERP>
-    void cartesian2polar_(const T* cartesian, size3_t cartesian_stride, size3_t cartesian_shape,
-                          T* polar, size3_t polar_stride, size3_t polar_shape,
+    void cartesian2polar_(const T* cartesian, size3_t cartesian_strides, size3_t cartesian_shape,
+                          T* polar, size3_t polar_strides, size3_t polar_shape,
                           float2_t frequency_range, float2_t angle_range,
                           bool log, size_t threads) {
         using real_t = traits::value_type_t<T>;
-        const size_t offset = cartesian_shape[0] == 1 ? 0 : cartesian_stride[0];
-        const size2_t stride{cartesian_stride.get() + 1};
-        const size2_t shape{cartesian_shape.get() + 1};
-        const cpu::geometry::Interpolator2D<T> interp{cartesian, stride, shape.fft(), 0};
+        const size_t offset = cartesian_shape[0] == 1 ? 0 : cartesian_strides[0];
+        const size2_t strides(cartesian_strides.get(1));
+        const size2_t shape(cartesian_shape.get(1));
+        const cpu::geometry::Interpolator2D<T> interp(cartesian, strides, shape.fft(), 0);
 
         // Since the aspect ratio of the cartesian transform might not be 1,
         // each axis has should have its own magnitude.
-        const float2_t half_shape{shape / 2};
-        const float2_t radius_y_range{frequency_range * 2 * half_shape[0]};
-        const float2_t radius_x_range{frequency_range * 2 * half_shape[1]};
+        const float2_t half_shape(shape / 2);
+        const float2_t radius_y_range(frequency_range * 2 * half_shape[0]);
+        const float2_t radius_x_range(frequency_range * 2 * half_shape[1]);
         const float2_t size{polar_shape[1] - 1, polar_shape[2] - 1};
 
         const auto step_angle = (angle_range[1] - angle_range[0]) / size[0];
@@ -36,8 +36,8 @@ namespace {
         const float2_t start_radius{radius_y_range[0], radius_x_range[0]};
         const float center = half_shape[0];
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(polar, polar_stride, polar_shape, log, interp, offset,           \
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)  \
+        shared(polar, polar_strides, polar_shape, log, interp, offset,           \
                step_angle, step_radius_y, step_radius_x, start_angle, start_radius, center)
 
         for (size_t batch = 0; batch < polar_shape[0]; ++batch) {
@@ -69,7 +69,7 @@ namespace {
                     if constexpr (traits::is_complex_v<T>)
                         value.imag *= conj;
 
-                    polar[indexing::at(batch, phi, rho, polar_stride)] = value;
+                    polar[indexing::at(batch, phi, rho, polar_strides)] = value;
                 }
             }
         }
@@ -78,8 +78,8 @@ namespace {
 
 namespace noa::cpu::geometry::fft {
     template<Remap, typename T, typename>
-    void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_stride, size4_t cartesian_shape,
-                         const shared_t<T[]>& polar, size4_t polar_stride, size4_t polar_shape,
+    void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
+                         const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream) {
         NOA_ASSERT(cartesian.get() != polar.get());
@@ -87,36 +87,36 @@ namespace noa::cpu::geometry::fft {
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
         const size3_t src_shape{cartesian_shape[0], cartesian_shape[2], cartesian_shape[3]};
-        const size3_t src_stride{cartesian_stride[0], cartesian_stride[2], cartesian_stride[3]};
+        const size3_t src_strides{cartesian_strides[0], cartesian_strides[2], cartesian_strides[3]};
         const size3_t dst_shape{polar_shape[0], polar_shape[2], polar_shape[3]};
-        const size3_t dst_stride{polar_stride[0], polar_stride[2], polar_stride[3]};
+        const size3_t dst_strides{polar_strides[0], polar_strides[2], polar_strides[3]};
 
         const size_t threads = stream.threads();
         switch (interp) {
             case INTERP_NEAREST:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_NEAREST>(
-                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_strides, src_shape, polar.get(), dst_strides, dst_shape,
                             frequency_range, angle_range, log, threads);
                 });
             case INTERP_LINEAR_FAST:
             case INTERP_LINEAR:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_LINEAR>(
-                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_strides, src_shape, polar.get(), dst_strides, dst_shape,
                             frequency_range, angle_range, log, threads);
                 });
             case INTERP_COSINE_FAST:
             case INTERP_COSINE:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_COSINE>(
-                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_strides, src_shape, polar.get(), dst_strides, dst_shape,
                             frequency_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC:
                 return stream.enqueue([=]() {
                     cartesian2polar_<T, INTERP_CUBIC>(
-                            cartesian.get(), src_stride, src_shape, polar.get(), dst_stride, dst_shape,
+                            cartesian.get(), src_strides, src_shape, polar.get(), dst_strides, dst_shape,
                             frequency_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC_BSPLINE_FAST:

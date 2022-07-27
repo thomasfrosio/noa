@@ -10,12 +10,12 @@ namespace noa::cpu::geometry::fft {
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant 2D FFT to symmetrize.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Non-redundant symmetrized 2D FFT.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator to apply.
-    /// \param[in] shift        Rightmost 2D real-space forward shift to apply (as phase shift) after the symmetry.
+    /// \param[in] shift        HW 2D real-space forward shift to apply (as phase shift) after the symmetry.
     /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are set to 0.
@@ -32,11 +32,11 @@ namespace noa::cpu::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
-    NOA_IH void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
-                             const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                             const Symmetry& symmetry, float2_t shift,
-                             float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
-        transform2D<REMAP>(input, input_stride, output, output_stride, shape, float22_t{}, symmetry,
+    void symmetrize2D(const shared_t<T[]>& input, size4_t input_strides,
+                      const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+                      const Symmetry& symmetry, float2_t shift,
+                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+        transform2D<REMAP>(input, input_strides, output, output_strides, shape, float22_t{}, symmetry,
                            shift, cutoff, interp_mode, normalize, stream);
     }
 
@@ -44,12 +44,12 @@ namespace noa::cpu::geometry::fft {
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
     /// \tparam T               float, double, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant 3D FFT to symmetrize.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Non-redundant symmetrized 3D FFT.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator to apply.
-    /// \param[in] shift        Rightmost 3D real-space forward shift to apply (as phase shift) after the symmetry.
+    /// \param[in] shift        DHW 3D real-space forward shift to apply (as phase shift) after the symmetry.
     /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are set to 0.
@@ -66,11 +66,11 @@ namespace noa::cpu::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     /// \todo ADD TESTS!
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
-    NOA_IH void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
-                             const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
-                             const Symmetry& symmetry, float3_t shift,
-                             float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
-        transform3D<REMAP>(input, input_stride, output, output_stride, shape, float33_t{}, symmetry,
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_strides,
+                      const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+                      const Symmetry& symmetry, float3_t shift,
+                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+        transform3D<REMAP>(input, input_strides, output, output_strides, shape, float33_t{}, symmetry,
                            shift, cutoff, interp_mode, normalize, stream);
     }
 }

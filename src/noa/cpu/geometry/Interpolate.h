@@ -17,7 +17,7 @@
 
 namespace noa::cpu::geometry::details {
     template<typename R, typename T,
-            typename = std::enable_if_t<noa::traits::is_float_v<T> && noa::traits::is_float_v<R>>>
+            typename = std::enable_if_t<traits::is_float_v<T> && traits::is_float_v<R>>>
     constexpr NOA_IH void bsplineWeights(R ratio, T* w0, T* w1, T* w2, T* w3) {
         constexpr R one_sixth = static_cast<R>(1) / static_cast<R>(6);
         constexpr R two_third = static_cast<R>(2) / static_cast<R>(3);
@@ -33,7 +33,7 @@ namespace noa::cpu::geometry::details {
 }
 
 #define NOA_ENABLE_IF_FP_ \
-std::enable_if_t<(noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>) && noa::traits::is_float_v<R>>
+std::enable_if_t<(traits::is_float_v<T> || traits::is_complex_v<T>) && traits::is_float_v<R>>
 
 namespace noa::cpu::geometry {
     /// Returns the linear interpolation.
@@ -45,7 +45,7 @@ namespace noa::cpu::geometry {
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T linear1D(T v0, T v1, R r) noexcept {
-        return static_cast<noa::traits::value_type_t<T>>(r) * (v1 - v0) + v0;
+        return static_cast<traits::value_type_t<T>>(r) * (v1 - v0) + v0;
     }
 
     /// Returns the bi-linear interpolation.
@@ -118,7 +118,7 @@ namespace noa::cpu::geometry {
         T a2 = v2 - v0;
         T a3 = v1;
 
-        auto r1 = static_cast<noa::traits::value_type_t<T>>(r);
+        auto r1 = static_cast<traits::value_type_t<T>>(r);
         auto r2 = r1 * r1;
         auto r3 = r2 * r1;
         return a0 * r3 + a1 * r2 + a2 * r1 + a3;
@@ -178,7 +178,7 @@ namespace noa::cpu::geometry {
     /// \see http://www.dannyruijters.nl/cubicinterpolation/
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cubicBSpline1D(T v0, T v1, T v2, T v3, R r) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = traits::value_type_t<T>;
         real_t w0, w1, w2, w3;
         details::bsplineWeights(r, &w0, &w1, &w2, &w3);
         return v0 * w0 + v1 * w1 + v2 * w2 + v3 * w3;
@@ -195,7 +195,7 @@ namespace noa::cpu::geometry {
     /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_HOST T cubicBSpline2D(T v[4][4], R rx, R ry) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = traits::value_type_t<T>;
         real_t w0, w1, w2, w3;
         details::bsplineWeights(rx, &w0, &w1, &w2, &w3);
         T a0 = v[0][0] * w0 + v[0][1] * w1 + v[0][2] * w2 + v[0][3] * w3;
@@ -218,7 +218,7 @@ namespace noa::cpu::geometry {
     /// \see noa::transform::cubicBSpline1D() for more details.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_HOST T cubicBSpline3D(T v[4][4][4], R rx, R ry, R rz) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = traits::value_type_t<T>;
         real_t wx0, wx1, wx2, wx3;
         real_t wy0, wy1, wy2, wy3;
         details::bsplineWeights(rx, &wx0, &wx1, &wx2, &wx3);

@@ -72,16 +72,16 @@ namespace {
 
     // 2D, centered input.
     template<bool IS_DST_CENTERED, bool IS_IDENTITY, InterpMode INTERP, typename T>
-    void applyCenteredNormalized2D_(const T* input, size3_t input_stride, T* output, size3_t output_stride,
+    void applyCenteredNormalized2D_(const T* input, size3_t input_strides, T* output, size3_t output_strides,
                                     size3_t shape, [[maybe_unused]] float22_t matrix,
                                     const geometry::Symmetry& symmetry, float2_t shift, float cutoff,
                                     bool normalize, size_t threads) {
         const size_t batches = shape[0];
-        const long2_t l_shape{shape.get() + 1};
-        const float2_t f_shape{l_shape / 2 * 2 + long2_t{l_shape == 1}};
+        const long2_t l_shape(shape.get(1));
+        const float2_t f_shape(l_shape / 2 * 2 + long2_t(l_shape == 1));
 
         [[maybe_unused]] const bool apply_shift = any(shift != 0.f);
-        shift *= math::Constants<float>::PI2 / float2_t{l_shape};
+        shift *= math::Constants<float>::PI2 / float2_t(l_shape);
 
         cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
@@ -92,11 +92,11 @@ namespace {
         using real_t = traits::value_type_t<T>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(count + 1) : 1;
 
-        const size2_t stride{input_stride.get() + 1};
-        const cpu::geometry::Interpolator2D<T> interp(input, stride, size2_t{shape.get() + 1}.fft(), T(0));
+        const size2_t strides(input_strides.get(1));
+        const cpu::geometry::Interpolator2D<T> interp(input, strides, size2_t(shape.get(1)).fft(), T(0));
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(3)   \
-        shared(input, input_stride, output, output_stride, matrix, shift, cutoff, \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(3)    \
+        shared(input, input_strides, output, output_strides, matrix, shift, cutoff, \
                batches, l_shape, f_shape, interp, apply_shift, count, sym_matrices, scaling)
 
         for (size_t i = 0; i < batches; ++i) {
@@ -107,30 +107,30 @@ namespace {
 
                     float2_t freq = coordinates / f_shape; // [-0.5, 0.5]
                     if (math::dot(freq, freq) > cutoff) {
-                        output[indexing::at(i, y, x, output_stride)] = 0;
+                        output[indexing::at(i, y, x, output_strides)] = 0;
                         continue;
                     }
 
                     T value;
                     if constexpr (IS_IDENTITY) {
                         const int64_t iy = getInputIndex_<IS_DST_CENTERED>(y, l_shape[0]);
-                        value = input[indexing::at(i, iy, x, input_stride)];
+                        value = input[indexing::at(i, iy, x, input_strides)];
                     } else {
                         freq = matrix * freq;
-                        value = interpolateFFT_<INTERP>(freq, f_shape, interp, i * input_stride[0]);
+                        value = interpolateFFT_<INTERP>(freq, f_shape, interp, i * input_strides[0]);
                     }
                     for (size_t s = 0; s < count; ++s) {
                         const float33_t& m = sym_matrices[s];
                         const float22_t sym_matrix{m[1][1], m[1][2],
                                                    m[2][1], m[2][2]};
-                        value += interpolateFFT_<INTERP>(sym_matrix * freq, f_shape, interp, i * input_stride[0]);
+                        value += interpolateFFT_<INTERP>(sym_matrix * freq, f_shape, interp, i * input_strides[0]);
                     }
 
                     if constexpr (traits::is_complex_v<T>)
                         if (apply_shift)
                             value *= getPhaseShift_<T>(shift, coordinates);
 
-                    output[indexing::at(i, y, x, output_stride)] = value * scaling;
+                    output[indexing::at(i, y, x, output_strides)] = value * scaling;
                 }
             }
         }
@@ -138,16 +138,16 @@ namespace {
 
     // 3D, centered input.
     template<bool IS_DST_CENTERED, bool IS_IDENTITY, InterpMode INTERP, typename T>
-    void applyCenteredNormalized3D_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void applyCenteredNormalized3D_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
                                     size4_t shape, [[maybe_unused]] float33_t matrix,
                                     const geometry::Symmetry& symmetry, [[maybe_unused]] float3_t shift,
                                     float cutoff, bool normalize, size_t threads) {
         const size_t batches = shape[0];
-        const long3_t l_shape{shape.get() + 1};
-        const float3_t f_shape{l_shape / 2 * 2 + long3_t{l_shape == 1}};
+        const long3_t l_shape(shape.get(1));
+        const float3_t f_shape(l_shape / 2 * 2 + long3_t(l_shape == 1));
 
         [[maybe_unused]] const bool apply_shift = any(shift != 0.f);
-        shift *= math::Constants<float>::PI2 / float3_t{l_shape};
+        shift *= math::Constants<float>::PI2 / float3_t(l_shape);
 
         cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
@@ -158,11 +158,11 @@ namespace {
         using real_t = traits::value_type_t<T>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(count + 1) : 1;
 
-        const size3_t stride{input_stride.get() + 1};
-        const cpu::geometry::Interpolator3D<T> interp(input, stride, size3_t{shape.get() + 1}.fft(), T(0));
+        const size3_t strides(input_strides.get(1));
+        const cpu::geometry::Interpolator3D<T> interp(input, strides, size3_t(shape.get(1)).fft(), T(0));
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(4)   \
-        shared(input, input_stride, output, output_stride, matrix, shift, cutoff, \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4)     \
+        shared(input, input_strides, output, output_strides, matrix, shift, cutoff, \
                batches, l_shape, f_shape, interp, apply_shift, count, matrices, scaling)
 
         for (size_t i = 0; i < batches; ++i) {
@@ -176,7 +176,7 @@ namespace {
 
                         float3_t freq = coordinates / f_shape; // [-0.5, 0.5]
                         if (math::dot(freq, freq) > cutoff) {
-                            output[indexing::at(i, z, y, x, output_stride)] = 0;
+                            output[indexing::at(i, z, y, x, output_strides)] = 0;
                             continue;
                         }
 
@@ -184,19 +184,19 @@ namespace {
                         if constexpr (IS_IDENTITY) {
                             const int64_t iz = getInputIndex_<IS_DST_CENTERED>(z, l_shape[0]);
                             const int64_t iy = getInputIndex_<IS_DST_CENTERED>(y, l_shape[1]);
-                            value = input[indexing::at(i, iz, iy, x, input_stride)];
+                            value = input[indexing::at(i, iz, iy, x, input_strides)];
                         } else {
                             freq = matrix * freq;
-                            value = interpolateFFT_<INTERP>(freq, f_shape, interp, i * input_stride[0]);
+                            value = interpolateFFT_<INTERP>(freq, f_shape, interp, i * input_strides[0]);
                         }
                         for (size_t s = 0; s < count; ++s)
-                            value += interpolateFFT_<INTERP>(matrices[s] * freq, f_shape, interp, i * input_stride[0]);
+                            value += interpolateFFT_<INTERP>(matrices[s] * freq, f_shape, interp, i * input_strides[0]);
 
                         if constexpr (traits::is_complex_v<T>)
                             if (apply_shift)
                                 value *= getPhaseShift_<T>(shift, coordinates);
 
-                        output[indexing::at(i, z, y, x, output_stride)] = value * scaling;
+                        output[indexing::at(i, z, y, x, output_strides)] = value * scaling;
                     }
                 }
             }
@@ -218,13 +218,13 @@ namespace {
 
 namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename T, typename>
-    void transform2D(const shared_t<T[]>& input, size4_t input_stride,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void transform2D(const shared_t<T[]>& input, size4_t input_strides,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
         if (!symmetry.count())
-            return transform2D<REMAP>(input, input_stride, output, output_stride, shape, matrix, shift,
+            return transform2D<REMAP>(input, input_strides, output, output_strides, shape, matrix, shift,
                                       cutoff, interp_mode, stream);
 
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
@@ -232,8 +232,8 @@ namespace noa::cpu::geometry::fft {
         const bool is_identity = matrix == float22_t{};
 
         NOA_ASSERT(shape[1] == 1);
-        const size3_t i_stride{input_stride[0], input_stride[2], input_stride[3]};
-        const size3_t o_stride{output_stride[0], output_stride[2], output_stride[3]};
+        const size3_t i_strides{input_strides[0], input_strides[2], input_strides[3]};
+        const size3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
         const size3_t shape_2d{shape[0], shape[2], shape[3]};
 
         switch (interp_mode) {
@@ -241,11 +241,11 @@ namespace noa::cpu::geometry::fft {
                 return stream.enqueue([=](){
                     if (is_identity)
                         applyCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_NEAREST, T>(
-                                input.get(), i_stride, output.get(), o_stride, shape_2d,
+                                input.get(), i_strides, output.get(), o_strides, shape_2d,
                                 matrix, symmetry, shift, cutoff, normalize, threads);
                     else
                         applyCenteredNormalized2D_<IS_DST_CENTERED, false, INTERP_NEAREST, T>(
-                                input.get(), i_stride, output.get(), o_stride, shape_2d,
+                                input.get(), i_strides, output.get(), o_strides, shape_2d,
                                 matrix, symmetry, shift, cutoff, normalize, threads);
                 });
             case INTERP_LINEAR:
@@ -253,11 +253,11 @@ namespace noa::cpu::geometry::fft {
                 return stream.enqueue([=](){
                     if (is_identity)
                         applyCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_LINEAR, T>(
-                                input.get(), i_stride, output.get(), o_stride, shape_2d,
+                                input.get(), i_strides, output.get(), o_strides, shape_2d,
                                 matrix, symmetry, shift, cutoff, normalize, threads);
                     else
                         applyCenteredNormalized2D_<IS_DST_CENTERED, false, INTERP_LINEAR, T>(
-                                input.get(), i_stride, output.get(), o_stride, shape_2d,
+                                input.get(), i_strides, output.get(), o_strides, shape_2d,
                                 matrix, symmetry, shift, cutoff, normalize, threads);
                 });
             case INTERP_COSINE:
@@ -265,11 +265,11 @@ namespace noa::cpu::geometry::fft {
                 return stream.enqueue([=](){
                     if (is_identity)
                         applyCenteredNormalized2D_<IS_DST_CENTERED, true, INTERP_COSINE, T>(
-                                input.get(), i_stride, output.get(), o_stride, shape_2d,
+                                input.get(), i_strides, output.get(), o_strides, shape_2d,
                                 matrix, symmetry, shift, cutoff, normalize, threads);
                     else
                         applyCenteredNormalized2D_<IS_DST_CENTERED, false, INTERP_COSINE, T>(
-                                input.get(), i_stride, output.get(), o_stride, shape_2d,
+                                input.get(), i_strides, output.get(), o_strides, shape_2d,
                                 matrix, symmetry, shift, cutoff, normalize, threads);
                 });
             default:
@@ -278,13 +278,13 @@ namespace noa::cpu::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void transform3D(const shared_t<T[]>& input, size4_t input_stride,
-                     const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void transform3D(const shared_t<T[]>& input, size4_t input_strides,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
         if (!symmetry.count())
-            return transform3D<REMAP>(input, input_stride, output, output_stride, shape, matrix, shift,
+            return transform3D<REMAP>(input, input_strides, output, output_strides, shape, matrix, shift,
                                       cutoff, interp_mode, stream);
 
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
@@ -296,11 +296,11 @@ namespace noa::cpu::geometry::fft {
                 return stream.enqueue([=](){
                     if (is_identity)
                         applyCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_NEAREST, T>(
-                                input.get(), input_stride, output.get(), output_stride,
+                                input.get(), input_strides, output.get(), output_strides,
                                 shape, matrix, symmetry, shift, cutoff, normalize, threads);
                     else
                         applyCenteredNormalized3D_<IS_DST_CENTERED, false, INTERP_NEAREST, T>(
-                                input.get(), input_stride, output.get(), output_stride,
+                                input.get(), input_strides, output.get(), output_strides,
                                 shape, matrix, symmetry, shift, cutoff, normalize, threads);
                 });
             case INTERP_LINEAR:
@@ -308,11 +308,11 @@ namespace noa::cpu::geometry::fft {
                 return stream.enqueue([=](){
                     if (is_identity)
                         applyCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_LINEAR, T>(
-                                input.get(), input_stride, output.get(), output_stride,
+                                input.get(), input_strides, output.get(), output_strides,
                                 shape, matrix, symmetry, shift, cutoff, normalize, threads);
                     else
                         applyCenteredNormalized3D_<IS_DST_CENTERED, false, INTERP_LINEAR, T>(
-                                input.get(), input_stride, output.get(), output_stride,
+                                input.get(), input_strides, output.get(), output_strides,
                                 shape, matrix, symmetry, shift, cutoff, normalize, threads);
                 });
             case INTERP_COSINE:
@@ -320,11 +320,11 @@ namespace noa::cpu::geometry::fft {
                 return stream.enqueue([=](){
                     if (is_identity)
                         applyCenteredNormalized3D_<IS_DST_CENTERED, true, INTERP_COSINE, T>(
-                                input.get(), input_stride, output.get(), output_stride,
+                                input.get(), input_strides, output.get(), output_strides,
                                 shape, matrix, symmetry, shift, cutoff, normalize, threads);
                     else
                         applyCenteredNormalized3D_<IS_DST_CENTERED, false, INTERP_COSINE, T>(
-                                input.get(), input_stride, output.get(), output_stride,
+                                input.get(), input_strides, output.get(), output_strides,
                                 shape, matrix, symmetry, shift, cutoff, normalize, threads);
                 });
             default:

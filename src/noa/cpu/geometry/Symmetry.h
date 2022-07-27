@@ -19,12 +19,12 @@ namespace noa::cpu::geometry {
     ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat, cdouble_t.
     /// \param[in] input        On the \b host. Input array to symmetrize.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Symmetrized array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements, of \p input and \p output.
     /// \param symmetry         Symmetry operator.
-    /// \param center           Rightmost center of the symmetry.
+    /// \param center           HW center of the symmetry.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
@@ -35,8 +35,8 @@ namespace noa::cpu::geometry {
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
-                      const shared_t<T[]>& output, size4_t output_stride,
+    void symmetrize2D(const shared_t<T[]>& input, size4_t input_strides,
+                      const shared_t<T[]>& output, size4_t output_strides,
                       size4_t shape, const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream);
 
@@ -45,12 +45,12 @@ namespace noa::cpu::geometry {
     ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, double, cfloat, cdouble_t.
     /// \param[in] input        On the \b host. Input array to symmetrize.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
     /// \param[out] output      On the \b host. Symmetrized array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator.
-    /// \param center           Rightmost center of the symmetry.
+    /// \param center           HW center of the symmetry.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
@@ -61,8 +61,8 @@ namespace noa::cpu::geometry {
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T,
              typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
-                      const shared_t<T[]>& output, size4_t output_stride,
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_strides,
+                      const shared_t<T[]>& output, size4_t output_strides,
                       size4_t shape, const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream);
 }

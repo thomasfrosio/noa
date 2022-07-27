@@ -34,28 +34,28 @@ namespace noa::cpu::geometry::fft {
     /// \tparam REMAP               Remapping from the slice to the grid layout. Should be H2H, H2HC, HC2H or HC2HC.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[in] slice            On the \b host. Non-redundant 2D slice(s) to insert.
-    /// \param slice_stride         Rightmost stride of \p slice.
-    /// \param slice_shape          Rightmost logical shape of \p slice.
+    /// \param slice_strides        BDHW strides of \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
     /// \param[out] grid            On the \b host. Non-redundant 3D grid inside which the slices are inserted.
-    /// \param grid_stride          Rightmost stride of \p grid.
-    /// \param grid_shape           Rightmost logical shape of \p grid.
-    /// \param[in] scaling_factors  On the \b host. 2x2 rightmost \e inverse real-space scaling to apply to the
+    /// \param grid_strides         BDHW strides of \p grid.
+    /// \param grid_shape           BDHW logical shape of \p grid.
+    /// \param[in] scaling_factors  On the \b host. 2x2 HW \e inverse real-space scaling to apply to the
     ///                             slices before the rotation. If nullptr, it is ignored. One per slice.
-    /// \param[in] rotations        On the \b host. 3x3 rightmost \e forward rotation matrices. One per slice.
+    /// \param[in] rotations        On the \b host. 3x3 DHW \e forward rotation matrices. One per slice.
     /// \param cutoff               Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           BDHW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \note To decrease artefacts, the cartesian grid is usually oversampled. While this can be achieved by zero
     ///       padding the slices before the FFT, this function can also work with an oversampled grid. The oversampling
-    ///       ratio is the ratio between the two innermost dimensions of \p grid_shape and \p slice_shape.
+    ///       ratio is the ratio between the HW dimensions of \p grid_shape and \p slice_shape.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_insert_v<REMAP, T>>>
-    void insert3D(const shared_t<T[]>& slice, size4_t slice_stride, size4_t slice_shape,
-                  const shared_t<T[]>& grid, size4_t grid_stride, size4_t grid_shape,
+    void insert3D(const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
+                  const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
                   float cutoff, float2_t ews_radius, Stream& stream);
@@ -67,28 +67,28 @@ namespace noa::cpu::geometry::fft {
     /// \tparam REMAP               Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[out] grid            On the \b host. Non-redundant centered 3D grid from which to extract the slices.
-    /// \param grid_stride          Rightmost stride of \p grid.
-    /// \param grid_shape           Rightmost logical shape of \p grid.
+    /// \param grid_strides         BDHW strides of \p grid.
+    /// \param grid_shape           BDHW logical shape of \p grid.
     /// \param[in] slice            On the \b host. Non-redundant extracted 2D slice(s).
-    /// \param slice_stride         Rightmost stride of \p slice.
-    /// \param slice_shape          Rightmost logical shape of \p slice.
-    /// \param[in] scaling_factors  On the \b host. 2x2 rightmost \e inverse real-space scaling applied to the
+    /// \param slice_strides        BDHW strides of \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[in] scaling_factors  On the \b host. 2x2 HW \e inverse real-space scaling applied to the
     ///                             slices before the rotation. If nullptr, it is ignored. One per slice.
-    /// \param[in] rotations        On the \b host. 3x3 rightmost \e forward rotation matrices. One per slice.
+    /// \param[in] rotations        On the \b host. 3x3 DHW \e forward rotation matrices. One per slice.
     /// \param cutoff               Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           BDHW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \note To decrease artefacts, the cartesian grid is usually oversampled. While this can be achieved by zero
     ///       padding the grid before the FFT, this function can also work with an oversampled grid. The oversampling
-    ///       ratio is the ratio between the two innermost dimensions of \p grid_shape and \p slice_shape.
+    ///       ratio is the ratio between the HW dimensions of \p grid_shape and \p slice_shape.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
-    void extract3D(const shared_t<T[]>& grid, size4_t grid_stride, size4_t grid_shape,
-                   const shared_t<T[]>& slice, size4_t slice_stride, size4_t slice_shape,
+    void extract3D(const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
+                   const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
                    float cutoff, float2_t ews_radius, Stream& stream);
@@ -96,10 +96,10 @@ namespace noa::cpu::geometry::fft {
     /// Corrects for the gridding, assuming tri-linear interpolation is used during the insertion or extraction.
     /// \tparam T               float or double.
     /// \param[in] input        On the \b host. Real-space volume.
-    /// \param input_stride     Rightmost stride of \p input.
+    /// \param input_strides    BDHW strides of \p input.
     /// \param[out] output      On the \b host. Gridding-corrected output. Can be equal to \p input.
-    /// \param output_stride    Rightmost stride of \p output.
-    /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param shape            BDHW shape of \p input and \p output.
     /// \param post_correction  Whether the correction is the post- or pre-correction.
     ///                         Post correction is meant to be applied on the volume that was just back-projected
     ///                         using insert3D, whereas pre-correction is meant to be applied on the volume that is
@@ -107,7 +107,7 @@ namespace noa::cpu::geometry::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    void griddingCorrection(const shared_t<T[]>& input, size4_t input_stride,
-                            const shared_t<T[]>& output, size4_t output_stride,
+    void griddingCorrection(const shared_t<T[]>& input, size4_t input_strides,
+                            const shared_t<T[]>& output, size4_t output_strides,
                             size4_t shape, bool post_correction, Stream& stream);
 }
