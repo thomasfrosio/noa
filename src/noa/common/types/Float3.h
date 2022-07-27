@@ -32,8 +32,8 @@ namespace noa {
 
     public: // Conversion constructors
         template<typename X, typename Y, typename Z>
-        NOA_HD constexpr Float3(X x, Y y, Z z) noexcept
-                : m_data{static_cast<T>(x), static_cast<T>(y), static_cast<T>(z)} {}
+        NOA_HD constexpr Float3(X a0, Y a1, Z a2) noexcept
+                : m_data{static_cast<T>(a0), static_cast<T>(a1), static_cast<T>(a2)} {}
 
         template<typename U>
         NOA_HD constexpr explicit Float3(U x) noexcept

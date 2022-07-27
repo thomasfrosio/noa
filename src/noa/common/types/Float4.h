@@ -32,8 +32,8 @@ namespace noa {
 
     public: // Conversion constructors
         template<class X, class Y, class Z, class W>
-        NOA_HD constexpr Float4(X x, Y y, Z z, W w) noexcept
-                : m_data{static_cast<T>(x), static_cast<T>(y), static_cast<T>(z), static_cast<T>(w)} {}
+        NOA_HD constexpr Float4(X a0, Y a1, Z a2, W a3) noexcept
+                : m_data{static_cast<T>(a0), static_cast<T>(a1), static_cast<T>(a2), static_cast<T>(a3)} {}
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Float4(U v) noexcept
