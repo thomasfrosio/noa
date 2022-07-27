@@ -324,6 +324,7 @@ TEST_CASE("common: order(), squeeze()", "[noa][common]") {
     REQUIRE(all(indexing::order(size4_t{4096, 128, 128, 1}, size4_t{2, 32, 1, 128}) == size4_t{2, 0, 1, 3}));
     REQUIRE(all(indexing::order(size4_t{4096, 4096, 128, 1}, size4_t{2, 32, 1, 128}) == size4_t{2, 0, 1, 3}));
     REQUIRE(all(indexing::order(size4_t{128, 4096, 128, 1}, size4_t{2, 32, 1, 128}) == size4_t{2, 1, 0, 3}));
+    REQUIRE(all(indexing::order(size4_t{2, 2, 2, 2}, size4_t{1, 1, 1, 1}) == size4_t{0, 1, 2, 3}));
 
     REQUIRE(all(indexing::squeeze(shape) == size4_t{0, 1, 2, 3}));
     REQUIRE(all(indexing::squeeze(size4_t{1, 1, 3, 4}) == size4_t{0, 1, 2, 3}));
@@ -374,4 +375,18 @@ TEST_CASE("common: (row/col)Major", "[noa][common]") {
         strides = indexing::reorder(strides, order);
         REQUIRE(all(indexing::isContiguous(strides, shape)));
     }
+}
+
+TEST_CASE("common: Reinterpret", "[noa][common]") {
+    const size4_t shape = test::getRandomShapeBatched(3);
+    size4_t strides = shape.strides();
+    cfloat_t* ptr = nullptr;
+    auto real = indexing::Reinterpret(shape, strides, ptr).as<float>();
+    REQUIRE(all(real.shape == size4_t{shape[0], shape[1], shape[2], shape[3] * 2}));
+    REQUIRE(all(real.strides == size4_t{strides[0] * 2, strides[1] * 2, strides[2] * 2, 1}));
+
+    strides = shape.strides<'F'>();
+    real = indexing::Reinterpret(shape, strides, ptr).as<float>();
+    REQUIRE(all(real.shape == size4_t{shape[0], shape[1], shape[2] * 2, shape[3]}));
+    REQUIRE(all(real.strides == size4_t{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2}));
 }

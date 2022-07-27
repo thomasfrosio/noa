@@ -316,7 +316,7 @@ namespace noa::indexing {
     /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
     /// \see indexing::reorder(...).
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_HD auto order(T strides, T shape) {
+    NOA_IH auto order(T strides, T shape) {
         using vec_t = traits::remove_ref_cv_t<T>;
         using int_t = traits::value_type_t<T>;
         constexpr size_t COUNT = vec_t::COUNT;
@@ -529,35 +529,39 @@ namespace noa::indexing {
             using new_t = V;
             Reinterpret<V> out{shape, strides, reinterpret_cast<V*>(ptr)};
 
+            // The "downsize" and "upsize" branches expects the strides and shape to be in the rightmost order.
+            const size4_t rightmost_order = order(out.strides, out.shape);
+
             if constexpr (sizeof(origin_t) > sizeof(new_t)) { // downsize
                 constexpr I ratio = sizeof(origin_t) / sizeof(new_t);
-                NOA_CHECK(strides[3] == 1, "The stride of the innermost dimension must be 1 to view a {} as a {}",
+                NOA_CHECK(strides[rightmost_order[3]] == 1,
+                          "The stride of the innermost dimension must be 1 to view a {} as a {}",
                           string::human<origin_t>(), string::human<new_t>());
-                out.strides[0] *= ratio;
-                out.strides[1] *= ratio;
-                out.strides[2] *= ratio;
-                out.strides[3] = 1;
-                out.shape[3] *= ratio;
+                out.strides[rightmost_order[0]] *= ratio;
+                out.strides[rightmost_order[1]] *= ratio;
+                out.strides[rightmost_order[2]] *= ratio;
+                out.strides[rightmost_order[3]] = 1;
+                out.shape[rightmost_order[3]] *= ratio;
 
             } else if constexpr (sizeof(origin_t) < sizeof(new_t)) { // upsize
                 constexpr I ratio = sizeof(new_t) / sizeof(origin_t);
                 static_assert(alignof(cdouble_t) == 16);
-                NOA_CHECK(shape[3] % ratio == 0,
+                NOA_CHECK(out.shape[rightmost_order[3]] % ratio == 0,
                           "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
                           ratio, string::human<origin_t>(), string::human<new_t>());
                 NOA_CHECK(!(reinterpret_cast<std::uintptr_t>(ptr) % alignof(new_t)),
                           "The memory offset should at least be aligned to {} bytes to be viewed as a {}, but got {}",
                           alignof(new_t), string::human<new_t>(), static_cast<const void*>(ptr));
-
-                NOA_CHECK(strides[3] == 1, "The stride of the innermost dimension must be 1 to view a {} as a {}",
+                NOA_CHECK(out.strides[rightmost_order[3]] == 1,
+                          "The stride of the innermost dimension must be 1 to view a {} as a {}",
                           string::human<origin_t>(), string::human<new_t>());
                 for (int i = 0; i < 3; ++i) {
-                    NOA_CHECK(!(strides[i] % ratio), "The strides must be divisible by {} to view a {} as a {}",
+                    NOA_CHECK(!(out.strides[i] % ratio), "The strides must be divisible by {} to view a {} as a {}",
                               ratio, string::human<origin_t>(), string::human<new_t>());
                     out.strides[i] /= ratio;
                 }
-                out.strides[3] = 1;
-                out.shape[3] /= ratio;
+                out.strides[rightmost_order[3]] = 1;
+                out.shape[rightmost_order[3]] /= ratio;
             }
             return out;
         }
