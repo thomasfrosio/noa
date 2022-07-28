@@ -298,7 +298,7 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr T ndim() const noexcept {
             NOA_ASSERT(all(*this >= T{1}));
             return m_data[0] > 1 ? 3 :
-                   m_data[1] > 1 && m_data[2] > 2 ? 2 : 1;
+                   m_data[1] > 1 && m_data[2] > 1 ? 2 : 1;
         }
 
         /// Returns the strides, in elements, assuming *this is a shape in the DHW convention.
