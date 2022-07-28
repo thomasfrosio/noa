@@ -98,8 +98,8 @@ namespace noa::cpu::memory {
             NOA_ASSERT(input != output);
 
             const int4_t tmp = int4_t{input_shape} + border_left + border_right;
-            NOA_ASSERT(all(tmp > 1));
-            size4_t output_shape{tmp};
+            NOA_ASSERT(all(tmp >= 1));
+            size4_t output_shape(tmp);
 
             // Optimize reads/writes for output:
             const size4_t order = indexing::order(output_strides, output_shape);
