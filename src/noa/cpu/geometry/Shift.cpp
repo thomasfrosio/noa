@@ -192,7 +192,8 @@ namespace noa::cpu::geometry {
                  T value, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        NOA_ASSERT(input_shape[1] == 1);
+        NOA_ASSERT(size3_t(input_shape.get(1)).ndim() <= 2);
+        NOA_ASSERT(size3_t(output_shape.get(1)).ndim() <= 2);
 
         const size3_t istrides_2d{input_strides[0], input_strides[2], input_strides[3]};
         const size3_t ostrides_2d{output_strides[0], output_strides[2], output_strides[3]};
@@ -227,7 +228,8 @@ namespace noa::cpu::geometry {
                  T value, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        NOA_ASSERT(input_shape[1] == 1);
+        NOA_ASSERT(size3_t(input_shape.get(1)).ndim() <= 2);
+        NOA_ASSERT(size3_t(output_shape.get(1)).ndim() <= 2);
 
         const size3_t istrides_2d{input_strides[0], input_strides[2], input_strides[3]};
         const size3_t ostrides_2d{output_strides[0], output_strides[2], output_strides[3]};

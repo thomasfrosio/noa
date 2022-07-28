@@ -114,7 +114,8 @@ namespace {
                        const geometry::Symmetry& symmetry, V center, InterpMode interp_mode, bool normalize,
                        cpu::Stream& stream) {
         NOA_ASSERT(input != output);
-        NOA_ASSERT((std::is_same_v<V, float3_t>) || shape[1] == 1);
+        NOA_ASSERT((std::is_same_v<V, float3_t> && size3_t(shape.get(1)).ndim() <= 3) ||
+                   (std::is_same_v<V, float2_t> && size3_t(shape.get(1)).ndim() <= 2));
 
         if (!symmetry.count())
             return cpu::memory::copy(input, input_strides, output, output_strides, shape, stream);

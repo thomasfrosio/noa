@@ -194,7 +194,7 @@ namespace noa::cpu::geometry::bspline {
     void prefilter(const shared_t<T[]>& input, size4_t input_strides,
                    const shared_t<T[]>& output, size4_t output_strides,
                    size4_t shape, Stream& stream) {
-        const size_t ndim = size3_t{shape.get() + 1}.ndim();
+        const size_t ndim = size3_t(shape.get(1)).ndim();
         if (ndim == 3) {
             stream.enqueue([=]() {
                 prefilter3D_(input.get(), input_strides, output.get(), output_strides, shape, stream.threads());
@@ -207,9 +207,10 @@ namespace noa::cpu::geometry::bspline {
             });
         } else {
             stream.enqueue([=]() {
-                prefilter1D_(input.get(), size2_t{input_strides[0], input_strides[3]},
-                             output.get(), size2_t{output_strides[0], output_strides[3]},
-                             size2_t{shape[0], shape[3]});
+                const bool is_column = shape[3] == 1;
+                prefilter1D_(input.get(), size2_t{input_strides[0], input_strides[3 - is_column]},
+                             output.get(), size2_t{output_strides[0], output_strides[3 - is_column]},
+                             size2_t{shape[0], shape[3 - is_column]});
             });
         }
     }

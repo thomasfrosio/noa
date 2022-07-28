@@ -99,8 +99,9 @@ namespace noa::cpu::geometry {
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
-        NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
+        NOA_ASSERT(size3_t(input_shape.get(1)).ndim() <= 2);
+        NOA_ASSERT(size3_t(output_shape.get(1)).ndim() <= 2);
 
         const size_t threads = stream.threads();
         stream.enqueue([=]() mutable {
