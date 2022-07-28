@@ -60,8 +60,8 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void rectangleOMP_(const shared_t<T[]> input, size4_t input_stride,
-                       const shared_t<T[]> output, size4_t output_stride,
+    void rectangleOMP_(const shared_t<T[]> input, size4_t input_strides,
+                       const shared_t<T[]> output, size4_t output_strides,
                        size3_t start, size3_t end, size_t batches,
                        float3_t center, float3_t radius, float taper_size, size_t threads) {
         const T* iptr = input.get();
@@ -69,8 +69,8 @@ namespace {
         using real_t = traits::value_type_t<T>;
         [[maybe_unused]] const float3_t radius_with_taper = radius + taper_size;
 
-        #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(iptr, input_stride, optr, output_stride, start, end, batches,    \
+        #pragma omp parallel for collapse(4) default(none) num_threads(threads)   \
+        shared(iptr, input_strides, optr, output_strides, start, end, batches,    \
                center, radius, taper_size, radius_with_taper)
 
         for (size_t i = 0; i < batches; ++i) {
@@ -88,9 +88,9 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(distance, radius);
 
-                        optr[indexing::at(i, j, k, l, output_stride)] =
+                        optr[indexing::at(i, j, k, l, output_strides)] =
                                 iptr ?
-                                iptr[indexing::at(i, j, k, l, input_stride)] * static_cast<real_t>(mask) :
+                                iptr[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
                                 static_cast<real_t>(mask);
                     }
                 }
@@ -99,8 +99,8 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void rectangle_(const shared_t<T[]> input, size4_t input_stride,
-                    const shared_t<T[]> output, size4_t output_stride,
+    void rectangle_(const shared_t<T[]> input, size4_t input_strides,
+                    const shared_t<T[]> output, size4_t output_strides,
                     size3_t start, size3_t end, size_t batches,
                     float3_t center, float3_t radius, float taper_size) {
         const T* iptr = input.get();
@@ -123,9 +123,9 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(distance, radius);
 
-                        optr[indexing::at(i, j, k, l, output_stride)] =
+                        optr[indexing::at(i, j, k, l, output_strides)] =
                                 iptr ?
-                                iptr[indexing::at(i, j, k, l, input_stride)] * static_cast<real_t>(mask) :
+                                iptr[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
                                 static_cast<real_t>(mask);
                     }
                 }
@@ -136,13 +136,23 @@ namespace {
 
 namespace noa::cpu::signal {
     template<bool INVERT, typename T, typename>
-    void rectangle(const shared_t<T[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void rectangle(const shared_t<T[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
-        size3_t start{0}, end{shape.get(1)};
+        const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1)));
+        if (any(order_3d != size3_t{0, 1, 2})) {
+            const size4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
+            input_strides = indexing::reorder(input_strides, order);
+            output_strides = indexing::reorder(output_strides, order);
+            shape = indexing::reorder(shape, order);
+            center = indexing::reorder(center, order_3d);
+            radius = indexing::reorder(radius, order_3d);
+        }
+
+        size3_t start{0}, end(shape.get(1));
         if (INVERT && input.get() == output.get()) {
-            start = size3_t{noa::math::clamp(int3_t{center - (radius + taper_size)}, int3_t{}, int3_t{end})};
-            end = size3_t{noa::math::clamp(int3_t{center + (radius + taper_size) + 1}, int3_t{}, int3_t{end})};
+            start = size3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
+            end = size3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
             if (any(end <= start))
                 return;
         }
@@ -151,11 +161,11 @@ namespace noa::cpu::signal {
         const bool taper = taper_size > 1e-5f;
         if (threads > 1)
             stream.enqueue(taper ? rectangleOMP_<true, INVERT, T> : rectangleOMP_<false, INVERT, T>,
-                           input, input_stride, output, output_stride,
+                           input, input_strides, output, output_strides,
                            start, end, shape[0], center, radius, taper_size, threads);
         else
             stream.enqueue(taper ? rectangle_<true, INVERT, T> : rectangle_<false, INVERT, T>,
-                           input, input_stride, output, output_stride,
+                           input, input_strides, output, output_strides,
                            start, end, shape[0], center, radius, taper_size);
     }
 

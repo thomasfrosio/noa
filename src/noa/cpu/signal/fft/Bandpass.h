@@ -24,10 +24,10 @@ namespace noa::cpu::signal::fft {
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant non-centered FFT to filter.
     ///                         If nullptr, the filter is directly written into \p output and \p T must be real.
-    /// \param input_stride     Rightmost strides of \p input.
+    /// \param input_strides    BDHW strides of \p input.
     /// \param[out] output      On the \b host. Filtered non-redundant non-centered FFT.
-    /// \param output_stride    Rightmost strides of \p output.
-    /// \param shape            Rightmost logical shape.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param shape            BDHW logical shape.
     /// \param cutoff           Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                         At this frequency, the pass starts to roll-off.
     /// \param width            Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
@@ -35,8 +35,8 @@ namespace noa::cpu::signal::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void lowpass(const shared_t<T[]>& input, size4_t input_stride,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void lowpass(const shared_t<T[]>& input, size4_t input_strides,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                  float cutoff, float width, Stream& stream);
 
     /// Highpass FFTs.
@@ -44,10 +44,10 @@ namespace noa::cpu::signal::fft {
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant non-centered FFT to filter.
     ///                         If nullptr, the filter is directly written into \p output and \p T must be real.
-    /// \param input_stride     Rightmost strides of \p input.
+    /// \param input_strides    BDHW strides of \p input.
     /// \param[out] output      On the \b host. Filtered non-redundant non-centered FFT.
-    /// \param output_stride    Rightmost strides of \p output.
-    /// \param shape            Rightmost logical shape.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param shape            BDHW logical shape.
     /// \param cutoff           Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                         At this frequency, the pass is fully recovered.
     /// \param width            Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
@@ -55,8 +55,8 @@ namespace noa::cpu::signal::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void highpass(const shared_t<T[]>& input, size4_t input_stride,
-                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void highpass(const shared_t<T[]>& input, size4_t input_strides,
+                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                   float cutoff, float width, Stream& stream);
 
     /// Bandpass FFTs.
@@ -64,10 +64,10 @@ namespace noa::cpu::signal::fft {
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b host. Non-redundant non-centered FFT to filter.
     ///                         If nullptr, the filter is directly written into \p output and \p T must be real.
-    /// \param input_stride     Rightmost strides of \p input.
+    /// \param input_strides    BDHW strides of \p input.
     /// \param[out] output      On the \b host. Filtered non-redundant non-centered FFT.
-    /// \param output_stride    Rightmost strides of \p output.
-    /// \param shape            Rightmost logical shape.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param shape            BDHW logical shape.
     /// \param cutoff1          First frequency cutoff, in cycle/pix, usually from 0 (DC) to \p cutoff2.
     ///                         At this frequency, the pass is fully recovered.
     /// \param cutoff2          Second frequency cutoff, in cycle/pix, usually from \p cutoff1 to 0.5 (Nyquist).
@@ -78,7 +78,7 @@ namespace noa::cpu::signal::fft {
     /// \note \p input can be equal to \p output iff there's no remapping.
     /// \note Depending on the stream, this function can be asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void bandpass(const shared_t<T[]>& input, size4_t input_stride,
-                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void bandpass(const shared_t<T[]>& input, size4_t input_strides,
+                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2, Stream& stream);
 }

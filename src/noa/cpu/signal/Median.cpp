@@ -21,7 +21,7 @@ namespace {
     }
 
     template<typename T, BorderMode MODE>
-    void medfilt1_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void medfilt1_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
                    size4_t shape, size_t window, size_t threads) {
         const int4_t int_shape(shape);
         const int int_window = static_cast<int>(window);
@@ -34,7 +34,7 @@ namespace {
         Comp* buffer_ptr = buffer.get();
 
         #pragma omp parallel for default(none) num_threads(threads) collapse(4) \
-        shared(input, input_stride, output, output_stride, int_shape, int_window, buffer_ptr, WINDOW_HALF, HALO)
+        shared(input, input_strides, output, output_strides, int_shape, int_window, buffer_ptr, WINDOW_HALF, HALO)
 
         for (int i = 0; i < int_shape[0]; ++i) {
             for (int j = 0; j < int_shape[1]; ++j) {
@@ -52,7 +52,7 @@ namespace {
                         if constexpr (MODE == BORDER_REFLECT) {
                             for (int wl = 0; wl < int_window; ++wl) {
                                 int il = getMirrorIdx_(l - HALO + wl, int_shape[3]);
-                                tmp[wl] = static_cast<Comp>(input[at(i, j, k, il, input_stride)]);
+                                tmp[wl] = static_cast<Comp>(input[at(i, j, k, il, input_strides)]);
                             }
                         } else { // BORDER_ZERO
                             for (int wl = 0; wl < int_window; ++wl) {
@@ -60,13 +60,13 @@ namespace {
                                 if (il < 0 || il >= int_shape[3])
                                     tmp[wl] = static_cast<Comp>(0);
                                 else
-                                    tmp[wl] = static_cast<Comp>(input[at(i, j, k, il, input_stride)]);
+                                    tmp[wl] = static_cast<Comp>(input[at(i, j, k, il, input_strides)]);
                             }
                         }
 
                         // Sort the elements in the window to get the median.
                         std::nth_element(tmp, tmp + WINDOW_HALF, tmp + int_window);
-                        output[at(i, j, k, l, output_stride)] = static_cast<T>(tmp[WINDOW_HALF]);
+                        output[at(i, j, k, l, output_strides)] = static_cast<T>(tmp[WINDOW_HALF]);
                     }
                 }
             }
@@ -74,7 +74,7 @@ namespace {
     }
 
     template<typename T, BorderMode MODE>
-    void medfilt2_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void medfilt2_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
                    size4_t shape, size_t window, size_t threads) {
         const int4_t int_shape(shape);
         const int int_window = static_cast<int>(window);
@@ -87,8 +87,8 @@ namespace {
         cpu::memory::PtrHost<Comp> buffer(WINDOW_SIZE * threads);
         Comp* buffer_ptr = buffer.get();
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(4)   \
-        shared(input, input_stride, output, output_stride, int_shape, int_window, \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4)     \
+        shared(input, input_strides, output, output_strides, int_shape, int_window, \
                buffer_ptr, WINDOW_SIZE, WINDOW_HALF, HALO)
 
         for (int i = 0; i < int_shape[0]; ++i) {
@@ -109,7 +109,7 @@ namespace {
                                 for (int wl = 0; wl < int_window; ++wl) {
                                     int il = getMirrorIdx_(l - HALO + wl, int_shape[3]);
                                     tmp[wk * int_window + wl] =
-                                            static_cast<Comp>(input[at(i, j, ik, il, input_stride)]);
+                                            static_cast<Comp>(input[at(i, j, ik, il, input_strides)]);
                                 }
                             }
                         } else { // BORDER_ZERO
@@ -121,7 +121,7 @@ namespace {
                                         tmp[wk * int_window + wl] = static_cast<Comp>(0);
                                     } else {
                                         tmp[wk * int_window + wl] =
-                                                static_cast<Comp>(input[at(i, j, ik, il, input_stride)]);
+                                                static_cast<Comp>(input[at(i, j, ik, il, input_strides)]);
                                     }
                                 }
                             }
@@ -129,7 +129,7 @@ namespace {
 
                         // Sort the elements in the window to get the median.
                         std::nth_element(tmp, tmp + WINDOW_HALF, tmp + WINDOW_SIZE);
-                        output[at(i, j, k, l, output_stride)] = static_cast<T>(tmp[WINDOW_HALF]);
+                        output[at(i, j, k, l, output_strides)] = static_cast<T>(tmp[WINDOW_HALF]);
                     }
                 }
             }
@@ -137,7 +137,7 @@ namespace {
     }
 
     template<typename T, BorderMode MODE>
-    void medfilt3_(const T* input, size4_t input_stride, T* output, size4_t output_stride,
+    void medfilt3_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
                    size4_t shape, size_t window, size_t threads) {
         const int4_t int_shape(shape);
         const int int_window = static_cast<int>(window);
@@ -151,8 +151,8 @@ namespace {
         cpu::memory::PtrHost<Comp> buffer(WINDOW_SIZE * threads);
         Comp* buffer_ptr = buffer.get();
 
-        #pragma omp parallel for default(none) num_threads(threads) collapse(4)   \
-        shared(input, input_stride, output, output_stride, int_shape, int_window, \
+        #pragma omp parallel for default(none) num_threads(threads) collapse(4)     \
+        shared(input, input_strides, output, output_strides, int_shape, int_window, \
                buffer_ptr, WINDOW_SIZE, WINDOW_HALF, HALO)
 
         for (int i = 0; i < int_shape[0]; ++i) {
@@ -175,7 +175,7 @@ namespace {
                                     for (int wl = 0; wl < int_window; ++wl) {
                                         int il = getMirrorIdx_(l - HALO + wl, int_shape[3]);
                                         tmp[(wj * int_window + wk) * int_window + wl] =
-                                                static_cast<Comp>(input[at(i, ij, ik, il, input_stride)]);
+                                                static_cast<Comp>(input[at(i, ij, ik, il, input_strides)]);
                                     }
                                 }
                             }
@@ -192,7 +192,7 @@ namespace {
                                             il < 0 || il >= int_shape[3]) {
                                             tmp[idx] = static_cast<Comp>(0);
                                         } else {
-                                            tmp[idx] = static_cast<Comp>(input[at(i, ij, ik, il, input_stride)]);
+                                            tmp[idx] = static_cast<Comp>(input[at(i, ij, ik, il, input_strides)]);
                                         }
                                     }
                                 }
@@ -201,7 +201,7 @@ namespace {
 
                         // Sort the elements in the window to get the median.
                         std::nth_element(tmp, tmp + WINDOW_HALF, tmp + WINDOW_SIZE);
-                        output[at(i, j, k, l, output_stride)] = static_cast<T>(tmp[WINDOW_HALF]);
+                        output[at(i, j, k, l, output_strides)] = static_cast<T>(tmp[WINDOW_HALF]);
                     }
                 }
             }
@@ -211,12 +211,12 @@ namespace {
 
 namespace noa::cpu::signal {
     template<typename T, typename>
-    void median1(const shared_t<T[]>& input, size4_t input_stride,
-                 const shared_t<T[]>& output, size4_t output_stride,
+    void median1(const shared_t<T[]>& input, size4_t input_strides,
+                 const shared_t<T[]>& output, size4_t output_strides,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_ASSERT(input != output);
         if (window_size == 1)
-            return memory::copy(input, input_stride, output, output_stride, shape, stream);
+            return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
         const size_t threads = stream.threads();
         stream.enqueue([=](){
@@ -226,10 +226,10 @@ namespace noa::cpu::signal {
                 case BORDER_REFLECT:
                     NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                     return medfilt1_<T, BORDER_REFLECT>(
-                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                            input.get(), input_strides, output.get(), output_strides, shape, window_size, threads);
                 case BORDER_ZERO:
                     return medfilt1_<T, BORDER_ZERO>(
-                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                            input.get(), input_strides, output.get(), output_strides, shape, window_size, threads);
                 default:
                     NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                               BORDER_ZERO, BORDER_REFLECT, border_mode);
@@ -238,26 +238,33 @@ namespace noa::cpu::signal {
     }
 
     template<typename T, typename>
-    void median2(const shared_t<T[]>& input, size4_t input_stride,
-                 const shared_t<T[]>& output, size4_t output_stride,
+    void median2(const shared_t<T[]>& input, size4_t input_strides,
+                 const shared_t<T[]>& output, size4_t output_strides,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_ASSERT(input != output);
         if (window_size == 1)
-            return memory::copy(input, input_stride, output, output_stride, shape, stream);
+            return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
         const size_t threads = stream.threads();
-        stream.enqueue([=](){
+        stream.enqueue([=]() mutable {
             NOA_ASSERT(window_size % 2);
+
+            const size2_t order_2d = indexing::order(size2_t(output_strides.get(2)), size2_t(shape.get(2)));
+            if (any(order_2d != size2_t{0, 1})) {
+                std::swap(input_strides[2], input_strides[3]);
+                std::swap(output_strides[2], output_strides[3]);
+                std::swap(shape[2], shape[3]);
+            }
 
             switch (border_mode) {
                 case BORDER_REFLECT:
                     NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
                     NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                     return medfilt2_<T, BORDER_REFLECT>(
-                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                            input.get(), input_strides, output.get(), output_strides, shape, window_size, threads);
                 case BORDER_ZERO:
                     return medfilt2_<T, BORDER_ZERO>(
-                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                            input.get(), input_strides, output.get(), output_strides, shape, window_size, threads);
                 default:
                     NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                               BORDER_ZERO, BORDER_REFLECT, border_mode);
@@ -266,16 +273,24 @@ namespace noa::cpu::signal {
     }
 
     template<typename T, typename>
-    void median3(const shared_t<T[]>& input, size4_t input_stride,
-                 const shared_t<T[]>& output, size4_t output_stride,
+    void median3(const shared_t<T[]>& input, size4_t input_strides,
+                 const shared_t<T[]>& output, size4_t output_strides,
                  size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream) {
         NOA_ASSERT(input != output);
         if (window_size == 1)
-            return memory::copy(input, input_stride, output, output_stride, shape, stream);
+            return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
         const size_t threads = stream.threads();
-        stream.enqueue([=](){
+        stream.enqueue([=]() mutable {
             NOA_ASSERT(window_size % 2);
+
+            const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1))) + 1;
+            if (any(order_3d != size3_t{1, 2, 3})) {
+                const size4_t order{0, order_3d[0], order_3d[1], order_3d[2]};
+                input_strides = indexing::reorder(input_strides, order);
+                output_strides = indexing::reorder(output_strides, order);
+                shape = indexing::reorder(shape, order);
+            }
 
             switch (border_mode) {
                 case BORDER_REFLECT:
@@ -283,10 +298,10 @@ namespace noa::cpu::signal {
                     NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
                     NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                     return medfilt3_<T, BORDER_REFLECT>(
-                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                            input.get(), input_strides, output.get(), output_strides, shape, window_size, threads);
                 case BORDER_ZERO:
                     return medfilt3_<T, BORDER_ZERO>(
-                            input.get(), input_stride, output.get(), output_stride, shape, window_size, threads);
+                            input.get(), input_strides, output.get(), output_strides, shape, window_size, threads);
                 default:
                     NOA_THROW("BorderMode not supported. Should be {} or {}, got {}",
                               BORDER_ZERO, BORDER_REFLECT, border_mode);
