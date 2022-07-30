@@ -65,10 +65,16 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr bool* get() noexcept { return m_data; }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        [[nodiscard]] NOA_HD constexpr const bool* get(I i) const noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr const bool* get(I i) const noexcept {
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
+            return m_data + i;
+        }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        [[nodiscard]] NOA_HD constexpr bool* get(I i) noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr bool* get(I i) noexcept {
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
+            return m_data + i;
+        }
 
         [[nodiscard]] NOA_HD constexpr Bool3 flip() const noexcept { return {m_data[2], m_data[1], m_data[0]}; }
 

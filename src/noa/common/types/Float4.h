@@ -436,12 +436,20 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr T* get() noexcept { return m_data; }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        [[nodiscard]] NOA_HD constexpr const T* get(I i) const noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr const T* get(I i) const noexcept {
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
+            return m_data + i;
+        }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        [[nodiscard]] NOA_HD constexpr T* get(I i) noexcept { return m_data + i; }
+        [[nodiscard]] NOA_HD constexpr T* get(I i) noexcept {
+            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
+            return m_data + i;
+        }
 
-        [[nodiscard]] NOA_HD constexpr Float4 flip() const noexcept { return {m_data[3], m_data[2], m_data[1], m_data[0]}; }
+        [[nodiscard]] NOA_HD constexpr Float4 flip() const noexcept {
+            return {m_data[3], m_data[2], m_data[1], m_data[0]};
+        }
 
     private:
         static_assert(traits::is_float_v<T>);
