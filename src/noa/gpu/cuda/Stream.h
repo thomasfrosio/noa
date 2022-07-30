@@ -232,7 +232,7 @@ namespace noa::cuda {
 
     private:
         static void CUDART_CB updateRegistryCallback_(void* object) {
-            auto registry = static_cast<details::StreamMemoryRegistry*>(object);
+            auto* registry = static_cast<details::StreamMemoryRegistry*>(object);
             registry->update();
             // TODO Add a profiler call?
         }

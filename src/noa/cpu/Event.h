@@ -10,18 +10,18 @@ namespace noa::cpu {
     class Event {
     public:
         /// Waits ("busy sleep") until the completion of the event.
-        NOA_HOST void synchronize() {
+        void synchronize() {
             while (m_event.load(std::memory_order_acquire) != Status::COMPLETED)
                 std::this_thread::yield();
         }
 
         /// Whether or not the event is completed.
-        NOA_HOST bool busy() {
+        bool busy() {
             return m_event.load(std::memory_order_acquire) == Status::COMPLETED;
         }
 
         /// Records (enqueue) the event into a \p stream.
-        NOA_HOST void record(Stream& stream) {
+        void record(Stream& stream) {
             m_event.store(Status::QUEUED, std::memory_order_release);
             stream.enqueue(
                     [this]() noexcept {
@@ -31,7 +31,7 @@ namespace noa::cpu {
         }
 
         /// Computes the elapsed time between \e completed events.
-        NOA_HOST static double elapsed(const Event& start, const Event& end) {
+        static double elapsed(const Event& start, const Event& end) {
             const Status status_start = start.m_event.load(std::memory_order_acquire);
             const Status status_end = end.m_event.load(std::memory_order_acquire);
 

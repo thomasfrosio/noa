@@ -95,9 +95,9 @@ namespace noa::cuda::util {
     public:
         using ptr_type = std::conditional_t<RESTRICT, Pointer __restrict__, Pointer>;
         using value_type = std::remove_pointer<Pointer>;
-        NOA_DEVICE explicit accessor_t(Pointer ptr) : m_data(ptr) {};
-        NOA_DEVICE ptr_type get() noexcept { return m_data; }
-        NOA_DEVICE auto& operator[](size_t i) noexcept { return m_data[i]; }
+        NOA_HD explicit accessor_t(Pointer ptr) : m_data(ptr) {};
+        NOA_HD ptr_type get() noexcept { return m_data; }
+        NOA_HD auto& operator[](size_t i) noexcept { return m_data[i]; }
     private:
         ptr_type m_data;
     };
