@@ -44,7 +44,7 @@ namespace noa {
     template<typename T>
     class Mat44 {
     public: // Type definitions
-        typedef T value_type;
+        using value_type = T;
 
     public: // Component accesses
         static constexpr size_t ROWS = 4;

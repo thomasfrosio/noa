@@ -14,7 +14,7 @@
 
 namespace noa {
     struct Bool4 {
-        typedef bool value_type;
+        using value_type = bool;
 
     public: // Default constructors
         constexpr Bool4() noexcept = default;
@@ -23,8 +23,8 @@ namespace noa {
 
     public: // Conversion constructors
         template<typename X, typename Y, typename Z, typename W>
-        NOA_HD constexpr Bool4(X x, Y y, Z z, W w) noexcept
-                : m_data{static_cast<bool>(x), static_cast<bool>(y), static_cast<bool>(z), static_cast<bool>(w)} {}
+        NOA_HD constexpr Bool4(X a0, Y a1, Z a2, W a3) noexcept
+                : m_data{static_cast<bool>(a0), static_cast<bool>(a1), static_cast<bool>(a2), static_cast<bool>(a3)} {}
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Bool4(U x) noexcept

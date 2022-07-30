@@ -23,7 +23,7 @@ namespace noa {
     template<typename T>
     class alignas(sizeof(T) * 2) Int2 {
     public:
-        typedef T value_type;
+        using value_type = T;
 
     public: // Default Constructors
         constexpr Int2() noexcept = default;
@@ -32,8 +32,8 @@ namespace noa {
 
     public: // Conversion constructors
         template<typename X, typename Y>
-        NOA_HD constexpr Int2(X x, Y y) noexcept
-                : m_data{static_cast<T>(x), static_cast<T>(y)} {}
+        NOA_HD constexpr Int2(X a0, Y a1) noexcept
+                : m_data{static_cast<T>(a0), static_cast<T>(a1)} {}
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Int2(U x) noexcept

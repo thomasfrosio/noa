@@ -31,7 +31,7 @@ namespace noa {
         T real{}, imag{};
 
     public:
-        typedef T value_type;
+        using value_type = T;
 
     public: // Component accesses
         static constexpr size_t COUNT = 2;

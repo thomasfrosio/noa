@@ -23,7 +23,7 @@ namespace noa {
     template<typename T>
     class Float3 {
     public:
-        typedef T value_type;
+        using value_type = T;
 
     public: // Default Constructors
         constexpr Float3() noexcept = default;

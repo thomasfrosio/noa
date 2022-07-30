@@ -16,7 +16,7 @@
 namespace noa {
     class Bool2 {
     public:
-        typedef bool value_type;
+        using value_type = bool;
 
     public: // Default constructors
         constexpr Bool2() noexcept = default;
@@ -25,8 +25,8 @@ namespace noa {
 
     public: // Conversion constructors
         template<typename X, typename Y>
-        NOA_HD constexpr Bool2(X x, Y y) noexcept
-                : m_data{static_cast<bool>(x), static_cast<bool>(y)} {}
+        NOA_HD constexpr Bool2(X a0, Y a1) noexcept
+                : m_data{static_cast<bool>(a0), static_cast<bool>(a1)} {}
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Bool2(U x) noexcept

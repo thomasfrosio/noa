@@ -23,7 +23,7 @@ namespace noa {
     template<typename T>
     class alignas(sizeof(T) * 2) Float2 {
     public:
-        typedef T value_type;
+        using value_type = T;
 
     public: // Default constructors
         constexpr Float2() noexcept = default;
