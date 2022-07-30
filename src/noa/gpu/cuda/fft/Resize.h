@@ -11,17 +11,17 @@
 
 namespace noa::cuda::fft::details {
     template<typename T>
-    void cropH2H(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void cropH2H(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
     template<typename T>
-    void cropF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void cropF2F(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
     template<typename T>
-    void padH2H(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void padH2H(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
     template<typename T>
-    void padF2F(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream);
+    void padF2F(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
 
     using namespace ::noa::fft;
     template<Remap REMAP, typename T>
@@ -36,32 +36,32 @@ namespace noa::cuda::fft {
     /// \tparam REMAP           FFT Remap. Only H2H and F2F are currently supported.
     /// \tparam T               half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input        On the \b device. FFT to resize.
-    /// \param input_stride     Rightmost strides of \p input.
+    /// \param input_strides    BDHW strides of \p input.
     /// \param input_shape      Rightmost shape of \p input.
     /// \param[out] output      On the \b device. Resized FFT.
-    /// \param output_stride    Rightmost strides of \p output.
-    /// \param output_shape     Rightmost shape of \p output.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param output_shape     BDHW shape of \p output.
     ///                         All dimensions should either be <= or >= than \p input_shape.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function runs asynchronously with respect to the host and may return before completion.
     /// \note The batch dimension cannot be resized.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_remap_v<REMAP, T>>>
-    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                       const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    inline void resize(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                       const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H)
-                details::cropH2H<T>(input, input_stride, input_shape, output, output_stride, output_shape, stream);
+                details::cropH2H<T>(input, input_strides, input_shape, output, output_strides, output_shape, stream);
             else if constexpr (REMAP == Remap::F2F)
-                details::cropF2F<T>(input, input_stride, input_shape, output, output_stride, output_shape, stream);
+                details::cropF2F<T>(input, input_strides, input_shape, output, output_strides, output_shape, stream);
             else
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
         } else {
             if constexpr (REMAP == Remap::H2H)
-                details::padH2H<T>(input, input_stride, input_shape, output, output_stride, output_shape, stream);
+                details::padH2H<T>(input, input_strides, input_shape, output, output_strides, output_shape, stream);
             else if constexpr (REMAP == Remap::F2F)
-                details::padF2F<T>(input, input_stride, input_shape, output, output_stride, output_shape, stream);
+                details::padF2F<T>(input, input_strides, input_shape, output, output_strides, output_shape, stream);
             else
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
         }
     }
 }

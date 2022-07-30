@@ -33,7 +33,7 @@ namespace noa::cuda::fft {
     /// Returns the optimum rightmost shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
     template<typename T>
-    NOA_IH Int3<T> fastShape(Int3<T> shape) {
+    inline Int3<T> fastShape(Int3<T> shape) {
         return {shape[0] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[0]))) : shape[0],
                 shape[1] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[1]))) : shape[1],
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2]};
@@ -43,7 +43,7 @@ namespace noa::cuda::fft {
     /// \note Dimensions of size 0 or 1 are ignored as well as the leftmost dimension, e.g. {1,1,51,51}
     ///       is rounded up to {1,1,52,52}.
     template<typename T>
-    NOA_IH Int4<T> fastShape(Int4<T> shape) {
+    inline Int4<T> fastShape(Int4<T> shape) {
         return {shape[0],
                 shape[1] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[1]))) : shape[1],
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2],
@@ -67,46 +67,47 @@ namespace noa::cuda::fft {
         }
     };
 
-    /// Templated class managing FFT plans in CUDA using cuFFT.
-    /// \tparam T   Precision of the transforms, i.e. float or double.
+    /// Template class managing FFT plans in CUDA using cuFFT.
+    /// \note For R2C/C2R transforms, the 2D/3D arrays should be in the rightmost order for best performance since the
+    ///       library currently always assumes the non-redundant dimension is the rows, i.e. the rightmost dimension.
+    ///       The current exception is for column vectors, which are explicitly detected and supported.
+    /// \note In-place R2C/C2R transforms are allowed (\p input == \p output). In this case, the input requires extra
+    ///       padding: the rows should have an extra float if the dimension is odd, or two extra floats if it is even.
+    ///       If strides are provided, this padding should be reflected in the strides.
+    /// \note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
+    ///       should only be accessed by one (host) thread at a time.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
     class Plan {
     public:
         /// Creates a plan for a transform of a given \p type and \p shape.
         /// \param type     One of \c R2C, \c C2R or \c C2C.
-        /// \param shape    Rightmost shape, in number of elements.
+        /// \param shape    BDHW shape. Batched 2D/3D array(s) or column/row vector(s).
+        ///                 Both input and output arrays should be C-contiguous.
         /// \param device   Device on which to create the plan.
-        ///
-        /// \note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
-        ///       should only be accessed by one (host) thread at a time.
-        /// \note In-place transforms are allowed. In this case and with R2C transforms, the real input requires extra
-        ///       padding: the innermost dimension should have an extra real element if the dimension is odd, or
-        ///       two extra float if it is even. This is the same layout used for the CPU backend using FFTW3.
         Plan(Type type, size4_t shape, Device device = Device::current()) {
             m_plan = details::getPlan(getCufftType_(type), shape, device.id());
         }
 
         /// Creates a plan for a transform of a given \p type, \p shape and strides.
         /// \param type             One of \c R2C, \c C2R or \c C2C.
-        /// \param input_stride     Rightmost strides of the input, in number of elements.
-        /// \param output_stride    Rightmost strides of the output, in number of elements.
-        /// \param shape            Rightmost shape, in number of elements.
+        /// \param input_strides    BDHW strides of the input array.
+        /// \param output_strides   BDHW strides of the output array.
+        /// \param shape            BDHW shape. Batched 2D/3D array(s) or column/row vector(s).
         /// \param device           Device on which to create the plan.
         ///
-        /// \note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
-        ///       should only be accessed by one (host) thread at a time.
-        /// \note With real transforms, \p input_stride and \p output_stride do not refer to the same type.
-        ///       With \c fft::R2C transforms, \p input_stride is in number of real elements (i.e. float or double) and
-        ///       \p output_stride is in number of complex elements (i.e. cfloat_t or cdouble_t). With \c fft::C2R, it
+        /// \note With real transforms, \p input_strides and \p output_strides do not refer to the same type.
+        ///       With \c fft::R2C transforms, \p input_strides is in number of real elements (i.e. float or double) and
+        ///       \p output_strides is in number of complex elements (i.e. cfloat_t or cdouble_t). With \c fft::C2R, it
         ///       is the opposite.
         template<bool CHECK_CONTIGUOUS = true>
-        Plan(Type type, size4_t input_stride, size4_t output_stride, size4_t shape, Device device = Device::current()) {
+        Plan(Type type, size4_t input_strides, size4_t output_strides, size4_t shape,
+             Device device = Device::current()) {
             if (CHECK_CONTIGUOUS &&
-                all(indexing::isContiguous(input_stride, shape)) &&
-                all(indexing::isContiguous(output_stride, shape)))
+                all(indexing::isContiguous(input_strides, shape)) &&
+                all(indexing::isContiguous(output_strides, shape)))
                 m_plan = details::getPlan(getCufftType_(type), shape, device.id());
             else
-                m_plan = details::getPlan(getCufftType_(type), input_stride, output_stride,
+                m_plan = details::getPlan(getCufftType_(type), input_strides, output_strides,
                                           shape, device.id());
         }
 

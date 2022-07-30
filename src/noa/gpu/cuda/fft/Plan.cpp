@@ -27,7 +27,7 @@ namespace {
 
     class CufftCache {
     public:
-        CufftCache() : m_max_size(4) {}
+        CufftCache() = default;
 
         void limit(size_t size) noexcept {
             m_max_size = size;
@@ -62,17 +62,17 @@ namespace {
             if (m_queue.size() >= m_max_size)
                 m_queue.pop_back();
             m_queue.emplace_front(std::move(key),
-                                  std::shared_ptr<cufftHandle>{new cufftHandle{plan}, deleter});
+                                  std::shared_ptr<cufftHandle>(new cufftHandle{plan}, deleter));
             return m_queue.front().second;
         }
 
     private:
         using plan_pair_t = typename std::pair<std::string, std::shared_ptr<cufftHandle>>;
         std::deque<plan_pair_t> m_queue;
-        size_t m_max_size;
+        size_t m_max_size{4};
     };
 
-    // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-thread cache.
+    // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-host-thread cache.
     // Each GPU has its own cache of course.
     CufftCache& getCache_(int device) {
         constexpr size_t MAX_DEVICES = 16;
@@ -88,8 +88,11 @@ namespace {
 namespace noa::cuda::fft::details {
     std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t shape, int device) {
         const auto batch = static_cast<int>(shape[0]);
-        int3_t s_shape{shape.get(1)};
+        int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
 
         using enum_type = std::underlying_type_t<cufftType_t>;
         const auto type_ = static_cast<enum_type>(type);
@@ -125,14 +128,21 @@ namespace noa::cuda::fft::details {
         return cache.push(std::move(hash), plan);
     }
 
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t input_stride, size4_t output_stride,
+    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t input_strides, size4_t output_strides,
                                          size4_t shape, int device) {
         int3_t s_shape(shape.get(1));
-        const int4_t i_stride(input_stride);
-        const int4_t o_stride(output_stride);
-        int3_t i_pitch(i_stride.pitches());
-        int3_t o_pitch(o_stride.pitches());
         const int rank = s_shape.ndim();
+        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
+        if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
+            std::swap(s_shape[1], s_shape[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const int4_t i_strides(input_strides);
+        const int4_t o_strides(output_strides);
+        int3_t i_pitch(i_strides.pitches());
+        int3_t o_pitch(o_strides.pitches());
         const auto batch = static_cast<int>(shape[0]);
         const int offset = 3 - rank;
 
@@ -149,13 +159,13 @@ namespace noa::cuda::fft::details {
 
             for (int i = 0; i < rank; ++i)
                 tmp << i_pitch[offset + i] << ',';
-            tmp << i_stride[3] << ':';
-            tmp << i_stride[0] << ':';
+            tmp << i_strides[3] << ':';
+            tmp << i_strides[0] << ':';
 
             for (int i = 0; i < rank; ++i)
                 tmp << o_pitch[offset + i] << ',';
-            tmp << o_stride[3] << ':';
-            tmp << o_stride[0] << ':';
+            tmp << o_strides[3] << ':';
+            tmp << o_strides[0] << ':';
 
             tmp << type_ << ':';
             tmp << batch;
@@ -172,8 +182,8 @@ namespace noa::cuda::fft::details {
         cufftHandle plan;
         for (size_t i = 0; i < 2; ++i) {
             const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(offset),
-                                             i_pitch.get(offset), i_stride[3], i_stride[0],
-                                             o_pitch.get(offset), o_stride[3], o_stride[0],
+                                             i_pitch.get(offset), i_strides[3], i_strides[0],
+                                             o_pitch.get(offset), o_strides[3], o_strides[0],
                                              type, batch);
             if (err == CUFFT_SUCCESS)
                 break;

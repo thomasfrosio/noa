@@ -44,9 +44,9 @@ namespace noa::cpu::fft {
     ///                         All dimensions should either be <= or >= than \p input_shape.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note The batch dimension cannot be resized, i.e. \p input_shape[0] == \p output_shape[0].
+    /// \note The batch dimension cannot be resized.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
-    NOA_IH void resize(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+    inline void resize(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                        const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H) {
@@ -60,7 +60,7 @@ namespace noa::cpu::fft {
                                         output.get(), output_strides, output_shape);
                 });
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
             }
         } else {
             if constexpr (REMAP == Remap::H2H) {
@@ -74,7 +74,7 @@ namespace noa::cpu::fft {
                                        output.get(), output_strides, output_shape);
                 });
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
             }
         }
     }

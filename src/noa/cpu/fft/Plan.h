@@ -23,7 +23,7 @@ namespace noa::cpu::fft {
     /// Returns the optimum DHW shape.
     /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
     template<typename T>
-    NOA_IH Int3<T> fastShape(Int3<T> shape) {
+    inline Int3<T> fastShape(Int3<T> shape) {
         return {shape[0] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[0]))) : shape[0],
                 shape[1] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[1]))) : shape[1],
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2]};
@@ -33,7 +33,7 @@ namespace noa::cpu::fft {
     /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension, e.g. {1,1,51,51}
     ///       is rounded up to {1,1,52,52}.
     template<typename T>
-    NOA_IH Int4<T> fastShape(Int4<T> shape) {
+    inline Int4<T> fastShape(Int4<T> shape) {
         return {shape[0],
                 shape[1] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[1]))) : shape[1],
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2],
