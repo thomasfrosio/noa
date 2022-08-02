@@ -57,6 +57,14 @@ Development:
         maybe remove `Session` and create a `GlobalLogger` and a free function keeping track of the thread number or
         something like that.
 
+    -   Backends vs Unified API: Now that the project is big enough, I wonder if we should change and make the UAPI
+        mandatory, gathering a single documentation per function, figuring out the utilities directly on the UAPI,
+        and then call the backend. The main goal is to remove documentation on the backends, which becomes annoying to
+        maintain, and reduce code duplication. This is simple and safe, but a big refactoring that I'm not going to
+        start now. On the other hand, it would make the backends even less friendly to use (which is fine IMO) because
+        we would remove some utility functions and wrapper (which would now be on the UAPI only). It would also push
+        towards "the UAPI or nothing" (which is also fine IMO).
+
     -   Add nvrtc when necessary.
         Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels
         to cubin directory at runtime. The launch mechanism will be centralized and in .cpp files, the kernels in
