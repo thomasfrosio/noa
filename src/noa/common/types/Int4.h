@@ -297,13 +297,13 @@ namespace noa {
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         [[nodiscard]] NOA_HD constexpr const T* get(I i) const noexcept {
-            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
+            NOA_ASSERT(static_cast<size_t>(i) <= COUNT);
             return m_data + i;
         }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         [[nodiscard]] NOA_HD constexpr T* get(I i) noexcept {
-            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
+            NOA_ASSERT(static_cast<size_t>(i) <= COUNT);
             return m_data + i;
         }
 
