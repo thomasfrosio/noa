@@ -9,6 +9,8 @@
 #include "noa/gpu/cuda/util/Traits.h"
 #include "noa/gpu/cuda/util/Warp.cuh"
 
+// TODO CUDA's cub seems to have some load and store functions. Surely some of them can be use here.
+
 namespace noa::cuda::util::block {
     /// Synchronizes the block.
     NOA_FD void synchronize() {

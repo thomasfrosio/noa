@@ -24,7 +24,7 @@ namespace noa::cuda::util::atomic {
     #if __CUDA_ARCH__ >= 700
     NOA_FD half_t add(half_t* address, half_t val) {
         return half_t(::atomicAdd(reinterpret_cast<__half*>(address), val.native()));
-        // atomicCAS for ushort requires 700 as well, so I don't think there's a way to do atomics
+        // atomicCAS for ushort requires 700 as well, so I don't think there's an easy way to do atomics
         // on 16-bits values on 5.3 and 6.X devices...
     }
     #endif
@@ -52,7 +52,7 @@ namespace noa::cuda::util::atomic {
     }
 
     template<typename T>
-    NOA_FD noa::Complex<T> add(noa::Complex<T>* address, noa::Complex<T> val) {
+    NOA_FD Complex<T> add(Complex<T>* address, Complex<T> val) {
         return {add(&(address->real), val.real), add(&(address->imag), val.imag)};
     }
 }
