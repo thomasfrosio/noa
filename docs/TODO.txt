@@ -89,15 +89,27 @@ Development:
     -   JIT, lazy evaluation and kernel fusion.
         This is cool, is efficient and uses fewer temporaries, BUT, I much prefer the simplicity of `std::transform` or
         range-like APIs, where we define lambdas as transform operators. Also, it is much more flexible and versatile in
-        my opinion. ArrayFire is quite good at fusing kernels, but I'm not sure if I want to go that path.
+        my opinion. The issue with this simpler approach: 1) it cannot be used from another language, 2) GPU is not
+        really possible from a .cpp file.
+        Lazy evaluation:
+            ArrayFire is quite good at fusing kernels, but I'm not sure if I want to go that path.
             The implementation in arrayfire seems fine, I think Cupy is similar but CUDA only. Pytorch should be the
-        same but the codebase is huge, and it's difficult to understand what is going on.
-            At the moment, the CPU backend math::ewise() can take any unary/binary/trinary element-wise transformation
+            same but the codebase is huge, and it's difficult to understand what is going on. Also Eigen and xtensor have
+            lazy evaluation. xtensor has a series of articles on how they implemented lazy-evaluation (and kernel fusion
+            at the same time), but these are CPU only.
+            Links: https://arrayfire.com/performance-of-arrayfire-jit-code-generation/
+                   https://johan-mabille.medium.com/how-we-wrote-xtensor-9365952372d9
+        At the moment, the CPU backend math::ewise() can take any unary/binary/trinary element-wise transformation
         operator, which is great. However, since we cannot include and compile CUDA kernels from .cpp files OR pass host
         lambdas to CUDA kernels, we have to limit ourselves to pre-instantiated operators, which is super annoying.
         Note that the kernels are already there and can take any operators like in the CPU backend, but they have to be
         compiled by .cu files. I really hope nvc++ will solve this issue.
-        Links: https://arrayfire.com/performance-of-arrayfire-jit-code-generation/
+        One simple solution for now would be to keep using ewise() (and even add iwise()), and add a way for projects
+        to add and compile other operators, which should be relatively easy since we have the util/Ewise###.cuh headers.
+        We can explicitly instantiate for these new device functors and link against it. On the library side, we have to
+        add a "proclaim_ewise" traits that can be "appended" by the user and accepted by the API. That way, we keep the
+        user code device-agnostic (they can use NOA_HD-like macro) and they need to have an extra .cu file to compile
+        the new kernels... So instead of lambdas, we must use functors, which is not as good, but still quite good.
 
     -   Add vkFFT support? Also look at FFTW CPU port for Intel-MKL and AMD.
         Zero-padding can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call-
