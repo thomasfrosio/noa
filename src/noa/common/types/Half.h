@@ -442,7 +442,7 @@ namespace noa {
         }
 
         NOA_FHD void sincos(half_t x, half_t* s, half_t* c) {
-            *s = sin(x); // use sincos instead?
+            *s = sin(x); // FIXME use sincos instead?
             *c = cos(x);
         }
 

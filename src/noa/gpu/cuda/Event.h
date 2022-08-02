@@ -33,12 +33,12 @@ namespace noa::cuda {
 
     public:
         /// Creates an event on the current device.
-        NOA_HOST explicit Event(Mode flags = BUSY_TIMER) : m_device(Device::current()) {
+        explicit Event(Mode flags = BUSY_TIMER) : m_device(Device::current()) {
             NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
         }
 
         /// Creates an event on a specific device.
-        NOA_HOST explicit Event(Device device, Mode flags = BUSY_TIMER) : m_device(device) {
+        explicit Event(Device device, Mode flags = BUSY_TIMER) : m_device(device) {
             DeviceGuard stream_device(m_device);
             NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
         }
@@ -48,13 +48,13 @@ namespace noa::cuda {
         /// \note    Waiting for an event that was created with the \c BLOCK_WHILE_WAITING flag will cause the
         ///          calling CPU thread to block until the event has been completed by the device. Otherwise, the CPU
         ///          thread will busy-wait until the event has been completed by the device.
-        NOA_HOST void synchronize() {
+        void synchronize() {
             DeviceGuard stream_device(m_device);
             NOA_THROW_IF(cudaEventSynchronize(m_event));
         }
 
         /// Whether or not the event has completed all operations.
-        NOA_HOST bool busy() {
+        bool busy() {
             DeviceGuard scope_device(m_device);
             cudaError_t status = cudaEventQuery(m_event);
             if (status == cudaError_t::cudaSuccess)
@@ -66,10 +66,11 @@ namespace noa::cuda {
         }
 
         /// Records an already existing \p event into a \p stream. They must be on the same device.
-        NOA_HOST void record(const Stream& stream) {
-            if (stream.device() != m_device)
+        void record(const Stream& stream) {
+            if (stream.device() != m_device) {
                 NOA_THROW("Stream and event are associated to different devices. Got device {} and device {}",
                           stream.device().id(), m_device.id());
+            }
             DeviceGuard scope_device(m_device);
             NOA_THROW_IF(cudaEventRecord(m_event, stream.id()));
         }
@@ -77,10 +78,11 @@ namespace noa::cuda {
         /// Computes the elapsed time between events.
         /// \note    Both events should be completed and both events should have recorded times (i.e. created without
         ///          \c DISABLE_TIMING). Note that this measurement can be quite inaccurate.
-        NOA_HOST static double elapsed(const Event& start, const Event& end) {
-            if (start.m_device != end.m_device)
+        static double elapsed(const Event& start, const Event& end) {
+            if (start.m_device != end.m_device) {
                 NOA_THROW("Events are associated to different devices. Got device {} and device {}",
                           start.m_device.id(), end.m_device.id());
+            }
             float milliseconds{};
             NOA_THROW_IF(cudaEventElapsedTime(&milliseconds, start.m_event, end.m_event));
             return static_cast<double>(milliseconds);
@@ -92,15 +94,15 @@ namespace noa::cuda {
         Event& operator=(const Event&) = delete;
         Event& operator=(Event&&) = delete;
 
-        NOA_HOST ~Event() noexcept(false) {
+        ~Event() noexcept(false) {
             cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
                 NOA_THROW(toString(err));
         }
 
-        [[nodiscard]] NOA_HOST cudaEvent_t get() const noexcept { return m_event; }
-        [[nodiscard]] NOA_HOST cudaEvent_t id() const noexcept { return m_event; }
-        [[nodiscard]] NOA_HOST Device device() const noexcept { return m_device; }
+        [[nodiscard]] cudaEvent_t get() const noexcept { return m_event; }
+        [[nodiscard]] cudaEvent_t id() const noexcept { return m_event; }
+        [[nodiscard]] Device device() const noexcept { return m_device; }
 
     private:
         cudaEvent_t m_event{nullptr};

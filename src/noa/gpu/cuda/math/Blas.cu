@@ -36,47 +36,55 @@ namespace {
         return cache;
     }
 
-    // Extract size and stride from a column or row vector.
-    std::pair<size_t, size_t> extractDimFromVector_(size2_t stride, size2_t shape) {
-        const bool is_column = shape.ndim() == 2;
-        NOA_ASSERT(shape[is_column] == 1); // this is a vector
+    // Extract size and strides from a column or row vector.
+    std::pair<size_t, size_t> extractDimFromVector_(size2_t strides, size2_t shape) {
+        const bool is_column = shape[1] == 1;
+        NOA_ASSERT(shape.ndim() == 1);
         const size_t n = shape[1 - is_column];
-        const size_t s = stride[1 - is_column];
+        const size_t s = strides[1 - is_column];
         return {n, s};
     }
 
     template<typename T>
-    void cublasGEMM_(cublasHandle_t handle, bool lhs_transpose, bool rhs_transpose,
+    void cublasGEMM_(bool is_col, cublasHandle_t handle, bool lhs_transpose, bool rhs_transpose,
                      int3_t mnk, int3_t labc, long3_t sabc, int batches, T alpha, T beta,
                      const T* lhs, const T* rhs, T* output) {
-        const auto lhs_op = lhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
-        const auto rhs_op = rhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
+        auto lhs_op = lhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
+        auto rhs_op = rhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
 
-        // Switch to row-major:
+        // cublas thinks everything is column-major (-_-), so if we are row-major we need to compute B.T @ A.T = C.T
         // https://stackoverflow.com/questions/56043539/cublassgemm-row-major-multiplication
         // https://peterwittek.com/cublas-matrix-c-style.html
+        if (!is_col) {
+            std::swap(lhs_op, rhs_op);
+            std::swap(mnk[0], mnk[1]);
+            std::swap(lhs, rhs);
+            std::swap(labc[0], labc[1]);
+            std::swap(sabc[0], sabc[1]);
+        }
+
         if constexpr (std::is_same_v<float, T>) {
-            cublasSgemmStridedBatched(handle, lhs_op, rhs_op, mnk[1], mnk[0], mnk[2], &alpha,
-                                      rhs, labc[1], sabc[1],
-                                      lhs, labc[0], sabc[0], &beta,
+            cublasSgemmStridedBatched(handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
+                                      lhs, labc[0], sabc[0],
+                                      rhs, labc[1], sabc[1], &beta,
                                       output, labc[2], sabc[2], batches);
         } else if constexpr (std::is_same_v<double, T>) {
-            cublasDgemmStridedBatched(handle, lhs_op, rhs_op, mnk[1], mnk[0], mnk[2], &alpha,
-                                      rhs, labc[1], sabc[1],
-                                      lhs, labc[0], sabc[0], &beta,
+            cublasDgemmStridedBatched(handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
+                                      lhs, labc[0], sabc[0],
+                                      rhs, labc[1], sabc[1], &beta,
                                       output, labc[2], sabc[2], batches);
         } else if constexpr (std::is_same_v<cfloat_t, T>) {
-            cublasCgemmStridedBatched(handle, lhs_op, rhs_op, mnk[1], mnk[0], mnk[2],
+            cublasCgemmStridedBatched(handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
                                       reinterpret_cast<const cuComplex*>(&alpha),
-                                      reinterpret_cast<const cuComplex*>(rhs), labc[1], sabc[1],
                                       reinterpret_cast<const cuComplex*>(lhs), labc[0], sabc[0],
+                                      reinterpret_cast<const cuComplex*>(rhs), labc[1], sabc[1],
                                       reinterpret_cast<const cuComplex*>(&beta),
                                       reinterpret_cast<cuComplex*>(output), labc[2], sabc[2], batches);
         } else if constexpr (std::is_same_v<cdouble_t, T>) {
-            cublasZgemmStridedBatched(handle, lhs_op, rhs_op, mnk[1], mnk[0], mnk[2],
+            cublasZgemmStridedBatched(handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
                                       reinterpret_cast<const cuDoubleComplex*>(&alpha),
-                                      reinterpret_cast<const cuDoubleComplex*>(rhs), labc[1], sabc[1],
                                       reinterpret_cast<const cuDoubleComplex*>(lhs), labc[0], sabc[0],
+                                      reinterpret_cast<const cuDoubleComplex*>(rhs), labc[1], sabc[1],
                                       reinterpret_cast<const cuDoubleComplex*>(&beta),
                                       reinterpret_cast<cuDoubleComplex*>(output), labc[2], sabc[2], batches);
         }
@@ -92,14 +100,14 @@ namespace noa::cuda::math::details {
 
 namespace noa::cuda::math {
     template<typename T, typename>
-    T dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
-          const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
+    T dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
+          const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
           Stream& stream) {
 
         // Get vector shape:
-        NOA_ASSERT(lhs_shape.ndim() <= 2 && rhs_shape.ndim() <= 2);
-        auto[lhs_n, lhs_s] = extractDimFromVector_(size2_t{lhs_stride.get(2)}, size2_t{lhs_shape.get(2)});
-        auto[rhs_n, rhs_s] = extractDimFromVector_(size2_t{rhs_stride.get(2)}, size2_t{rhs_shape.get(2)});
+        NOA_ASSERT(lhs_shape.ndim() == 1 && rhs_shape.ndim() == 1);
+        auto[lhs_n, lhs_s] = extractDimFromVector_(size2_t(lhs_strides.get(2)), size2_t(lhs_shape.get(2)));
+        auto[rhs_n, rhs_s] = extractDimFromVector_(size2_t(rhs_strides.get(2)), size2_t(rhs_shape.get(2)));
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
@@ -130,38 +138,37 @@ namespace noa::cuda::math {
             CUBLAS_THROW_IF_(err);
         } else {
             T* null{};
-            cuda::util::reduce<true, false>( // sum(lhs * rhs)
-                    "dot", lhs.get(), uint4_t{lhs_s}, rhs.get(), uint4_t{rhs_s}, uint4_t{1, 1, 1, lhs_n},
+            cuda::util::reduce<false>( // sum(lhs * rhs)
+                    "dot", lhs.get(), uint4_t(lhs_s), rhs.get(), uint4_t(rhs_s), uint4_t{1, 1, 1, lhs_n},
                     noa::math::copy_t{}, noa::math::copy_t{}, noa::math::multiply_t{}, noa::math::plus_t{}, T{0},
-                    &output, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, stream);
+                    &output, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, true, stream);
             stream.synchronize();
         }
         return output;
     }
 
     template<typename T, typename>
-    void dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
-             const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
+    void dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
+             const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
              const std::shared_ptr<T[]>& output, Stream& stream) {
-
         NOA_ASSERT(lhs_shape[0] == rhs_shape[0] && lhs_shape[1] == 1 && rhs_shape[1] == 1);
         const size_t batches = lhs_shape[0];
 
         // Get vector shape: lhs should be a row vector, rhs can be a column or row vector
         size_t lhs_n, lhs_s, rhs_n, rhs_s;
-        std::tie(lhs_n, lhs_s) = extractDimFromVector_(size2_t{lhs_stride.get(2)}, size2_t{lhs_shape.get(2)});
-        std::tie(rhs_n, rhs_s) = extractDimFromVector_(size2_t{rhs_stride.get(2)}, size2_t{rhs_shape.get(2)});
+        std::tie(lhs_n, lhs_s) = extractDimFromVector_(size2_t(lhs_strides.get(2)), size2_t(lhs_shape.get(2)));
+        std::tie(rhs_n, rhs_s) = extractDimFromVector_(size2_t(rhs_strides.get(2)), size2_t(rhs_shape.get(2)));
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
         // While we could use cublas dot function, cuda::util::reduce is batched, works with any type and
         // is as performant as cublas (although cublas is still expected to be more robust to different platforms).
         T* null{};
-        cuda::util::reduce<false, false>("dot", // sum(lhs * rhs)
-                lhs.get(), uint4_t{lhs_stride[0], lhs_stride[0], lhs_stride[0], lhs_s},
-                rhs.get(), uint4_t{rhs_stride[0], rhs_stride[0], rhs_stride[0], rhs_s}, uint4_t{batches, 1, 1, lhs_n},
+        cuda::util::reduce<false>("dot", // sum(lhs * rhs)
+                lhs.get(), uint4_t{lhs_strides[0], lhs_strides[0], lhs_strides[0], lhs_s},
+                rhs.get(), uint4_t{rhs_strides[0], rhs_strides[0], rhs_strides[0], rhs_s}, uint4_t{batches, 1, 1, lhs_n},
                 noa::math::copy_t{}, noa::math::copy_t{}, noa::math::multiply_t{}, noa::math::plus_t{}, T{0},
-                output.get(), 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, stream);
+                output.get(), 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, false, stream);
         stream.attach(lhs, rhs, output);
     }
 
@@ -182,10 +189,10 @@ namespace noa::cuda::math {
     INSTANTIATE_DOT_(cdouble_t);
 
     template<typename T, typename>
-    void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_stride, size4_t lhs_shape,
-                const std::shared_ptr<T[]>& rhs, size4_t rhs_stride, size4_t rhs_shape,
+    void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
+                const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-                const std::shared_ptr<T[]>& output, size4_t output_stride, size4_t output_shape,
+                const std::shared_ptr<T[]>& output, size4_t output_strides, size4_t output_shape,
                 Stream& stream) {
         // Get the shape: MxK @ KxN = MxN
         const auto m = lhs_shape[2 + lhs_transpose];
@@ -200,23 +207,28 @@ namespace noa::cuda::math {
         // this condition and redirect to dot if necessary. Here, cublas GEMM is about as fast as the dot function,
         // so let it do a matrix-matrix product even if it is a dot product.
 
+        // Select an order:
+        const bool is_col = indexing::isColMajor(output_strides);
+        NOA_ASSERT(is_col == indexing::isColMajor(lhs_strides) &&
+                   is_col == indexing::isColMajor(rhs_strides)); // same order for everyone
+
         // Get the pitch:
-        const int3_t labc{lhs_stride[2], rhs_stride[2], output_stride[2]};
-        const long3_t sabc{lhs_stride[0], rhs_stride[0], output_stride[0]};
-        NOA_ASSERT(all(labc >= int3_t{lhs_shape[3], rhs_shape[3], output_shape[3]})); // 2nd dim can be padded, no broadcast
-        NOA_ASSERT(lhs_stride[3] == 1 && rhs_stride[3] == 1 && output_stride[3] == 1); // 1st dim is contiguous
+        const int3_t labc{lhs_strides[2 + is_col], rhs_strides[2 + is_col], output_strides[2 + is_col]};
+        const long3_t sabc{lhs_strides[0], rhs_strides[0], output_strides[0]};
+        NOA_ASSERT(all(labc >= int3_t{lhs_shape[3 - is_col], rhs_shape[3 - is_col], output_shape[3 - is_col]}));
+        NOA_ASSERT(lhs_strides[3 - is_col] == 1 && rhs_strides[3 - is_col] == 1 && output_strides[3 - is_col] == 1);
 
         cublasHandle_t handle = cublasCachedHandle_(stream.device().id())->handle;
         CUBLAS_THROW_IF_(cublasSetStream_v2(handle, stream.id()));
         CUBLAS_THROW_IF_(cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST));
 
-        cublasGEMM_(handle, lhs_transpose, rhs_transpose, mnk, labc, sabc, output_shape[0], alpha, beta,
+        cublasGEMM_(is_col, handle, lhs_transpose, rhs_transpose, mnk, labc, sabc, output_shape[0], alpha, beta,
                     lhs.get(), rhs.get(), output.get());
         stream.attach(lhs, rhs, output);
     }
 
-    #define INSTANTIATE_BLAS_(T)                                                                                    \
-    template void matmul<T,void>(const std::shared_ptr<T[]>&, size4_t, size4_t, const std::shared_ptr<T[]>&, size4_t, size4_t, \
+    #define INSTANTIATE_BLAS_(T)                                                                                                \
+    template void matmul<T,void>(const std::shared_ptr<T[]>&, size4_t, size4_t, const std::shared_ptr<T[]>&, size4_t, size4_t,  \
                                  T, T, bool, bool, const std::shared_ptr<T[]>&, size4_t, size4_t, Stream&)
 
     INSTANTIATE_BLAS_(float);

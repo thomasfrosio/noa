@@ -64,8 +64,8 @@ namespace noa::cpu::math {
 
         // Get vector shape:
         NOA_ASSERT(lhs_shape.ndim() == 1 && rhs_shape.ndim() == 1);
-        auto[lhs_n, lhs_s] = extractDimFromVector_(size2_t{lhs_strides.get(2)}, size2_t{lhs_shape.get(2)});
-        auto[rhs_n, rhs_s] = extractDimFromVector_(size2_t{rhs_strides.get(2)}, size2_t{rhs_shape.get(2)});
+        auto[lhs_n, lhs_s] = extractDimFromVector_(size2_t(lhs_strides.get(2)), size2_t(lhs_shape.get(2)));
+        auto[rhs_n, rhs_s] = extractDimFromVector_(size2_t(rhs_strides.get(2)), size2_t(rhs_shape.get(2)));
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
@@ -82,8 +82,8 @@ namespace noa::cpu::math {
 
         // Get vector shape: lhs should be a row vector, rhs can be a column or row vector
         size_t lhs_n, lhs_s, rhs_n, rhs_s;
-        std::tie(lhs_n, lhs_s) = extractDimFromVector_(size2_t{lhs_strides.get(2)}, size2_t{lhs_shape.get(2)});
-        std::tie(rhs_n, rhs_s) = extractDimFromVector_(size2_t{rhs_strides.get(2)}, size2_t{rhs_shape.get(2)});
+        std::tie(lhs_n, lhs_s) = extractDimFromVector_(size2_t(lhs_strides.get(2)), size2_t(lhs_shape.get(2)));
+        std::tie(rhs_n, rhs_s) = extractDimFromVector_(size2_t(rhs_strides.get(2)), size2_t(rhs_shape.get(2)));
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 

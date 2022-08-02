@@ -71,18 +71,18 @@ namespace {
 
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void decompose4D_(const Complex<T>* __restrict__ complex, uint4_t complex_stride,
-                      T* __restrict__ real, uint4_t real_stride,
-                      T* __restrict__ imag, uint4_t imag_stride,
+    void decompose4D_(const Complex<T>* __restrict__ complex, uint4_t complex_strides,
+                      T* __restrict__ real, uint4_t real_strides,
+                      T* __restrict__ imag, uint4_t imag_strides,
                       uint2_t shape, uint blocks_x) {
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid(blockIdx.z,
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        complex += indexing::at(gid[0], gid[1], complex_stride);
-        real += indexing::at(gid[0], gid[1], real_stride);
-        imag += indexing::at(gid[0], gid[1], imag_stride);
+                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        complex += indexing::at(gid[0], gid[1], complex_strides);
+        real += indexing::at(gid[0], gid[1], real_strides);
+        imag += indexing::at(gid[0], gid[1], imag_strides);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -91,9 +91,9 @@ namespace {
                 const uint ik = gid[2] + BLOCK_SIZE_2D.y * k;
                 const uint il = gid[3] + BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1]) {
-                    const Complex<T> tmp = complex[ik * complex_stride[2] + il * complex_stride[3]];
-                    real[ik * real_stride[2] + il * real_stride[3]] = tmp.real;
-                    imag[ik * imag_stride[2] + il * imag_stride[3]] = tmp.imag;
+                    const Complex<T> tmp = complex[ik * complex_strides[2] + il * complex_strides[3]];
+                    real[ik * real_strides[2] + il * real_strides[3]] = tmp.real;
+                    imag[ik * imag_strides[2] + il * imag_strides[3]] = tmp.imag;
                 }
             }
         }
@@ -102,16 +102,24 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T, typename>
-    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& real, size4_t real_stride,
-                   const shared_t<T[]>& imag, size4_t imag_stride,
+    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& real, size4_t real_strides,
+                   const shared_t<T[]>& imag, size4_t imag_strides,
                    size4_t shape, Stream& stream) {
         NOA_ASSERT(reinterpret_cast<const T*>(input.get()) != real.get());
         NOA_ASSERT(reinterpret_cast<const T*>(input.get()) != imag.get());
 
-        const bool4_t is_contiguous = indexing::isContiguous(input_stride, shape) &&
-                                      indexing::isContiguous(real_stride, shape) &&
-                                      indexing::isContiguous(imag_stride, shape);
+        if (all(input_strides > 0)) {
+            const size4_t order = indexing::order(input_strides, shape);
+            input_strides = indexing::reorder(input_strides, order);
+            real_strides = indexing::reorder(real_strides, order);
+            imag_strides = indexing::reorder(imag_strides, order);
+            shape = indexing::reorder(shape, order);
+        }
+
+        const bool4_t is_contiguous = indexing::isContiguous(input_strides, shape) &&
+                                      indexing::isContiguous(real_strides, shape) &&
+                                      indexing::isContiguous(imag_strides, shape);
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const uint elements = shape.elements();
             const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BLOCK_WORK_SIZE);
@@ -120,45 +128,45 @@ namespace noa::cuda::math {
                                                               util::maxVectorCount(input.get())}) : 1;
             if (vec_size == 4) {
                 return stream.enqueue("memory::decompose", decompose1D_<T, 4>, {blocks, BLOCK_SIZE},
-                                      input.get(), input_stride[3],
-                                      real.get(), real_stride[3],
-                                      imag.get(), imag_stride[3], elements);
+                                      input.get(), input_strides[3],
+                                      real.get(), real_strides[3],
+                                      imag.get(), imag_strides[3], elements);
             } else if (vec_size == 2) {
                 return stream.enqueue("memory::decompose", decompose1D_<T, 2>, {blocks, BLOCK_SIZE},
-                                      input.get(), input_stride[3],
-                                      real.get(), real_stride[3],
-                                      imag.get(), imag_stride[3], elements);
+                                      input.get(), input_strides[3],
+                                      real.get(), real_strides[3],
+                                      imag.get(), imag_strides[3], elements);
             } else {
                 return stream.enqueue("memory::decompose", decompose1D_<T, 1>, {blocks, BLOCK_SIZE},
-                                      input.get(), input_stride[3],
-                                      real.get(), real_stride[3],
-                                      imag.get(), imag_stride[3], elements);
+                                      input.get(), input_strides[3],
+                                      real.get(), real_strides[3],
+                                      imag.get(), imag_strides[3], elements);
             }
         } else {
-            const uint2_t i_shape{shape.get() + 2};
+            const uint2_t i_shape(shape.get(2));
             const uint blocks_x = noa::math::divideUp(i_shape[1], BLOCK_WORK_SIZE_2D.x);
             const uint blocks_y = noa::math::divideUp(i_shape[0], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             stream.enqueue("memory::decompose", decompose4D_<T>, {blocks, BLOCK_SIZE_2D},
-                           input.get(), uint4_t{input_stride},
-                           real.get(), uint4_t{real_stride},
-                           imag.get(), uint4_t{imag_stride}, i_shape, blocks_x);
+                           input.get(), uint4_t(input_strides),
+                           real.get(), uint4_t(real_strides),
+                           imag.get(), uint4_t(imag_strides), i_shape, blocks_x);
         }
         stream.attach(input, real, imag);
     }
 
     template<typename T, typename U>
-    void complex(const shared_t<T[]>& real, size4_t real_stride,
-                 const shared_t<T[]>& imag, size4_t imag_stride,
-                 const shared_t<Complex<T>[]>& output, size4_t output_stride,
+    void complex(const shared_t<T[]>& real, size4_t real_strides,
+                 const shared_t<T[]>& imag, size4_t imag_strides,
+                 const shared_t<Complex<T>[]>& output, size4_t output_strides,
                  size4_t shape, Stream& stream) {
         NOA_ASSERT(reinterpret_cast<T*>(output.get()) != real.get());
         NOA_ASSERT(reinterpret_cast<T*>(output.get()) != imag.get());
         util::ewise::binary<true>("memory::complex",
-                                  real.get(), real_stride,
-                                  imag.get(), imag_stride,
-                                  output.get(), output_stride,
-                                  shape, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
+                                  real.get(), real_strides,
+                                  imag.get(), imag_strides,
+                                  output.get(), output_strides,
+                                  shape, true, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
         stream.attach(real, imag, output);
     }
 

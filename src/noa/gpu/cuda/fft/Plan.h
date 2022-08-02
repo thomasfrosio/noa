@@ -103,12 +103,13 @@ namespace noa::cuda::fft {
         Plan(Type type, size4_t input_strides, size4_t output_strides, size4_t shape,
              Device device = Device::current()) {
             if (CHECK_CONTIGUOUS &&
-                all(indexing::isContiguous(input_strides, shape)) &&
-                all(indexing::isContiguous(output_strides, shape)))
+                indexing::areContiguous(input_strides, shape) &&
+                indexing::areContiguous(output_strides, shape)) {
                 m_plan = details::getPlan(getCufftType_(type), shape, device.id());
-            else
+            } else {
                 m_plan = details::getPlan(getCufftType_(type), input_strides, output_strides,
                                           shape, device.id());
+            }
         }
 
         /// Gets the underlying cuFFT plan.

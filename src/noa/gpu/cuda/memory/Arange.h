@@ -30,31 +30,31 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
-    NOA_IH void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
+    inline void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
         arange(src, elements, T(0), T(1), stream);
     }
 
-    /// Returns evenly spaced values within a given interval.
+    /// Returns evenly spaced values within a given interval, in the rightmost order.
     /// \tparam T               Any data type.
     /// \param[in,out] src      On the \b device. Array with evenly spaced values.
-    /// \param stride           Rightmost strides, in elements, of \p src.
-    /// \param shape            Rightmost shape of \p src.
+    /// \param strides          BDHW strides, in elements, of \p src.
+    /// \param shape            BDHW shape of \p src.
     /// \param start            Start of interval.
     /// \param step             Spacing between values.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
-    void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, T start, T step, Stream& stream);
+    void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, T start, T step, Stream& stream);
 
-    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1.
+    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1, in the rightmost order.
     /// \tparam T               Any data type.
     /// \param[in,out] src      On the \b device. Array with evenly spaced values.
-    /// \param stride           Rightmost strides, in elements, of \p src.
-    /// \param shape            Rightmost shape of \p src.
+    /// \param strides          BDHW strides, in elements, of \p src.
+    /// \param shape            BDHW shape of \p src.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
-    NOA_IH void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, Stream& stream) {
-        arange(src, stride, shape, T(0), T(1), stream);
+    inline void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, Stream& stream) {
+        arange(src, strides, shape, T(0), T(1), stream);
     }
 }

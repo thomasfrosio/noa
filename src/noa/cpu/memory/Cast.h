@@ -31,8 +31,8 @@ namespace noa::cpu::memory {
     }
 
     /// Casts one array to another type.
-    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize \p output cache writes.
-    ///                         If false, assume rightmost order.
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p output writes.
+    ///                         If false, assume rightmost order is the fastest order.
     /// \tparam T               Any type that can be explicitly converted to \p U.
     /// \tparam U               Any type.
     /// \param[in] input        On the \b host. Array to convert.
@@ -43,20 +43,20 @@ namespace noa::cpu::memory {
     /// \param clamp            Whether the values should be clamp within the \p U range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool CHECK_LAYOUT = true, typename T, typename U>
+    template<bool SWAP_LAYOUT = true, typename T, typename U>
     void cast(const shared_t<T[]>& input, size4_t input_strides,
               const shared_t<U[]>& output, size4_t output_strides,
               size4_t shape, bool clamp, Stream& stream) {
-        if constexpr (CHECK_LAYOUT) {
+        if constexpr (SWAP_LAYOUT) {
             const size4_t order = indexing::order(output_strides, shape);
             shape = indexing::reorder(shape, order);
             output_strides = indexing::reorder(output_strides, order);
             input_strides = indexing::reorder(input_strides, order);
-
-            if (indexing::areContiguous(input_strides, shape) &&
-                indexing::areContiguous(output_strides, shape))
-                return cast(input, output, shape.elements(), clamp, stream);
         }
+
+        if (indexing::areContiguous(input_strides, shape) &&
+            indexing::areContiguous(output_strides, shape))
+            return cast(input, output, shape.elements(), clamp, stream);
 
         stream.enqueue([=]() {
             const T* input_ = input.get();

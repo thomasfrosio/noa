@@ -21,12 +21,12 @@
 
 namespace noa::cuda {
     /// Formats the CUDA error \p result to a human readable string.
-    NOA_IH std::string toString(cudaError_t result) {
+    inline std::string toString(cudaError_t result) {
         return string::format("{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 
     /// Throws a nested noa::Exception if cudaError_t =! cudaSuccess.
-    NOA_IH void throwIf(cudaError_t result, const char* file, const char* function, int line) {
+    inline void throwIf(cudaError_t result, const char* file, const char* function, int line) {
         if (result != cudaSuccess)
             std::throw_with_nested(noa::Exception(file, function, line, toString(result)));
     }

@@ -10,23 +10,23 @@ namespace noa::cuda::memory {
             copy(input, output, elements, stream);
         } else {
             const size4_t shape{1, 1, 1, elements};
-            const size4_t stride = shape.strides();
+            const size4_t strides = shape.strides();
             ::noa::cuda::util::ewise::unary<true>(
-                    "memory::cast", input.get(), stride, output.get(), stride, shape, stream,
+                    "memory::cast", input.get(), strides, output.get(), strides, shape, true, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
             stream.attach(input, output);
         }
     }
 
     template<typename T, typename U, typename V>
-    void cast(const shared_t<T[]>& input, size4_t input_stride,
-              const shared_t<U[]>& output, size4_t output_stride,
+    void cast(const shared_t<T[]>& input, size4_t input_strides,
+              const shared_t<U[]>& output, size4_t output_strides,
               size4_t shape, bool clamp, Stream& stream) {
         if constexpr (std::is_same_v<T, U>) {
-            copy(input, input_stride, output, output_stride, shape, stream);
+            copy(input, input_strides, output, output_strides, shape, stream);
         } else {
             ::noa::cuda::util::ewise::unary<true>(
-                    "memory::cast", input.get(), input_stride, output.get(), output_stride, shape, stream,
+                    "memory::cast", input.get(), input_strides, output.get(), output_strides, shape, true, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
             stream.attach(input, output);
         }
@@ -36,7 +36,7 @@ namespace noa::cuda::memory {
     template void cast<T, U, void>(const shared_t<T[]>&, const shared_t<U[]>&, size_t, bool, Stream&);  \
     template void cast<T, U, void>(const shared_t<T[]>&, size4_t, const shared_t<U[]>&, size4_t, size4_t, bool, Stream&)
 
-    #define NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(T) \
+    #define NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(T) \
     NOA_INSTANTIATE_CAST_(T, bool);     \
     NOA_INSTANTIATE_CAST_(T, int8_t);   \
     NOA_INSTANTIATE_CAST_(T, uint8_t);  \
@@ -50,18 +50,18 @@ namespace noa::cuda::memory {
     NOA_INSTANTIATE_CAST_(T, float);    \
     NOA_INSTANTIATE_CAST_(T, double)
 
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(bool);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(int8_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(uint8_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(int16_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(uint16_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(int32_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(uint32_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(int64_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(uint64_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(half_t);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(float);
-    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR(double);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(bool);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(int8_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(uint8_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(int16_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(uint16_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(int32_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(uint32_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(int64_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(uint64_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(half_t);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(float);
+    NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(double);
 
     NOA_INSTANTIATE_CAST_(chalf_t, chalf_t);
     NOA_INSTANTIATE_CAST_(chalf_t, cfloat_t);

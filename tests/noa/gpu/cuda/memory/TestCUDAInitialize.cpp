@@ -57,7 +57,7 @@ TEMPLATE_TEST_CASE("cuda::memory::set(), padded", "[noa][cuda][memory]",
 
     cpu::memory::set(h_data.share(), stride, shape, value, cpu_stream);
     cuda::memory::set(d_data.share(), d_data.strides(), shape, value, gpu_stream);
-    cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_data.get(), h_cuda_data.get(), elements, 1e-6));
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("cuda::memory::arange(), padded", "[noa][cuda][memory]",
 
     cpu::memory::arange(h_data.share(), stride, shape, cpu_stream);
     cuda::memory::arange(d_data.share(), d_data.strides(), shape, gpu_stream);
-    cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_data.get(), h_cuda_data.get(), elements, 1e-6));
@@ -147,7 +147,7 @@ TEMPLATE_TEST_CASE("cuda::memory::arange(), padded, start, step", "[noa][cuda][m
 
     cpu::memory::arange(h_data.share(), stride, shape, start, step, cpu_stream);
     cuda::memory::arange(d_data.share(), d_data.strides(), shape, start, step, gpu_stream);
-    cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_data.get(), h_cuda_data.get(), elements, 1e-6));
@@ -197,7 +197,7 @@ TEMPLATE_TEST_CASE("cuda::memory::linspace(), padded", "[noa][cuda][memory]",
 
     cpu::memory::linspace(h_data.share(), stride, shape, start, stop, endpoint, cpu_stream);
     cuda::memory::linspace(d_data.share(), d_data.strides(), shape, start, stop, endpoint, gpu_stream);
-    cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_data.get(), h_cuda_data.get(), elements, 1e-6));

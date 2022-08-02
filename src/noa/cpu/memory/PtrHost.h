@@ -129,7 +129,7 @@ namespace noa::cpu::memory {
 
         /// Returns a View of the allocated data as a C-contiguous row vector.
         template<typename I>
-        [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr, shape(), strides()}; }
+        [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
 
     public: // Iterators
         [[nodiscard]] constexpr T* begin() const noexcept { return m_ptr.get(); }

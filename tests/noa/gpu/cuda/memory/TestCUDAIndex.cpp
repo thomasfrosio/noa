@@ -41,16 +41,16 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
 
         cuda::memory::PtrDevice<float> d_input(shape.elements(), stream);
         cuda::memory::PtrDevice<float> d_subregions(subregion_shape.elements(), stream);
-        cuda::memory::copy<float>(input.share(), stride, d_input.share(), stride, shape, stream);
-        cuda::memory::copy<float>(subregions.share(), subregion_stride,
-                                  d_subregions.share(), subregion_stride, subregion_shape, stream);
+        cuda::memory::copy(input.share(), stride, d_input.share(), stride, shape, stream);
+        cuda::memory::copy(subregions.share(), subregion_stride,
+                           d_subregions.share(), subregion_stride, subregion_shape, stream);
 
         // Extract:
         cuda::memory::extract<float>(d_input.share(), stride, shape,
                                      d_subregions.share(), subregion_stride, subregion_shape,
                                      origins, border_mode, border_value, stream);
-        cuda::memory::copy<float>(d_subregions.share(), subregion_stride,
-                                  h_cuda_subregions.share(), subregion_stride, subregion_shape, stream);
+        cuda::memory::copy(d_subregions.share(), subregion_stride,
+                           h_cuda_subregions.share(), subregion_stride, subregion_shape, stream);
 
         const auto expected_subregion_filenames = test["expected_extract"].as<std::vector<path_t>>();
         cpu::memory::PtrHost<float> expected_subregions(subregions.elements());
@@ -68,7 +68,7 @@ TEST_CASE("cuda::memory::extract(), insert() - subregions", "[assets][noa][cuda]
         cuda::memory::insert<float>(d_subregions.share(), subregion_stride, subregion_shape,
                                     d_input.share(), shape.strides(), shape,
                                     origins, stream);
-        cuda::memory::copy<float>(d_input.share(), stride, input.share(), stride, shape, stream);
+        cuda::memory::copy(d_input.share(), stride, input.share(), stride, shape, stream);
 
         const path_t expected_insert_filename = path_base / test["expected_insert"][0].as<path_t>();
         cpu::memory::PtrHost<float> expected_insert_back(input.elements());
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("cuda::memory::extract(), insert() - sequences", "[noa][cuda]
     cpu::memory::PtrHost<TestType> data(elements);
     test::randomize(data.get(), data.size(), data_randomizer);
     cuda::memory::PtrDevice<TestType> d_data(elements, gpu_stream);
-    cuda::memory::copy<TestType>(data.share(), stride, d_data.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(data.share(), stride, d_data.share(), stride, shape, gpu_stream);
 
     THEN("contiguous") {
         const auto h_extracted = cpu::memory::extract<TestType, uint32_t>(
@@ -165,8 +165,8 @@ TEMPLATE_TEST_CASE("cuda::memory::atlasLayout(), insert()", "[noa][cuda][memory]
 
     // Copy to host for assertion
     cpu::memory::PtrHost<TestType> h_subregions(subregion_shape.elements());
-    cuda::memory::copy<TestType>(d_subregions.share(), d_subregions.strides(),
-                                 h_subregions.share(), subregion_stride, subregion_shape, stream);
+    cuda::memory::copy(d_subregions.share(), d_subregions.strides(),
+                       h_subregions.share(), subregion_stride, subregion_shape, stream);
 
     // Insert atlas
     cpu::memory::PtrHost<int4_t> origins(subregion_shape[0]);
@@ -186,8 +186,8 @@ TEMPLATE_TEST_CASE("cuda::memory::atlasLayout(), insert()", "[noa][cuda][memory]
 
     // Copy to host for assertion
     cpu::memory::PtrHost<TestType> h_o_subregions(subregion_shape.elements());
-    cuda::memory::copy<TestType>(o_subregions.share(), o_subregions.strides(),
-                                 h_o_subregions.share(), subregion_stride, subregion_shape, stream);
+    cuda::memory::copy(o_subregions.share(), o_subregions.strides(),
+                       h_o_subregions.share(), subregion_stride, subregion_shape, stream);
 
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS, h_subregions.get(), h_o_subregions.get(), h_o_subregions.elements(), 1e-7));

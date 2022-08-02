@@ -20,22 +20,22 @@ namespace {
     // does exactly that...
     template<typename T, typename U, int DDOF, bool STDDEV, int BLOCK_DIM_X>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void reduceVarianceRows_(const T* __restrict__ input, uint4_t input_stride, uint2_t shape /* YX */,
-                             U* __restrict__ output, uint4_t output_stride) {
+    void reduceVarianceRows_(const T* __restrict__ input, uint4_t input_strides, uint2_t shape /* YX */,
+                             U* __restrict__ output, uint4_t output_strides) {
         const uint tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
-        const int4_t gid(blockIdx.z,
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          blockIdx.x * blockDim.y + threadIdx.y,
-                         threadIdx.x);
+                         threadIdx.x};
         const bool is_valid_row = gid[2] < shape[0];
         const U inv_count = U(1) / static_cast<U>(shape[1] - DDOF);
 
-        input += indexing::at(gid[0], gid[1], gid[2], input_stride);
+        input += indexing::at(gid[0], gid[1], gid[2], input_strides);
 
         // Get the mean:
         T reduced = T(0);
         for (uint tidx = gid[3]; tidx < shape[1] && is_valid_row; tidx += BLOCK_DIM_X) // compute entire row
-            reduced += input[tidx * input_stride[3]];
+            reduced += input[tidx * input_strides[3]];
 
         // Each row in shared memory is reduced to one value.
         T* s_data = util::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
@@ -53,7 +53,7 @@ namespace {
         // Now get the variance:
         U reduced_dist2 = U(0);
         for (uint tidx = gid[3]; tidx < shape[1] && is_valid_row; tidx += BLOCK_DIM_X) {  // compute entire row
-            T tmp = input[tidx * input_stride[3]];
+            T tmp = input[tidx * input_strides[3]];
             if constexpr (noa::traits::is_complex_v<T>) {
                 U distance = noa::math::abs(tmp - mean);
                 reduced_dist2 += distance * distance;
@@ -71,7 +71,7 @@ namespace {
             var *= inv_count;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
-            output[indexing::at(gid[0], gid[1], gid[2], output_stride)] = var;
+            output[indexing::at(gid[0], gid[1], gid[2], output_strides)] = var;
         }
     }
 
@@ -82,22 +82,22 @@ namespace {
 
     template<typename T, typename U, int DDOF, bool STDDEV>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void reduceVarianceDim_(const T* __restrict__ input, uint4_t input_stride, uint2_t shape,
-                            U* __restrict__ output, uint4_t output_stride) {
+    void reduceVarianceDim_(const T* __restrict__ input, uint4_t input_strides, uint2_t shape,
+                            U* __restrict__ output, uint4_t output_strides) {
         const uint tid = threadIdx.y * blockDim.x + threadIdx.x;
-        const int4_t gid(blockIdx.z,
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          threadIdx.y, // one block in the dimension to reduce
-                         blockIdx.x * BLOCK_SIZE_2D.x + threadIdx.x);
+                         blockIdx.x * BLOCK_SIZE_2D.x + threadIdx.x};
         const bool is_valid_column = gid[3] < shape[1];
         const U inv_count = U(1) / static_cast<U>(shape[0] - DDOF);
 
-        input += indexing::at(gid[0], gid[1], input_stride) + gid[3] * input_stride[3];
+        input += indexing::at(gid[0], gid[1], input_strides) + gid[3] * input_strides[3];
 
         // Get the sum:
         T reduced_sum = T(0);
         for (uint tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) // compute entire row
-            reduced_sum += input[tidy * input_stride[2]];
+            reduced_sum += input[tidy * input_strides[2]];
 
         T* s_data = util::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
         T* s_data_tid = s_data + tid;
@@ -116,7 +116,7 @@ namespace {
         // Get the variance:
         U reduced_dist2 = U(0);
         for (uint tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) {
-            T tmp = input[tidy * input_stride[2]];
+            T tmp = input[tidy * input_strides[2]];
             if constexpr (noa::traits::is_complex_v<T>) {
                 U distance = noa::math::abs(tmp - mean);
                 reduced_dist2 += distance * distance;
@@ -142,16 +142,16 @@ namespace {
             var *= inv_count;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
-            output[indexing::at(gid[0], gid[1], output_stride) + gid[3] * output_stride[3]] = var;
+            output[indexing::at(gid[0], gid[1], output_strides) + gid[3] * output_strides[3]] = var;
         }
     }
 
     template<int DDOF, bool STDDEV, typename T, typename U>
     void reduceVarianceAxis_(const char* name,
-                             const T* input, uint4_t input_stride, uint4_t input_shape,
-                             U* output, uint4_t output_stride, uint4_t output_shape,
+                             const T* input, uint4_t input_strides, uint4_t input_shape,
+                             U* output, uint4_t output_strides, uint4_t output_shape,
                              bool4_t mask, Stream& stream) {
-        if (noa::math::sum(int4_t{mask}) > 1) {
+        if (noa::math::sum(int4_t(mask)) > 1) {
             NOA_THROW_FUNC(name, "Reducing more than one axis at a time is only supported if the reduction results in "
                                  "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "
                                  "Got input:{}, output:{}, reduce:{}", input_shape, output_shape, mask);
@@ -166,10 +166,10 @@ namespace {
 
             if (threads.x == 256) {
                 stream.enqueue(name, reduceVarianceRows_<T, U, DDOF, STDDEV, 256>, config,
-                               input, input_stride, uint2_t{input_shape[2], input_shape[3]}, output, output_stride);
+                               input, input_strides, uint2_t{input_shape[2], input_shape[3]}, output, output_strides);
             } else {
                 stream.enqueue(name, reduceVarianceRows_<T, U, DDOF, STDDEV, 64>, config,
-                               input, input_stride, uint2_t{input_shape[2], input_shape[3]}, output, output_stride);
+                               input, input_strides, uint2_t{input_shape[2], input_shape[3]}, output, output_strides);
             }
 
         } else if (mask[2]) {
@@ -178,32 +178,32 @@ namespace {
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(T)};
             const uint2_t shape{input_shape[2], input_shape[3]};
             stream.enqueue(name, reduceVarianceDim_<T, U, DDOF, STDDEV>, config,
-                           input, input_stride, shape, output, output_stride);
+                           input, input_strides, shape, output, output_strides);
 
         } else if (mask[1]) {
             const uint blocks_x = noa::math::divideUp(input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, input_shape[2], input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(T)};
-            const uint4_t i_stride{input_stride[0], input_stride[2], input_stride[1], input_stride[3]};
-            const uint4_t o_stride{output_stride[0], output_stride[2], output_stride[1], output_stride[3]};
+            const uint4_t i_strides{input_strides[0], input_strides[2], input_strides[1], input_strides[3]};
+            const uint4_t o_strides{output_strides[0], output_strides[2], output_strides[1], output_strides[3]};
             const uint2_t shape{input_shape[1], input_shape[3]};
             stream.enqueue(name, reduceVarianceDim_<T, U, DDOF, STDDEV>, config,
-                           input, i_stride, shape, output, o_stride);
+                           input, i_strides, shape, output, o_strides);
 
         } else if (mask[0]) {
             const uint blocks_x = noa::math::divideUp(input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, input_shape[2], input_shape[1]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(T)};
-            const uint4_t i_stride{input_stride[1], input_stride[2], input_stride[0], input_stride[3]};
-            const uint4_t o_stride{output_stride[1], output_stride[2], output_stride[0], output_stride[3]};
+            const uint4_t i_strides{input_strides[1], input_strides[2], input_strides[0], input_strides[3]};
+            const uint4_t o_strides{output_strides[1], output_strides[2], output_strides[0], output_strides[3]};
             const uint2_t shape{input_shape[0], input_shape[3]};
             stream.enqueue(name, reduceVarianceDim_<T, U, DDOF, STDDEV>, config,
-                           input, i_stride, shape, output, o_stride);
+                           input, i_strides, shape, output, o_strides);
         }
     }
 
     bool4_t getMask_(const char* func, size4_t input_shape, size4_t output_shape) {
-        const bool4_t mask{input_shape != output_shape};
+        const bool4_t mask(input_shape != output_shape);
         if (any(mask && (output_shape != 1))) {
             NOA_THROW_FUNC(func, "Dimensions should match the input shape, or be 1, indicating the dimension should be "
                                  "reduced to one element. Got input:{}, output:{}", input_shape, output_shape);
@@ -214,68 +214,54 @@ namespace {
 
 namespace noa::cuda::math {
     template<int DDOF, typename T, typename U, typename>
-    void var(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-             const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void var(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
         const char* name = "math::var";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
+        const bool4_t is_or_should_reduce(output_shape == 1 || mask);
         using real_t = noa::traits::value_type_t<T>;
 
         if (!any(mask)) {
             if constexpr (noa::traits::is_complex_v<T>)
-                math::ewise(input, input_stride, output, output_stride, output_shape, noa::math::abs_t{}, stream);
+                math::ewise(input, input_strides, output, output_strides, output_shape, noa::math::abs_t{}, stream);
             else
-                memory::copy(input, input_stride, output, output_stride, output_shape, stream);
+                memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            if (is_or_should_reduce[0]) {
-                util::reduceVar<DDOF, true, false>(
-                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                        output.get(), output_stride[0], stream);
-            } else {
-                util::reduceVar<DDOF, false, false>(
-                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                        output.get(), output_stride[0], stream);
-            }
+            util::reduceVar<false>(name, input.get(), uint4_t(input_strides), uint4_t(input_shape),
+                                   output.get(), output_strides[0], DDOF, is_or_should_reduce[0], true, stream);
             stream.attach(input, output);
         } else {
             reduceVarianceAxis_<DDOF, false>(name,
-                                             input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                                             output.get(), uint4_t{output_stride}, uint4_t{output_shape},
+                                             input.get(), uint4_t(input_strides), uint4_t(input_shape),
+                                             output.get(), uint4_t(output_strides), uint4_t(output_shape),
                                              mask, stream);
             stream.attach(input, output);
         }
     }
 
     template<int DDOF, typename T, typename U, typename>
-    void std(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-             const shared_t<U[]>& output, size4_t output_stride, size4_t output_shape, Stream& stream) {
+    void std(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
         const char* name = "math::std";
         const bool4_t mask = getMask_(name, input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
+        const bool4_t is_or_should_reduce(output_shape == 1 || mask);
         using real_t = noa::traits::value_type_t<T>;
 
         if (!any(mask)) {
             if constexpr (noa::traits::is_complex_v<T>)
-                math::ewise(input, input_stride, output, output_stride, output_shape, noa::math::abs_t{}, stream);
+                math::ewise(input, input_strides, output, output_strides, output_shape, noa::math::abs_t{}, stream);
             else
-                memory::copy(input, input_stride, output, output_stride, output_shape, stream);
+                memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            if (is_or_should_reduce[0]) {
-                util::reduceVar<DDOF, true, true>(
-                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                        output.get(), output_stride[0], stream);
-            } else {
-                util::reduceVar<DDOF, false, true>(
-                        name, input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                        output.get(), output_stride[0], stream);
-            }
+            util::reduceVar<true>(name, input.get(), uint4_t(input_strides), uint4_t(input_shape),
+                                  output.get(), output_strides[0], DDOF, is_or_should_reduce[0], true, stream);
             stream.attach(input, output);
         } else {
             reduceVarianceAxis_<DDOF, true>(name,
-                                            input.get(), uint4_t{input_stride}, uint4_t{input_shape},
-                                            output.get(), uint4_t{output_stride}, uint4_t{output_shape},
+                                            input.get(), uint4_t(input_strides), uint4_t(input_shape),
+                                            output.get(), uint4_t(output_strides), uint4_t(output_shape),
                                             mask, stream);
             stream.attach(input, output);
         }

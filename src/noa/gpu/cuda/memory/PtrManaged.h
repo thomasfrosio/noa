@@ -30,8 +30,8 @@
 //  - GPU memory over-subscription: On compute capabilities >= 6.X, applications can allocate and access more
 //    managed memory than the physical size of GPU memory.
 
-// TODO Add prefetching and advising. Since PtrManaged is currently only used in tests, these performance
-//      improvements are not necessary for our use cases.
+// TODO Add prefetching and advising. Since PtrManaged is currently mostly used in tests, these performance
+//      improvements are not the priority.
 
 namespace noa::cuda::memory {
     template<typename T>
@@ -52,9 +52,13 @@ namespace noa::cuda::memory {
             }
         };
 
+    public:
+        using alloc_unique_t = unique_t<T[], Deleter>;
+        static constexpr size_t ALIGNMENT = 256;
+
     public: // static functions
         /// Allocates \p elements of managed memory using cudaMallocManaged, accessible from any stream and any device.
-        static std::unique_ptr<T[], Deleter> alloc(size_t elements) {
+        static alloc_unique_t alloc(size_t elements) {
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMallocManaged(&tmp, elements * sizeof(T), cudaMemAttachGlobal));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -71,7 +75,7 @@ namespace noa::cuda::memory {
         ///                         Note that if the NULL stream is passed, the allocation falls back to the non-
         ///                         streamed version and the memory can be accessed by any stream on any device.
         /// \return Pointer pointing at the allocated memory.
-        static std::unique_ptr<T[], Deleter> alloc(size_t elements, Stream& stream) {
+        static alloc_unique_t alloc(size_t elements, Stream& stream) {
             // cudaStreamAttachMemAsync: "It is illegal to attach singly to the NULL stream, because the NULL stream
             // is a virtual global stream and not a specific stream. An error will be returned in this case".
             if (!stream.id())
@@ -102,29 +106,34 @@ namespace noa::cuda::memory {
         explicit PtrManaged(size_t elements, Stream& stream)
                 : m_ptr(alloc(elements, stream)), m_elements(elements) {}
 
-    public:
-        /// Returns the managed pointer.
-        [[nodiscard]] constexpr T* get() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* get() const noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr T* data() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* data() const noexcept { return m_ptr.get(); }
+    public: // Getters
+        /// Returns the host pointer.
+        [[nodiscard]] constexpr T* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* data() const noexcept { return m_ptr.get(); }
 
         /// Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
-        /// Attach the lifetime of the managed object with an \p alias.
+        /// Attach the lifetime of the managed object with \p alias.
         /// \details Constructs a shared_ptr which shares ownership information with the managed object,
         ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
         ///          the last of the group to go out of scope, it will call the stored deleter for the
         ///          managed object of this instance. However, calling get() on this shared_ptr will always
         ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
-        ///          \p alias remains valid as long as the managed object exists.
+        ///          \p alias remains valid as long as the managed object exists. This functions performs no
+        ///          heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename U>
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         /// How many elements of type \p T are pointed by the managed object.
         [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
         [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
+
+        /// Returns the shape of the allocated data as a row vector.
+        [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
+
+        /// Returns the strides of the allocated data as a C-contiguous row vector.
+        [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
 
         /// How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
@@ -133,17 +142,9 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
-        /// Returns a pointer pointing at the beginning of the managed data.
-        [[nodiscard]] constexpr T* begin() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* begin() const noexcept { return m_ptr.get(); }
-
-        /// Returns a pointer pointing at the end + 1 of the managed data.
-        [[nodiscard]] constexpr T* end() noexcept { return m_ptr.get() + m_elements; }
-        [[nodiscard]] constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
-
-        /// Returns a reference at index \p idx. There's no bound check.
-        constexpr T& operator[](size_t idx) { return m_ptr.get()[idx]; }
-        constexpr const T& operator[](size_t idx) const { return m_ptr.get()[idx]; }
+        /// Returns a View of the allocated data as a C-contiguous row vector.
+        template<typename I>
+        [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
 
         /// Returns the stream handle used to allocate the managed data.
         /// If the data was created synchronously (without a stream), returns the NULL stream.
@@ -157,6 +158,18 @@ namespace noa::cuda::memory {
             return nullptr;
         }
 
+    public: // Iterators
+        [[nodiscard]] constexpr T* begin() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* end() const noexcept { return m_ptr.get() + m_elements; }
+
+        [[nodiscard]] constexpr T& front() const noexcept { return *begin(); }
+        [[nodiscard]] constexpr T& back() const noexcept { return *(end() - 1); }
+
+    public: // Accessors
+        /// Returns a reference at index \p idx. There's no bound check.
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
+        [[nodiscard]] constexpr T& operator[](I idx) const { return m_ptr.get()[idx]; }
+
         /// Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
@@ -164,7 +177,7 @@ namespace noa::cuda::memory {
         }
 
     private:
-        static_assert(noa::traits::is_valid_ptr_type_v<T>);
+        static_assert(traits::is_valid_ptr_type_v<T>);
         std::shared_ptr<T[]> m_ptr{};
         size_t m_elements{0};
     };

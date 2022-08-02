@@ -462,34 +462,31 @@ namespace noa::cuda::signal::fft::details {
                Stream& stream, bool is_half) {
         const size_t batches = shape[0];
         const size4_t shape_fft = is_half ? shape.fft() : shape;
-        const size4_t stride_fft = shape_fft.strides();
-        const size4_t reduced_shape{batches, 1, 1, 1};
-        const size4_t reduced_stride = reduced_shape.strides();
 
         cuda::memory::PtrPinned<T> buffer{batches * 3};
         auto denominator_lhs = buffer.get() + batches;
         auto denominator_rhs = buffer.get() + batches * 2;
 
         T* null{};
-        cuda::util::reduce<false>(
+        cuda::util::reduce(
                 "signal::fft::xcorr", lhs.get(), uint4_t{lhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 denominator_lhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
-                stream);
-        cuda::util::reduce<false>(
+                false, stream);
+        cuda::util::reduce(
                 "signal::fft::xcorr", rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 denominator_rhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
-                stream);
+                false, stream);
 
         auto combine_op = []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * r); };
-        cuda::util::reduce<false, false>(
+        cuda::util::reduce<false>(
                 "signal::fft::xcorr",
                 lhs.get(), uint4_t{lhs_stride}, rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
                 noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, T{0},
-                buffer.get(), 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, stream);
+                buffer.get(), 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, false, stream);
 
         stream.synchronize(); // FIXME Add callback
         for (size_t batch = 0; batch < batches; ++batch) {
@@ -508,25 +505,25 @@ namespace noa::cuda::signal::fft::details {
 
         T numerator{}, denominator_lhs{}, denominator_rhs{};
         T* null{};
-        cuda::util::reduce<true>(
+        cuda::util::reduce(
                 "signal::fft::xcorr", lhs.get(), uint4_t{lhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 &denominator_lhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
-                stream);
-        cuda::util::reduce<true>(
+                true, stream);
+        cuda::util::reduce(
                 "signal::fft::xcorr", rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 &denominator_rhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
-                stream);
+                true, stream);
 
         auto combine_op = []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * r); };
-        cuda::util::reduce<false, false>(
+        cuda::util::reduce<false>(
                 "signal::fft::xcorr",
                 lhs.get(), uint4_t{lhs_stride}, rhs.get(), uint4_t{rhs_stride}, uint4_t{shape_fft},
                 noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, T{0},
-                &numerator, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, stream);
+                &numerator, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, false, stream);
 
         stream.synchronize();
         const T denominator = noa::math::sqrt(denominator_lhs * denominator_rhs);

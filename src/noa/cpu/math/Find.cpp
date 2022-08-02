@@ -32,12 +32,15 @@ namespace {
 namespace noa::cpu::math {
     template<typename S, typename T, typename U, typename>
     void find(S, const shared_t<T[]>& input, size4_t strides, size4_t shape,
-              const shared_t<U[]>& offsets, bool batch, Stream& stream) {
+              const shared_t<U[]>& offsets, bool batch, bool swap_layout, Stream& stream) {
         stream.enqueue([=]() mutable {
-            const size3_t order_ = indexing::order(size3_t(strides.get(1)), size3_t(shape.get(1))) + 1;
-            const size4_t order{0, order_[0], order_[1], order_[2]};
-            strides = indexing::reorder(strides, order);
-            shape = indexing::reorder(shape, order);
+            if (swap_layout) {
+                // TODO If !batch, we can swap the batch dimension as well.
+                const size3_t order_ = indexing::order(size3_t(strides.get(1)), size3_t(shape.get(1))) + 1;
+                const size4_t order{0, order_[0], order_[1], order_[2]};
+                strides = indexing::reorder(strides, order);
+                shape = indexing::reorder(shape, order);
+            }
 
             const size4_t shape_ = batch ? size4_t{1, shape[1], shape[2], shape[3]} : shape;
             const size_t batches = batch ? shape[0] : 1;
@@ -68,10 +71,12 @@ namespace noa::cpu::math {
     }
 
     template<typename offset_t, typename S, typename T, typename>
-    offset_t find(S, const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
-        const size4_t order = indexing::order(strides, shape);
-        strides = indexing::reorder(strides, order);
-        shape = indexing::reorder(shape, order);
+    offset_t find(S, const shared_t<T[]>& input, size4_t strides, size4_t shape, bool swap_layout, Stream& stream) {
+        if (swap_layout) {
+            const size4_t order = indexing::order(strides, shape);
+            strides = indexing::reorder(strides, order);
+            shape = indexing::reorder(shape, order);
+        }
 
         if (indexing::areContiguous(strides, shape))
             return find<offset_t>(S{}, input, shape.elements(), stream);
@@ -123,9 +128,9 @@ namespace noa::cpu::math {
         }
     }
 
-    #define NOA_INSTANTIATE_FIND_(S, T, U)                                                                              \
-    template void find<S, T, U, void>(S, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, Stream&);  \
-    template U find<U, S, T, void>(S, const shared_t<T[]>&, size4_t, size4_t, Stream&);                                 \
+    #define NOA_INSTANTIATE_FIND_(S, T, U)                                                                                   \
+    template void find<S, T, U, void>(S, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, bool, Stream&); \
+    template U find<U, S, T, void>(S, const shared_t<T[]>&, size4_t, size4_t, bool, Stream&);                                \
     template U find<U, S, T, void>(S, const shared_t<T[]>&, size_t, Stream&)
 
     #define NOA_INSTANTIATE_FIND_OP_(T, U)               \
@@ -140,10 +145,6 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_FIND_OP_(T, int32_t);   \
     NOA_INSTANTIATE_FIND_OP_(T, int64_t)
 
-    NOA_INSTANTIATE_INDEXES_ALL_(uint8_t);
-    NOA_INSTANTIATE_INDEXES_ALL_(int8_t);
-    NOA_INSTANTIATE_INDEXES_ALL_(uint16_t);
-    NOA_INSTANTIATE_INDEXES_ALL_(int16_t);
     NOA_INSTANTIATE_INDEXES_ALL_(uint32_t);
     NOA_INSTANTIATE_INDEXES_ALL_(int32_t);
     NOA_INSTANTIATE_INDEXES_ALL_(uint64_t);

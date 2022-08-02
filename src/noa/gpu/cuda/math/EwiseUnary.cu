@@ -4,12 +4,12 @@
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename UnaryOp, typename>
-    void ewise(const shared_t<T[]>& input, size4_t input_stride,
-               const shared_t<U[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& input, size4_t input_strides,
+               const shared_t<U[]>& output, size4_t output_strides,
                size4_t shape, UnaryOp unary_op, Stream& stream) {
-        cuda::util::ewise::unary("math::ewise", input.get(), input_stride,
-                                 output.get(), output_stride,
-                                 shape, stream, unary_op);
+        cuda::util::ewise::unary("math::ewise", input.get(), input_strides,
+                                 output.get(), output_strides,
+                                 shape, true, stream, unary_op);
         stream.attach(input, output);
     }
 

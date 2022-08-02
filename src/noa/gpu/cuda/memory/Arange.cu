@@ -18,7 +18,7 @@ namespace {
 
     template<typename T, int VEC_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void arange1D_(T* src, uint stride, uint elements, T start, T step) {
+    void arange1D_(T* src, uint strides, uint elements, T start, T step) {
         const uint base = BLOCK_WORK_SIZE * blockIdx.x;
 
         if constexpr (VEC_SIZE == 1) {
@@ -26,11 +26,11 @@ namespace {
             for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                 const uint gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    src[gid * stride] = start + static_cast<T>(gid) * step;
+                    src[gid * strides] = start + static_cast<T>(gid) * step;
             }
         } else {
-            NOA_ASSERT(stride == 1);
-            (void) stride;
+            NOA_ASSERT(strides == 1);
+            (void) strides;
             const uint remaining = elements - base;
             src += base;
             if (remaining < BLOCK_WORK_SIZE) {
@@ -54,14 +54,14 @@ namespace {
 
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void arange4D_(T* src, uint4_t stride, uint4_t shape, T start, T step, uint blocks_x) {
-        const uint4_t logical_stride = shape.strides();
+    void arange4D_(T* src, uint4_t strides, uint4_t shape, T start, T step, uint blocks_x) {
+        const uint4_t logical_strides = shape.strides();
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid(blockIdx.z,
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        src += indexing::at(gid[0], gid[1], stride);
+                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        src += indexing::at(gid[0], gid[1], strides);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -70,8 +70,8 @@ namespace {
                 const uint ik = gid[2] + BLOCK_SIZE_2D.y * k;
                 const uint il = gid[3] + BLOCK_SIZE_2D.x * l;
                 if (ik < shape[2] && il < shape[3]) {
-                    const uint offset = indexing::at(gid[0], gid[1], ik, il, logical_stride);
-                    src[ik * stride[2] + il * stride[3]] = start + static_cast<T>(offset) * step;
+                    const uint offset = indexing::at(gid[0], gid[1], ik, il, logical_strides);
+                    src[ik * strides[2] + il * strides[3]] = start + static_cast<T>(offset) * step;
                 }
             }
         }
@@ -101,11 +101,11 @@ namespace noa::cuda::memory {
     }
 
     template<typename T, typename>
-    void arange(const shared_t<T[]>& src, size4_t stride, size4_t shape, T start, T step, Stream& stream) {
+    void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, T start, T step, Stream& stream) {
         if (!shape.elements())
             return;
 
-        const bool4_t is_contiguous = indexing::isContiguous(stride, shape);
+        const bool4_t is_contiguous = indexing::isContiguous(strides, shape);
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto uint_elements = static_cast<uint>(shape.elements());
             const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
@@ -113,21 +113,21 @@ namespace noa::cuda::memory {
 
             if (vec_size == 4) {
                 stream.enqueue("memory::arange", arange1D_<T, 4>,
-                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, step);
+                               {blocks, BLOCK_SIZE}, src.get(), strides[3], uint_elements, start, step);
             } else if (vec_size == 2) {
                 stream.enqueue("memory::arange", arange1D_<T, 2>,
-                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, step);
+                               {blocks, BLOCK_SIZE}, src.get(), strides[3], uint_elements, start, step);
             } else {
                 stream.enqueue("memory::arange", arange1D_<T, 1>,
-                               {blocks, BLOCK_SIZE}, src.get(), stride[3], uint_elements, start, step);
+                               {blocks, BLOCK_SIZE}, src.get(), strides[3], uint_elements, start, step);
             }
         } else {
-            const uint4_t uint_shape{shape};
+            const uint4_t uint_shape(shape);
             const uint blocks_x = noa::math::divideUp(uint_shape[3], BLOCK_WORK_SIZE_2D.x);
             const uint blocks_y = noa::math::divideUp(uint_shape[2], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, uint_shape[1], uint_shape[0]);
             stream.enqueue("memory::arange", arange4D_<T>, {blocks, BLOCK_SIZE_2D},
-                           src.get(), uint4_t{stride}, uint_shape, start, step, blocks_x);
+                           src.get(), uint4_t(strides), uint_shape, start, step, blocks_x);
         }
         stream.attach(src);
     }

@@ -57,28 +57,28 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Random.h
         gpu/cuda/math/Reduce.h
 
-        # noa::cuda::signal
-        gpu/cuda/signal/fft/Bandpass.h
-        gpu/cuda/signal/fft/Correlate.h
-        gpu/cuda/signal/fft/Shift.h
-        gpu/cuda/signal/fft/Standardize.h
-        gpu/cuda/signal/Convolve.h
-        gpu/cuda/signal/Median.h
-        gpu/cuda/signal/Shape.h
-
-        # noa::cuda::geometry
-        gpu/cuda/geometry/fft/Polar.h
-        gpu/cuda/geometry/fft/Project.h
-        gpu/cuda/geometry/fft/Symmetry.h
-        gpu/cuda/geometry/fft/Transform.h
-        gpu/cuda/geometry/Interpolate.h
-        gpu/cuda/geometry/Polar.h
-        gpu/cuda/geometry/Prefilter.h
-        gpu/cuda/geometry/Rotate.h
-        gpu/cuda/geometry/Scale.h
-        gpu/cuda/geometry/Shift.h
-        gpu/cuda/geometry/Symmetry.h
-        gpu/cuda/geometry/Transform.h
+#        # noa::cuda::signal
+#        gpu/cuda/signal/fft/Bandpass.h
+#        gpu/cuda/signal/fft/Correlate.h
+#        gpu/cuda/signal/fft/Shift.h
+#        gpu/cuda/signal/fft/Standardize.h
+#        gpu/cuda/signal/Convolve.h
+#        gpu/cuda/signal/Median.h
+#        gpu/cuda/signal/Shape.h
+#
+#        # noa::cuda::geometry
+#        gpu/cuda/geometry/fft/Polar.h
+#        gpu/cuda/geometry/fft/Project.h
+#        gpu/cuda/geometry/fft/Symmetry.h
+#        gpu/cuda/geometry/fft/Transform.h
+#        gpu/cuda/geometry/Interpolate.h
+#        gpu/cuda/geometry/Polar.h
+#        gpu/cuda/geometry/Prefilter.h
+#        gpu/cuda/geometry/Rotate.h
+#        gpu/cuda/geometry/Scale.h
+#        gpu/cuda/geometry/Shift.h
+#        gpu/cuda/geometry/Symmetry.h
+#        gpu/cuda/geometry/Transform.h
 
         )
 
@@ -119,37 +119,37 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu
 
-        # noa::cuda::signal
-        gpu/cuda/signal/fft/Bandpass.cu
-        gpu/cuda/signal/fft/Correlate.cu
-        gpu/cuda/signal/fft/Shift.cu
-        gpu/cuda/signal/fft/Standardize.cu
-        gpu/cuda/signal/Convolve1.cu
-        gpu/cuda/signal/Convolve2.cu
-        gpu/cuda/signal/Convolve3.cu
-        gpu/cuda/signal/ConvolveSeparable.cu
-        gpu/cuda/signal/Median.cu
-        gpu/cuda/signal/ShapeCylinder.cu
-        gpu/cuda/signal/ShapeRectangle.cu
-        gpu/cuda/signal/ShapeSphere.cu
-
-        # noa::cuda::geometry
-        gpu/cuda/geometry/fft/Polar.cu
-        gpu/cuda/geometry/fft/Project.cu
-        gpu/cuda/geometry/fft/Transform2D.cu
-        gpu/cuda/geometry/fft/Transform2DSymmetry.cu
-        gpu/cuda/geometry/fft/Transform3D.cu
-        gpu/cuda/geometry/fft/Transform3DSymmetry.cu
-        gpu/cuda/geometry/Polar.cu
-        gpu/cuda/geometry/Prefilter.cu
-        gpu/cuda/geometry/Shift2D.cu
-        gpu/cuda/geometry/Shift3D.cu
-        gpu/cuda/geometry/Symmetry2D.cu
-        gpu/cuda/geometry/Symmetry3D.cu
-        gpu/cuda/geometry/Transform2D.cu
-        gpu/cuda/geometry/Transform3D.cu
-        gpu/cuda/geometry/TransformSymmetry2D.cu
-        gpu/cuda/geometry/TransformSymmetry3D.cu
+#        # noa::cuda::signal
+#        gpu/cuda/signal/fft/Bandpass.cu
+#        gpu/cuda/signal/fft/Correlate.cu
+#        gpu/cuda/signal/fft/Shift.cu
+#        gpu/cuda/signal/fft/Standardize.cu
+#        gpu/cuda/signal/Convolve1.cu
+#        gpu/cuda/signal/Convolve2.cu
+#        gpu/cuda/signal/Convolve3.cu
+#        gpu/cuda/signal/ConvolveSeparable.cu
+#        gpu/cuda/signal/Median.cu
+#        gpu/cuda/signal/ShapeCylinder.cu
+#        gpu/cuda/signal/ShapeRectangle.cu
+#        gpu/cuda/signal/ShapeSphere.cu
+#
+#        # noa::cuda::geometry
+#        gpu/cuda/geometry/fft/Polar.cu
+#        gpu/cuda/geometry/fft/Project.cu
+#        gpu/cuda/geometry/fft/Transform2D.cu
+#        gpu/cuda/geometry/fft/Transform2DSymmetry.cu
+#        gpu/cuda/geometry/fft/Transform3D.cu
+#        gpu/cuda/geometry/fft/Transform3DSymmetry.cu
+#        gpu/cuda/geometry/Polar.cu
+#        gpu/cuda/geometry/Prefilter.cu
+#        gpu/cuda/geometry/Shift2D.cu
+#        gpu/cuda/geometry/Shift3D.cu
+#        gpu/cuda/geometry/Symmetry2D.cu
+#        gpu/cuda/geometry/Symmetry3D.cu
+#        gpu/cuda/geometry/Transform2D.cu
+#        gpu/cuda/geometry/Transform3D.cu
+#        gpu/cuda/geometry/TransformSymmetry2D.cu
+#        gpu/cuda/geometry/TransformSymmetry3D.cu
 
         )
 

@@ -48,17 +48,17 @@ namespace {
 
     template<typename T, typename I>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void extractStride4D_(const T* input, uint4_t stride, uint4_t shape,
+    void extractStride4D_(const T* input, uint4_t strides, uint4_t shape,
                           const uint* __restrict__ map, const uint* __restrict__ map_scan,
                           T* __restrict__ sequence_elements, I* __restrict__ sequence_offsets, uint blocks_x) {
-        const uint4_t contiguous_stride = shape.strides();
+        const uint4_t contiguous_strides = shape.strides();
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid(blockIdx.z,
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
-        map += indexing::at(gid[0], gid[1], contiguous_stride);
-        map_scan += indexing::at(gid[0], gid[1], contiguous_stride);
+                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        map += indexing::at(gid[0], gid[1], contiguous_strides);
+        map_scan += indexing::at(gid[0], gid[1], contiguous_strides);
 
         #pragma unroll
         for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
@@ -67,10 +67,10 @@ namespace {
                 const uint ik = gid[2] + BLOCK_SIZE_2D.y * k;
                 const uint il = gid[3] + BLOCK_SIZE_2D.x * l;
                 if (ik < shape[2] && il < shape[3]) {
-                    const uint offset = ik * contiguous_stride[2] + il * contiguous_stride[3];
+                    const uint offset = ik * contiguous_strides[2] + il * contiguous_strides[3];
                     if (map[offset]) {
                         const uint pos_sequence = map_scan[offset] - 1; // inclusive sum will start at 1
-                        const uint pos_input = indexing::at(gid[0], gid[1], ik, il, stride);
+                        const uint pos_input = indexing::at(gid[0], gid[1], ik, il, strides);
                         if (sequence_elements)
                             sequence_elements[pos_sequence] = input[pos_input];
                         if (sequence_offsets)
@@ -88,7 +88,7 @@ namespace {
     //      forth to the host is faster (it will use less memory that's for sure).
     template<typename T, typename I>
     cuda::memory::Extracted<T, I>
-    extract_(const T* input, size4_t stride, size4_t shape, size_t elements,
+    extract_(const T* input, size4_t strides, size4_t shape, size_t elements,
              const uint* map, bool extract_values, bool extract_offsets, cuda::Stream& stream) {
         using namespace ::noa::cuda::memory;
 
@@ -116,20 +116,20 @@ namespace {
         };
 
         // Compute the sequence(s).
-        if (all(indexing::isContiguous(stride, shape))) {
+        if (indexing::areContiguous(strides, shape)) {
             const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BLOCK_WORK_SIZE);
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE};
             stream.enqueue("memory::extract", extract1DContiguous_<T, I>, config,
                            input, elements, map, map_scan.get(),
                            extracted.values.get(), extracted.offsets.get());
         } else {
-            const uint4_t i_shape{shape.get()};
+            const uint4_t i_shape(shape.get());
             const uint blocks_x = noa::math::divideUp(i_shape[3], BLOCK_WORK_SIZE_2D.x);
             const uint blocks_y = noa::math::divideUp(i_shape[2], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, i_shape[1], i_shape[0]);
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE_2D};
             stream.enqueue("memory::extract", extractStride4D_<T, I>, config,
-                           input, uint4_t{stride}, i_shape, map, map_scan.get(),
+                           input, uint4_t(strides), i_shape, map, map_scan.get(),
                            extracted.values.get(), extracted.offsets.get(), blocks_x);
         }
         stream.attach(extracted.values, extracted.offsets);
@@ -221,20 +221,25 @@ namespace {
 //      cud::DeviceSelect::If can be used instead.
 namespace noa::cuda::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         const shared_t<U[]>& lhs, size4_t lhs_stride, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         const shared_t<U[]>& lhs, size4_t lhs_strides, size4_t shape,
                                          UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t order = indexing::order(input_strides, shape);
+        input_strides = indexing::reorder(input_strides, order);
+        lhs_strides = indexing::reorder(lhs_strides, order);
+        shape = indexing::reorder(shape, order);
+
+        const size4_t contiguous_strides = shape.strides();
         const size_t elements = shape.elements();
-        PtrDevice<uint> map{elements, stream};
+        PtrDevice<uint> map(elements, stream);
         util::ewise::unary<true>("memory::extract",
-                                 lhs.get(), lhs_stride,
-                                 map.get(), contiguous_stride,
-                                 shape, stream, unary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_stride, shape, elements,
+                                 lhs.get(), lhs_strides,
+                                 map.get(), contiguous_strides,
+                                 shape, false, stream, unary_op);
+        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
                                                map.get(), extract_values, extract_offsets, stream);
         stream.attach(input, lhs);
         return out;
@@ -258,65 +263,81 @@ namespace noa::cuda::memory {
 
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         const shared_t<U[]>& lhs, size4_t lhs_stride, V rhs, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         const shared_t<U[]>& lhs, size4_t lhs_strides, V rhs, size4_t shape,
                                          BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t order = indexing::order(input_strides, shape);
+        input_strides = indexing::reorder(input_strides, order);
+        lhs_strides = indexing::reorder(lhs_strides, order);
+        shape = indexing::reorder(shape, order);
+
+        const size4_t contiguous_strides = shape.strides();
         const size_t elements = shape.elements();
-        PtrDevice<uint> map{elements, stream};
+        PtrDevice<uint> map(elements, stream);
         util::ewise::binary<true>("memory::extract",
-                                  lhs.get(), lhs_stride, rhs,
-                                  map.get(), contiguous_stride,
-                                  shape, stream, binary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_stride, shape, elements,
+                                  lhs.get(), lhs_strides, rhs,
+                                  map.get(), contiguous_strides,
+                                  shape, false, stream, binary_op);
+        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
                                                map.get(), extract_values, extract_offsets, stream);
         stream.attach(lhs);
         return out;
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_stride, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_strides, size4_t shape,
                                          BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t order = indexing::order(input_strides, shape);
+        input_strides = indexing::reorder(input_strides, order);
+        rhs_strides = indexing::reorder(rhs_strides, order);
+        shape = indexing::reorder(shape, order);
+
+        const size4_t contiguous_strides = shape.strides();
         const size_t elements = shape.elements();
-        PtrDevice<uint> map{elements, stream};
+        PtrDevice<uint> map(elements, stream);
         util::ewise::binary<true>("memory::extract",
-                                  lhs, rhs.get(), rhs_stride,
-                                  map.get(), contiguous_stride,
-                                  shape, stream, binary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_stride, shape, elements,
+                                  lhs, rhs.get(), rhs_strides,
+                                  map.get(), contiguous_strides,
+                                  shape, false, stream, binary_op);
+        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
                                                map.get(), extract_values, extract_offsets, stream);
         stream.attach(rhs);
         return out;
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_stride,
-                                         const shared_t<U[]>& lhs, size4_t lhs_stride,
-                                         const shared_t<V[]>& rhs, size4_t rhs_stride,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
+                                         const shared_t<U[]>& lhs, size4_t lhs_strides,
+                                         const shared_t<V[]>& rhs, size4_t rhs_strides,
                                          size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t contiguous_stride = shape.strides();
+        const size4_t order = indexing::order(input_strides, shape);
+        input_strides = indexing::reorder(input_strides, order);
+        lhs_strides = indexing::reorder(lhs_strides, order);
+        rhs_strides = indexing::reorder(rhs_strides, order);
+        shape = indexing::reorder(shape, order);
+
+        const size4_t contiguous_strides = shape.strides();
         const size_t elements = shape.elements();
-        PtrDevice<uint> map{elements, stream};
+        PtrDevice<uint> map(elements, stream);
         util::ewise::binary<true>("memory::extract",
-                                  lhs.get(), lhs_stride,
-                                  rhs.get(), rhs_stride,
-                                  map.get(), contiguous_stride,
-                                  shape, stream, binary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_stride, shape, elements,
+                                  lhs.get(), lhs_strides,
+                                  rhs.get(), rhs_strides,
+                                  map.get(), contiguous_strides,
+                                  shape, false, stream, binary_op);
+        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
                                                map.get(), extract_values, extract_offsets, stream);
         stream.attach(lhs, rhs);
         return out;
@@ -355,14 +376,14 @@ namespace noa::cuda::memory {
         const int vec_size = std::min(util::maxVectorCount(output.get()),
                                       util::maxVectorCount(offsets.get()));
         if (vec_size == 4) {
-            return stream.enqueue("memory::extract", extract_<T, U, 4>, {blocks, BLOCK_SIZE},
-                                  input.get(), output.get(), offsets.get(), elements);
+            stream.enqueue("memory::extract", extract_<T, U, 4>, {blocks, BLOCK_SIZE},
+                           input.get(), output.get(), offsets.get(), elements);
         } else if (vec_size == 2) {
-            return stream.enqueue("memory::extract", extract_<T, U, 2>, {blocks, BLOCK_SIZE},
-                                  input.get(), output.get(), offsets.get(), elements);
+            stream.enqueue("memory::extract", extract_<T, U, 2>, {blocks, BLOCK_SIZE},
+                           input.get(), output.get(), offsets.get(), elements);
         } else {
-            return stream.enqueue("memory::extract", extract_<T, U, 1>, {blocks, BLOCK_SIZE},
-                                  input.get(), output.get(), offsets.get(), elements);
+            stream.enqueue("memory::extract", extract_<T, U, 1>, {blocks, BLOCK_SIZE},
+                           input.get(), output.get(), offsets.get(), elements);
         }
         stream.attach(input, offsets, output);
     }
@@ -373,14 +394,14 @@ namespace noa::cuda::memory {
         const int vec_size = std::min(util::maxVectorCount(extracted.values.get()),
                                       util::maxVectorCount(extracted.offsets.get()));
         if (vec_size == 4) {
-            return stream.enqueue("memory::insert", insert_<value_t, offset_t, 4>, {blocks, BLOCK_SIZE},
-                                  extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
+            stream.enqueue("memory::insert", insert_<value_t, offset_t, 4>, {blocks, BLOCK_SIZE},
+                           extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
         } else if (vec_size == 2) {
-            return stream.enqueue("memory::insert", insert_<value_t, offset_t, 2>, {blocks, BLOCK_SIZE},
-                                  extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
+            stream.enqueue("memory::insert", insert_<value_t, offset_t, 2>, {blocks, BLOCK_SIZE},
+                           extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
         } else {
-            return stream.enqueue("memory::insert", insert_<value_t, offset_t, 1>, {blocks, BLOCK_SIZE},
-                                  extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
+            stream.enqueue("memory::insert", insert_<value_t, offset_t, 1>, {blocks, BLOCK_SIZE},
+                           extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
         }
         stream.attach(extracted.values, extracted.offsets, output);
     }

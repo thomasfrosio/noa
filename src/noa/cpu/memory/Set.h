@@ -17,15 +17,15 @@ namespace noa::cpu::memory {
     /// \param value        The value to assign.
     template<typename T>
     inline void set(T* first, T* last, T value) {
+        // the cast is not necessary for basic types, but for Complex<>, IntX<> or FloatX<>, it could help...
         if constexpr (traits::is_complex_v<T> || traits::is_intX_v<T> ||
                       traits::is_floatX_v<T> || traits::is_floatXX_v<T>) {
             using value_t = traits::value_type_t<T>;
-            // the cast is not necessary for basic types, but for Complex<>, IntX<> or FloatX<>, it could help...
-            return std::fill(reinterpret_cast<value_t*>(first), reinterpret_cast<value_t*>(last), value_t{0});
-        } else {
-            // std::fill is calling memset, https://godbolt.org/z/1zEzTnoTK
-            return std::fill(first, last, value);
+            if (value == T{0})
+                return std::fill(reinterpret_cast<value_t*>(first), reinterpret_cast<value_t*>(last), value_t{0});
         }
+        // std::fill is calling memset, https://godbolt.org/z/1zEzTnoTK
+        return std::fill(first, last, value);
     }
 
     /// Sets an array to a given value.
@@ -51,22 +51,23 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
-    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize cache writes. If false, assume rightmost order.
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p src writes.
+    ///                         If false, assume rightmost order is the fastest order.
     /// \tparam T               Any type with a copy assignment operator.
     /// \param[out] src         On the \b host. The beginning of range to set.
     /// \param strides          Strides, in elements, of \p src.
     /// \param shape            Shape to set.
     /// \param value            The value to assign.
-    template<bool CHECK_LAYOUT = true, typename T>
+    template<bool SWAP_LAYOUT = true, typename T>
     inline void set(T* src, size4_t strides, size4_t shape, T value) {
-        if constexpr (CHECK_LAYOUT) {
+        if constexpr (SWAP_LAYOUT) {
             const size4_t order = indexing::order(strides, shape);
             shape = indexing::reorder(shape, order);
             strides = indexing::reorder(strides, order);
-
-            if (indexing::areContiguous(strides, shape))
-                return set(src, shape.elements(), value);
         }
+        if (indexing::areContiguous(strides, shape))
+            return set(src, shape.elements(), value);
+
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
                 for (size_t k = 0; k < shape[2]; ++k)
@@ -75,7 +76,8 @@ namespace noa::cpu::memory {
     }
 
     /// Sets an array to a given value.
-    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize cache writes. If false, assume rightmost order.
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p src writes.
+    ///                         If false, assume rightmost order is the fastest order.
     /// \tparam T               Any type with a copy assignment operator.
     /// \param[out] src         On the \b host. The beginning of range to set.
     /// \param strides          Strides, in elements, of \p src.
@@ -83,8 +85,8 @@ namespace noa::cpu::memory {
     /// \param value            The value to assign.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool CHECK_LAYOUT = true, typename T>
+    template<bool SWAP_LAYOUT = true, typename T>
     inline void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream) {
-        stream.enqueue([=]() { return set<CHECK_LAYOUT>(src.get(), strides, shape, value); });
+        stream.enqueue([=]() { return set<SWAP_LAYOUT>(src.get(), strides, shape, value); });
     }
 }

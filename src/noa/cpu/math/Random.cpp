@@ -79,7 +79,7 @@ namespace {
     template<typename T, typename distributor_t>
     void generate_(T* ptr, size_t elements, distributor_t& distributor) {
         std::random_device seeder;
-        xoshiro256ss generator{seeder()};
+        xoshiro256ss generator(seeder());
 
         for (size_t i = 0; i < elements; ++i)
             ptr[i] = static_cast<T>(distributor(generator));
@@ -88,7 +88,7 @@ namespace {
     template<typename T, typename distributor_t>
     void generate_(T* ptr, size4_t strides, size4_t shape, distributor_t& distributor) {
         std::random_device seeder;
-        xoshiro256ss generator{seeder()};
+        xoshiro256ss generator(seeder());
 
         const size4_t order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
@@ -105,7 +105,7 @@ namespace {
     void generate_(Complex<T>* ptr, size_t elements,
                    distributor_t& distributor_real, distributor_t& distributor_imag) {
         std::random_device seeder;
-        xoshiro256ss generator{seeder()};
+        xoshiro256ss generator(seeder());
 
         for (size_t i = 0; i < elements; ++i)
             ptr[i] = static_cast<Complex<T>>(distributor_real(generator), distributor_imag(generator));
@@ -115,7 +115,7 @@ namespace {
     void generate_(Complex<T>* ptr, size4_t strides, size4_t shape,
                    distributor_t& distributor_real, distributor_t& distributor_imag) {
         std::random_device seeder;
-        xoshiro256ss generator{seeder()};
+        xoshiro256ss generator(seeder());
 
         const size4_t order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
@@ -147,10 +147,10 @@ namespace noa::cpu::math {
                 stream.enqueue([=]() {
                     auto min_ = static_cast<result_t>(min.real);
                     auto max_ = static_cast<result_t>(max.real);
-                    distributor_t distributor_real{min_, max_};
+                    distributor_t distributor_real(min_, max_);
                     min_ = static_cast<result_t>(min.imag);
                     max_ = static_cast<result_t>(max.imag);
-                    distributor_t distributor_imag{min_, max_};
+                    distributor_t distributor_imag(min_, max_);
                     generate_(output.get(), elements, distributor_real, distributor_imag);
                 });
             }
@@ -160,7 +160,7 @@ namespace noa::cpu::math {
             stream.enqueue([=]() {
                 const auto min_ = static_cast<result_t>(min);
                 const auto max_ = static_cast<result_t>(max);
-                distributor_t distributor{min_, max_};
+                distributor_t distributor(min_, max_);
                 generate_(output.get(), elements, distributor);
             });
         }
@@ -182,10 +182,10 @@ namespace noa::cpu::math {
                 stream.enqueue([=]() {
                     auto mean_ = static_cast<result_t>(mean.real);
                     auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real{mean_, stddev_};
+                    distributor_t distributor_real(mean_, stddev_);
                     mean_ = static_cast<result_t>(mean.imag);
                     stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag{mean_, stddev_};
+                    distributor_t distributor_imag(mean_, stddev_);
                     generate_(output.get(), elements, distributor_real, distributor_imag);
                 });
             }
@@ -195,7 +195,7 @@ namespace noa::cpu::math {
             stream.enqueue([=]() {
                 const auto mean_ = static_cast<result_t>(mean);
                 const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor{mean_, stddev_};
+                distributor_t distributor(mean_, stddev_);
                 generate_(output.get(), elements, distributor);
             });
         }
@@ -217,10 +217,10 @@ namespace noa::cpu::math {
                 stream.enqueue([=]() {
                     auto mean_ = static_cast<result_t>(mean.real);
                     auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real{mean_, stddev_};
+                    distributor_t distributor_real(mean_, stddev_);
                     mean_ = static_cast<result_t>(mean.imag);
                     stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag{mean_, stddev_};
+                    distributor_t distributor_imag(mean_, stddev_);
                     generate_(output.get(), elements, distributor_real, distributor_imag);
                 });
             }
@@ -230,7 +230,7 @@ namespace noa::cpu::math {
             stream.enqueue([=]() {
                 const auto mean_ = static_cast<result_t>(mean);
                 const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor{mean_, stddev_};
+                distributor_t distributor(mean_, stddev_);
                 generate_(output.get(), elements, distributor);
             });
         }
@@ -245,7 +245,7 @@ namespace noa::cpu::math {
         } else {
             using distributor_t = poisson_distributor_t<T>;
             stream.enqueue([=]() {
-                distributor_t distributor{static_cast<double>(lambda)};
+                distributor_t distributor(static_cast<double>(lambda));
                 generate_(output.get(), elements, distributor);
             });
         }
@@ -254,14 +254,14 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
                    U min, U max, Stream& stream) {
-        if (all(indexing::isContiguous(strides, shape)))
+        if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::uniform_t{}, output, shape.elements(), min, max, stream);
 
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
                 using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                const auto reinterpreted = indexing::Reinterpret<T>{shape, strides, output.get()}.template as<real_t>();
+                const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
                 randomize(noa::math::uniform_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
                           reinterpreted.strides, reinterpreted.shape,
                           static_cast<supported_float>(min), static_cast<supported_float>(max), stream);
@@ -272,10 +272,10 @@ namespace noa::cpu::math {
                 stream.enqueue([=]() {
                     auto min_ = static_cast<result_t>(min.real);
                     auto max_ = static_cast<result_t>(max.real);
-                    distributor_t distributor_real{min_, max_};
+                    distributor_t distributor_real(min_, max_);
                     min_ = static_cast<result_t>(min.imag);
                     max_ = static_cast<result_t>(max.imag);
-                    distributor_t distributor_imag{min_, max_};
+                    distributor_t distributor_imag(min_, max_);
                     generate_(output.get(), strides, shape, distributor_real, distributor_imag);
                 });
             }
@@ -285,7 +285,7 @@ namespace noa::cpu::math {
             stream.enqueue([=]() {
                 const auto min_ = static_cast<result_t>(min);
                 const auto max_ = static_cast<result_t>(max);
-                distributor_t distributor{min_, max_};
+                distributor_t distributor(min_, max_);
                 generate_(output.get(), strides, shape, distributor);
             });
         }
@@ -294,14 +294,14 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
                    U mean, U stddev, Stream& stream) {
-        if (all(indexing::isContiguous(strides, shape)))
+        if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::normal_t{}, output, shape.elements(), mean, stddev, stream);
 
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
                 using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                const auto reinterpreted = indexing::Reinterpret<T>{shape, strides, output.get()}.template as<real_t>();
+                const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
                 randomize(noa::math::normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
                           reinterpreted.strides, reinterpreted.shape,
                           static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
@@ -312,10 +312,10 @@ namespace noa::cpu::math {
                 stream.enqueue([=]() {
                     auto mean_ = static_cast<result_t>(mean.real);
                     auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real{mean_, stddev_};
+                    distributor_t distributor_real(mean_, stddev_);
                     mean_ = static_cast<result_t>(mean.imag);
                     stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag{mean_, stddev_};
+                    distributor_t distributor_imag(mean_, stddev_);
                     generate_(output.get(), strides, shape, distributor_real, distributor_imag);
                 });
             }
@@ -325,7 +325,7 @@ namespace noa::cpu::math {
             stream.enqueue([=]() {
                 const auto mean_ = static_cast<result_t>(mean);
                 const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor{mean_, stddev_};
+                distributor_t distributor(mean_, stddev_);
                 generate_(output.get(), strides, shape, distributor);
             });
         }
@@ -334,14 +334,14 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
                    U mean, U stddev, Stream& stream) {
-        if (all(indexing::isContiguous(strides, shape)))
+        if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::log_normal_t{}, output, shape.elements(), mean, stddev, stream);
 
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
                 using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                const auto reinterpreted = indexing::Reinterpret<T>{shape, strides, output.get()}.template as<real_t>();
+                const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
                 randomize(noa::math::log_normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
                           reinterpreted.strides, reinterpreted.shape,
                           static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
@@ -352,10 +352,10 @@ namespace noa::cpu::math {
                 stream.enqueue([=]() {
                     auto mean_ = static_cast<result_t>(mean.real);
                     auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real{mean_, stddev_};
+                    distributor_t distributor_real(mean_, stddev_);
                     mean_ = static_cast<result_t>(mean.imag);
                     stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag{mean_, stddev_};
+                    distributor_t distributor_imag(mean_, stddev_);
                     generate_(output.get(), strides, shape, distributor_real, distributor_imag);
                 });
             }
@@ -365,7 +365,7 @@ namespace noa::cpu::math {
             stream.enqueue([=]() {
                 const auto mean_ = static_cast<result_t>(mean);
                 const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor{mean_, stddev_};
+                distributor_t distributor(mean_, stddev_);
                 generate_(output.get(), strides, shape, distributor);
             });
         }
@@ -374,18 +374,18 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
                    float lambda, Stream& stream) {
-        if (all(indexing::isContiguous(strides, shape)))
+        if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::poisson_t{}, output, shape.elements(), lambda, stream);
 
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
-            const auto reinterpreted = indexing::Reinterpret<T>{shape, strides, output.get()}.template as<real_t>();
+            const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
             randomize(noa::math::poisson_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
                       reinterpreted.strides, reinterpreted.shape, lambda, stream);
         } else {
             using distributor_t = poisson_distributor_t<T>;
             stream.enqueue([=]() {
-                distributor_t distributor{static_cast<double>(lambda)};
+                distributor_t distributor(static_cast<double>(lambda));
                 generate_(output.get(), strides, shape, distributor);
             });
         }

@@ -10,15 +10,15 @@ TEST_CASE("View") {
     View<int> a;
     REQUIRE(a.empty());
 
-    const View<const int> b{a.data(), a.shape()};
+    const View<const int> b(a.data(), a.shape());
     REQUIRE(a.empty());
 
-    a = View<int>{nullptr, size4_t{10, 10, 10, 10}};
+    a = View<int>(nullptr, size4_t{10, 10, 10, 10});
     REQUIRE(all(a.contiguous()));
 
     // to const
-    View<const int> d{a.data(), a.shape(), a.strides()};
-    View<const int> e{a};
+    View<const int> d(a.data(), a.shape(), a.strides());
+    View<const int> e(a);
     REQUIRE(all(d.shape() == a.shape()));
     REQUIRE(all(d.strides() == a.strides()));
     REQUIRE(d.data() == a.data());
@@ -37,7 +37,7 @@ TEST_CASE("View - indexing") {
     for (auto i: irange(elements))
         buffer[i] = static_cast<int>(i);
 
-    const View<int> v0{buffer.get(), shape, stride};
+    const View<int> v0(buffer.get(), shape, stride);
     REQUIRE(v0(1, 45, 23, 10) == buffer[at(1, 45, 23, 10, stride)]);
 
     AND_THEN("full extent") {
@@ -106,13 +106,13 @@ TEMPLATE_TEST_CASE("View, shape manipulation", "[noa]", int32_t, uint64_t, float
         buffer[i] = static_cast<int>(i);
 
     AND_THEN("as another type") {
-        View<int> c{buffer.get(), size4_t{2, 3, 4, 5}};
+        View<int> c(buffer.get(), size4_t{2, 3, 4, 5});
         View<unsigned char> d = c.as<unsigned char>();
         REQUIRE(all(d.shape() == size4_t{2, 3, 4, 20}));
         REQUIRE(all(d.strides() == size4_t{240, 80, 20, 1}));
 
         cdouble_t* ptr{};
-        View<cdouble_t> e{ptr, size4_t{2, 3, 4, 5}};
+        View<cdouble_t> e(ptr, size4_t{2, 3, 4, 5});
         View<double> f = e.as<double>();
         REQUIRE(all(f.shape() == size4_t{2, 3, 4, 10}));
         REQUIRE(all(f.strides() == size4_t{120, 40, 10, 1}));
@@ -128,7 +128,7 @@ TEMPLATE_TEST_CASE("View, shape manipulation", "[noa]", int32_t, uint64_t, float
 
     AND_THEN("reshape") {
         TestType* ptr{};
-        View<TestType, int32_t> a{ptr, {4, 10, 50, 30}};
+        View<TestType, int32_t> a(ptr, {4, 10, 50, 30});
         a = a.reshape({1, 1, 1, a.shape().elements()});
         REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({4, 10, 50, 30});
@@ -140,7 +140,7 @@ TEMPLATE_TEST_CASE("View, shape manipulation", "[noa]", int32_t, uint64_t, float
 
     AND_THEN("permute") {
         TestType* ptr{};
-        View<TestType> a{ptr, size4_t{4, 10, 50, 30}};
+        View<TestType> a(ptr, size4_t{4, 10, 50, 30});
         View<TestType> b = a.permute(uint4_t{0, 1, 2, 3});
         REQUIRE(all(b.shape() == size4_t{4, 10, 50, 30}));
         REQUIRE(all(b.strides() == size4_t{15000, 1500, 30, 1}));

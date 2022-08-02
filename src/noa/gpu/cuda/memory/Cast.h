@@ -32,16 +32,16 @@ namespace noa::cuda::memory {
     /// \tparam T               Any data type.
     /// \tparam U               Any data type. If \p T is complex, \p U should be complex as well.
     /// \param[in] input        On the \b device. Array to convert.
-    /// \param input_stride     Rightmost strides, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[out] output      On the \b device. Converted array.
-    /// \param output_stride    Rightmost strides, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p input and \p output.
     /// \param clamp            Whether the values should be clamp within the \p U range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note \p input and \p output should not overlap.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_cast_v<T, U>>>
-    void cast(const shared_t<T[]>& input, size4_t input_stride,
-              const shared_t<U[]>& output, size4_t output_stride,
+    void cast(const shared_t<T[]>& input, size4_t input_strides,
+              const shared_t<U[]>& output, size4_t output_strides,
               size4_t shape, bool clamp, Stream& stream);
 }

@@ -18,12 +18,12 @@ namespace noa::cpu::memory {
     ///                     2: The elements to add/remove from the right side of the dimension.
     ///                     Positive values correspond to padding, while negative values correspond to cropping.
     inline std::pair<int4_t, int4_t> borders(size4_t input_shape, size4_t output_shape) {
-        int4_t o_shape(output_shape);
-        int4_t i_shape(input_shape);
-        int4_t diff(o_shape - i_shape);
+        const int4_t o_shape(output_shape);
+        const int4_t i_shape(input_shape);
+        const int4_t diff(o_shape - i_shape);
 
-        int4_t border_left = o_shape / 2 - i_shape / 2;
-        int4_t border_right = diff - border_left;
+        const int4_t border_left = o_shape / 2 - i_shape / 2;
+        const int4_t border_right = diff - border_left;
         return {border_left, border_right};
     }
 

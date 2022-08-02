@@ -19,7 +19,7 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    NOA_IH cudaMemcpy3DParms toParams(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size4_t shape) {
+    inline cudaMemcpy3DParms toParams(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size4_t shape) {
         cudaMemcpy3DParms params{};
         params.srcPtr = {const_cast<T*>(src), src_pitch * sizeof(T), shape[3], shape[2]};
         params.dstPtr = {dst, dst_pitch * sizeof(T), shape[3], shape[2]};
@@ -29,7 +29,7 @@ namespace noa::cuda::memory::details {
     }
 
     template<typename T>
-    NOA_IH cudaMemcpy3DParms toParams(const cudaArray* src, T* dst, size_t dst_pitch, size3_t shape) {
+    inline cudaMemcpy3DParms toParams(const cudaArray* src, T* dst, size_t dst_pitch, size3_t shape) {
         cudaMemcpy3DParms params{};
         params.srcArray = const_cast<cudaArray*>(src);
         params.dstPtr = {dst, dst_pitch * sizeof(T), shape[2], shape[1]};
@@ -39,7 +39,7 @@ namespace noa::cuda::memory::details {
     }
 
     template<typename T>
-    NOA_IH cudaMemcpy3DParms toParams(const T* src, size_t src_pitch, cudaArray* dst, size3_t shape) {
+    inline cudaMemcpy3DParms toParams(const T* src, size_t src_pitch, cudaArray* dst, size3_t shape) {
         cudaMemcpy3DParms params{};
         params.srcPtr = {const_cast<T*>(src), src_pitch * sizeof(T), shape[2], shape[1]};
         params.dstArray = dst;
@@ -49,9 +49,10 @@ namespace noa::cuda::memory::details {
     }
 
     // Copy strided data between two pointers accessible by the stream's device.
+    // No reordering is done here.
     template<typename T>
-    void copy(const shared_t<T[]>& src, size4_t src_stride,
-              const shared_t<T[]>& dst, size4_t dst_stride,
+    void copy(const shared_t<T[]>& src, size4_t src_strides,
+              const shared_t<T[]>& dst, size4_t dst_strides,
               size4_t shape, Stream& stream);
 }
 
@@ -61,7 +62,7 @@ namespace noa::cuda::memory {
     /// \param[out] dst     Destination. Contiguous memory either on the host or on the device.
     /// \param elements     Elements to copy.
     template<typename T>
-    NOA_IH void copy(const T* src, T* dst, size_t elements) {
+    inline void copy(const T* src, T* dst, size_t elements) {
         NOA_THROW_IF(cudaMemcpy(dst, src, elements * sizeof(T), cudaMemcpyDefault));
     }
 
@@ -74,7 +75,7 @@ namespace noa::cuda::memory {
     ///       One must make sure \p src and \p dst stay valid until completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
-    NOA_IH void copy(const T* src, T* dst, size_t elements, Stream& stream) {
+    inline void copy(const T* src, T* dst, size_t elements, Stream& stream) {
         NOA_THROW_IF(cudaMemcpyAsync(dst, src, elements * sizeof(T), cudaMemcpyDefault, stream.id()));
     }
 
@@ -86,7 +87,7 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
+    inline void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
         NOA_THROW_IF(cudaMemcpyAsync(dst.get(), src.get(), elements * sizeof(T), cudaMemcpyDefault, stream.id()));
         stream.attach(src, dst);
     }
@@ -102,7 +103,7 @@ namespace noa::cuda::memory {
     ///       One must make sure \p src and \p dst stay valid until completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
-    NOA_IH void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size4_t shape, Stream& stream) {
+    inline void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size4_t shape, Stream& stream) {
         const auto params = details::toParams(src, src_pitch, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
@@ -117,7 +118,7 @@ namespace noa::cuda::memory {
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<T[]>& src, size_t src_pitch,
+    inline void copy(const shared_t<T[]>& src, size_t src_pitch,
                      const shared_t<T[]>& dst, size_t dst_pitch,
                      size4_t shape, Stream& stream) {
         const auto params = details::toParams(src.get(), src_pitch, dst.get(), dst_pitch, shape);
@@ -125,96 +126,121 @@ namespace noa::cuda::memory {
         stream.attach(src, dst);
     }
 
-    /// Copies asynchronously regions of (strided and/or padded) memory.
-    /// \details Contiguous regions of memory have no copy restrictions, as well as regions with padding at the right
-    ///          side of the innermost dimension (referred to as a "pitch" in CUDA). However, if there's any padding
-    ///          or stride in the other dimensions, an error will be thrown if: 1) the source and destination are on
-    ///          different devices, 2) the copy is between unregistered host memory and a device, 3) the copy involves
-    ///          a device that is not the stream's device.
+    /// Copies asynchronously regions of (strided/padded) memory.
+    /// \details Contiguous regions of memory have no copy restrictions, as well as (batched) row vectors (and column
+    ///          vectors if \p SWAP_LAYOUT is true), and regions with padding at the right side of the innermost
+    ///          dimension (referred to as a "pitch" in CUDA).
+    ///          However, if the contiguity is broken in any other dimension, an error will be thrown if:
+    ///          1) the source and destination are on different devices,
+    ///          2) the copy is between unregistered host memory and a device,
+    ///          3) the copy involves a device that is not the stream's device.
     ///
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p dst writes.
+    ///                         If false, assume rightmost order is the fastest order.
     /// \tparam T               Any type.
     /// \param[in] src          Source. Can be on the host or a device.
-    /// \param src_stride       Rightmost strides, in elements, of \p src.
+    /// \param src_strides      Strides, in elements, of \p src.
     /// \param[out] dst         Destination. Can be on the host or a device.
-    /// \param dst_stride       Rightmost strides, in elements, of \p dst.
-    /// \param shape            Rightmost shape to copy.
+    /// \param dst_strides      Strides, in elements, of \p dst.
+    /// \param shape            Strides shape to copy.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note If \p T is not a data type, the memory regions should be contiguous, pinned or both on the host.
-    /// \note If the copy is between unregistered and/or pinned memory regions, the copy will be done synchronously
-    ///       on the host and the stream will be synchronized when the function returns. Otherwise this function can
-    ///       be asynchronous relative to the host and may return before completion.
-    template<typename T>
-    void copy(const shared_t<T[]>& src, size4_t src_stride,
-              const shared_t<T[]>& dst, size4_t dst_stride,
+    /// \note If the copy involves an unregistered memory regions, the stream will be synchronized when the function
+    ///       returns. Otherwise this function can be asynchronous relative to the host and may return before completion.
+    template<bool SWAP_LAYOUT = true, typename T>
+    void copy(const shared_t<T[]>& src, size4_t src_strides,
+              const shared_t<T[]>& dst, size4_t dst_strides,
               size4_t shape, Stream& stream) {
-        const bool4_t is_contiguous = indexing::isContiguous(src_stride, shape) &&
-                                      indexing::isContiguous(dst_stride, shape);
+        if constexpr (SWAP_LAYOUT) {
+            const size4_t order = indexing::order(dst_strides, shape);
+            shape = indexing::reorder(shape, order);
+            src_strides = indexing::reorder(src_strides, order);
+            dst_strides = indexing::reorder(dst_strides, order);
+        }
 
-        // If contiguous or with a pitch (as defined in CUDA, i.e. padding at the right of the innermost dimension),
-        // then we can rely on the CUDA runtime. This should be 99% of cases.
+        const bool4_t is_contiguous = indexing::isContiguous(src_strides, shape) &&
+                                      indexing::isContiguous(dst_strides, shape);
+
+        // If contiguous or with a pitch (as defined in CUDA, i.e. padding the width on the right side),
+        // then we can rely on the CUDA runtime. This should be 99% of cases. If SWAP_LAYOUT, F-contiguous
+        // arrays are swapped to C-contiguous.
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[3]) {
-            if (is_contiguous[2]) // pitch == shape[3]
-                copy(src, dst, shape.elements(), stream);
-            else
-                copy(src, src_stride[2], dst, dst_stride[2], shape, stream);
-        } else {
-            static_assert(cudaMemoryTypeUnregistered == 0);
-            static_assert(cudaMemoryTypeHost == 1);
-            static_assert(cudaMemoryTypeDevice == 2);
-            static_assert(cudaMemoryTypeManaged == 3);
-            const cudaPointerAttributes src_attr = cuda::util::getAttributes(src.get());
-            const cudaPointerAttributes dst_attr = cuda::util::getAttributes(dst.get());
+            if (is_contiguous[2]) {
+                return copy(src, dst, shape.elements(), stream);
+            } else { // 2d pitch
+                return copy(src, src_strides[2], dst, dst_strides[2], shape, stream);
+            }
+        }
 
-            if (src_attr.type == 2 && dst_attr.type == 2) {
-                // Both regions are on the same device, we can therefore launch our copy kernel.
-                if (src_attr.device == dst_attr.device) {
-                    if constexpr (noa::traits::is_restricted_data_v<T>)
-                        details::copy(src, src_stride, dst, dst_stride, shape, stream);
-                    else
-                        NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension"
-                                  "is not supported for type {}", string::human<T>());
-                } else {
-                    NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, "
-                              "between different devices is currently not supported. Trying to copy an array of "
-                              "shape {} from (device:{}, stride:{}) to (device:{}, stride:{}) ",
-                              shape, src_attr.device, src_stride, dst_attr.device, dst_stride);
-                }
-            } else if (src_attr.type <= 1 && dst_attr.type <= 1) {
-                // Both on host.
-                const T* src_ptr = src.get();
-                T* dst_ptr = dst.get();
-                stream.synchronize(); // in case host function was enqueued
-                for (size_t i = 0; i < shape[0]; ++i)
-                    for (size_t j = 0; j < shape[1]; ++j)
-                        for (size_t k = 0; k < shape[2]; ++k)
-                            for (size_t l = 0; l < shape[3]; ++l)
-                                dst_ptr[indexing::at(i, j, k, l, dst_stride)] =
-                                        src_ptr[indexing::at(i, j, k, l, src_stride)];
+        // Otherwise:
+        static_assert(cudaMemoryTypeUnregistered == 0);
+        static_assert(cudaMemoryTypeHost == 1);
+        static_assert(cudaMemoryTypeDevice == 2);
+        static_assert(cudaMemoryTypeManaged == 3);
+        const cudaPointerAttributes src_attr = cuda::util::getAttributes(src.get());
+        const cudaPointerAttributes dst_attr = cuda::util::getAttributes(dst.get());
 
-            } else if (src_attr.type >= 1 && dst_attr.type >= 1) {
-                // A device or managed pointer is involved: copy on the device.
-                // 1) Managed memory has no restrictions.
-                // 2) Device memory must belong to the stream's device.
-                // 3) Pinned memory should be accessed via their device pointer.
-                if ((src_attr.type == 2 && src_attr.device != stream.device().id()) ||
-                    (dst_attr.type == 2 && dst_attr.device != stream.device().id()))
-                    NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, "
-                              "from or to a device that is not the stream's device");
-
-                // FIXME For managed pointers, use cudaMemPrefetchAsync()?
-                const shared_t<T[]> src_alias{src, reinterpret_cast<T*>(src_attr.devicePointer)};
-                const shared_t<T[]> dst_alias{dst, reinterpret_cast<T*>(dst_attr.devicePointer)};
-                if constexpr (noa::traits::is_restricted_data_v<T>)
-                    details::copy(src_alias, src_stride, dst_alias, dst_stride, shape, stream);
+        if (src_attr.type == 2 && dst_attr.type == 2) {
+            // Both regions are on the same device, we can therefore launch our copy kernel.
+            if (src_attr.device == dst_attr.device) {
+                if constexpr (traits::is_restricted_data_v<T>)
+                    details::copy(src, src_strides, dst, dst_strides, shape, stream);
                 else
-                    NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension"
+                    NOA_THROW("Copying strided regions, other than in the second-most dimension, "
                               "is not supported for type {}", string::human<T>());
             } else {
-                NOA_THROW("Copying strided regions, or padded regions other than in the innermost dimension, between "
-                          "an unregistered host region and a device is not supported, yet. Hint: copy the strided data "
-                          "to a temporary contiguous buffer");
+                NOA_THROW("Copying strided regions, other than in the second-most dimension, "
+                          "between different devices is currently not supported. Trying to copy an array of "
+                          "shape {} from (device:{}, strides:{}) to (device:{}, strides:{}) ",
+                          shape, src_attr.device, src_strides, dst_attr.device, dst_strides);
             }
+
+        } else if (src_attr.type >= 1 && dst_attr.type >= 1) {
+            // Both can be accessed on the device, so do the copy on the device.
+            // 1) Managed memory has no restrictions.
+            // 2) Device memory must belong to the stream's device.
+            // 3) Pinned memory should be accessed via their device pointer.
+            if ((src_attr.type == 2 && src_attr.device != stream.device().id()) ||
+                (dst_attr.type == 2 && dst_attr.device != stream.device().id()))
+                NOA_THROW("Copying strided regions, other than in the second-most dimension, "
+                          "from or to a device that is not the stream's device is not supported");
+
+            // FIXME For managed pointers, use cudaMemPrefetchAsync()?
+            const shared_t<T[]> src_alias{src, reinterpret_cast<T*>(src_attr.devicePointer)};
+            const shared_t<T[]> dst_alias{dst, reinterpret_cast<T*>(dst_attr.devicePointer)};
+            if constexpr (traits::is_restricted_data_v<T>)
+                details::copy(src_alias, src_strides, dst_alias, dst_strides, shape, stream);
+            else
+                NOA_THROW("Copying strided regions, other than in the second-most dimension, "
+                          "is not supported for type {}", string::human<T>());
+
+        } else if ((src_attr.type <= 1 || src_attr.type == 3) &&
+                   (dst_attr.type <= 1 || dst_attr.type == 3)) {
+            // Both can be accessed on the host.
+            const T* src_ptr = src.get();
+            T* dst_ptr = dst.get();
+            stream.synchronize(); // FIXME Use a callback instead!
+            for (size_t i = 0; i < shape[0]; ++i)
+                for (size_t j = 0; j < shape[1]; ++j)
+                    for (size_t k = 0; k < shape[2]; ++k)
+                        for (size_t l = 0; l < shape[3]; ++l)
+                            dst_ptr[indexing::at(i, j, k, l, dst_strides)] =
+                                    src_ptr[indexing::at(i, j, k, l, src_strides)];
+
+        } else if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
+            // Last resort for strided row-vector(s). Since 3 first dimensions are contiguous, collapse them.
+            // Non-contiguous row vector can be reshaped to a 2D pitch array so that it can be passed to the CUDA API.
+            // If SWAP_LAYOUT, this works for column vectors as well.
+            // Note: This is the last resort because it is much less efficient than our custom copy (on host or device),
+            // so this is only if the copy is between host-device.
+            const size4_t shape_{1, shape[0] * shape[1] * shape[2], shape[3], 1};
+            return copy(src, src_strides[3], dst, dst_strides[3], shape_, stream);
+
+        } else {
+            NOA_THROW("Copying strided regions, other than in the second-most dimension, between an unregistered "
+                      "host region and a device is not supported, yet. Hint: copy the strided data to a temporary "
+                      "contiguous buffer");
         }
     }
 }
@@ -223,25 +249,25 @@ namespace noa::cuda::memory {
 namespace noa::cuda::memory {
     /// Copies memory region into a CUDA array.
     /// \param[in] src      Region to copy.
-    /// \param src_pitch    Pitch, in elements, of the innermost dimension of \p src.
+    /// \param src_pitch    Pitch, in elements, of \p src.
     /// \param[out] dst     N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
-    /// \param shape        Rightmost shape of the CUDA array.
+    /// \param shape        DHW shape of the CUDA array.
     template<typename T>
-    NOA_IH void copy(const T* src, size_t src_pitch, cudaArray* dst, size3_t shape) {
+    inline void copy(const T* src, size_t src_pitch, cudaArray* dst, size3_t shape) {
         cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
     /// Copies memory region into a CUDA array.
     /// \param[in] src          Region to copy.
-    /// \param src_pitch        Pitch, in elements, of the innermost dimension of \p src.
+    /// \param src_pitch        Pitch, in elements, of \p src.
     /// \param[out] dst         N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
-    /// \param shape            Rightmost shape to copy.
+    /// \param shape            DHW shape to copy.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
     template<typename T>
-    NOA_IH void copy(const T* src, size_t src_pitch,
+    inline void copy(const T* src, size_t src_pitch,
                      cudaArray* dst, size3_t shape, Stream& stream) {
         cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
@@ -249,14 +275,14 @@ namespace noa::cuda::memory {
 
     /// Copies memory region into a CUDA array.
     /// \param[in] src          Region to copy.
-    /// \param src_pitch        Pitch, in elements, of the innermost dimension of \p src.
+    /// \param src_pitch        Pitch, in elements, of \p src.
     /// \param[out] dst         N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
-    /// \param shape            Rightmost shape to copy.
+    /// \param shape            DHW shape to copy.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<T[]>& src, size_t src_pitch,
+    inline void copy(const shared_t<T[]>& src, size_t src_pitch,
                      const shared_t<cudaArray>& dst, size3_t shape, Stream& stream) {
         copy(src.get(), src_pitch, dst.get(), shape, stream);
         stream.attach(src, dst);
@@ -265,10 +291,10 @@ namespace noa::cuda::memory {
     /// Copies a CUDA array into a memory region.
     /// \param[in] src      N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
     /// \param[out] dst     Region to copy into.
-    /// \param dst_pitch    Pitch, in elements, of the innermost dimension of \p dst.
-    /// \param shape        Rightmost shape of the CUDA array.
+    /// \param dst_pitch    Pitch, in elements, of \p dst.
+    /// \param shape        DHW shape of the CUDA array.
     template<typename T>
-    NOA_IH void copy(const cudaArray* src, T* dst, size_t dst_pitch, size3_t shape) {
+    inline void copy(const cudaArray* src, T* dst, size_t dst_pitch, size3_t shape) {
         cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
@@ -276,13 +302,13 @@ namespace noa::cuda::memory {
     /// Copies a CUDA array into a memory region.
     /// \param[in] src          N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
     /// \param[out] dst         Region to copy into.
-    /// \param dst_pitch        Pitch, in elements, of the innermost dimension of \p dst.
-    /// \param shape            Rightmost shape of the CUDA array.
+    /// \param dst_pitch        Pitch, in elements, of \p dst.
+    /// \param shape            DHW shape of the CUDA array.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
     template<typename T>
-    NOA_IH void copy(const cudaArray* src,
+    inline void copy(const cudaArray* src,
                      T* dst, size_t dst_pitch,
                      size3_t shape, Stream& stream) {
         cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, shape);
@@ -292,13 +318,13 @@ namespace noa::cuda::memory {
     /// Copies a CUDA array into a memory region.
     /// \param[in] src          N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
     /// \param[out] dst         Region to copy into.
-    /// \param dst_pitch        Pitch, in elements, of the innermost dimension of \p dst.
-    /// \param shape            Rightmost shape of the CUDA array.
+    /// \param dst_pitch        Pitch, in elements, of \p dst.
+    /// \param shape            DHW shape of the CUDA array.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function can be asynchronous relative to the host and may return before completion.
     /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
     template<typename T>
-    NOA_IH void copy(const shared_t<cudaArray>& src,
+    inline void copy(const shared_t<cudaArray>& src,
                      const shared_t<T[]>& dst, size_t dst_pitch,
                      size3_t shape, Stream& stream) {
         copy(src.get(), dst.get(), dst_pitch, shape, stream);

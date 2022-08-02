@@ -60,11 +60,15 @@ namespace noa::cuda::memory {
             }
         };
 
+    public:
+        using alloc_unique_t = unique_t<T[], Deleter>;
+        static constexpr size_t ALIGNMENT = 256;
+
     public: // static functions
         /// Allocates device memory using cudaMalloc.
         /// \param elements     Number of elements to allocate on the current device.
         /// \return Pointer pointing to device memory with an alignment of at least 256 bytes.
-        static std::unique_ptr<T[], Deleter> alloc(size_t elements) {
+        static alloc_unique_t alloc(size_t elements) {
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMalloc(&tmp, elements * sizeof(T)));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -74,7 +78,7 @@ namespace noa::cuda::memory {
         /// \param elements         Number of elements to allocate on the current device.
         /// \param[in,out] stream   Stream on which the returned memory will be attached to.
         /// \return Pointer pointing to device memory with an alignment of at least 256 bytes.
-        static std::unique_ptr<T[], Deleter> alloc(size_t elements, Stream& stream) {
+        static alloc_unique_t alloc(size_t elements, Stream& stream) {
             void* tmp{nullptr}; // X** to void** is not allowed
             #if CUDART_VERSION >= 11020
             NOA_THROW_IF(cudaMallocAsync(&tmp, elements * sizeof(T), stream.id()));
@@ -104,29 +108,34 @@ namespace noa::cuda::memory {
         explicit PtrDevice(size_t elements, Stream& stream)
                 : m_ptr(alloc(elements, stream)), m_elements(elements) {}
 
-    public:
-        /// Returns the device pointer.
-        [[nodiscard]] constexpr T* get() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* get() const noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr T* data() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* data() const noexcept { return m_ptr.get(); }
+    public: // Getters
+        /// Returns the host pointer.
+        [[nodiscard]] constexpr T* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* data() const noexcept { return m_ptr.get(); }
 
         /// Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
-        /// Attach the lifetime of the managed object with an \p alias.
+        /// Attach the lifetime of the managed object with \p alias.
         /// \details Constructs a shared_ptr which shares ownership information with the managed object,
         ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
         ///          the last of the group to go out of scope, it will call the stored deleter for the
         ///          managed object of this instance. However, calling get() on this shared_ptr will always
         ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
-        ///          \p alias remains valid as long as the managed object exists.
+        ///          \p alias remains valid as long as the managed object exists. This functions performs no
+        ///          heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename U>
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         /// How many elements of type \p T are pointed by the managed object.
         [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
         [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
+
+        /// Returns the shape of the allocated data as a row vector.
+        [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
+
+        /// Returns the strides of the allocated data as a C-contiguous row vector.
+        [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
 
         /// How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
@@ -135,13 +144,9 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
-        /// Returns a pointer pointing at the beginning of the managed data.
-        [[nodiscard]] constexpr T* begin() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const T* begin() const noexcept { return m_ptr.get(); }
-
-        /// Returns a pointer pointing at the end + 1 of the managed data.
-        [[nodiscard]] constexpr T* end() noexcept { return m_ptr.get() + m_elements; }
-        [[nodiscard]] constexpr const T* end() const noexcept { return m_ptr.get() + m_elements; }
+        /// Returns a View of the allocated data as a C-contiguous row vector.
+        template<typename I>
+        [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
 
         /// Returns the stream handle used to allocate the managed data.
         /// If the data was created synchronously (without a stream), returns the NULL stream.
@@ -155,6 +160,11 @@ namespace noa::cuda::memory {
             return nullptr;
         }
 
+    public: // Iterators
+        [[nodiscard]] constexpr T* begin() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr T* end() const noexcept { return m_ptr.get() + m_elements; }
+
+    public: // Accessors
         /// Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
@@ -162,7 +172,7 @@ namespace noa::cuda::memory {
         }
 
     private:
-        static_assert(noa::traits::is_valid_ptr_type_v<T>);
+        static_assert(traits::is_valid_ptr_type_v<T>);
         std::shared_ptr<T[]> m_ptr{};
         size_t m_elements{0};
     };

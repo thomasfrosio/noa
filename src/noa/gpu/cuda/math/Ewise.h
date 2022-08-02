@@ -49,10 +49,10 @@ namespace noa::cuda::math::details {
 namespace noa::cuda::math {
     /// Element-wise transformation using an unary operator()(\p T) -> \p U
     /// \param[in] input        On the \b device. Inputs to transform.
-    /// \param input_stride     Rightmost stride, in elements of \p input.
+    /// \param input_strides    Strides, in elements of \p input.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p input and \p output.
     /// \param unary_op         Unary operation function object that will be applied. Either:
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -75,19 +75,19 @@ namespace noa::cuda::math {
     ///         D = chalf_t, cfloat_t, or cdouble_t
     template<typename T, typename U, typename UnaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_unary_v<T, U, UnaryOp>>>
-    void ewise(const shared_t<T[]>& input, size4_t input_stride,
-               const shared_t<U[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& input, size4_t input_strides,
+               const shared_t<U[]>& output, size4_t output_strides,
                size4_t shape, UnaryOp unary_op, Stream& stream);
 }
 
 namespace noa::cuda::math {
     /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param lhs_strides      Strides, in elements of \p lhs.
     /// \param rhs              Right-hand side argument.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p lhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p lhs and \p output.
     /// \param binary_op        Binary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -111,17 +111,17 @@ namespace noa::cuda::math {
     ///         C = chalf_t, cfloat_t, or cdouble_t
     template<typename T, typename U, typename V, typename BinaryOp,
              std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>, bool> = true>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U rhs,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U rhs,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
     /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     /// \param lhs              Left-hand side argument.
     /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_stride       Rightmost stride, in elements of \p rhs.
+    /// \param rhs_strides      Strides, in elements of \p rhs.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p rhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p rhs and \p output.
     /// \param binary_op        Binary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -129,18 +129,18 @@ namespace noa::cuda::math {
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename BinaryOp,
              std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>, bool> = true>
-    void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_strides,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
     /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param lhs_strides      Strides, in elements of \p lhs.
     /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_stride       Rightmost stride, in elements of \p rhs.
+    /// \param rhs_strides      Strides, in elements of \p rhs.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p lhs, \p rhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p lhs, \p rhs and \p output.
     /// \param binary_op        Binary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -148,21 +148,21 @@ namespace noa::cuda::math {
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename BinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& rhs, size4_t rhs_stride,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
+               const shared_t<U[]>& rhs, size4_t rhs_strides,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 }
 
 namespace noa::cuda::math {
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
     /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param lhs_strides      Strides, in elements of \p lhs.
     /// \param mhs              Middle-hand side argument.
     /// \param rhs              Right-hand side argument.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p lhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p lhs and \p output.
     /// \param trinary_op       Trinary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -183,19 +183,19 @@ namespace noa::cuda::math {
     ///         C = chalf_t, cfloat_t, cdouble_t
     template<typename T, typename U, typename V, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, U, V, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, U rhs,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param lhs_strides      Strides, in elements of \p lhs.
     /// \param[in] mhs          On the \b device. Middle-hand side argument.
-    /// \param mhs_stride       Rightmost stride, in elements, of \p mhs.
+    /// \param mhs_strides      Strides, in elements, of \p mhs.
     /// \param rhs              Right-hand side argument.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p lhs, \p mhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p lhs, \p mhs and \p output.
     /// \param trinary_op       Trinary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -203,20 +203,20 @@ namespace noa::cuda::math {
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& mhs, size4_t mhs_stride, V rhs,
-               const shared_t<W[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
+               const shared_t<U[]>& mhs, size4_t mhs_strides, V rhs,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param lhs_strides      Strides, in elements of \p lhs.
     /// \param mhs              Middle-hand side argument.
     /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_stride       Rightmost stride, in elements, of \p rhs.
+    /// \param rhs_strides      Strides, in elements, of \p rhs.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p lhs, \p rhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p lhs, \p rhs and \p output.
     /// \param trinary_op       Trinary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -224,21 +224,21 @@ namespace noa::cuda::math {
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, V mhs,
-               const shared_t<U[]>& rhs, size4_t rhs_stride,
-               const shared_t<W[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, V mhs,
+               const shared_t<U[]>& rhs, size4_t rhs_strides,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_stride       Rightmost stride, in elements of \p lhs.
+    /// \param lhs_strides      Strides, in elements of \p lhs.
     /// \param[in] mhs          On the \b device. Middle-hand side argument.
-    /// \param mhs_stride       Rightmost stride, in elements, of \p mhs.
+    /// \param mhs_strides      Strides, in elements, of \p mhs.
     /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_stride       Rightmost stride, in elements, of \p rhs.
+    /// \param rhs_strides      Strides, in elements, of \p rhs.
     /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p lhs, \p mhs, \p rhs and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p lhs, \p mhs, \p rhs and \p output.
     /// \param trinary_op       Trinary operation function object that will be applied.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
@@ -246,9 +246,9 @@ namespace noa::cuda::math {
     /// \note The same operators and types are supported as the overload above.
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& mhs, size4_t mhs_stride,
-               const shared_t<V[]>& rhs, size4_t rhs_stride,
-               const shared_t<W[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
+               const shared_t<U[]>& mhs, size4_t mhs_strides,
+               const shared_t<V[]>& rhs, size4_t rhs_strides,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 }

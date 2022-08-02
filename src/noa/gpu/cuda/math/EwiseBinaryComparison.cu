@@ -5,38 +5,38 @@
 namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename BinaryOp,
              std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>, bool>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U rhs,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U rhs,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
         cuda::util::ewise::binary("math::ewise",
-                                  lhs.get(), lhs_stride, rhs,
-                                  output.get(), output_stride,
-                                  shape, stream, binary_op);
+                                  lhs.get(), lhs_strides, rhs,
+                                  output.get(), output_strides,
+                                  shape, true, stream, binary_op);
         stream.attach(lhs, output);
     }
 
     template<typename T, typename U, typename V, typename BinaryOp,
              std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>, bool>>
-    void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_stride,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_strides,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
         cuda::util::ewise::binary("math::ewise",
-                                  lhs, rhs.get(), rhs_stride,
-                                  output.get(), output_stride,
-                                  shape, stream, binary_op);
+                                  lhs, rhs.get(), rhs_strides,
+                                  output.get(), output_strides,
+                                  shape, true, stream, binary_op);
         stream.attach(rhs, output);
     }
 
     template<typename T, typename U, typename V, typename BinaryOp, typename>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& rhs, size4_t rhs_stride,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
+               const shared_t<U[]>& rhs, size4_t rhs_strides,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
         cuda::util::ewise::binary("math::ewise",
-                                  lhs.get(), lhs_stride,
-                                  rhs.get(), rhs_stride,
-                                  output.get(), output_stride,
-                                  shape, stream, binary_op);
+                                  lhs.get(), lhs_strides,
+                                  rhs.get(), rhs_strides,
+                                  output.get(), output_strides,
+                                  shape, true, stream, binary_op);
         stream.attach(lhs, rhs, output);
     }
 

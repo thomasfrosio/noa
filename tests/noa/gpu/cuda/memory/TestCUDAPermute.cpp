@@ -46,18 +46,18 @@ TEST_CASE("cuda::memory::permute()", "[assets][noa][cuda][memory]") {
         cpu::memory::PtrHost<float> result(elements);
 
         if (inplace) {
-            cuda::memory::copy<float>(data.share(), stride, d_data.share(), d_data.strides(), shape, stream);
-            cuda::memory::permute<float>(d_data.share(), d_data.strides(), shape,
+            cuda::memory::copy(data.share(), stride, d_data.share(), d_data.strides(), shape, stream);
+            cuda::memory::permute(d_data.share(), d_data.strides(), shape,
                                            d_data.share(), d_data.strides(), permutation, stream);
-            cuda::memory::copy<float>(d_data.share(), d_data.strides(), data.share(), output_stride, output_shape, stream);
+            cuda::memory::copy(d_data.share(), d_data.strides(), data.share(), output_stride, output_shape, stream);
             stream.synchronize();
 
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), data.get(), elements, 1e-8));
         } else {
-            cuda::memory::copy<float>(data.share(), stride, d_data.share(), d_data.strides(), shape, stream);
-            cuda::memory::permute<float>(d_data.share(), d_data.strides(), shape,
+            cuda::memory::copy(data.share(), stride, d_data.share(), d_data.strides(), shape, stream);
+            cuda::memory::permute(d_data.share(), d_data.strides(), shape,
                                            d_result.share(), d_result.strides(), permutation, stream);
-            cuda::memory::copy<float>(d_result.share(), d_result.strides(), result.share(), output_stride, output_shape, stream);
+            cuda::memory::copy(d_result.share(), d_result.strides(), result.share(), output_stride, output_shape, stream);
             stream.synchronize();
 
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), elements, 1e-8));

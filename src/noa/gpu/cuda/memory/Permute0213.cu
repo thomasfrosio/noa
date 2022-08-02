@@ -12,29 +12,29 @@ namespace {
     // Out-of-place.
     // Transpose 0213 is a specific case: the innermost dimension is unchanged,
     // which makes everything much simpler. Only the last two dimensions are swapped:
-    //  - input_stride[1]->output_stride[2]
-    //  - input_stride[2]->output_stride[1]
+    //  - input_strides[1]->output_strides[2]
+    //  - input_strides[2]->output_strides[1]
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute0213_(const T* __restrict__ input, uint4_t input_stride,
-                      T* __restrict__ output, uint4_t output_stride,
+    void permute0213_(const T* __restrict__ input, uint4_t input_strides,
+                      T* __restrict__ output, uint4_t output_strides,
                       uint2_t shape /* YX */ , uint blocks_x) {
-        const uint2_t tid(threadIdx.y, threadIdx.x);
+        const uint2_t tid{threadIdx.y, threadIdx.x};
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const uint2_t gid = TILE_DIM * index + tid;
         if (!IS_MULTIPLE_OF_TILE && gid[1] >= shape[1])
             return;
 
-        input += blockIdx.z * input_stride[0];
-        output += blockIdx.z * output_stride[0];
-        input += blockIdx.y * input_stride[1]; // Z->Y'
-        output += blockIdx.y * output_stride[2];
+        input += blockIdx.z * input_strides[0];
+        output += blockIdx.z * output_strides[0];
+        input += blockIdx.y * input_strides[1]; // Z->Y'
+        output += blockIdx.y * output_strides[2];
 
         for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gy = gid[0] + repeat;
             if (IS_MULTIPLE_OF_TILE || gy < shape[0])
-                output[gy * output_stride[1] + gid[1] * output_stride[3]] =
-                        input[gy * input_stride[2] + gid[1] * input_stride[3]];
+                output[gy * output_strides[1] + gid[1] * output_strides[3]] =
+                        input[gy * input_strides[2] + gid[1] * input_strides[3]];
         }
     }
 
@@ -44,29 +44,29 @@ namespace {
     // The shared memory simply acts as a per thread buffer.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute0213_inplace_(T* output, uint4_t output_stride, uint2_t shape, uint blocks_x) {
+    void permute0213_inplace_(T* output, uint4_t output_strides, uint2_t shape, uint blocks_x) {
         using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[BLOCK_SIZE.y][BLOCK_SIZE.x];
         T(& tile)[BLOCK_SIZE.y][BLOCK_SIZE.x] = *reinterpret_cast<T(*)[BLOCK_SIZE.y][BLOCK_SIZE.x]>(&buffer);
 
-        const uint2_t tid(threadIdx.y, threadIdx.x);
+        const uint2_t tid{threadIdx.y, threadIdx.x};
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid(blockIdx.z,
+        const uint4_t gid{blockIdx.z,
                           blockIdx.y,
                           TILE_DIM * index[0] + tid[0],
-                          TILE_DIM * index[1] + tid[1]);
+                          TILE_DIM * index[1] + tid[1]};
         if (gid[3] >= shape[1])
             return;
 
-        output += gid[0] * output_stride[0];
+        output += gid[0] * output_strides[0];
         for (uint repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
             const uint gy = gid[2] + repeat;
             if (gid[1] > gy) // process one triangle + diagonal
                 continue;
 
             if (IS_MULTIPLE_OF_TILE || gy < shape[0]) {
-                const uint src_offset = gid[1] * output_stride[1] + gy * output_stride[2] + gid[3] * output_stride[3];
-                const uint dst_offset = gid[1] * output_stride[2] + gy * output_stride[1] + gid[3] * output_stride[3];
+                const uint src_offset = gid[1] * output_strides[1] + gy * output_strides[2] + gid[3] * output_strides[3];
+                const uint dst_offset = gid[1] * output_strides[2] + gy * output_strides[1] + gid[3] * output_strides[3];
                 tile[tid[0]][tid[1]] = output[dst_offset];
                 output[dst_offset] = output[src_offset];
                 output[src_offset] = tile[tid[0]][tid[1]];
@@ -77,10 +77,10 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute0213(const shared_t<T[]>& input, size4_t input_stride,
-                     const shared_t<T[]>& output, size4_t output_stride,
+    void permute0213(const shared_t<T[]>& input, size4_t input_strides,
+                     const shared_t<T[]>& output, size4_t output_strides,
                      size4_t shape, Stream& stream) {
-        const uint2_t uint_shape{shape.get() + 2};
+        const uint2_t uint_shape(shape.get(2));
         const bool are_multiple_tile = all((uint_shape % TILE_DIM) == 0);
 
         const uint blocks_x = math::divideUp(uint_shape[1], TILE_DIM);
@@ -88,11 +88,11 @@ namespace noa::cuda::memory::details {
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         if (are_multiple_tile) {
             stream.enqueue("memory::permute0213", permute0213_<T, true>, {blocks, BLOCK_SIZE},
-                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                           input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
                            uint_shape, blocks_x);
         } else {
             stream.enqueue("memory::permute0213", permute0213_<T, false>, {blocks, BLOCK_SIZE},
-                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                           input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
                            uint_shape, blocks_x);
         }
         stream.attach(input, output);
@@ -101,11 +101,11 @@ namespace noa::cuda::memory::details {
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void permute0213(const shared_t<T[]>& output, size4_t output_stride, size4_t shape, Stream& stream) {
+    void permute0213(const shared_t<T[]>& output, size4_t output_strides, size4_t shape, Stream& stream) {
         if (shape[1] != shape[2])
             NOA_THROW("For a \"0213\" in-place permutation, shape[1] should be equal to shape[2]. Got {}", shape);
 
-        const uint2_t uint_shape{shape.get() + 2};
+        const uint2_t uint_shape(shape.get(2));
         const bool are_multiple_tile = (uint_shape[0] % TILE_DIM) == 0;
 
         const uint blocks_x = math::divideUp(uint_shape[1], TILE_DIM);
@@ -113,10 +113,10 @@ namespace noa::cuda::memory::details::inplace {
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         if (are_multiple_tile) {
             stream.enqueue("memory::permute0213_inplace", permute0213_inplace_<T, true>, {blocks, BLOCK_SIZE},
-                           output.get(), uint4_t{output_stride}, uint_shape, blocks_x);
+                           output.get(), uint4_t(output_strides), uint_shape, blocks_x);
         } else {
             stream.enqueue("memory::permute0213_inplace", permute0213_inplace_<T, false>, {blocks, BLOCK_SIZE},
-                           output.get(), uint4_t{output_stride}, uint_shape, blocks_x);
+                           output.get(), uint4_t(output_strides), uint_shape, blocks_x);
         }
         stream.attach(output);
     }

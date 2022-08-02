@@ -37,7 +37,7 @@ TEMPLATE_TEST_CASE("cpu::math::find(), batched", "[noa][cpu][math]", int32_t, ui
         data_max[batch * elements_unbatched + offset_max + 50] = 101;
     }
 
-    cpu::math::find(math::first_min_t{}, data_min.share(), stride, shape, offset_results.share(), true, stream);
+    cpu::math::find(math::first_min_t{}, data_min.share(), stride, shape, offset_results.share(), true, false, stream);
     stream.synchronize();
     size_t diff = test::getDifference(offset_min_expected.get(), offset_results.get(), shape[0]);
     REQUIRE(diff == 0);
@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("cpu::math::find(), batched", "[noa][cpu][math]", int32_t, ui
     size_t offset = cpu::math::find(math::first_min_t{}, data_min.share(), elements, stream);
     REQUIRE(offset == offset_min_expected[0]);
 
-    cpu::math::find(math::first_max_t{}, data_max.share(), stride, shape, offset_results.share(), true, stream);
+    cpu::math::find(math::first_max_t{}, data_max.share(), stride, shape, offset_results.share(), true, false, stream);
     stream.synchronize();
     diff = test::getDifference(offset_max_expected.get(), offset_results.get(), shape[0]);
     REQUIRE(diff == 0);

@@ -15,7 +15,7 @@ namespace noa::cuda::memory::details {
     void set(T* src, size_t elements, T value, Stream& stream);
 
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream);
+    void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream);
 }
 
 // TODO Add nvrtc to support any type.
@@ -30,16 +30,15 @@ namespace noa::cuda::memory {
     /// \note This function is asynchronous with respect to the host and may return before completion.
     ///       One must make sure \p src stays valid until completion.
     template<typename T>
-    NOA_IH void set(T* src, size_t elements, T value, Stream& stream) {
-        if constexpr (noa::traits::is_data_v<T>) {
-            if (value == T{0}) {
+    inline void set(T* src, size_t elements, T value, Stream& stream) {
+        if constexpr (traits::is_data_v<T>) {
+            if (value == T{0})
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, elements * sizeof(T), stream.id()));
-            } else {
+            else
                 details::set(src, elements, value, stream);
-            }
-        } else if constexpr (noa::traits::is_floatX_v<T> ||
-                             noa::traits::is_intX_v<T> ||
-                             noa::traits::is_floatXX_v<T>) {
+        } else if constexpr (traits::is_floatX_v<T> ||
+                             traits::is_intX_v<T> ||
+                             traits::is_floatXX_v<T>) {
             if (all(value == T{0})) {
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, elements * sizeof(T), stream.id()));
             } else {
@@ -57,33 +56,37 @@ namespace noa::cuda::memory {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
     template<typename T>
-    NOA_IH void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
+    inline void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         set(src.get(), elements, value, stream);
         stream.attach(src);
     }
 
     /// Sets an array with a given value.
-    /// \tparam CHECK_CONTIGUOUS    Filling a contiguous block of memory is often more efficient. If true, the function
-    ///                             checks whether or not the data is contiguous and if so performs one contiguous memset.
-    /// \tparam T                   Any data type.
-    /// \param[out] src             On the \b device. The beginning of range to set.
-    /// \param stride               Rightmost strides, in elements.
-    /// \param shape                Rightmost shape to set.
-    /// \param value                The value to assign.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p dst writes.
+    ///                         If false, assume rightmost order is the fastest order.
+    /// \tparam T               Any data type.
+    /// \param[out] src         On the \b device. The beginning of range to set.
+    /// \param strides          Strides, in elements.
+    /// \param shape            Shape to set.
+    /// \param value            The value to assign.
+    /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous with respect to the host and may return before completion.
-    template<bool CHECK_CONTIGUOUS = true, typename T>
-    NOA_IH void set(const shared_t<T[]>& src, size4_t stride, size4_t shape, T value, Stream& stream) {
-        if constexpr (!noa::traits::is_data_v<T>) {
-            NOA_CHECK(all(indexing::isContiguous(stride, shape)),
+    template<bool SWAP_LAYOUT = true, typename T>
+    inline void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream) {
+        if constexpr (SWAP_LAYOUT) {
+            const size4_t order = indexing::order(strides, shape);
+            shape = indexing::reorder(shape, order);
+            strides = indexing::reorder(strides, order);
+        }
+
+        if constexpr (!traits::is_data_v<T>) {
+            NOA_CHECK(indexing::areContiguous(strides, shape),
                       "Setting a non-contiguous array of {} is currently not allowed", string::human<T>());
             return set(src, shape.elements(), value, stream);
         } else {
-            if constexpr (CHECK_CONTIGUOUS) {
-                if (all(indexing::isContiguous(stride, shape)))
-                    return set(src, shape.elements(), value, stream);
-            }
-            details::set(src, stride, shape, value, stream);
+            if (indexing::areContiguous(strides, shape))
+                return set(src, shape.elements(), value, stream);
+            details::set(src, strides, shape, value, stream);
         }
     }
 }

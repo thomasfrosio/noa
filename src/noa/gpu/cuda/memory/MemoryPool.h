@@ -28,14 +28,14 @@ namespace noa::cuda::memory {
     class Pool {
     public:
         /// Gets the default memory pool of \p device.
-        static cudaMemPool_t getDefault(Device device) {
+        static cudaMemPool_t current(Device device) {
             cudaMemPool_t pool{};
             NOA_THROW_IF(cudaDeviceGetDefaultMemPool(&pool, device.id()));
             return pool;
         }
 
         /// Sets the default memory pool of \p device.
-        static void setDefault(Device device, cudaMemPool_t pool) {
+        static void current(Device device, cudaMemPool_t pool) {
             NOA_THROW_IF(cudaDeviceSetMemPool(device.id(), pool));
         }
 
@@ -44,11 +44,11 @@ namespace noa::cuda::memory {
         Pool() : Pool(Device::current()) {}
 
         /// Gets the default memory pool of \p device.
-        explicit Pool(Device device) : m_pool(Pool::getDefault(device)) {}
+        explicit Pool(Device device) : m_pool(Pool::current(device)) {}
 
         /// Sets this pool as default memory pool of \p device.
         void attach(Device device) const {
-            setDefault(device, m_pool);
+            current(device, m_pool);
         }
 
         /// Sets the amount of reserved memory in bytes to hold onto before trying to release memory back to the OS.

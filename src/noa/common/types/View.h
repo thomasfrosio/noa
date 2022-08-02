@@ -1,4 +1,5 @@
 #pragma once
+#pragma once
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
@@ -61,7 +62,7 @@ namespace noa {
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U, typename J = I>
         View<U, J> as() const {
-            const auto out = indexing::Reinterpret<T, J>{m_shape, m_strides, get()}.template as<U>();
+            const auto out = indexing::Reinterpret<T, J>(m_shape, m_strides, get()).template as<U>();
             return {out.ptr, out.shape, out.strides};
         }
 
@@ -128,7 +129,7 @@ namespace noa {
                  typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B> &&
                                              is_indexable_v<C> && is_indexable_v<D>>>
         constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
-            const auto indexer = indexing::Subregion{m_shape, m_strides}(i0, i1, i2, i3);
+            const auto indexer = indexing::Subregion(m_shape, m_strides)(i0, i1, i2, i3);
             return {m_ptr + indexer.offset(), indexer.shape(), indexer.strides()};
         }
 

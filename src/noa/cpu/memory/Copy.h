@@ -48,30 +48,28 @@ namespace noa::cpu::memory {
     }
 
     /// Copies all logical elements from \p src to \p dst.
-    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize the \p dst cache writes.
-    ///                         If false, assume rightmost order.
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p dst writes.
+    ///                         If false, assume rightmost order is the fastest order.
     /// \tparam T               Any type with a copy assignment operator.
     /// \param[in] src          On the \b host. Input array to copy.
     /// \param src_strides      Strides, in elements, of \p src.
     /// \param[out] dst         On the \b host. Output array.
     /// \param dst_strides      Strides, in elements, of \p dst.
     /// \param shape            Shape of \p src and \p dst.
-    template<bool CHECK_LAYOUT = true, typename T>
+    template<bool SWAP_LAYOUT = true, typename T>
     inline void copy(const T* src, size4_t src_strides, T* dst, size4_t dst_strides, size4_t shape) {
-        if constexpr (CHECK_LAYOUT) {
+        if constexpr (SWAP_LAYOUT) {
             // Loop through the destination in the most cache-friendly way:
             const size4_t order = indexing::order(dst_strides, shape);
             shape = indexing::reorder(shape, order);
             dst_strides = indexing::reorder(dst_strides, order);
             src_strides = indexing::reorder(src_strides, order);
             // We could have selected the source, but since the destination is less likely to be
-            // broadcast, it seems safer. Broadcast dimensions can really make things worse.
-            // Note: This could make things worse for some edge cases.
-
-            // No need to check for F-contiguous, since the reordering switched it to C-contiguous already.
-            if (indexing::areContiguous(src_strides, shape) && indexing::areContiguous(dst_strides, shape))
-                return copy(src, src + shape.elements(), dst);
+            // broadcast, it seems safer. This could make things worse for some edge cases.
         }
+
+        if (indexing::areContiguous(src_strides, shape) && indexing::areContiguous(dst_strides, shape))
+            return copy(src, src + shape.elements(), dst);
 
         for (size_t i = 0; i < shape[0]; ++i)
             for (size_t j = 0; j < shape[1]; ++j)
@@ -81,8 +79,8 @@ namespace noa::cpu::memory {
     }
 
     /// Copies all logical elements from \p src to \p dst.
-    /// \tparam CHECK_LAYOUT    Check the memory layout to optimize the \p dst cache writes.
-    ///                         If false, assume rightmost order.
+    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p dst writes.
+    ///                         If false, assume rightmost order is the fastest order.
     /// \tparam T               Any type with a copy assignment operator.
     /// \param[in] src          On the \b host. Input array to copy.
     /// \param src_strides      Strides, in elements, of \p src.
@@ -91,11 +89,11 @@ namespace noa::cpu::memory {
     /// \param shape            Shape of \p src and \p dst.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<bool CHECK_LAYOUT = true, typename T>
+    template<bool SWAP_LAYOUT = true, typename T>
     inline void copy(const shared_t<T[]>& src, size4_t src_strides,
                      const shared_t<T[]>& dst, size4_t dst_strides, size4_t shape, Stream& stream) {
         stream.enqueue([=]() {
-            return copy<CHECK_LAYOUT>(src.get(), src_strides, dst.get(), dst_strides, shape);
+            return copy<SWAP_LAYOUT>(src.get(), src_strides, dst.get(), dst_strides, shape);
         });
     }
 }

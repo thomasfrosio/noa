@@ -29,7 +29,7 @@ namespace noa::cpu::math {
         });
     }
 
-    template<typename T, typename U, typename V, typename BinaryOp, std::enable_if_t<noa::traits::is_data_v<U>, bool>>
+    template<typename T, typename U, typename V, typename BinaryOp, std::enable_if_t<traits::is_data_v<U>, bool>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U rhs,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
@@ -50,7 +50,7 @@ namespace noa::cpu::math {
         });
     }
 
-    template<typename T, typename U, typename V, typename BinaryOp, std::enable_if_t<noa::traits::is_data_v<T>, bool>>
+    template<typename T, typename U, typename V, typename BinaryOp, std::enable_if_t<traits::is_data_v<T>, bool>>
     void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_strides,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
@@ -119,7 +119,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             std::enable_if_t<noa::traits::is_data_v<V>, bool>>
+             std::enable_if_t<traits::is_data_v<V>, bool>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
                const shared_t<U[]>& mhs, size4_t mhs_strides, V rhs,
                const shared_t<W[]>& output, size4_t output_strides,
@@ -146,7 +146,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             std::enable_if_t<noa::traits::is_data_v<U>, bool>>
+             std::enable_if_t<traits::is_data_v<U>, bool>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs,
                const shared_t<V[]>& rhs, size4_t rhs_strides,
                const shared_t<W[]>& output, size4_t output_strides,

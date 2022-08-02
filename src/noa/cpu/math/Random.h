@@ -73,7 +73,8 @@ namespace noa::cpu::math {
     ///                         If \p T is half_t, \p U can also be float.
     ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
-    /// \param strides          Strides of \p output.
+    /// \param strides          Strides of \p output. If \p T is complex and \p U is real, \p output is reinterpreted
+    ///                         to the corresponding real type array, requiring its innermost dimension to be contiguous.
     /// \param shape            Shape of \p output.
     /// \param min, max         Minimum and maximum value of the uniform range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -89,7 +90,8 @@ namespace noa::cpu::math {
     ///                         If \p T is half_t, \p U can also be float.
     ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
-    /// \param strides          Strides of \p output.
+    /// \param strides          Strides of \p output. If \p T is complex and \p U is real, \p output is reinterpreted
+    ///                         to the corresponding real type array, requiring its innermost dimension to be contiguous.
     /// \param shape            Shape of \p output.
     /// \param mean, stddev     Mean and standard-deviation of the normal range.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -105,7 +107,8 @@ namespace noa::cpu::math {
     ///                         If \p T is half_t, \p U can also be float.
     ///                         If \p T is chalf_t, \p U can also be float or cfloat_t.
     /// \param output           On the \b host. Array to randomize.
-    /// \param strides          Strides of \p output.
+    /// \param strides          Strides of \p output. If \p T is complex and \p U is real, \p output is reinterpreted
+    ///                         to the corresponding real type array, requiring its innermost dimension to be contiguous.
     /// \param shape            Shape of \p output.
     /// \param mean, stddev     Mean and standard-deviation of the log-normal range.
     /// \param[in,out] stream   Stream on which to enqueue this function.

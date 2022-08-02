@@ -40,7 +40,7 @@ namespace noa::cuda::memory {
 
     public: // static functions
         /// Allocates a CUDA array.
-        /// \param shape    Rightmost shape of the array.
+        /// \param shape    DHW shape of the array. 2D/3D array, or column/row vector.
         /// \param flag     Any flag supported by cudaMalloc3DArray().
         /// \return Pointer to the CUDA array.
         static std::unique_ptr<cudaArray, Deleter> alloc(size3_t shape, uint flag) {
@@ -54,7 +54,7 @@ namespace noa::cuda::memory {
                 extent.width = shape[2];
                 extent.height = shape[1];
             } else {
-                extent.width = shape[2];
+                extent.width = shape[2] ? shape[2] : shape[1];
             }
             cudaArray* ptr;
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
@@ -67,7 +67,7 @@ namespace noa::cuda::memory {
         constexpr PtrArray() = default;
         constexpr /*implicit*/ PtrArray(std::nullptr_t) {}
 
-        /// Allocates a ND CUDA array with a given rightmost \p shape on the current device using \c cudaMalloc3DArray.
+        /// Allocates a ND CUDA array with a given DHW \p shape on the current device using \c cudaMalloc3DArray.
         explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault)
                 : m_ptr(alloc(shape, flags)), m_shape(shape) {}
 

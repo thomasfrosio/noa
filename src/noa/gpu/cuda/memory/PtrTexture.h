@@ -33,7 +33,7 @@
 //      -- Data in the bounded CUDA array can be updated but texture cache is unchanged until a new kernel is launched.
 //      -- The device pointer or a CUDA array should not be freed while the texture is being used.
 //
-// TODO(TF) Add the other BorderMode, especially BORDER_VALUE by doing the addressing ourself. This could be done by
+// TODO(TF) Add the other BorderMode, especially BORDER_VALUE by doing the addressing ourselves. This could be done by
 //          passing the BorderMode to the texture functions. Normalization of the coordinates will be done by these
 //          functions when required (e.g. INTERP_LINEAR and BORDER_MIRROR).
 
@@ -53,14 +53,14 @@ namespace noa::cuda::memory {
 
     public: // Texture utilities
         /// Returns a texture object's texture descriptor.
-        static cudaTextureDesc getDescription(cudaTextureObject_t texture) {
+        static cudaTextureDesc description(cudaTextureObject_t texture) {
             cudaTextureDesc tex_desc{};
             NOA_THROW_IF(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
             return tex_desc;
         }
 
         /// Returns a texture object's texture descriptor.
-        static cudaResourceDesc getResource(cudaTextureObject_t texture) {
+        static cudaResourceDesc resource(cudaTextureObject_t texture) {
             cudaResourceDesc tex_desc{};
             NOA_THROW_IF(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
             return tex_desc;
@@ -68,7 +68,7 @@ namespace noa::cuda::memory {
 
         /// Whether or not \p texture is using normalized coordinates.
         static bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
-            return getDescription(texture).normalizedCoords;
+            return description(texture).normalizedCoords;
         }
 
         /// Sets the underlying texture filter and coordinate mode according to \p interp and \p border.
@@ -86,10 +86,10 @@ namespace noa::cuda::memory {
         ///
         /// \throw If \p interp and \p border are incompatible or not supported.
         /// \see transform::tex1D(), transform::tex2D() and transform::tex3D() for more details.
-        static void setDescription(InterpMode interp, BorderMode border,
-                                   cudaTextureFilterMode* filter_mode,
-                                   cudaTextureAddressMode* address_mode,
-                                   bool* normalized_coordinates) {
+        static void description(InterpMode interp, BorderMode border,
+                                cudaTextureFilterMode* filter_mode,
+                                cudaTextureAddressMode* address_mode,
+                                bool* normalized_coordinates) {
             switch (interp) {
                 case INTERP_NEAREST:
                 case INTERP_LINEAR:
@@ -166,7 +166,7 @@ namespace noa::cuda::memory {
         /// Creates a 2D texture from a padded memory layout.
         /// \param[in] array                    On the \b device. Its lifetime should exceed the life of this new object.
         /// \param pitch                        Pitch, in elements, of \p array.
-        /// \param shape                        Rightmost shape of \p array.
+        /// \param shape                        DHW shape of \p array.
         /// \param interp_mode                  Filter mode, either cudaFilterModePoint or cudaFilterModeLinear.
         /// \param border_mode                  Address mode, either cudaAddressModeWrap, cudaAddressModeClamp,
         ///                                     cudaAddressModeMirror or cudaAddressModeBorder.
@@ -256,13 +256,13 @@ namespace noa::cuda::memory {
         /// \param[in] array    CUDA array. Its lifetime should exceed the life of this new object.
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-        /// \see PtrTexture::setDescription() for more details.
+        /// \see PtrTexture::description() for more details.
         static std::unique_ptr<cudaTextureObject_t, Deleter>
         alloc(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
-            setDescription(interp_mode, border_mode, &filter, &address, &normalized_coords);
+            description(interp_mode, border_mode, &filter, &address, &normalized_coords);
             auto tex = alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
             return {new cudaTextureObject_t(tex), Deleter{}};
         }
@@ -270,17 +270,17 @@ namespace noa::cuda::memory {
         /// Creates a 2D texture from a padded memory layout.
         /// \param[in] array    On the \b device. Its lifetime should exceed the life of this new object.
         /// \param pitch        Pitch, in elements, of \p array.
-        /// \param shape        Rightmost shape of \p array.
+        /// \param shape        DHW shape of \p array.
         /// \param interp_mode  Any of InterpMode.
         /// \param border_mode  Either BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-        /// \see PtrTexture::setDescription() for more details.
+        /// \see PtrTexture::description() for more details.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
         static std::unique_ptr<cudaTextureObject_t, Deleter>
         alloc(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
-            setDescription(interp_mode, border_mode, &filter, &address, &normalized_coords);
+            description(interp_mode, border_mode, &filter, &address, &normalized_coords);
             const auto tex = alloc(array, pitch, shape, filter, address, cudaReadModeElementType, normalized_coords);
             return {new cudaTextureObject_t(tex), Deleter{}};
         }

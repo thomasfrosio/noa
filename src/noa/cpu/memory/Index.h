@@ -92,10 +92,9 @@ namespace noa::cpu::memory {
     /// \param[in] lhs          On the \b host. Used as left-hand side argument.
     /// \param lhs_strides      Strides, in elements, of \p lhs.
     /// \param shape            Shape of \p input and \p lhs.
-    /// \param unary_op         Unary operation device function object that will be used as criterion to extract elements.
+    /// \param unary_op         Unary operator that will be used as criterion to extract elements.
     ///                         Each element of \p lhs is passed through that operator and if the return value
     ///                         evaluates to true, the corresponding element in \p input is extracted.
-    ///                         Supported unary operator: noa::math::logical_not_t.
     /// \param extract_values   Whether the elements should be extracted.
     /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
@@ -120,11 +119,9 @@ namespace noa::cpu::memory {
     /// \param lhs_strides      Strides, in elements, of \p lhs.
     /// \param rhs              Value to use as right-hand side argument.
     /// \param shape            Shape of \p input and \p lhs.
-    /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
+    /// \param binary_op        Binary operator that will be used as criterion to extract elements.
     ///                         Each element of \p lhs and \p rhs are passed through that operator and if the return
     ///                         value evaluates to true, the corresponding element in \p input is extracted.
-    ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
-    ///                         greater_t, greater_equal_t.
     /// \param extract_values   Whether the elements should be extracted.
     /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
@@ -149,11 +146,9 @@ namespace noa::cpu::memory {
     /// \param[in] rhs          On the \b host. Used as right-hand side argument.
     /// \param rhs_strides      Strides, in elements, of \p rhs.
     /// \param shape            Shape of \p input and \p rhs.
-    /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
+    /// \param binary_op        Binary operator that will be used as criterion to extract elements.
     ///                         \p lhs and each element of \p rhs are passed through that operator and if the return
     ///                         value evaluates to true, the corresponding element in \p input is extracted.
-    ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
-    ///                         greater_t, greater_equal_t.
     /// \param extract_values   Whether the elements should be extracted.
     /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.
@@ -179,11 +174,9 @@ namespace noa::cpu::memory {
     /// \param[in] rhs          On the \b host. Used as right-hand side argument.
     /// \param rhs_strides      Strides, in elements, of \p rhs.
     /// \param shape            Shape of \p input, \p lhs and \p rhs.
-    /// \param binary_op        Binary operation function object that will be used as criterion to extract elements.
+    /// \param binary_op        Binary operator that will be used as criterion to extract elements.
     ///                         Each element of both \p lhs and \p rhs are passed through that operator and if the
     ///                         return value evaluates to true, the corresponding element in \p input is extracted.
-    ///                         Supported noa::math binary operator: equal_t, not_equal_t, less_t, less_equal_t,
-    ///                         greater_t, greater_equal_t.
     /// \param extract_values   Whether the elements should be extracted.
     /// \param extract_offsets  Whether the offsets should be extracted. These offsets are mostly used when the
     ///                         extracted elements needs to be inserted back into the input array.

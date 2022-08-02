@@ -228,8 +228,8 @@ namespace noa::cuda {
         }
     };
 
-    NOA_IH bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
-    NOA_IH bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
+    inline bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
+    inline bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
 }
 
 namespace noa::cuda {
@@ -251,9 +251,9 @@ namespace noa::cuda {
         Device m_previous_current;
     };
 
-    NOA_IH bool operator==(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() == rhs.id(); }
-    NOA_IH bool operator==(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() == rhs.id(); }
+    inline bool operator==(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() == rhs.id(); }
+    inline bool operator==(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() == rhs.id(); }
 
-    NOA_IH bool operator!=(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() != rhs.id(); }
-    NOA_IH bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
+    inline bool operator!=(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() != rhs.id(); }
+    inline bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 }

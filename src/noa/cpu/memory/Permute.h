@@ -17,7 +17,7 @@ namespace noa::cpu::memory {
     /// \param input_shape      Shape of \p input.
     /// \param[out] output      On the \b host. Output permuted array.
     /// \param output_strides   Strides, in elements, of \p output.
-    /// \param permutation      Permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
+    /// \param permutation      Permutation. Axes are numbered from 0 to 3.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.

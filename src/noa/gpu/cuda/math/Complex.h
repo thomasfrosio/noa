@@ -14,66 +14,66 @@ namespace noa::cuda::math {
     /// Extracts the real and imaginary part of complex numbers.
     /// \tparam T               half_t, float, double.
     /// \param[in] input        On the \b device. Complex array to decompose.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[out] real        On the \b device. Real elements.
-    /// \param real_stride      Rightmost stride, in elements, of \p real.
+    /// \param real_strides     Strides, in elements, of \p real.
     /// \param[out] imag        On the \b device. Imaginary elements.
-    /// \param imag_stride      Rightmost stride, in elements, of \p imag.
-    /// \param shape            Rightmost shape of \p input, \p real and \p imag.
+    /// \param imag_strides     Strides, in elements, of \p imag.
+    /// \param shape            Shape of \p input, \p real and \p imag.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
-    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& real, size4_t real_stride,
-                   const shared_t<T[]>& imag, size4_t imag_stride,
+    void decompose(const shared_t<Complex<T>[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& real, size4_t real_strides,
+                   const shared_t<T[]>& imag, size4_t imag_strides,
                    size4_t shape, Stream& stream);
 
     /// Extracts the real part of complex numbers.
     /// \tparam T               half_t, float, double.
     /// \param[in] input        On the \b device. Complex array to decompose.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[out] real        On the \b device. Real elements.
-    /// \param real_stride      Rightmost stride, in elements, of \p real.
-    /// \param shape            Rightmost shape of \p input and \p real.
+    /// \param real_strides     Strides, in elements, of \p real.
+    /// \param shape            Shape of \p input and \p real.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
-    NOA_IH void real(const shared_t<Complex<T>[]>& input, size4_t input_stride,
-                     const shared_t<T[]>& real, size4_t real_stride,
+    inline void real(const shared_t<Complex<T>[]>& input, size4_t input_strides,
+                     const shared_t<T[]>& real, size4_t real_strides,
                      size4_t shape, Stream& stream) {
-        cuda::math::ewise(input, input_stride, real, real_stride, shape, noa::math::real_t{}, stream);
+        cuda::math::ewise(input, input_strides, real, real_strides, shape, noa::math::real_t{}, stream);
     }
 
     /// Extracts the imaginary part of complex numbers.
     /// \tparam T               half_t, float, double.
     /// \param[in] input        On the \b device. Complex array to decompose.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
+    /// \param input_strides    Strides, in elements, of \p input.
     /// \param[out] imag        On the \b device. Imaginary elements.
-    /// \param imag_stride      Rightmost stride, in elements, of \p imag.
-    /// \param shape            Rightmost shape of \p input and \p imag.
+    /// \param imag_strides     Strides, in elements, of \p imag.
+    /// \param shape            Shape of \p input and \p imag.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
-    NOA_IH void imag(const shared_t<Complex<T>[]>& input, size4_t input_stride,
-                     const shared_t<T[]>& imag, size4_t imag_stride,
+    inline void imag(const shared_t<Complex<T>[]>& input, size4_t input_strides,
+                     const shared_t<T[]>& imag, size4_t imag_strides,
                      size4_t shape, Stream& stream) {
-        cuda::math::ewise(input, input_stride, imag, imag_stride, shape, noa::math::imag_t{}, stream);
+        cuda::math::ewise(input, input_strides, imag, imag_strides, shape, noa::math::imag_t{}, stream);
     }
 
     /// Fuses the real and imaginary components.
     /// \tparam T               half_t, float, double.
     /// \param[in] real         On the \b device. Real elements to interleave.
-    /// \param real_stride      Rightmost strides, in elements, of \p real.
+    /// \param real_strides     Strides, in elements, of \p real.
     /// \param[in] imag         On the \b device. Imaginary elements to interleave.
-    /// \param imag_stride      Rightmost strides, in elements, of \p imag.
+    /// \param imag_strides     Strides, in elements, of \p imag.
     /// \param output           On the \b device. Complex array.
-    /// \param output_stride    Rightmost strides, in elements, of \p output.
-    /// \param shape            Rightmost shape of \p real, \p imag and \p output.
+    /// \param output_strides   Strides, in elements, of \p output.
+    /// \param shape            Shape of \p real, \p imag and \p output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
-    void complex(const shared_t<T[]>& real, size4_t real_stride,
-                 const shared_t<T[]>& imag, size4_t imag_stride,
-                 const shared_t<Complex<T>[]>& output, size4_t output_stride,
+    void complex(const shared_t<T[]>& real, size4_t real_strides,
+                 const shared_t<T[]>& imag, size4_t imag_strides,
+                 const shared_t<Complex<T>[]>& output, size4_t output_strides,
                  size4_t shape, Stream& stream);
 }

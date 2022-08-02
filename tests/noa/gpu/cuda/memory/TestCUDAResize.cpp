@@ -79,23 +79,23 @@ TEST_CASE("cuda::memory::resize()", "[assets][noa][cuda][memory]") {
         {
             cuda::memory::PtrDevicePadded<float> d_input(input_shape);
             cuda::memory::PtrDevicePadded<float> d_output(output_shape);
-            cuda::memory::copy<float>(h_input.share(), input_shape.strides(),
-                                      d_input.share(), d_input.strides(),
-                                      d_input.shape(), stream);
-            cuda::memory::copy<float>(h_output.share(), output_shape.strides(),
-                                      d_output.share(), d_output.strides(),
-                                      d_output.shape(), stream);
+            cuda::memory::copy(h_input.share(), input_shape.strides(),
+                               d_input.share(), d_input.strides(),
+                               d_input.shape(), stream);
+            cuda::memory::copy(h_output.share(), output_shape.strides(),
+                               d_output.share(), d_output.strides(),
+                               d_output.shape(), stream);
 
             if (is_centered) {
-                cuda::memory::resize<float>(d_input.share(), d_input.strides(), input_shape,
-                                            d_output.share(), d_output.strides(), output_shape,
-                                            border_mode, border_value, stream);
+                cuda::memory::resize(d_input.share(), d_input.strides(), input_shape,
+                                     d_output.share(), d_output.strides(), output_shape,
+                                     border_mode, border_value, stream);
             } else {
-                cuda::memory::resize<float>(d_input.share(), d_input.strides(), input_shape, left, right,
-                                            d_output.share(), d_output.strides(), border_mode, border_value, stream);
+                cuda::memory::resize(d_input.share(), d_input.strides(), input_shape, left, right,
+                                     d_output.share(), d_output.strides(), border_mode, border_value, stream);
             }
-            cuda::memory::copy<float>(d_output.share(), d_output.strides(),
-                                      h_output.share(), output_shape.strides(), d_output.shape(), stream);
+            cuda::memory::copy(d_output.share(), d_output.strides(),
+                               h_output.share(), output_shape.strides(), d_output.shape(), stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), h_output.get(), h_output.size(), 1e-6));
         }

@@ -30,15 +30,17 @@ set(BENCHMARK_CPU_SOURCES
 
 set(BENCHMARK_CUDA_SOURCES
 #        src/gpu/cuda/fft/BenchCUDAFilters.cpp
-        src/gpu/cuda/fft/BenchCUDATransforms.cpp
+#        src/gpu/cuda/fft/BenchCUDATransforms.cpp
 
 #        src/gpu/cuda/math/BenchCUDAArithmetics.cpp
-        src/gpu/cuda/math/BenchCUDABlas.cpp
-        src/gpu/cuda/math/BenchCUDAReductions.cpp
+#        src/gpu/cuda/math/BenchCUDABlas.cpp
+#        src/gpu/cuda/math/BenchCUDAReductions.cpp
 
-        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
-        src/gpu/cuda/geometry/BenchCUDARotate.cpp
-        src/gpu/cuda/geometry/BenchCUDASymmetry.cpp
+        src/gpu/cuda/memory/BenchCUDACopy.cpp
+
+#        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
+#        src/gpu/cuda/geometry/BenchCUDARotate.cpp
+#        src/gpu/cuda/geometry/BenchCUDASymmetry.cpp
         )
 
 set(BENCHMARK_UNIFIED_SOURCES
@@ -51,7 +53,7 @@ if (NOA_ENABLE_CUDA)
     set(BENCHMARK_SOURCES
             ${BENCHMARK_SOURCES}
             ${BENCHMARK_CPU_SOURCES}
-#            ${BENCHMARK_CUDA_SOURCES}
+            ${BENCHMARK_CUDA_SOURCES}
             ${BENCHMARK_UNIFIED_SOURCES}
             )
 endif ()

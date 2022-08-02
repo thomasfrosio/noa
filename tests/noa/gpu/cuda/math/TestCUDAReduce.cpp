@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, padded", "[noa][cuda][math]",
 
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
     if constexpr (!noa::traits::is_complex_v<TestType>) {
         AND_THEN("min") {
@@ -221,7 +221,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, large, padded", "[noa][cuda][math]"
 
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
     AND_THEN("sum") {
         gpu_results = cuda::math::sum<TestType>(d_data.share(), d_data.strides(), shape, gpu_stream);
@@ -272,7 +272,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce statistics, contiguous", "[noa][cuda][ma
 
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride, d_data.share(), stride, shape, gpu_stream);
 
     using real_t = noa::traits::value_type_t<TestType>;
     auto[gpu_sum, gpu_mean, gpu_var, gpu_std] =
@@ -299,7 +299,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce statistics, padded", "[noa][cuda][math]"
 
     test::Randomizer<TestType> randomizer(-100., 100.);
     test::randomize(h_data.get(), h_data.elements(), randomizer);
-    cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+    cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
     using real_t = noa::traits::value_type_t<TestType>;
     auto[gpu_sum, gpu_mean, gpu_var, gpu_std] =
@@ -337,7 +337,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce 1 axis", "[assets][noa][cuda][math]",
 
     test::Randomizer<TestType> randomizer(-30., 100.);
     test::randomize(h_input.get(), h_input.elements(), randomizer);
-    cuda::memory::copy<TestType>(h_input.share(), input_stride, d_input.share(), input_stride, input_shape, gpu_stream);
+    cuda::memory::copy(h_input.share(), input_stride, d_input.share(), input_stride, input_shape, gpu_stream);
 
     if constexpr (!noa::traits::is_complex_v<TestType>) {
         AND_THEN("min") {
@@ -483,7 +483,7 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce innermost axes", "[assets][noa][cuda][ma
 
     test::Randomizer<TestType> randomizer(-30., 100.);
     test::randomize(h_input.get(), h_input.elements(), randomizer);
-    cuda::memory::copy<TestType>(h_input.share(), input_stride, d_input.share(), input_stride, input_shape, gpu_stream);
+    cuda::memory::copy(h_input.share(), input_stride, d_input.share(), input_stride, input_shape, gpu_stream);
 
     if constexpr (!noa::traits::is_complex_v<TestType>) {
         AND_THEN("min") {

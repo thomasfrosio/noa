@@ -154,7 +154,7 @@ namespace noa::cpu::signal::fft {
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, stream);
+            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
             const long1_t shape_1d{static_cast<int64_t>(shape[3])};
             const long1_t strides_1d{static_cast<int64_t>(strides[3])};
             for (size_t batch = 0; batch < shape[0]; ++batch) {
@@ -169,7 +169,7 @@ namespace noa::cpu::signal::fft {
     float xpeak1D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 1);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
-        const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, stream);
+        const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, true, stream);
 
         const bool is_column = shape[3] == 1;
         const long1_t peak{offset / static_cast<int64_t>(strides[3 - is_column])};
@@ -184,7 +184,7 @@ namespace noa::cpu::signal::fft {
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, stream);
+            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
             const auto pitch = static_cast<int64_t>(strides[2]);
             NOA_ASSERT(pitch != 0);
             const long2_t shape_2d(shape.get(2));
@@ -201,7 +201,7 @@ namespace noa::cpu::signal::fft {
     float2_t xpeak2D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 2);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
-        const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, stream);
+        const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, true, stream);
         const auto pitch = static_cast<int64_t>(strides[2]);
         NOA_ASSERT(pitch != 0);
         const long2_t shape_2d(shape.get(2));
@@ -216,7 +216,7 @@ namespace noa::cpu::signal::fft {
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, stream);
+            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
             const long2_t pitch{strides[1] / strides[2], strides[2]};
             const long3_t shape_3d(shape.get(1));
             const long3_t strides_3d(strides.get(1));
@@ -231,7 +231,7 @@ namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename T, typename>
     float3_t xpeak3D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape, Stream& stream) {
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
-        const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, stream);
+        const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, true, stream);
         const long2_t pitch{strides[1] / strides[2], strides[2]};
         const long3_t shape_3d(shape.get(1));
         const long3_t strides_3d(strides.get(1));

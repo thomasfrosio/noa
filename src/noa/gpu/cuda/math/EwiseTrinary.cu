@@ -4,58 +4,58 @@
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename TrinaryOp, typename>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride, U mhs, U rhs,
-               const shared_t<V[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, U rhs,
+               const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
         cuda::util::ewise::trinary("math::ewise",
-                                   lhs.get(), lhs_stride, mhs, rhs,
-                                   output.get(), output_stride,
-                                   shape, stream, trinary_op);
+                                   lhs.get(), lhs_strides, mhs, rhs,
+                                   output.get(), output_strides,
+                                   shape, true, stream, trinary_op);
         stream.attach(lhs, output);
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& mhs, size4_t mhs_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
+               const shared_t<U[]>& mhs, size4_t mhs_strides,
                V rhs,
-               const shared_t<W[]>& output, size4_t output_stride,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
         cuda::util::ewise::trinary("math::ewise",
-                                   lhs.get(), lhs_stride,
-                                   mhs.get(), mhs_stride,
+                                   lhs.get(), lhs_strides,
+                                   mhs.get(), mhs_strides,
                                    rhs,
-                                   output.get(), output_stride,
-                                   shape, stream, trinary_op);
+                                   output.get(), output_strides,
+                                   shape, true, stream, trinary_op);
         stream.attach(lhs, mhs, output);
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
                V mhs,
-               const shared_t<U[]>& rhs, size4_t rhs_stride,
-               const shared_t<W[]>& output, size4_t output_stride,
+               const shared_t<U[]>& rhs, size4_t rhs_strides,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
         cuda::util::ewise::trinary("math::ewise",
-                                   lhs.get(), lhs_stride,
+                                   lhs.get(), lhs_strides,
                                    mhs,
-                                   rhs.get(), rhs_stride,
-                                   output.get(), output_stride,
-                                   shape, stream, trinary_op);
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output_strides,
+                                   shape, true, stream, trinary_op);
         stream.attach(lhs, rhs, output);
     }
 
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_stride,
-               const shared_t<U[]>& mhs, size4_t mhs_stride,
-               const shared_t<V[]>& rhs, size4_t rhs_stride,
-               const shared_t<W[]>& output, size4_t output_stride,
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
+               const shared_t<U[]>& mhs, size4_t mhs_strides,
+               const shared_t<V[]>& rhs, size4_t rhs_strides,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
         cuda::util::ewise::trinary("math::ewise",
-                                   lhs.get(), lhs_stride,
-                                   mhs.get(), mhs_stride,
-                                   rhs.get(), rhs_stride,
-                                   output.get(), output_stride,
-                                   shape, stream, trinary_op);
+                                   lhs.get(), lhs_strides,
+                                   mhs.get(), mhs_strides,
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output_strides,
+                                   shape, true, stream, trinary_op);
         stream.attach(lhs, mhs, rhs, output);
     }
 
