@@ -85,15 +85,15 @@ namespace {
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, Type PASS, bool HAS_WIDTH, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void singlePass_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
+    void singlePass_(const T* input, uint4_t input_strides, T* output, uint4_t output_strides,
                      int3_t shape, float3_t norm, float cutoff, float width, uint blocks_x) {
         using real_t = noa::traits::value_type_t<T>;
 
         const uint batch = blockIdx.z;
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int3_t gid(blockIdx.y,
+        const int3_t gid{blockIdx.y,
                          BLOCK_SIZE.y * index[0] + threadIdx.y,
-                         BLOCK_SIZE.x * index[1] + threadIdx.x);
+                         BLOCK_SIZE.x * index[1] + threadIdx.x};
         if (gid[2] >= shape[2] / 2 + 1 || gid[1] >= shape[1])
             return;
 
@@ -111,13 +111,13 @@ namespace {
         // Save to output.
         const int oz = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[0], shape[0]);
         const int oy = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[1]);
-        output[indexing::at(batch, oz, oy, gid[2], output_stride)] =
-                input ? input[indexing::at(batch, gid[0], gid[1], gid[2], input_stride)] * filter : filter;
+        output[indexing::at(batch, oz, oy, gid[2], output_strides)] =
+                input ? input[indexing::at(batch, gid[0], gid[1], gid[2], input_strides)] * filter : filter;
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, bool HAS_WIDTH, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void bandPass_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
+    void bandPass_(const T* input, uint4_t input_strides, T* output, uint4_t output_strides,
                    int3_t shape, float3_t norm,
                    float cutoff_1, float cutoff_2,
                    float width_1, float width_2, uint blocks_x) {
@@ -125,9 +125,9 @@ namespace {
 
         const uint batch = blockIdx.z;
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int3_t gid(blockIdx.y,
+        const int3_t gid{blockIdx.y,
                          BLOCK_SIZE.y * index[0] + threadIdx.y,
-                         BLOCK_SIZE.x * index[1] + threadIdx.x);
+                         BLOCK_SIZE.x * index[1] + threadIdx.x};
         if (gid[2] >= shape[2] / 2 + 1 || gid[1] >= shape[1])
             return;
 
@@ -148,15 +148,15 @@ namespace {
         // Save to output.
         const int oz = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[0], shape[0]);
         const int oy = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(gid[1], shape[1]);
-        output[indexing::at(batch, oz, oy, gid[2], output_stride)] =
-                input ? input[indexing::at(batch, gid[0], gid[1], gid[2], input_stride)] * filter : filter;
+        output[indexing::at(batch, oz, oy, gid[2], output_strides)] =
+                input ? input[indexing::at(batch, gid[0], gid[1], gid[2], input_strides)] * filter : filter;
     }
 }
 
 namespace {
     template<Type PASS, ::noa::fft::Remap REMAP, typename T>
-    void launchSinglePass_(const shared_t<T[]>& input, size4_t input_stride,
-                           const shared_t<T[]>& output, size4_t output_stride,
+    void launchSinglePass_(const shared_t<T[]>& input, size4_t input_strides,
+                           const shared_t<T[]>& output, size4_t output_strides,
                            size4_t shape, float cutoff, float width, cuda::Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -166,8 +166,8 @@ namespace {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
-        const int3_t s_shape{shape.get(1)};
-        float3_t norm{s_shape / 2 * 2 + int3_t{s_shape == 1}};
+        const int3_t s_shape(shape.get(1));
+        float3_t norm(s_shape / 2 * 2 + int3_t(s_shape == 1));
         norm = 1.f / norm;
 
         const uint blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(BLOCK_SIZE.x));
@@ -179,7 +179,7 @@ namespace {
                 width > 1e-6f ?
                 singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, true, T> :
                 singlePass_<IS_SRC_CENTERED, IS_DST_CENTERED, PASS, false, T>, config,
-                input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape,
+                input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides), s_shape,
                 norm, cutoff, width, blocks_x);
         stream.attach(input, output);
     }
@@ -187,24 +187,24 @@ namespace {
 
 namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename T, typename>
-    void lowpass(const shared_t<T[]>& input, size4_t input_stride,
-                 const shared_t<T[]>& output, size4_t output_stride,
+    void lowpass(const shared_t<T[]>& input, size4_t input_strides,
+                 const shared_t<T[]>& output, size4_t output_strides,
                  size4_t shape, float cutoff, float width, Stream& stream) {
         launchSinglePass_<Type::LOWPASS, REMAP>(
-                input, input_stride, output, output_stride, shape, cutoff, width, stream);
+                input, input_strides, output, output_strides, shape, cutoff, width, stream);
     }
 
     template<Remap REMAP, typename T, typename>
-    void highpass(const shared_t<T[]>& input, size4_t input_stride,
-                  const shared_t<T[]>& output, size4_t output_stride,
+    void highpass(const shared_t<T[]>& input, size4_t input_strides,
+                  const shared_t<T[]>& output, size4_t output_strides,
                   size4_t shape, float cutoff, float width, Stream& stream) {
         launchSinglePass_<Type::HIGHPASS, REMAP>(
-                input, input_stride, output, output_stride, shape, cutoff, width, stream);
+                input, input_strides, output, output_strides, shape, cutoff, width, stream);
     }
 
     template<Remap REMAP, typename T, typename>
-    void bandpass(const shared_t<T[]>& input, size4_t input_stride,
-                  const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void bandpass(const shared_t<T[]>& input, size4_t input_strides,
+                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2, Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -226,7 +226,7 @@ namespace noa::cuda::signal::fft {
                 width1 > 1e-6f || width2 > 1e-6f ?
                 bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, true, T> :
                 bandPass_<IS_SRC_CENTERED, IS_DST_CENTERED, false, T>, config,
-                input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride}, s_shape, norm,
+                input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides), s_shape, norm,
                 cutoff1, cutoff2, width1, width2, blocks_x);
         stream.attach(input, output);
     }

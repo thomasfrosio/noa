@@ -43,14 +43,14 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, f
 
     AND_THEN("INVERT = false") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+        cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
         // Test saving the mask.
         cuda::signal::rectangle<false, TestType>(nullptr, {}, d_mask.share(), d_mask.strides(), shape,
                                                  center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_mask.share(), d_mask.strides(),
-                                     h_cuda_mask.share(), stride,
-                                     d_mask.shape(), gpu_stream);
+        cuda::memory::copy(d_mask.share(), d_mask.strides(),
+                           h_cuda_mask.share(), stride,
+                           d_mask.shape(), gpu_stream);
         cpu::signal::rectangle<false, TestType>(nullptr, {}, h_mask.share(), stride, shape,
                                                 center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -61,7 +61,7 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, f
         cuda::signal::rectangle<false, TestType>(d_data.share(), d_data.strides(),
                                                  d_data.share(), d_data.strides(), shape,
                                                  center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+        cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
         cpu::signal::rectangle<false, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
                                                 center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -71,14 +71,14 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, f
 
     AND_THEN("INVERT = true") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+        cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
         // Test saving the mask.
         cuda::signal::rectangle<true, TestType>(nullptr, {}, d_mask.share(), d_mask.strides(), shape,
                                                 center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_mask.share(), d_mask.strides(),
-                                     h_cuda_mask.share(), stride,
-                                     d_mask.shape(), gpu_stream);
+        cuda::memory::copy(d_mask.share(), d_mask.strides(),
+                           h_cuda_mask.share(), stride,
+                           d_mask.shape(), gpu_stream);
         cpu::signal::rectangle<true, TestType>(nullptr, {}, h_mask.share(), stride, shape,
                                                center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -88,7 +88,7 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, f
         // Test on-the-fly, in-place.
         cuda::signal::rectangle<true, TestType>(d_data.share(), d_data.strides(), d_data.share(), d_data.strides(), shape,
                                                 center, radius, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+        cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
         cpu::signal::rectangle<true, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
                                                center, radius, taper, cpu_stream);
         gpu_stream.synchronize();

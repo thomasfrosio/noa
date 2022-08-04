@@ -57,15 +57,15 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Random.h
         gpu/cuda/math/Reduce.h
 
-#        # noa::cuda::signal
-#        gpu/cuda/signal/fft/Bandpass.h
-#        gpu/cuda/signal/fft/Correlate.h
-#        gpu/cuda/signal/fft/Shift.h
-#        gpu/cuda/signal/fft/Standardize.h
-#        gpu/cuda/signal/Convolve.h
-#        gpu/cuda/signal/Median.h
-#        gpu/cuda/signal/Shape.h
-#
+        # noa::cuda::signal
+        gpu/cuda/signal/fft/Bandpass.h
+        gpu/cuda/signal/fft/Correlate.h
+        gpu/cuda/signal/fft/Shift.h
+        gpu/cuda/signal/fft/Standardize.h
+        gpu/cuda/signal/Convolve.h
+        gpu/cuda/signal/Median.h
+        gpu/cuda/signal/Shape.h
+
 #        # noa::cuda::geometry
 #        gpu/cuda/geometry/fft/Polar.h
 #        gpu/cuda/geometry/fft/Project.h
@@ -119,20 +119,20 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu
 
-#        # noa::cuda::signal
-#        gpu/cuda/signal/fft/Bandpass.cu
-#        gpu/cuda/signal/fft/Correlate.cu
-#        gpu/cuda/signal/fft/Shift.cu
-#        gpu/cuda/signal/fft/Standardize.cu
-#        gpu/cuda/signal/Convolve1.cu
-#        gpu/cuda/signal/Convolve2.cu
-#        gpu/cuda/signal/Convolve3.cu
-#        gpu/cuda/signal/ConvolveSeparable.cu
-#        gpu/cuda/signal/Median.cu
-#        gpu/cuda/signal/ShapeCylinder.cu
-#        gpu/cuda/signal/ShapeRectangle.cu
-#        gpu/cuda/signal/ShapeSphere.cu
-#
+        # noa::cuda::signal
+        gpu/cuda/signal/fft/Bandpass.cu
+        gpu/cuda/signal/fft/Correlate.cu
+        gpu/cuda/signal/fft/Shift.cu
+        gpu/cuda/signal/fft/Standardize.cu
+        gpu/cuda/signal/Convolve1.cu
+        gpu/cuda/signal/Convolve2.cu
+        gpu/cuda/signal/Convolve3.cu
+        gpu/cuda/signal/ConvolveSeparable.cu
+        gpu/cuda/signal/Median.cu
+        gpu/cuda/signal/ShapeCylinder.cu
+        gpu/cuda/signal/ShapeRectangle.cu
+        gpu/cuda/signal/ShapeSphere.cu
+
 #        # noa::cuda::geometry
 #        gpu/cuda/geometry/fft/Polar.cu
 #        gpu/cuda/geometry/fft/Project.cu

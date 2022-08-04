@@ -64,7 +64,7 @@ namespace {
 
     template<bool TAPER, bool INVERT, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void rectangle_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
+    void rectangle_(const T* input, uint4_t input_strides, T* output, uint4_t output_strides,
                     uint2_t start, uint2_t end, uint batches,
                     float3_t center, float3_t radius, float taper_size) {
         const uint3_t gid{blockIdx.z,
@@ -73,7 +73,7 @@ namespace {
         if (gid[1] >= end[0] || gid[2] >= end[1])
             return;
 
-        float3_t distance{gid};
+        float3_t distance(gid);
         distance -= center;
         distance = math::abs(distance);
 
@@ -87,12 +87,12 @@ namespace {
         }
 
         using real_t = traits::value_type_t<T>;
-        const uint offset = gid[0] * input_stride[1] + gid[1] * input_stride[2] + gid[2] * input_stride[3];
-        output += gid[0] * output_stride[1] + gid[1] * output_stride[2] + gid[2] * output_stride[3];
+        const uint offset = gid[0] * input_strides[1] + gid[1] * input_strides[2] + gid[2] * input_strides[3];
+        output += gid[0] * output_strides[1] + gid[1] * output_strides[2] + gid[2] * output_strides[3];
         for (uint batch = 0; batch < batches; ++batch) {
-            output[batch * output_stride[0]] =
+            output[batch * output_strides[0]] =
                     input ?
-                    input[batch * input_stride[0] + offset] * static_cast<real_t>(mask) :
+                    input[batch * input_strides[0] + offset] * static_cast<real_t>(mask) :
                     static_cast<real_t>(mask);
         }
     }
@@ -100,17 +100,27 @@ namespace {
 
 namespace noa::cuda::signal {
     template<bool INVERT, typename T, typename>
-    void rectangle(const shared_t<T[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void rectangle(const shared_t<T[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
-        uint3_t start{0}, end{shape.get(1)};
+        const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1)));
+        if (any(order_3d != size3_t{0, 1, 2})) {
+            const size4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
+            input_strides = indexing::reorder(input_strides, order);
+            output_strides = indexing::reorder(output_strides, order);
+            shape = indexing::reorder(shape, order);
+            center = indexing::reorder(center, order_3d);
+            radius = indexing::reorder(radius, order_3d);
+        }
+
+        uint3_t start{0}, end(shape.get(1));
         if (INVERT && input.get() == output.get()) {
-            start = uint3_t{noa::math::clamp(int3_t{center - (radius + taper_size)}, int3_t{}, int3_t{end})};
-            end = uint3_t{noa::math::clamp(int3_t{center + (radius + taper_size) + 1}, int3_t{}, int3_t{end})};
+            start = uint3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
+            end = uint3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
             if (any(end <= start))
                 return;
         }
-        const uint3_t shape_{end - start};
+        const uint3_t shape_(end - start);
         const dim3 blocks(math::divideUp(shape_[2], BLOCK_SIZE.x),
                           math::divideUp(shape_[1], BLOCK_SIZE.y),
                           shape_[0]);
@@ -118,8 +128,8 @@ namespace noa::cuda::signal {
 
         const bool taper = taper_size > 1e-5f;
         stream.enqueue("signal::rectangle", taper ? rectangle_<true, INVERT, T> : rectangle_<false, INVERT, T>, config,
-                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
-                       uint2_t{start.get(1)}, uint2_t{end.get(1)}, shape[0],
+                       input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
+                       uint2_t(start.get(1)), uint2_t(end.get(1)), shape[0],
                        center, radius, taper_size);
         stream.attach(input, output);
     }

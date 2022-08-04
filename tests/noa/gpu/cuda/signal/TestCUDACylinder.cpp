@@ -43,14 +43,14 @@ TEMPLATE_TEST_CASE("cuda::signal::cylinder(), padded", "[noa][cuda][filter]", ha
 
     AND_THEN("INVERT = false") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+        cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
         // Test saving the mask.
         cuda::signal::cylinder<false, TestType>(nullptr, {}, d_mask.share(), d_mask.strides(), shape,
                                                 center, radius, length, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_mask.share(), d_mask.strides(),
-                                     h_cuda_mask.share(), stride,
-                                     d_mask.shape(), gpu_stream);
+        cuda::memory::copy(d_mask.share(), d_mask.strides(),
+                           h_cuda_mask.share(), stride,
+                           d_mask.shape(), gpu_stream);
         cpu::signal::cylinder<false, TestType>(nullptr, {}, h_mask.share(), stride, shape,
                                                center, radius, length, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -60,9 +60,9 @@ TEMPLATE_TEST_CASE("cuda::signal::cylinder(), padded", "[noa][cuda][filter]", ha
         // Test on-the-fly, in-place.
         cuda::signal::cylinder<false, TestType>(d_data.share(), d_data.strides(), d_data.share(), d_data.strides(), shape,
                                       center, radius, length, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_data.share(), d_data.strides(),
-                                     h_cuda_data.share(), stride,
-                                     shape, gpu_stream);
+        cuda::memory::copy(d_data.share(), d_data.strides(),
+                           h_cuda_data.share(), stride,
+                           shape, gpu_stream);
         cpu::signal::cylinder<false, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
                                      center, radius, length, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -72,14 +72,14 @@ TEMPLATE_TEST_CASE("cuda::signal::cylinder(), padded", "[noa][cuda][filter]", ha
 
     AND_THEN("INVERT = true") {
         test::randomize(h_data.get(), h_data.elements(), randomizer);
-        cuda::memory::copy<TestType>(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+        cuda::memory::copy(h_data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
         // Test saving the mask.
         cuda::signal::cylinder<true, TestType>(nullptr, {}, d_mask.share(), d_mask.strides(), shape,
                                                center, radius, length, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_mask.share(), d_mask.strides(),
-                                     h_cuda_mask.share(), stride,
-                                     d_mask.shape(), gpu_stream);
+        cuda::memory::copy(d_mask.share(), d_mask.strides(),
+                           h_cuda_mask.share(), stride,
+                           d_mask.shape(), gpu_stream);
         cpu::signal::cylinder<true, TestType>(nullptr, {}, h_mask.share(), stride, shape,
                                               center, radius, length, taper, cpu_stream);
         gpu_stream.synchronize();
@@ -89,7 +89,7 @@ TEMPLATE_TEST_CASE("cuda::signal::cylinder(), padded", "[noa][cuda][filter]", ha
         // Test on-the-fly, in-place.
         cuda::signal::cylinder<true, TestType>(d_data.share(), d_data.strides(), d_data.share(), d_data.strides(), shape,
                                                center, radius, length, taper, gpu_stream);
-        cuda::memory::copy<TestType>(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
+        cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
         cpu::signal::cylinder<true, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
                                               center, radius, length, taper, cpu_stream);
         gpu_stream.synchronize();

@@ -78,7 +78,7 @@ namespace {
                 for (size_t k = start[1]; k < end[1]; ++k) {
                     for (size_t l = start[2]; l < end[2]; ++l) {
 
-                        float3_t distance(j, k, l);
+                        float3_t distance{j, k, l};
                         distance -= center;
                         distance = math::abs(distance);
 

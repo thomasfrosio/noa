@@ -83,7 +83,7 @@ TEMPLATE_TEST_CASE("cuda::signal::median(), random", "[noa][cuda][filter]", int,
     cuda::memory::PtrDevicePadded<TestType> d_result(shape);
     cpu::memory::PtrHost<TestType> cuda_result(elements);
     cpu::memory::PtrHost<TestType> h_result(elements);
-    cuda::memory::copy<TestType>(data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
+    cuda::memory::copy(data.share(), stride, d_data.share(), d_data.strides(), shape, gpu_stream);
 
     if (ndim == 1) {
         cuda::signal::median1<TestType>(d_data.share(), d_data.strides(),
@@ -107,7 +107,7 @@ TEMPLATE_TEST_CASE("cuda::signal::median(), random", "[noa][cuda][filter]", int,
                                        h_result.share(), stride,
                                        shape, mode, window, cpu_stream);
     }
-    cuda::memory::copy<TestType>(d_result.share(), d_result.strides(), cuda_result.share(), stride, shape, gpu_stream);
+    cuda::memory::copy(d_result.share(), d_result.strides(), cuda_result.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
 

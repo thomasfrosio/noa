@@ -15,17 +15,17 @@ namespace {
 
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve2_(const T* __restrict__ input, uint4_t input_stride,
-                    T* __restrict__ output, uint4_t output_stride,
+    void convolve2_(const T* __restrict__ input, uint4_t input_strides,
+                    T* __restrict__ output, uint4_t output_strides,
                     uint2_t shape, int2_t filter_size, uint blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int2_t tid(threadIdx.y, threadIdx.x);
-        const int4_t gid(blockIdx.z,
+        const int2_t tid{threadIdx.y, threadIdx.x};
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
-                         BLOCK_SIZE.x * index[1] + tid[1]);
-        input += indexing::at(gid[0], gid[1], input_stride);
+                         BLOCK_SIZE.x * index[1] + tid[1]};
+        input += indexing::at(gid[0], gid[1], input_strides);
 
         const int OFFSET = static_cast<int>(BLOCK_SIZE.x); // block is 16x16 square
         const int2_t PADDING(filter_size - 1);
@@ -41,7 +41,7 @@ namespace {
                 int i_x = gx - HALO[1];
                 bool is_in_x = i_x >= 0 && i_x < shape[1];
                 shared[ly * SHARED_LEN[1] + lx] = is_in_y && is_in_x ?
-                                                  input[i_y * input_stride[2] + i_x * input_stride[3]] :
+                                                  input[i_y * input_strides[2] + i_x * input_strides[3]] :
                                                   static_cast<T>(0);
             }
         }
@@ -54,22 +54,22 @@ namespace {
             for (int y = 0; y < filter_size[0]; ++y)
                 for (int x = 0; x < filter_size[1]; ++x)
                     result += shared[(tid[0] + y) * SHARED_LEN[1] + tid[1] + x] * window[y * filter_size[1] + x];
-            output[indexing::at(gid, output_stride)] = result;
+            output[indexing::at(gid, output_strides)] = result;
         }
     }
 }
 
 namespace noa::cuda::signal {
     template<typename T, typename U, typename>
-    void convolve2(const shared_t<T[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void convolve2(const shared_t<T[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                    const shared_t<U[]>& filter, size2_t filter_shape, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(filter_shape.elements() * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_ASSERT(all(filter_shape % 2 == 1));
 
         if (all(filter_shape <= 1))
-            return memory::copy(input, input_stride, output, output_stride, shape, stream);
+            return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter.get(), math::prod(filter_shape) * sizeof(T),
                                              0, cudaMemcpyDefault, stream.get()));
@@ -82,8 +82,8 @@ namespace noa::cuda::signal {
                                   (BLOCK_SIZE.y + filter_shape[0] - 1) * sizeof(T);
         const LaunchConfig config{blocks, BLOCK_SIZE, shared_bytes};
         stream.enqueue("filter::convolve2", convolve2_<T>, config,
-                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
-                       uint_shape, int2_t{filter_shape}, blocks_x);
+                       input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
+                       uint_shape, int2_t(filter_shape), blocks_x);
         stream.attach(input, output, filter);
     }
 

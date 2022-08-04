@@ -15,8 +15,8 @@ namespace {
 
     template<typename T, int FILTER_LEN>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve3Square_(const T* __restrict__ input, uint4_t input_stride,
-                          T* __restrict__ output, uint4_t output_stride,
+    void convolve3Square_(const T* __restrict__ input, uint4_t input_strides,
+                          T* __restrict__ output, uint4_t output_strides,
                           uint3_t shape, uint blocks_x) {
         static_assert(FILTER_LEN % 2); // only support odd windows.
         constexpr int PADDING = FILTER_LEN - 1; // assume odd
@@ -24,13 +24,13 @@ namespace {
         constexpr int3_t SHARED_LEN(FILTER_LEN, BLOCK_SIZE.y + PADDING, BLOCK_SIZE.x + PADDING);
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int2_t tid(threadIdx.y, threadIdx.x);
-        const int4_t gid(blockIdx.z,
+        const int2_t tid{threadIdx.y, threadIdx.x};
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
-                         BLOCK_SIZE.x * index[1] + tid[1]);
+                         BLOCK_SIZE.x * index[1] + tid[1]};
 
-        input += gid[0] * input_stride[0];
+        input += gid[0] * input_strides[0];
 
         using uninit_t = util::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[math::prod(SHARED_LEN)];
@@ -49,7 +49,7 @@ namespace {
                     int i_x = gx - HALO;
                     bool is_in_x = i_x >= 0 && i_x < shape[2];
                     shared[tmp + lx] = (is_in_z && is_in_y && is_in_x) ?
-                                       input[i_z * input_stride[1] + i_y * input_stride[2] + i_x * input_stride[3]] :
+                                       input[i_z * input_strides[1] + i_y * input_strides[2] + i_x * input_strides[3]] :
                                        static_cast<T>(0);
                 }
             }
@@ -65,28 +65,28 @@ namespace {
                     for (int x = 0; x < FILTER_LEN; ++x)
                         result += shared[(z * SHARED_LEN[1] + tid[0] + y) * SHARED_LEN[2] + tid[1] + x] *
                                   window[(z * FILTER_LEN + y) * FILTER_LEN + x];
-            output[indexing::at(gid, output_stride)] = result;
+            output[indexing::at(gid, output_strides)] = result;
         }
     }
 
     // Version with filter_length not fixed at compile time.
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve3_(const T* __restrict__ input, uint4_t input_stride,
-                    T* __restrict__ output, uint4_t output_stride,
+    void convolve3_(const T* __restrict__ input, uint4_t input_strides,
+                    T* __restrict__ output, uint4_t output_strides,
                     uint3_t shape, int3_t filter_length, uint blocks_x) {
         const int3_t padding(filter_length - 1); // assume odd
         const int3_t halo = padding / 2;
         const int3_t shared_len(filter_length[0], BLOCK_SIZE.y + padding[1], BLOCK_SIZE.x + padding[2]);
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int2_t tid(threadIdx.y, threadIdx.x);
-        const int4_t gid(blockIdx.z,
+        const int2_t tid{threadIdx.y, threadIdx.x};
+        const int4_t gid{blockIdx.z,
                          blockIdx.y,
                          BLOCK_SIZE.y * index[0] + tid[0],
-                         BLOCK_SIZE.x * index[1] + tid[1]);
+                         BLOCK_SIZE.x * index[1] + tid[1]};
 
-        input += gid[0] * input_stride[0];
+        input += gid[0] * input_strides[0];
 
         // Load shared memory. Loop to take into account padding.
         T* shared = util::block::dynamicSharedResource<T>();
@@ -102,7 +102,7 @@ namespace {
                     int i_x = gx - halo[2];
                     bool is_in_x = i_x >= 0 && i_x < shape[2];
                     shared[tmp + lx] = (is_in_z && is_in_y && is_in_x) ?
-                                       input[i_z * input_stride[1] + i_y * input_stride[2] + i_x * input_stride[3]] :
+                                       input[i_z * input_strides[1] + i_y * input_strides[2] + i_x * input_strides[3]] :
                                        static_cast<T>(0);
                 }
             }
@@ -118,22 +118,22 @@ namespace {
                     for (int x = 0; x < filter_length[2]; ++x)
                         result += shared[(z * shared_len[1] + tid[0] + y) * shared_len[2] + tid[1] + x] *
                                   window[(z * filter_length[1] + y) * filter_length[2] + x];
-            output[indexing::at(gid, output_stride)] = result;
+            output[indexing::at(gid, output_strides)] = result;
         }
     }
 }
 
 namespace noa::cuda::signal {
     template<typename T, typename U, typename>
-    void convolve3(const shared_t<T[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& output, size4_t output_stride, size4_t shape,
+    void convolve3(const shared_t<T[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                    const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(filter_shape.elements() * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_ASSERT(all(filter_shape % 2 == 1));
 
         if (all(filter_shape <= 1))
-            return memory::copy(input, input_stride, output, output_stride, shape, stream);
+            return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
         // Copy to constant memory.
         NOA_THROW_IF(cudaMemcpyToSymbolAsync(cfilter, filter.get(), math::prod(filter_shape) * sizeof(T),
@@ -145,19 +145,19 @@ namespace noa::cuda::signal {
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         if (all(filter_shape == 5)) {
             stream.enqueue("filter::convolve3", convolve3Square_<T, 5>, {blocks, BLOCK_SIZE},
-                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                           input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
                            uint_shape, blocks_x);
         } else if (all(filter_shape == 3)) {
             stream.enqueue("filter::convolve3", convolve3Square_<T, 3>, {blocks, BLOCK_SIZE},
-                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                           input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
                            uint_shape, blocks_x);
         } else {
             const uint shared_bytes = (BLOCK_SIZE.x + filter_shape[2] - 1) *
                                       (BLOCK_SIZE.y + filter_shape[1] - 1) *
                                       filter_shape[0] * sizeof(T);
             stream.enqueue("filter::convolve3", convolve3_<T>, {blocks, BLOCK_SIZE, shared_bytes},
-                           input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
-                           uint_shape, int3_t{filter_shape}, blocks_x);
+                           input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
+                           uint_shape, int3_t(filter_shape), blocks_x);
         }
         stream.attach(input, output, filter);
     }

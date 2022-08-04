@@ -1,7 +1,7 @@
 #include "noa/common/Assert.h"
+#include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/signal/Convolve.h"
 
 namespace {
@@ -287,6 +287,39 @@ namespace noa::cpu::signal {
         }
     }
 
+    template<typename T, typename U, typename>
+    void convolve(const shared_t<T[]>& input, size4_t input_strides,
+                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+                  const shared_t<U[]>& filter, size3_t filter_shape, Stream& stream)  {
+        NOA_ASSERT(all(filter_shape >= 1));
+        const size_t ndim = filter_shape.ndim();
+
+        // If there's a single dimension, use separable convolution kernels:
+        if (ndim == 1 || (ndim == 3 && filter_shape[1] == 1 && filter_shape[2])) {
+            if (all(filter_shape == 1)) {
+                math::ewise(input, input_strides, static_cast<T>(filter[0]),
+                            output, output_strides, shape,
+                            noa::math::multiply_t{}, stream);
+            } else if (filter_shape[2] > 1) {
+                convolve<T, U>(input, input_strides, output, output_strides, shape,
+                               nullptr, 0, nullptr, 0, filter, filter_shape[2], stream);
+            } else if (filter_shape[1] > 1) {
+                convolve<T, U>(input, input_strides, output, output_strides, shape,
+                               nullptr, 0, filter, filter_shape[1], nullptr, 0, stream);
+            } else {
+                convolve<T, U>(input, input_strides, output, output_strides, shape,
+                               filter, filter_shape[0], nullptr, 0, nullptr, 0, stream);
+            }
+            return;
+        } else if (ndim == 2) {
+            return convolve2(input, input_strides, output, output_strides,
+                             shape, filter, {filter_shape[1], filter_shape[2]}, stream);
+        } else {
+            return convolve3(input, input_strides, output, output_strides,
+                             shape, filter, filter_shape, stream);
+        }
+    }
+
     #define NOA_INSTANTIATE_CONV_(T, U)                                                                                                                 \
     template void convolve1<T, U, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size_t, Stream&);  \
     template void convolve2<T, U, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, size2_t, Stream&); \
@@ -295,7 +328,9 @@ namespace noa::cpu::signal {
                                        const shared_t<U[]>&, size_t,                                                                                    \
                                        const shared_t<U[]>&, size_t,                                                                                    \
                                        const shared_t<U[]>&, size_t, Stream&,                                                                           \
-                                       const shared_t<T[]>&, size4_t)
+                                       const shared_t<T[]>&, size4_t);                                                                                  \
+    template void convolve<T, U, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t,                                           \
+                                       const shared_t<U[]>&, size3_t, Stream&)
 
     NOA_INSTANTIATE_CONV_(half_t, half_t);
     NOA_INSTANTIATE_CONV_(half_t, float);

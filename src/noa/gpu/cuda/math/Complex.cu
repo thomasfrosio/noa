@@ -127,20 +127,20 @@ namespace noa::cuda::math {
                                                               util::maxVectorCount(imag.get()),
                                                               util::maxVectorCount(input.get())}) : 1;
             if (vec_size == 4) {
-                return stream.enqueue("memory::decompose", decompose1D_<T, 4>, {blocks, BLOCK_SIZE},
-                                      input.get(), input_strides[3],
-                                      real.get(), real_strides[3],
-                                      imag.get(), imag_strides[3], elements);
+                stream.enqueue("memory::decompose", decompose1D_<T, 4>, {blocks, BLOCK_SIZE},
+                               input.get(), input_strides[3],
+                               real.get(), real_strides[3],
+                               imag.get(), imag_strides[3], elements);
             } else if (vec_size == 2) {
-                return stream.enqueue("memory::decompose", decompose1D_<T, 2>, {blocks, BLOCK_SIZE},
-                                      input.get(), input_strides[3],
-                                      real.get(), real_strides[3],
-                                      imag.get(), imag_strides[3], elements);
+                stream.enqueue("memory::decompose", decompose1D_<T, 2>, {blocks, BLOCK_SIZE},
+                               input.get(), input_strides[3],
+                               real.get(), real_strides[3],
+                               imag.get(), imag_strides[3], elements);
             } else {
-                return stream.enqueue("memory::decompose", decompose1D_<T, 1>, {blocks, BLOCK_SIZE},
-                                      input.get(), input_strides[3],
-                                      real.get(), real_strides[3],
-                                      imag.get(), imag_strides[3], elements);
+                stream.enqueue("memory::decompose", decompose1D_<T, 1>, {blocks, BLOCK_SIZE},
+                               input.get(), input_strides[3],
+                               real.get(), real_strides[3],
+                               imag.get(), imag_strides[3], elements);
             }
         } else {
             const uint2_t i_shape(shape.get(2));

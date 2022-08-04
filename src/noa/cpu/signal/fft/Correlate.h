@@ -46,7 +46,7 @@ namespace noa::cpu::signal::fft {
     /// \param norm             Normalization mode to use for the C2R transform producing the final output.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \param[out] tmp         On the \b host. Buffer that can fit \p shape.fft() complex elements.
-    ///                         Can overlap with \p lhs or \p rhs. If nullptr, use \p rhs instead.
+    ///                         Can be equal to \p lhs or \p rhs. If nullptr, use \p rhs instead.
     /// \param tmp_strides      BDHW strides of \p tmp. If \p tmp is nullptr, use \p rhs_strides instead.
     /// \note Depending on the stream, this function may be asynchronous and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xmap_v<REMAP, T>>>
@@ -61,8 +61,8 @@ namespace noa::cpu::signal::fft {
     ///          by fitting a parabola separately to the peak and 2 adjacent points.
     /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T               float, double.
-    /// \param xmap             On the \b host. 1D cross-correlation map.
-    /// \param strides          BDHW strides of \p map. The width should have a non-zero stride.
+    /// \param xmap             On the \b host. 1D cross-correlation map. Should be a column or row vector.
+    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
     /// \param shape            BDHW shape of \p map.
     /// \param[out] peaks       On the \b host. Coordinates of the highest peak. One per batch.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -76,8 +76,8 @@ namespace noa::cpu::signal::fft {
     ///          by fitting a parabola separately to the peak and 2 adjacent points.
     /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T               float, double.
-    /// \param xmap             On the \b host. Unbatched 1D cross-correlation map.
-    /// \param strides          BDHW strides of \p map. The width should have a non-zero stride.
+    /// \param xmap             On the \b host. Unbatched 1D cross-correlation map. Should be a column or row vector.
+    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
     /// \param shape            BDHW shape of \p map.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
@@ -90,7 +90,7 @@ namespace noa::cpu::signal::fft {
     /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T               float, double.
     /// \param xmap             On the \b host. 2D cross-correlation map.
-    /// \param strides          BDHW strides of \p map. The height should have a non-zero stride.
+    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
     /// \param shape            BDHW shape of \p map.
     /// \param[out] peaks       On the \b host. HW coordinates of the highest peak. One per batch.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -105,7 +105,7 @@ namespace noa::cpu::signal::fft {
     /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T               float, double.
     /// \param xmap             On the \b host. Unbatched 2D cross-correlation map.
-    /// \param strides          BDHW strides of \p map. The height should have a non-zero strides.
+    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
     /// \param shape            BDHW shape of \p map.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
@@ -118,7 +118,7 @@ namespace noa::cpu::signal::fft {
     /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T               float, double.
     /// \param xmap             On the \b host. Cross-correlation map.
-    /// \param strides          BDHW strides of \p map. The depth and width should have non-zero strides.
+    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
     /// \param shape            BDHW shape of \p map.
     /// \param[out] peaks       On the \b host. DHW coordinates of the highest peak. One per batch.
     /// \param[in,out] stream   Stream on which to enqueue this function.
@@ -133,7 +133,7 @@ namespace noa::cpu::signal::fft {
     /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T               float, double.
     /// \param xmap             On the \b host. Unbatched cross-correlation map.
-    /// \param strides          BDHW strides of \p map. The depth and width should have a non-zero strides.
+    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
     /// \param shape            BDHW shape of \p map.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///                         The stream is synchronized when the function returns.
