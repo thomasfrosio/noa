@@ -15,6 +15,7 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/types/Bool3.h"
 #include "noa/common/types/Half.h"
+#include "noa/common/utils/Sort.h"
 
 namespace noa {
     template<typename>
@@ -427,6 +428,17 @@ namespace noa {
 
         #undef NOA_ULP_
         #undef NOA_EPSILON_
+
+        template<typename T, typename U>
+        [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v, U&& comp) noexcept {
+            smallStableSort<3>(v.get(), std::forward<U>(comp));
+            return v;
+        }
+
+        template<typename T>
+        [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v) noexcept {
+            return sort(v, [](const T& a, const T& b) { return a < b; });
+        }
     }
 
     namespace traits {

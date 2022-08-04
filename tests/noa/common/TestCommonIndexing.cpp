@@ -113,7 +113,6 @@ TEST_CASE("common: indexing::at<BorderMode>()", "[noa][common]") {
     }
 }
 
-
 TEST_CASE("common: shape, strides, pitch", "[noa][common]") {
     AND_THEN("C- contiguous") {
         const size4_t shape{2, 128, 64, 65};
@@ -389,4 +388,33 @@ TEST_CASE("common: Reinterpret", "[noa][common]") {
     real = indexing::Reinterpret(shape, strides, ptr).as<float>();
     REQUIRE(all(real.shape == size4_t{shape[0], shape[1], shape[2] * 2, shape[3]}));
     REQUIRE(all(real.strides == size4_t{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2}));
+}
+
+TEMPLATE_TEST_CASE("common: indexes()", "[noa][common]", int2_t, uint2_t, int3_t, uint3_t, int4_t, uint4_t) {
+    const uint ndim = GENERATE(1u, 2u, 3u);
+
+    using value_t = traits::value_type_t<TestType>;
+    using vec_t = TestType;
+
+    test::Randomizer<value_t> randomizer(1, 3);
+    test::Randomizer<value_t> idx_randomizer(0, 50);
+
+    for (int i = 0; i < 20; ++i) {
+        const size4_t tmp = test::getRandomShapeBatched(ndim);
+        const vec_t shape = vec_t(tmp.get(4 - vec_t::COUNT));
+        vec_t strides = shape.strides() * randomizer.get();
+
+        vec_t idx_expected{shape - 1};
+        for (size_t j = 0; j < vec_t::COUNT; ++j)
+            idx_expected[j] = std::clamp(idx_expected[j] - idx_randomizer.get(), value_t{0}, shape[j] - 1);
+        const value_t offset = indexing::at(idx_expected, strides);
+
+        const vec_t idx_result = indexing::indexes(offset, strides, shape);
+        INFO(strides);
+        INFO(shape);
+        INFO(idx_expected);
+        INFO(idx_result);
+
+        REQUIRE(all(idx_expected == idx_result));
+    }
 }

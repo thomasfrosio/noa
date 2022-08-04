@@ -15,6 +15,7 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/types/Bool3.h"
+#include "noa/common/utils/Sort.h"
 
 namespace noa {
     template<typename>
@@ -332,7 +333,7 @@ namespace noa {
             if constexpr (ORDER == 'C' || ORDER == 'c') {
                 return {m_data[0] / m_data[1], m_data[1]};
             } else if constexpr (ORDER == 'F' || ORDER == 'f') {
-                return {m_data[2], m_data[0] / m_data[3]};
+                return {m_data[2], m_data[0] / m_data[2]};
             } else {
                 static_assert(traits::always_false_v<T>);
             }
@@ -418,6 +419,17 @@ namespace noa {
         template<typename T>
         [[nodiscard]] NOA_FHD constexpr Int3<T> clamp(Int3<T> lhs, T low, T high) noexcept {
             return {clamp(lhs[0], low, high), clamp(lhs[1], low, high), clamp(lhs[2], low, high)};
+        }
+
+        template<typename T, typename U>
+        [[nodiscard]] NOA_FHD constexpr Int3<T> sort(Int3<T> v, U&& comp) noexcept {
+            smallStableSort<3>(v.get(), std::forward<U>(comp));
+            return v;
+        }
+
+        template<typename T>
+        [[nodiscard]] NOA_FHD constexpr Int3<T> sort(Int3<T> v) noexcept {
+            return sort(v, [](const T& a, const T& b) { return a < b; });
         }
     }
 

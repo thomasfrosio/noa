@@ -19,6 +19,7 @@ set(NOA_COMMON_HEADERS
         common/utils/Any.h
         common/utils/Irange.h
         common/utils/Profiler.h
+        common/utils/Sort.h
         common/utils/Timer.h
 
         common/geometry/Euler.cpp

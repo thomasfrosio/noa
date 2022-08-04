@@ -145,52 +145,6 @@ namespace noa::indexing {
 }
 
 namespace noa::indexing {
-    /// Returns the 2D rightmost indexes corresponding to the given memory offset.
-    /// \param offset   Linear memory offset.
-    /// \param pitch    Pitch of the innermost dimension.
-    template<typename T>
-    NOA_FHD constexpr Int2<T> indexes(T offset, T pitch) noexcept {
-        const T i0 = offset / pitch;
-        const T i1 = offset - i0 * pitch;
-        return {i0, i1};
-    }
-
-    /// Returns the 3D rightmost indexes corresponding to the given memory offset.
-    /// \param offset   Linear memory offset.
-    /// \param p0,p1    Pitch of the second-most and innermost dimension.
-    template<typename T>
-    NOA_FHD constexpr Int3<T> indexes(T offset, T p0, T p1) noexcept {
-        const T i0 = offset / (p0 * p1);
-        const T tmp = offset - i0 * p0 * p1;
-        const T i1 = tmp / p1;
-        const T i2 = tmp - i1 * p1;
-        return {i0, i1, i2};
-    }
-
-    /// Returns the 4D rightmost indexes corresponding to the given memory offset.
-    /// \param offset   Linear memory offset.
-    /// \param p0,p1,p2 Pitch of the third-most, second-most and innermost dimension.
-    template<typename T>
-    NOA_FHD constexpr Int4<T> indexes(T offset, T p0, T p1, T p2) noexcept {
-        const T i0 = offset / (p0 * p1 * p2);
-        const T tmp0 = offset - i0 * p0 * p1 * p2;
-        const T i1 = tmp0 / (p1 * p2);
-        const T tmp1 = offset - i1 * p1 * p2;
-        const T i2 = tmp1 / p2;
-        const T i3 = tmp1 - i2 * p2;
-        return {i0, i1, i2, i3};
-    }
-
-    /// Returns the 4D rightmost indexes corresponding to the given memory offset.
-    /// \param offset   Linear memory offset.
-    /// \param pitch    Pitch of the third-most, second-most and innermost dimension.
-    template<typename T>
-    NOA_FHD constexpr Int4<T> indexes(T offset, Int3<T> pitch) noexcept {
-        return {offset, pitch[0], pitch[1], pitch[2]};
-    }
-}
-
-namespace noa::indexing {
     /// Whether \p strides is in the rightmost order.
     /// Rightmost order is when the innermost stride is on the right, and strides increase right-to-left.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
@@ -316,7 +270,7 @@ namespace noa::indexing {
     /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
     /// \see indexing::reorder(...).
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_IH auto order(T strides, T shape) {
+    NOA_IHD auto order(T strides, T shape) {
         using vec_t = traits::remove_ref_cv_t<T>;
         using int_t = traits::value_type_t<T>;
         constexpr size_t COUNT = vec_t::COUNT;
@@ -327,10 +281,9 @@ namespace noa::indexing {
             strides[i] = shape[i] <= 1 ? math::Limits<int_t>::max() : strides[i];
         }
 
-        std::stable_sort(order.get(), order.get(COUNT), [&](int_t a, int_t b) {
+        return math::sort(order, [&](int_t a, int_t b) {
             return strides[a] > strides[b];
         });
-        return order;
     }
 
     /// Returns the order the dimensions should be sorted so that empty dimensions are on the left.
@@ -353,7 +306,15 @@ namespace noa::indexing {
         }
         // The empty dimensions are entered in descending order.
         // To put them back to the original ascending order, we can do:
-         std::sort(order.get(), order.get(idx + 1));
+        if (idx) {
+            if (COUNT >= 2 && idx == 1)
+                smallStableSort<2>(order.get());
+            if (COUNT >= 3 && idx == 2)
+                smallStableSort<3>(order.get());
+            else if (COUNT >= 4 && idx == 3)
+                smallStableSort<4>(order.get());
+        }
+
         // This seems unnecessary because the dimensions are empty so there order shouldn't matter...
         return order;
     }
@@ -497,6 +458,85 @@ namespace noa::indexing {
         if (view_d != -1)
             return false;
         return true;
+    }
+}
+
+namespace noa::indexing {
+    /// Returns the 2D rightmost indexes corresponding to the given memory offset,
+    /// assuming the innermost dimension is contiguous.
+    /// \param offset   Linear memory offset.
+    /// \param stride   Stride of the second-most dimension (i.e. pitch).
+    /// \warning Broadcasting is not supported, so the stride should be greater than 0.
+    template<typename T>
+    NOA_FHD constexpr Int2<T> indexes(T offset, T stride) noexcept {
+        NOA_ASSERT(stride > 0);
+        const T i0 = offset / stride;
+        const T i1 = offset - i0 * stride;
+        return {i0, i1};
+    }
+
+    /// Returns the 3D rightmost indexes corresponding to the given memory offset.
+    /// \param offset   Linear memory offset.
+    /// \param p0,p1    Pitch of the second-most and innermost dimension.
+    template<typename T>
+    NOA_FHD constexpr Int3<T> indexes(T offset, T p0, T p1) noexcept {
+        const T i0 = offset / (p0 * p1);
+        offset -= i0 * p0 * p1;
+        const T i1 = offset / p1;
+        offset -= i1 * p1;
+        return {i0, i1, offset};
+    }
+
+    /// Returns the 4D rightmost indexes corresponding to the given memory offset.
+    /// \param offset   Linear memory offset.
+    /// \param p0,p1,p2 Pitch of the third-most, second-most and innermost dimension.
+    template<typename T>
+    NOA_FHD constexpr Int4<T> indexes(T offset, T p0, T p1, T p2) noexcept {
+        const T i0 = offset / (p0 * p1 * p2);
+        offset -= i0 * p0 * p1 * p2;
+        const T i1 = offset / (p1 * p2);
+        offset -= i1 * p1 * p2;
+        const T i2 = offset / p2;
+        offset -= i2 * p2;
+        return {i0, i1, i2, offset};
+    }
+
+    /// Returns the 4D rightmost indexes corresponding to the given memory offset.
+    /// \param offset   Linear memory offset.
+    /// \param pitch    Pitch of the third-most, second-most and innermost dimension.
+    template<typename T>
+    NOA_FHD constexpr Int4<T> indexes(T offset, Int3<T> pitch) noexcept {
+        return {offset, pitch[0], pitch[1], pitch[2]};
+    }
+
+    /// Returns the multidimensional indexes corresponding to a memory \p offset.
+    /// \details Given a memory offset and a memory layout (i.e. strides and shape), this function computes
+    ///          the ND logical indexes. Broadcasting is not supported, so the strides should be greater than 0.
+    ///          Otherwise, any ordering is supported.
+    /// \param offset   Memory offset with the array.
+    /// \param strides  Strides of the array.
+    /// \param shape    Shape of the array.
+    template<typename T, typename U,
+             typename = std::enable_if_t<traits::is_int2_v<U> || traits::is_int3_v<U> || traits::is_int4_v<U>>>
+    NOA_IHD constexpr auto indexes(T offset, U strides, U shape) noexcept {
+        NOA_ASSERT(all(shape > 0));
+        using vec_t = traits::remove_ref_cv_t<U>;
+        using val_t = traits::value_type_t<U>;
+
+        const vec_t rightmost_order = indexing::order(strides, shape);
+
+        vec_t out;
+        T remain = offset;
+        for (size_t i = 0; i < vec_t::COUNT; ++i) {
+            const val_t idx = rightmost_order[i];
+            if (shape[idx] > 1) { // if empty, ignore it.
+                NOA_ASSERT(strides[idx] > 0);
+                out[idx] = remain / strides[idx]; // single-divide optimization should kick in
+                remain %= strides[idx]; // or remain -= out[i] * stride
+            }
+        }
+        NOA_ASSERT(remain == 0);
+        return out;
     }
 }
 

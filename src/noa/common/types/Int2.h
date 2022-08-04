@@ -15,6 +15,7 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/types/Bool2.h"
+#include "noa/common/utils/Sort.h"
 
 namespace noa {
     template<typename>
@@ -404,6 +405,17 @@ namespace noa {
         template<typename T>
         [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, T low, T high) noexcept {
             return {clamp(lhs[0], low, high), clamp(lhs[1], low, high)};
+        }
+
+        template<typename T, typename U>
+        [[nodiscard]] NOA_FHD constexpr Int2<T> sort(Int2<T> v, U&& comp) noexcept {
+            smallStableSort<2>(v.get(), std::forward<U>(comp));
+            return v;
+        }
+
+        template<typename T>
+        [[nodiscard]] NOA_FHD constexpr Int2<T> sort(Int2<T> v) noexcept {
+            return sort(v, [](const T& a, const T& b) { return a < b; });
         }
     }
 
