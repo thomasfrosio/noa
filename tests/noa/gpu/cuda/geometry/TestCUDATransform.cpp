@@ -65,6 +65,7 @@ TEST_CASE("cuda::geometry::transform2D()", "[assets][noa][cuda][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
 
+        INFO(nb);
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::transform2D(d_input.share(), d_input.strides(), shape,
                                     d_input.share(), d_input.strides(), shape,

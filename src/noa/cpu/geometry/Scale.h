@@ -21,7 +21,7 @@ namespace noa::cpu::geometry {
     /// \param input_shape          BDHW shape of \p input.
     /// \param[out] output          On the \b host. Output 2D array.
     /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape of \p output. The outermost dimension is the batch dimension.
+    /// \param output_shape         BDHW shape of \p output.
     /// \param[in] scaling_factors  On the \b host. HW forward scaling factors. One per batch.
     /// \param[in] scaling_centers  On the \b host. HW scaling centers. One per batch.
     /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
@@ -84,7 +84,7 @@ namespace noa::cpu::geometry {
     /// \param input_shape          BDHW shape of \p input.
     /// \param[out] output          On the \b host. Output 3D array.
     /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape of \p output. The outermost dimension is the batch dimension.
+    /// \param output_shape         BDHW shape of \p output.
     /// \param[in] scaling_factors  On the \b host. DHW forward scaling factors. One per batch.
     /// \param[in] scaling_centers  On the \b host. DHW scaling centers. One per batch.
     /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.

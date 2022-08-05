@@ -8,9 +8,9 @@
 // See licences/CubicInterpolationCUDA.txt
 // Pitch/step was switched to number of elements. const was added when necessary. Out-of-place filtering was added.
 
-/// \note The implementation requires a single thread to go through the entire 1D array. This is not very efficient
-///       compared to the CPU implementation. However, when multiple batches are processes, a warp can process
-///       simultaneously as many batches as it has threads, which is more efficient.
+// The implementation requires a single thread to go through the entire 1D array. This is not very efficient
+// compared to the CPU implementation. However, when multiple batches are processes, a warp can process
+// simultaneously as many batches as it has threads, which is more efficient.
 namespace {
     using namespace ::noa;
     constexpr float POLE = -0.2679491924311228f; // math::sqrt(3.0f)-2.0f; pole for cubic b-spline
@@ -86,110 +86,110 @@ namespace {
     // -- 1D -- //
 
     template<typename T>
-    __global__ void toCoeffs1DX_inplace_(T* input, uint2_t stride, uint2_t shape) {
+    __global__ void toCoeffs1DX_inplace_(T* input, uint2_t strides, uint2_t shape) {
         // process lines in x-direction
         const uint batch = blockIdx.x * blockDim.x + threadIdx.x;
         if (batch >= shape[0])
             return;
-        input += batch * stride[0];
-        toCoeffs_(input, stride[1], shape[1]);
+        input += batch * strides[0];
+        toCoeffs_(input, strides[1], shape[1]);
     }
 
     template<typename T>
-    __global__ void toCoeffs1DX_(const T* __restrict__ input, uint2_t input_stride,
-                                 T* __restrict__ output, uint2_t output_stride,
+    __global__ void toCoeffs1DX_(const T* __restrict__ input, uint2_t input_strides,
+                                 T* __restrict__ output, uint2_t output_strides,
                                  uint2_t shape) {
         // process lines in x-direction
         const uint batch = blockIdx.x * blockDim.x + threadIdx.x;
         if (batch >= shape[0])
             return;
-        input += batch * input_stride[0];
-        output += batch * output_stride[0];
-        toCoeffs_(input, input_stride[1], output, output_stride[1], shape[1]);
+        input += batch * input_strides[0];
+        output += batch * output_strides[0];
+        toCoeffs_(input, input_strides[1], output, output_strides[1], shape[1]);
     }
 
     // -- 2D -- //
 
     template<typename T>
-    __global__ void toCoeffs2DX_inplace_(T* input, uint3_t stride, uint2_t shape) {
+    __global__ void toCoeffs2DX_inplace_(T* input, uint3_t strides, uint2_t shape) {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
         if (y >= shape[0])
             return;
-        input += blockIdx.y * stride[0] + y * stride[1]; // blockIdx.y == batch
-        toCoeffs_(input, stride[2], shape[1]);
+        input += blockIdx.y * strides[0] + y * strides[1]; // blockIdx.y == batch
+        toCoeffs_(input, strides[2], shape[1]);
     }
 
     template<typename T>
-    __global__ void toCoeffs2DX_(const T* __restrict__ input, uint3_t input_stride,
-                                 T* __restrict__ output, uint3_t output_stride,
+    __global__ void toCoeffs2DX_(const T* __restrict__ input, uint3_t input_strides,
+                                 T* __restrict__ output, uint3_t output_strides,
                                  uint2_t shape) {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
         if (y >= shape[0])
             return;
-        input += blockIdx.y * input_stride[0] + y * input_stride[1];
-        output += blockIdx.y * output_stride[0] + y * output_stride[1];
-        toCoeffs_(input, input_stride[2], output, output_stride[2], shape[1]);
+        input += blockIdx.y * input_strides[0] + y * input_strides[1];
+        output += blockIdx.y * output_strides[0] + y * output_strides[1];
+        toCoeffs_(input, input_strides[2], output, output_strides[2], shape[1]);
     }
 
     template<typename T>
-    __global__ void toCoeffs2DY_(T* input, uint3_t stride, uint2_t shape) {
+    __global__ void toCoeffs2DY_(T* input, uint3_t strides, uint2_t shape) {
         // process lines in y-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
         if (x >= shape[1])
             return;
-        input += blockIdx.y * stride[0] + x * stride[2];
-        toCoeffs_(input, stride[1], shape[0]);
+        input += blockIdx.y * strides[0] + x * strides[2];
+        toCoeffs_(input, strides[1], shape[0]);
     }
 
     // -- 3D -- //
 
     template<typename T>
-    __global__ void toCoeffs3DX_inplace_(T* input, uint4_t stride, uint3_t shape) {
+    __global__ void toCoeffs3DX_inplace_(T* input, uint4_t strides, uint3_t shape) {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || y >= shape[1])
             return;
-        input += indexing::at(blockIdx.z, z, y, stride);
-        toCoeffs_(input, stride[3], shape[2]);
+        input += indexing::at(blockIdx.z, z, y, strides);
+        toCoeffs_(input, strides[3], shape[2]);
     }
 
     template<typename T>
-    __global__ void toCoeffs3DX_(const T* __restrict__ input, uint4_t input_stride,
-                                 T* __restrict__ output, uint4_t output_stride,
+    __global__ void toCoeffs3DX_(const T* __restrict__ input, uint4_t input_strides,
+                                 T* __restrict__ output, uint4_t output_strides,
                                  uint3_t shape) {
         // process lines in x-direction
         const uint y = blockIdx.x * blockDim.x + threadIdx.x;
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || y >= shape[1])
             return;
-        input += indexing::at(blockIdx.z, z, y, input_stride);
-        output += indexing::at(blockIdx.z, z, y, output_stride);
-        toCoeffs_(input, input_stride[3], output, output_stride[3], shape[2]);
+        input += indexing::at(blockIdx.z, z, y, input_strides);
+        output += indexing::at(blockIdx.z, z, y, output_strides);
+        toCoeffs_(input, input_strides[3], output, output_strides[3], shape[2]);
     }
 
     template<typename T>
-    __global__ void toCoeffs3DY_(T* input, uint4_t stride, uint3_t shape) {
+    __global__ void toCoeffs3DY_(T* input, uint4_t strides, uint3_t shape) {
         // process lines in y-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
         const uint z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || x >= shape[2])
             return;
-        input += indexing::at(blockIdx.z, z, stride) + x * stride[3];
-        toCoeffs_(input, stride[2], shape[1]);
+        input += indexing::at(blockIdx.z, z, strides) + x * strides[3];
+        toCoeffs_(input, strides[2], shape[1]);
     }
 
     template<typename T>
-    __global__ void toCoeffs3DZ_(T* input, uint4_t stride, uint3_t shape) {
+    __global__ void toCoeffs3DZ_(T* input, uint4_t strides, uint3_t shape) {
         // process lines in z-direction
         const uint x = blockIdx.x * blockDim.x + threadIdx.x;
         const uint y = blockIdx.y * blockDim.y + threadIdx.y;
         if (y >= shape[1] || x >= shape[2])
             return;
-        input += blockIdx.z * stride[0] + y * stride[2] + x * stride[3];
-        toCoeffs_(input, stride[1], shape[0]);
+        input += blockIdx.z * strides[0] + y * strides[2] + x * strides[3];
+        toCoeffs_(input, strides[1], shape[0]);
     }
 
     void getLaunchConfig3D(uint dim0, uint dim1, dim3* threads, dim3* blocks) {
@@ -200,7 +200,7 @@ namespace {
     }
 
     template<typename T>
-    void prefilter1D_(const T* input, uint2_t input_stride, T* output, uint2_t output_stride,
+    void prefilter1D_(const T* input, uint2_t input_strides, T* output, uint2_t output_strides,
                       uint2_t shape, cuda::Stream& stream) {
         // Each threads processes an entire batch.
         // This has the same problem as the toCoeffs2DX_ and toCoeffs3DX_, memory reads/writes are not coalesced.
@@ -210,15 +210,15 @@ namespace {
 
         if (input == output) {
             stream.enqueue("geometry::bspline::prefilter1D", toCoeffs1DX_inplace_<T>, config,
-                           output, output_stride, shape);
+                           output, output_strides, shape);
         } else {
             stream.enqueue("geometry::bspline::prefilter1D", toCoeffs1DX_<T>, config,
-                           input, input_stride, output, output_stride, shape);
+                           input, input_strides, output, output_strides, shape);
         }
     }
 
     template<typename T>
-    void prefilter2D_(const T* input, uint3_t input_stride, T* output, uint3_t output_stride,
+    void prefilter2D_(const T* input, uint3_t input_strides, T* output, uint3_t output_strides,
                       uint3_t shape, cuda::Stream& stream) {
         // Each threads processes an entire line. The line is first x, then y.
         const uint threads_x = shape[1] <= 32U ? 32U : 64U;
@@ -230,17 +230,17 @@ namespace {
 
         if (input == output) {
             stream.enqueue("geometry::bspline::prefilter2D_x", toCoeffs2DX_inplace_<T>, config_x,
-                           output, output_stride, uint2_t{shape[1], shape[2]});
+                           output, output_strides, uint2_t{shape[1], shape[2]});
         } else {
             stream.enqueue("geometry::bspline::prefilter2D_x", toCoeffs2DX_<T>, config_x,
-                           input, input_stride, output, output_stride, uint2_t{shape[1], shape[2]});
+                           input, input_strides, output, output_strides, uint2_t{shape[1], shape[2]});
         }
         stream.enqueue("geometry::bspline::prefilter2D_y", toCoeffs2DY_<T>, config_y,
-                       output, output_stride, uint2_t{shape[1], shape[2]});
+                       output, output_strides, uint2_t{shape[1], shape[2]});
     }
 
     template<typename T>
-    void prefilter3D_(const T* input, uint4_t input_stride, T* output, uint4_t output_stride,
+    void prefilter3D_(const T* input, uint4_t input_strides, T* output, uint4_t output_strides,
                       uint4_t shape, cuda::Stream& stream) {
         // Try to determine the optimal block dimensions
         dim3 threads;
@@ -251,39 +251,40 @@ namespace {
         getLaunchConfig3D(shape[2], shape[1], &threads, &blocks);
         if (input == output) {
             stream.enqueue("geometry::bspline::prefilter3D_x", toCoeffs3DX_inplace_<T>, {blocks, threads},
-                           output, output_stride, uint3_t{shape[1], shape[2], shape[3]});
+                           output, output_strides, uint3_t{shape[1], shape[2], shape[3]});
         } else {
             stream.enqueue("geometry::bspline::prefilter3D_x", toCoeffs3DX_<T>, {blocks, threads},
-                           input, input_stride, output, output_stride, uint3_t{shape[1], shape[2], shape[3]});
+                           input, input_strides, output, output_strides, uint3_t{shape[1], shape[2], shape[3]});
         }
 
         getLaunchConfig3D(shape[3], shape[1], &threads, &blocks);
         stream.enqueue("geometry::bspline::prefilter3D_y", toCoeffs3DY_<T>, {blocks, threads},
-                       output, output_stride, uint3_t{shape[1], shape[2], shape[3]});
+                       output, output_strides, uint3_t{shape[1], shape[2], shape[3]});
 
         getLaunchConfig3D(shape[3], shape[2], &threads, &blocks);
         stream.enqueue("geometry::bspline::prefilter3D_z", toCoeffs3DZ_<T>, {blocks, threads},
-                       output, output_stride, uint3_t{shape[1], shape[2], shape[3]});
+                       output, output_strides, uint3_t{shape[1], shape[2], shape[3]});
     }
 }
 
 namespace noa::cuda::geometry::bspline {
     template<typename T, typename>
-    void prefilter(const shared_t<T[]>& input, size4_t input_stride,
-                   const shared_t<T[]>& output, size4_t output_stride,
+    void prefilter(const shared_t<T[]>& input, size4_t input_strides,
+                   const shared_t<T[]>& output, size4_t output_strides,
                    size4_t shape, Stream& stream) {
-        const size_t ndim = size3_t{shape.get() + 1}.ndim();
+        const size_t ndim = size3_t(shape.get(1)).ndim();
         if (ndim == 3) {
-            prefilter3D_<T>(input.get(), uint4_t{input_stride},
-                            output.get(), uint4_t{output_stride}, uint4_t{shape}, stream);
+            prefilter3D_<T>(input.get(), uint4_t(input_strides),
+                            output.get(), uint4_t(output_strides), uint4_t(shape), stream);
         } else if (ndim == 2) {
-            prefilter2D_<T>(input.get(), uint3_t{input_stride[0], input_stride[2], input_stride[3]},
-                            output.get(), uint3_t{output_stride[0], output_stride[2], output_stride[3]},
+            prefilter2D_<T>(input.get(), uint3_t{input_strides[0], input_strides[2], input_strides[3]},
+                            output.get(), uint3_t{output_strides[0], output_strides[2], output_strides[3]},
                             uint3_t{shape[0], shape[2], shape[3]}, stream);
         } else {
-            prefilter1D_<T>(input.get(), uint2_t{input_stride[0], input_stride[3]},
-                            output.get(), uint2_t{output_stride[0], output_stride[3]},
-                            uint2_t{shape[0], shape[3]}, stream);
+            const bool is_column = shape[3] == 1;
+            prefilter1D_<T>(input.get(), uint2_t{input_strides[0], input_strides[3 - is_column]},
+                            output.get(), uint2_t{output_strides[0], output_strides[3 - is_column]},
+                            uint2_t{shape[0], shape[3 - is_column]}, stream);
         }
         if (input == output)
             stream.attach(output);

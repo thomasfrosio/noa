@@ -36,7 +36,7 @@ namespace {
 
     __device__ inline void setGriddingWeights_(int3_t base0, float3_t freq, float o_weights[2][2][2]) {
         float3_t fraction[2];
-        fraction[1] = freq - float3_t{base0};
+        fraction[1] = freq - float3_t(base0);
         fraction[0] = 1.f - fraction[1];
         for (size_t w = 0; w < 2; ++w)
             for (size_t v = 0; v < 2; ++v)
@@ -45,7 +45,7 @@ namespace {
     }
 
     __device__ inline void setBoundary_(int3_t base0, int3_t shape, bool2_t o_bound[3]) {
-        const int3_t base1{base0 + 1};
+        const int3_t base1(base0 + 1);
         const int3_t idx_max = (shape - 1) / 2;
 
         o_bound[0][0] = base0[0] >= -idx_max[0] && base0[0] <= idx_max[0];
@@ -63,7 +63,7 @@ namespace {
         using real_t = traits::value_type_t<T>;
         namespace atomic = noa::cuda::util::atomic;
 
-        const int3_t base0{math::floor(frequency)};
+        const int3_t base0(math::floor(frequency));
 
         float kernel[2][2][2];
         setGriddingWeights_(base0, frequency, kernel);
@@ -245,11 +245,11 @@ namespace noa::cuda::geometry::fft {
         const int3_t grid_shape_{grid_shape[1], grid_shape[2], grid_shape[3]};
         const uint3_t slice_stride_{slice_stride[0], slice_stride[2], slice_stride[3]};
         const uint3_t grid_stride_{grid_stride[1], grid_stride[2], grid_stride[3]};
-        const float2_t f_slice_shape{slice_shape_ / 2 * 2 + int2_t{slice_shape_ == 1}};
-        const float3_t f_grid_shape{grid_shape_ / 2 * 2 + int3_t{grid_shape_ == 1}};
+        const float2_t f_slice_shape(slice_shape_ / 2 * 2 + int2_t(slice_shape_ == 1));
+        const float3_t f_grid_shape(grid_shape_ / 2 * 2 + int3_t(grid_shape_ == 1));
 
         // Launch config:
-        const uint2_t tmp{slice_shape_};
+        const uint2_t tmp(slice_shape_);
         const dim3 blocks(math::divideUp(tmp[1] / 2 + 1, THREADS.x),
                           math::divideUp(tmp[0], THREADS.y),
                           count);
@@ -284,11 +284,11 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT(grid_shape[0] == 1);
         NOA_ASSERT(grid_stride[1] == 1 && indexing::isContiguous(grid_stride, grid_shape)[1]);
 
-        memory::PtrArray<T> array{size3_t{grid_shape[1], grid_shape[2], grid_shape[3] / 2 + 1}};
-        memory::PtrTexture texture{array.get(), INTERP_LINEAR, BORDER_ZERO}; // todo INTERP_LINEAR_FAST ?
+        memory::PtrArray<T> array(size3_t{grid_shape[1], grid_shape[2], grid_shape[3] / 2 + 1});
+        memory::PtrTexture texture(array.get(), INTERP_LINEAR, BORDER_ZERO); // todo INTERP_LINEAR_FAST ?
         memory::copy(grid, grid_shape[2], array.share(), array.shape(), stream);
 
-        extract3D<REMAP>(texture.get(), int3_t{grid_shape.get(1)}, slice.get(), slice_stride, slice_shape,
+        extract3D<REMAP>(texture.get(), int3_t(grid_shape.get(1)), slice.get(), slice_stride, slice_shape,
                          scaling_factors.get(), rotations.get(), cutoff, ews_radius, stream);
         stream.attach(array.share(), texture.share(), slice, scaling_factors, rotations);
     }
@@ -310,11 +310,11 @@ namespace noa::cuda::geometry::fft {
         const size_t count = slice_shape[0];
         const int2_t slice_shape_{slice_shape[2], slice_shape[3]};
         const uint3_t slice_stride_{slice_stride[0], slice_stride[2], slice_stride[3]};
-        const float2_t f_slice_shape{slice_shape_ / 2 * 2 + int2_t{slice_shape_ == 1}};
-        const float3_t f_grid_shape{grid_shape / 2 * 2 + int3_t{grid_shape == 1}};
+        const float2_t f_slice_shape(slice_shape_ / 2 * 2 + int2_t(slice_shape_ == 1));
+        const float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
 
         // Launch config:
-        const uint2_t tmp{slice_shape.get(2)};
+        const uint2_t tmp(slice_shape.get(2));
         const dim3 blocks(math::divideUp(tmp[1] / 2 + 1, THREADS.x),
                           math::divideUp(tmp[0], THREADS.y),
                           count);
@@ -341,7 +341,7 @@ namespace noa::cuda::geometry::fft {
     void griddingCorrection(const shared_t<T[]>& input, size4_t input_stride,
                             const shared_t<T[]>& output, size4_t output_stride,
                             size4_t shape, bool post_correction, Stream& stream) {
-        const uint2_t shape_{shape.get(2)};
+        const uint2_t shape_(shape.get(2));
         const uint blocks_x = math::divideUp(shape_[1], THREADS.x);
         const uint blocks_y = math::divideUp(shape_[0], THREADS.y);
         const dim3 blocks(blocks_x * blocks_y,
@@ -349,13 +349,13 @@ namespace noa::cuda::geometry::fft {
                           shape[0]);
         const LaunchConfig config{blocks, THREADS};
 
-        const int3_t l_shape{shape.get(1)};
-        const float3_t f_shape{l_shape};
-        const float3_t half{f_shape / 2 * float3_t{l_shape != 1}}; // if size == 1, half should be 0
+        const int3_t l_shape(shape.get(1));
+        const float3_t f_shape(l_shape);
+        const float3_t half(f_shape / 2 * float3_t(l_shape != 1)); // if size == 1, half should be 0
 
         stream.enqueue("geometry::fft::griddingCorrection",
                        post_correction ? correctGriddingSinc2_<true, T> : correctGriddingSinc2_<false, T>, config,
-                       input.get(), uint4_t{input_stride}, output.get(), uint4_t{output_stride},
+                       input.get(), uint4_t(input_stride), output.get(), uint4_t(output_stride),
                        shape_, f_shape, half, blocks_x);
         stream.attach(input, output);
     }
@@ -376,9 +376,10 @@ namespace noa::cuda::geometry::fft {
     NOA_INSTANTIATE_PROJECT_(cfloat_t);
     NOA_INSTANTIATE_PROJECT_(cdouble_t);
 
-    #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                              \
-    template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float2_t, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                                      \
+    template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,         \
+                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float2_t, Stream&);  \
+    template void extract3D<R, T, void>(cudaTextureObject_t, int3_t, T*, size4_t, size4_t, const float22_t*, const float33_t*, float, float2_t, Stream&)
 
     NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2HC);
     NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2H);

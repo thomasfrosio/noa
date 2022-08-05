@@ -550,7 +550,7 @@ namespace noa::cuda::geometry::details::bspline {
     // Fast implementation, using 8 linear lookups.
     template<typename T>
     NOA_DEVICE T tex3D(cudaTextureObject_t tex, float x, float y, float z) {
-        const float3_t coord_grid(x - 0.5f, y - 0.5f, z - 0.5f);
+        const float3_t coord_grid{x - 0.5f, y - 0.5f, z - 0.5f};
         const float3_t index(noa::math::floor(coord_grid));
         const float3_t fraction(coord_grid - index);
         float3_t w0, w1, w2, w3;
@@ -602,7 +602,7 @@ namespace noa::cuda::geometry::details::bspline {
     // 16 nearest neighbour lookups and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex2DAccurate(cudaTextureObject_t tex, float x, float y) {
-        const float2_t coord_grid(x - 0.5f, y - 0.5f);
+        const float2_t coord_grid{x - 0.5f, y - 0.5f};
         float2_t index(noa::math::floor(coord_grid));
         const float2_t fraction(coord_grid - index);
         index += 0.5f;
@@ -626,7 +626,7 @@ namespace noa::cuda::geometry::details::bspline {
     // 64 nearest neighbour lookups and unnormalized coordinates.
     template<typename T>
     NOA_DEVICE T tex3DAccurate(cudaTextureObject_t tex, float x, float y, float z) {
-        const float3_t coord_grid(x - 0.5f, y - 0.5f, z - 0.5f);
+        const float3_t coord_grid{x - 0.5f, y - 0.5f, z - 0.5f};
         float3_t index(noa::math::floor(coord_grid));
         const float3_t fraction(coord_grid - index);
         index += 0.5f;

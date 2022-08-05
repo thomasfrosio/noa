@@ -22,7 +22,7 @@ namespace noa::cpu::geometry {
     /// \param input_shape          BDHW shape of \p input.
     /// \param[out] output          On the \b host. Output 2D array.
     /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape of \p output. The outermost dimension is the batch dimension.
+    /// \param output_shape         BDHW shape of \p output.
     /// \param[in] rotations        On the \b host. Rotation angles, in radians. One per batch.
     /// \param[in] rotation_centers On the \b host. HW rotation centers. One per batch.
     /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
@@ -85,7 +85,7 @@ namespace noa::cpu::geometry {
     /// \param input_shape          BDHW shape of \p input.
     /// \param[out] output          On the \b host. Output 3D array.
     /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape of \p output. The outermost dimension is the batch dimension.
+    /// \param output_shape         BDHW shape of \p output.
     /// \param[in] rotations        On the \b host. 3x3 inverse rightmost rotation matrices. One per batch.
     /// \param[in] rotation_centers On the \b host. DHW rotation centers. One per batch.
     /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.

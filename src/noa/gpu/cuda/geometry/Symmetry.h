@@ -19,13 +19,13 @@ namespace noa::cuda::geometry {
     /// \tparam T               float, cfloat_t.
     /// \param[in] input        Input 2D array. If pre-filtering is required, should be on the \b device.
     ///                         Otherwise, can be on the \b host or \b device.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
-    ///                         The innermost dimension should be contiguous.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
+    ///                         The width dimension should be contiguous.
     /// \param[out] output      On the \b device. Output 2D array. Can be equal to \p input.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements, of \p input and \p output.
     /// \param symmetry         Symmetry operator.
-    /// \param center           Rightmost center of the symmetry.
+    /// \param center           HW center of the symmetry.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
@@ -34,8 +34,8 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void symmetrize2D(const shared_t<T[]>& input, size4_t input_stride,
-                      const shared_t<T[]>& output, size4_t output_stride,
+    void symmetrize2D(const shared_t<T[]>& input, size4_t input_strides,
+                      const shared_t<T[]>& output, size4_t output_strides,
                       size4_t shape, const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream);
 
@@ -45,13 +45,13 @@ namespace noa::cuda::geometry {
     /// \tparam T               float, cfloat_t.
     /// \param[in] input        Input 3D array. If pre-filtering is required, should be on the \b device.
     ///                         Otherwise, can be on the \b host or \b device.
-    /// \param input_stride     Rightmost stride, in elements, of \p input.
-    ///                         The innermost dimension should be contiguous.
+    /// \param input_strides    BDHW strides, in elements, of \p input.
+    ///                         The width dimension should be contiguous.
     /// \param[out] output      On the \b device. Output 2D array. Can be equal to \p input.
-    /// \param output_stride    Rightmost stride, in elements, of \p output.
-    /// \param shape            Rightmost shape, in elements, of \p input and \p output.
+    /// \param output_strides   BDHW strides, in elements, of \p output.
+    /// \param shape            BDHW shape, in elements, of \p input and \p output.
     /// \param[in] symmetry     Symmetry operator.
-    /// \param center           Rightmost center of the symmetry.
+    /// \param center           HW center of the symmetry.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
@@ -60,8 +60,8 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void symmetrize3D(const shared_t<T[]>& input, size4_t input_stride,
-                      const shared_t<T[]>& output, size4_t output_stride,
+    void symmetrize3D(const shared_t<T[]>& input, size4_t input_strides,
+                      const shared_t<T[]>& output, size4_t output_strides,
                       size4_t shape, const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool normalize, Stream& stream);
 }
@@ -73,10 +73,10 @@ namespace noa::cuda::geometry {
     /// \param texture              Input texture bound to a CUDA array.
     /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
     /// \param[out] output          On the \b device. Symmetrized output array.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape, in elements, of \p texture and \p output.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape, in elements, of \p texture and \p output.
     /// \param[in] symmetry         Symmetry operator.
-    /// \param center               Rightmost center of the symmetry.
+    /// \param center               HW center of the symmetry.
     /// \param normalize            Whether \p output should be normalized to have the same range as the input.
     ///                             If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream       Stream on which to enqueue this function.
@@ -84,7 +84,7 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize2D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                      T* output, size4_t output_stride, size4_t output_shape,
+                      T* output, size4_t output_strides, size4_t output_shape,
                       const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream);
 
     /// Symmetrizes the 3D texture.
@@ -92,10 +92,10 @@ namespace noa::cuda::geometry {
     /// \param texture              Input texture bound to a CUDA array.
     /// \param texture_interp_mode  Interpolation/filter method of \p texture. Any of InterpMode.
     /// \param[out] output          On the \b device. Symmetrized output array.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape, in elements, of \p texture and \p output.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape, in elements, of \p texture and \p output.
     /// \param[in] symmetry         Symmetry operator.
-    /// \param center               Rightmost center of the symmetry.
+    /// \param center               HW center of the symmetry.
     /// \param normalize            Whether \p output should be normalized to have the same range as the input.
     ///                             If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream       Stream on which to enqueue this function.
@@ -103,6 +103,6 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void symmetrize3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                      T* output, size4_t output_stride, size4_t output_shape,
+                      T* output, size4_t output_strides, size4_t output_shape,
                       const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream);
 }

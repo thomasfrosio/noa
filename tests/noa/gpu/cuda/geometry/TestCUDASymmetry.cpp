@@ -73,10 +73,14 @@ TEST_CASE("cuda::geometry::symmetrize3D()", "[noa][cuda][geometry]") {
     const char* symbol = GENERATE("c1", "  c2", "C7", "D1", "D3", "o ", "i1", "  I2  ");
     geometry::Symmetry symmetry(symbol);
 
+    INFO(symbol);
+    INFO(shape);
+
     cuda::geometry::transform3D(d_input.share(), stride, shape,
                                 d_expected.share(), stride, shape,
                                 {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
     cuda::memory::copy(d_expected.share(), expected.share(), elements, stream);
+    stream.synchronize();
 
     cuda::geometry::symmetrize3D(d_input.share(), stride,
                                  d_output.share(), stride, shape,

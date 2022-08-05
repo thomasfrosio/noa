@@ -26,13 +26,13 @@ namespace noa::cuda::geometry {
     /// \tparam T                   float or cfloat_t.
     /// \param[in] input            Input 2D array. If pre-filtering is required, should be on the \b device.
     ///                             Otherwise, can be on the \b host or \b device.
-    /// \param input_stride         Rightmost stride, in elements, of \p input.
-    ///                             The innermost dimension should be contiguous.
-    /// \param input_shape          Rightmost, in elements, shape of \p input.
+    /// \param input_strides        BDHW strides, in elements, of \p input.
+    ///                             The width dimension should be contiguous.
+    /// \param input_shape          BDHW, in elements, shape of \p input.
     /// \param[out] output          On the \b device. Output 2D array. Can be equal to \p input.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
-    /// \param[in] shifts           On the \b device. Rightmost forward shifts. One per batch.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape, in elements, of \p output.
+    /// \param[in] shifts           On the \b device. HW forward shifts. One per batch.
     /// \param interp_mode          Filter method. All modes are supported.
     /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
@@ -41,15 +41,15 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                  const shared_t<float2_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 2D translation.
     /// \see This function has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                  float2_t shift, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies one or multiple 3D translations.
@@ -67,13 +67,13 @@ namespace noa::cuda::geometry {
     /// \tparam T                   float or cfloat_t.
     /// \param[in] input            Input 3D array. If pre-filtering is required, should be on the \b device.
     ///                             Otherwise, can be on the \b host or \b device.
-    /// \param input_stride         Rightmost stride, in elements, of \p input.
-    ///                             The innermost dimension should be contiguous.
-    /// \param input_shape          Rightmost, in elements, shape of \p input.
+    /// \param input_strides        BDHW strides, in elements, of \p input.
+    ///                             The width dimension should be contiguous.
+    /// \param input_shape          BDHW, in elements, shape of \p input.
     /// \param[out] output          On the \b device. Output 3D array. Can be equal to \p input.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
-    /// \param[in] shifts           On the \b device. Rightmost forward shifts. One per batch.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape, in elements, of \p output.
+    /// \param[in] shifts           On the \b device. DHW forward shifts. One per batch.
     /// \param interp_mode          Filter method. All modes are supported.
     /// \param border_mode          Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
@@ -82,15 +82,15 @@ namespace noa::cuda::geometry {
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                  const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 
     /// Applies a single 3D translation.
     /// \see This function has the same features and limitations than the overload above.
     template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_stride, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_stride, size4_t output_shape,
+    void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                  float3_t shift, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
 }
 
@@ -99,15 +99,15 @@ namespace noa::cuda::geometry {
     /// Applies one or multiple 2D translations.
     /// \tparam T                   float or cfloat_t.
     /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_shape        Rightmost shape, in elements, of \p texture.
+    /// \param texture_shape        BDHW shape, in elements, of \p texture.
     ///                             This is only used if \p texture_border_mode is BORDER_PERIODIC or BORDER_MIRROR.
     /// \param texture_interp_mode  Interpolation/filter method of \p texture. All modes are supported.
     /// \param texture_border_mode  Address mode of \p texture.
     ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     /// \param[out] output          On the \b device. Output 2D array.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
-    /// \param[in] shifts           On the \b host or \b device. Rightmost forward shifts. One per batch.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape, in elements, of \p output.
+    /// \param[in] shifts           On the \b host or \b device. HW forward shifts. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
@@ -119,7 +119,7 @@ namespace noa::cuda::geometry {
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(cudaTextureObject_t texture, size2_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 T* output, size4_t output_stride, size4_t output_shape,
+                 T* output, size4_t output_strides, size4_t output_shape,
                  const float2_t* shifts, Stream& stream);
 
     /// Translates a single 2D array.
@@ -127,21 +127,21 @@ namespace noa::cuda::geometry {
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift2D(cudaTextureObject_t texture, size2_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 T* output, size4_t output_stride, size4_t output_shape,
+                 T* output, size4_t output_strides, size4_t output_shape,
                  float2_t shift, Stream& stream);
 
     /// Applies one or multiple 3D translations.
     /// \tparam T                   float or cfloat_t.
     /// \param texture              Input texture bound to a CUDA array.
-    /// \param texture_shape        Rightmost shape, in elements, of \p texture.
+    /// \param texture_shape        BDHW shape, in elements, of \p texture.
     ///                             This is only used if \p texture_border_mode is BORDER_PERIODIC or BORDER_MIRROR.
     /// \param texture_interp_mode  Interpolation/filter method of \p texture. All modes are supported.
     /// \param texture_border_mode  Address mode of \p texture.
     ///                             Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     /// \param[out] output          On the \b device. Output arrays. One per translation.
-    /// \param output_stride        Rightmost stride, in elements, of \p output.
-    /// \param output_shape         Rightmost shape, in elements, of \p output. The outermost dimension is the batch.
-    /// \param[in] shifts           On the \b host or \b device. Rightmost forward shifts. One per batch.
+    /// \param output_strides       BDHW strides, in elements, of \p output.
+    /// \param output_shape         BDHW shape, in elements, of \p output.
+    /// \param[in] shifts           On the \b host or \b device. DHW forward shifts. One per batch.
     /// \param[in,out] stream       Stream on which to enqueue this function.
     ///
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
@@ -153,7 +153,7 @@ namespace noa::cuda::geometry {
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 T* output, size4_t output_stride, size4_t output_shape,
+                 T* output, size4_t output_strides, size4_t output_shape,
                  const float3_t* shifts, Stream& stream);
 
     /// Translates a single 3D array.
@@ -161,6 +161,6 @@ namespace noa::cuda::geometry {
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 T* output, size4_t output_stride, size4_t output_shape,
+                 T* output, size4_t output_strides, size4_t output_shape,
                  float3_t shift, Stream& stream);
 }

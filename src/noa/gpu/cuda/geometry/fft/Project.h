@@ -29,17 +29,17 @@ namespace noa::cuda::geometry::fft {
     /// \tparam REMAP               Remapping from the slice to the grid layout. Should be H2H, H2HC, HC2H or HC2HC.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[in] slice            On the \b device. Non-redundant 2D slice(s) to insert.
-    /// \param slice_stride         Rightmost stride of \p slice.
-    /// \param slice_shape          Rightmost logical shape of \p slice.
+    /// \param slice_strides        BDHW strides of \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
     /// \param[out] grid            On the \b device. Non-redundant 3D grid inside which the slices are inserted.
-    /// \param grid_stride          Rightmost stride of \p grid.
-    /// \param grid_shape           Rightmost logical shape of \p grid.
-    /// \param[in] scaling_factors  On the \b host or \b device. 2x2 rightmost \e inverse real-space scaling to apply
+    /// \param grid_strides         BDHW strides of \p grid.
+    /// \param grid_shape           BDHW logical shape of \p grid.
+    /// \param[in] scaling_factors  On the \b host or \b device. 2x2 HW \e inverse real-space scaling to apply
     ///                             to the slices before the rotation. If nullptr, it is ignored. One per slice.
-    /// \param[in] rotations        On the \b host or \b device. 3x3 rightmost \e forward rotation matrices.
+    /// \param[in] rotations        On the \b host or \b device. 3x3 DHW \e forward rotation matrices.
     /// \param cutoff               One per slice. Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           HW ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.
@@ -49,8 +49,8 @@ namespace noa::cuda::geometry::fft {
     ///       ratio is the ratio between the two innermost dimensions of \p grid_shape and \p slice_shape.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_insert_v<REMAP, T>>>
-    void insert3D(const shared_t<T[]>& slice, size4_t slice_stride, size4_t slice_shape,
-                  const shared_t<T[]>& grid, size4_t grid_stride, size4_t grid_shape,
+    void insert3D(const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
+                  const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
                   float cutoff, float2_t ews_radius, Stream& stream);
@@ -62,17 +62,17 @@ namespace noa::cuda::geometry::fft {
     /// \tparam REMAP               Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
     /// \tparam T                   float or cfloat_t.
     /// \param[out] grid            On the \b device. Non-redundant centered 3D grid from which to extract the slices.
-    /// \param grid_stride          Rightmost stride of \p grid.
-    /// \param grid_shape           Rightmost logical shape of \p grid.
+    /// \param grid_strides         BDHW strides of \p grid.
+    /// \param grid_shape           BDHW logical shape of \p grid.
     /// \param[in] slice            On the \b device. Non-redundant extracted 2D slice(s).
-    /// \param slice_stride         Rightmost stride of \p slice.
-    /// \param slice_shape          Rightmost logical shape of \p slice.
-    /// \param[in] scaling_factors  On the \b host or \b device. 2x2 rightmost \e inverse real-space scaling applied
+    /// \param slice_strides        BDHW strides of \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[in] scaling_factors  On the \b host or \b device. 2x2 HW \e inverse real-space scaling applied
     ///                             to the slices before the rotation. If nullptr, it is ignored. One per slice.
-    /// \param[in] rotations        On the \b host or \b device. 3x3 rightmost \e forward rotation matrices.
+    /// \param[in] rotations        On the \b host or \b device. 3x3 DHW \e forward rotation matrices.
     /// \param cutoff               One per slice. Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           BDHW ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.
@@ -82,8 +82,8 @@ namespace noa::cuda::geometry::fft {
     ///       ratio is the ratio between the two innermost dimensions of \p grid_shape and \p slice_shape.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
-    void extract3D(const shared_t<T[]>& grid, size4_t grid_stride, size4_t grid_shape,
-                   const shared_t<T[]>& slice, size4_t slice_stride, size4_t slice_shape,
+    void extract3D(const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
+                   const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
                    float cutoff, float2_t ews_radius, Stream& stream);
@@ -91,10 +91,10 @@ namespace noa::cuda::geometry::fft {
     /// Corrects for the gridding, assuming tri-linear interpolation is used during the insertion or extraction.
     /// \tparam T               float or double.
     /// \param[in] input        On the \b device. Real-space volume.
-    /// \param input_stride     Rightmost stride of \p input.
+    /// \param input_strides    BDHW strides of \p input.
     /// \param[out] output      On the \b device. Gridding-corrected output. Can be equal to \p input.
-    /// \param output_stride    Rightmost stride of \p output.
-    /// \param shape            Rightmost shape of \p input and \p output.
+    /// \param output_strides   BDHW strides of \p output.
+    /// \param shape            BDHW shape of \p input and \p output.
     /// \param post_correction  Whether the correction is the post- or pre-correction.
     ///                         Post correction is meant to be applied on the volume that was just back-projected
     ///                         using insert3D, whereas pre-correction is meant to be applied on the volume that is
@@ -102,8 +102,8 @@ namespace noa::cuda::geometry::fft {
     /// \param[in,out] stream   Stream on which to enqueue this function.
     /// \note This function is asynchronous relative to the host and may return before completion.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    void griddingCorrection(const shared_t<T[]>& input, size4_t input_stride,
-                            const shared_t<T[]>& output, size4_t output_stride,
+    void griddingCorrection(const shared_t<T[]>& input, size4_t input_strides,
+                            const shared_t<T[]>& output, size4_t output_strides,
                             size4_t shape, bool post_correction, Stream& stream);
 }
 
@@ -115,16 +115,16 @@ namespace noa::cuda::geometry::fft {
     ///                             The interpolation mode is expected to be INTERP_LINEAR.
     ///                             The border mode is expected to be BORDER_ZERO.
     ///                             Un-normalized coordinates should be used.
-    /// \param grid_shape           Rightmost logical shape of the grid.
+    /// \param grid_shape           BDHW logical shape of the grid.
     /// \param[in] slice            On the \b device. Non-redundant extracted 2D slice(s).
-    /// \param slice_stride         Rightmost stride of \p slice.
-    /// \param slice_shape          Rightmost logical shape of \p slice.
-    /// \param[in] scaling_factors  On the \b host or \b device. 2x2 rightmost \e inverse real-space scaling applied
+    /// \param slice_strides        BDHW strides of \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[in] scaling_factors  On the \b host or \b device. 2x2 HW \e inverse real-space scaling applied
     ///                             to the slices before the rotation. If nullptr, it is ignored. One per slice.
-    /// \param[in] rotations        On the \b host or \b device. 3x3 rightmost \e forward rotation matrices.
+    /// \param[in] rotations        On the \b host or \b device. 3x3 DHW \e forward rotation matrices.
     /// \param cutoff               One per slice. Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param ews_radius           BDHW ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     /// \param[in,out] stream       Stream on which to enqueue this function.
@@ -132,7 +132,7 @@ namespace noa::cuda::geometry::fft {
     ///       \p grid, \p slice, \p scaling_factors, and \p rotations should stay valid until completion.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
     void extract3D(cudaTextureObject_t grid, int3_t grid_shape,
-                   T* slice, size4_t slice_stride, size4_t slice_shape,
+                   T* slice, size4_t slice_strides, size4_t slice_shape,
                    const float22_t* scaling_factors, const float33_t* rotations,
                    float cutoff, float2_t ews_radius, Stream& stream);
 }
