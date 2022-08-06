@@ -17,7 +17,7 @@
 namespace noa::geometry {
     /// Symmetry operator.
     /// \details This class can parse a string containing a symmetry symbol and converts this symbol
-    ///          in a set of 3x3 rotation matrices that can then be applied to a 3D array to enforce
+    ///          in a set of DHW 3x3 rotation matrices that can then be applied to a 3D array to enforce
     ///          the desired symmetry. Supported symbols are CX, DX, O, I1 and I2, with X being a
     ///          non-zero positive number.
     /// \note The identity matrix is NOT generated, since performing an interpolation for the identity is quite
@@ -47,7 +47,7 @@ namespace noa::geometry {
         /// Creates a symmetry from raw data.
         /// This is mostly to create an interface with non-supported symmetries.
         /// \param symbol           New symmetry symbol store in the instance. Can be retrieved using symbol().
-        /// \param[in] matrices     3x3 symmetry matrices that will be pointed by the instance when calling matrices().
+        /// \param[in] matrices     DHW 3x3 symmetry matrices that will be pointed by the instance when calling matrices().
         ///                         Note that this function does not copy the underlying data and nor does it
         ///                         own it. It creates a view and the caller remains the owner of the matrices.
         /// \param count            Number of 3x3 matrices in \p matrices.

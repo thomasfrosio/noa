@@ -13,14 +13,14 @@
 
 // -- 2D transformations -- //
 namespace noa::geometry {
-    /// Returns a 2x2 scaling matrix.
-    /// \param s Scaling factors for each axis.
+    /// Returns a 2x2 HW scaling matrix.
+    /// \param s HW scaling factors for each axis.
     template<typename T>
     NOA_IHD constexpr Mat22<T> scale(Float2<T> s) noexcept {
         return Mat22<T>{s};
     }
 
-    /// Returns the rightmost 2x2 rotation matrix describing an
+    /// Returns the HW 2x2 rotation matrix describing an
     /// in-plane rotation by \p angle radians.
     template<typename T>
     NOA_IHD constexpr Mat22<T> rotate(T angle) noexcept {
@@ -30,8 +30,8 @@ namespace noa::geometry {
                 -s, c};
     }
 
-    /// Returns the rightmost 3x3 affine translation matrix encoding the
-    /// rightmost translation \p shift, in elements.
+    /// Returns the DHW 3x3 affine translation matrix encoding the
+    /// DHW translation \p shift, in elements.
     template<typename T>
     NOA_IHD constexpr Mat33<T> translate(Float2<T> shift) noexcept {
         return {1, 0, shift[0],
@@ -42,14 +42,14 @@ namespace noa::geometry {
 
 // -- 3D transformations -- //
 namespace noa::geometry {
-    /// Returns a 3x3 scaling matrix.
-    /// \param s Scaling factors for each axis.
+    /// Returns a DHW 3x3 scaling matrix.
+    /// \param s DHW scaling factors for each axis.
     template<typename T>
     NOA_IHD constexpr Mat33<T> scale(Float3<T> s) noexcept {
         return Mat33<T>{s};
     }
 
-    /// Returns the rightmost 3x3 rotation matrix describing the rotation
+    /// Returns the DHW 3x3 rotation matrix describing the rotation
     /// by \p angle radians around the outermost axis.
     template<typename T>
     NOA_IHD constexpr Mat33<T> rotateZ(T angle) noexcept {
@@ -60,7 +60,7 @@ namespace noa::geometry {
                 0, -s, c};
     }
 
-    /// Returns the rightmost 3x3 rotation matrix describing the rotation
+    /// Returns the DHW 3x3 rotation matrix describing the rotation
     /// by \p angle radians around the second-most axis.
     template<typename T>
     NOA_IHD constexpr Mat33<T> rotateY(T angle) noexcept {
@@ -71,7 +71,7 @@ namespace noa::geometry {
                 s, 0, c};
     }
 
-    /// Returns the rightmost 3x3 rotation matrix describing the rotation
+    /// Returns the DHW 3x3 rotation matrix describing the rotation
     /// by \p angle radians around the innermost axis.
     template<typename T>
     NOA_IHD constexpr Mat33<T> rotateX(T angle) noexcept {
@@ -82,7 +82,7 @@ namespace noa::geometry {
                 0, 0, 1};
     }
 
-    /// Returns a rightmost 3x3 matrix describing a rotation by an \p angle around a given \p axis.
+    /// Returns a DHW 3x3 matrix describing a rotation by an \p angle around a given \p axis.
     /// \tparam T       float or double
     /// \param axis     Normalized axis, using the rightmost {Z,Y,X} coordinates.
     /// \param angle    Rotation angle, in radians.
@@ -107,8 +107,8 @@ namespace noa::geometry {
                 axis[2] * axis[2] * t + c};
     }
 
-    /// Returns a rightmost 4x4 affine translation matrix encoding the
-    /// rightmost translation \p shift, in elements.
+    /// Returns a DHW 4x4 affine translation matrix encoding the
+    /// DHW translation \p shift, in elements.
     template<typename T>
     NOA_IHD constexpr Mat44<T> translate(Float3<T> shift) noexcept {
         return {1, 0, 0, shift[0],

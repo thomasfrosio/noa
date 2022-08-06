@@ -236,7 +236,7 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
                                                    size4_t shape, uint flag, size_t threads) {
-        int3_t s_shape(shape.get() + 1);
+        int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
@@ -271,7 +271,7 @@ namespace noa::cpu::fft {
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_strides,
                                                    T* output, size4_t output_strides,
                                                    size4_t shape, uint flag, size_t threads) {
-        int3_t s_shape(shape.get() + 1);
+        int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
@@ -306,7 +306,7 @@ namespace noa::cpu::fft {
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms or with the PRESERVE_INPUT flag
-        // with a multi-dimensional out-of-place c2r transform.
+        // with a multidimensional out-of-place c2r transform.
         if (!plan)
             NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
                       s_shape, input_strides, output_strides);
@@ -319,7 +319,7 @@ namespace noa::cpu::fft {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
-        int3_t s_shape(shape.get() + 1);
+        int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
@@ -360,7 +360,7 @@ namespace noa::cpu::fft {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
-        int3_t s_shape(shape.get() + 1);
+        int3_t s_shape(shape.get(1));
         if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
             // column major -> row major
             std::swap(s_shape[1], s_shape[2]);

@@ -25,12 +25,14 @@ cryoEM:
     -   Add center of mass, radial grid.
 
     -   ImageFile:
-        - Add support for View<T>
         - Add compression.
         - Better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the
           non-redundant data. ImageFile treats the shape as the physical shape...
 
 Development:
+    -   Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
+    -   Move PREFILTER to runtime param.
+
     -   Atm, we need to compile OpenBLAS and add it to CMAKE_PREFIX_PATH. This is very annoying since it means the
         build is not automatic and requires installing a dependency. I would like to either use an existing OpenBLAS
         or BLAS library that contains CBLAS _and_ LAPACKE. One solution is also to build OpenBLAS ourselves with
