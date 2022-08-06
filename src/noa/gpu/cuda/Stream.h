@@ -8,51 +8,64 @@
 #include <list>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
 
+#include "noa/common/io/TextFile.h"
+
 namespace noa::cuda::details {
-    /// Registry to attach a stream and a shared_ptr.
-    /// \details This object tries to solve the following issue: when a kernel is enqueued to a stream,
-    ///          we assume the device pointers will stay valid until the kernel computation is completed.
-    ///          This assumption can be easily broken if the delete functions are called prematurely,
-    ///          e.g. during stack unrolling. This registry attaches some memory regions to a stream and
-    ///          releases them when the kernel is done executing. In practice, insert() copies the shared_ptr(s)
-    ///          into an internal buffer, update() marks the shared_ptr(s) at the back of the FIFO registry
-    ///          to be ready for delete and clear() removes everything marked by update(). As a result,
-    ///          if update() is called by a callback enqueued just after the kernel launch, it guarantees
-    ///          that the reference count of the inserted pointers never reaches zero while the kernel runs.
-    ///          In terms of performance, it seems to add an overhead of ~0.01 to 0.02 ms per callback.
+    /// Registry to attach a stream and a shared_ptr, using a FIFO buffer.
+    /// \details Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
+    ///          kernel is running and when it's done, so that we can make sure the device memory used by this kernel
+    ///          will never be deleted while the kernel is running. To solve this problem, this registry attaches some
+    ///          memory regions to a stream and, using callbacks, releases them when the kernel is done executing.
+    ///          In practice, insert() should be called after the kernel launch and copies the shared_ptr(s) at the
+    ///          back of the registry. Then a callback is enqueued to the stream. When the kernel is done execution,
+    ///          the callback is called. The callback is then updating the "callback_count", letting the registry know
+    ///          that the shared_ptr(s) at the front can be deleted.
     class StreamMemoryRegistry {
+    private:
+        std::mutex m_mutex;
+        std::vector<std::pair<int, std::shared_ptr<const void>>> m_registry;
     public:
-        /// Adds one or multiple shared_ptr to the front of the registry.
+        std::atomic<int> callback_count{0};
+
+    public:
+        /// Adds one or multiple shared_ptr to the back of the registry.
         /// The shared_ptr reference count is increased by one.
+        /// This function also deletes the registry from unused shared_ptr.
         template<typename ...Args>
         void insert(Args&& ... args) {
             std::scoped_lock lock(m_mutex);
+
+            int count = callback_count.load();
+            while (count != 0 && callback_count.compare_exchange_weak(count, count - 1)) {
+                update_();
+                --count;
+            }
             clear_();
+
             const auto key = static_cast<int>(m_registry.size());
-            ([&key, this](auto&& input) { this->insertOne_(key, input); }(std::forward<Args>(args)), ...);
+            ([&key, this](auto&& input) { this->pushBack_(key, input); }(std::forward<Args>(args)), ...);
         }
 
         /// Removes from the registry the shared_ptr(s) flagged as unused.
         /// The shared_ptr reference count is decreased by one, thus their deleter can be called.
-        /// This function should not be called from a CUDA callback if the deleter makes a CUDA API call.
-        /// \see https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
         void clear(bool force = false) {
             std::scoped_lock lock(m_mutex);
             clear_(force);
+            callback_count.store(0);
         }
 
-        /// Flags as unused, and ready to be deleted from the register, the shared_ptr(s) at the back of registry.
-        /// This function can and should be called from a CUDA callback.
-        void update() {
-            std::scoped_lock lock(m_mutex);
-            // Make sure to take the "first in", excluding the elements already
-            // marked as unused that haven't been cleared yet.
+    private:
+        // Flags as unused, and ready to be deleted from the register, the shared_ptr(s) at the front of registry.
+        // This function needs to make sure to take the "first in", excluding the elements already marked as unused
+        // that haven't been cleared yet.
+        void update_() {
             int key = -1;
             for (auto& p: m_registry) {
                 if (key == -1 && p.first != -1)
@@ -62,16 +75,26 @@ namespace noa::cuda::details {
             }
         }
 
-    private:
+        // Removes the unused elements from the registry.
         void clear_(bool force = false) {
-            if (force) {
-                m_registry.clear();
-            } else {
-                for (auto& p: m_registry)
-                    if (p.first == -1)
-                        p.second = nullptr;
+            if (force)
+                return m_registry.clear();
 
-                // Stack elements contiguously at the front while keeping the order and resize:
+            // Everything marked with -1 (by update_) is deleted. If it was the last record of that pointer,
+            // the reference count goes to 0 and the deleter of that managed (shared) object is called.
+            // As such, the CUDA API can be called (e.g. cudaFree).
+            bool something_was_deleted{false};
+            for (auto& p: m_registry) {
+                if (p.first == -1) {
+                    p.second = nullptr;
+                    something_was_deleted = true;
+                }
+            }
+
+            if (something_was_deleted) {
+                // Now that the shared_ptr are set to nullptr, we need to remove them from the registry by
+                // squeezing the remaining elements, i.e. we need to stack valid elements contiguously at
+                // the front of the vector while keeping their original order.
                 size_t last_available = 0;
                 for (size_t i = 0; i < m_registry.size(); ++i) {
                     if (m_registry[i].second) {
@@ -80,24 +103,26 @@ namespace noa::cuda::details {
                         ++last_available;
                     }
                 }
+                // Additionally, we need to reset the keys to make sure they stay unique.
                 size_t count = 0;
-                for (auto& p: m_registry) {
-                    if (p.second)
-                        ++count;
-                    else
+                int old_key = m_registry[0].first;
+                int new_key = 0;
+                for (; count < m_registry.size(); ++count) {
+                    if (!m_registry[count].second)
                         break;
+
+                    if (m_registry[count].first != old_key)
+                        new_key = static_cast<int>(count);
+                    old_key = std::exchange(m_registry[count].first, new_key);
                 }
                 m_registry.resize(count);
             }
         }
 
         template<typename T>
-        void insertOne_(int key, const std::shared_ptr<T>& ptr) {
+        void pushBack_(int key, const std::shared_ptr<T>& ptr) {
             m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
         }
-
-        std::mutex m_mutex;
-        std::vector<std::pair<int, std::shared_ptr<const void>>> m_registry;
     };
 }
 
@@ -231,10 +256,15 @@ namespace noa::cuda {
         [[nodiscard]] bool empty() const noexcept { return m_core == nullptr; }
 
     private:
+        // We need to make sure this callback:
+        // 1) doesn't call the CUDA API. https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
+        // 2) doesn't lock the StreamMemoryRegistry.
+        // The latter was actually a surprise: cudaFreeArray seems to wait/use the thread that calls the callbacks.
+        // As such, if the StreamMemoryRegistry calls the CUDA API as part of insert() or clear(), since these
+        // function look, the CUDA host thread can deadlock...
         static void CUDART_CB updateRegistryCallback_(void* object) {
             auto* registry = static_cast<details::StreamMemoryRegistry*>(object);
-            registry->update();
-            // TODO Add a profiler call?
+            ++(registry->callback_count);
         }
 
     private:

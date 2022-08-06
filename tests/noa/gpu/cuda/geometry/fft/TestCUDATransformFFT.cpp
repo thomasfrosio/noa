@@ -5,7 +5,6 @@
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/geometry/fft/Transform.h>
 
-#include <noa/gpu/cuda/math/Ewise.h>
 #include <noa/gpu/cuda/fft/Transforms.h>
 #include <noa/gpu/cuda/memory/PtrManaged.h>
 #include <noa/gpu/cuda/geometry/fft/Transform.h>
@@ -17,7 +16,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
+TEST_CASE("cuda::transform::fft::transform2D()", "[assets][noa][cuda][transform]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
     io::ImageFile file;
@@ -66,7 +65,7 @@ TEST_CASE("cuda::transform::fft::apply2D()", "[assets][noa][cuda][transform]") {
         // Go back to real space:
         cuda::fft::c2r(output_fft.share(), input.share(), shape, fft::NORM_ORTHO, stream);
 
-        // Load excepted and compare
+        // Load expected and compare
         cuda::memory::PtrManaged<float> expected(input.elements(), stream);
         file.open(path_expected, io::READ);
         file.readAll(expected.get(), false);
@@ -87,6 +86,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
     const auto interp = INTERP_LINEAR;
     cuda::Stream stream;
     cpu::Stream cpu_stream(cpu::Stream::DEFAULT);
+    INFO(shape);
 
     // Prepare transformation:
     test::Randomizer<float> randomizer(-3, 3);
@@ -119,7 +119,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
     REQUIRE(matcher);
 }
 
-TEST_CASE("cuda::transform::fft::apply3D()", "[assets][noa][cuda][transform]") {
+TEST_CASE("cuda::transform::fft::transform3D()", "[assets][noa][cuda][transform]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 

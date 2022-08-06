@@ -34,7 +34,8 @@ namespace noa::cuda::memory {
     public:
         struct Deleter {
             void operator()(cudaArray* array) noexcept {
-                cudaFreeArray(array);
+                [[maybe_unused]] const cudaError_t err = cudaFreeArray(array);
+                NOA_ASSERT(err == cudaSuccess);
             }
         };
 
@@ -73,13 +74,10 @@ namespace noa::cuda::memory {
 
     public:
         /// Returns the CUDA array pointer.
-        [[nodiscard]] constexpr cudaArray* get() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const cudaArray* get() const noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr cudaArray* data() noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const cudaArray* data() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr cudaArray* get() const noexcept { return m_ptr.get(); }
+        [[nodiscard]] constexpr cudaArray* data() const noexcept { return m_ptr.get(); }
 
         /// Returns a reference of the shared object.
-        [[nodiscard]] constexpr std::shared_ptr<cudaArray>& share() noexcept { return m_ptr; }
         [[nodiscard]] constexpr const std::shared_ptr<cudaArray>& share() const noexcept { return m_ptr; }
 
         /// Attach the lifetime of the managed object with an \p alias.

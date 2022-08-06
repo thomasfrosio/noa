@@ -51,9 +51,10 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         REQUIRE_THROWS_AS(stream.synchronize(), std::exception);
         REQUIRE_FALSE(stream.busy());
         stream.enqueue(task5);
+        stream.enqueue(task2, 1);
         REQUIRE(stream.busy());
         stream.synchronize();
         REQUIRE_FALSE(stream.busy());
-        REQUIRE(flag == 5);
+        REQUIRE(flag == 1);
     }
 }

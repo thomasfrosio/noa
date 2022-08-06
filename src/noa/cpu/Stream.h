@@ -125,20 +125,15 @@ namespace noa::cpu {
         // queue or for the destructor to be called (i.e. stop=true). Once a task is added and the waiting thread
         // receives the notification, it extracts it from the queue and launches the task.
         static void waitingRoom_(StreamImp* imp) {
-            // This mutex is only used to block the working thread until it is notified.
-            // The working thread is the only one to use it, and it can be reused until despawn.
-            std::mutex mutex_worker;
             while (true) {
                 std::function<void()> task;
                 bool sync_call;
                 {
-                    std::unique_lock<std::mutex> lock_worker(mutex_worker);
+                    std::unique_lock<std::mutex> lock_worker(imp->mutex_queue);
                     imp->is_waiting = true;
                     imp->condition.wait(lock_worker, [imp] { return imp->stop || !imp->queue.empty(); });
                     imp->is_waiting = false;
-                }
-                {
-                    std::scoped_lock queue_lock(imp->mutex_queue);
+
                     if (imp->queue.empty()) {
                         if (imp->stop)
                             break; // the dtor called, there's no tasks left, so despawn

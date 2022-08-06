@@ -100,5 +100,18 @@ TEST_CASE("TextFile:", "[noa][file]") {
         REQUIRE(!file.bad());
     }
 
+    AND_WHEN("append") {
+        io::TextFile file;
+        file.open(test_file1, io::WRITE | io::TRUNC);
+        file.write("0");
+        file.close();
+        file.open(test_file1, io::APP | io::ATE);
+        file.write("1");
+        file.close();
+
+        file.open(test_file1, io::READ);
+        REQUIRE(file.readAll() == "01");
+    }
+
     os::removeAll(test_dir);
 }

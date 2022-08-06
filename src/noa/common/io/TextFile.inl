@@ -70,7 +70,7 @@ namespace noa::io {
 
         if constexpr (!std::is_same_v<Stream, std::ifstream>) {
             if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
-                bool overwrite = mode & io::TRUNC || !(mode & io::READ); // case 3|4
+                bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
                 try {
                     bool exists = os::existsFile(m_path);
                     if (exists)

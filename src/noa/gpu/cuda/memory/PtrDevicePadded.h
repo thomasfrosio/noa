@@ -41,7 +41,8 @@ namespace noa::cuda::memory {
     public:
         struct Deleter {
             void operator()(void* ptr) noexcept {
-                cudaFree(ptr); // if nullptr, it does nothing
+                [[maybe_unused]] const cudaError_t err = cudaFree(ptr); // if nullptr, it does nothing
+                NOA_ASSERT(err == cudaSuccess);
             }
         };
 

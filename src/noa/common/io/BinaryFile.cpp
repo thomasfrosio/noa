@@ -5,7 +5,7 @@ namespace noa {
     void BinaryFile::open_(uint open_mode) {
         close();
 
-        bool overwrite = open_mode & io::TRUNC || !(open_mode & io::READ);
+        bool overwrite = open_mode & io::TRUNC || !(open_mode & (io::READ | io::APP));
         bool exists;
         try {
             exists = os::existsFile(m_path);

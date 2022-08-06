@@ -247,7 +247,8 @@ namespace noa::cuda::memory {
     public: // noa alloc functions
         struct Deleter {
             void operator()(const cudaTextureObject_t* handle) noexcept {
-                cudaDestroyTextureObject(*handle);
+                [[maybe_unused]] const cudaError_t err = cudaDestroyTextureObject(*handle);
+                NOA_ASSERT(err == cudaSuccess);
                 delete handle;
             }
         };
