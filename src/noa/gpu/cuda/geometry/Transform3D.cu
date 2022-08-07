@@ -69,10 +69,10 @@ namespace {
         output[indexing::at(gid, output_strides)] = cuda::geometry::tex3D<T, MODE>(texture, coordinates);
     }
 
-    template<bool PREFILTER, typename T, typename U, typename = void>
+    template<typename T, typename U, typename = void>
     void launchTransform3D_(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                             const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                            U matrices, InterpMode interp_mode, BorderMode border_mode,
+                            U matrices, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                             cuda::Stream& stream) {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
@@ -84,7 +84,7 @@ namespace {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[1] != output_shape[1] ||
                 input_shape[2] != output_shape[2] ||
                 input_shape[3] != output_shape[3]) {
@@ -143,24 +143,22 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T, typename MAT, typename>
+    template<typename T, typename MAT, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
-                     Stream& stream) {
-        launchTransform3D_<PREFILTER>(
-                input, input_strides, input_shape, output, output_strides, output_shape,
-                matrices, interp_mode, border_mode, stream);
+                     bool prefilter, Stream& stream) {
+        launchTransform3D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                           matrices, interp_mode, border_mode, prefilter, stream);
     }
 
-    template<bool PREFILTER, typename T, typename MAT, typename>
+    template<typename T, typename MAT, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, InterpMode interp_mode, BorderMode border_mode,
+                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                      Stream& stream) {
-        launchTransform3D_<PREFILTER>(
-                input, input_strides, input_shape, output, output_strides, output_shape,
-                matrix, interp_mode, border_mode, stream);
+        launchTransform3D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                           matrix, interp_mode, border_mode, prefilter, stream);
     }
 
     template<typename T, typename MAT, typename>
@@ -305,14 +303,10 @@ namespace noa::cuda::geometry {
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_3D_(T)                                                                                                                                                            \
-    template void transform3D<true, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float34_t[]>&, InterpMode, BorderMode, Stream&); \
-    template void transform3D<true, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float44_t[]>&, InterpMode, BorderMode, Stream&); \
-    template void transform3D<false, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float34_t[]>&, InterpMode, BorderMode, Stream&);\
-    template void transform3D<false, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float44_t[]>&, InterpMode, BorderMode, Stream&);\
-    template void transform3D<true, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float34_t, InterpMode, BorderMode, Stream&);                    \
-    template void transform3D<true, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, Stream&);                    \
-    template void transform3D<false, T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float34_t, InterpMode, BorderMode, Stream&);                   \
-    template void transform3D<false, T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, Stream&);                   \
+    template void transform3D<T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float34_t[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void transform3D<T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float44_t[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void transform3D<T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float34_t, InterpMode, BorderMode, bool, Stream&);                    \
+    template void transform3D<T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, bool, Stream&);                    \
     template void transform3D<T, float34_t, void>(cudaTextureObject_t, size3_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float34_t*, Stream&);   \
     template void transform3D<T, float44_t, void>(cudaTextureObject_t, size3_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float44_t*, Stream&);   \
     template void transform3D<T, float34_t, void>(cudaTextureObject_t, size3_t, InterpMode, BorderMode, T*, size4_t, size4_t, float34_t, Stream&);          \

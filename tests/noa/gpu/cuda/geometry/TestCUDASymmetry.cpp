@@ -37,12 +37,12 @@ TEST_CASE("cuda::transform::symmetrize2D()", "[noa][cuda][transform]") {
 
     cuda::geometry::transform2D(d_input.share(), stride, shape,
                                 d_expected.share(), stride, shape,
-                                {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
+                                {}, {}, symmetry, center, INTERP_LINEAR, true, true, stream);
     cuda::memory::copy(d_expected.share(), expected.share(), elements, stream);
 
     cuda::geometry::symmetrize2D(d_input.share(), stride,
                                  d_output.share(), stride, shape,
-                                 symmetry, center, INTERP_LINEAR, true, stream);
+                                 symmetry, center, INTERP_LINEAR, true, true, stream);
     cuda::memory::copy(d_output.share(), output.share(), elements, stream);
     stream.synchronize();
 
@@ -78,13 +78,13 @@ TEST_CASE("cuda::geometry::symmetrize3D()", "[noa][cuda][geometry]") {
 
     cuda::geometry::transform3D(d_input.share(), stride, shape,
                                 d_expected.share(), stride, shape,
-                                {}, {}, symmetry, center, INTERP_LINEAR, true, stream);
+                                {}, {}, symmetry, center, INTERP_LINEAR, true, true, stream);
     cuda::memory::copy(d_expected.share(), expected.share(), elements, stream);
     stream.synchronize();
 
     cuda::geometry::symmetrize3D(d_input.share(), stride,
                                  d_output.share(), stride, shape,
-                                 symmetry, center, INTERP_LINEAR, true, stream);
+                                 symmetry, center, INTERP_LINEAR, true, true, stream);
     cuda::memory::copy(d_output.share(), output.share(), elements, stream);
     stream.synchronize();
 

@@ -31,7 +31,6 @@ cryoEM:
 
 Development:
     -   Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
-    -   Move PREFILTER to runtime param.
 
     -   Atm, we need to compile OpenBLAS and add it to CMAKE_PREFIX_PATH. This is very annoying since it means the
         build is not automatic and requires installing a dependency. I would like to either use an existing OpenBLAS

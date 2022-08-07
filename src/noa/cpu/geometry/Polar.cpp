@@ -97,11 +97,11 @@ namespace {
 }
 
 namespace noa::cpu::geometry {
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
-                         bool log, InterpMode interp, Stream& stream) {
+                         bool log, InterpMode interp, bool prefilter, Stream& stream) {
         NOA_ASSERT(cartesian.get() != polar.get());
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
@@ -145,7 +145,7 @@ namespace noa::cpu::geometry {
                     memory::PtrHost<T> buffer;
                     const T* src = cartesian.get();
                     size3_t src_strides_ = src_strides;
-                    if constexpr (PREFILTER) {
+                    if (prefilter) {
                         if (cartesian_strides[0] == 0)
                             cartesian_shape[0] = 1;
                         const size4_t strides = cartesian_shape.strides();
@@ -163,11 +163,11 @@ namespace noa::cpu::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
-                         bool log, InterpMode interp, Stream& stream) {
+                         bool log, InterpMode interp, bool prefilter, Stream& stream) {
         NOA_ASSERT(cartesian.get() != polar.get());
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
@@ -211,7 +211,7 @@ namespace noa::cpu::geometry {
                     memory::PtrHost<T> buffer;
                     const T* src = polar.get();
                     size3_t src_strides_ = src_strides;
-                    if constexpr (PREFILTER) {
+                    if (prefilter) {
                         if (polar_strides[0] == 0)
                             polar_shape[0] = 1;
                         const size4_t strides = polar_shape.strides();
@@ -228,10 +228,8 @@ namespace noa::cpu::geometry {
     }
 
     #define INSTANTIATE_POLAR(T) \
-    template void cartesian2polar<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void cartesian2polar<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
-    template void polar2cartesian<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void polar2cartesian<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&)
+    template void cartesian2polar<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&);  \
+    template void polar2cartesian<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&)
 
     INSTANTIATE_POLAR(float);
     INSTANTIATE_POLAR(double);

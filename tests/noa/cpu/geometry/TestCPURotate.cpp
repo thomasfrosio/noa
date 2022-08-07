@@ -40,8 +40,8 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::rotate2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                             rotate, center, interp, border, border_value, stream);
+        cpu::geometry::rotate2D(input.share(), stride, shape, output.share(), stride, shape,
+                                rotate, center, interp, border, border_value, true, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
@@ -87,8 +87,8 @@ TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::rotate3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                             matrix, center, interp, border, border_value, stream);
+        cpu::geometry::rotate3D(input.share(), stride, shape, output.share(), stride, shape,
+                                matrix, center, interp, border, border_value, true, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {

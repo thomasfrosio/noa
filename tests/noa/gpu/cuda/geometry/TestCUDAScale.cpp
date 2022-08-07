@@ -53,7 +53,7 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::scale2D(d_input.share(), d_input.strides(), shape,
                                 d_input.share(), d_input.strides(), shape,
-                                 scale, center, interp, border, stream);
+                                scale, center, interp, border, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
@@ -107,7 +107,7 @@ TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::scale3D(d_input.share(), d_input.strides(), shape,
                                 d_input.share(), d_input.strides(), shape,
-                                scale, center, interp, border, stream);
+                                scale, center, interp, border, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 

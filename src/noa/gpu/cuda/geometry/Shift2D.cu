@@ -61,10 +61,10 @@ namespace {
     }
 
     // NOTE: almost identical to launchTransform2D_
-    template<bool PREFILTER, typename T, typename U>
+    template<typename T, typename U>
     void launchShift2D_(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                         const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                        U shifts, InterpMode interp_mode, BorderMode border_mode,
+                        U shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                         cuda::Stream& stream) {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
@@ -77,7 +77,7 @@ namespace {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[2] != output_shape[2] || input_shape[3] != output_shape[3]) {
                 buffer = cuda::memory::PtrDevice<T>(input_shape.elements(), stream);
                 const size4_t contiguous_strides = input_shape.strides();
@@ -267,31 +267,27 @@ namespace noa::cuda::geometry {
         }
     }
 
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 const shared_t<float2_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
+                 const shared_t<float2_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                  Stream& stream) {
-        launchShift2D_<PREFILTER>(
-                input, input_strides, input_shape, output, output_strides, output_shape,
-                shifts, interp_mode, border_mode, stream);
+        launchShift2D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                       shifts, interp_mode, border_mode, prefilter, stream);
     }
 
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 float2_t shift, InterpMode interp_mode, BorderMode border_mode,
+                 float2_t shift, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                  Stream& stream) {
-        launchShift2D_<PREFILTER>(
-                input, input_strides, input_shape, output, output_strides, output_shape,
-                shift, interp_mode, border_mode, stream);
+        launchShift2D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                       shift, interp_mode, border_mode, prefilter, stream);
     }
 
     #define NOA_INSTANTIATE_SHIFT_2D_(T)                                                                                                                                                \
-    template void shift2D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, InterpMode, BorderMode, Stream&);\
-    template void shift2D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, InterpMode, BorderMode, Stream&); \
-    template void shift2D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, InterpMode, BorderMode, Stream&);                   \
-    template void shift2D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, InterpMode, BorderMode, Stream&);                    \
+    template void shift2D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float2_t[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void shift2D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, InterpMode, BorderMode, bool, Stream&);                    \
     template void shift2D<T, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float2_t*, Stream&);                                               \
     template void shift2D<T, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, float2_t, Stream&)
 

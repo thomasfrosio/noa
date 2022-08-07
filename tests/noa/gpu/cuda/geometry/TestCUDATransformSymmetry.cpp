@@ -51,7 +51,7 @@ TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geome
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::transform2D(d_input.share(), d_input.strides(), shape,
                                     d_input.share(), d_input.strides(), shape,
-                                    shift, matrix, symmetry, center, interp, true, stream);
+                                    shift, matrix, symmetry, center, interp, true, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
@@ -103,7 +103,7 @@ TEST_CASE("cuda::geometry::transform3D() - symmetry", "[assets][noa][cuda][geome
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::transform3D(d_input.share(), d_input.strides(), shape,
                                     d_input.share(), d_input.strides(), shape,
-                                    shift, matrix, symmetry, center, interp, true, stream);
+                                    shift, matrix, symmetry, center, interp, true, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 

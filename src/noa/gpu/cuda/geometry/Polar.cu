@@ -66,11 +66,11 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
-                         bool log, InterpMode interp, Stream& stream) {
+                         bool log, InterpMode interp, bool prefilter, Stream& stream) {
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
 
@@ -82,7 +82,7 @@ namespace noa::cuda::geometry {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST)) {
             buffer = cuda::memory::PtrDevice<T>(cartesian_shape.elements(), stream);
             const size4_t contiguous_strides = cartesian_shape.strides();
             cuda::geometry::bspline::prefilter(cartesian, cartesian_strides,
@@ -116,11 +116,11 @@ namespace noa::cuda::geometry {
             stream.attach(buffer.share());
     }
 
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void polar2cartesian(const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
-                         bool log, InterpMode interp, Stream& stream) {
+                         bool log, InterpMode interp, bool prefilter, Stream& stream) {
         NOA_ASSERT(polar_shape[0] == 1 || polar_shape[0] == cartesian_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
 
@@ -132,7 +132,7 @@ namespace noa::cuda::geometry {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST)) {
             buffer = cuda::memory::PtrDevice<T>(polar_shape.elements(), stream);
             const size4_t contiguous_strides = polar_shape.strides();
             cuda::geometry::bspline::prefilter(polar, polar_strides,
@@ -298,11 +298,9 @@ namespace noa::cuda::geometry {
     }
 
     #define INSTANTIATE_POLAR(T) \
-    template void cartesian2polar<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void cartesian2polar<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
-    template void polar2cartesian<true,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void polar2cartesian<false,T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, Stream&);\
-    template void cartesian2polar<T,void>(cudaTextureObject_t, InterpMode, T*, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&);                                           \
+    template void cartesian2polar<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&); \
+    template void polar2cartesian<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&); \
+    template void cartesian2polar<T,void>(cudaTextureObject_t, InterpMode, T*, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&);                                            \
     template void polar2cartesian<T,void>(cudaTextureObject_t, InterpMode, float2_t, T*, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&)
 
     INSTANTIATE_POLAR(float);

@@ -41,11 +41,11 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                     InterpMode interp_mode, bool normalize, Stream& stream) {
+                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         if (input_strides[0] == 0)
@@ -56,7 +56,7 @@ namespace noa::cuda::geometry {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[1] != output_shape[1] ||
                 input_shape[2] != output_shape[2] ||
                 input_shape[3] != output_shape[3]) {
@@ -164,8 +164,7 @@ namespace noa::cuda::geometry {
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                                                               \
-    template void transform3D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);    \
-    template void transform3D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);   \
+    template void transform3D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, bool, Stream&);    \
     template void transform3D<T, void>(cudaTextureObject_t, InterpMode, T*, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_SYM_(float);

@@ -53,8 +53,8 @@ TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cpu::Stream stream;
         { // 3x3 matrix
-            cpu::geometry::transform2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                       matrix, interp, border, border_value, true, stream);
             stream.synchronize();
             if (interp == INTERP_LINEAR) {
                 // sometimes it is slightly higher than 1e-4
@@ -66,8 +66,8 @@ TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
         }
 
         { // 2x3 matrix
-            cpu::geometry::transform2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                    float23_t(matrix), interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                       float23_t(matrix), interp, border, border_value, true, stream);
             stream.synchronize();
 
             if (interp == INTERP_LINEAR) {
@@ -116,8 +116,8 @@ TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]"
         cpu::memory::PtrHost<float> expected(elements);
         cpu::Stream stream;
         if constexpr (GENERATE_TEST_DATA) {
-            cpu::geometry::transform2D<true, float>(input.share(), stride, shape, expected.share(), stride, shape,
-                                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.share(), stride, shape, expected.share(), stride, shape,
+                                       matrix, interp, border, border_value, true, stream);
             stream.synchronize();
             file.open(expected_filename, io::READ);
             file.shape(shape);
@@ -127,8 +127,8 @@ TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]"
             file.readAll(expected.get());
 
             cpu::memory::PtrHost<float> output(elements);
-            cpu::geometry::transform2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                       matrix, interp, border, border_value, true, stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
         }
@@ -177,8 +177,8 @@ TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cpu::Stream stream;
         {
-            cpu::geometry::transform3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                       matrix, interp, border, border_value, true, stream);
             stream.synchronize();
             if (interp == INTERP_LINEAR) {
                 // it's mostly around 5e-5
@@ -190,8 +190,8 @@ TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
         }
 
         {
-            cpu::geometry::transform3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                    float34_t(matrix), interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                       float34_t(matrix), interp, border, border_value, true, stream);
             stream.synchronize();
             if (interp == INTERP_LINEAR) {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
@@ -239,8 +239,8 @@ TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]")
         cpu::memory::PtrHost<float> expected(elements);
         cpu::Stream stream;
         if constexpr (GENERATE_TEST_DATA) {
-            cpu::geometry::transform3D<true, float>(input.share(), stride, shape, expected.share(), stride, shape,
-                                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.share(), stride, shape, expected.share(), stride, shape,
+                                       matrix, interp, border, border_value, true, stream);
             stream.synchronize();
             file.open(expected_filename, io::READ);
             file.shape(shape);
@@ -250,8 +250,8 @@ TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]")
             file.readAll(expected.get());
 
             cpu::memory::PtrHost<float> output(elements);
-            cpu::geometry::transform3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                    matrix, interp, border, border_value, stream);
+            cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                       matrix, interp, border, border_value, true, stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 5e-4));
         }

@@ -52,7 +52,7 @@ TEST_CASE("cuda::geometry::translate2D()", "[assets][noa][cuda][geometry]") {
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::shift2D(d_input.share(), d_input.strides(), shape,
                                 d_input.share(), d_input.strides(), shape,
-                                shift, interp, border, stream);
+                                shift, interp, border, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
@@ -105,7 +105,7 @@ TEST_CASE("cuda::geometry::translate3D()", "[assets][noa][cuda][geometry]") {
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
         cuda::geometry::shift3D(d_input.share(), d_input.strides(), shape,
                                 d_input.share(), d_input.strides(), shape,
-                                shift, interp, border, stream);
+                                shift, interp, border, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 

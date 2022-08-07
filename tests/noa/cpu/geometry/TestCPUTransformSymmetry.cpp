@@ -67,8 +67,8 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::geometry::transform2D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                shift, matrix, symmetry, center, interp, true, stream);
+        cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                   shift, matrix, symmetry, center, interp, true, true, stream);
         stream.synchronize();
 
         if constexpr (COMPUTE_ASSETS) {
@@ -147,8 +147,8 @@ TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometr
         cpu::memory::PtrHost<float> output(elements);
 
         file.readAll(input.get());
-        cpu::geometry::transform3D<true, float>(input.share(), stride, shape, output.share(), stride, shape,
-                                                shift, matrix, symmetry, center, interp, true, stream);
+        cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                   shift, matrix, symmetry, center, interp, true, true, stream);
         stream.synchronize();
 
         if constexpr (COMPUTE_ASSETS) {

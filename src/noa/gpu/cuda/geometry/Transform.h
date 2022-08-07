@@ -29,8 +29,6 @@ namespace noa::cuda::geometry {
     ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
     ///          effectively applying multiple transformations to the same 2D input array.
     ///
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
-    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float or cfloat_t.
     /// \tparam MAT             float23_t or float33_t.
     /// \param[in] input        Input 2D array. If pre-filtering is required, should be on the \b device.
@@ -45,24 +43,26 @@ namespace noa::cuda::geometry {
     /// \param interp_mode      Filter method. All modes are supported.
     /// \param border_mode      Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                         The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
+    /// \param prefilter        Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
-    template<bool PREFILTER = true, typename T, typename MAT,
+    template<typename T, typename MAT,
              typename = std::enable_if_t<details::is_valid_transform_v<2, T, MAT>>>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const shared_t<MAT[]>& matrices,
-                     InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+                     InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream);
 
     /// Applies a single 2D affine (batched) transform.
     /// \see This function is has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, typename T, typename MAT,
+    template<typename T, typename MAT,
              typename = std::enable_if_t<details::is_valid_transform_v<2, T, MAT>>>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream);
 
     /// Applies one or multiple 3D affine transforms.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
@@ -74,8 +74,6 @@ namespace noa::cuda::geometry {
     ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
     ///          effectively applying multiple transformations to the same 3D input array.
     ///
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
-    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float or cfloat_t.
     /// \tparam MAT             float34_t or float44_t.
     /// \param[in] input        Input 3D array. If pre-filtering is required, should be on the \b device.
@@ -90,24 +88,26 @@ namespace noa::cuda::geometry {
     /// \param interp_mode      Interpolation/filter method. All interpolation modes are supported.
     /// \param border_mode      Address mode. BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
     ///                         The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
+    /// \param prefilter        Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \see "noa/common/geometry/Transform.h" for more details on the conventions used for transformations.
-    template<bool PREFILTER = true, typename T, typename MAT,
+    template<typename T, typename MAT,
              typename = std::enable_if_t<details::is_valid_transform_v<3, T, MAT>>>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const shared_t<MAT[]>& matrices,
-                     InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+                     InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream);
 
     /// Applies one 3D affine transform to a (batched) array.
     /// \see This function is has the same features and limitations than the overload above.
-    template<bool PREFILTER = true, typename T, typename MAT,
+    template<typename T, typename MAT,
              typename = std::enable_if_t<details::is_valid_transform_v<3, T, MAT>>>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, Stream& stream);
+                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream);
 }
 
 // -- Symmetry -- //
@@ -122,8 +122,6 @@ namespace noa::cuda::geometry {
     ///          as well, resulting in a fully batched operation. However if the input is not batched, it is broadcast
     ///          to all output batches, effectively applying multiple transformations to the same 2D input array.
     ///
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
-    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, cfloat_t.
     /// \param[in] input        Input 2D array. If pre-filtering is required, should be on the \b device.
     ///                         Otherwise, can be on the \b host or \b device.
@@ -140,17 +138,19 @@ namespace noa::cuda::geometry {
     /// \param center           HW index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter method. All interpolation modes are supported.
+    /// \param prefilter        Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
-    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                     InterpMode interp_mode, bool normalize, Stream& stream);
+                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
 
     /// Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     /// \details This function allows to specify an output window that doesn't necessarily have the same shape
@@ -161,8 +161,6 @@ namespace noa::cuda::geometry {
     ///          as well, resulting in a fully batched operation. However if the input is not batched, it is broadcast
     ///          to all output batches, effectively applying multiple transformations to the same 3D input array.
     ///
-    /// \tparam PREFILTER       Whether or not the input should be prefiltered.
-    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \tparam T               float, cfloat_t.
     /// \param[in] input        Input 3D array. If pre-filtering is required, should be on the \b device.
     ///                         Otherwise, can be on the \b host or \b device.
@@ -179,17 +177,19 @@ namespace noa::cuda::geometry {
     /// \param center           DHW index of the transformation center.
     ///                         Both \p matrix and \p symmetry operates around this center.
     /// \param interp_mode      Interpolation/filter mode. All interpolation modes are supported.
+    /// \param prefilter        Whether or not the input should be prefiltered.
+    ///                         Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     /// \param[in,out] stream   Stream on which to enqueue this function.
     ///
     /// \note This function is asynchronous relative to the host and may return before completion.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BORDER_ZERO is used.
-    template<bool PREFILTER = true, typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
+    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                     InterpMode interp_mode, bool normalize, Stream& stream);
+                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
 }
 
 // -- Using textures -- //

@@ -65,10 +65,10 @@ namespace {
         output[indexing::at(gid, output_strides)] = cuda::geometry::tex2D<T, MODE>(texture, coordinates);
     }
 
-    template<bool PREFILTER, typename T, typename U, typename = void>
+    template<typename T, typename U, typename = void>
     void launchTransform2D_(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                             const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                            U matrices, InterpMode interp_mode, BorderMode border_mode,
+                            U matrices, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                             cuda::Stream& stream) {
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
@@ -81,7 +81,7 @@ namespace {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[2] != output_shape[2] || input_shape[3] != output_shape[3]) {
                 buffer = cuda::memory::PtrDevice<T>(input_shape.elements(), stream);
                 const size4_t contiguous_strides = input_shape.strides();
@@ -136,24 +136,22 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T, typename MAT, typename>
+    template<typename T, typename MAT, typename>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const shared_t<MAT[]>& matrices,
-                     InterpMode interp_mode, BorderMode border_mode, Stream& stream) {
-        launchTransform2D_<PREFILTER>(
-                input, input_strides, input_shape, output, output_strides, output_shape,
-                matrices, interp_mode, border_mode, stream);
+                     InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
+        launchTransform2D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                           matrices, interp_mode, border_mode, prefilter, stream);
     }
 
-    template<bool PREFILTER, typename T, typename MAT, typename>
+    template<typename T, typename MAT, typename>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, InterpMode interp_mode, BorderMode border_mode,
+                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                      Stream& stream) {
-        launchTransform2D_<PREFILTER>(
-                input, input_strides, input_shape, output, output_strides, output_shape,
-                matrix, interp_mode, border_mode, stream);
+        launchTransform2D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                           matrix, interp_mode, border_mode, prefilter, stream);
     }
 
     template<typename T, typename MAT, typename>
@@ -297,15 +295,11 @@ namespace noa::cuda::geometry {
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_2D_(T)                                                                                                                    \
-    template void transform2D<true, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, Stream&);   \
-    template void transform2D<true, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, Stream&);   \
-    template void transform2D<false, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, Stream&);  \
-    template void transform2D<false, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, Stream&);  \
-    template void transform2D<true, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, Stream&);    \
-    template void transform2D<true, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, Stream&);    \
-    template void transform2D<false, T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, Stream&);   \
-    template void transform2D<false, T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, Stream&);   \
+    #define NOA_INSTANTIATE_TRANSFORM_2D_(T)                                                                                                                                                            \
+    template void transform2D<T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void transform2D<T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void transform2D<T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, bool, Stream&);                    \
+    template void transform2D<T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, bool, Stream&);                    \
     template void transform2D<T, float23_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float23_t*, Stream&);   \
     template void transform2D<T, float33_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float33_t*, Stream&);   \
     template void transform2D<T, float23_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, float23_t, Stream&);          \

@@ -12,7 +12,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::geometry::cartesian2polar()", "[noa][cpu][geometry]") {
+TEST_CASE("cpu::geometry::cartesian2polar()", "[.]") {
     const size4_t shape{1,1,256,256};
     const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
@@ -37,7 +37,7 @@ TEST_CASE("cpu::geometry::cartesian2polar()", "[noa][cpu][geometry]") {
     cpu::geometry::cartesian2polar(cartesian.share(), stride, shape,
                                    polar.share(), polar_stride, polar_shape,
                                    center, {0, radius+taper+10}, {0, math::Constants<float>::PI2},
-                                   false, INTERP_LINEAR, stream);
+                                   false, INTERP_LINEAR, false, stream);
 
     stream.synchronize();
     file.open(test::NOA_DATA_PATH / "geometry" / "test-polar-fwd.mrc", io::WRITE);
@@ -45,7 +45,7 @@ TEST_CASE("cpu::geometry::cartesian2polar()", "[noa][cpu][geometry]") {
     file.writeAll(polar.get());
 }
 
-TEST_CASE("cpu::geometry::polar2cartesian()", "[noa][cpu][geometry]") {
+TEST_CASE("cpu::geometry::polar2cartesian()", "[.]") {
     const size4_t cartesian_shape{1,1,256,256};
     const size4_t cartesian_stride = cartesian_shape.strides();
     const size_t cartesian_elements = cartesian_shape.elements();
@@ -73,7 +73,7 @@ TEST_CASE("cpu::geometry::polar2cartesian()", "[noa][cpu][geometry]") {
     cpu::geometry::polar2cartesian(polar.share(), polar_stride, polar_shape,
                                    cartesian.share(), cartesian_stride, cartesian_shape,
                                    center, {0, radius + taper}, {0, math::Constants<float>::PI2},
-                                   false, INTERP_LINEAR, stream);
+                                   false, INTERP_LINEAR, false, stream);
 
     stream.synchronize();
     file.open(test::NOA_DATA_PATH / "geometry" / "test-polar-0.mrc", io::WRITE);
@@ -84,7 +84,7 @@ TEST_CASE("cpu::geometry::polar2cartesian()", "[noa][cpu][geometry]") {
     cpu::geometry::cartesian2polar(cartesian.share(), cartesian_stride, cartesian_shape,
                                    polar.share(), polar_stride, polar_shape,
                                    center, {1, radius + taper}, {0, math::Constants<float>::PI},
-                                   false, INTERP_LINEAR, stream);
+                                   false, INTERP_LINEAR, false, stream);
 
     stream.synchronize();
     file.open(test::NOA_DATA_PATH / "geometry" / "test-polar-1.mrc", io::WRITE);

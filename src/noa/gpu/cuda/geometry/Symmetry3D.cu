@@ -40,11 +40,11 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_strides,
                       const shared_t<T[]>& output, size4_t output_strides,
                       size4_t shape, const Symmetry& symmetry, float3_t center,
-                      InterpMode interp_mode, bool normalize, Stream& stream) {
+                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(shape[1] > 1);
 
         if (!symmetry.count()) {
@@ -61,7 +61,7 @@ namespace noa::cuda::geometry {
         const T* buffer_ptr;
         size_t buffer_pitch;
         size_t buffer_offset;
-        if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             NOA_ASSERT(indexing::isContiguous(output_strides, shape)[3]);
             NOA_ASSERT(indexing::isContiguous(output_strides, shape)[1]);
             // Whether input is batched or not, since we copy to the CUDA array, we can use the output as buffer.
@@ -154,8 +154,7 @@ namespace noa::cuda::geometry {
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                               \
-    template void symmetrize3D<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&); \
-    template void symmetrize3D<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);\
+    template void symmetrize3D<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, bool, Stream&); \
     template void symmetrize3D<T, void>(cudaTextureObject_t, InterpMode, T*, size4_t, size4_t, const Symmetry&, float3_t, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_SYM_(float);

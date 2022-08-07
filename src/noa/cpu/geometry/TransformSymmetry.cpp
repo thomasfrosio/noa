@@ -93,11 +93,11 @@ namespace {
 }
 
 namespace noa::cpu::geometry {
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
-                     InterpMode interp_mode, bool normalize, Stream& stream) {
+                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(size3_t(input_shape.get(1)).ndim() <= 2);
@@ -108,7 +108,7 @@ namespace noa::cpu::geometry {
             memory::PtrHost<T> buffer;
             const T* tmp;
             size3_t istrides; // assume Z == 1
-            if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+            if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
                 // FIXME There's no point to support input broadcast since there's only one transform.
                 size4_t shape = input_shape;
                 if (input_strides[0] == 0)
@@ -156,11 +156,11 @@ namespace noa::cpu::geometry {
         });
     }
 
-    template<bool PREFILTER, typename T, typename>
+    template<typename T, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
-                     InterpMode interp_mode, bool normalize, Stream& stream) {
+                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
@@ -169,7 +169,7 @@ namespace noa::cpu::geometry {
             memory::PtrHost<T> buffer;
             const T* tmp;
             size4_t tmp_strides;
-            if (PREFILTER && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
+            if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
                 // FIXME There's no point to support input broadcast since there's only one transform.
                 size4_t shape = input_shape;
                 if (input_strides[0] == 0)
@@ -213,11 +213,9 @@ namespace noa::cpu::geometry {
         });
     }
 
-    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                                                     \
-    template void transform2D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&);  \
-    template void transform3D<true, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&);  \
-    template void transform2D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, Stream&); \
-    template void transform3D<false, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                                                    \
+    template void transform2D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float22_t, const Symmetry&, float2_t, InterpMode, bool, bool, Stream&); \
+    template void transform3D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, bool, Stream&)
 
     NOA_INSTANTIATE_APPLY_(float);
     NOA_INSTANTIATE_APPLY_(double);

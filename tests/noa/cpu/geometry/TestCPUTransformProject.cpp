@@ -125,7 +125,7 @@ TEST_CASE("cpu::geometry::transform3D(), project", "[.]") {
     file.writeAll(input.get());
 
     cpu::geometry::transform3D(input.share(), strides, shape, output.share(), strides, shape,
-                               matrix, INTERP_LINEAR, BORDER_ZERO, 0.f, stream);
+                               matrix, INTERP_LINEAR, BORDER_ZERO, 0.f, true, stream);
 
     file.open(test::NOA_DATA_PATH / "geometry" / "test_xform_project_output.mrc", io::WRITE);
     file.shape(shape);
