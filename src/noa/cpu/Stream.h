@@ -133,8 +133,10 @@ namespace noa::cpu {
                     imp->is_waiting = false;
 
                     if (imp->queue.empty()) {
-                        if (imp->stop)
-                            break; // the dtor called, there's no tasks left, so despawn
+                        // The predicate was true and the lock is acquired, so at this point if the queue
+                        // is empty, it is because the destructor was called, so delete the thread.
+                        NOA_ASSERT(imp->stop == true);
+                        break;
                     } else {
                         std::tie(task, sync_call) = std::move(imp->queue.front());
                         imp->queue.pop();
@@ -159,11 +161,11 @@ namespace noa::cpu {
         // user and should not be run if an exception was caught. true means the task comes from a synchronization
         // query and the task should be run to release the calling thread.
         template<bool SYNC, class F, class... Args>
-        void enqueue_(F&& f, Args&& ... args) {
+        void enqueue_(F&& func, Args&& ... args) {
             if (!m_imp->worker.joinable() || m_imp->worker.get_id() == std::this_thread::get_id()) {
-                f(std::forward<Args>(args)...);
+                func(std::forward<Args>(args)...);
             } else {
-                auto no_arg_func = [f_ = std::forward<F>(f), args_ = std::make_tuple(std::forward<Args>(args)...)]()
+                auto no_arg_func = [f_ = std::forward<F>(func), args_ = std::make_tuple(std::forward<Args>(args)...)]()
                         mutable { std::apply(std::move(f_), std::move(args_)); };
                 {
                     std::scoped_lock lock(m_imp->mutex_queue);
@@ -181,7 +183,7 @@ namespace noa::cpu {
         void rethrow_() {
             if (m_imp->exception) {
                 {
-                    std::scoped_lock queue_lock(this->m_imp->mutex_queue);
+                    std::scoped_lock queue_lock(m_imp->mutex_queue);
                     while (!m_imp->queue.empty()) m_imp->queue.pop();
                 }
                 std::rethrow_exception(std::exchange(m_imp->exception, nullptr));
