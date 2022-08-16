@@ -17,6 +17,8 @@ set(NOA_UNIFIED_HEADERS
         unified/Signal.h
         unified/Stream.h
         unified/Stream.inl
+        unified/Texture.h
+        unified/Texture.inl
 
         # noa::fft
         unified/fft/Remap.h

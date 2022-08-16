@@ -67,9 +67,14 @@ namespace noa {
         ///   allocation with MANAGED.
         /// - \b Accessibility: Can be accessed by any stream and any device (CPU and GPU).
         MANAGED_GLOBAL = 32,
+
+        /// CUDA array.
+        /// - \b Allocation: This is only supported by CUDA-capable devices and is only used for textures.
+        /// - \b Accessibility: Can only be accessed via texture fetching on the device it was allocated on.
+        CUDA_ARRAY = 64
     };
 
-    NOA_IH std::ostream& operator<<(std::ostream& os, Allocator resource) {
+    inline std::ostream& operator<<(std::ostream& os, Allocator resource) {
         switch (resource) {
             case Allocator::NONE:
                 return os << "NONE";
@@ -85,6 +90,8 @@ namespace noa {
                 return os << "MANAGED";
             case Allocator::MANAGED_GLOBAL:
                 return os << "MANAGED_GLOBAL";
+            case Allocator::CUDA_ARRAY:
+                return os << "CUDA_ARRAY";
         }
         return os;
     }
