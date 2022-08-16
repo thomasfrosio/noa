@@ -5,12 +5,7 @@
 #include "noa/cpu/Stream.h"
 
 namespace noa::cpu::memory {
-    /// Returns evenly spaced values within a given interval.
-    /// \tparam T           Any built-in or complex type.
-    /// \param[in,out] src  On the \b host. Array with evenly spaced values.
-    /// \param elements     Number of elements to set.
-    /// \param start        Start of interval.
-    /// \param step         Spacing between values.
+    // Returns evenly spaced values within a given interval.
     template<typename T>
     inline void arange(T* src, size_t elements, T start = T(0), T step = T(1)) {
         T value = start;
@@ -18,13 +13,7 @@ namespace noa::cpu::memory {
             src[i] = value;
     }
 
-    /// Returns evenly spaced values within a given interval, in the rightmost order.
-    /// \tparam T           Any built-in or complex type.
-    /// \param[in,out] src  On the \b host. Array with evenly spaced values.
-    /// \param strides      BDHW strides, in elements, of \p src.
-    /// \param shape        BDHW shape of \p src.
-    /// \param start        Start of interval.
-    /// \param step         Spacing between values.
+    // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T>
     inline void arange(T* src, size4_t strides, size4_t shape, T start = T(0), T step = T(1)) {
         if (indexing::areContiguous(strides, shape))
@@ -39,14 +28,7 @@ namespace noa::cpu::memory {
         }
     }
 
-    /// Returns evenly spaced values within a given interval.
-    /// \tparam T               Any built-in or complex type.
-    /// \param[in,out] src      On the \b host. Array with evenly spaced values.
-    /// \param elements         Number of elements to set.
-    /// \param start            Start of interval.
-    /// \param step             Spacing between values.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Returns evenly spaced values within a given interval.
     template<typename T>
     inline void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream) {
         stream.enqueue([=]() {
@@ -54,42 +36,11 @@ namespace noa::cpu::memory {
         });
     }
 
-    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1.
-    /// \tparam T               Any built-in or complex type.
-    /// \param[in,out] src      On the \b host. Array with evenly spaced values.
-    /// \param elements         Number of elements to set.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    inline void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
-        arange(src, elements, T(0), T(1), stream);
-    }
-
-    /// Returns evenly spaced values within a given interval, in the rightmost order.
-    /// \tparam T               Any built-in or complex type.
-    /// \param[in,out] src      On the \b host. Array with evenly spaced values.
-    /// \param strides          BDHW strides, in elements, of \p src.
-    /// \param shape            BDHW shape of \p src.
-    /// \param start            Start of interval.
-    /// \param step             Spacing between values.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T>
     inline void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, T start, T step, Stream& stream) {
         stream.enqueue([=]() {
             arange(src.get(), strides, shape, start, step);
         });
-    }
-
-    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1, in the rightmost order.
-    /// \tparam T               Any built-in or complex type.
-    /// \param[in,out] src      On the \b host. Array with evenly spaced values.
-    /// \param strides          BDHW strides, in elements, of \p src.
-    /// \param shape            BDHW shape of \p src.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    inline void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, Stream& stream) {
-        arange(src, strides, shape, T(0), T(1), stream);
     }
 }

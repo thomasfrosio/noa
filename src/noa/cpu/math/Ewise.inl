@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_EWISE_INL_
-#error "This is an internal header; it should not be included."
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 // TODO OpenMP support? I don't want to add #pragma omp parallel for everywhere since it prevents constant-evaluated

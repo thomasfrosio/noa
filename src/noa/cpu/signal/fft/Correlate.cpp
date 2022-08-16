@@ -135,7 +135,7 @@ namespace noa::cpu::signal::fft {
         }
 
         if constexpr (REMAP == Remap::H2FC) {
-            const size3_t shape_3d{shape.get() + 1};
+            const size3_t shape_3d(shape.get(1));
             if (shape_3d.ndim() == 3) {
                 cpu::signal::fft::shift3D<Remap::H2H>(buffer, buffer_strides, buffer, buffer_strides, shape,
                                                       float3_t(shape_3d / 2), 1, stream);
@@ -158,6 +158,7 @@ namespace noa::cpu::signal::fft {
             math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
 
             const bool is_column = shape[3] == 1;
+            NOA_ASSERT(strides[3 - is_column] > 0);
             const long1_t shape_1d{static_cast<int64_t>(shape[3 - is_column])};
             const long1_t strides_1d{static_cast<int64_t>(strides[3 - is_column])};
             for (size_t batch = 0; batch < shape[0]; ++batch) {

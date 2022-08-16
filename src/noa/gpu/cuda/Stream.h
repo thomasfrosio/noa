@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/Stream.h
-/// \brief CUDA streams.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
 #pragma once
 
 #include <cuda_runtime.h>
@@ -15,18 +11,16 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
 
-#include "noa/common/io/TextFile.h"
-
 namespace noa::cuda::details {
-    /// Registry to attach a stream and a shared_ptr, using a FIFO buffer.
-    /// \details Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
-    ///          kernel is running and when it's done, so that we can make sure the device memory used by this kernel
-    ///          will never be deleted while the kernel is running. To solve this problem, this registry attaches some
-    ///          memory regions to a stream and, using callbacks, releases them when the kernel is done executing.
-    ///          In practice, insert() should be called after the kernel launch and copies the shared_ptr(s) at the
-    ///          back of the registry. Then a callback is enqueued to the stream. When the kernel is done execution,
-    ///          the callback is called. The callback is then updating the "callback_count", letting the registry know
-    ///          that the shared_ptr(s) at the front can be deleted.
+    // Registry to attach a stream and a shared_ptr, using a FIFO buffer.
+    // Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
+    // kernel is running and when it's done, so that we can make sure the device memory used by this kernel
+    // will never be deleted while the kernel is running. To solve this problem, this registry attaches some
+    // memory regions to a stream and, using callbacks, releases them when the kernel is done executing.
+    // In practice, insert() should be called after the kernel launch and copies the shared_ptr(s) at the
+    // back of the registry. Then a callback is enqueued to the stream. When the kernel is done execution,
+    // the callback is called. The callback is then updating the "callback_count", letting the registry know
+    // that the shared_ptr(s) at the front can be deleted.
     class StreamMemoryRegistry {
     private:
         std::mutex m_mutex;
@@ -35,9 +29,9 @@ namespace noa::cuda::details {
         std::atomic<int> callback_count{0};
 
     public:
-        /// Adds one or multiple shared_ptr to the back of the registry.
-        /// The shared_ptr reference count is increased by one.
-        /// This function also deletes the registry from unused shared_ptr.
+        // Adds one or multiple shared_ptr to the back of the registry.
+        // The shared_ptr reference count is increased by one.
+        // This function also deletes the registry from unused shared_ptr.
         template<typename ...Args>
         void insert(Args&& ... args) {
             std::scoped_lock lock(m_mutex);
@@ -53,8 +47,8 @@ namespace noa::cuda::details {
             ([&key, this](auto&& input) { this->pushBack_(key, input); }(std::forward<Args>(args)), ...);
         }
 
-        /// Removes from the registry the shared_ptr(s) flagged as unused.
-        /// The shared_ptr reference count is decreased by one, thus their deleter can be called.
+        // Removes from the registry the shared_ptr(s) flagged as unused.
+        // The shared_ptr reference count is decreased by one, thus their deleter can be called.
         void clear(bool force = false) {
             std::scoped_lock lock(m_mutex);
             clear_(force);
@@ -127,7 +121,7 @@ namespace noa::cuda::details {
 }
 
 namespace noa::cuda {
-    /// A CUDA stream (and its associated device).
+    // A CUDA stream (and its associated device).
     class Stream {
     public:
         struct Core {
@@ -148,26 +142,26 @@ namespace noa::cuda {
 
     public:
         enum Mode : uint {
-            /// Work running in the created stream is implicitly synchronized with the NULL stream.
+            // Work running in the created stream is implicitly synchronized with the NULL stream.
             SERIAL = cudaStreamDefault,
 
-            /// Work running in the created stream may run concurrently with work in stream 0 (the
-            /// NULL stream) and there is no implicit synchronization performed between it and stream 0.
+            // Work running in the created stream may run concurrently with work in stream 0 (the
+            // NULL stream) and there is no implicit synchronization performed between it and stream 0.
             ASYNC = cudaStreamNonBlocking,
 
-            /// Default (NULL) stream.
+            // Default (NULL) stream.
             DEFAULT = 2
         };
 
     public:
-        /// Creates a new stream on the current device.
+        // Creates a new stream on the current device.
         explicit Stream(Mode mode = Stream::ASYNC)
                 : m_core(std::make_shared<Core>()), m_device(Device::current()) {
             if (mode != Stream::DEFAULT)
                 NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
         }
 
-        /// Creates a new stream on a given device.
+        // Creates a new stream on a given device.
         explicit Stream(Device device, Mode mode = Stream::ASYNC)
                 : m_core(std::make_shared<Core>()), m_device(device) {
             if (mode != Stream::DEFAULT) {
@@ -176,14 +170,14 @@ namespace noa::cuda {
             }
         }
 
-        /// Empty constructor.
-        /// \details Creates an empty instance that is meant to be reset using one of the operator assignment.
-        ///          Calling empty() returns true, but any other member function call will fail. Passing an
-        ///          empty stream is never allowed (and will result in segfault) unless specified otherwise.
+        // Empty constructor.
+        // Creates an empty instance that is meant to be reset using one of the operator assignment.
+        // Calling empty() returns true, but any other member function call will fail. Passing an
+        // empty stream is never allowed (and will result in segfault) unless specified otherwise.
         constexpr explicit Stream(std::nullptr_t) {}
 
     public:
-        /// Enqueues a kernel launch to the stream.
+        // Enqueues a kernel launch to the stream.
         template<typename K, typename ...Args>
         void enqueue(const char* kernel_name, K kernel, LaunchConfig config, Args&& ... args) {
             #ifndef __CUDACC__
@@ -204,10 +198,10 @@ namespace noa::cuda {
             #endif
         }
 
-        /// Attach some shared_ptr to the stream. By incrementing the reference count this function guarantees
-        /// that the memory managed by the shared_ptr(s) can be accessed by kernels until the stream reaches this point.
-        /// The attached memory is implicitly released by synchronize() or next attach() calls, but it can also be
-        /// explicitly cleared with clear();
+        // Attach some shared_ptr to the stream. By incrementing the reference count this function guarantees
+        // that the memory managed by the shared_ptr(s) can be accessed by kernels until the stream reaches this point.
+        // The attached memory is implicitly released by synchronize() or next attach() calls, but it can also be
+        // explicitly cleared with clear();
         template<typename ...Args>
         void attach(Args&& ... args) {
             NOA_ASSERT(m_core);
@@ -216,7 +210,7 @@ namespace noa::cuda {
             NOA_THROW_IF(cudaLaunchHostFunc(m_core->handle, fun_ptr, &m_core->registry));
         }
 
-        /// Whether or not the stream has completed all operations.
+        // Whether the stream has completed all operations.
         [[nodiscard]] bool busy() const {
             NOA_ASSERT(m_core);
             DeviceGuard guard(m_device);
@@ -229,7 +223,7 @@ namespace noa::cuda {
                 NOA_THROW(toString(status));
         }
 
-        /// Blocks until the stream has completed all operations. \see Device::synchronize().
+        // Blocks until the stream has completed all operations. See Device::synchronize().
         void synchronize() const {
             NOA_ASSERT(m_core);
             DeviceGuard guard(m_device);
@@ -237,7 +231,7 @@ namespace noa::cuda {
             clear(true);
         }
 
-        /// Clears the registry from any unused attached data.
+        // Clears the registry from any unused attached data.
         void clear(bool force = false) const {
             m_core->registry.clear(force);
         }

@@ -12,49 +12,11 @@ namespace noa::cuda::memory::details {
 }
 
 namespace noa::cuda::memory {
-    /// Returns evenly spaced values within a given interval.
-    /// \tparam T               Any data type.
-    /// \param[in,out] src      On the \b device. Array with evenly spaced values.
-    /// \param elements         Number of elements to set.
-    /// \param start            Start of interval.
-    /// \param step             Spacing between values.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Returns evenly spaced values within a given interval.
     template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
     void arange(const shared_t<T[]>& src, size_t elements, T start, T step, Stream& stream);
 
-    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1.
-    /// \tparam T               Any data type.
-    /// \param[in,out] src      On the \b device. Array with evenly spaced values.
-    /// \param elements         Number of elements to set.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
-    inline void arange(const shared_t<T[]>& src, size_t elements, Stream& stream) {
-        arange(src, elements, T(0), T(1), stream);
-    }
-
-    /// Returns evenly spaced values within a given interval, in the rightmost order.
-    /// \tparam T               Any data type.
-    /// \param[in,out] src      On the \b device. Array with evenly spaced values.
-    /// \param strides          BDHW strides, in elements, of \p src.
-    /// \param shape            BDHW shape of \p src.
-    /// \param start            Start of interval.
-    /// \param step             Spacing between values.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
     void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, T start, T step, Stream& stream);
-
-    /// Returns evenly spaced values within a given interval, starting from 0, with a step of 1, in the rightmost order.
-    /// \tparam T               Any data type.
-    /// \param[in,out] src      On the \b device. Array with evenly spaced values.
-    /// \param strides          BDHW strides, in elements, of \p src.
-    /// \param shape            BDHW shape of \p src.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T, typename = std::enable_if_t<details::is_valid_arange_v<T>>>
-    inline void arange(const shared_t<T[]>& src, size4_t strides, size4_t shape, Stream& stream) {
-        arange(src, strides, shape, T(0), T(1), stream);
-    }
 }

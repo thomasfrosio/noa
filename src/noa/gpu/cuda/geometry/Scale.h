@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/geometry/Scale.h
-/// \brief Scaling images and volumes using affine transforms.
-/// \author Thomas - ffyr2w
-/// \date 22 Jul 2021
-
 #pragma once
 
 #include <memory>
@@ -14,43 +9,44 @@
 #include "noa/gpu/cuda/memory/PtrPinned.h"
 #include "noa/gpu/cuda/geometry/Transform.h"
 
+namespace noa::cuda::geometry::details {
+    template<int NDIM, typename T, typename S, typename C>
+    constexpr bool is_valid_scale_v =
+            traits::is_any_v<T, float, cfloat_t> &&
+            ((NDIM == 2 && traits::is_any_v<S, float2_t, shared_t<float2_t[]>> && traits::is_any_v<C, float2_t, shared_t<float2_t[]>>) ||
+             (NDIM == 3 && traits::is_any_v<S, float3_t, shared_t<float3_t[]>> && traits::is_any_v<C, float3_t, shared_t<float3_t[]>>));
+}
+
 namespace noa::cuda::geometry {
-    /// Applies one or multiple 2D scaling/stretching.
-    /// \tparam T                   float, cfloat_t.
-    /// \param[in] input            Input 2D array. If pre-filtering is required, should be on the \b device.
-    ///                             Otherwise, can be on the \b host or \b device.
-    /// \param input_strides        BDHW strides, in elements, of \p input.
-    ///                             The width dimension should be contiguous.
-    /// \param input_shape          BDHW shape, in elements, of \p input.
-    /// \param[out] output          On the \b device. Output 2D array. Can be equal to \p input.
-    /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape, in elements, of \p output.
-    /// \param[in] scaling_factors  On the \b host. HW forward scaling factors. One per batch.
-    /// \param[in] scaling_centers  On the \b host. HW scaling centers. One per batch.
-    /// \param interp_mode          Filter method. Any of InterpMode.
-    /// \param border_mode          Address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-    ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
-    /// \param prefilter            Whether or not the input should be prefiltered.
-    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see "noa/cuda/geometry/Transform.h" for more details on the input and output parameters.
-    /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
+    // Applies one or multiple 2D scaling/stretching.
+    template<typename T, typename S, typename C, typename = std::enable_if_t<details::is_valid_scale_v<2, T, S, C>>>
     void scale2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 const shared_t<float2_t[]>& scaling_factors,
-                 const shared_t<float2_t[]>& scaling_centers,
+                 const S& scaling_factors, const C& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
 
+        constexpr bool SINGLE_SCALING = traits::is_float2_v<S>;
+        constexpr bool SINGLE_CENTER = traits::is_float2_v<C>;
+
         auto getInvertTransform_ = [=](size_t index) {
-            return float23_t(noa::geometry::translate(scaling_centers.get()[index]) *
-                             float33_t(noa::geometry::scale(1.f / scaling_factors.get()[index])) *
-                             noa::geometry::translate(-scaling_centers.get()[index]));
+            float2_t scaling_factor;
+            if constexpr (SINGLE_SCALING)
+                scaling_factor = scaling_factors;
+            else
+                scaling_factor = scaling_factors.get()[index];
+
+            float2_t scaling_center;
+            if constexpr (SINGLE_CENTER)
+                scaling_center = scaling_centers;
+            else
+                scaling_center = scaling_centers.get()[index];
+
+            return float23_t(noa::geometry::translate(scaling_center) *
+                             float33_t(noa::geometry::scale(1.f / scaling_factor)) *
+                             noa::geometry::translate(-scaling_center));
         };
 
-        if (output_shape[0] == 1) {
+        if ((SINGLE_SCALING && SINGLE_CENTER) || output_shape[0] == 1) {
             transform2D(input, input_strides, input_shape, output, output_strides, output_shape,
                         getInvertTransform_(0), interp_mode, border_mode, prefilter, stream);
         } else {
@@ -62,56 +58,35 @@ namespace noa::cuda::geometry {
         }
     }
 
-    /// Applies one 2D scaling/stretching to a (batched) array.
-    /// See overload above for more details.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    inline void scale2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                        const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                        float2_t scaling_factor, float2_t scaling_center,
-                        InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
-        const float23_t matrix(noa::geometry::translate(scaling_center) *
-                               float33_t(noa::geometry::scale(1.f / scaling_factor)) *
-                               noa::geometry::translate(-scaling_center));
-        transform2D(input, input_strides, input_shape, output, output_strides, output_shape,
-                    matrix, interp_mode, border_mode, prefilter, stream);
-    }
-
-    /// Applies one or multiple 3D scaling/stretching.
-    /// \tparam T                   float, cfloat_t.
-    /// \param[in] input            Input 3D array. If pre-filtering is required, should be on the \b device.
-    ///                             Otherwise, can be on the \b host or \b device.
-    /// \param input_strides        BDHW strides, in elements, of \p input.
-    ///                             The height and width dimensions should be contiguous.
-    /// \param input_shape          BDHW shape, in elements, of \p input.
-    /// \param[out] output          On the \b device. Output 3D array. Can be equal to \p input.
-    /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape, in elements, of \p output.
-    /// \param[in] scaling_factors  On the \b host. DHW forward scaling factors. One per batch.
-    /// \param[in] scaling_centers  On the \b host. DHW scaling centers. One per batch.
-    /// \param interp_mode          Filter method. Any of InterpMode.
-    /// \param border_mode          Address mode. Should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-    ///                             The last two are only supported with INTER_NEAREST and INTER_LINEAR_FAST.
-    /// \param prefilter            Whether or not the input should be prefiltered.
-    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \see "noa/cuda/geometry/Transform.h" for more details on the input and output parameters.
-    /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for transformations.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
+    // Applies one or multiple 3D scaling/stretching.
+    template<typename T, typename S, typename C, typename = std::enable_if_t<details::is_valid_scale_v<3, T, S, C>>>
     void scale3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 const shared_t<float3_t[]>& scaling_factors,
-                 const shared_t<float3_t[]>& scaling_centers,
+                 const S& scaling_factors, const C& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
 
+        constexpr bool SINGLE_SCALING = traits::is_float3_v<S>;
+        constexpr bool SINGLE_CENTER = traits::is_float3_v<C>;
+
         auto getInvertTransform_ = [=](size_t index) -> float34_t {
-            return float34_t(noa::geometry::translate(scaling_centers.get()[index]) *
-                             float44_t(noa::geometry::scale(1.f / scaling_factors.get()[index])) *
-                             noa::geometry::translate(-scaling_centers.get()[index]));
+            float3_t scaling_factor;
+            if constexpr (SINGLE_SCALING)
+                scaling_factor = scaling_factors;
+            else
+                scaling_factor = scaling_factors.get()[index];
+
+            float3_t scaling_center;
+            if constexpr (SINGLE_CENTER)
+                scaling_center = scaling_centers;
+            else
+                scaling_center = scaling_centers.get()[index];
+
+            return float34_t(noa::geometry::translate(scaling_center) *
+                             float44_t(noa::geometry::scale(1.f / scaling_factor)) *
+                             noa::geometry::translate(-scaling_center));
         };
 
-        if (output_shape[0] == 1) {
+        if ((SINGLE_SCALING && SINGLE_CENTER) || output_shape[0] == 1) {
             transform3D(input, input_strides, input_shape, output, output_strides, output_shape,
                         getInvertTransform_(0), interp_mode, border_mode, prefilter, stream);
         } else {
@@ -121,19 +96,5 @@ namespace noa::cuda::geometry {
             transform3D(input, input_strides, input_shape, output, output_strides, output_shape,
                         inv_matrices.share(), interp_mode, border_mode, prefilter, stream);
         }
-    }
-
-    /// Applies one 3D scaling/stretching to a (batched) array.
-    /// See overload above for more details.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    inline void scale3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                        const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                        float3_t scaling_factor, float3_t scaling_center,
-                        InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
-        const float34_t matrix(noa::geometry::translate(scaling_center) *
-                               float44_t(noa::geometry::scale(1.f / scaling_factor)) *
-                               noa::geometry::translate(-scaling_center));
-        transform3D(input, input_strides, input_shape, output, output_strides, output_shape,
-                    matrix, interp_mode, border_mode, prefilter, stream);
     }
 }

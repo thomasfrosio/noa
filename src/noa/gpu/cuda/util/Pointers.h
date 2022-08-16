@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/memory/Pointers.h
-/// \brief Pointer attributes and utilities for CUDA.
-/// \author Thomas - ffyr2w
-/// \date 2 Feb 2022
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -12,15 +8,15 @@
 #include "noa/gpu/cuda/util/Traits.h"
 
 namespace noa::cuda::util {
-    /// Returns the pointer attributes of \p ptr.
+    // Returns the pointer attributes of ptr.
     NOA_IH cudaPointerAttributes getAttributes(const void* ptr) {
         cudaPointerAttributes attr{};
         NOA_THROW_IF(cudaPointerGetAttributes(&attr, ptr));
         return attr;
     }
 
-    /// If \p ptr can be accessed by the device, returns \p ptr or the corresponding device pointer.
-    /// If \p ptr cannot be accessed by the device, returns nullptr.
+    // If ptr can be accessed by the device, returns ptr or the corresponding device pointer.
+    // If ptr cannot be accessed by the device, returns nullptr.
     template<typename T>
     NOA_IH T* devicePointer(T* ptr, Device device) {
         const auto attr = getAttributes(ptr);
@@ -35,16 +31,16 @@ namespace noa::cuda::util {
         return nullptr; // unreachable
     }
 
-    /// If \p ptr can be accessed by the host, returns \p ptr. Otherwise, returns nullptr.
+    // If ptr can be accessed by the host, returns ptr. Otherwise, returns nullptr.
     template<typename T>
     NOA_IH T* hostPointer(T* ptr) {
         const auto attr = getAttributes(ptr);
         return attr.type == cudaMemoryTypeDevice ? nullptr : ptr;
     }
 
-    /// Checks if \p ptr is accessible by the stream's device. If so, return \p ptr (or for pinned memory, return the
-    /// corresponding device pointer). Otherwise, allocates new memory asynchronously, copy \p ptr to that new memory
-    /// and return a pointer to that new memory.
+    // Checks if ptr is accessible by the stream's device. If so, return ptr (or for pinned memory, return the
+    // corresponding device pointer). Otherwise, allocates new memory asynchronously, copy ptr to that new memory
+    // and return a pointer to that new memory.
     template<typename T>
     NOA_IH shared_t<T[]> ensureDeviceAccess(const shared_t<T[]>& ptr, Stream& stream, size_t elements) {
         T* tmp = devicePointer(ptr.get(), stream.device());
@@ -59,9 +55,9 @@ namespace noa::cuda::util {
         }
     }
 
-    /// Checks if \p ptr is accessible by the stream's device. If so, return \p ptr (or for pinned memory, return the
-    /// corresponding device pointer). Otherwise, allocates new memory asynchronously, copy \p ptr to that new memory
-    /// and return a pointer to that new memory.
+    // Checks if ptr is accessible by the stream's device. If so, return ptr (or for pinned memory, return the
+    // corresponding device pointer). Otherwise, allocates new memory asynchronously, copy ptr to that new memory
+    // and return a pointer to that new memory.
     template<typename T, typename U, typename = std::enable_if_t<std::is_same_v<noa::traits::remove_ref_cv_t<T>, U>>>
     NOA_IH T* ensureDeviceAccess(T* ptr, Stream& stream, memory::PtrDevice<U>& allocator, size_t elements) {
         T* tmp = devicePointer(ptr, stream.device());
@@ -75,7 +71,7 @@ namespace noa::cuda::util {
         }
     }
 
-    /// Returns the number of \p T elements that can be vectorized to one load/store call. Can be 1, 2 or 4.
+    // Returns the number of T elements that can be vectorized to one load/store call. Can be 1, 2 or 4.
     template<typename T>
     NOA_IHD uint maxVectorCount(const T* pointer) {
         const auto address = reinterpret_cast<uint64_t>(pointer);
@@ -89,7 +85,7 @@ namespace noa::cuda::util {
             return 1;
     }
 
-    /// Simple wrapper to add, programmatically, __restrict__ attributes to pointers.
+    // Simple wrapper to add, programmatically, __restrict__ attributes to pointers.
     template<bool RESTRICT, typename Pointer>
     struct accessor_t {
     public:

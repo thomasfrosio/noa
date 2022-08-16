@@ -13,14 +13,7 @@ namespace noa::cpu::memory {
         return {count, delta, step};
     }
 
-    /// Returns evenly spaced values within a given interval.
-    /// \tparam T       Any floating-point or complex type.
-    /// \param[in] src  On the \b host. Array with evenly spaced values.
-    /// \param elements Number of elements to set.
-    /// \param start    Start of interval.
-    /// \param stop     The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint Whether the stop is the last sample. Otherwise, it is not included.
-    /// \return         Size of spacing between samples.
+    // Returns evenly spaced values within a given interval.
     template<typename T>
     T linspace(T* src, size_t elements, T start, T stop, bool endpoint = true) {
         if (elements <= 1) {
@@ -36,15 +29,7 @@ namespace noa::cpu::memory {
         return step;
     }
 
-    /// Returns evenly spaced values within a given interval, in the rightmost order.
-    /// \tparam T       Any floating-point or complex type.
-    /// \param src      On the \b host. Array with evenly spaced values.
-    /// \param strides  BDHW strides, in elements, of \p src.
-    /// \param shape    BDHW shape of \p src.
-    /// \param start    Start of interval.
-    /// \param stop     The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint Whether the stop is the last sample. Otherwise, it is not included.
-    /// \return         Size of spacing between samples.
+    // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T>
     T linspace(T* src, size4_t strides, size4_t shape,
                T start, T stop, bool endpoint = true) {
@@ -69,16 +54,7 @@ namespace noa::cpu::memory {
         return step;
     }
 
-    /// Returns evenly spaced values within a given interval.
-    /// \tparam T               Any floating-point or complex type.
-    /// \param[in] src          On the \b host. Array with evenly spaced values.
-    /// \param elements         Number of elements to set.
-    /// \param start            Start of interval.
-    /// \param stop             The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint         Whether the stop is the last sample. Otherwise, it is not included.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \return                 Size of spacing between samples.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Returns evenly spaced values within a given interval.
     template<typename T>
     inline T linspace(const shared_t<T[]>& src, size_t elements,
                       T start, T stop, bool endpoint, Stream& stream) {
@@ -89,32 +65,7 @@ namespace noa::cpu::memory {
         return step;
     }
 
-    /// Returns evenly spaced values within a given interval.
-    /// \tparam T               Any floating-point or complex type.
-    /// \param[in] src          On the \b host. Array with evenly spaced values.
-    /// \param elements         Number of elements to set.
-    /// \param start            Start of interval.
-    /// \param stop             The end value of the sequence.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \return                 Size of spacing between samples.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    inline T linspace(const shared_t<T[]>& src, size_t elements,
-                      T start, T stop, Stream& stream) {
-        return linspace(src, elements, start, stop, true, stream);
-    }
-
-    /// Returns evenly spaced values within a given interval, in the rightmost order.
-    /// \tparam T               Any floating-point or complex type.
-    /// \param src              On the \b host. Array with evenly spaced values.
-    /// \param strides          BDHW strides, in elements, of \p src.
-    /// \param shape            BDHW shape of \p src.
-    /// \param start            Start of interval.
-    /// \param stop             The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint         Whether the stop is the last sample. Otherwise, it is not included.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \return                 Size of spacing between samples.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T>
     inline T linspace(const shared_t<T[]>& src, size4_t strides, size4_t shape,
                       T start, T stop, bool endpoint, Stream& stream) {
@@ -123,21 +74,5 @@ namespace noa::cpu::memory {
             linspace(src.get(), strides, shape, start, stop, endpoint);
         });
         return step;
-    }
-
-    /// Returns evenly spaced values within a given interval, in the rightmost order.
-    /// \tparam T               Any floating-point or complex type.
-    /// \param src              On the \b host. Array with evenly spaced values.
-    /// \param strides          BDHW strides, in elements, of \p src.
-    /// \param shape            BDHW shape of \p src.
-    /// \param start            Start of interval.
-    /// \param stop             The end value of the sequence.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \return                 Size of spacing between samples.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    template<typename T>
-    inline T linspace(const shared_t<T[]>& src, size4_t strides, size4_t shape,
-                      T start, T stop, Stream& stream) {
-        return linspace(src, strides, shape, start, stop, true, stream);
     }
 }

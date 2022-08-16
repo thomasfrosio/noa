@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/fft/Plan.h
-/// \brief cuFFT plans.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include <cufft.h>
@@ -24,14 +19,13 @@ namespace noa::cuda::fft::details {
 }
 
 namespace noa::cuda::fft {
-    /// Returns the optimum even size, greater or equal than \p size.
-    /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
-    /// \note If \p size is >16800, this function will simply return the next even number and will not necessarily
-    ///       satisfy the aforementioned requirements.
+    // Returns the optimum even size, greater or equal than "size".
+    // An optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
+    // If \p size is >16800, this function will simply return the next even number and will not necessarily
+    // satisfy the aforementioned requirements.
     size_t fastSize(size_t size);
 
-    /// Returns the optimum rightmost shape.
-    /// \note Dimensions of size 0 or 1 are ignored, e.g. {1,51,51} is rounded up to {1,52,52}.
+    // Returns the optimum DHW logical shape.
     template<typename T>
     inline Int3<T> fastShape(Int3<T> shape) {
         return {shape[0] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[0]))) : shape[0],
@@ -39,9 +33,7 @@ namespace noa::cuda::fft {
                 shape[2] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[2]))) : shape[2]};
     }
 
-    /// Returns the optimum rightmost shape.
-    /// \note Dimensions of size 0 or 1 are ignored as well as the leftmost dimension, e.g. {1,1,51,51}
-    ///       is rounded up to {1,1,52,52}.
+    // Returns the optimum BDHW logical shape.
     template<typename T>
     inline Int4<T> fastShape(Int4<T> shape) {
         return {shape[0],
@@ -50,7 +42,7 @@ namespace noa::cuda::fft {
                 shape[3] > 1 ? static_cast<T>(fastSize(static_cast<size_t>(shape[3]))) : shape[3]};
     }
 
-    /// Type of transform to plan for.
+    // Type of transform to plan for.
     enum Type : int {
         R2C = CUFFT_R2C,
         C2R = CUFFT_C2R,
@@ -67,56 +59,39 @@ namespace noa::cuda::fft {
         }
     };
 
-    /// Template class managing FFT plans in CUDA using cuFFT.
-    /// \note For R2C/C2R transforms, the 2D/3D arrays should be in the rightmost order for best performance since the
-    ///       library currently always assumes the non-redundant dimension is the rows, i.e. the rightmost dimension.
-    ///       The current exception is for column vectors, which are explicitly detected and supported.
-    /// \note In-place R2C/C2R transforms are allowed (\p input == \p output). In this case, the input requires extra
-    ///       padding: the rows should have an extra float if the dimension is odd, or two extra floats if it is even.
-    ///       If strides are provided, this padding should be reflected in the strides.
-    /// \note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
-    ///       should only be accessed by one (host) thread at a time.
+    // Template class managing FFT plans in CUDA using cuFFT.
+    // NOTE: For R2C/C2R transforms, the 2D/3D arrays should be in the rightmost order for best performance since the
+    //       library currently always assumes the non-redundant dimension is the rows, i.e. the rightmost dimension.
+    //       The current exception is for column vectors, which are explicitly detected and supported.
+    // NOTE: In-place R2C/C2R transforms are allowed. In this case, the input requires extra padding, like in FFTW.
+    //       If strides are provided, this padding should be reflected in the strides.
+    // NOTE: Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
+    //       should only be accessed by one (host) thread at a time.
+    // NOTE: For C2C, column-major is also supported.
+    //       If strides are not provided, arrays should be C-contiguous.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
     class Plan {
     public:
-        /// Creates a plan for a transform of a given \p type and \p shape.
-        /// \param type     One of \c R2C, \c C2R or \c C2C.
-        /// \param shape    BDHW shape. Batched 2D/3D array(s) or column/row vector(s).
-        ///                 Both input and output arrays should be C-contiguous.
-        /// \param device   Device on which to create the plan.
         Plan(Type type, size4_t shape, Device device = Device::current()) {
             m_plan = details::getPlan(getCufftType_(type), shape, device.id());
         }
 
-        /// Creates a plan for a transform of a given \p type, \p shape and strides.
-        /// \param type             One of \c R2C, \c C2R or \c C2C.
-        /// \param input_strides    BDHW strides of the input array.
-        /// \param output_strides   BDHW strides of the output array.
-        /// \param shape            BDHW shape. Batched 2D/3D array(s) or column/row vector(s).
-        /// \param device           Device on which to create the plan.
-        ///
-        /// \note With real transforms, \p input_strides and \p output_strides do not refer to the same type.
-        ///       With \c fft::R2C transforms, \p input_strides is in number of real elements (i.e. float or double) and
-        ///       \p output_strides is in number of complex elements (i.e. cfloat_t or cdouble_t). With \c fft::C2R, it
-        ///       is the opposite.
-        template<bool CHECK_CONTIGUOUS = true>
         Plan(Type type, size4_t input_strides, size4_t output_strides, size4_t shape,
              Device device = Device::current()) {
-            if constexpr (CHECK_CONTIGUOUS) {
-                const size4_t input_shape = type == Type::C2R ? shape.fft() : shape;
-                const size4_t output_shape = type == Type::R2C ? shape.fft() : shape;
-                if (indexing::areContiguous(input_strides, input_shape) &&
-                    indexing::areContiguous(output_strides, output_shape)) {
-                    m_plan = details::getPlan(getCufftType_(type), shape, device.id());
-                    return;
-                }
+
+            const size4_t input_shape = type == Type::C2R ? shape.fft() : shape;
+            const size4_t output_shape = type == Type::R2C ? shape.fft() : shape;
+            if (indexing::areContiguous(input_strides, input_shape) &&
+                indexing::areContiguous(output_strides, output_shape)) {
+                m_plan = details::getPlan(getCufftType_(type), shape, device.id());
+                return;
             }
 
             m_plan = details::getPlan(getCufftType_(type), input_strides, output_strides,
                                       shape, device.id());
         }
 
-        /// Gets the underlying cuFFT plan.
+        // Gets the underlying cuFFT plan.
         [[nodiscard]] cufftHandle get() const noexcept { return *m_plan; }
         [[nodiscard]] const std::shared_ptr<cufftHandle>& share() const noexcept { return m_plan; }
 

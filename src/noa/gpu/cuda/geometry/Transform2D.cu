@@ -65,7 +65,149 @@ namespace {
         output[indexing::at(gid, output_strides)] = cuda::geometry::tex2D<T, MODE>(texture, coordinates);
     }
 
-    template<typename T, typename U, typename = void>
+
+    template<typename T, typename MAT>
+    void launchTransformTexture2D_(cudaTextureObject_t texture, size2_t texture_shape,
+                                   InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                                   T* output, size4_t output_strides, size4_t output_shape,
+                                   const MAT* matrices, cuda::Stream& stream) {
+        NOA_ASSERT(output_shape[1] == 1);
+        const float2_t i_shape(texture_shape);
+        const uint2_t o_shape(output_shape.get(2));
+        const uint3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
+        const dim3 blocks(math::divideUp(o_shape[1], THREADS.x),
+                          math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[0]);
+        const cuda::LaunchConfig config{blocks, THREADS};
+
+        cuda::memory::PtrDevice<MAT> buffer;
+        matrices = cuda::util::ensureDeviceAccess(matrices, stream, buffer, output_shape[0]);
+
+        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
+            NOA_ASSERT(cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            if (texture_interp_mode == INTERP_NEAREST) {
+                stream.enqueue("geometry::transform2D",
+                               transform2D_<INTERP_NEAREST, true, T, MAT>,
+                               config, texture, i_shape, output, o_strides, o_shape, matrices);
+            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
+                stream.enqueue("geometry::transform2D",
+                               transform2D_<INTERP_LINEAR_FAST, true, T, MAT>,
+                               config, texture, i_shape, output, o_strides, o_shape, matrices);
+            } else {
+                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
+            }
+        } else {
+            NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            switch (texture_interp_mode) {
+                case INTERP_NEAREST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_NEAREST, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_LINEAR:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_LINEAR, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_COSINE:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_COSINE, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_CUBIC:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_CUBIC, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_CUBIC_BSPLINE:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_CUBIC_BSPLINE, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_LINEAR_FAST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_LINEAR_FAST, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_COSINE_FAST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_COSINE_FAST, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_<INTERP_CUBIC_BSPLINE_FAST, false, T, MAT>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
+                default:
+                    NOA_THROW("{} is not supported", texture_interp_mode);
+            }
+        }
+    }
+
+    template<typename T, typename MAT>
+    void launchTransformTextureSingle2D_(cudaTextureObject_t texture, size2_t texture_shape,
+                                         InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                                         T* output, size4_t output_strides, size4_t output_shape,
+                                         MAT matrix, cuda::Stream& stream) {
+        NOA_ASSERT(output_shape[1] == 1);
+        const float2_t i_shape(texture_shape);
+        const uint2_t o_shape(output_shape.get(2));
+        const uint3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
+        const dim3 blocks(math::divideUp(o_shape[1], THREADS.x),
+                          math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[0]);
+        const cuda::LaunchConfig config{blocks, THREADS};
+
+        const float23_t matrix_(matrix);
+
+        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
+            NOA_ASSERT(cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            if (texture_interp_mode == INTERP_NEAREST) {
+                stream.enqueue("geometry::transform2D",
+                               transform2D_single_<INTERP_NEAREST, true, T>,
+                               config, texture, i_shape, output, o_strides, o_shape, matrix_);
+            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
+                stream.enqueue("geometry::transform2D",
+                               transform2D_single_<INTERP_LINEAR_FAST, true, T>,
+                               config, texture, i_shape, output, o_strides, o_shape, matrix_);
+            } else {
+                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
+            }
+        } else {
+            NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            switch (texture_interp_mode) {
+                case INTERP_NEAREST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_NEAREST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_LINEAR:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_LINEAR, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_COSINE:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_COSINE, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_CUBIC:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_CUBIC, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_CUBIC_BSPLINE:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_CUBIC_BSPLINE, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_LINEAR_FAST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_LINEAR_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_COSINE_FAST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_COSINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    return stream.enqueue("geometry::transform2D",
+                                          transform2D_single_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
+                default:
+                    NOA_THROW("{} is not supported", texture_interp_mode);
+            }
+        }
+    }
+
+    template<typename T, typename U>
     void launchTransform2D_(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                             const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                             U matrices, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
@@ -116,12 +258,12 @@ namespace {
         for (size_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
             if constexpr (traits::is_floatXX_v<U>) {
-                cuda::geometry::transform2D(
+                launchTransformTextureSingle2D_(
                         texture.get(), size2_t(input_shape.get(2)), interp_mode, border_mode,
                         output.get() + i * output_strides[0], output_strides, o_shape,
                         matrices, stream);
             } else {
-                cuda::geometry::transform2D(
+                launchTransformTexture2D_(
                         texture.get(), size2_t(input_shape.get(2)), interp_mode, border_mode,
                         output.get() + i * output_strides[0], output_strides, o_shape,
                         matrices.get() + i, stream);
@@ -139,171 +281,39 @@ namespace noa::cuda::geometry {
     template<typename T, typename MAT, typename>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     const shared_t<MAT[]>& matrices,
-                     InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
-        launchTransform2D_(input, input_strides, input_shape, output, output_strides, output_shape,
-                           matrices, interp_mode, border_mode, prefilter, stream);
+                     const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     bool prefilter, Stream& stream) {
+        return launchTransform2D_(input, input_strides, input_shape, output, output_strides, output_shape,
+                                  matrices, interp_mode, border_mode, prefilter, stream);
     }
 
     template<typename T, typename MAT, typename>
-    void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+    void transform2D(const shared_t<cudaTextureObject_t>& texture, size2_t texture_shape,
+                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
-                     Stream& stream) {
-        launchTransform2D_(input, input_strides, input_shape, output, output_strides, output_shape,
-                           matrix, interp_mode, border_mode, prefilter, stream);
-    }
-
-    template<typename T, typename MAT, typename>
-    void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
-                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     T* output, size4_t output_strides, size4_t output_shape,
-                     const MAT* matrices, Stream& stream) {
-        NOA_ASSERT(output_shape[1] == 1);
-        const float2_t i_shape(texture_shape);
-        const uint2_t o_shape(output_shape.get(2));
-        const uint3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
-        const dim3 blocks(math::divideUp(o_shape[1], THREADS.x),
-                          math::divideUp(o_shape[0], THREADS.y),
-                          output_shape[0]);
-        const LaunchConfig config{blocks, THREADS};
-
-        memory::PtrDevice<MAT> buffer;
-        matrices = util::ensureDeviceAccess(matrices, stream, buffer, output_shape[0]);
-
-        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
-            if (texture_interp_mode == INTERP_NEAREST) {
-                stream.enqueue("geometry::transform2D",
-                               transform2D_<INTERP_NEAREST, true, T, MAT>,
-                               config, texture, i_shape, output, o_strides, o_shape, matrices);
-            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                stream.enqueue("geometry::transform2D",
-                               transform2D_<INTERP_LINEAR_FAST, true, T, MAT>,
-                               config, texture, i_shape, output, o_strides, o_shape, matrices);
-            } else {
-                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
-            }
+                     const MAT& matrices, Stream& stream) {
+        if constexpr (traits::is_floatXX_v<MAT>) {
+            launchTransformTextureSingle2D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
+                                            output.get(), output_strides, output_shape,
+                                            matrices, stream);
+            stream.attach(texture, output);
         } else {
-            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
-            switch (texture_interp_mode) {
-                case INTERP_NEAREST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_NEAREST, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_LINEAR:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_LINEAR, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_COSINE:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_COSINE, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_CUBIC:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_CUBIC, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_CUBIC_BSPLINE:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_CUBIC_BSPLINE, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_LINEAR_FAST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_LINEAR_FAST, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_COSINE_FAST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_COSINE_FAST, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                case INTERP_CUBIC_BSPLINE_FAST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_<INTERP_CUBIC_BSPLINE_FAST, false, T, MAT>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrices);
-                default:
-                    NOA_THROW("{} is not supported", texture_interp_mode);
-            }
+            launchTransformTexture2D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
+                                      output.get(), output_strides, output_shape,
+                                      matrices.get(), stream);
+            stream.attach(texture, output, matrices);
         }
     }
 
-    template<typename T, typename MAT, typename>
-    void transform2D(cudaTextureObject_t texture, size2_t texture_shape,
-                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     T* output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, Stream& stream) {
-        NOA_ASSERT(output_shape[1] == 1);
-        const float2_t i_shape(texture_shape);
-        const uint2_t o_shape(output_shape.get(2));
-        const uint3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
-        const dim3 blocks(math::divideUp(o_shape[1], THREADS.x),
-                          math::divideUp(o_shape[0], THREADS.y),
-                          output_shape[0]);
-        const LaunchConfig config{blocks, THREADS};
+    #define NOA_INSTANTIATE_TRANSFORM_2D_MATRIX(T, M)                                                                                                                                               \
+    template void transform2D<T, shared_t<M[]>, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<M[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void transform2D<T, M, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, InterpMode, BorderMode, bool, Stream&);                         \
+    template void transform2D<T, shared_t<M[]>, void>(const shared_t<cudaTextureObject_t>&, size2_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const shared_t<M[]>&, Stream&);\
+    template void transform2D<T, M, void>(const shared_t<cudaTextureObject_t>&, size2_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const M&, Stream&)
 
-        const float23_t matrix_(matrix);
-
-        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
-            if (texture_interp_mode == INTERP_NEAREST) {
-                stream.enqueue("geometry::transform2D",
-                               transform2D_single_<INTERP_NEAREST, true, T>,
-                               config, texture, i_shape, output, o_strides, o_shape, matrix_);
-            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                stream.enqueue("geometry::transform2D",
-                               transform2D_single_<INTERP_LINEAR_FAST, true, T>,
-                               config, texture, i_shape, output, o_strides, o_shape, matrix_);
-            } else {
-                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
-            }
-        } else {
-            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
-            switch (texture_interp_mode) {
-                case INTERP_NEAREST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_NEAREST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_LINEAR:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_LINEAR, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_COSINE:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_COSINE, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_CUBIC:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_CUBIC, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_CUBIC_BSPLINE:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_CUBIC_BSPLINE, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_LINEAR_FAST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_LINEAR_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_COSINE_FAST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_COSINE_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                case INTERP_CUBIC_BSPLINE_FAST:
-                    return stream.enqueue("geometry::transform2D",
-                                          transform2D_single_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, matrix_);
-                default:
-                    NOA_THROW("{} is not supported", texture_interp_mode);
-            }
-        }
-    }
-
-    #define NOA_INSTANTIATE_TRANSFORM_2D_(T)                                                                                                                                                            \
-    template void transform2D<T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, bool, Stream&); \
-    template void transform2D<T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, bool, Stream&); \
-    template void transform2D<T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, bool, Stream&);                    \
-    template void transform2D<T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, bool, Stream&);                    \
-    template void transform2D<T, float23_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float23_t*, Stream&);   \
-    template void transform2D<T, float33_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float33_t*, Stream&);   \
-    template void transform2D<T, float23_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, float23_t, Stream&);          \
-    template void transform2D<T, float33_t, void>(cudaTextureObject_t, size2_t, InterpMode, BorderMode, T*, size4_t, size4_t, float33_t, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_2D_(T)            \
+    NOA_INSTANTIATE_TRANSFORM_2D_MATRIX(T, float23_t);  \
+    NOA_INSTANTIATE_TRANSFORM_2D_MATRIX(T, float33_t)
 
     NOA_INSTANTIATE_TRANSFORM_2D_(float);
     NOA_INSTANTIATE_TRANSFORM_2D_(cfloat_t);

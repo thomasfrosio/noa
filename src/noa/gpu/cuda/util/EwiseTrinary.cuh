@@ -416,22 +416,22 @@ namespace noa::cuda::util::ewise::details {
 }
 
 namespace noa::cuda::util::ewise {
-    /// Apply a trinary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_strides      Strides of \p lhs.
-    /// \param mhs              Middle-hand side argument.
-    /// \param rhs              Right-hand side argument.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides of \p output.
-    /// \param shape            Shape of \p lhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param trinary_op       Trinary operator. The output is explicitly casted to \p V.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p lhs and \p output stay valid until completion.
+    // Apply a trinary operator, element-wise.
+    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
+    // name:            Name of the function. Used for logging if kernel launch fails.
+    // lhs:             On the device. Left-hand side argument.
+    // lhs_strides:     Strides of lhs.
+    // mhs:             Middle-hand side argument.
+    // rhs:             Right-hand side argument.
+    // output:          On the device. Transformed array.
+    // output_strides:  Strides of output.
+    // shape:           Shape of lhs and output.
+    // swap_layout:     Swap the memory layout to optimize output writes.
+    //                  If false, assume rightmost order is the fastest order.
+    // stream:          Stream on which to enqueue this function.
+    // trinary_op:      Trinary operator. The output is explicitly casted to V.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure lhs and output stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_val_t, typename mhs_t, typename rhs_t,
              typename out_val_t, typename trinary_t,
@@ -504,23 +504,23 @@ namespace noa::cuda::util::ewise {
         }
     }
 
-    /// Apply a trinary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_strides      Strides of \p lhs.
-    /// \param[in] mhs          On the \b device. Middle-hand side argument.
-    /// \param mhs_strides      Strides of \p mhs.
-    /// \param rhs              Right-hand side argument.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides of \p output.
-    /// \param shape            Shape of \p lhs, \p mhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param trinary_op       Trinary operator. The output is explicitly casted to \p V.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p lhs, \p mhs and \p output stay valid until completion.
+    // Apply a trinary operator, element-wise.
+    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
+    // name:            Name of the function. Used for logging if kernel launch fails.
+    // lhs:             On the device. Left-hand side argument.
+    // lhs_strides:     Strides of lhs.
+    // mhs:             On the device. Middle-hand side argument.
+    // mhs_strides:     Strides of mhs.
+    // rhs:             Right-hand side argument.
+    // output:          On the device. Transformed array.
+    // output_strides:  Strides of output.
+    // shape:           Shape of lhs, mhs and output.
+    // swap_layout:     Swap the memory layout to optimize output writes.
+    //                  If false, assume rightmost order is the fastest order.
+    // stream:          Stream on which to enqueue this function.
+    // trinary_op:      Trinary operator. The output is explicitly casted to V.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure lhs, mhs and output stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_val_t, typename mhs_val_t, typename rhs_t,
              typename out_val_t, typename trinary_t,
@@ -600,23 +600,23 @@ namespace noa::cuda::util::ewise {
         }
     }
 
-    /// Apply a trinary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_strides      Strides of \p lhs.
-    /// \param mhs              Middle-hand side argument.
-    /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_strides      Strides of \p rhs.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides of \p output.
-    /// \param shape            Shape of \p lhs, \p rhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param trinary_op       Trinary operator. The output is explicitly casted to \p V.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p lhs, \p rhs and \p output stay valid until completion.
+    // Apply a trinary operator, element-wise.
+    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
+    // name:            Name of the function. Used for logging if kernel launch fails.
+    // lhs:             On the device. Left-hand side argument.
+    // lhs_strides:     Strides of lhs.
+    // mhs:             Middle-hand side argument.
+    // rhs:             On the device. Right-hand side argument.
+    // rhs_strides:     Strides of rhs.
+    // output:          On the device. Transformed array.
+    // output_strides:  Strides of output.
+    // shape:           Shape of lhs, rhs and output.
+    // swap_layout:     Swap the memory layout to optimize output writes.
+    //                  If false, assume rightmost order is the fastest order.
+    // stream:          Stream on which to enqueue this function.
+    // trinary_op:      Trinary operator. The output is explicitly cast to V.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure lhs, rhs and output stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_val_t, typename mhs_t, typename rhs_val_t,
              typename out_val_t, typename trinary_t,
@@ -696,23 +696,23 @@ namespace noa::cuda::util::ewise {
         }
     }
 
-    /// Apply a trinary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_strides      Strides of \p lhs.
-    /// \param[in] mhs          On the \b device. Middle-hand side argument.
-    /// \param mhs_strides      Strides of \p mhs.
-    /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_strides      Strides of \p rhs.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param shape            Shape of \p lhs, \p mhs, \p rhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function. No synchronization is performed on the stream.
-    /// \param trinary_op       Trinary operator. The output is explicitly casted to the output type.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p lhs, \p mhs, \p rhs and \p output stay valid until completion.
+    // Apply a trinary operator, element-wise.
+    // RESTRICT:    Whether the pointers can be accessed using the __restrict__ attribute.
+    // name:        Name of the function. Used for logging if kernel launch fails.
+    // lhs:         On the device. Left-hand side argument.
+    // lhs_strides: Strides of lhs.
+    // mhs:         On the device. Middle-hand side argument.
+    // mhs_strides: Strides of mhs.
+    // rhs:         On the device. Right-hand side argument.
+    // rhs_strides: Strides of rhs.
+    // output:      On the device. Transformed array.
+    // shape:       Shape of lhs, mhs, rhs and output.
+    // swap_layout: Swap the memory layout to optimize output writes.
+    //              If false, assume rightmost order is the fastest order.
+    // stream:      Stream on which to enqueue this function. No synchronization is performed on the stream.
+    // trinary_op:  Trinary operator. The output is explicitly cast to the output type.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure lhs, mhs, rhs and output stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
              typename out_val_t, typename trinary_t>

@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/util/Atomic.cuh
-/// \brief Device atomic adds.
-/// \author Thomas - ffyr2w
-/// \date 20 Aug 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"

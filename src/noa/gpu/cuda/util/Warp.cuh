@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/util/Warp.cuh
-/// \brief Warp utilities.
-/// \author Thomas - ffyr2w
-/// \date 13 Feb 2022
 #pragma once
 
 #include <cuda_fp16.h>
@@ -54,11 +50,10 @@ namespace noa::cuda::util::warp {
         return T{}; // unreachable
     }
 
-    /// Reduces one warp to one element.
-    /// \tparam T           Any data type.
-    /// \param value        Per-thread value.
-    /// \param reduce_op    Reduction operator.
-    /// \return Reduced value in tid 0 (undefined in other threads).
+    // Reduces one warp to one element. Returns the reduced value in tid 0 (undefined in other threads).
+    // T:           Any data type.
+    // value:       Per-thread value.
+    // reduce_op:   Reduction operator.
     template<typename ReduceOp, typename T>
     NOA_ID T reduce(T value, ReduceOp reduce_op) {
         T other;

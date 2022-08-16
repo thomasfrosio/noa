@@ -29,7 +29,7 @@ TEMPLATE_TEST_CASE("cuda::math::randomize() - contiguous", "[noa][cuda][math]", 
     test::memset(data.get(), elements, 20);
     cuda::math::randomize(math::normal_t{}, data.share(), stride, shape, value_t{5}, value_t{2}, stream);
     mean = cuda::math::mean(data.share(), stride, shape, stream);
-    value_t stddev = cuda::math::std(data.share(), stride, shape, stream);
+    value_t stddev = cuda::math::std(data.share(), stride, shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));
     REQUIRE_THAT(stddev, Catch::WithinAbs(2, 0.1));
 }
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("cuda::math::randomize() - padded", "[noa][cuda][math]", floa
     cuda::memory::set(data.get(), elements, TestType{20}, stream);
     cuda::math::randomize(math::normal_t{}, data.share(), data.strides(), shape, value_t{5}, value_t{2}, stream);
     mean = cuda::math::mean(data.share(), data.strides(), shape, stream);
-    value_t stddev = cuda::math::std(data.share(), data.strides(), shape, stream);
+    value_t stddev = cuda::math::std(data.share(), data.strides(), shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));
     REQUIRE_THAT(stddev, Catch::WithinAbs(2, 0.1));
 }

@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/Types.h
-/// \brief Expansion of noa/common/Types.h for noa::cuda.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include <cuda_runtime.h>
@@ -39,5 +34,11 @@ namespace noa::cuda {
         static constexpr uint MAX_THREADS = 1024;
         static constexpr uint MAX_X_BLOCKS = (1U << 31) - 1U;
         static constexpr uint MAX_YZ_BLOCKS = 65535;
+    };
+
+    template<typename T>
+    struct Texture {
+        std::shared_ptr<cudaArray> array{nullptr};
+        std::shared_ptr<cudaTextureObject_t> texture{};
     };
 }

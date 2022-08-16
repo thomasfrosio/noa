@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/util/Reduce.cuh
-/// \brief Reduction utilities.
-/// \author Thomas - ffyr2w
-/// \date 13 Feb 2022
 #pragma once
 
 #include "noa/common/Math.h"
@@ -163,29 +159,29 @@ namespace noa::cuda::util::details {
 }
 
 namespace noa::cuda::util {
-    /// Reduce the three or four innermost dimensions of \p input to one element.
-    /// \param[in] name         Name of the function. Used for logging if a kernel launch fails.
-    /// \param[in] input        On the \b device. Input array to reduce.
-    /// \param strides          BDHW strides of \p input.
-    /// \param shape            BDHW shape of \p input.
-    /// \param transform_op     Transform operator, op(\p T) -> \p U, to apply on the input before reduction.
-    /// \param reduce_op        Reduction operator: op(\p U, \p U) -> \p U.
-    /// \param init             Per-thread initial value for the reduction.
-    /// \param[out] output0     On the \b host or \b device. Reduced element(s).
-    ///                         If \p reduce_batch is false, there should be one element per batch.
-    /// \param post_process0    Post process operator. Takes the final reduced value(s) and transform it before
-    ///                         saving it into \p output0.
-    /// \param[out] output1     On the \b host or \b device, or nullptr. Optional secondary output.
-    ///                         If nullptr, ignore it. If \p reduce_batch is false, there should be one element per batch.
-    /// \param post_process1    Post process operator. Takes the \p output0 and transform it before saving it
-    ///                         into \p output1. It is ignored if \p output1 is nullptr.
-    /// \param reduce_batch     Whether the outermost dimension should be reduced.
-    /// \param swap_layout      Whether the layout can be reordered for maximum performance.
-    ///                         Otherwise, assume rightmost is the fastest order.
-    ///                         If \p reduce_batch is false, only the DHW dimensions can be reordered.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       \p input, \p output0 and \p output1 should stay valid until completion.
+    // Reduce the three or four innermost dimensions of input to one element.
+    // name:            Name of the function. Used for logging if a kernel launch fails.
+    // input:           On the device. Input array to reduce.
+    // strides:         BDHW strides of input.
+    // shape:           BDHW shape of input.
+    // transform_op:    Transform operator, op(T) -> U, to apply on the input before reduction.
+    // reduce_op:       Reduction operator: op(U, U) -> U.
+    // init:            Per-thread initial value for the reduction.
+    // output0:         On the host or device. Reduced element(s).
+    //                  If reduce_batch is false, there should be one element per batch.
+    // post_process0:   Post process operator. Takes the final reduced value(s) and transform it before
+    //                  saving it into output0.
+    // output1:         On the host or device, or nullptr. Optional secondary output.
+    //                  If nullptr, ignore it. If reduce_batch is false, there should be one element per batch.
+    // post_process1:   Post process operator. Takes the output0 and transform it before saving it
+    //                  into output1. It is ignored if output1 is nullptr.
+    // reduce_batch:    Whether the outermost dimension should be reduced.
+    // swap_layout:     Whether the layout can be reordered for maximum performance.
+    //                  Otherwise, assume rightmost is the fastest order.
+    //                  If reduce_batch is false, only the DHW dimensions can be reordered.
+    // stream:          Stream on which to enqueue this function.
+    // This function is asynchronous relative to the host and may return before completion.
+    // input, output0 and output1 should stay valid until completion.
     template<typename value_t, typename reduce_value_t, typename post_value_t,
              typename transform_op_t, typename reduce_op_t,
              typename post0_op_t, typename post1_op_t>
@@ -364,24 +360,24 @@ namespace noa::cuda::util {
         }
     }
 
-    /// Returns the variance of the input array.
-    /// \tparam STD             Whether the standard deviation should be computed instead.
-    /// \tparam value_t         float, double, cfloat_t, cdouble_t.
-    /// \tparam reduce_value_t  If \p value_t is complex, should be the corresponding real type.
-    ///                         Otherwise, same as \p value_t.
-    /// \param[in] input        On the \b device. Input array to reduce.
-    /// \param input_strides    BDHW strides of \p input.
-    /// \param shape            BDHW shape of \p input.
-    /// \param[out] output      On the \b host or \b device. Output variance(s) (or stddev).
-    /// \param output_stride    Stride of \p output.
-    /// \param ddof             Delta Degree Of Freedom used to calculate the variance.
-    /// \param reduce_batch     Whether the batch dimension should be reduced too.
-    /// \param swap_layout      Whether the layout can be reordered for maximum performance.
-    ///                         Otherwise, assume rightmost is the fastest order.
-    ///                         If \p reduce_batch is false, only the DHW dimensions can be reordered.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       \p input and \p output should stay valid until completion.
+    // Returns the variance of the input array.
+    // STD:             Whether the standard deviation should be computed instead.
+    // value_t:         float, double, cfloat_t, cdouble_t.
+    // reduce_value_t:  If value_t is complex, should be the corresponding real type.
+    //                  Otherwise, same as value_t.
+    // input:           On the device. Input array to reduce.
+    // input_strides:   BDHW strides of input.
+    // shape:           BDHW shape of input.
+    // output:          On the host or device. Output variance(s) (or stddev).
+    // output_stride:   Stride of output.
+    // ddof:            Delta Degree Of Freedom used to calculate the variance.
+    // reduce_batch:    Whether the batch dimension should be reduced too.
+    // swap_layout:     Whether the layout can be reordered for maximum performance.
+    //                  Otherwise, assume rightmost is the fastest order.
+    //                  If reduce_batch is false, only the DHW dimensions can be reordered.
+    // stream:          Stream on which to enqueue this function.
+    // This function is asynchronous relative to the host and may return before completion.
+    // input and output should stay valid until completion.
     template<bool STD, typename value_t, typename reduce_value_t>
     void reduceVar(const char* name,
                    const value_t* input, uint4_t input_strides, uint4_t shape,

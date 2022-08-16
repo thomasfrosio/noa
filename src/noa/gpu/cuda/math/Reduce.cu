@@ -54,26 +54,27 @@ namespace noa::cuda::math {
         return output;
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    U var(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
+    template<typename T, typename U, typename>
+    U var(const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream) {
         U output;
         util::reduceVar<false>("math::var", input.get(), uint4_t(strides), uint4_t(shape), &output, 1,
-                               DDOF, true, true, stream);
+                               ddof, true, true, stream);
         stream.synchronize();
         return output;
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    U std(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
+    template<typename T, typename U, typename>
+    U std(const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream) {
         U output;
         util::reduceVar<true>("math::std", input.get(), uint4_t(strides), uint4_t(shape), &output, 1,
-                              DDOF, true, true, stream);
+                              ddof, true, true, stream);
         stream.synchronize();
         return output;
     }
 
-    template<int DDOF, typename T, typename U, typename V>
-    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
+    template<typename T, typename U, typename V>
+    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+                                      int ddof, Stream& stream) {
         // Get the sum and mean:
         T output_sum, output_mean;
         const U inv_count = U(1) / static_cast<U>(shape.elements());
@@ -85,7 +86,7 @@ namespace noa::cuda::math {
                      true, true, stream);
 
         stream.synchronize();
-        T mean = output_sum / static_cast<U>(shape.elements() - DDOF);
+        T mean = output_sum / static_cast<U>(shape.elements() - ddof);
 
         // Get the variance and stddev:
         auto transform_op = [mean]__device__(T value) -> U {
@@ -143,18 +144,13 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_COMPLEX(cfloat_t);
     NOA_INSTANTIATE_REDUCE_COMPLEX(cdouble_t);
 
-    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                          \
-    template U var<DDOF,T,U,void>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
-    template U std<DDOF,T,U,void>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
-    template std::tuple<T, T, U, U> statistics<DDOF,T,U,void>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U)                                               \
+    template U var<T,U,void>(const shared_t<T[]>&, size4_t, size4_t, int, Stream&); \
+    template U std<T,U,void>(const shared_t<T[]>&, size4_t, size4_t, int, Stream&); \
+    template std::tuple<T, T, U, U> statistics<T,U,void>(const shared_t<T[]>&, size4_t, size4_t, int, Stream&)
 
-    NOA_INSTANTIATE_VAR_(float, float, 0);
-    NOA_INSTANTIATE_VAR_(double, double, 0);
-    NOA_INSTANTIATE_VAR_(float, float, 1);
-    NOA_INSTANTIATE_VAR_(double, double, 1);
-
-    NOA_INSTANTIATE_VAR_(cfloat_t, float, 0);
-    NOA_INSTANTIATE_VAR_(cdouble_t, double, 0);
-    NOA_INSTANTIATE_VAR_(cfloat_t, float, 1);
-    NOA_INSTANTIATE_VAR_(cdouble_t, double, 1);
+    NOA_INSTANTIATE_VAR_(float, float);
+    NOA_INSTANTIATE_VAR_(double, double);
+    NOA_INSTANTIATE_VAR_(cfloat_t, float);
+    NOA_INSTANTIATE_VAR_(cdouble_t, double);
 }

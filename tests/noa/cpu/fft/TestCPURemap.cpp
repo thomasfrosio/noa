@@ -131,14 +131,14 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2h(), h2hc()", "[noa][cpu][fft]",
         const size_t elements = shape.fft().elements();
         cpu::memory::PtrHost<TestType> half_centered_in(elements);
         cpu::memory::PtrHost<TestType> half_centered_out(elements);
-        cpu::memory::PtrHost<TestType> half(elements);
+        cpu::memory::PtrHost<TestType> half_(elements);
 
         test::randomize(half_centered_in.get(), half_centered_in.size(), randomizer_data);
-        test::memset(half.get(), half.size(), 0);
+        test::memset(half_.get(), half_.size(), 0);
         test::memset(half_centered_out.get(), half_centered_out.size(), 0);
 
-        cpu::fft::remap<TestType>(fft::HC2H, half_centered_in.share(), stride, half.share(), stride, shape, stream);
-        cpu::fft::remap<TestType>(fft::H2HC, half.share(), stride, half_centered_out.share(), stride, shape, stream);
+        cpu::fft::remap<TestType>(fft::HC2H, half_centered_in.share(), stride, half_.share(), stride, shape, stream);
+        cpu::fft::remap<TestType>(fft::H2HC, half_.share(), stride, half_centered_out.share(), stride, shape, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, half_centered_in.get(), half_centered_out.get(), elements, 1e-10));
     }
@@ -216,28 +216,28 @@ TEMPLATE_TEST_CASE("cpu::fft::hc2f(), f2hc()", "[noa][cpu][fft]",
     const size_t elements = shape.elements();
     const size_t elements_fft = shape.fft().elements();
 
-    cpu::memory::PtrHost<TestType> half(elements_fft);
+    cpu::memory::PtrHost<TestType> half_(elements_fft);
     cpu::memory::PtrHost<TestType> half_centered(elements_fft);
     cpu::memory::PtrHost<TestType> half_2(elements_fft);
     cpu::memory::PtrHost<TestType> full(elements);
     cpu::memory::PtrHost<TestType> full_2(elements);
 
     AND_THEN("hc > f") {
-        test::randomize(half.get(), half.elements(), randomizer_data);
-        cpu::fft::remap<TestType>(fft::H2HC, half.share(), stride_fft, half_centered.share(), stride_fft, shape, stream);
+        test::randomize(half_.get(), half_.elements(), randomizer_data);
+        cpu::fft::remap<TestType>(fft::H2HC, half_.share(), stride_fft, half_centered.share(), stride_fft, shape, stream);
         cpu::fft::remap<TestType>(fft::HC2F, half_centered.share(), stride_fft, full.share(), stride, shape, stream);
-        cpu::fft::remap<TestType>(fft::H2F, half.share(), stride_fft, full_2.share(), stride, shape, stream);
+        cpu::fft::remap<TestType>(fft::H2F, half_.share(), stride_fft, full_2.share(), stride, shape, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS, full.get(), full_2.get(), full_2.size(), 1e-10));
     }
 
     AND_THEN("f > hc") {
         test::randomize(full.get(), full.elements(), randomizer_data);
-        cpu::fft::remap<TestType>(fft::F2H, full.share(), stride, half.share(), stride_fft, shape, stream);
-        cpu::fft::remap<TestType>(fft::H2HC, half.share(), stride_fft, half_centered.share(), stride_fft, shape, stream);
+        cpu::fft::remap<TestType>(fft::F2H, full.share(), stride, half_.share(), stride_fft, shape, stream);
+        cpu::fft::remap<TestType>(fft::H2HC, half_.share(), stride_fft, half_centered.share(), stride_fft, shape, stream);
         cpu::fft::remap<TestType>(fft::F2HC, full.share(), stride, half_2.share(), stride_fft, shape, stream);
         stream.synchronize();
-        REQUIRE(test::Matcher(test::MATCH_ABS, half_centered.get(), half_2.get(), half.size(), 1e-10));
+        REQUIRE(test::Matcher(test::MATCH_ABS, half_centered.get(), half_2.get(), half_.size(), 1e-10));
     }
 }
 

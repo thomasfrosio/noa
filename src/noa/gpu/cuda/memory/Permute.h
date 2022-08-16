@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/memory/Permute.h
-/// \brief Permutes the axes of an array.
-/// \author Thomas - ffyr2w
-/// \date 29 Jun 2021
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -43,23 +39,7 @@ namespace noa::cuda::memory::details::inplace {
 }
 
 namespace noa::cuda::memory {
-    /// Permutes, in memory, the axes of an array.
-    /// \tparam T               Any data type.
-    /// \param[in] input        On the \b device. Input array to permute.
-    /// \param input_strides    Stride, in elements, of \p input.
-    /// \param input_shape      Shape of \p input.
-    /// \param[out] output      On the \b device. Output permuted array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param permutation      Permutation. Axes are numbered from 0 to 3.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \note For in-place permutations, only 0123, 0213, 0132, and 0321 are supported. Anything else throws an error.
-    /// \note The in-place 0213 permutation requires the axis 1 and 2 to have the same size.
-    ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
-    ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
-    /// \note The following permutations are fast: 0123, 0132, 0312, 0321, 0213, 0231.
-    ///       Anything else calls copy(), which is much slower.
+    // Permutes, in memory, the axes of an array.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void permute(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, uint4_t permutation, Stream& stream) {

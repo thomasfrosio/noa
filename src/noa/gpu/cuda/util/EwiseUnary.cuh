@@ -103,21 +103,21 @@ namespace noa::cuda::util::ewise::details {
 }
 
 namespace noa::cuda::util::ewise {
-    /// Apply an unary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] input        On the \b device. Input array to transform.
-    /// \param input_strides    Strides, of \p input.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides, of \p output.
-    /// \param elements         Shape of \p input and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param unary_op         Unary operator, such as, op(\p T) -> \p U.
-    ///                         The output is explicitly casted to \p U.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p input and \p output stay valid until completion.
+    // Apply an unary operator, element-wise.
+    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute
+    // name:            Name of the function. Used for logging if kernel launch fails.
+    // input:           On the device. Input array to transform.
+    // input_strides:   Strides, of input.
+    // output:          On the device. Transformed array.
+    // output_strides:  Strides, of output.
+    // elements:        Shape of input and output.
+    // swap_layout:     Swap the memory layout to optimize output writes.
+    //                  If false, assume rightmost order is the fastest order.
+    // stream:          Stream on which to enqueue this function.
+    // unary_op:        Unary operator, such as, op(T) -> U.
+    //                  The output is explicitly cast to U.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure input and output stay valid until completion.
     template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
     void unary(const char* name,
                const T* input, size4_t input_strides,

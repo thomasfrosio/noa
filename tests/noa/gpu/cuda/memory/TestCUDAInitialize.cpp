@@ -76,8 +76,8 @@ TEMPLATE_TEST_CASE("cuda::memory::arange()", "[noa][cuda][memory]",
     cpu::memory::PtrHost<TestType> h_data(elements);
     cuda::memory::PtrManaged<TestType> d_data(elements, gpu_stream);
 
-    cpu::memory::arange(h_data.share(), stride, shape, cpu_stream);
-    cuda::memory::arange(d_data.share(), stride, shape, gpu_stream);
+    cpu::memory::arange(h_data.share(), stride, shape, TestType{0}, TestType{1}, cpu_stream);
+    cuda::memory::arange(d_data.share(), stride, shape, TestType{0}, TestType{1}, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_data.get(), d_data.get(), elements, 1e-6));
@@ -120,8 +120,8 @@ TEMPLATE_TEST_CASE("cuda::memory::arange(), padded", "[noa][cuda][memory]",
     cpu::memory::PtrHost<TestType> h_cuda_data(elements);
     cuda::memory::PtrDevicePadded<TestType> d_data(shape);
 
-    cpu::memory::arange(h_data.share(), stride, shape, cpu_stream);
-    cuda::memory::arange(d_data.share(), d_data.strides(), shape, gpu_stream);
+    cpu::memory::arange(h_data.share(), stride, shape, TestType{0}, TestType{1}, cpu_stream);
+    cuda::memory::arange(d_data.share(), d_data.strides(), shape, TestType{0}, TestType{1}, gpu_stream);
     cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
     cpu_stream.synchronize();
     gpu_stream.synchronize();

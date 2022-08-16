@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/fft/Exception.h
-/// \brief Expansion of noa/gpu/cuda/Exception.h for cufft.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include <cufft.h>
@@ -12,7 +7,7 @@
 #include "noa/gpu/cuda/Exception.h"
 
 namespace noa::cuda {
-    /// Formats the cufft \a result to a human readable string.
+    // Formats the cufft result to a human-readable string.
     std::string toString(cufftResult_t result);
 
     NOA_IH void throwIf(cufftResult_t result, const char* file, const char* function, int line) {

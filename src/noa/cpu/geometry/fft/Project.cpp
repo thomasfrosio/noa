@@ -127,11 +127,12 @@ namespace {
     void fourierInsert_(const T* slice, size3_t slice_strides, int3_t slice_shape,
                         T* grid, size3_t grid_strides, int3_t grid_shape,
                         const float22_t* inv_scaling_factors, const float33_t* rotations,
-                        float cutoff, float2_t ews_radius, size_t threads) {
+                        float cutoff, float sampling_factor, float2_t ews_radius, size_t threads) {
         using real_t = traits::value_type_t<T>;
         const int2_t l_shape(slice_shape.get(1));
         const float2_t f_slice_shape(l_shape / 2 * 2 + int2_t(l_shape == 1));
-        const float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
+        float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
+        f_grid_shape *= sampling_factor;
 
         // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
         // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
@@ -140,9 +141,9 @@ namespace {
         cutoff = math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)  \
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)   \
         shared(slice, slice_strides, slice_shape, grid, grid_strides, grid_shape, \
-               inv_scaling_factors, rotations, cutoff, ews_diam_inv,             \
+               inv_scaling_factors, rotations, cutoff, ews_diam_inv,              \
                f_slice_shape, f_grid_shape)
 
         for (int i = 0; i < slice_shape[0]; ++i) {
@@ -162,7 +163,7 @@ namespace {
 
                     // Curve the slice to match the EWS using small angle approx (u,v are unchanged) and rotate:
                     // Note that the scaling is already applied, so the EWS is computed using the original frequencies
-                    // (from the diffraction) and is spherical even under anisotropic magnification.
+                    // (from the scattering) and is spherical even under anisotropic magnification.
                     const float z = math::sum(ews_diam_inv * freq_2d * freq_2d);
                     float3_t freq_3d{z, freq_2d[0], freq_2d[1]};
                     freq_3d = rotations[i] * freq_3d;
@@ -178,6 +179,8 @@ namespace {
                         if constexpr(traits::is_complex_v<T>)
                             conj = -1;
                     }
+
+                    // Back to the grid shape. The under/over-sampling factor is also applied here.
                     freq_3d *= f_grid_shape;
 
                     // At this point, we know we are going to use the slice value.
@@ -197,11 +200,12 @@ namespace {
     void fourierExtract_(const T* grid, size3_t grid_strides, int3_t grid_shape,
                          T* slice, size3_t slice_strides, int3_t slice_shape,
                          const float22_t* inv_scaling_factors, const float33_t* rotations,
-                         float cutoff, float2_t ews_radius, size_t threads) {
+                         float cutoff, float sampling_factor, float2_t ews_radius, size_t threads) {
         using real_t = traits::value_type_t<T>;
         const int2_t l_shape(slice_shape.get(1));
         const float2_t f_slice_shape(l_shape / 2 * 2 + int2_t(l_shape == 1));
-        const float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
+        float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
+        f_grid_shape *= sampling_factor;
 
         // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
         // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
@@ -297,7 +301,7 @@ namespace noa::cpu::geometry::fft {
                   const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
-                  float cutoff, float2_t ews_radius, Stream& stream) {
+                  float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
 
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -320,7 +324,7 @@ namespace noa::cpu::geometry::fft {
                     slice.get(), slice_strides_, slice_shape_,
                     grid.get(), grid_strides_, grid_shape_,
                     scaling_factors.get(), rotations.get(),
-                    cutoff, ews_radius, threads);
+                    cutoff, sampling_factor, ews_radius, threads);
         });
     }
 
@@ -329,7 +333,7 @@ namespace noa::cpu::geometry::fft {
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
-                   float cutoff, float2_t ews_radius, Stream& stream) {
+                   float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
 
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -353,7 +357,7 @@ namespace noa::cpu::geometry::fft {
                     grid.get(), grid_strides_, grid_shape_,
                     slice.get(), slice_strides_, slice_shape_,
                     scaling_factors.get(), rotations.get(),
-                    cutoff, ews_radius, threads);
+                    cutoff, sampling_factor, ews_radius, threads);
         });
     }
 
@@ -372,11 +376,11 @@ namespace noa::cpu::geometry::fft {
 
     #define NOA_INSTANTIATE_INSERT_(T, R)                                                                               \
     template void insert3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,  \
-                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float2_t, Stream&)
+                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                              \
     template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float2_t, Stream&)
+                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_(T)         \
     NOA_INSTANTIATE_INSERT_(T, Remap::H2H);     \

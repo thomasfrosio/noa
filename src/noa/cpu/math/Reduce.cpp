@@ -160,13 +160,15 @@ namespace {
         output->imag = static_cast<real_t>(sum_imag + err_imag);
     }
 
-    template<int DDOF, typename T>
-    void reduceAccurateVariance_(const T* input, size4_t strides, size4_t shape, T mean, T* variance, size_t threads) {
+    template<typename T>
+    void reduceAccurateVariance_(const T* input, size4_t strides, size4_t shape, T mean, T* variance,
+                                 int ddof, size_t threads) {
         const size4_t order = indexing::order(strides, shape);
         shape = indexing::reorder(shape, order);
         strides = indexing::reorder(strides, order);
 
-        const auto count = static_cast<double>(shape.elements() - DDOF);
+        const auto ddof_ = static_cast<size_t>(ddof);
+        const auto count = static_cast<double>(shape.elements() - ddof_);
         const auto tmp_mean = static_cast<double>(mean);
         double tmp_variance = 0;
 
@@ -188,14 +190,15 @@ namespace {
         *variance = static_cast<T>(tmp_variance / count);
     }
 
-    template<int DDOF, typename T>
+    template<typename T>
     void reduceAccurateVarianceComplex_(const Complex<T>* input, size4_t strides, size4_t shape,
-                                        Complex<T> mean, T* variance, size_t threads) {
+                                        Complex<T> mean, T* variance, int ddof, size_t threads) {
         const size4_t order = indexing::order(strides, shape);
         shape = indexing::reorder(shape, order);
         strides = indexing::reorder(strides, order);
 
-        const auto count = static_cast<double>(shape.elements() - DDOF);
+        const auto ddof_ = static_cast<size_t>(ddof);
+        const auto count = static_cast<double>(shape.elements() - ddof_);
         const auto tmp_mean = static_cast<cdouble_t>(mean);
         double tmp_variance = 0;
 
@@ -260,9 +263,10 @@ namespace {
         return {sum_real + err_real, sum_imag + err_imag};
     }
 
-    template<int DDOF, typename T>
-    auto reduceAxisAccurateVariance_(const T* input, size_t strides, size_t elements) {
-        const auto count = static_cast<double>(elements - DDOF);
+    template<typename T>
+    auto reduceAxisAccurateVariance_(const T* input, size_t strides, size_t elements, int ddof) {
+        const auto ddof_ = static_cast<size_t>(ddof);
+        const auto count = static_cast<double>(elements - ddof_);
         const auto mean = reduceAxisAccurateSum_(input, strides, elements) / count;
         double variance = 0;
         for (size_t i = 0; i < elements; ++i) {
@@ -273,9 +277,10 @@ namespace {
         return variance / count;
     }
 
-    template<int DDOF, typename T>
-    auto reduceAxisAccurateVarianceComplex_(const T* input, size_t strides, size_t elements) {
-        const auto count = static_cast<double>(elements - DDOF);
+    template<typename T>
+    auto reduceAxisAccurateVarianceComplex_(const T* input, size_t strides, size_t elements, int ddof) {
+        const auto ddof_ = static_cast<size_t>(ddof);
+        const auto count = static_cast<double>(elements - ddof_);
         const auto mean = reduceAxisAccurateSum_(input, strides, elements) / count;
         double variance = 0;
         for (size_t i = 0; i < elements; ++i) {
@@ -396,19 +401,20 @@ namespace noa::cpu::math {
         return output;
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    U var(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
+    template<typename T, typename U, typename>
+    U var(const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream) {
         U output;
         stream.enqueue([=, &output, &stream]() {
             T mean = sum(input, strides, shape, stream);
             using value_t = noa::traits::value_type_t<T>;
-            const auto count = static_cast<value_t>(shape.elements() - DDOF);
+            const auto ddof_ = static_cast<size_t>(ddof);
+            const auto count = static_cast<value_t>(shape.elements() - ddof_);
             mean /= count;
 
             if constexpr (noa::traits::is_float_v<T>) {
-                reduceAccurateVariance_<DDOF>(input.get(), strides, shape, mean, &output, stream.threads());
+                reduceAccurateVariance_(input.get(), strides, shape, mean, &output, ddof, stream.threads());
             } else if constexpr (noa::traits::is_complex_v<T>) {
-                reduceAccurateVarianceComplex_<DDOF>(input.get(), strides, shape, mean, &output, stream.threads());
+                reduceAccurateVarianceComplex_(input.get(), strides, shape, mean, &output, ddof, stream.threads());
             } else {
                 static_assert(traits::always_false_v<T>);
             }
@@ -595,9 +601,10 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_SUM_MEAN_(cdouble_t);
 
 
-    template<int DDOF, typename T, typename U, typename>
+    template<typename T, typename U, typename>
     void var(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
+             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape,
+             int ddof, Stream& stream) {
         const bool4_t mask = getMask_("var", input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
@@ -615,16 +622,16 @@ namespace noa::cpu::math {
                                               input_shape[1], input_shape[2], input_shape[3]};
                 for (size_t i = 0; i < output_shape[0]; ++i) {
                     const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = var<DDOF>(tmp, input_strides, shape_to_reduce, stream);
+                    optr[i * output_strides[0]] = var(tmp, input_strides, shape_to_reduce, ddof, stream);
                 }
             });
         } else {
             reduceAxis_("var", stream, input, input_strides, input_shape, output, output_strides, output_shape, mask,
-                        [](const T* axis, size_t strides, size_t elements) {
+                        [ddof](const T* axis, size_t strides, size_t elements) {
                         if constexpr (traits::is_complex_v<T>) {
-                            return reduceAxisAccurateVarianceComplex_<DDOF>(axis, strides, elements);
+                            return reduceAxisAccurateVarianceComplex_(axis, strides, elements, ddof);
                         } else if constexpr (traits::is_float_v<T>) {
-                            return reduceAxisAccurateVariance_<DDOF>(axis, strides, elements);
+                            return reduceAxisAccurateVariance_(axis, strides, elements, ddof);
                         } else {
                             static_assert(traits::always_false_v<T>);
                         }
@@ -632,16 +639,12 @@ namespace noa::cpu::math {
         }
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U,DDOF)                                              \
-    template U var<DDOF,T,U,void>(const shared_t<T[]>& , size4_t, size4_t, Stream&);    \
-    template void var<DDOF,T,U,void>(const shared_t<T[]>& , size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U)                                              \
+    template U var<T,U,void>(const shared_t<T[]>& , size4_t, size4_t, int, Stream&);    \
+    template void var<T,U,void>(const shared_t<T[]>& , size4_t, size4_t, const shared_t<U[]>&, size4_t, size4_t, int, Stream&)
 
-    NOA_INSTANTIATE_VAR_(float, float, 0);
-    NOA_INSTANTIATE_VAR_(double, double, 0);
-    NOA_INSTANTIATE_VAR_(float, float, 1);
-    NOA_INSTANTIATE_VAR_(double, double, 1);
-    NOA_INSTANTIATE_VAR_(cfloat_t, float, 0);
-    NOA_INSTANTIATE_VAR_(cdouble_t, double, 0);
-    NOA_INSTANTIATE_VAR_(cfloat_t, float, 1);
-    NOA_INSTANTIATE_VAR_(cdouble_t, double, 1);
+    NOA_INSTANTIATE_VAR_(float, float);
+    NOA_INSTANTIATE_VAR_(double, double);
+    NOA_INSTANTIATE_VAR_(cfloat_t, float);
+    NOA_INSTANTIATE_VAR_(cdouble_t, double);
 }

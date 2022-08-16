@@ -47,7 +47,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::standardize(), half", "[noa][cuda]", floa
                           image.share(), stride, shape, math::multiply_t{}, stream);
 
     const real_t mean = cuda::math::mean(image.share(), stride, shape, stream);
-    const real_t std = cuda::math::std(image.share(), stride, shape, stream);
+    const real_t std = cuda::math::std(image.share(), stride, shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
     REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
 }
@@ -89,7 +89,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::standardize(), full", "[noa][cuda]", floa
                           image.share(), stride, shape, math::multiply_t{}, stream);
 
     const real_t mean = cuda::math::mean(image.share(), stride, shape, stream);
-    const real_t std = cuda::math::std(image.share(), stride, shape, stream);
+    const real_t std = cuda::math::std(image.share(), stride, shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
     REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
 }

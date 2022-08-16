@@ -280,21 +280,21 @@ namespace noa::cuda::util::ewise::details {
 }
 
 namespace noa::cuda::util::ewise {
-    /// Applies a binary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hand side argument for the binary operator.
-    /// \param lhs_strides      Strides of \p lhs.
-    /// \param[in] rhs          Right-hand side argument for the binary operator.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides of \p output.
-    /// \param shape            Shape of \p lhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param binary_op        Binary operator. The output is explicitly casted to the output type.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure input and output pointers stay valid until completion.
+    // Applies a binary operator, element-wise.
+    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
+    // name:            Name of the function. Used for logging if kernel launch fails.
+    // lhs:             On the device. Left-hand side argument for the binary operator.
+    // lhs_strides:     Strides of lhs.
+    // rhs:             Right-hand side argument for the binary operator.
+    // output:          On the device. Transformed array.
+    // output_strides:  Strides of output.
+    // shape:           Shape of lhs and output.
+    // swap_layout:     Swap the memory layout to optimize output writes.
+    //                  If false, assume rightmost order is the fastest order.
+    // stream:          Stream on which to enqueue this function.
+    // binary_op:       Binary operator. The output is explicitly cast to the output type.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure input and output pointers stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_val_t, typename rhs_t,
              typename out_val_t, typename binary_t,
@@ -366,20 +366,20 @@ namespace noa::cuda::util::ewise {
     }
 
     /// Applies a binary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          Left-hand side argument for the binary operator.
-    /// \param[in] rhs          On the \b device. Right-hand side argument for the binary operator.
-    /// \param rhs_strides      Strides of \p rhs.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides of \p output.
-    /// \param shape            Shape of \p rhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param binary_op        Binary operator. The output is explicitly casted to the output type.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure input and output pointers stay valid until completion.
+    /// RESTRICT:       Whether the pointers can be accessed using the __restrict__ attribute.
+    /// name:           Name of the function. Used for logging if kernel launch fails.
+    /// lhs:            Left-hand side argument for the binary operator.
+    /// rhs:            On the device. Right-hand side argument for the binary operator.
+    /// rhs_strides:    Strides of rhs.
+    /// output:         On the device. Transformed array.
+    /// output_strides: Strides of output.
+    /// shape:          Shape of rhs and output.
+    /// swap_layout:    Swap the memory layout to optimize output writes.
+    ///                 If false, assume rightmost order is fastest order.
+    /// stream:         Stream on which to enqueue this function.
+    /// binary_op:      Binary operator. The output is explicitly casted to the output type.
+    /// This function is asynchronous relative to the host and may return before completion.
+    /// One must make sure input and output pointers stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_t, typename rhs_val_t,
              typename out_val_t, typename binary_t,
@@ -449,22 +449,22 @@ namespace noa::cuda::util::ewise {
         }
     }
 
-    /// Apply a binary operator, element-wise.
-    /// \tparam RESTRICT        Whether the pointers can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hand side argument.
-    /// \param lhs_strides      Strides of \p lhs.
-    /// \param[in] rhs          On the \b device. Right-hand side argument.
-    /// \param rhs_strides      Strides of \p rhs.
-    /// \param[out] output      On the \b device. Transformed array.
-    /// \param output_strides   Strides of \p output.
-    /// \param shape            Shape of \p lhs, \p rhs and \p output.
-    /// \param swap_layout      Swap the memory layout to optimize \p output writes.
-    ///                         If false, assume rightmost order is fastest order.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param binary_op        Binary operator. The output is explicitly casted to the output type.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       One must make sure input and output pointers stay valid until completion.
+    // Apply a binary operator, element-wise.
+    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
+    // name:            Name of the function. Used for logging if kernel launch fails.
+    // lhs:             On the device. Left-hand side argument.
+    // lhs_strides:     Strides of lhs.
+    // rhs:             On the device. Right-hand side argument.
+    // rhs_strides:     Strides of rhs.
+    // output:          On the device. Transformed array.
+    // output_strides:  Strides of output.
+    // shape:           Shape of lhs, rhs and output.
+    // swap_layout:     Swap the memory layout to optimize output writes.
+    //                  If false, assume rightmost order is the fastest order.
+    // stream:          Stream on which to enqueue this function.
+    // binary_op:       Binary operator. The output is explicitly cast to the output type.
+    // This function is asynchronous relative to the host and may return before completion.
+    // One must make sure input and output pointers stay valid until completion.
     template<bool RESTRICT = false,
              typename lhs_val_t, typename rhs_val_t,
              typename out_val_t, typename binary_t>

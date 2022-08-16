@@ -1,98 +1,29 @@
-/// \file noa/cpu/geometry/Shift.h
-/// \brief Pixel shifts for 2D and 3D (batched) arrays.
-/// \author Thomas - ffyr2w
-/// \date 20 Jul 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Types.h"
 #include "noa/cpu/Stream.h"
 
+namespace noa::cpu::geometry::details {
+    template<int NDIM, typename T, typename M>
+    constexpr bool is_valid_shift_v =
+            traits::is_any_v<T, float, double, cfloat_t, cdouble_t> &&
+            ((NDIM == 2 && traits::is_any_v<M, float2_t, shared_t<float2_t[]>>) ||
+             (NDIM == 3 && traits::is_any_v<M, float3_t, shared_t<float3_t[]>>));
+}
+
 namespace noa::cpu::geometry {
-    /// Applies one or multiple 2D shifts.
-    /// \details This function allows to specify an output window that doesn't necessarily have the same shape
-    ///          than the input window. The output window starts at the same index than the input window, so
-    ///          one can move the center of the output window relative to the input window with a simple shift,
-    ///          effectively combining a shift and an extraction.
-    /// \details The input and output arrays should be 2D arrays. If the output is batched, a different shift will
-    ///          be applied for every batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
-    ///          effectively applying multiple shifts to the same 2D input array.
-    ///
-    /// \tparam T                   float, double, cfloat_t, cdouble_t.
-    /// \param[in] input            On the \b host. Input 2D array.
-    /// \param input_strides        BDHW strides, in elements, of \p input.
-    /// \param input_shape          BDHW shape of \p input.
-    /// \param[out] output          On the \b host. Output 2D array.
-    /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape of \p output.
-    /// \param[in] shifts           On the \b host. HW forward shifts. One per batch.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
-    /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
-    /// \param value                Constant value to use for out-of-bounds coordinates.
-    ///                             Only used if \p border_mode is BORDER_VALUE.
-    /// \param prefilter            Whether or not the input should be prefiltered.
-    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
-    /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for shifts.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    // Applies one or multiple 2D shifts.
+    template<typename T, typename S, typename = std::enable_if_t<details::is_valid_shift_v<2, T, S>>>
     void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 const shared_t<float2_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
+                 const S& shifts, InterpMode interp_mode, BorderMode border_mode,
                  T value, bool prefilter, Stream& stream);
 
-    /// Shifts a 2D (batched) array.
-    /// \see This function has the same features and limitations than the overload above.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 float2_t shift, InterpMode interp_mode, BorderMode border_mode,
-                 T value, bool prefilter, Stream& stream);
-
-    /// Applies one or multiple 3D shifts.
-    /// \details This function allows to specify an output window that doesn't necessarily have the same shape
-    ///          than the input window. The output window starts at the same index than the input window, so
-    ///          one can move the center of the output window relative to the input window with a simple shift,
-    ///          effectively combining a shift and an extraction.
-    /// \details The input and output arrays should be 3D arrays. If the output is batched, a different shift will
-    ///          be applied for every batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation. However if the input is not batched, it is broadcast to all output batches,
-    ///          effectively applying multiple shifts to the same 3D input array.
-    ///
-    /// \tparam T                   float, double, cfloat_t, cdouble_t.
-    /// \param[in] input            On the \b host. Input 3D array.
-    /// \param input_strides        BDHW strides, in elements, of \p input.
-    /// \param input_shape          BDHW shape of \p input.
-    /// \param[out] output          On the \b host. Output 3D array.
-    /// \param output_strides       BDHW strides, in elements, of \p output.
-    /// \param output_shape         BDHW shape of \p output.
-    /// \param[in] shifts           On the \b host. DHW forward shifts. One per batch.
-    /// \param interp_mode          Interpolation/filter method. All interpolation modes are supported.
-    /// \param border_mode          Border/address mode. All border modes are supported, except BORDER_NOTHING.
-    /// \param value                Constant value to use for out-of-bounds coordinates.
-    ///                             Only used if \p border_mode is BORDER_VALUE.
-    /// \param prefilter            Whether or not the input should be prefiltered.
-    ///                             Only used if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST.
-    /// \param[in,out] stream       Stream on which to enqueue this function.
-    ///
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
-    /// \note In-place computation is not allowed, i.e. \p input and \p output should not overlap.
-    /// \see "noa/common/geometry/Geometry.h" for more details on the conventions used for shifts.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    // Applies one or multiple 3D shifts.
+    template<typename T, typename S, typename = std::enable_if_t<details::is_valid_shift_v<3, T, S>>>
     void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode,
-                 T value, bool prefilter, Stream& stream);
-
-    /// Shifts a 3D (batched) array.
-    /// See overload above for more details.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 float3_t shift, InterpMode interp_mode, BorderMode border_mode,
+                 const S& shifts, InterpMode interp_mode, BorderMode border_mode,
                  T value, bool prefilter, Stream& stream);
 }

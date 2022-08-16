@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/memory/Copy.h
-/// \brief Copy from/to device memory.
-/// \author Thomas - ffyr2w
-/// \date 05 Jan 2021
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -57,66 +53,38 @@ namespace noa::cuda::memory::details {
 }
 
 namespace noa::cuda::memory {
-    /// Copies synchronously contiguous memory from one region to another. These can point to host or device memory.
-    /// \param[in] src      Source. Contiguous memory either on the host or on the device.
-    /// \param[out] dst     Destination. Contiguous memory either on the host or on the device.
-    /// \param elements     Elements to copy.
+    // Copies contiguous memory from one region to another. These can point to host or device memory.
+    // If a stream is passed, copy is enqueued to the stream. In this case, passing raw pointers one must make
+    // sure the memory stay valid until completion. Copies between host and device can execute concurrently only
+    // if the copy involves pinned memory.
+
     template<typename T>
     inline void copy(const T* src, T* dst, size_t elements) {
         NOA_THROW_IF(cudaMemcpy(dst, src, elements * sizeof(T), cudaMemcpyDefault));
     }
 
-    /// Copies asynchronously contiguous memory from one region to another. These can point to host or device memory.
-    /// \param[in] src          Source. Contiguous memory either on the host or on the device.
-    /// \param[out] dst         Destination. Contiguous memory either on the host or on the device.
-    /// \param elements         Elements to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p src and \p dst stay valid until completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
     inline void copy(const T* src, T* dst, size_t elements, Stream& stream) {
         NOA_THROW_IF(cudaMemcpyAsync(dst, src, elements * sizeof(T), cudaMemcpyDefault, stream.id()));
     }
 
-    /// Copies asynchronously contiguous memory from one region to another. These can point to host or device memory.
-    /// \param[in] src          Source. Contiguous memory either on the host or on the device.
-    /// \param[out] dst         Destination. Contiguous memory either on the host or on the device.
-    /// \param elements         Elements to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
     inline void copy(const shared_t<T[]>& src, const shared_t<T[]>& dst, size_t elements, Stream& stream) {
         NOA_THROW_IF(cudaMemcpyAsync(dst.get(), src.get(), elements * sizeof(T), cudaMemcpyDefault, stream.id()));
         stream.attach(src, dst);
     }
 
-    /// Copies asynchronously pitched memory from one region to another. These can point to host or device memory.
-    /// \param[in] src          Source. Pitched memory either on the host or on the device.
-    /// \param src_pitch        Pitch, in elements, of \p src.
-    /// \param[out] dst         Destination. Pitched memory either on the host or on the device.
-    /// \param dst_pitch        Pitch, in elements, of \p dst.
-    /// \param shape            Rightmost shape to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    ///       One must make sure \p src and \p dst stay valid until completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
+    // Copies asynchronously pitched memory from one region to another. These can point to host or device memory.
+    // If a stream is passed, copy is enqueued to the stream. In this case, passing raw pointers one must make
+    // sure the memory stay valid until completion. Copies between host and device can execute concurrently only
+    // if the copy involves pinned memory.
+
     template<typename T>
     inline void copy(const T* src, size_t src_pitch, T* dst, size_t dst_pitch, size4_t shape, Stream& stream) {
         const auto params = details::toParams(src, src_pitch, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
-    /// Copies asynchronously pitched memory from one region to another. These can point to host or device memory.
-    /// \param[in] src          Source. Pitched memory either on the host or on the device.
-    /// \param src_pitch        Pitch, in elements, of \p src.
-    /// \param[out] dst         Destination. Pitched memory either on the host or on the device.
-    /// \param dst_pitch        Pitch, in elements, of \p dst.
-    /// \param shape            Rightmost shape to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p src or \p dst are pinned.
     template<typename T>
     inline void copy(const shared_t<T[]>& src, size_t src_pitch,
                      const shared_t<T[]>& dst, size_t dst_pitch,
@@ -126,28 +94,16 @@ namespace noa::cuda::memory {
         stream.attach(src, dst);
     }
 
-    /// Copies asynchronously regions of (strided/padded) memory.
-    /// \details Contiguous regions of memory have no copy restrictions, as well as (batched) row vectors (and column
-    ///          vectors if \p SWAP_LAYOUT is true), and regions with padding at the right side of the innermost
-    ///          dimension (referred to as a "pitch" in CUDA).
-    ///          However, if the contiguity is broken in any other dimension, an error will be thrown if:
-    ///          1) the source and destination are on different devices,
-    ///          2) the copy is between unregistered host memory and a device,
-    ///          3) the copy involves a device that is not the stream's device.
-    ///
-    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p dst writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \tparam T               Any type.
-    /// \param[in] src          Source. Can be on the host or a device.
-    /// \param src_strides      Strides, in elements, of \p src.
-    /// \param[out] dst         Destination. Can be on the host or a device.
-    /// \param dst_strides      Strides, in elements, of \p dst.
-    /// \param shape            Strides shape to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note If \p T is not a data type, the memory regions should be contiguous, pinned or both on the host.
-    /// \note If the copy involves an unregistered memory regions, the stream will be synchronized when the function
-    ///       returns. Otherwise this function can be asynchronous relative to the host and may return before completion.
+    // Copies asynchronously regions of (strided/padded) memory.
+    // Contiguous regions of memory have no copy restrictions, as well as (batched) row vectors (and column
+    // vectors if SWAP_LAYOUT is true), and regions with padding on the right side of the innermost
+    // dimension (referred to as a "pitch" in CUDA).
+    // However, if the contiguity is broken in any other dimension, an error will be thrown if:
+    // 1) the source and destination are on different devices,
+    // 2) the copy is between unregistered host memory and a device,
+    // 3) the copy involves a device that is not the stream's device.
+    // If the copy involves an unregistered memory regions, the stream will be synchronized when the function
+    // returns. Otherwise, this function can be asynchronous relative to the host and may return before completion.
     template<bool SWAP_LAYOUT = true, typename T>
     void copy(const shared_t<T[]>& src, size4_t src_strides,
               const shared_t<T[]>& dst, size4_t dst_strides,
@@ -247,25 +203,12 @@ namespace noa::cuda::memory {
 
 // -- CUDA arrays -- //
 namespace noa::cuda::memory {
-    /// Copies memory region into a CUDA array.
-    /// \param[in] src      Region to copy.
-    /// \param src_pitch    Pitch, in elements, of \p src.
-    /// \param[out] dst     N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
-    /// \param shape        DHW shape of the CUDA array.
     template<typename T>
     inline void copy(const T* src, size_t src_pitch, cudaArray* dst, size3_t shape) {
         cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
-    /// Copies memory region into a CUDA array.
-    /// \param[in] src          Region to copy.
-    /// \param src_pitch        Pitch, in elements, of \p src.
-    /// \param[out] dst         N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
-    /// \param shape            DHW shape to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
     template<typename T>
     inline void copy(const T* src, size_t src_pitch,
                      cudaArray* dst, size3_t shape, Stream& stream) {
@@ -273,14 +216,6 @@ namespace noa::cuda::memory {
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
-    /// Copies memory region into a CUDA array.
-    /// \param[in] src          Region to copy.
-    /// \param src_pitch        Pitch, in elements, of \p src.
-    /// \param[out] dst         N dimensional CUDA array. Should correspond to \p shape. All elements will be filled.
-    /// \param shape            DHW shape to copy.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p src is pinned.
     template<typename T>
     inline void copy(const shared_t<T[]>& src, size_t src_pitch,
                      const shared_t<cudaArray>& dst, size3_t shape, Stream& stream) {
@@ -288,25 +223,12 @@ namespace noa::cuda::memory {
         stream.attach(src, dst);
     }
 
-    /// Copies a CUDA array into a memory region.
-    /// \param[in] src      N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
-    /// \param[out] dst     Region to copy into.
-    /// \param dst_pitch    Pitch, in elements, of \p dst.
-    /// \param shape        DHW shape of the CUDA array.
     template<typename T>
     inline void copy(const cudaArray* src, T* dst, size_t dst_pitch, size3_t shape) {
         cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
-    /// Copies a CUDA array into a memory region.
-    /// \param[in] src          N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
-    /// \param[out] dst         Region to copy into.
-    /// \param dst_pitch        Pitch, in elements, of \p dst.
-    /// \param shape            DHW shape of the CUDA array.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
     template<typename T>
     inline void copy(const cudaArray* src,
                      T* dst, size_t dst_pitch,
@@ -315,14 +237,6 @@ namespace noa::cuda::memory {
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
-    /// Copies a CUDA array into a memory region.
-    /// \param[in] src          N dimensional CUDA array. Should correspond to \p shape. All elements will be copied.
-    /// \param[out] dst         Region to copy into.
-    /// \param dst_pitch        Pitch, in elements, of \p dst.
-    /// \param shape            DHW shape of the CUDA array.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function can be asynchronous relative to the host and may return before completion.
-    /// \note Memory copies between host and device can execute concurrently only if \p dst is pinned.
     template<typename T>
     inline void copy(const shared_t<cudaArray>& src,
                      const shared_t<T[]>& dst, size_t dst_pitch,

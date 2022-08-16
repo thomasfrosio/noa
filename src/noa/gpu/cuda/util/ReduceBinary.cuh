@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/util/ReduceBinary.cuh
-/// \brief Reduction utilities.
-/// \author Thomas - ffyr2w
-/// \date 13 Feb 2022
 #pragma once
 
 #include "noa/common/Math.h"
@@ -238,33 +234,33 @@ namespace noa::cuda::util::details {
 }
 
 namespace noa::cuda::util {
-    /// Reduce the three or four innermost dimensions of \p lhs and \p rhs.
-    /// \details Reads element-wise \p lhs and \p rhs, transform and combine them, and then reduce.
-    /// \tparam RESTRICT        Whether \p lhs and \p rhs can be accessed using the __restrict__ attribute.
-    /// \param[in] name         Name of the function. Used for logging if a kernel launch fails.
-    /// \param[in] lhs          On the \b device. Left-hande side array to reduce.
-    /// \param lhs_strides      BDHW strides of \p lhs.
-    /// \param[in] rhs          On the \b device. Left-hande side array to reduce.
-    /// \param rhs_strides      BDHW strides of \p rhs.
-    /// \param shape            BDHW shape of \p lhs and \p rhs. Assume rightmost order is the fastest order.
-    /// \param transform_op_lhs Transform operator, op(\p lhs_value_t) -> Xl, to apply on \p lhs before combination.
-    /// \param transform_op_rhs Transform operator, op(\p rhs_value_t) -> Xr, to apply on \p rhs before combination.
-    /// \param combine_op       Combine operator, op(Xl, Xr), to apply on the left and right transformed value before
-    ///                         reduction. The output value of this operator is casted to \p reduce_value_t.
-    /// \param reduce_op        Reduction operator: op(\p reduce_value_t, \p reduce_value_t) -> \p reduce_value_t.
-    /// \param init             Per-thread initial value for the reduction.
-    /// \param[out] output0     On the \b host or \b device. Reduced element(s).
-    ///                         If \p reduce_batch is false, there should be \p shape[0] elements.
-    /// \param post_process0    Post process operator. Takes the final reduced value(s) and transform it before
-    ///                         saving it into \p output0.
-    /// \param[out] output1     On the \b host or \b device, or nullptr. Optional secondary output.
-    ///                         If nullptr, it is ignored. If \p reduce_batch is false, there should be \p shape[0] elements.
-    /// \param post_process1    Post process operator. Takes the \p output0 and transform it before saving it
-    ///                         into \p output1. It is ignored if \p output1 is nullptr.
-    /// \param reduce_batch     Whether the outermost dimension should be reduced.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       \p lhs, \p rhs, \p output0 and \p output1 should stay valid until completion.
+    // Reduce the three or four innermost dimensions of lhs and rhs.
+    // Reads element-wise lhs and rhs, transform and combine them, and then reduce.
+    // RESTRICT:            Whether lhs and rhs can be accessed using the __restrict__ attribute.
+    // name:                Name of the function. Used for logging if a kernel launch fails.
+    // lhs:                 On the device. Left-hande side array to reduce.
+    // lhs_strides:         BDHW strides of lhs.
+    // rhs:                 On the device. Left-hande side array to reduce.
+    // rhs_strides:         BDHW strides of rhs.
+    // shape:               BDHW shape of lhs and rhs. Assume rightmost order is the fastest order.
+    // transform_op_lhs:    Transform operator, op(lhs_value_t) -> Xl, to apply on lhs before combination.
+    // transform_op_rhs:    Transform operator, op(rhs_value_t) -> Xr, to apply on rhs before combination.
+    // combine_op:          Combine operator, op(Xl, Xr), to apply on the left and right transformed value before
+    //                      reduction. The output value of this operator is cast to reduce_value_t.
+    // reduce_op:           Reduction operator: op(reduce_value_t, reduce_value_t) -> reduce_value_t.
+    // init:                Per-thread initial value for the reduction.
+    // output0:             On the host or device. Reduced element(s).
+    //                      If reduce_batch is false, there should be shape[0] elements.
+    // post_process0:       Post process operator. Takes the final reduced value(s) and transform it before
+    //                      saving it into output0.
+    // output1:             On the host or device, or nullptr. Optional secondary output.
+    //                      If nullptr, it is ignored. If reduce_batch is false, there should be shape[0] elements.
+    // post_process1:       Post process operator. Takes the output0 and transform it before saving it
+    //                      into output1. It is ignored if output1 is nullptr.
+    // reduce_batch:        Whether the outermost dimension should be reduced.
+    // stream:              Stream on which to enqueue this function.
+    // This function is asynchronous relative to the host and may return before completion.
+    // lhs, rhs, output0 and output1 should stay valid until completion.
     template<bool RESTRICT,
              typename lhs_value_t, typename rhs_value_t, typename reduce_value_t, typename post_value_t,
              typename transform_op_lhs_t, typename transform_op_rhs_t, typename combine_op_t, typename reduce_op_t,

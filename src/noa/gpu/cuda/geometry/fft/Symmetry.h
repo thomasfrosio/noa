@@ -7,30 +7,9 @@
 #include "noa/gpu/cuda/geometry/fft/Transform.h"
 
 namespace noa::cuda::geometry::fft {
-    /// Symmetrizes a non-redundant 2D (batched) FFT.
-    /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, cfloat_t.
-    /// \param[in] input        On the \b host or \b device. Non-redundant 2D FFT to symmetrize.
-    /// \param input_strides    BDHW strides, in elements, of \p input.
-    /// \param[out] output      On the \b device. Non-redundant symmetrized 2D FFT. Can be equal to \p input.
-    /// \param output_strides   BDHW strides, in elements, of \p output.
-    /// \param shape            BDHW shape, in elements, of \p input and \p output.
-    /// \param[in] symmetry     Symmetry operator to apply.
-    /// \param[in] shift        HW 2D real-space forward shift to apply (as phase shift) after the symmetry.
-    /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
-    ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are set to 0.
-    /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
-    /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
-    ///                         If false, output values end up being scaled by the symmetry count.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
-    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
-    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    /// \todo ADD TESTS!
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
+    // Symmetrizes a non-redundant 2D (batched) FFT.
+    // TODO ADD TESTS!
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
     void symmetrize2D(const shared_t<T[]>& input, size4_t input_strides,
                       const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                       const Symmetry& symmetry, float2_t shift,
@@ -39,30 +18,9 @@ namespace noa::cuda::geometry::fft {
                            shift, cutoff, interp_mode, normalize, stream);
     }
 
-    /// Symmetrizes a non-redundant 3D (batched) FFT.
-    /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, cfloat_t.
-    /// \param[in] input        On the \b host or \b device. Non-redundant 3D FFT to symmetrize.
-    /// \param input_strides    BDHW strides, in elements, of \p input.
-    /// \param[out] output      On the \b device. Non-redundant symmetrized 3D FFT. Can be equal to \p input.
-    /// \param output_strides   BDHW strides, in elements, of \p output.
-    /// \param shape            BDHW shape, in elements, of \p input and \p output.
-    /// \param[in] symmetry     Symmetry operator to apply.
-    /// \param[in] shift        DHW 3D real-space forward shift to apply (as phase shift) after the symmetry.
-    /// \param cutoff           Maximum output frequency to consider, in cycle/pix.
-    ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    ///                         Frequencies higher than this value are set to 0.
-    /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
-    /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
-    ///                         If false, output values end up being scaled by the symmetry count.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
-    ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
-    ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    /// \todo ADD TESTS!
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
+    // Symmetrizes a non-redundant 3D (batched) FFT.
+    // TODO ADD TESTS!
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
     void symmetrize3D(const shared_t<T[]>& input, size4_t input_strides,
                       const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
                       const Symmetry& symmetry, float3_t shift,

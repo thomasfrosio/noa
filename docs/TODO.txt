@@ -37,16 +37,6 @@ Development:
         or BLAS library that contains CBLAS _and_ LAPACKE. One solution is also to build OpenBLAS ourselves with
         a FetchContent call.
 
-    -   Many functions assume row-major ordering. While col-major is supported and should work, they're cases where
-        we should check for the ordering to know the fastest way to loop an array. This goes with changing the naming:
-        the library uses a Batch-Depth-Height-Width (aka BDHW) convention for shape and strides. Technically, and this
-        wasn't respected so far, this tells us nothing about the actual memory layout! It just tells us that the 4D
-        shape and stride represent, from left to right, the batches/channels, depth/pages, height/rows and width/columns.
-        If the stride {a,b,c,d} where a>b>c>d, then it is row major, however a>b>d>c is column-major.
-        Rightmost ordering is correct (rightmost dimension is the innermost dimension), but in many cases, we simply
-        don't care, i.e. we don't require rightmost order, however we often require BDHW. For memory::copy(), we don't
-        care at all. For signal::sphere() we care about BDHW but not about the memory ordering.
-
     -   Functions returning something by value, that currently requires to synchronize the stream: use std::future?
     -   Move the CPU reduction kernels in a details header and add a transform operator. This is especially useful
         when we want to apply a transform operator (e.g. abs_t) for the high precision sum reductions.
@@ -58,13 +48,9 @@ Development:
         maybe remove `Session` and create a `GlobalLogger` and a free function keeping track of the thread number or
         something like that.
 
-    -   Backends vs Unified API: Now that the project is big enough, I wonder if we should change and make the UAPI
-        mandatory, gathering a single documentation per function, figuring out the utilities directly on the UAPI,
-        and then call the backend. The main goal is to remove documentation on the backends, which becomes annoying to
-        maintain, and reduce code duplication. This is simple and safe, but a big refactoring that I'm not going to
-        start now. On the other hand, it would make the backends even less friendly to use (which is fine IMO) because
-        we would remove some utility functions and wrapper (which would now be on the UAPI only). It would also push
-        towards "the UAPI or nothing" (which is also fine IMO).
+    -   Backends vs Unified API: The Unified API should become the main point of entry, gathering documentation and
+        come with tests. The main goal is to remove documentation on the backends, which becomes annoying to
+        maintain, and reduce code duplication. Then common/ and unified/ should be merged into the base directory.
 
     -   Add nvrtc when necessary.
         Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels

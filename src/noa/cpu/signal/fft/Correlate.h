@@ -29,26 +29,7 @@ namespace noa::cpu::signal::fft {
     using Remap = ::noa::fft::Remap;
     using Norm = ::noa::fft::Norm;
 
-    /// Computes the phase cross-correlation map.
-    /// \tparam REMAP           Whether the output map should be centered. Should be H2F or H2FC.
-    /// \tparam T               float or double.
-    /// \param[in] lhs          On the \b host. Left-hand side non-redundant and non-centered FFT argument.
-    /// \param lhs_strides      BDHW strides of \p lhs.
-    /// \param[in,out] rhs      On the \b host. Right-hand side non-redundant and non-centered FFT argument.
-    ///                         Can be overwritten (see \p tmp).
-    /// \param rhs_strides      BDHW strides of \p rhs.
-    /// \param[out] output      On the \b host. Cross-correlation map.
-    ///                         If REMAP is H2F, the central peak is at indexes {n, 0, 0, 0}.
-    ///                         If REMAP is H2FC, the central peal is at indexes {n, shape[1]/2, shape[2]/2, shape[3]/2}.
-    /// \param output_strides   BDHW strides of \p output.
-    /// \param shape            BDHW logical shape.
-    /// \param normalize        Whether the normalized cross-correlation should be returned.
-    /// \param norm             Normalization mode to use for the C2R transform producing the final output.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \param[out] tmp         On the \b host. Buffer that can fit \p shape.fft() complex elements.
-    ///                         Can be equal to \p lhs or \p rhs. If nullptr, use \p rhs instead.
-    /// \param tmp_strides      BDHW strides of \p tmp. If \p tmp is nullptr, use \p rhs_strides instead.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Computes the phase cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xmap_v<REMAP, T>>>
     void xmap(const shared_t<Complex<T>[]>& lhs, size4_t lhs_strides,
               const shared_t<Complex<T>[]>& rhs, size4_t rhs_strides,
@@ -56,101 +37,34 @@ namespace noa::cpu::signal::fft {
               size4_t shape, bool normalize, Norm norm, Stream& stream,
               const shared_t<Complex<T>[]>& tmp = nullptr, size4_t tmp_strides = {});
 
-    /// Find the highest peak in a cross-correlation line.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately to the peak and 2 adjacent points.
-    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T               float, double.
-    /// \param xmap             On the \b host. 1D cross-correlation map. Should be a column or row vector.
-    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
-    /// \param shape            BDHW shape of \p map.
-    /// \param[out] peaks       On the \b host. Coordinates of the highest peak. One per batch.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Find the highest peak in a cross-correlation line.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     void xpeak1D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape,
                  const shared_t<float[]>& peaks, Stream& stream);
 
-    /// Returns the coordinates of the highest peak in a cross-correlation line.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately to the peak and 2 adjacent points.
-    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T               float, double.
-    /// \param xmap             On the \b host. Unbatched 1D cross-correlation map. Should be a column or row vector.
-    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
-    /// \param shape            BDHW shape of \p map.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
+    // Returns the coordinates of the highest peak in a cross-correlation line.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     float xpeak1D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape, Stream& stream);
 
-    /// Find the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T               float, double.
-    /// \param xmap             On the \b host. 2D cross-correlation map.
-    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
-    /// \param shape            BDHW shape of \p map.
-    /// \param[out] peaks       On the \b host. HW coordinates of the highest peak. One per batch.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Find the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     void xpeak2D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape,
                  const shared_t<float2_t[]>& peaks, Stream& stream);
 
-    /// Returns the HW coordinates of the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T               float, double.
-    /// \param xmap             On the \b host. Unbatched 2D cross-correlation map.
-    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
-    /// \param shape            BDHW shape of \p map.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
+    // Returns the HW coordinates of the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     float2_t xpeak2D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape, Stream& stream);
 
-    /// Find the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T               float, double.
-    /// \param xmap             On the \b host. Cross-correlation map.
-    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
-    /// \param shape            BDHW shape of \p map.
-    /// \param[out] peaks       On the \b host. DHW coordinates of the highest peak. One per batch.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Find the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     void xpeak3D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape,
                  const shared_t<float3_t[]>& peaks, Stream& stream);
 
-    /// Returns the DHW coordinates of the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T               float, double.
-    /// \param xmap             On the \b host. Unbatched cross-correlation map.
-    /// \param strides          BDHW strides of \p map. Zero strides are not supported.
-    /// \param shape            BDHW shape of \p map.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
+    // Returns the DHW coordinates of the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     float3_t xpeak3D(const shared_t<T[]>& xmap, size4_t strides, size4_t shape, Stream& stream);
 
-    /// Computes the cross-correlation coefficient(s).
-    /// \tparam REMAP           Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.
-    /// \tparam T               cfloat_t or cdouble_t.
-    /// \param[in] lhs          On the \b host. Left-hand side FFT.
-    /// \param lhs_strides      BDHW strides of \p lhs.
-    /// \param[in,out] rhs      On the \b host. Right-hand side FFT.
-    /// \param rhs_strides      BDHW strides of \p rhs.
-    /// \param shape            BDHW logical shape.
-    /// \param[out] coeffs      On the \b host. Cross-correlation coefficient(s). One per batch.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Computes the cross-correlation coefficient(s).
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     void xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_strides,
                const shared_t<Complex<T>[]>& rhs, size4_t rhs_strides,
@@ -173,16 +87,7 @@ namespace noa::cpu::signal::fft {
         });
     }
 
-    /// Computes the cross-correlation coefficient.
-    /// \tparam REMAP           Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.
-    /// \tparam T               cfloat_t or cdouble_t.
-    /// \param[in] lhs          On the \b host. Left-hand side non-redundant FFT.
-    /// \param lhs_strides      BDHW strides of \p lhs.
-    /// \param[in,out] rhs      On the \b host. Right-hand side non-redundant FFT.
-    /// \param rhs_strides      BDHW strides of \p rhs.
-    /// \param shape            BDHW logical shape. Should be unbatched.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    ///                         The stream is synchronized when the function returns.
+    // Computes the cross-correlation coefficient.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     T xcorr(const shared_t<Complex<T>[]>& lhs, size4_t lhs_strides,
             const shared_t<Complex<T>[]>& rhs, size4_t rhs_strides,

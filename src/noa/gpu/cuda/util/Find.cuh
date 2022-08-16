@@ -198,25 +198,25 @@ namespace noa::cuda::util::details {
 }
 
 namespace noa::cuda::util {
-    /// Finds the memory offset of the best element according to an update operator.
-    /// \param name             Name of the function. Used for logging if a kernel launch fails.
-    /// \param[in] input        On the \b device. Input array to search.
-    /// \param strides          BDHW strides of \p input.
-    /// \param shape            BDHW shape of \p input.
-    /// \param transform_op     Transform operator, op(\p value_t) -> \p transformed_t, applied when loading data.
-    /// \param update_op        Update operator: op(\p pair_t current, \p pair_t candidate) -> pair_t,
-    ///                         where pair_t is `Pair<transformed_t, offset_t>.
-    /// \param init             Initial current value (an offset of 0 is assigned to it).
-    /// \param output_offset    Memory offset of the best value(s).
-    ///                         If \p reduce_batch is false, the offset of the best value in each batch is returned
-    ///                         and these offsets are relative to the beginning of the batch.
-    /// \param reduce_batch     Whether the outermost dimension should be reduced.
-    /// \param swap_layout      Whether the layout can be reordered for maximum performance.
-    ///                         Otherwise, the search is done in the rightmost order.
-    ///                         If \p reduce_batch is false, only the DHW dimensions can be reordered.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous relative to the host and may return before completion.
-    ///       \p input and \p output_offset should stay valid until completion.
+    // Finds the memory offset of the best element according to an update operator.
+    // name:            Name of the function. Used for logging if a kernel launch fails.
+    // input:           On the device. Input array to search.
+    // strides:         BDHW strides of input.
+    // shape:           BDHW shape of input.
+    // transform_op:    Transform operator, op(value_t) -> transformed_t, applied when loading data.
+    // update_op:       Update operator: op(pair_t current, pair_t candidate) -> pair_t,
+    //                  where pair_t is `Pair<transformed_t, offset_t>.
+    // init:            Initial current value (an offset of 0 is assigned to it).
+    // output_offset:   Memory offset of the best value(s).
+    //                  If reduce_batch is false, the offset of the best value in each batch is returned
+    //                  and these offsets are relative to the beginning of the batch.
+    // reduce_batch:    Whether the outermost dimension should be reduced.
+    // swap_layout:     Whether the layout can be reordered for maximum performance.
+    //                  Otherwise, the search is done in the rightmost order.
+    //                  If reduce_batch is false, only the DHW dimensions can be reordered.
+    // stream:          Stream on which to enqueue this function.
+    // This function is asynchronous relative to the host and may return before completion.
+    // input and output_offset should stay valid until completion.
     template<typename value_t, typename transformed_t, typename offset_t,
              typename transform_op_t, typename find_op_t>
     void find(const char* name,

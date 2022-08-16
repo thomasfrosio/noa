@@ -4,6 +4,10 @@
 #include <noa/common/Math.h>
 #include <noa/common/traits/BaseTypes.h>
 
+#ifdef NOA_ENABLE_UNIFIED
+#include <noa/unified/Array.h>
+#endif
+
 #include <random>
 #include <cstdlib>
 #include <cstring>
@@ -170,14 +174,17 @@ namespace test {
     public:
         Matcher() = default;
 
-        /// Check that \p input matches \p expected.
-        /// \details An element-wise comparison is performed between \p input and \p expected.
-        ///          There's a match if input values are equal to the expected values +/- \p epsilon.
-        /// \note If \p T is complex, epsilon can be complex or real. In the later, the same real-valued epsilon
-        ///       is checked against the real and imaginary part.
         template<typename U>
-        Matcher(CompType comparison, const T* input, const T* expected, size_t elements, U epsilon) noexcept
-                : m_input(input), m_expected_ptr(expected), m_elements(elements), m_comparison(comparison) {
+        Matcher(CompType comparison,
+                const T* lhs, noa::size4_t lhs_strides,
+                const T* rhs, noa::size4_t rhs_strides,
+                noa::size4_t shape, U epsilon) noexcept
+                : m_shape(shape),
+                  m_lhs_strides(lhs_strides),
+                  m_rhs_strides(rhs_strides),
+                  m_lhs(lhs),
+                  m_rhs(rhs),
+                  m_comparison(comparison) {
             if constexpr (noa::traits::is_complex_v<T> && !noa::traits::is_complex_v<U>) {
                 using value_t = noa::traits::value_type_t<T>;
                 m_epsilon.real = static_cast<value_t>(epsilon);
@@ -188,14 +195,17 @@ namespace test {
             check_();
         }
 
-        /// Check that \p input matches \p expected.
-        /// \details An element-wise comparison is performed between \p input and \p expected.
-        ///          There's a match if input values are equal to the expected value +/- \p epsilon.
-        /// \note If \p T is complex, epsilon can be complex or real. In the later, the same real-valued epsilon
-        ///       is checked against the real and imaginary part.
         template<typename U>
-        Matcher(CompType comparison, const T* input, T expected, size_t elements, U epsilon) noexcept
-                : m_input(input), m_elements(elements), m_expected_value(expected), m_comparison(comparison) {
+        Matcher(CompType comparison,
+                const T* lhs, noa::size4_t lhs_strides,
+                const T rhs,
+                noa::size4_t shape, U epsilon) noexcept
+                : m_shape(shape),
+                  m_lhs_strides(lhs_strides),
+                  m_lhs(lhs),
+                  m_rhs(&m_rhs_value),
+                  m_rhs_value(rhs),
+                  m_comparison(comparison) {
             if constexpr (noa::traits::is_complex_v<T> && !noa::traits::is_complex_v<U>) {
                 using value_t = noa::traits::value_type_t<T>;
                 m_epsilon.real = static_cast<value_t>(epsilon);
@@ -205,6 +215,35 @@ namespace test {
             }
             check_();
         }
+
+        template<typename U>
+        Matcher(CompType comparison, const T* lhs, const T* rhs, size_t elements, U epsilon) noexcept
+            : Matcher(comparison,
+                      lhs, noa::size4_t{1, 1, 1, elements}.strides(),
+                      rhs, noa::size4_t{1, 1, 1, elements}.strides(),
+                      noa::size4_t{1, 1, 1, elements}, epsilon) {}
+
+        template<typename U>
+        Matcher(CompType comparison, const T* lhs, T rhs, size_t elements, U epsilon) noexcept
+                : Matcher(comparison,
+                          lhs, noa::size4_t{1, 1, 1, elements}.strides(),
+                          rhs,
+                          noa::size4_t{1, 1, 1, elements}, epsilon) {}
+
+        #ifdef NOA_ENABLE_UNIFIED
+        template<typename U>
+        Matcher(CompType comparison, const noa::Array<T>& lhs, const noa::Array<T>& rhs, U epsilon) noexcept
+                : Matcher(comparison,
+                          lhs.eval().get(), lhs.strides(),
+                          rhs.eval().get(), rhs.strides(),
+                          lhs.shape(), epsilon) {
+            NOA_ASSERT(all(lhs.shape() == rhs.shape()));
+        }
+
+        template<typename U>
+        Matcher(CompType comparison, const noa::Array<T>& lhs, T rhs, U epsilon) noexcept
+                : Matcher(comparison, lhs.eval().get(), lhs.strides(), rhs, lhs.shape(), epsilon) {}
+        #endif
 
         explicit operator bool() const noexcept {
             return m_match;
@@ -214,13 +253,20 @@ namespace test {
             if (matcher)
                 return os << "Matcher: all checks are within the expected value(s)";
             else {
-                size_t idx = matcher.m_index_failed;
-                os << "Matcher: check failed at index=" << idx;
+                using namespace noa;
+                using namespace noa::indexing;
 
-                T expected = matcher.m_expected_ptr ? matcher.m_expected_ptr[idx] : matcher.m_expected_value;
+                size4_t idx = matcher.m_index_failed;
+                if (matcher.m_shape.ndim() == 1)
+                    os << "Matcher: check failed at index=" << idx;
+                else
+                    os << "Matcher: check failed at index=" << idx << ", shape=" << matcher.m_shape;
+
+                T lhs_value = matcher.m_lhs[at(idx, matcher.m_lhs_strides)];
+                T rhs_value = matcher.m_rhs[at(idx, matcher.m_rhs_strides)];
                 if constexpr (std::is_integral_v<T>) {
-                    os << noa::string::format(", value={}, expected={}, epsilon={}",
-                                              matcher.m_input[idx], expected, matcher.m_epsilon);
+                    os << noa::string::format(", lhs={}, rhs={}, epsilon={}",
+                                              lhs_value, rhs_value, matcher.m_epsilon);
                 } else {
                     int dyn_precision;
                     if constexpr (noa::traits::is_complex_v<T>)
@@ -230,9 +276,9 @@ namespace test {
                     else
                         dyn_precision = int(-noa::math::log10(noa::math::abs(matcher.m_epsilon))) + 2;
 
-                    os << noa::string::format(", value={:.{}}, expected={:.{}}, epsilon={:.{}}",
-                                              matcher.m_input[idx], dyn_precision,
-                                              expected, dyn_precision,
+                    os << noa::string::format(", lhs={:.{}}, rhs={:.{}}, epsilon={:.{}}",
+                                              lhs_value, dyn_precision,
+                                              rhs_value, dyn_precision,
                                               matcher.m_epsilon, dyn_precision);
                 }
 
@@ -258,20 +304,20 @@ namespace test {
 
         template<typename F>
         void check_(F&& value_checker) noexcept {
-            if (m_expected_ptr) {
-                for (size_t i = 0; i < m_elements; ++i) {
-                    if (!value_checker(m_input[i], m_expected_ptr[i], m_epsilon)) {
-                        m_index_failed = i;
-                        m_match = false;
-                        return;
-                    }
-                }
-            } else {
-                for (size_t i = 0; i < m_elements; ++i) {
-                    if (!value_checker(m_input[i], m_expected_value, m_epsilon)) {
-                        m_index_failed = i;
-                        m_match = false;
-                        return;
+            using namespace noa::indexing;
+            for (size_t i = 0; i < m_shape[0]; ++i) {
+                for (size_t j = 0; j < m_shape[1]; ++j) {
+                    for (size_t k = 0; k < m_shape[2]; ++k) {
+                        for (size_t l = 0; l < m_shape[3]; ++l) {
+                            const bool passed = value_checker(m_lhs[at(i, j, k, l, m_lhs_strides)],
+                                                              m_rhs[at(i, j, k, l, m_rhs_strides)],
+                                                              m_epsilon);
+                            if (!passed) {
+                                m_index_failed = {i, j, k, l};
+                                m_match = false;
+                                return;
+                            }
+                        }
                     }
                 }
             }
@@ -327,11 +373,13 @@ namespace test {
         }
 
     private:
-        const T* m_input{};
-        const T* m_expected_ptr{};
-        size_t m_elements{};
-        size_t m_index_failed{};
-        T m_expected_value{};
+        noa::size4_t m_shape{};
+        noa::size4_t m_lhs_strides{};
+        noa::size4_t m_rhs_strides{};
+        noa::size4_t m_index_failed{};
+        const T* m_lhs{};
+        const T* m_rhs{};
+        T m_rhs_value{};
         T m_epsilon{};
         CompType m_comparison{};
         bool m_match{true};

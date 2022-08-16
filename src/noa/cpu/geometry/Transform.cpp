@@ -241,7 +241,7 @@ namespace noa::cpu::geometry {
     template<typename T, typename MAT, typename>
     void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     const shared_t<MAT[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, bool prefilter, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -261,57 +261,33 @@ namespace noa::cpu::geometry {
                 const size4_t strides = shape.strides();
                 memory::PtrHost<T> buffer(shape.elements());
                 bspline::prefilter(input, input_strides, buffer.share(), strides, shape, stream);
-                launch_(buffer.get(), size3_t{strides[0], strides[2], strides[3]}, ishape_2d,
+                if constexpr (traits::is_floatXX_v<MAT>) {
+                    launch_(buffer.get(), size3_t{strides[0], strides[2], strides[3]}, ishape_2d,
+                        output.get(), ostrides_2d, oshape_2d,
+                        float23_t(matrices), value, interp_mode, border_mode, threads);
+                } else {
+                    launch_(buffer.get(), size3_t{strides[0], strides[2], strides[3]}, ishape_2d,
                         output.get(), ostrides_2d, oshape_2d,
                         matrices.get(), value, interp_mode, border_mode, threads);
+                }
             });
         } else {
             stream.enqueue([=]() {
-                launch_(input.get(), istrides_2d, ishape_2d, output.get(), ostrides_2d, oshape_2d,
-                        matrices.get(), value, interp_mode, border_mode, threads);
+                if constexpr (traits::is_floatXX_v<MAT>) {
+                    launch_(input.get(), istrides_2d, ishape_2d, output.get(), ostrides_2d, oshape_2d,
+                            float23_t(matrices), value, interp_mode, border_mode, threads);
+                } else {
+                    launch_(input.get(), istrides_2d, ishape_2d, output.get(), ostrides_2d, oshape_2d,
+                            matrices.get(), value, interp_mode, border_mode, threads);
+                }
             });
         }
     }
 
     template<typename T, typename MAT, typename>
-    void transform2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MAT matrix, InterpMode interp_mode, BorderMode border_mode,
-                     T value, bool prefilter, Stream& stream) {
-        NOA_ASSERT(input != output);
-        NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        NOA_ASSERT(input_shape[1] == 1);
-
-        const size3_t istrides_2d{input_strides[0], input_strides[2], input_strides[3]};
-        const size3_t ostrides_2d{output_strides[0], output_strides[2], output_strides[3]};
-        const size3_t ishape_2d{input_shape[0], input_shape[2], input_shape[3]};
-        const size3_t oshape_2d{output_shape[0], output_shape[2], output_shape[3]};
-        const size_t threads = stream.threads();
-
-        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            stream.enqueue([=]() mutable {
-                size4_t shape = input_shape;
-                if (input_strides[0] == 0)
-                    shape[0] = 1;
-                const size4_t strides = shape.strides();
-                memory::PtrHost<T> buffer(shape.elements());
-                bspline::prefilter(input, input_strides, buffer.share(), strides, shape, stream);
-                launch_(buffer.get(), size3_t{strides[0], strides[2], strides[3]}, ishape_2d,
-                        output.get(), ostrides_2d, oshape_2d,
-                        float23_t(matrix), value, interp_mode, border_mode, threads);
-            });
-        } else {
-            stream.enqueue([=]() {
-                launch_(input.get(), istrides_2d, ishape_2d, output.get(), ostrides_2d, oshape_2d,
-                        float23_t(matrix), value, interp_mode, border_mode, threads);
-            });
-        }
-    }
-
-    template<typename T, typename MATRIX, typename>
     void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     const shared_t<MATRIX[]>& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, bool prefilter, Stream& stream) {
         NOA_ASSERT(input != output);
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -325,57 +301,51 @@ namespace noa::cpu::geometry {
                 const size4_t strides = shape.strides();
                 memory::PtrHost<T> buffer(shape.elements());
                 bspline::prefilter(input, input_strides, buffer.share(), strides, shape, stream);
-                launch_(buffer.get(), strides, input_shape, output.get(), output_strides, output_shape,
-                        matrices.get(), value, interp_mode, border_mode, threads);
+                if constexpr (traits::is_floatXX_v<MAT>) {
+                    launch_(buffer.get(), strides, input_shape, output.get(), output_strides, output_shape,
+                            float34_t(matrices), value, interp_mode, border_mode, threads);
+                } else {
+                    launch_(buffer.get(), strides, input_shape, output.get(), output_strides, output_shape,
+                            matrices.get(), value, interp_mode, border_mode, threads);
+                }
             });
         } else {
             stream.enqueue([=]() {
-                launch_(input.get(), input_strides, input_shape, output.get(), output_strides, output_shape,
-                        matrices.get(), value, interp_mode, border_mode, threads);
+                if constexpr (traits::is_floatXX_v<MAT>) {
+                    launch_(input.get(), input_strides, input_shape, output.get(), output_strides, output_shape,
+                            float34_t(matrices), value, interp_mode, border_mode, threads);
+                } else {
+                    launch_(input.get(), input_strides, input_shape, output.get(), output_strides, output_shape,
+                            matrices.get(), value, interp_mode, border_mode, threads);
+                }
             });
         }
     }
 
-    template<typename T, typename MATRIX, typename>
-    void transform3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                     MATRIX matrix, InterpMode interp_mode, BorderMode border_mode,
-                     T value, bool prefilter, Stream& stream) {
-        NOA_ASSERT(input != output);
-        NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
+    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M)  \
+    template void transform2D<T, M, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, InterpMode, BorderMode, T, bool, Stream&)
 
-        const size_t threads = stream.threads();
-        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            stream.enqueue([=]() mutable {
-                size4_t shape = input_shape;
-                if (input_strides[0] == 0)
-                    shape[0] = 1;
-                const size4_t strides = shape.strides();
-                memory::PtrHost<T> buffer(shape.elements());
-                bspline::prefilter(input, input_strides, buffer.share(), strides, shape, stream);
-                launch_(buffer.get(), strides, input_shape, output.get(), output_strides, output_shape,
-                        float34_t(matrix), value, interp_mode, border_mode, threads);
-            });
-        } else {
-            stream.enqueue([=]() {
-                launch_(input.get(), input_strides, input_shape, output.get(), output_strides, output_shape,
-                        float34_t(matrix), value, interp_mode, border_mode, threads);
-            });
-        }
-    }
+    #define NOA_INSTANTIATE_TRANSFORM3D_(T, M)  \
+    template void transform3D<T, M, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, InterpMode, BorderMode, T, bool, Stream&)
 
-    #define NOA_INSTANTIATE_APPLY_(T)                                                                                                                                                                       \
-    template void transform2D<T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float23_t[]>&, InterpMode, BorderMode, T, bool, Stream&);  \
-    template void transform2D<T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float33_t[]>&, InterpMode, BorderMode, T, bool, Stream&);  \
-    template void transform2D<T, float23_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float23_t, InterpMode, BorderMode, T, bool, Stream&);                     \
-    template void transform2D<T, float33_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, InterpMode, BorderMode, T, bool, Stream&);                     \
-    template void transform3D<T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float34_t[]>&, InterpMode, BorderMode, T, bool, Stream&);  \
-    template void transform3D<T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float44_t[]>&, InterpMode, BorderMode, T, bool, Stream&);  \
-    template void transform3D<T, float34_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float34_t, InterpMode, BorderMode, T, bool, Stream&);                     \
-    template void transform3D<T, float44_t, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float44_t, InterpMode, BorderMode, T, bool, Stream&);                     \
+    #define NOA_INSTANTIATE_TRANSFORM2D_ALL_(T)             \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, float23_t);             \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, float33_t);             \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, shared_t<float23_t[]>); \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, shared_t<float33_t[]>)
 
-    NOA_INSTANTIATE_APPLY_(float);
-    NOA_INSTANTIATE_APPLY_(double);
-    NOA_INSTANTIATE_APPLY_(cfloat_t);
-    NOA_INSTANTIATE_APPLY_(cdouble_t);
+    #define NOA_INSTANTIATE_TRANSFORM3D_ALL_(T)             \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, float34_t);             \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, float44_t);             \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, shared_t<float34_t[]>); \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, shared_t<float44_t[]>)
+
+    #define NOA_INSTANTIATE_TRANSFORM_ALL_(T)   \
+    NOA_INSTANTIATE_TRANSFORM2D_ALL_(T);        \
+    NOA_INSTANTIATE_TRANSFORM3D_ALL_(T)
+
+    NOA_INSTANTIATE_TRANSFORM_ALL_(float);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(double);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(cfloat_t);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(cdouble_t);
 }

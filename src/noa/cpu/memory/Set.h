@@ -1,8 +1,3 @@
-/// \file noa/cpu/memory/Set.h
-/// \brief Set to value.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -10,11 +5,7 @@
 #include "noa/cpu/Stream.h"
 
 namespace noa::cpu::memory {
-    /// Sets an array to a given value.
-    /// \tparam T           Any type with a copy assignment operator.
-    /// \param[out] first   On the \b host. The beginning of range to set.
-    /// \param[out] last    On the \b host. The end of range to set.
-    /// \param value        The value to assign.
+    // Sets an array to a given value.
     template<typename T>
     inline void set(T* first, T* last, T value) {
         // the cast is not necessary for basic types, but for Complex<>, IntX<> or FloatX<>, it could help...
@@ -28,36 +19,19 @@ namespace noa::cpu::memory {
         return std::fill(first, last, value);
     }
 
-    /// Sets an array to a given value.
-    /// \tparam T       Any type with a copy assignment operator.
-    /// \param[out] src On the \b host. The beginning of range to set.
-    /// \param elements Number of elements to set.
-    /// \param value    The value to assign.
+    // Sets an array to a given value.
     template<typename T>
     inline void set(T* src, size_t elements, T value) {
         set(src, src + elements, value);
     }
 
-    /// Sets an array to a given value.
-    /// \tparam T               Any type with a copy assignment operator.
-    /// \param[out] src         On the \b host. The beginning of range to set.
-    /// \param elements         Number of elements to set.
-    /// \param value            The value to assign.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Sets an array to a given value.
     template<typename T>
     inline void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         stream.enqueue([=]() { return set(src.get(), elements, value); });
     }
 
-    /// Sets an array to a given value.
-    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p src writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \tparam T               Any type with a copy assignment operator.
-    /// \param[out] src         On the \b host. The beginning of range to set.
-    /// \param strides          Strides, in elements, of \p src.
-    /// \param shape            Shape to set.
-    /// \param value            The value to assign.
+    // Sets an array to a given value.
     template<bool SWAP_LAYOUT = true, typename T>
     inline void set(T* src, size4_t strides, size4_t shape, T value) {
         if constexpr (SWAP_LAYOUT) {
@@ -75,16 +49,7 @@ namespace noa::cpu::memory {
                         src[indexing::at(i, j, k, l, strides)] = value;
     }
 
-    /// Sets an array to a given value.
-    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p src writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \tparam T               Any type with a copy assignment operator.
-    /// \param[out] src         On the \b host. The beginning of range to set.
-    /// \param strides          Strides, in elements, of \p src.
-    /// \param shape            Shape to set.
-    /// \param value            The value to assign.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Sets an array to a given value.
     template<bool SWAP_LAYOUT = true, typename T>
     inline void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream) {
         stream.enqueue([=]() { return set<SWAP_LAYOUT>(src.get(), strides, shape, value); });

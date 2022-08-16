@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/Exception.h
-/// \brief Expansion of noa/common/Exception.h for noa::cuda.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include <cuda_runtime_api.h>
@@ -20,12 +15,12 @@
 // In C++20, none of this would matter since we don't have to use macro to catch the file/function/line.
 
 namespace noa::cuda {
-    /// Formats the CUDA error \p result to a human readable string.
+    // Formats the CUDA error result to a human-readable string.
     inline std::string toString(cudaError_t result) {
         return string::format("{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 
-    /// Throws a nested noa::Exception if cudaError_t =! cudaSuccess.
+    // Throws a nested noa::Exception if cudaError_t =! cudaSuccess.
     inline void throwIf(cudaError_t result, const char* file, const char* function, int line) {
         if (result != cudaSuccess)
             std::throw_with_nested(noa::Exception(file, function, line, toString(result)));

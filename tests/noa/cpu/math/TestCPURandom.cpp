@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE("cpu::math::randomize() - all", "[noa][cpu][math]", float, do
     test::memset(data.get(), elements, 20);
     cpu::math::randomize(math::normal_t{}, data.share(), stride, shape, value_t{5}, value_t{2}, stream);
     mean = cpu::math::mean(data.share(), stride, shape, stream);
-    value_t stddev = cpu::math::std(data.share(), stride, shape, stream);
+    value_t stddev = cpu::math::std(data.share(), stride, shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));
     REQUIRE_THAT(stddev, Catch::WithinAbs(2, 0.1));
 }

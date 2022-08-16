@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_REDUCTIONS_INL_
-#error "This is an internal header; it should not be included."
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/common/Exception.h"
@@ -39,28 +39,29 @@ namespace noa::cpu::math {
         return output / count;
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    U std(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
-        const U output = var<DDOF>(input, strides, shape, stream);
+    template<typename T, typename U, typename>
+    U std(const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream) {
+        const U output = var(input, strides, shape, ddof, stream);
         return noa::math::sqrt(output);
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
+    template<typename T, typename U, typename>
+    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+                                      int ddof, Stream& stream) {
         // It is faster to call these one after the other than to merge everything into one loop.
         const T output_sum = sum(input, strides, shape, stream);
         const T output_mean = output_sum / static_cast<T>(shape.elements());
-        const U output_var = var<DDOF>(input, strides, shape, stream);
+        const U output_var = var(input, strides, shape, ddof, stream);
         const U output_std = noa::math::sqrt(output_var);
         return {output_sum, output_mean, output_var, output_std};
     }
 }
 
 namespace noa::cpu::math {
-    template<int DDOF, typename T, typename U, typename>
+    template<typename T, typename U, typename>
     void std(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream) {
-        var<DDOF>(input, input_strides, input_shape, output, output_strides, output_shape, stream);
+             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, int ddof, Stream& stream) {
+        var(input, input_strides, input_shape, output, output_strides, output_shape, ddof, stream);
         if (any(input_shape != output_shape))
             math::ewise<U, U>(output, output_strides, output, output_strides, output_shape, noa::math::sqrt_t{}, stream);
     }

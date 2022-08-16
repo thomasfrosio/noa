@@ -28,6 +28,8 @@ is a 3D array with 64x32x32 elements. This is quite important since some functio
 array(s). For example, `geometry::transform2D` expects (batched) 2D arrays and will throw an error if a 3D array is
 passed. Similarly, the shape `{1,1,1,5}` describes a row vector, while `{1,1,5,1}` describes a column vector.
 
+For non-redundant Fourier transforms, the non-redundant dimension is always the width.
+
 __Performance__: The library tries to find the fastest way to iterate through arrays by looking at the shape and strides
 of the inputs and/or outputs. However, it is not always possible. In these cases, the rightmost order is always assumed.
 As such, whenever possible, it is often much simpler to use rightmost arrays.

@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/memory/PtrDevicePadded.h
-/// \brief Hold memory with a padded layout on the device.
-/// \author Thomas - ffyr2w
-/// \date 05 Jan 2021
 #pragma once
 
 #include <utility>      // std::exchange
@@ -35,7 +31,7 @@
 //    assumption holds, even in Release mode.
 
 namespace noa::cuda::memory {
-    /// Manages a device pointer.
+    // Manages a device pointer.
     template<typename T>
     class PtrDevicePadded {
     public:
@@ -51,10 +47,9 @@ namespace noa::cuda::memory {
         static constexpr size_t ALIGNMENT = 256;
 
     public: // static functions
-        /// Allocates device memory using cudaMalloc3D.
-        /// \param shape    BDHW shape. If any dimension is 0, no allocation is performed.
-        /// \return         1: Pointer pointing to device memory.
-        ///                 2: Pitch of the padded layout, in number of elements.
+        // Allocates device memory using cudaMalloc3D.
+        // Returns 1: Pointer pointing to device memory.
+        //         2: Pitch of the padded layout, in number of elements.
         static std::pair<alloc_unique_t, size_t> alloc(size4_t shape) {
             if (!shape.elements())
                 return {nullptr, 0};
@@ -73,44 +68,44 @@ namespace noa::cuda::memory {
                              pitched_ptr.pitch / sizeof(T)};
         }
 
-        /// Allocates device memory using cudaMalloc3D. The shape is DHW.
+        // Allocates device memory using cudaMalloc3D. The shape is DHW.
         static std::pair<std::unique_ptr<T[], Deleter>, size_t> alloc(size3_t shape) {
             return alloc(size4_t{1, shape[0], shape[1], shape[2]});
         }
 
     public: // member functions
-        /// Creates an empty instance. Use one of the operator assignment to allocate new data.
+        // Creates an empty instance. Use one of the operator assignment to allocate new data.
         constexpr PtrDevicePadded() = default;
         constexpr /*implicit*/ PtrDevicePadded(std::nullptr_t) {}
 
-        /// Allocates "padded" memory with a given BDHW \p shape on the current device using cudaMalloc3D().
+        // Allocates "padded" memory with a given BDHW shape on the current device using cudaMalloc3D().
         explicit PtrDevicePadded(size4_t shape) : m_shape(shape) {
             std::tie(m_ptr, m_pitch) = alloc(shape);
         }
 
     public:
-        /// Returns the device pointer.
+        // Returns the device pointer.
         [[nodiscard]] constexpr T* get() const noexcept { return m_ptr.get(); }
         [[nodiscard]] constexpr T* data() const noexcept { return m_ptr.get(); }
 
-        /// Returns a reference of the shared object.
+        // Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
-        /// Attach the lifetime of the managed object with \p alias.
-        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
-        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
-        ///          the last of the group to go out of scope, it will call the stored deleter for the
-        ///          managed object of this instance. However, calling get() on this shared_ptr will always
-        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
-        ///          \p alias remains valid as long as the managed object exists. This functions performs no
-        ///          heap allocation, but increases the (atomic) reference count of the managed object.
+        // Attach the lifetime of the managed object with alias.
+        // Constructs a shared_ptr which shares ownership information with the managed object,
+        // but holds an unrelated and unmanaged pointer alias. If the returned shared_ptr is
+        // the last of the group to go out of scope, it will call the stored deleter for the
+        // managed object of this instance. However, calling get() on this shared_ptr will always
+        // return a copy of alias. It is the responsibility of the programmer to make sure that
+        // alias remains valid as long as the managed object exists. This functions performs no
+        // heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename U>
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
-        /// Returns the logical BDHW shape of the managed data.
+        // Returns the logical BDHW shape of the managed data.
         [[nodiscard]] constexpr size4_t shape() const noexcept { return m_shape; }
 
-        /// Returns the C-major strides that can be used to access the managed data.
+        // Returns the C-major strides that can be used to access the managed data.
         [[nodiscard]] constexpr size4_t strides() const noexcept {
             return {m_pitch * m_shape[2] * m_shape[1],
                     m_pitch * m_shape[2],
@@ -118,24 +113,24 @@ namespace noa::cuda::memory {
                     1};
         }
 
-        /// Returns the rightmost pitches of the managed object.
+        // Returns the rightmost pitches of the managed object.
         [[nodiscard]] constexpr size3_t pitches() const noexcept {
             return {m_shape[1], m_shape[2], m_pitch};
         }
 
-        /// How many bytes are pointed by the managed object.
+        // How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return strides()[0] * m_shape[0] * sizeof(T); }
 
-        /// Returns a View of the allocated data using C-major strides.
+        // Returns a View of the allocated data using C-major strides.
         template<typename I>
         [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
 
-        /// Whether or not the managed object points to some data.
+        // Whether the managed object points to some data.
         [[nodiscard]] constexpr bool empty() const noexcept { return m_pitch == 0; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
     public: // Accessors
-        /// Releases the ownership of the managed pointer, if any.
+        // Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {
             m_shape = 0;
             m_pitch = 0;

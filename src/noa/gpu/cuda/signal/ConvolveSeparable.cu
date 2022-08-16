@@ -277,7 +277,7 @@ namespace noa::cuda::signal {
         // If there's a single dimension, use separable convolution kernels:
         if (ndim == 1 || (ndim == 3 && filter_shape[1] == 1 && filter_shape[2])) {
             if (all(filter_shape == 1)) {
-                // Make sure the (single) value is dereferencable.
+                // Make sure the (single) value is dereferenceable.
                 U filter_value;
                 U* filter_ = util::hostPointer(filter.get());
                 if (filter_) {

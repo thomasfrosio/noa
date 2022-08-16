@@ -43,7 +43,7 @@ TEST_CASE("cpu::signal::fft::standardize(), half", "[noa][cpu]") {
                          image.share(), stride, shape, math::multiply_t{}, stream);
 
     const float mean = cpu::math::mean(image.share(), stride, shape, stream);
-    const float std = cpu::math::std(image.share(), stride, shape, stream);
+    const float std = cpu::math::std(image.share(), stride, shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
     REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
 }
@@ -81,7 +81,7 @@ TEST_CASE("cpu::signal::fft::standardize(), full", "[noa][cpu]") {
                          image.share(), stride, shape, math::multiply_t{}, stream);
 
     const float mean = cpu::math::mean(image.share(), stride, shape, stream);
-    const float std = cpu::math::std(image.share(), stride, shape, stream);
+    const float std = cpu::math::std(image.share(), stride, shape, 0, stream);
     REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
     REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
 }

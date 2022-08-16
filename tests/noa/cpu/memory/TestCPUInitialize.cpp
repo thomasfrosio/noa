@@ -15,7 +15,7 @@ TEMPLATE_TEST_CASE("cpu::memory::arange()", "[noa][cpu][memory]",
         cpu::memory::PtrHost<TestType> results(elements);
         cpu::memory::PtrHost<TestType> expected(elements);
 
-        cpu::memory::arange(results.share(), elements, stream);
+        cpu::memory::arange(results.share(), elements, TestType(0), TestType(1), stream);
         for (size_t i = 0; i < elements; ++i)
             expected[i] = static_cast<TestType>(i);
 

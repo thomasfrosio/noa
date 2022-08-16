@@ -1,7 +1,3 @@
-/// \file noa/gpu/cuda/util/Block.cuh
-/// \brief Block utilities.
-/// \author Thomas - ffyr2w
-/// \date 13 Feb 2022
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -12,18 +8,18 @@
 // TODO CUDA's cub seems to have some load and store functions. Surely some of them can be use here.
 
 namespace noa::cuda::util::block {
-    /// Synchronizes the block.
+    // Synchronizes the block.
     NOA_FD void synchronize() {
         __syncthreads();
     }
 
-    /// Retrieves the  dynamically allocated per-block shared memory.
-    /// \details For using dynamically-sized (i.e. "extern" with unspecified-size array) shared memory in templated
-    ///          kernels, this kind of utility is necessary to avoid errors with non-basic types (e.g. cfloat_t).
-    ///          Also, since the documentation is unclear about the alignment and whether it comes with any alignment
-    ///          guarantees other than the alignment of the type used in the declaration (thus whether or not the
-    ///          __align__ attribute has any effect on shared memory), use double2 to ensure 16-byte alignment,
-    ///          then cast to the desired type. See https://stackoverflow.com/questions/27570552.
+    // Retrieves the  dynamically allocated per-block shared memory.
+    // For using dynamically-sized (i.e. "extern" with unspecified-size array) shared memory in templated
+    // kernels, this kind of utility is necessary to avoid errors with non-basic types (e.g. cfloat_t).
+    // Also, since the documentation is unclear about the alignment and whether it comes with any alignment
+    // guarantees other than the alignment of the type used in the declaration (thus whether the
+    // __align__ attribute has any effect on shared memory), use double2 to ensure 16-byte alignment,
+    // then cast to the desired type. See https://stackoverflow.com/questions/27570552.
     template<typename T>
     NOA_FD T* dynamicSharedResource() {
         static_assert(alignof(T) <= alignof(double2));
@@ -31,15 +27,14 @@ namespace noa::cuda::util::block {
         return reinterpret_cast<T*>(buffer_align16);
     }
 
-    /// Each thread loads \p ELEMENTS_PER_THREAD elements, using vectorized load instructions if possible.
-    /// \tparam BLOCK_SIZE              The number of threads per block. It assumes a 1D contiguous block.
-    /// \tparam ELEMENTS_PER_THREAD     The number of elements to load, per thread.
-    /// \tparam VEC_SIZE                Size, in \p T elements, to load at the same time.
-    ///                                 If 1, there's no vectorization.
-    /// \param[in] per_block_input      Contiguous input array to load from. This is per block, and should point at
-    ///                                 the first element of the block's work space. It should be aligned to VEC_SIZE.
-    /// \param[out] per_thread_output   Per thread output array. At least ELEMENTS_PER_THREAD elements.
-    /// \param tidx                     Thread index in the 1D block. Usually threadIdx.x.
+    // Each thread loads ELEMENTS_PER_THREAD elements, using vectorized load instructions if possible.
+    // BLOCK_SIZE:          The number of threads per block. It assumes a 1D contiguous block.
+    // ELEMENTS_PER_THREAD: The number of elements to load, per thread.
+    // VEC_SIZE:            Size, in elements, to load at the same time. If 1, there's no vectorization.
+    // per_block_input:     Contiguous input array to load from. This is per block, and should point at
+    //                      the first element of the block's work space. It should be aligned to VEC_SIZE.
+    // per_thread_output:   Per thread output array. At least ELEMENTS_PER_THREAD elements.
+    // tidx:                Thread index in the 1D block. Usually threadIdx.x.
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T>
     NOA_ID void vectorizedLoad(const T* __restrict__ per_block_input, T* __restrict__ per_thread_output, uint tidx) {
         static_assert(ELEMENTS_PER_THREAD >= VEC_SIZE); // TODO This could be improved...
@@ -55,15 +50,14 @@ namespace noa::cuda::util::block {
         }
     }
 
-    /// Each thread stores \p ELEMENTS_PER_THREAD elements, using vectorized load instructions if possible.
-    /// \tparam BLOCK_SIZE              The number of threads per block. It assumes a 1D contiguous block.
-    /// \tparam ELEMENTS_PER_THREAD     The number of elements to store, per thread.
-    /// \tparam VEC_SIZE                Size, in \p T elements, to store at the same time.
-    ///                                 If 1, there's no vectorization.
-    /// \param[in] per_thread_input     Per thread input array to store. At least ELEMENTS_PER_THREAD elements.
-    /// \param[out] per_block_output    Contiguous output array to write into. This is per block, and should point at
-    ///                                 the first element of the block's work space. It should be aligned to VEC_SIZE.
-    /// \param tidx                     Thread index in the 1D block. Usually threadIdx.x.
+    // Each thread stores ELEMENTS_PER_THREAD elements, using vectorized load instructions if possible.
+    // BLOCK_SIZE:          The number of threads per block. It assumes a 1D contiguous block.
+    // ELEMENTS_PER_THREAD: The number of elements to store, per thread.
+    // VEC_SIZE:            Size, in elements, to store at the same time. If 1, there's no vectorization.
+    // per_thread_input:    Per thread input array to store. At least ELEMENTS_PER_THREAD elements.
+    // per_block_output:    Contiguous output array to write into. This is per block, and should point at
+    //                      the first element of the block's work space. It should be aligned to VEC_SIZE.
+    // tidx:                Thread index in the 1D block. Usually threadIdx.x.
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T>
     NOA_ID void vectorizedStore(const T* __restrict__ per_thread_input, T* __restrict__ per_block_output, uint tidx) {
         static_assert(ELEMENTS_PER_THREAD >= VEC_SIZE); // TODO This could be improved...
@@ -80,12 +74,10 @@ namespace noa::cuda::util::block {
         }
     }
 
-    /// Reduces BLOCK_SIZE elements from s_data..
-    /// \param[in,out] s_data   Shared memory to reduce. Should be at least BLOCK_SIZE elements.
-    ///                         The state in which it is left is undefined.
-    /// \param tid              Thread index. From 0 to BLOCK_SIZE - 1.
-    /// \param reduce_op        Reduction operator.
-    /// \return Reduced value in tid 0 (undefined in other threads).
+    // Reduces BLOCK_SIZE elements from s_data. Returns reduced value in tid 0 (undefined in other threads).
+    // s_data:      Shared memory to reduce. Should be at least BLOCK_SIZE elements. It is overwritten.
+    // tid:         Thread index. From 0 to BLOCK_SIZE - 1.
+    // reduce_op:   Reduction operator.
     template<uint BLOCK_SIZE, typename T, typename reduce_op_t>
     NOA_ID T reduceShared1D(T* s_data, int tid, reduce_op_t reduce_op) {
         static_assert(BLOCK_SIZE == 1024 || BLOCK_SIZE == 512 ||
@@ -104,14 +96,12 @@ namespace noa::cuda::util::block {
         return value;
     }
 
-    /// Find the best element within BLOCK_SIZE elements according to an update operator.
-    /// \param[in,out] s_values     Shared memory with the input values to search.
-    /// \param[in,out] s_offsets    Shared memory with the corresponding indexes.
-    /// \param tid                  Thread index. From 0 to BLOCK_SIZE - 1.
-    /// \param find_op              Find operator: ``operator()(current, candidate) -> reduced``.
-    /// \return Reduced {value, offset} in tid 0 (undefined in other threads).
-    /// \note \p s_values and \p s_offsets should be at least BLOCK_SIZE elements.
-    ///       The state in which they are left is undefined.
+    // Find the best element within BLOCK_SIZE elements according to an update operator.
+    // Returns the reduced {value, offset} in tid 0 (undefined in other threads).
+    // s_values:    Shared memory with the input values to search. At least BLOCK_SIZE elements. It is overwritten.
+    // s_offsets:   Shared memory with the corresponding indexes. At least BLOCK_SIZE elements. It is overwritten.
+    // tid:         Thread index. From 0 to BLOCK_SIZE - 1.
+    // find_op:     Find operator: ``operator()(current, candidate) -> reduced``.
     template<uint BLOCK_SIZE, typename value_t, typename offset_t, typename find_op_t>
     NOA_ID Pair<value_t, offset_t> findShared1D(value_t* __restrict__ s_values,
                                                 offset_t* __restrict__ s_offsets, uint tid, find_op_t find_op) {
@@ -137,22 +127,22 @@ namespace noa::cuda::util::block {
         return reduced;
     }
 
-    /// Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from input.
-    /// \tparam BLOCK_SIZE          Number of threads in the dimension to reduce.
-    /// \tparam ELEMENTS_PER_THREAD Number of elements to load, for each thread. Should be >= \p VEC_SIZE
-    /// \tparam VEC_SIZE            Vector size. Either 4, 2, or 1. If 1, a sequential load is used.
-    /// \param[in] input            Input array (usually pointing at global memory) to reduce.
-    ///                             It should start at the first element to reduce.
-    /// \param stride               Stride between each element. This is ignored if \p VEC_SIZE >= 1.
-    /// \param elements             Maximum number of elements that can be reduced.
-    ///                             The function tries to BLOCK_SIZE * ELEMENTS_PER_THREAD elements, but will
-    ///                             stop if it reaches \p input + \p elements first.
-    /// \param transform_op         Transform operator, op(\p value_t) -> X, to apply on the input before reduction.
-    ///                             Its output is explicitly casted to \p reduce_value_t.
-    /// \param reduce_op            Reduction operator: op(\p reduce_value_t, \p reduce_value_t) -> \p reduce_value_t.
-    /// \param reduced              Per-thread left-hand side argument of \p reduce_op.
-    ///                             It is updated with the final reduced value.
-    /// \param tidx                 Thread index in the dimension to reduce.
+    // Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from input.
+    // BLOCK_SIZE:          Number of threads in the dimension to reduce.
+    // ELEMENTS_PER_THREAD: Number of elements to load, for each thread. Should be >= VEC_SIZE
+    // VEC_SIZE:            Vector size. Either 4, 2, or 1. If 1, a sequential load is used.
+    // input:               Input array (usually pointing at global memory) to reduce.
+    //                      It should start at the first element to reduce.
+    // stride:              Stride between each element. This is ignored if VEC_SIZE >= 1.
+    // elements:            Maximum number of elements that can be reduced.
+    //                      The function tries to BLOCK_SIZE * ELEMENTS_PER_THREAD elements, but will
+    //                      stop if it reaches input + elements first.
+    // transform_op:        Transform operator, op(value_t) -> X, to apply on the input before reduction.
+    //                      Its output is explicitly cast to reduce_value_t.
+    // reduce_op:           Reduction operator: op(reduce_value_t, reduce_value_t) -> reduce_value_t.
+    // reduced:             Per-thread left-hand side argument of reduce_op.
+    //                      It is updated with the final reduced value.
+    // tidx:                Thread index in the dimension to reduce.
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
              typename value_t, typename reduce_value_t, typename transform_op_t, typename reduce_op_t>
     NOA_ID void reduceUnaryGlobal1D(const value_t* __restrict__ input, [[maybe_unused]] uint stride, uint elements,
@@ -190,25 +180,25 @@ namespace noa::cuda::util::block {
         }
     }
 
-    /// Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from inputs.
-    /// \tparam BLOCK_SIZE          Number of threads in the dimension to reduce.
-    /// \tparam ELEMENTS_PER_THREAD Number of elements to load, for each thread. Should be >= \p VEC_SIZE
-    /// \tparam VEC_SIZE            Vector size. Either 4, 2, or 1. If 1, a sequential load is used.
-    /// \param[in] lhs, rhs         Left and right-hand side input arrays (usually pointing at global memory) to reduce.
-    ///                             Should start at the first element to reduce.
-    /// \param lhs_stride           Stride between each element in \p lhs. This is ignored if \p VEC_SIZE >= 1.
-    /// \param rhs_stride           Stride between each element in \p rhs. This is ignored if \p VEC_SIZE >= 1.
-    /// \param elements             Maximum number of elements that can be reduced.
-    ///                             The function tries to BLOCK_SIZE * ELEMENTS_PER_THREAD elements, but will
-    ///                             stop if it reaches the limit set by \p elements.
-    /// \param transform_op_lhs     Transform operator, op(\p lhs_value_t) -> Xl, to apply on \p lhs before combination.
-    /// \param transform_op_rhs     Transform operator, op(\p rhs_value_t) -> Xr, to apply on \p rhs before combination.
-    /// \param combine_op           Combine operator, op(Xl, Xr), to apply on the left and right transformed value before
-    ///                             reduction. The output value of this operator is casted to \p reduce_value_t.
-    /// \param reduce_op            Reduction operator: op(\p reduce_value_t, \p reduce_value_t) -> \p reduce_value_t.
-    /// \param reduced              Per-thread left-hand side argument of \p reduce_op.
-    ///                             It is updated with the final reduced value.
-    /// \param tidx                 Thread index in the dimension to reduce.
+    // Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from inputs.
+    // BLOCK_SIZE:          Number of threads in the dimension to reduce.
+    // ELEMENTS_PER_THREAD: Number of elements to load, for each thread. Should be >= VEC_SIZE
+    // VEC_SIZE:            Vector size. Either 4, 2, or 1. If 1, a sequential load is used.
+    // lhs, rhs:            Left and right-hand side input arrays (usually pointing at global memory) to reduce.
+    //                      Should start at the first element to reduce.
+    // lhs_stride:          Stride between each element in lhs. This is ignored if VEC_SIZE >= 1.
+    // rhs_stride:          Stride between each element in rhs. This is ignored if VEC_SIZE >= 1.
+    // elements:            Maximum number of elements that can be reduced.
+    //                      The function tries to BLOCK_SIZE * ELEMENTS_PER_THREAD elements, but will
+    //                      stop if it reaches the limit set by elements.
+    // transform_op_lhs:    Transform operator, op(lhs_value_t) -> Xl, to apply on lhs before combination.
+    // transform_op_rhs:    Transform operator, op(rhs_value_t) -> Xr, to apply on rhs before combination.
+    // combine_op:          Combine operator, op(Xl, Xr), to apply on the left and right transformed value before
+    //                      reduction. The output value of this operator is cast to reduce_value_t.
+    // reduce_op:           Reduction operator: op(reduce_value_t, reduce_value_t) -> reduce_value_t.
+    // reduced:             Per-thread left-hand side argument of reduce_op.
+    //                      It is updated with the final reduced value.
+    // tidx:                Thread index in the dimension to reduce.
     template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
              typename lhs_value_t, typename rhs_value_t, typename reduce_value_t,
              typename transform_op_lhs_t, typename transform_op_rhs_t,

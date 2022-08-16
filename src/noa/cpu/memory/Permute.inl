@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_TRANSPOSE_INL_
-#error "This is an internal header; it should not be included."
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/common/Exception.h"

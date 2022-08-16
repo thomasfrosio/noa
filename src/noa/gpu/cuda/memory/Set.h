@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/memory/Set.h
-/// \brief Set to value.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -21,14 +16,8 @@ namespace noa::cuda::memory::details {
 // TODO Add nvrtc to support any type.
 
 namespace noa::cuda::memory {
-    /// Sets an array with a given value.
-    /// \tparam T               Any data type.
-    /// \param[out] src         On the \b device. The beginning of range to set.
-    /// \param elements         Number of elements to set.
-    /// \param value            The value to assign.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
-    ///       One must make sure \p src stays valid until completion.
+    // Sets an array, that is on the device, with a given value.
+    // One must make sure src stays valid until completion.
     template<typename T>
     inline void set(T* src, size_t elements, T value, Stream& stream) {
         if constexpr (traits::is_data_v<T>) {
@@ -48,29 +37,14 @@ namespace noa::cuda::memory {
         }
     }
 
-    /// Sets an array with a given value.
-    /// \tparam T               Any data type.
-    /// \param[out] src         On the \b device. The beginning of range to set.
-    /// \param elements         Number of elements to set.
-    /// \param value            The value to assign.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
+    // Sets an array with a given value.
     template<typename T>
     inline void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         set(src.get(), elements, value, stream);
         stream.attach(src);
     }
 
-    /// Sets an array with a given value.
-    /// \tparam SWAP_LAYOUT     Swap the memory layout to optimize the \p dst writes.
-    ///                         If false, assume rightmost order is the fastest order.
-    /// \tparam T               Any data type.
-    /// \param[out] src         On the \b device. The beginning of range to set.
-    /// \param strides          Strides, in elements.
-    /// \param shape            Shape to set.
-    /// \param value            The value to assign.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note This function is asynchronous with respect to the host and may return before completion.
+    // Sets an array with a given value.
     template<bool SWAP_LAYOUT = true, typename T>
     inline void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream) {
         if constexpr (SWAP_LAYOUT) {

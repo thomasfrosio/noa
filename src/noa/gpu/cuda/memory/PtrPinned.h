@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/memory/PtrPinned.h
-/// \brief Hold paged-locked memory on the host.
-/// \author Thomas - ffyr2w
-/// \date 05 Jan 2021
-
 #pragma once
 
 #include <type_traits>
@@ -49,7 +44,7 @@
 //                                use of pinned memory.
 
 namespace noa::cuda::memory {
-    /// Manages a page-locked pointer.
+    // Manages a page-locked pointer.
     template<typename T>
     class PtrPinned {
     public:
@@ -65,9 +60,7 @@ namespace noa::cuda::memory {
         static constexpr size_t ALIGNMENT = 256;
 
     public: // static functions
-        /// Allocates pinned memory using cudaMallocHost.
-        /// \param elements     Number of elements to allocate.
-        /// \return             Pointer pointing to pinned memory.
+        // Allocates pinned memory using cudaMallocHost.
         static alloc_unique_t alloc(size_t elements) {
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
             NOA_THROW_IF(cudaMallocHost(&tmp, elements * sizeof(T)));
@@ -75,50 +68,50 @@ namespace noa::cuda::memory {
         }
 
     public:
-        /// Creates an empty instance. Use one of the operator assignment to allocate new data.
+        // Creates an empty instance. Use one of the operator assignment to allocate new data.
         constexpr PtrPinned() = default;
         constexpr /*implicit*/ PtrPinned(std::nullptr_t) {}
 
-        /// Allocates \p elements elements of type \p T on page-locked memory using \c cudaMallocHost.
+        // Allocates elements of type T on page-locked memory using cudaMallocHost.
         explicit PtrPinned(size_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
 
     public: // Getters
-        /// Returns the host pointer.
+        // Returns the host pointer.
         [[nodiscard]] constexpr T* get() const noexcept { return m_ptr.get(); }
         [[nodiscard]] constexpr T* data() const noexcept { return m_ptr.get(); }
 
-        /// Returns a reference of the shared object.
+        // Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept { return m_ptr; }
 
-        /// Attach the lifetime of the managed object with \p alias.
-        /// \details Constructs a shared_ptr which shares ownership information with the managed object,
-        ///          but holds an unrelated and unmanaged pointer \p alias. If the returned shared_ptr is
-        ///          the last of the group to go out of scope, it will call the stored deleter for the
-        ///          managed object of this instance. However, calling get() on this shared_ptr will always
-        ///          return a copy of \p alias. It is the responsibility of the programmer to make sure that
-        ///          \p alias remains valid as long as the managed object exists. This functions performs no
-        ///          heap allocation, but increases the (atomic) reference count of the managed object.
+        // Attach the lifetime of the managed object with alias.
+        // Constructs a shared_ptr which shares ownership information with the managed object,
+        // but holds an unrelated and unmanaged pointer alias. If the returned shared_ptr is
+        // the last of the group to go out of scope, it will call the stored deleter for the
+        // managed object of this instance. However, calling get() on this shared_ptr will always
+        // return a copy of alias. It is the responsibility of the programmer to make sure that
+        // alias remains valid as long as the managed object exists. This functions performs no
+        // heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename U>
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
-        /// How many elements of type \p T are pointed by the managed object.
+        // How many elements of type are pointed by the managed object.
         [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
         [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
 
-        /// Returns the shape of the allocated data as a row vector.
+        // Returns the shape of the allocated data as a row vector.
         [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
 
-        /// Returns the strides of the allocated data as a C-contiguous row vector.
+        // Returns the strides of the allocated data as a C-contiguous row vector.
         [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
 
-        /// How many bytes are pointed by the managed object.
+        // How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
 
-        /// Whether or not the managed object points to some data.
+        // Whether the managed object points to some data.
         [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
-        /// Returns a View of the allocated data as a C-contiguous row vector.
+        // Returns a View of the allocated data as a C-contiguous row vector.
         template<typename I>
         [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
 
@@ -130,11 +123,11 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr T& back() const noexcept { return *(end() - 1); }
 
     public: // Accessors
-        /// Returns a reference at index \p idx. There's no bound check.
+        // Returns a reference at index. There's no bound check.
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
         [[nodiscard]] constexpr T& operator[](I idx) const { return m_ptr.get()[idx]; }
 
-        /// Releases the ownership of the managed pointer, if any.
+        // Releases the ownership of the managed pointer, if any.
         std::shared_ptr<T[]> release() noexcept {
             m_elements = 0;
             return std::exchange(m_ptr, nullptr);

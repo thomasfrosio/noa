@@ -64,6 +64,145 @@ namespace {
         output[indexing::at(gid, output_strides)] = cuda::geometry::tex3D<T, MODE>(texture, pos);
     }
 
+    template<typename T>
+    void launchShiftTexture3D_(cudaTextureObject_t texture, size3_t texture_shape,
+                               InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                               T* output, size4_t output_strides, size4_t output_shape,
+                               const float3_t* shifts, cuda::Stream& stream) {
+        const float3_t i_shape(texture_shape);
+        const uint2_t o_shape(output_shape.get(2));
+        const uint4_t o_strides(output_strides);
+        const uint blocks_x = math::divideUp(o_shape[1], THREADS.x);
+        const dim3 blocks(blocks_x * math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[1],
+                          output_shape[0]);
+        const cuda::LaunchConfig config{blocks, THREADS};
+
+        cuda::memory::PtrDevice<float3_t> buffer;
+        shifts = cuda::util::ensureDeviceAccess(shifts, stream, buffer, output_shape[0]);
+
+        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
+            NOA_ASSERT(cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            if (texture_interp_mode == INTERP_NEAREST) {
+                stream.enqueue("geometry::shift3D",
+                               shift3D_<INTERP_NEAREST, true, T>,
+                               config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
+                stream.enqueue("geometry::shift3D",
+                               shift3D_<INTERP_LINEAR_FAST, true, T>,
+                               config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+            } else {
+                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
+            }
+        } else {
+            NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            switch (texture_interp_mode) {
+                case INTERP_NEAREST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_NEAREST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_LINEAR:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_LINEAR, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_COSINE:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_COSINE, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_CUBIC:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_CUBIC, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_CUBIC_BSPLINE:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_CUBIC_BSPLINE, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_LINEAR_FAST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_LINEAR_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_COSINE_FAST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_COSINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
+                default:
+                    NOA_THROW("{} is not supported", texture_interp_mode);
+            }
+        }
+    }
+
+    template<typename T>
+    void launchShiftTextureSingle3D_(cudaTextureObject_t texture, size3_t texture_shape,
+                                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                                     T* output, size4_t output_strides, size4_t output_shape,
+                                     float3_t shift, cuda::Stream& stream) {
+        const float3_t i_shape(texture_shape);
+        const uint2_t o_shape(output_shape.get(2));
+        const uint4_t o_strides(output_strides);
+        const uint blocks_x = math::divideUp(o_shape[1], THREADS.x);
+        const dim3 blocks(blocks_x * math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[1],
+                          output_shape[0]);
+        const cuda::LaunchConfig config{blocks, THREADS};
+
+        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
+            NOA_ASSERT(cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            if (texture_interp_mode == INTERP_NEAREST) {
+                stream.enqueue("geometry::shift3D",
+                               shift3D_single_<INTERP_NEAREST, true, T>,
+                               config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
+                stream.enqueue("geometry::shift3D",
+                               shift3D_single_<INTERP_LINEAR_FAST, true, T>,
+                               config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+            } else {
+                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
+            }
+        } else {
+            NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+            switch (texture_interp_mode) {
+                case INTERP_NEAREST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_NEAREST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_LINEAR:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_LINEAR, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_COSINE:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_COSINE, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_CUBIC:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_CUBIC, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_CUBIC_BSPLINE:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_CUBIC_BSPLINE, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_LINEAR_FAST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_LINEAR_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_COSINE_FAST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_COSINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    return stream.enqueue("geometry::shift3D",
+                                          shift3D_single_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
+                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
+                default:
+                    NOA_THROW("{} is not supported", texture_interp_mode);
+            }
+        }
+    }
+
     // NOTE: almost identical to launchTransform3D_
     template<typename T, typename U>
     void launchShift3D_(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
@@ -120,11 +259,11 @@ namespace {
         for (size_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
             if constexpr (traits::is_floatX_v<U>) {
-                cuda::geometry::shift3D(
+                launchShiftTextureSingle3D_(
                         texture.get(), shape_3d, interp_mode, border_mode,
                         output.get() + i * output_strides[0], output_strides, o_shape, shifts, stream);
             } else {
-                cuda::geometry::shift3D(
+                launchShiftTexture3D_(
                         texture.get(), shape_3d, interp_mode, border_mode,
                         output.get() + i * output_strides[0], output_strides, o_shape, shifts.get() + i, stream);
             }
@@ -136,168 +275,41 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<typename T, typename>
-    void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
-                 InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 T* output, size4_t output_strides, size4_t output_shape,
-                 const float3_t* shifts, Stream& stream) {
-        const float3_t i_shape(texture_shape);
-        const uint2_t o_shape(output_shape.get(2));
-        const uint4_t o_strides(output_strides);
-        const uint blocks_x = math::divideUp(o_shape[1], THREADS.x);
-        const dim3 blocks(blocks_x * math::divideUp(o_shape[0], THREADS.y),
-                          output_shape[1],
-                          output_shape[0]);
-        const LaunchConfig config{blocks, THREADS};
-
-        memory::PtrDevice<float3_t> buffer;
-        shifts = util::ensureDeviceAccess(shifts, stream, buffer, output_shape[0]);
-
-        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
-            if (texture_interp_mode == INTERP_NEAREST) {
-                stream.enqueue("geometry::shift3D",
-                               shift3D_<INTERP_NEAREST, true, T>,
-                               config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                stream.enqueue("geometry::shift3D",
-                               shift3D_<INTERP_LINEAR_FAST, true, T>,
-                               config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-            } else {
-                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
-            }
-        } else {
-            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
-            switch (texture_interp_mode) {
-                case INTERP_NEAREST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_NEAREST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_LINEAR:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_LINEAR, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_COSINE:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_COSINE, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_CUBIC:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_CUBIC, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_CUBIC_BSPLINE:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_CUBIC_BSPLINE, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_LINEAR_FAST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_LINEAR_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_COSINE_FAST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_COSINE_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                case INTERP_CUBIC_BSPLINE_FAST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shifts, blocks_x);
-                default:
-                    NOA_THROW("{} is not supported", texture_interp_mode);
-            }
-        }
-    }
-
-    template<typename T, typename>
-    void shift3D(cudaTextureObject_t texture, size3_t texture_shape,
-                 InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 T* output, size4_t output_strides, size4_t output_shape,
-                 float3_t shift, Stream& stream) {
-        const float3_t i_shape(texture_shape);
-        const uint2_t o_shape(output_shape.get(2));
-        const uint4_t o_strides(output_strides);
-        const uint blocks_x = math::divideUp(o_shape[1], THREADS.x);
-        const dim3 blocks(blocks_x * math::divideUp(o_shape[0], THREADS.y),
-                          output_shape[1],
-                          output_shape[0]);
-        const LaunchConfig config{blocks, THREADS};
-
-        if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
-            NOA_ASSERT(memory::PtrTexture::hasNormalizedCoordinates(texture));
-            if (texture_interp_mode == INTERP_NEAREST) {
-                stream.enqueue("geometry::shift3D",
-                               shift3D_single_<INTERP_NEAREST, true, T>,
-                               config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-            } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                stream.enqueue("geometry::shift3D",
-                               shift3D_single_<INTERP_LINEAR_FAST, true, T>,
-                               config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-            } else {
-                NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
-            }
-        } else {
-            NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
-            switch (texture_interp_mode) {
-                case INTERP_NEAREST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_NEAREST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_LINEAR:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_LINEAR, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_COSINE:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_COSINE, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_CUBIC:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_CUBIC, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_CUBIC_BSPLINE:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_CUBIC_BSPLINE, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_LINEAR_FAST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_LINEAR_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_COSINE_FAST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_COSINE_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                case INTERP_CUBIC_BSPLINE_FAST:
-                    return stream.enqueue("geometry::shift3D",
-                                          shift3D_single_<INTERP_CUBIC_BSPLINE_FAST, false, T>,
-                                          config, texture, i_shape, output, o_strides, o_shape, shift, blocks_x);
-                default:
-                    NOA_THROW("{} is not supported", texture_interp_mode);
-            }
-        }
-    }
-
-    template<typename T, typename>
+    template<typename T, typename S, typename>
     void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 const shared_t<float3_t[]>& shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
+                 const S& shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                  Stream& stream) {
         launchShift3D_(input, input_strides, input_shape, output, output_strides, output_shape,
                        shifts, interp_mode, border_mode, prefilter, stream);
     }
 
-    template<typename T, typename>
-    void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+    template<typename T, typename S, typename>
+    void shift3D(const shared_t<cudaTextureObject_t>& texture, size3_t texture_shape,
+                 InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                 float3_t shift, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
-                 Stream& stream) {
-        launchShift3D_(input, input_strides, input_shape, output, output_strides, output_shape,
-                       shift, interp_mode, border_mode, prefilter, stream);
+                 const S& shifts, Stream& stream) {
+        if constexpr (traits::is_floatX_v<S>) {
+            launchShiftTextureSingle3D_(
+                    *texture, texture_shape, texture_interp_mode, texture_border_mode,
+                    output.get(), output_strides, output_shape, shifts, stream);
+            stream.attach(texture, output);
+        } else {
+            launchShiftTexture3D_(
+                    *texture, texture_shape, texture_interp_mode, texture_border_mode,
+                    output.get(), output_strides, output_shape, shifts.get(), stream);
+            stream.attach(texture, output, shifts);
+        }
     }
 
-    #define NOA_INSTANTIATE_SHIFT_3D_(T)                                                                                                                                                \
-    template void shift3D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<float3_t[]>&, InterpMode, BorderMode, bool, Stream&); \
-    template void shift3D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, InterpMode, BorderMode, bool, Stream&);                    \
-    template void shift3D<T, void>(cudaTextureObject_t, size3_t, InterpMode, BorderMode, T*, size4_t, size4_t, const float3_t*, Stream&);                                               \
-    template void shift3D<T, void>(cudaTextureObject_t, size3_t, InterpMode, BorderMode, T*, size4_t, size4_t, float3_t, Stream&)
+    #define NOA_INSTANTIATE_SHIFT_3D_VECTOR_(T, S)                                                                                                                                              \
+    template void shift3D<T, shared_t<S[]>, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<S[]>&, InterpMode, BorderMode, bool, Stream&); \
+    template void shift3D<T, S, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const S&, InterpMode, BorderMode, bool, Stream&);                         \
+    template void shift3D<T, shared_t<S[]>, void>(const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const shared_t<S[]>&, Stream&);\
+    template void shift3D<T, S, void>(const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const S&, Stream&)
+
+    #define NOA_INSTANTIATE_SHIFT_3D_(T)           \
+    NOA_INSTANTIATE_SHIFT_3D_VECTOR_(T, float3_t); \
 
     NOA_INSTANTIATE_SHIFT_3D_(float);
     NOA_INSTANTIATE_SHIFT_3D_(cfloat_t);

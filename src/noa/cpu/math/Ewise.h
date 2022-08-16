@@ -1,8 +1,3 @@
-/// \file noa/cpu/math/Ewise.h
-/// \brief Element-wise transformations.
-/// \author Thomas - ffyr2w
-/// \date 11 Jan 2022
-
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -12,98 +7,41 @@
 #include "noa/cpu/Stream.h"
 
 namespace noa::cpu::math {
-    /// Element-wise transformation using an unary operator()(\p T) -> \p U
-    /// \param[in] input        On the \b host. Inputs to transform.
-    /// \param input_strides    Stride, in elements of \p input.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p input and \p output.
-    /// \param unary_op         Unary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using an unary operator()(\p T) -> \p U
     template<typename T, typename U, typename UnaryOp>
     void ewise(const shared_t<T[]>& input, size4_t input_strides,
                const shared_t<U[]>& output, size4_t output_strides,
                size4_t shape, UnaryOp unary_op, Stream& stream);
 
-    /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
-    /// \param[in] lhs          On the \b host. Left-hand side argument.
-    /// \param lhs_strides      Stride, in elements of \p lhs.
-    /// \param rhs              Right-hand side argument.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p lhs and \p output.
-    /// \param binary_op        Binary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     template<typename T, typename U, typename V, typename BinaryOp,
              std::enable_if_t<noa::traits::is_data_v<U>, bool> = true>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U rhs,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
-    /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
-    /// \param lhs              Left-hand side argument.
-    /// \param[in] rhs          On the \b host. Right-hand side argument.
-    /// \param rhs_strides      Stride, in elements of \p rhs.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p rhs and \p output.
-    /// \param binary_op        Binary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     template<typename T, typename U, typename V, typename BinaryOp,
              std::enable_if_t<noa::traits::is_data_v<T>, bool> = true>
     void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_strides,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
-    /// Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
-    /// \param[in] lhs          On the \b host. Left-hand side argument.
-    /// \param lhs_strides      Stride, in elements of \p lhs.
-    /// \param[in] rhs          On the \b host. Right-hand side argument.
-    /// \param rhs_strides      Stride, in elements of \p rhs.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p lhs, \p rhs and \p output.
-    /// \param binary_op        Binary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     template<typename T, typename U, typename V, typename BinaryOp>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
                const shared_t<U[]>& rhs, size4_t rhs_strides,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
-    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
-    /// \param[in] lhs          On the \b host. Left-hand side argument.
-    /// \param lhs_strides      Stride, in elements of \p lhs.
-    /// \param mhs              Middle-hand side argument.
-    /// \param rhs              Right-hand side argument.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p lhs and \p output.
-    /// \param trinary_op       Trinary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
     template<typename T, typename U, typename V, typename TrinaryOp,
              typename = std::enable_if_t<noa::traits::is_data_v<U>>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, U rhs,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
-    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
-    /// \param[in] lhs          On the \b host. Left-hand side argument.
-    /// \param lhs_strides      Stride, in elements of \p lhs.
-    /// \param[in] mhs          On the \b host. Middle-hand side argument.
-    /// \param mhs_strides      Stride, in elements, of \p mhs.
-    /// \param rhs              Right-hand side argument.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p lhs, \p mhs and \p output.
-    /// \param trinary_op       Trinary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
              std::enable_if_t<noa::traits::is_data_v<V>, bool> = true>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
@@ -111,18 +49,7 @@ namespace noa::cpu::math {
                const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
-    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
-    /// \param[in] lhs          On the \b host. Left-hand side argument.
-    /// \param lhs_strides      Stride, in elements of \p lhs.
-    /// \param mhs              Middle-hand side argument.
-    /// \param[in] rhs          On the \b host. Right-hand side argument.
-    /// \param rhs_strides      Stride, in elements, of \p rhs.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p lhs, \p rhs and \p output.
-    /// \param trinary_op       Trinary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
              std::enable_if_t<noa::traits::is_data_v<U>, bool> = true>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs,
@@ -130,19 +57,7 @@ namespace noa::cpu::math {
                const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
-    /// Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
-    /// \param[in] lhs          On the \b host. Left-hand side argument.
-    /// \param lhs_strides      Stride, in elements of \p lhs.
-    /// \param[in] mhs          On the \b host. Middle-hand side argument.
-    /// \param mhs_strides      Stride, in elements, of \p mhs.
-    /// \param[in] rhs          On the \b host. Right-hand side argument.
-    /// \param rhs_strides      Stride, in elements, of \p rhs.
-    /// \param[out] output      On the \b host. Transformed array.
-    /// \param output_strides   Stride, in elements, of \p output.
-    /// \param shape            Shape of \p lhs, \p mhs, \p rhs and \p output.
-    /// \param trinary_op       Trinary operation function object that will be applied.
-    /// \param[in,out] stream   Stream on which to enqueue this function.
-    /// \note Depending on the stream, this function may be asynchronous and may return before completion.
+    // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
                const shared_t<U[]>& mhs, size4_t mhs_strides,

@@ -41,8 +41,8 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
         const auto max = cpu::math::max<float>(data.share(), stride, shape, stream);
         const auto sum = cpu::math::sum<float>(data.share(), stride, shape, stream);
         const auto mean = cpu::math::mean<float>(data.share(), stride, shape, stream);
-        const auto var = cpu::math::var<0, float>(data.share(), stride, shape, stream);
-        const auto std = cpu::math::std<0, float>(data.share(), stride, shape, stream);
+        const auto var = cpu::math::var<float>(data.share(), stride, shape, 0, stream);
+        const auto std = cpu::math::std<float>(data.share(), stride, shape, 0, stream);
 
         REQUIRE_THAT(min, Catch::WithinAbs(static_cast<double>(expected_min), 1e-6));
         REQUIRE_THAT(max, Catch::WithinAbs(static_cast<double>(expected_max), 1e-6));
@@ -53,7 +53,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     }
 
     WHEN("statistics") {
-        const auto [sum, mean, var, std] = cpu::math::statistics<0, float>(data.share(), stride, shape, stream);
+        const auto [sum, mean, var, std] = cpu::math::statistics<float>(data.share(), stride, shape, 0, stream);
         REQUIRE_THAT(sum, Catch::WithinRel(expected_sum));
         REQUIRE_THAT(mean, Catch::WithinRel(expected_mean));
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));
@@ -104,8 +104,8 @@ TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
     cpu::math::max<float>(data.share(), stride, shape, maxs, output_stride, output_shape, stream);
     cpu::math::sum<float>(data.share(), stride, shape, sums, output_stride, output_shape, stream);
     cpu::math::mean<float>(data.share(), stride, shape, means, output_stride, output_shape, stream);
-    cpu::math::var<0, float>(data.share(), stride, shape, vars, output_stride, output_shape, stream);
-    cpu::math::std<0, float>(data.share(), stride, shape, stds, output_stride, output_shape, stream);
+    cpu::math::var<float>(data.share(), stride, shape, vars, output_stride, output_shape, 0, stream);
+    cpu::math::std<float>(data.share(), stride, shape, stds, output_stride, output_shape, 0, stream);
 
     for (uint batch = 0; batch < shape[0]; ++batch) {
         REQUIRE_THAT(mins[batch], Catch::WithinAbs(static_cast<double>(expected_min[batch]), 1e-6));
@@ -170,12 +170,12 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
 
         file.open(output_path_var, io::READ);
         file.readAll(expected.get());
-        cpu::math::var<0, float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
+        cpu::math::var<float>(data.share(), stride, shape, output.share(), output_stride, output_shape, 0, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
 
         file.open(output_path_std, io::READ);
         file.readAll(expected.get());
-        cpu::math::std<0, float>(data.share(), stride, shape, output.share(), output_stride, output_shape, stream);
+        cpu::math::std<float>(data.share(), stride, shape, output.share(), output_stride, output_shape, 0, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output.get(), expected.elements(), 1e-6));
     }
 }
@@ -205,8 +205,8 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
     THEN("sum, mean") {
-        const cfloat_t complex_sum = cpu::math::sum<cfloat_t>(data.share(), stride, shape, stream);
-        const cfloat_t complex_mean = cpu::math::mean<cfloat_t>(data.share(), stride, shape, stream);
+        const auto complex_sum = cpu::math::sum<cfloat_t>(data.share(), stride, shape, stream);
+        const auto complex_mean = cpu::math::mean<cfloat_t>(data.share(), stride, shape, stream);
 
         REQUIRE_THAT(complex_sum.real, Catch::WithinRel(expected_sum.real));
         REQUIRE_THAT(complex_sum.imag, Catch::WithinRel(expected_sum.imag));
@@ -215,8 +215,8 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     }
 
     THEN("var, std") {
-        const float var = cpu::math::var<1, cfloat_t>(data.share(), stride, shape, stream);
-        const float std = cpu::math::std<1, cfloat_t>(data.share(), stride, shape, stream);
+        const float var = cpu::math::var<cfloat_t>(data.share(), stride, shape, 1, stream);
+        const float std = cpu::math::std<cfloat_t>(data.share(), stride, shape, 1, stream);
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));
         REQUIRE_THAT(std, Catch::WithinRel(expected_std));
     }

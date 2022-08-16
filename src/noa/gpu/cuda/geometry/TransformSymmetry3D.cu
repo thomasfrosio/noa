@@ -38,6 +38,66 @@ namespace {
 
         output[indexing::at(gid, output_strides)] = value * scaling;
     }
+
+    template<typename T>
+    void launchTransformSymmetryTexture3D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
+                                           T* output, size4_t output_strides, size4_t output_shape,
+                                           float3_t shift, float33_t matrix, const geometry::Symmetry& symmetry,
+                                           float3_t center, bool normalize, cuda::Stream& stream) {
+        NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
+
+        // TODO Move symmetry matrices to constant memory?
+        const size_t count = symmetry.count();
+        const float33_t* symmetry_matrices = symmetry.matrices();
+        cuda::memory::PtrDevice<float33_t> d_matrices(count, stream);
+        cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
+        const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
+
+        const uint2_t o_shape(output_shape.get(2));
+        const uint4_t o_strides(output_strides);
+        const uint blocks_x = math::divideUp(o_shape[1], THREADS.x);
+        const dim3 blocks(blocks_x * math::divideUp(o_shape[0], THREADS.y),
+                          output_shape[1],
+                          output_shape[0]);
+        const cuda::LaunchConfig config{blocks, THREADS};
+
+        switch (texture_interp_mode) {
+            case INTERP_NEAREST:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_NEAREST>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_LINEAR:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_LINEAR>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_COSINE:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_COSINE>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_CUBIC:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_CUBIC>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_CUBIC_BSPLINE:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_CUBIC_BSPLINE>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_LINEAR_FAST:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_LINEAR_FAST>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_COSINE_FAST:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_COSINE_FAST>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            case INTERP_CUBIC_BSPLINE_FAST:
+                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_CUBIC_BSPLINE_FAST>,
+                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
+                                      d_matrices.get(), count, scaling, blocks_x);
+            default:
+                NOA_THROW_FUNC("transform3D", "{} is not supported", texture_interp_mode);
+        }
+    }
 }
 
 namespace noa::cuda::geometry {
@@ -94,7 +154,7 @@ namespace noa::cuda::geometry {
         cuda::memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
         for (size_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_offset, buffer_pitch, array.get(), shape_3d, stream);
-            cuda::geometry::transform3D(
+            launchTransformSymmetryTexture3D_(
                     texture.get(), interp_mode, output.get() + i * output_strides[0], output_strides, o_shape,
                     shift, matrix, symmetry, center, normalize, stream);
         }
@@ -104,68 +164,19 @@ namespace noa::cuda::geometry {
     }
 
     template<typename T, typename>
-    void transform3D(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                     T* output, size4_t output_strides, size4_t output_shape,
+    void transform3D(const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
+                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      bool normalize, Stream& stream) {
-        NOA_ASSERT(!memory::PtrTexture::hasNormalizedCoordinates(texture));
-
-        // TODO Move symmetry matrices to constant memory?
-        const size_t count = symmetry.count();
-        const float33_t* symmetry_matrices = symmetry.matrices();
-        memory::PtrDevice<float33_t> d_matrices(count, stream);
-        memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
-        const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
-
-        const uint2_t o_shape(output_shape.get(2));
-        const uint4_t o_strides(output_strides);
-        const uint blocks_x = math::divideUp(o_shape[1], THREADS.x);
-        const dim3 blocks(blocks_x * math::divideUp(o_shape[0], THREADS.y),
-                          output_shape[1],
-                          output_shape[0]);
-        const LaunchConfig config{blocks, THREADS};
-
-        switch (texture_interp_mode) {
-            case INTERP_NEAREST:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_NEAREST>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_LINEAR:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_LINEAR>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_COSINE:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_COSINE>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_CUBIC:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_CUBIC>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_CUBIC_BSPLINE:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_CUBIC_BSPLINE>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_LINEAR_FAST:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_LINEAR_FAST>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_COSINE_FAST:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_COSINE_FAST>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            case INTERP_CUBIC_BSPLINE_FAST:
-                return stream.enqueue("geometry::transform3D", transformWithSymmetry3D_<T, INTERP_CUBIC_BSPLINE_FAST>,
-                                      config, texture, output, o_strides, o_shape, shift, matrix, center,
-                                      d_matrices.get(), count, scaling, blocks_x);
-            default:
-                NOA_THROW_FUNC("transform3D", "{} is not supported", texture_interp_mode);
-        }
+        launchTransformSymmetryTexture3D_(*texture, texture_interp_mode,
+                                          output.get(), output_strides, output_shape,
+                                          shift, matrix, symmetry, center, normalize, stream);
+        stream.attach(texture, output);
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                                                               \
     template void transform3D<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, InterpMode, bool, bool, Stream&);    \
-    template void transform3D<T, void>(cudaTextureObject_t, InterpMode, T*, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, bool, Stream&)
+    template void transform3D<T, void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float3_t, float33_t, const Symmetry&, float3_t, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_SYM_(float);
     NOA_INSTANTIATE_TRANSFORM_SYM_(cfloat_t);

@@ -62,22 +62,22 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, contiguous", "[noa][cuda][math]",
         if constexpr (noa::traits::is_float_v<real_t>) {
             real_t cpu_var, gpu_var;
             AND_THEN("var") {
-                gpu_var = cuda::math::var<0, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-                cpu_var = cpu::math::var<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), stride, shape, 0, gpu_stream);
+                cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-                gpu_var = cuda::math::var<1, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-                cpu_var = cpu::math::var<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), stride, shape, 1, gpu_stream);
+                cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
             }
 
             AND_THEN("std") {
-                gpu_var = cuda::math::std<0, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-                cpu_var = cpu::math::std<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), stride, shape, 0, gpu_stream);
+                cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-                gpu_var = cuda::math::std<1, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-                cpu_var = cpu::math::std<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), stride, shape, 1, gpu_stream);
+                cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
             }
         }
@@ -134,22 +134,22 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, padded", "[noa][cuda][math]",
         if constexpr (noa::traits::is_float_v<real_t>) {
             real_t cpu_var, gpu_var;
             AND_THEN("var") {
-                gpu_var = cuda::math::var<0, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-                cpu_var = cpu::math::var<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), d_data.strides(), shape, 0, gpu_stream);
+                cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-                gpu_var = cuda::math::var<1, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-                cpu_var = cpu::math::var<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), d_data.strides(), shape, 1, gpu_stream);
+                cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
             }
 
             AND_THEN("std") {
-                gpu_var = cuda::math::std<0, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-                cpu_var = cpu::math::std<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), d_data.strides(), shape, 0, gpu_stream);
+                cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-                gpu_var = cuda::math::std<1, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-                cpu_var = cpu::math::std<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+                gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), d_data.strides(), shape, 1, gpu_stream);
+                cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
             }
         }
@@ -187,22 +187,22 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, large, contiguous", "[noa][cuda][ma
     using real_t = noa::traits::value_type_t<TestType>;
     real_t cpu_var, gpu_var;
     AND_THEN("var") {
-        gpu_var = cuda::math::var<0, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-        cpu_var = cpu::math::var<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), stride, shape, 0, gpu_stream);
+        cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-        gpu_var = cuda::math::var<1, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-        cpu_var = cpu::math::var<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), stride, shape, 1, gpu_stream);
+        cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
     }
 
     AND_THEN("std") {
-        gpu_var = cuda::math::std<0, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-        cpu_var = cpu::math::std<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), stride, shape, 0, gpu_stream);
+        cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-        gpu_var = cuda::math::std<1, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
-        cpu_var = cpu::math::std<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), stride, shape, 1, gpu_stream);
+        cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
     }
 }
@@ -238,22 +238,22 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, large, padded", "[noa][cuda][math]"
     using real_t = noa::traits::value_type_t<TestType>;
     real_t cpu_var, gpu_var;
     AND_THEN("var") {
-        gpu_var = cuda::math::var<0, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-        cpu_var = cpu::math::var<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), d_data.strides(), shape, 0, gpu_stream);
+        cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-        gpu_var = cuda::math::var<1, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-        cpu_var = cpu::math::var<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::var<TestType, real_t>(d_data.share(), d_data.strides(), shape, 1, gpu_stream);
+        cpu_var = cpu::math::var<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
     }
 
     AND_THEN("std") {
-        gpu_var = cuda::math::std<0, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-        cpu_var = cpu::math::std<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), d_data.strides(), shape, 0, gpu_stream);
+        cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
 
-        gpu_var = cuda::math::std<1, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
-        cpu_var = cpu::math::std<1, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        gpu_var = cuda::math::std<TestType, real_t>(d_data.share(), d_data.strides(), shape, 1, gpu_stream);
+        cpu_var = cpu::math::std<TestType, real_t>(h_data.share(), stride, shape, 1, cpu_stream);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
     }
 }
@@ -276,9 +276,9 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce statistics, contiguous", "[noa][cuda][ma
 
     using real_t = noa::traits::value_type_t<TestType>;
     auto[gpu_sum, gpu_mean, gpu_var, gpu_std] =
-        cuda::math::statistics<0, TestType, real_t>(d_data.share(), stride, shape, gpu_stream);
+        cuda::math::statistics<TestType, real_t>(d_data.share(), stride, shape, 0, gpu_stream);
     auto[cpu_sum, cpu_mean, cpu_var, cpu_std] =
-        cpu::math::statistics<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+        cpu::math::statistics<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_sum, &cpu_sum, 1, 3e-5));
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_mean, &cpu_mean, 1, 1e-6));
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
@@ -303,9 +303,9 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce statistics, padded", "[noa][cuda][math]"
 
     using real_t = noa::traits::value_type_t<TestType>;
     auto[gpu_sum, gpu_mean, gpu_var, gpu_std] =
-            cuda::math::statistics<0, TestType, real_t>(d_data.share(), d_data.strides(), shape, gpu_stream);
+            cuda::math::statistics<TestType, real_t>(d_data.share(), d_data.strides(), shape, 0, gpu_stream);
     auto[cpu_sum, cpu_mean, cpu_var, cpu_std] =
-            cpu::math::statistics<0, TestType, real_t>(h_data.share(), stride, shape, cpu_stream);
+            cpu::math::statistics<TestType, real_t>(h_data.share(), stride, shape, 0, cpu_stream);
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_sum, &cpu_sum, 1, 3e-5));
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_mean, &cpu_mean, 1, 1e-6));
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &gpu_var, &cpu_var, 1, 1e-6));
@@ -387,72 +387,72 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce 1 axis", "[assets][noa][cuda][math]",
         cuda::memory::PtrManaged<real_t> d_output_real(output_elements, gpu_stream);
 
         AND_THEN("var") {
-            cuda::math::var<0, TestType, real_t>(d_input.share(), input_stride, input_shape,
-                                                 d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<0, TestType, real_t>(h_input.share(), input_stride, input_shape,
-                                                h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var<TestType, real_t>(d_input.share(), input_stride, input_shape,
+                                              d_output_real.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::var<TestType, real_t>(h_input.share(), input_stride, input_shape,
+                                             h_output_real.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), 1, 1e-5));
 
-            cuda::math::var<1, TestType, real_t>(d_input.share(), input_stride, input_shape,
-                                                 d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<1, TestType, real_t>(h_input.share(), input_stride, input_shape,
-                                                h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var<TestType, real_t>(d_input.share(), input_stride, input_shape,
+                                              d_output_real.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::var<TestType, real_t>(h_input.share(), input_stride, input_shape,
+                                             h_output_real.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), 1, 1e-5));
         }
 
         AND_THEN("std") {
-            cuda::math::std<0, TestType, real_t>(d_input.share(), input_stride, input_shape,
-                                                 d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<0, TestType, real_t>(h_input.share(), input_stride, input_shape,
-                                                h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std<TestType, real_t>(d_input.share(), input_stride, input_shape,
+                                              d_output_real.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::std<TestType, real_t>(h_input.share(), input_stride, input_shape,
+                                             h_output_real.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), 1, 1e-5));
 
-            cuda::math::std<1, TestType, real_t>(d_input.share(), input_stride, input_shape,
-                                                 d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<1, TestType, real_t>(h_input.share(), input_stride, input_shape,
-                                                h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std<TestType, real_t>(d_input.share(), input_stride, input_shape,
+                                              d_output_real.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::std<TestType, real_t>(h_input.share(), input_stride, input_shape,
+                                             h_output_real.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), 1, 1e-5));
         }
     } else {
         AND_THEN("var") {
-            cuda::math::var<0, TestType, TestType>(d_input.share(), input_stride, input_shape,
-                                                   d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<0, TestType, TestType>(h_input.share(), input_stride, input_shape,
-                                                  h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var<TestType, TestType>(d_input.share(), input_stride, input_shape,
+                                                d_output.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::var<TestType, TestType>(h_input.share(), input_stride, input_shape,
+                                               h_output.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), 1, 1e-5));
 
-            cuda::math::var<1, TestType, TestType>(d_input.share(), input_stride, input_shape,
-                                                   d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<1, TestType, TestType>(h_input.share(), input_stride, input_shape,
-                                                  h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var<TestType, TestType>(d_input.share(), input_stride, input_shape,
+                                                d_output.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::var<TestType, TestType>(h_input.share(), input_stride, input_shape,
+                                               h_output.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), 1, 1e-5));
         }
 
         AND_THEN("std") {
-            cuda::math::std<0, TestType, TestType>(d_input.share(), input_stride, input_shape,
-                                                   d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<0, TestType, TestType>(h_input.share(), input_stride, input_shape,
-                                                  h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std<TestType, TestType>(d_input.share(), input_stride, input_shape,
+                                                d_output.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::std<TestType, TestType>(h_input.share(), input_stride, input_shape,
+                                               h_output.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), 1, 1e-5));
 
-            cuda::math::std<1, TestType, TestType>(d_input.share(), input_stride, input_shape,
-                                                   d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<1, TestType, TestType>(h_input.share(), input_stride, input_shape,
-                                                  h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std<TestType, TestType>(d_input.share(), input_stride, input_shape,
+                                                d_output.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::std<TestType, TestType>(h_input.share(), input_stride, input_shape,
+                                               h_output.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), 1, 1e-5));
@@ -512,7 +512,6 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce innermost axes", "[assets][noa][cuda][ma
                         d_output.share(), output_stride, output_shape, gpu_stream);
         cpu::math::sum(h_input.share(), input_stride, input_shape,
                        h_output.share(), output_stride, output_shape, cpu_stream);
-        const size4_t unbatched{1, input_shape[1], input_shape[2], input_shape[3]};
         gpu_stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), output_elements, 1e-5));
@@ -523,7 +522,6 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce innermost axes", "[assets][noa][cuda][ma
                          d_output.share(), output_stride, output_shape, gpu_stream);
         cpu::math::mean(h_input.share(), input_stride, input_shape,
                         h_output.share(), output_stride, output_shape, cpu_stream);
-        const size4_t unbatched{1, input_shape[1], input_shape[2], input_shape[3]};
         gpu_stream.synchronize();
         cpu_stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), output_elements, 1e-5));
@@ -535,72 +533,72 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce innermost axes", "[assets][noa][cuda][ma
         cuda::memory::PtrManaged<real_t> d_output_real(output_elements, gpu_stream);
 
         AND_THEN("var") {
-            cuda::math::var<0>(d_input.share(), input_stride, input_shape,
-                               d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<0>(h_input.share(), input_stride, input_shape,
-                              h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var(d_input.share(), input_stride, input_shape,
+                            d_output_real.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::var(h_input.share(), input_stride, input_shape,
+                           h_output_real.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), output_elements, 1e-5));
 
-            cuda::math::var<1>(d_input.share(), input_stride, input_shape,
-                               d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<1>(h_input.share(), input_stride, input_shape,
-                              h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var(d_input.share(), input_stride, input_shape,
+                            d_output_real.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::var(h_input.share(), input_stride, input_shape,
+                           h_output_real.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), output_elements, 1e-5));
         }
 
         AND_THEN("std") {
-            cuda::math::std<0>(d_input.share(), input_stride, input_shape,
-                               d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<0>(h_input.share(), input_stride, input_shape,
-                              h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std(d_input.share(), input_stride, input_shape,
+                            d_output_real.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::std(h_input.share(), input_stride, input_shape,
+                           h_output_real.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), output_elements, 1e-5));
 
-            cuda::math::std<1>(d_input.share(), input_stride, input_shape,
-                               d_output_real.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<1>(h_input.share(), input_stride, input_shape,
-                              h_output_real.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std(d_input.share(), input_stride, input_shape,
+                            d_output_real.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::std(h_input.share(), input_stride, input_shape,
+                           h_output_real.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output_real.get(), d_output_real.get(), output_elements, 1e-5));
         }
     } else {
         AND_THEN("var") {
-            cuda::math::var<0>(d_input.share(), input_stride, input_shape,
-                               d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<0>(h_input.share(), input_stride, input_shape,
-                              h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var(d_input.share(), input_stride, input_shape,
+                            d_output.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::var(h_input.share(), input_stride, input_shape,
+                           h_output.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), output_elements, 1e-5));
 
-            cuda::math::var<1>(d_input.share(), input_stride, input_shape,
-                               d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::var<1>(h_input.share(), input_stride, input_shape,
-                              h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::var(d_input.share(), input_stride, input_shape,
+                            d_output.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::var(h_input.share(), input_stride, input_shape,
+                           h_output.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), output_elements, 1e-5));
         }
 
         AND_THEN("std") {
-            cuda::math::std<0>(d_input.share(), input_stride, input_shape,
-                               d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<0>(h_input.share(), input_stride, input_shape,
-                              h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std(d_input.share(), input_stride, input_shape,
+                            d_output.share(), output_stride, output_shape, 0, gpu_stream);
+            cpu::math::std(h_input.share(), input_stride, input_shape,
+                           h_output.share(), output_stride, output_shape, 0, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), output_elements, 1e-5));
 
-            cuda::math::std<1>(d_input.share(), input_stride, input_shape,
-                               d_output.share(), output_stride, output_shape, gpu_stream);
-            cpu::math::std<1>(h_input.share(), input_stride, input_shape,
-                              h_output.share(), output_stride, output_shape, cpu_stream);
+            cuda::math::std(d_input.share(), input_stride, input_shape,
+                            d_output.share(), output_stride, output_shape, 1, gpu_stream);
+            cpu::math::std(h_input.share(), input_stride, input_shape,
+                           h_output.share(), output_stride, output_shape, 1, cpu_stream);
             gpu_stream.synchronize();
             cpu_stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, h_output.get(), d_output.get(), output_elements, 1e-5));

@@ -12,7 +12,7 @@
 using namespace ::noa;
 
 TEST_CASE("cpu::geometry::fft::insert3D", "[.]") {
-    const size4_t slices_shape{1, 1, 512, 512};
+    const size4_t slices_shape{1, 1, 256, 256};
     const size4_t grid_shape{1, 512, 512, 512};
     const size4_t slices_stride = slices_shape.fft().strides();
     const size4_t grid_stride = grid_shape.fft().strides();
@@ -31,28 +31,29 @@ TEST_CASE("cpu::geometry::fft::insert3D", "[.]") {
         rotations[i] = geometry::euler2matrix(float3_t{1.0, 0, 0});
     }
 
-    const float cutoff = 0.5f;
+    const bool do_ews = false;
+    const float sampling_factor = 1.25;
+    const float cutoff = 0.5f / sampling_factor;
     const float wavelength = 0.01968761530923358f; // A
     const float2_t pixel_size{1, 1}; // A/pix
-    const float2_t ews_radius = pixel_size / wavelength; // 1/pix
-    const bool do_ews = any(ews_radius != 0.f);
+    const float2_t ews_radius = do_ews ? pixel_size / wavelength : float2_t{}; // 1/pix
 
     cpu::Stream stream(cpu::Stream::DEFAULT);
     stream.threads(1);
 
-    for (int i = 1; i < 2 ; ++i) {
-        const float sign = i == 1 ? 1 : -1;
+    for (int i = 0; i < (1 + do_ews) ; ++i) {
+        const float sign = i == 0 ? 1 : -1;
         cpu::geometry::fft::insert3D<fft::HC2HC>(
                 slices.share(), slices_stride, slices_shape,
                 grid.share(), grid_stride, grid_shape,
                 scaling_factors.share(), rotations.share(),
-                cutoff, sign * ews_radius, stream);
+                cutoff, sampling_factor, sign * ews_radius, stream);
 
         cpu::geometry::fft::extract3D<fft::HC2HC>(
                 grid.share(), grid_stride, grid_shape,
                 slices.share(), slices_stride, slices_shape,
                 scaling_factors.share(), rotations.share(),
-                cutoff, sign * ews_radius, stream);
+                cutoff, sampling_factor, sign * ews_radius, stream);
     }
 
     stream.synchronize();
