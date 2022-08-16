@@ -26,7 +26,7 @@ namespace noa::math {
     /// \param[in] rhs      (Batched) row or column vector.
     /// \param[out] output  Output contiguous vector with the dot products. One element per batch.
     ///                     If \p lhs and \p rhs are on the GPU, \p output can be on any device, including the CPU.
-    ///                     Otherwise, they must be dereferencable by the CPU.
+    ///                     Otherwise, it must be dereferenceable by the CPU.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
     void dot(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output);
@@ -39,7 +39,8 @@ namespace noa::math {
     /// \param[in] lhs      Dense {B,1,M,K} matrix.
     /// \param[in] rhs      Dense {B,1,K,N} matrix.
     /// \param[out] output  Dense {B,1,M,N} matrix.
-    /// \note The innermost dimension of the matrices should be contiguous and
+    /// \note The memory layout is restricted: \p lhs, \p rhs and \p output should not overlap. All matrices should
+    ///       either be row-major or column-major. The innermost dimension of the matrices should be contiguous and
     ///       the second-most dimension cannot be broadcast.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output);
@@ -54,11 +55,14 @@ namespace noa::math {
     /// \param[in] rhs      Dense {B,1,K,N} matrix.
     /// \param[out] output  Dense {B,1,M,N} matrix.
     /// \param alpha        Scalar for the scalar-matrix-matrix product.
-    /// \param beta         Scalar for the scalar-matrix product.
-    /// \param lhs_op       Whether \p lhs should be transposed (and possibly conjugated) before the operation.
-    /// \param rhs_op       Whether \p rhs should be transposed (and possibly conjugated) before the operation.
-    /// \note The innermost dimension of the matrices (before transposition) should be contiguous and
-    ///       the second-most dimension cannot be broadcast.
+    /// \param beta         Scalar for the scalar-matrix product. If T{0}, \p output doesn't need to be set.
+    /// \param lhs_op       Whether \p lhs should be transposed before the operation.
+    ///                     In this case, the matrix {B,1,K,M} is expected.
+    /// \param rhs_op       Whether \p rhs should be transposed before the operation.
+    ///                     In this case, the matrix {B,1,N,K} is expected.
+    /// \note The memory layout is restricted: \p lhs, \p rhs and \p output should not overlap. All matrices should
+    ///       either be row-major or column-major (before transposition). The innermost dimension of the matrices
+    ///       (before transposition) should be contiguous and the second-most dimension cannot be broadcast.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output,
                 T alpha, T beta, bool lhs_transpose = false, bool rhs_transpose = false);

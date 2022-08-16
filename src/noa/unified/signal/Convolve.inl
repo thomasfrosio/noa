@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_CONVOLVE_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/signal/Convolve.h"
@@ -13,22 +13,21 @@ namespace noa::signal::details {
 #endif
 
 namespace noa::signal {
-    template<typename T, typename U, typename>
-    void convolve(const Array<T>& input, const Array<T>& output, const Array<U>& filter) {
-        size4_t input_stride = input.strides();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+    template<typename T, typename>
+    void convolve(const Array<T>& input, const Array<T>& output, const Array<T>& filter) {
+        size4_t input_strides = input.strides();
+        if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 
         const size4_t filter_shape = filter.shape();
-        size_t ndim = output.shape().ndim();
-        ndim = ndim == 4 ? 3 : ndim;
-        NOA_CHECK(all(filter.contiguous()),
-                  "The input filter must be contiguous, but got shape {} and stride {}",
+        size_t ndim = size3_t(output.shape().get(1)).ndim();
+        NOA_CHECK(filter.contiguous(),
+                  "The input filter must be contiguous, but got shape {} and strides {}",
                   filter_shape, filter.strides());
         NOA_CHECK(filter_shape.ndim() <= ndim && all(filter_shape % 2 == 1),
-                  "Given a {}N (batched) output, the input filter should be {}D at most and each dimension should have "
+                  "Given a {}D (batched) output, the input filter should be {}D at most and each dimension should have "
                   "an odd number of elements, but got filter shape {}", ndim, ndim, filter_shape);
 
         const Device device = output.device();
@@ -41,29 +40,29 @@ namespace noa::signal {
             NOA_CHECK(device == filter.device(),
                       "The input arrays must be on the same device, but got input:{}, filter:{}",
                       input.device(), filter.device());
-            cpu::signal::convolve(input.share(), input_stride,
+            cpu::signal::convolve(input.share(), input_strides,
                                   output.share(), output.strides(), output.shape(),
-                                  filter.share(), size3_t{filter_shape.get() + 1}, stream.cpu());
+                                  filter.share(), size3_t(filter_shape.get(1)), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
                 NOA_CHECK(filter_shape.elements() * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES,
                           "In the CUDA backend, the filter size is limited to {} bytes, but got {} of {} type",
-                          details::CUDA_FILTER_MAX_BYTES, filter_shape, string::human<U>());
-                cuda::signal::convolve(input.share(), input_stride,
+                          details::CUDA_FILTER_MAX_BYTES, filter_shape, string::human<T>());
+                cuda::signal::convolve(input.share(), input_strides,
                                        output.share(), output.strides(), output.shape(),
-                                       filter.share(), size3_t{filter_shape.get() + 1}, stream.cuda());
+                                       filter.share(), size3_t(filter_shape.get(1)), stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename U, typename>
+    template<typename T, typename>
     void convolve(const Array<T>& input, const Array<T>& output,
-                  const Array<U>& filter1, const Array<U>& filter2, const Array<U>& filter3,
+                  const Array<T>& filter1, const Array<T>& filter2, const Array<T>& filter3,
                   const Array<T>& tmp) {
-        size4_t input_stride = input.strides();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+        size4_t input_strides = input.strides();
+        if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
@@ -73,16 +72,16 @@ namespace noa::signal {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
-        const std::array<const Array<U>&, 3> filters = {filter1, filter2, filter3};
+        const std::array<const Array<T>&, 3> filters = {filter1, filter2, filter3};
         for (auto i: irange<size_t>(3)) {
             const auto& filter = filters[i];
             if (filter.empty())
                 continue;
-            NOA_CHECK(all(filter.contiguous()),
-                      "The input filters must be contiguous, but got filter{} with shape {} and stride {}",
+            NOA_CHECK(filter.contiguous(),
+                      "The input filters must be contiguous, but got filter{} with shape {} and strides {}",
                       i + 1, filter.shape(), filter.strides());
-            NOA_CHECK(filter.ndim() == 1 && filter.shape()[3] % 2 == 1,
-                      "The input filters should be row vectors with an odd number of elements, "
+            NOA_CHECK(indexing::isVector(filter.shape()) && filter.shape().elements() % 2 == 1,
+                      "The input filters should be vectors with an odd number of elements, "
                       "but got filter{} with a shape of {}", i + 1, filter.shape());
             NOA_CHECK(device.gpu() || filter.device().cpu(),
                       "The input filter must be on the same device as the input, but got input:{}, filter{}:{}",
@@ -91,7 +90,7 @@ namespace noa::signal {
 
         if (!tmp.empty()) {
             NOA_CHECK(all(tmp.shape() == output.shape()) && !any(tmp.strides() == 0),
-                      "The temporary array should be able to hold an array of shape {}, but got shape {} and stride {}",
+                      "The temporary array should be able to hold an array of shape {}, but got shape {} and strides {}",
                       output.shape(), tmp.shape(), tmp.strides());
             NOA_CHECK(device == tmp.device(),
                       "The temporary array must be on the same device as the output, but got tmp:{}, output:{}",
@@ -100,24 +99,24 @@ namespace noa::signal {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::signal::convolve(input.share(), input_stride,
+            cpu::signal::convolve(input.share(), input_strides,
                                   output.share(), output.strides(), output.shape(),
-                                  filter1.share(), filter1.shape()[3],
-                                  filter2.share(), filter2.shape()[3],
-                                  filter3.share(), filter3.shape()[3],
+                                  filter1.share(), filter1.shape().elements(),
+                                  filter2.share(), filter2.shape().elements(),
+                                  filter3.share(), filter3.shape().elements(),
                                   stream.cpu(), tmp.share(), tmp.strides());
         } else {
             #ifdef NOA_ENABLE_CUDA
-                NOA_CHECK(filter1.shape()[3] * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES &&
-                          filter2.shape()[3] * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES &&
-                          filter3.shape()[3] * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES,
+                NOA_CHECK(filter1.shape().elements() * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES &&
+                          filter2.shape().elements() * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES &&
+                          filter3.shape().elements() * sizeof(T) <= details::CUDA_FILTER_MAX_BYTES,
                           "In the CUDA backend, separable filters have a size limited to {} bytes",
                           details::CUDA_FILTER_MAX_BYTES);
-            cuda::signal::convolve(input.share(), input_stride,
+            cuda::signal::convolve(input.share(), input_strides,
                                    output.share(), output.strides(), output.shape(),
-                                   filter1.share(), filter1.shape()[3],
-                                   filter2.share(), filter2.shape()[3],
-                                   filter3.share(), filter3.shape()[3],
+                                   filter1.share(), filter1.shape().elements(),
+                                   filter2.share(), filter2.shape().elements(),
+                                   filter3.share(), filter3.shape().elements(),
                                    stream.cuda(), tmp.share(), tmp.strides());
             #else
             NOA_THROW("No GPU backend detected");

@@ -17,7 +17,7 @@ namespace noa::signal::fft {
     /// \tparam T           half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input    FFT to filter. If empty, the filter is written into \p output and \p T must be real.
     /// \param[out] output  Filtered FFT.
-    /// \param shape        Rightmost logical shape.
+    /// \param shape        BDHW logical shape.
     /// \param cutoff       Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                     At this frequency, the pass starts to roll-off.
     /// \param width        Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
@@ -30,7 +30,7 @@ namespace noa::signal::fft {
     /// \tparam T           half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input    FFT to filter. If empty, the filter is written into \p output and \p T must be real.
     /// \param[out] output  Filtered FFT.
-    /// \param shape        Rightmost logical shape.
+    /// \param shape        BDHW logical shape.
     /// \param cutoff       Frequency cutoff, in cycle/pix, usually from 0 (DC) to 0.5 (Nyquist).
     ///                     At this frequency, the pass is fully recovered.
     /// \param width        Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
@@ -43,7 +43,7 @@ namespace noa::signal::fft {
     /// \tparam T           half_t, float, double, chalf_t, cfloat_t, cdouble_t.
     /// \param[in] input    FFT to filter. If empty, the filter is written into \p output and \p T must be real.
     /// \param[out] output  Filtered FFT.
-    /// \param shape        Rightmost logical shape.
+    /// \param shape        BDHW logical shape.
     /// \param cutoff1      First frequency cutoff, in cycle/pix, usually from 0 (DC) to \p cutoff2.
     ///                     At this frequency, the pass is fully recovered.
     /// \param cutoff2      Second frequency cutoff, in cycle/pix, usually from \p cutoff1 to 0.5 (Nyquist).

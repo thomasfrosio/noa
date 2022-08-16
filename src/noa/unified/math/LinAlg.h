@@ -12,7 +12,7 @@ namespace noa::math {
     /// Computes least-squares solution to equation Ax = b.
     /// \details Computes a vector x such that the 2-norm |b - A x| is minimized. Several right hand side vectors b
     ///          and solution vectors x can be handled in a single call, in which case they are stored as the columns
-    ///          of the matrix b.
+    ///          of the matrix b. Furthermore, the entire problem can be batched.
     ///
     /// \tparam T               float, double, cfloat_t or cdouble_t.
     /// \tparam U               float or double.
@@ -33,7 +33,6 @@ namespace noa::math {
     /// \note In most cases, it is more efficient if \p a, \p b and \p x (if K > 1) are column major and contiguous.
     ///       In any case, the innermost dimension should be contiguous and the second-most dimension can either be
     ///       contiguous or padded.
-    /// \note The entire problem can be batched.
     /// \note This function is currently not supported on the GPU.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_lstsq_t<T, U>>>
     void lstsq(const Array<T>& a, const Array<T>& b, const Array<T>& x,

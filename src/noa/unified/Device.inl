@@ -1,15 +1,15 @@
 #ifndef NOA_UNIFIED_DEVICE_
-#error "Implementation header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 namespace noa {
-    NOA_IH constexpr Device::Device(Device::Type type, int id, bool unsafe)
+    inline constexpr Device::Device(Device::Type type, int id, bool unsafe)
             : m_id(type == Type::CPU ? -1 : id) {
         if (!unsafe)
             validate_(m_id);
     }
 
-    NOA_IH Device::Device(std::string_view name, bool unsafe) {
+    inline Device::Device(std::string_view name, bool unsafe) {
         try {
             m_id = parse_(name);
             if (!unsafe)
@@ -19,7 +19,7 @@ namespace noa {
         }
     }
 
-    NOA_IH std::string Device::summary() const {
+    inline std::string Device::summary() const {
         if (cpu()) {
             return cpu::Device::summary();
         } else {
@@ -31,7 +31,7 @@ namespace noa {
         }
     }
 
-    NOA_IH DeviceMemory Device::memory() const {
+    inline DeviceMemory Device::memory() const {
         if (cpu()) {
             const cpu::DeviceMemory mem_info = cpu::Device::memory();
             return {mem_info.total, mem_info.free};
@@ -45,10 +45,10 @@ namespace noa {
         }
     }
 
-    NOA_IH void Device::memoryThreshold(size_t threshold_bytes) const {
+    inline void Device::memoryThreshold(size_t threshold_bytes) const {
         if (gpu()) {
             #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
-            cuda::memory::Pool{cuda::Device{id(), true}}.threshold(threshold_bytes);
+            cuda::memory::Pool(cuda::Device(id(), true)).threshold(threshold_bytes);
             #else
             (void) threshold_bytes;
             return;
@@ -56,10 +56,10 @@ namespace noa {
         }
     }
 
-    NOA_IH void Device::memoryTrim(size_t bytes_to_keep) const {
+    inline void Device::memoryTrim(size_t bytes_to_keep) const {
         if (gpu()) {
             #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
-            cuda::memory::Pool{cuda::Device{id(), true}}.trim(bytes_to_keep);
+            cuda::memory::Pool(cuda::Device(id(), true)).trim(bytes_to_keep);
             #else
             (void) bytes_to_keep;
             return;
@@ -67,27 +67,27 @@ namespace noa {
         }
     }
 
-    NOA_IH Device Device::current(Type type) {
+    inline Device Device::current(Type type) {
         if (type == Type::CPU)
             return Device{};
         #ifdef NOA_ENABLE_CUDA
-        return Device{Type::GPU, cuda::Device::current().id(), true};
+        return Device(Type::GPU, cuda::Device::current().id(), true);
         #else
         NOA_THROW("No GPU backend detected");
         #endif
     }
 
-    NOA_IH void Device::current(Device device) {
+    inline void Device::current(Device device) {
         if (device.gpu()) {
             #ifdef NOA_ENABLE_CUDA
-            cuda::Device::current(cuda::Device{device.id(), true});
+            cuda::Device::current(cuda::Device(device.id(), true));
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    NOA_IH size_t Device::count(Type type) {
+    inline size_t Device::count(Type type) {
         if (type == Type::CPU) {
             return 1;
         } else {
@@ -99,13 +99,13 @@ namespace noa {
         }
     }
 
-    NOA_IH bool Device::any(Type type) {
+    inline bool Device::any(Type type) {
         return Device::count(type) != 0;
     }
 
-    NOA_IH std::vector<Device> Device::all(Type type) {
+    inline std::vector<Device> Device::all(Type type) {
         if (type == Type::CPU) {
-            return {Device{Type::CPU}};
+            return {Device(Type::CPU)};
         } else {
             #ifdef NOA_ENABLE_CUDA
             std::vector<Device> devices;
@@ -120,9 +120,9 @@ namespace noa {
         }
     }
 
-    NOA_IH Device Device::mostFree(Type type) {
+    inline Device Device::mostFree(Type type) {
         if (type == Type::CPU) {
-            return {Device{Type::CPU}};
+            return {Device(Type::CPU)};
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::Device most_free = cuda::Device::mostFree();
@@ -133,7 +133,7 @@ namespace noa {
         }
     }
 
-    NOA_IH int Device::parse_(std::string_view str) {
+    inline int Device::parse_(std::string_view str) {
         str = string::trim(string::lower(str));
         const size_t length = str.length();
 
@@ -145,18 +145,18 @@ namespace noa {
             if (length == 3)
                 return 0;
             else if (length >= 5 && str[3] == ':')
-                return string::toInt<int>(std::string{str.data() + 4});
+                return string::toInt<int>(std::string(str.data() + 4));
 
         } else if (string::startsWith(str, "cuda")) {
             if (length == 4)
                 return 0;
             else if (length >= 6 && str[4] == ':')
-                return string::toInt<int>(std::string{str.data() + 5});
+                return string::toInt<int>(std::string(str.data() + 5));
         }
         NOA_THROW("Device type not recognized");
     }
 
-    NOA_IH void Device::validate_(int id) {
+    inline void Device::validate_(int id) {
         if (id == -1)
             return;
         if (id < 0)

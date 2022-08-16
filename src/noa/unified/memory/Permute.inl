@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_TRANSPOSE_
-#error "This is an internal header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/memory/Permute.h"
@@ -12,12 +12,12 @@
 namespace noa::memory {
     template<typename T, typename>
     void permute(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
-        size4_t input_stride = input.strides();
+        size4_t input_strides = input.strides();
         size4_t input_shape = input.shape();
         for (size_t i = 0; i < 4; ++i) {
             const size_t d = permutation[i];
             if (input.shape()[d] == 1 && output.shape()[i] != 1) {
-                input_stride[d] = 0; // broadcast this dimension
+                input_strides[d] = 0; // broadcast this dimension
                 input_shape[d] = output.shape()[i];
             } else if (input.shape()[d] != output.shape()[i]) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -32,12 +32,12 @@ namespace noa::memory {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::permute(input.share(), input_stride, input_shape,
+            cpu::memory::permute(input.share(), input_strides, input_shape,
                                  output.share(), output.strides(),
                                  permutation, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::permute(input.share(), input_stride, input_shape,
+            cuda::memory::permute(input.share(), input_strides, input_shape,
                                   output.share(), output.strides(),
                                   permutation, stream.cuda());
             #else

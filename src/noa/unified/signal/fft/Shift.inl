@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_SHIFT_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/signal/fft/Shift.h"
@@ -16,13 +16,13 @@ namespace noa::signal::fft {
     void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  const Array<float2_t>& shifts, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
+                  "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.strides();
+        size4_t input_strides = input.strides();
         if (!input.empty()) {
-            if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+            if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                           input.shape(), output.shape());
             }
@@ -33,21 +33,22 @@ namespace noa::signal::fft {
                       "In-place remapping is not allowed");
         }
 
-        NOA_CHECK(shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && shifts.contiguous(),
-                  "The input shift(s) should be entered as a 1D contiguous row vector, with one shift per output batch, "
+        NOA_CHECK(shifts.shape().elements() == output.shape()[0] &&
+                  indexing::isVector(shifts.shape()) && shifts.contiguous(),
+                  "The input shift(s) should be entered as a 1D contiguous vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            NOA_CHECK(shifts.dereferencable(), "The shifts should be accessible by the CPU");
+            NOA_CHECK(shifts.dereferenceable(), "The shifts should be accessible by the CPU");
             cpu::signal::fft::shift2D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift2D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cuda());
             #else
@@ -60,13 +61,13 @@ namespace noa::signal::fft {
     void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  float2_t shift, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
+                  "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.strides();
+        size4_t input_strides = input.strides();
         if (!input.empty()) {
-            if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+            if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                           input.shape(), output.shape());
             }
@@ -80,13 +81,13 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::fft::shift2D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift2D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shift, cutoff, stream.cuda());
             #else
@@ -99,13 +100,13 @@ namespace noa::signal::fft {
     void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  const Array<float3_t>& shifts, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
+                  "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.strides();
+        size4_t input_strides = input.strides();
         if (!input.empty()) {
-            if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+            if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                           input.shape(), output.shape());
             }
@@ -116,21 +117,22 @@ namespace noa::signal::fft {
                       "In-place remapping is not allowed");
         }
 
-        NOA_CHECK(shifts.shape()[3] == output.shape()[0] && shifts.shape().ndim() == 1 && shifts.contiguous(),
-                  "The input shift(s) should be entered as a 1D contiguous row vector, with one shift per output batch, "
+        NOA_CHECK(shifts.shape().elements() == output.shape()[0] &&
+                  indexing::isVector(shifts.shape()) && shifts.contiguous(),
+                  "The input shift(s) should be entered as a 1D contiguous vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            NOA_CHECK(shifts.dereferencable(), "The matrices should be accessible to the host");
+            NOA_CHECK(shifts.dereferenceable(), "The matrices should be accessible to the host");
             cpu::signal::fft::shift3D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift3D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shifts.share(), cutoff, stream.cuda());
             #else
@@ -143,13 +145,13 @@ namespace noa::signal::fft {
     void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                  float3_t shift, float cutoff) {
         NOA_CHECK(all(output.shape() == shape.fft()),
-                  "The non-redundant FFT with a shape of [logical:{}, pitch:{}] is expected, but got pitch of {}",
+                  "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_stride = input.strides();
+        size4_t input_strides = input.strides();
         if (!input.empty()) {
-            if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+            if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                           input.shape(), output.shape());
             }
@@ -163,13 +165,13 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::signal::fft::shift3D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shift, cutoff, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::shift3D<REMAP>(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(), shape,
                     shift, cutoff, stream.cuda());
             #else

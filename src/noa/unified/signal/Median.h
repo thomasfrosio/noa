@@ -14,10 +14,10 @@ namespace noa::signal {
     /// \param[in] input    Array to filter.
     /// \param[out] output  Filtered array. Should not overlap with \p input.
     /// \param window_size  Number of elements to consider for the computation of the median.
-    ///                     This corresponds to the innermost dimension.
+    ///                     This corresponds to the width dimension.
     ///                     Only odd numbers are supported. On the GPU, this is limited to 21.
     /// \param border_mode  Border mode used for the "implicit padding". Either BORDER_ZERO or BORDER_REFLECT.
-    ///                     With BORDER_REFLECT, the innermost dimension should be >= than ``window_size/2 + 1``.
+    ///                     With BORDER_REFLECT, the width should be >= than ``window_size/2 + 1``.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median1(const Array<T>& input, const Array<T>& output,
                  size_t window_size, BorderMode border_mode = BORDER_REFLECT);
@@ -27,10 +27,10 @@ namespace noa::signal {
     /// \param[in] input    Array to filter.
     /// \param[out] output  Filtered array. Should not overlap with \p input.
     /// \param window_size  Number of elements to consider for the computation of the median, for each dimension.
-    ///                     This corresponds to the second and innermost dimension.
+    ///                     This corresponds to the height and width dimension.
     ///                     Only odd numbers are supported. On the GPU, this is limited to 11.
     /// \param border_mode  Border mode used for the "implicit padding". Either BORDER_ZERO or BORDER_REFLECT.
-    ///                     With BORDER_REFLECT, the second and innermost dimensions should be >= than ``window_size/2 + 1``.
+    ///                     With BORDER_REFLECT, the height and width should be >= than ``window_size/2 + 1``.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median2(const Array<T>& input, const Array<T>& output,
                  size_t window_size, BorderMode border_mode = BORDER_REFLECT);
@@ -40,10 +40,10 @@ namespace noa::signal {
     /// \param[in] input    Array to filter.
     /// \param[out] output  Filtered array. Should not overlap with \p input.
     /// \param window_size  Number of elements to consider for the computation of the median, for each dimension.
-    ///                     This corresponds to the 3 innermost dimensions.
+    ///                     This corresponds to the depth, height and width dimensions.
     ///                     Only odd numbers are supported. On the GPU, this is limited to 5.
     /// \param border_mode  Border mode used for the "implicit padding". Either BORDER_ZERO or BORDER_REFLECT.
-    ///                     With BORDER_REFLECT, each of the 3 innermost dimension should be >= than ``window_size/2 + 1``.
+    ///                     With BORDER_REFLECT, the depth, height and width should be >= than ``window_size/2 + 1``.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median3(const Array<T>& input, const Array<T>& output,
                  size_t window_size, BorderMode border_mode = BORDER_REFLECT);

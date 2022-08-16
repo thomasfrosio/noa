@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_EWISE_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/math/Ewise.h"

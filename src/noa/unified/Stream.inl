@@ -1,20 +1,20 @@
 #ifndef NOA_UNIFIED_STREAM_
-#error "Implementation header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 namespace noa {
     template<typename T>
-    NOA_IH void* Stream::StreamModel<T>::addr() noexcept {
+    inline void* Stream::StreamModel<T>::addr() noexcept {
         return &stream;
     }
 
     template<typename T>
-    NOA_IH const void* Stream::StreamModel<T>::addr() const noexcept {
+    inline const void* Stream::StreamModel<T>::addr() const noexcept {
         return &stream;
     }
 
     template<typename T>
-    NOA_IH void Stream::StreamModel<T>::synchronize() {
+    inline void Stream::StreamModel<T>::synchronize() {
         if constexpr (std::is_same_v<T, cpu::Stream>)
             stream.synchronize();
         else {
@@ -25,7 +25,7 @@ namespace noa {
     }
 
     template<typename T>
-    NOA_IH bool Stream::StreamModel<T>::busy() {
+    inline bool Stream::StreamModel<T>::busy() {
         if constexpr (std::is_same_v<T, cpu::Stream>)
             return stream.busy();
         else {
@@ -39,17 +39,17 @@ namespace noa {
 
 namespace noa {
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamConcept* Stream::StreamStorage<N, A>::stream() noexcept {
+    inline Stream::StreamConcept* Stream::StreamStorage<N, A>::stream() noexcept {
         return reinterpret_cast<StreamConcept*>(&storage);
     }
 
     template<size_t N, size_t A>
-    NOA_IH const Stream::StreamConcept* Stream::StreamStorage<N, A>::stream() const noexcept {
+    inline const Stream::StreamConcept* Stream::StreamStorage<N, A>::stream() const noexcept {
         return reinterpret_cast<const StreamConcept*>(&storage);
     }
 
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamStorage<N, A>::StreamStorage(const Stream::StreamStorage<N, A>& src) {
+    inline Stream::StreamStorage<N, A>::StreamStorage(const Stream::StreamStorage<N, A>& src) {
         if (!src.is_allocated)
             return;
 
@@ -68,7 +68,7 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamStorage<N, A>::StreamStorage(Stream::StreamStorage<N, A>&& src) noexcept {
+    inline Stream::StreamStorage<N, A>::StreamStorage(Stream::StreamStorage<N, A>&& src) noexcept {
         if (src.is_allocated) {
             std::copy(src.storage, src.storage + N, storage);
             src.is_allocated = false;
@@ -77,7 +77,7 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamStorage<N, A>&
+    inline Stream::StreamStorage<N, A>&
     Stream::StreamStorage<N, A>::operator=(const Stream::StreamStorage<N, A>& src) {
         if (this != &src)
             *this = StreamStorage(src); // move
@@ -85,7 +85,7 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamStorage<N, A>&
+    inline Stream::StreamStorage<N, A>&
     Stream::StreamStorage<N, A>::operator=(Stream::StreamStorage<N, A>&& src) noexcept {
         if (this != &src) {
             clear();
@@ -100,7 +100,7 @@ namespace noa {
 
     template<size_t N, size_t A>
     template<typename T, typename... Args>
-    NOA_IH void Stream::StreamStorage<N, A>::emplace(Args&& ... args) {
+    inline void Stream::StreamStorage<N, A>::emplace(Args&& ... args) {
         static_assert(sizeof(T) <= N);
         static_assert(alignof(T) <= A);
         clear();
@@ -109,7 +109,7 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
-    NOA_IH void Stream::StreamStorage<N, A>::clear() noexcept {
+    inline void Stream::StreamStorage<N, A>::clear() noexcept {
         if (is_allocated) {
             stream()->~StreamConcept();
             is_allocated = false;
@@ -117,13 +117,13 @@ namespace noa {
     }
 
     template<size_t N, size_t A>
-    NOA_IH Stream::StreamStorage<N, A>::StreamStorage::~StreamStorage() {
+    inline Stream::StreamStorage<N, A>::StreamStorage::~StreamStorage() {
         clear();
     }
 }
 
 namespace noa {
-    NOA_IH Stream::Stream(Device device, Mode mode) : m_device(device) {
+    inline Stream::Stream(Device device, Mode mode) : m_device(device) {
         if (m_device.cpu()) {
             const auto cpu_mode = mode == Stream::Mode::ASYNC ? cpu::Stream::ASYNC : cpu::Stream::DEFAULT;
             m_storage.emplace<StreamModel<cpu::Stream>>(cpu::Stream(cpu_mode));
@@ -139,23 +139,23 @@ namespace noa {
     }
 
     template<typename T, typename>
-    NOA_IH Stream::Stream(T&& stream) {
+    inline Stream::Stream(T&& stream) {
         m_storage.emplace<StreamModel<T>>(std::forward<T>(stream));
     }
 
-    NOA_IH void Stream::synchronize() {
+    inline void Stream::synchronize() {
         m_storage.stream()->synchronize();
     }
 
-    NOA_IH bool Stream::busy() {
+    inline bool Stream::busy() {
         return m_storage.stream()->busy();
     }
 
-    NOA_IH Device Stream::device() const noexcept {
+    inline Device Stream::device() const noexcept {
         return m_device;
     }
 
-    NOA_IH cpu::Stream& Stream::cpu() {
+    inline cpu::Stream& Stream::cpu() {
         if (!m_device.cpu())
             NOA_THROW("The stream is not a CPU stream");
 
@@ -164,7 +164,7 @@ namespace noa {
         return *reinterpret_cast<cpu::Stream*>(d->addr());
     }
 
-    NOA_IH gpu::Stream& Stream::gpu() {
+    inline gpu::Stream& Stream::gpu() {
         #ifdef NOA_ENABLE_CUDA
         return cuda();
         #else
@@ -172,7 +172,7 @@ namespace noa {
         #endif
     }
 
-    NOA_IH cuda::Stream& Stream::cuda() {
+    inline cuda::Stream& Stream::cuda() {
         if (!m_device.gpu())
             NOA_THROW("The stream is not a GPU stream");
 

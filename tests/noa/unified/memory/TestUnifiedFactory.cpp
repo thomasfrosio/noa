@@ -17,9 +17,9 @@ TEMPLATE_TEST_CASE("unified::memory::arange()", "[noa][unified]",
     const size4_t shape = test::getRandomShapeBatched(3);
     const size_t elements = shape.elements();
 
-    Array<TestType> results = memory::arange(shape, start, step, {Device{type}, Allocator::MANAGED});
+    Array<TestType> results = memory::arange(shape, start, step, {Device(type), Allocator::MANAGED});
 
-    cpu::memory::PtrHost<TestType> expected{elements};
+    cpu::memory::PtrHost<TestType> expected(elements);
     cpu::memory::arange(expected.get(), elements, start, step);
 
     results.eval();
@@ -37,9 +37,9 @@ TEST_CASE("unified::memory::linspace()", "[noa][unified]") {
     const size4_t shape = test::getRandomShapeBatched(3);
     const size_t elements = shape.elements();
 
-    Array<double> results = memory::linspace(shape, start, stop, endpoint, {Device{type}, Allocator::MANAGED});
+    Array<double> results = memory::linspace(shape, start, stop, endpoint, {Device(type), Allocator::MANAGED});
 
-    cpu::memory::PtrHost<double> expected{elements};
+    cpu::memory::PtrHost<double> expected(elements);
     cpu::memory::linspace(expected.get(), elements, start, stop, endpoint);
 
     results.eval();
@@ -53,18 +53,18 @@ TEMPLATE_TEST_CASE("unified::memory::{zeros|ones|fill}()", "[noa][unified]",
         return;
 
     const size4_t shape = test::getRandomShapeBatched(3);
-    const ArrayOption options{Device{type}, Allocator::MANAGED};
+    const ArrayOption options{Device(type), Allocator::MANAGED};
     Array<TestType> results;
 
     results = memory::zeros<TestType>(shape, options);
     results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), TestType{0}, shape.elements(), 1e-6));
+    REQUIRE(test::Matcher(test::MATCH_ABS, results, TestType{0}, 1e-6));
 
     results = memory::ones<TestType>(shape, options);
     results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), TestType{1}, shape.elements(), 1e-6));
+    REQUIRE(test::Matcher(test::MATCH_ABS, results, TestType{1}, 1e-6));
 
     results = memory::fill(shape, TestType{5}, options);
     results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), TestType{5}, shape.elements(), 1e-6));
+    REQUIRE(test::Matcher(test::MATCH_ABS, results, TestType{5}, 1e-6));
 }

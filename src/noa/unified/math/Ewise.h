@@ -37,7 +37,7 @@ namespace noa::math {
     /// \note On the GPU, supported operators and types are limited to the following list:
     ///     Integers:
     ///       - (plus|minus|multiply|divide|divide_safe|dist2|min|max)_t(A,A) -> A
-    ///       - (equal|not_equal|less|less_equal|greater|greater_equal|modulo_t|logical_and|logical_or)_t(A,A) -> A
+    ///       - (equal|not_equal|less|less_equal|greater|greater_equal|modulo|logical_and|logical_or)_t(A,A) -> A
     ///       - (equal|not_equal|less|less_equal|greater|greater_equal|logical_and|logical_not)_t(A,A) -> bool
     ///     Floating-points:
     ///       - (plus|minus|multiply|divide|divide_safe|dist2|min|max)_t(B,B) -> B

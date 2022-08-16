@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_REMAP_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/fft/Remap.h"
@@ -48,7 +48,7 @@ namespace noa::fft {
     Array<T> remap(Remap remap, const Array<T>& input, size4_t shape) {
         using enum_t = std::underlying_type_t<Layout>;
         const size4_t output_shape = static_cast<enum_t>(remap) & Layout::DST_FULL ? shape : shape.fft();
-        Array<T> output(shape, input.options());
+        Array<T> output(output_shape, input.options());
         remap(remap, input, output, shape);
         return output;
     }

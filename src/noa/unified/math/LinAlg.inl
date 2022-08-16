@@ -1,3 +1,7 @@
+#ifndef NOA_UNIFIED_LINALG_
+#error "This is an internal header. Include the corresponding .h file instead"
+#endif
+
 #include "noa/cpu/math/LinAlg.h"
 #include "noa/unified/Array.h"
 #include "noa/unified/memory/Copy.h"
@@ -34,8 +38,11 @@ namespace noa::math {
             // No need to preserve b since it is equal to the solution matrix. Just make sure it can fit the
             // solution matrix and has same layout as a. Allow x to have the same shape as b, so that the user
             // doesn't have to extract the NxK b just for this call.
-            NOA_CHECK(indexing::isRowMajor(b.strides()) == is_row_major, "");
-            NOA_CHECK(b.shape()[2] == mn_max, "");
+            NOA_CHECK(indexing::isRowMajor(b.strides()) == is_row_major,
+                      "The matrix b should have the same layout as the matrix a");
+            NOA_CHECK(b.shape()[2] == mn_max,
+                      "Given the {}-by-{} matrix a, the number of rows in the matrix b should be {} or {} but got {}",
+                      m, n, m, n, b.shape()[2]);
             const int ldb = b.strides()[2 + !is_row_major];
             NOA_CHECK(is_row_major ?
                       (ldb >= nrhs && b.strides()[3] == 1) :
@@ -43,7 +50,6 @@ namespace noa::math {
                       "The matrix b should be contiguous in its innermost dimension, and contiguous or padded in "
                       "its second-most dimension, but got stride {}", b.strides());
 
-            // TODO Check that x strides' are compatible with b?
             tmp_b = b;
         } else {
             NOA_CHECK(b.shape()[2] == m,
@@ -67,14 +73,15 @@ namespace noa::math {
                   "Given the {}-by-{} matrix a and {}-by-{} matrix b, the solution matrix x "
                   "should be a {}-by-{} matrix but got a {}-by-{} matrix",
                   m, n, m, nrhs, n, nrhs, x.shape()[2], x.shape()[3]);
-        NOA_CHECK(indexing::isRowMajor(x.strides()) == is_row_major, "");
+        NOA_CHECK(indexing::isRowMajor(x.strides()) == is_row_major,
+                  "The matrix x should have the same layout as the matrix a");
 
         if (!svd.empty()) {
             const int mn_min = std::min(m, n);
             NOA_CHECK(a.shape()[0] == svd.shape()[0],
                       "The number of batches does not match, got a:{} and svd:{}",
                       a.shape()[0], svd.shape()[0]);
-            NOA_CHECK(indexing::isVector(svd.shape(), true) && all(svd.contiguous()),
+            NOA_CHECK(indexing::isVector(svd.shape(), true) && svd.contiguous(),
                       "The output singular values should be a contiguous (batched) vector, "
                       "but got shape:{} and stride:{}", svd.shape(), svd.strides());
             NOA_CHECK(size3_t{svd.shape().get(1)}.elements() == mn_min,
@@ -103,7 +110,6 @@ namespace noa::math {
     void surface(const Array<T>& input, int order,
                  const Array<T>& output, bool subtract,
                  const Array<T>& parameters) {
-
         NOA_CHECK(!input.empty(), "");
         const Device device = input.device();
 

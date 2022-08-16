@@ -16,6 +16,8 @@ namespace noa::math {
     /// \tparam U       Any scalar type. If \p T is complex, \p U can be complex.
     /// \param output   Array to randomize.
     /// \param min, max Minimum and maximum value of the uniform range.
+    /// \note If \p T is complex and \p U is real, \p output is reinterpreted to the corresponding
+    ///       real type array, requiring its innermost dimension to be contiguous.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
     void randomize(noa::math::uniform_t, const Array<T>& output, U min, U max);
 
@@ -24,6 +26,8 @@ namespace noa::math {
     /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param output       Array to randomize.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
+    /// \note If \p T is complex and \p U is real, \p output is reinterpreted to the corresponding
+    ///       real type array, requiring its innermost dimension to be contiguous.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
     void randomize(noa::math::normal_t, const Array<T>& output, U mean = U{0}, U stddev = U{1});
 
@@ -32,6 +36,8 @@ namespace noa::math {
     /// \tparam U           Any scalar type. If \p T is complex, \p U can be complex.
     /// \param output       Array to randomize.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
+    /// \note If \p T is complex and \p U is real, \p output is reinterpreted to the corresponding
+    ///       real type array, requiring its innermost dimension to be contiguous.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
     void randomize(noa::math::log_normal_t, const Array<T>& output, U mean = U{0}, U stddev = U{1});
 
@@ -39,6 +45,8 @@ namespace noa::math {
     /// \tparam T       Any data type.
     /// \param output   Array to randomize.
     /// \param lambda   Mean value of the poisson range.
+    /// \note If \p T is complex, \p output is reinterpreted to the corresponding
+    ///       real type array, requiring its innermost dimension to be contiguous.
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
     void randomize(noa::math::poisson_t, const Array<T>& output, float lambda);
 }

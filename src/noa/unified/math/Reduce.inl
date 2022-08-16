@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_REDUCE_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/math/Reduce.h"
@@ -70,45 +70,45 @@ namespace noa::math {
         }
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    U var(const Array<T>& array) {
+    template<typename T, typename>
+    auto var(const Array<T>& array, int ddof) {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::var<DDOF>(array.share(), array.strides(), array.shape(), stream.cpu());
+            return cpu::math::var(array.share(), array.strides(), array.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::var<DDOF>(array.share(), array.strides(), array.shape(), stream.cuda());
+            return cuda::math::var(array.share(), array.strides(), array.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<int DDOF, typename T, typename U , typename>
-    U std(const Array<T>& array) {
+    template<typename T, typename>
+    auto std(const Array<T>& array, int ddof) {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::std<DDOF>(array.share(), array.strides(), array.shape(), stream.cpu());
+            return cpu::math::std(array.share(), array.strides(), array.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::std<DDOF>(array.share(), array.strides(), array.shape(), stream.cuda());
+            return cuda::math::std(array.share(), array.strides(), array.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    std::tuple<T, T, U, U> statistics(const Array<T>& array) {
+    template<typename T, typename>
+    auto statistics(const Array<T>& array, int ddof) {
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            return cpu::math::statistics<DDOF>(array.share(), array.strides(), array.shape(), stream.cpu());
+            return cpu::math::statistics(array.share(), array.strides(), array.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::statistics<DDOF>(array.share(), array.strides(), array.shape(), stream.cuda());
+            return cuda::math::statistics(array.share(), array.strides(), array.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -218,8 +218,8 @@ namespace noa::math {
         }
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    void var(const Array<T>& input, const Array<T>& output) {
+    template<typename T, typename U, typename>
+    void var(const Array<T>& input, const Array<U>& output, int ddof) {
         const Device device = output.device();
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
@@ -228,23 +228,23 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::var<DDOF>(input.share(), input.strides(), input.shape(),
-                                 output.share(), output.strides(), output.shape(), stream.cpu());
+            cpu::math::var(input.share(), input.strides(), input.shape(),
+                           output.share(), output.strides(), output.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::var<DDOF>(input.share(), input.strides(), input.shape(),
-                                  output.share(), output.strides(), output.shape(), stream.cuda());
+            cuda::math::var(input.share(), input.strides(), input.shape(),
+                            output.share(), output.strides(), output.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<int DDOF, typename T, typename U, typename>
-    void std(const Array<T>& input, const Array<T>& output) {
+    template<typename T, typename U, typename>
+    void std(const Array<T>& input, const Array<U>& output, int ddof) {
         const Device device = output.device();
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
@@ -253,15 +253,15 @@ namespace noa::math {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cpu::math::std<DDOF>(input.share(), input.strides(), input.shape(),
-                                 output.share(), output.strides(), output.shape(), stream.cpu());
+            cpu::math::std(input.share(), input.strides(), input.shape(),
+                           output.share(), output.strides(), output.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_CHECK(device == input.device() || all(size3_t{output.shape().get() + 1} == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       input.device(), device);
-            cuda::math::std<DDOF>(input.share(), input.strides(), input.shape(),
-                                  output.share(), output.strides(), output.shape(), stream.cuda());
+            cuda::math::std(input.share(), input.strides(), input.shape(),
+                            output.share(), output.strides(), output.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

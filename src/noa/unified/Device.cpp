@@ -13,10 +13,10 @@ namespace noa {
 
     void Device::reset() const {
         synchronize();
-        Stream stream{*this, Stream::DEFAULT};
+        Stream stream(*this, Stream::DEFAULT);
         Stream::current(stream);
 
-        if (this->cpu()) {
+        if (cpu()) {
             cpu::Device::reset();
         } else {
             #ifdef NOA_ENABLE_CUDA

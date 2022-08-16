@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_BLAS_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/math/Blas.h"
@@ -10,11 +10,6 @@
 #endif
 
 namespace noa::math {
-    /// Returns the vector-vector dot product.
-    /// \tparam T       (u)int32_t, (u)int64_t, float, double, cfloat_t and cdouble_t.
-    /// \param[in] lhs  Unbatched row or column vector.
-    /// \param[in] rhs  Unbatched row or column vector.
-    /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename T, typename>
     T dot(const Array<T>& lhs, const Array<T>& rhs) {
         NOA_CHECK(lhs.shape().ndim() <= 2 && rhs.shape().ndim() <= 2,
@@ -52,14 +47,15 @@ namespace noa::math {
                   "The input vectors don't have the same number of elements. Got lhs:{} and rhs:{}",
                   lhs.shape()[2] * lhs.shape()[3], rhs.shape()[2] * rhs.shape()[3]);
 
-        NOA_CHECK(indexing::isVector(output.shape()) && all(output.contiguous()),
+        NOA_CHECK(indexing::isVector(output.shape()) && output.contiguous(),
                   "The output should be a contiguous vector, but got shape {} and stride {}",
                   output.shape(), output.strides());
 
         const size_t batches = output.shape().elements();
-        size4_t lhs_stride = lhs.strides(), rhs_stride = rhs.strides();
+        size4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape()[0], lhs_stride[0], batches))
             NOA_THROW("Cannot broadcast a size of {} into a size of {}", lhs.shape()[0], batches);
+        size4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape()[0], rhs_stride[0], batches))
             NOA_THROW("Cannot broadcast a size of {} into a size of {}", rhs.shape()[0], batches);
 
@@ -73,7 +69,7 @@ namespace noa::math {
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            NOA_CHECK(output.dereferencable(), "The output should be accessible to the CPU");
+            NOA_CHECK(output.dereferenceable(), "The output should be accessible to the CPU");
             cpu::math::dot(lhs.share(), lhs_stride, lhs.shape(),
                            rhs.share(), rhs_stride, rhs.shape(),
                            output.share(), stream.cpu());
@@ -96,15 +92,22 @@ namespace noa::math {
     template<typename T, typename>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose) {
-        NOA_CHECK(lhs.strides()[3] == 1 && lhs.strides()[2] >= lhs.shape()[3],
+        [[maybe_unused]] const bool is_col = indexing::isColMajor(lhs.strides());
+        NOA_CHECK(is_col == indexing::isColMajor(rhs.strides()) &&
+                  is_col == indexing::isColMajor(output.strides()),
+                  "All matrices should either be row-major or column-major");
+
+        [[maybe_unused]] const int innermost = 3 - is_col;
+        [[maybe_unused]] const int secondmost = 2 + is_col;
+        NOA_CHECK(lhs.strides()[innermost] == 1 && lhs.strides()[secondmost] >= lhs.shape()[innermost],
                   "The innermost dimension of the left-hand side should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
                   lhs.shape(), lhs.strides());
-        NOA_CHECK(rhs.strides()[3] == 1 && rhs.strides()[2] >= rhs.shape()[3],
+        NOA_CHECK(rhs.strides()[innermost] == 1 && rhs.strides()[secondmost] >= rhs.shape()[innermost],
                   "The innermost dimension of the right-hand side should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
                   rhs.shape(), rhs.strides());
-        NOA_CHECK(output.strides()[3] == 1 && output.strides()[2] >= output.shape()[3],
+        NOA_CHECK(output.strides()[innermost] == 1 && output.strides()[secondmost] >= output.shape()[innermost],
                   "The innermost dimension of the output should be contiguous and "
                   "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
                   output.shape(), output.strides());

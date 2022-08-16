@@ -25,26 +25,25 @@ TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", int32_t, float,
     if (ndim == 2 && !(all(permutation == uint4_t{0, 1, 2, 3}) || all(permutation == uint4_t{0, 1, 3, 2})))
         return; // while this is technically OK, it doesn't make much sense to test these...
 
-    StreamGuard stream{Device{}, Stream::DEFAULT};
+    StreamGuard stream(Device{}, Stream::DEFAULT);
     Array<TestType> data = math::random<TestType>(math::uniform_t{}, shape, -5, 5);
-    Array<TestType> expected{permuted_shape};
+    Array<TestType> expected(permuted_shape);
 
     cpu::memory::permute<TestType>(data.share(), data.strides(), data.shape(),
-                                     expected.share(), expected.strides(), permutation, stream.cpu());
+                                   expected.share(), expected.strides(), permutation, stream.cpu());
 
     {
-        Array<TestType> result{permuted_shape};
+        Array<TestType> result(permuted_shape);
         memory::permute(data, result, permutation);
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), permuted_shape.elements(), 1e-8));
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected, result, 1e-8));
     }
 
     {
         if (!Device::any(Device::GPU))
             return;
-        Array<TestType> result{permuted_shape, ArrayOption{Device{"gpu"}, Allocator::MANAGED}};
+        Array<TestType> result(permuted_shape, ArrayOption{Device("gpu"), Allocator::MANAGED});
         memory::permute(data.to(result.device()), result, permutation);
-        result.eval();
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result.get(), permuted_shape.elements(), 1e-8));
+        REQUIRE(test::Matcher(test::MATCH_ABS, expected, result, 1e-8));
     }
 }
 
@@ -60,26 +59,25 @@ TEST_CASE("unified::memory::permute, broadcast", "[noa][unified]") {
     const size4_t shape{1, 20, 50, 60};
     const size4_t permuted_shape = indexing::reorder(shape, permutation);
 
-    std::vector<Device> devices = {Device{"cpu"}};
+    std::vector<Device> devices = {Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
         INFO(device);
-        StreamGuard stream{device, Stream::DEFAULT};
-        ArrayOption options{device, Allocator::MANAGED};
+        StreamGuard stream(device, Stream::DEFAULT);
+        ArrayOption options(device, Allocator::MANAGED);
 
-        Array<float> result0{permuted_shape, options};
-        Array<float> result1{permuted_shape, options};
+        Array<float> result0(permuted_shape, options);
+        Array<float> result1(permuted_shape, options);
 
         Array<float> data0 = memory::arange<float>({1, 1, 50, 60}, 0, 1, options);
-        Array<float> data1{{1, 20, 50, 60}, options};
+        Array<float> data1({1, 20, 50, 60}, options);
         memory::copy(data0, data1);
 
         memory::permute(data0, result0, permutation);
         memory::permute(data1, result1, permutation);
-        result1.eval();
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, result0.get(), result1.get(), permuted_shape.elements(), 1e-8));
+        REQUIRE(test::Matcher(test::MATCH_ABS, result0, result1, 1e-8));
     }
 }

@@ -34,7 +34,7 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<typename T, typename U, typename BinaryOp, typename = std::enable_if_t<noa::traits::is_data_v<U>>>
+    template<typename T, typename U, typename BinaryOp, typename = std::enable_if_t<traits::is_data_v<U>>>
     void arrayAssign(const Array<T>& lhs, U rhs, BinaryOp binary_op);
 
     template<typename T, typename U, typename BinaryOp>
@@ -44,7 +44,7 @@ namespace noa::details {
 namespace noa {
     /// 4-dimensional array of any data type.
     /// \details
-    /// - \b Type: Arrays are usually managing data type, i.e. integers, floating-points or complex floating-points.
+    /// - \b Type: Arrays are usually managing "data" types, i.e. integers, floating-points or complex floating-points.
     ///   However, other types are supported, namely, small static vectors (e.g. float4_t) or static matrices
     ///   (e.g. float33_t). Array of such composite types are limited to be simple containers (e.g. arithmetics are
     ///   not supported). The managed type cannot be const-qualified, nor can it be a reference, a pointer or an extent.\n
@@ -65,10 +65,11 @@ namespace noa {
     ///       stream was changed), one must make sure that stream-ordering is respected by synchronizing this stream
     ///       before calling the function. Note that if the arrays are on different devices, the implementation will
     ///       make sure that stream-ordering is respected.\n
-    /// - \b Shape: Shape and strides are in number of elements and specified in the rightmost order (from outermost
-    ///   to innermost). Empty dimensions have a size of 1. If one dimension is 0, the entire array is considered empty.
-    ///   Arrays can be broadcast to another shape and they follow the broadcasting rule (see indexing::broadcast()).
-    ///   As such, some arrays can have dimensions with a stride of 0. Negative strides are not supported.
+    /// - \b Shape: Shape and strides are in number of elements and specified in the BDHW order (from left to right).
+    ///   While column-major ordering is supported, row-major ordering is recommended. Empty dimensions have a size
+    ///   of 1. If one dimension is 0, the entire array is considered empty. Arrays can be broadcast to another shape
+    ///   and they follow the broadcasting rule (see indexing::broadcast()). As such, some arrays can have dimensions
+    ///   with a stride of 0. Negative strides are not supported.
     template<typename T>
     class Array {
     public: // typedefs
@@ -81,16 +82,16 @@ namespace noa {
         static_assert(!std::is_const_v<T>);
         static_assert(!std::is_pointer_v<T>);
         static_assert(!std::is_reference_v<T>);
-        static_assert(noa::traits::is_data_v<T> ||
-                      noa::traits::is_intX_v<T> ||
-                      noa::traits::is_floatX_v<T> ||
-                      noa::traits::is_floatXX_v<T>);
+        static_assert(traits::is_data_v<T> ||
+                      traits::is_intX_v<T> ||
+                      traits::is_floatX_v<T> ||
+                      traits::is_floatXX_v<T>);
 
         template<typename U>
         static constexpr bool is_indexable_v =
-                std::bool_constant<noa::traits::is_int_v<U> ||
-                                   noa::traits::is_almost_same_v<U, indexing::full_extent_t> ||
-                                   noa::traits::is_almost_same_v<U, indexing::slice_t>>::value;
+                std::bool_constant<traits::is_int_v<U> ||
+                                   traits::is_almost_same_v<U, indexing::full_extent_t> ||
+                                   traits::is_almost_same_v<U, indexing::slice_t>>::value;
 
     public: // Constructors
         /// Creates an empty array.
@@ -103,7 +104,7 @@ namespace noa {
         constexpr explicit Array(size_t elements, ArrayOption option = {});
 
         /// Creates a contiguous array.
-        /// \param shape    Rightmost shape of the array.
+        /// \param shape    BDHW shape of the array.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
         constexpr explicit Array(size4_t shape, ArrayOption option = {});
@@ -116,8 +117,8 @@ namespace noa {
 
         /// Creates a non-owning array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
-        /// \param shape        Rightmost shape of \p data.
-        /// \param stride       Rightmost stride of \p data.
+        /// \param shape        BDHW shape of \p data.
+        /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
         constexpr Array(T* data, size4_t shape, size4_t stride, ArrayOption option = {});
 
@@ -129,10 +130,10 @@ namespace noa {
 
         /// Creates an array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
-        /// \param shape        Rightmost shape of \p data.
-        /// \param stride       Rightmost stride of \p data.
+        /// \param shape        BDHW shape of \p data.
+        /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
-        constexpr Array(shared_t<T[]> data, size4_t shape, size4_t stride, ArrayOption option = {});
+        constexpr Array(shared_t<T[]> data, size4_t shape, size4_t strides, ArrayOption option = {});
 
     public: // Getters
         /// Returns the options used to create the array.
@@ -150,19 +151,20 @@ namespace noa {
         ///       device type. For instance, pinned memory can be dereferenced by the CPU, so this function will
         ///       returned true, but if the Array's device is a GPU, the implementations will refer to this Array
         ///       as a GPU array and will therefore prioritizing GPU access.
-        [[nodiscard]] constexpr bool dereferencable() const noexcept;
+        [[nodiscard]] constexpr bool dereferenceable() const noexcept;
 
         /// Whether the array is empty.
         [[nodiscard]] bool empty() const noexcept;
 
-        /// Returns the rightmost shape of the array.
+        /// Returns the BDHW shape of the array.
         [[nodiscard]] const size4_t& shape() const noexcept;
 
-        /// Returns the rightmost stride of the array.
+        /// Returns the BDHW strides of the array.
         [[nodiscard]] const size4_t& strides() const noexcept;
 
-        /// Whether the dimensions of the array are contiguous.
-        [[nodiscard]] bool4_t contiguous() const noexcept;
+        /// Whether the dimensions of the array are C or F contiguous.
+        template<char ORDER = 'C'>
+        [[nodiscard]] bool contiguous() const noexcept;
 
     public: // Accessors
         /// Returns the pointer to the data.
@@ -186,16 +188,16 @@ namespace noa {
     public: // Deep copy
         /// Performs a deep copy of the array to \p output.
         /// \details Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
-        ///          also true for pitched layouts. However, other non-contiguous memory layouts can only be copied
-        ///          if the source and destination are both on the same device.
-        /// \param[out] output  Destination. It should not overlap with \p input.
+        ///          also true for pitched layouts and colum or row vectors. However, other non-contiguous memory
+        ///          layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
+        /// \param[out] output  Destination. It should not overlap with *this.
         void to(const Array& output) const;
 
         /// Performs a deep copy of the array according \p option.
-        /// \details The returned array is completely independent from the original one and is contiguous.
+        /// \details The returned array is completely independent from the original one and is C-contiguous.
         ///          Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
-        ///          also true for pitched layouts. However, other non-contiguous memory layouts can only be copied
-        ///          if the source and destination are both on the same GPU or on the CPU.
+        ///          also true for pitched layouts and colum or row vectors. However, other non-contiguous memory
+        ///          layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param option   Output device and resource to perform the allocation of the new array.
         ///                 The current stream for that device is used to perform the copy.
         Array to(ArrayOption option) const;
@@ -220,15 +222,15 @@ namespace noa {
 
         /// Reshapes the array.
         /// \details This function performs a "safe" reshape by making sure the new shape contains the same number
-        ///          of elements. If one wants to assign an array to an arbitrary new shape and new stride, one
+        ///          of elements. If one wants to assign an array to an arbitrary new shape and new strides, one
         ///          can use the alias Array constructor instead.
-        /// \param shape Rightmost shape. Must contain the same number of elements as the current shape.
-        /// \return An alias of the array with the new shape and stride.
+        /// \param shape    New shape. Must contain the same number of elements as the current shape.
+        /// \return An alias of the array with the new shape and strides.
         Array reshape(size4_t shape) const;
 
         /// Permutes the array.
-        /// \param permutation  Rightmost permutation. Axes are numbered from 0 to 3, 3 being the innermost dimension.
-        /// \param copy         Whether the permuted array should be copied into a contiguous array, completely
+        /// \param permutation  Permutation with the axes numbered from 0 to 3.
+        /// \param copy         Whether the permuted array should be copied into a C-contiguous array, completely
         ///                     independent from the original one.
         /// \return The permuted array. If \p copy is false, this new array is an alias from the original array.
         Array permute(uint4_t permutation, bool copy = false) const;
@@ -281,7 +283,6 @@ namespace noa {
         Array& operator/=(U value);
 
     public: // Subregion
-        /// Extracts a subregion (i.e. a view) of the array.
         template<typename A,
                  typename B = indexing::full_extent_t,
                  typename C = indexing::full_extent_t,
@@ -296,11 +297,11 @@ namespace noa {
         constexpr Array subregion(indexing::ellipsis_t, A&& i3) const;
 
         template<typename A, typename B,
-                typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B>>>
+                 typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B>>>
         constexpr Array subregion(indexing::ellipsis_t, A&& i2, B&& i3) const;
 
         template<typename A, typename B, typename C,
-                typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B> && is_indexable_v<C>>>
+                 typename = std::enable_if_t<is_indexable_v<A> && is_indexable_v<B> && is_indexable_v<C>>>
         constexpr Array subregion(indexing::ellipsis_t, A&& i1, B&& i2, C&& i3) const;
 
     private:
@@ -309,7 +310,7 @@ namespace noa {
 
     private:
         size4_t m_shape;
-        size4_t m_stride;
+        size4_t m_strides;
         std::shared_ptr<T[]> m_ptr;
         ArrayOption m_options;
     };

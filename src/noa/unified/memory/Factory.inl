@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_FACTORY_
-#error "This is an internal header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/memory/Arange.h"
@@ -39,10 +39,10 @@ namespace noa::memory {
                                                option.allocator() == Allocator::DEFAULT_ASYNC ||
                                                option.allocator() == Allocator::PITCHED))) {
                 shared_t<T[]> ptr = cpu::memory::PtrHost<T>::calloc(shape.elements());
-                return Array<T>{ptr, shape, shape.strides(), option};
+                return Array<T>(ptr, shape, shape.strides(), option);
             }
         }
-        Array<T> out{shape, option};
+        Array<T> out(shape, option);
         fill(out, value);
         return out;
     }
@@ -59,19 +59,19 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> empty(size4_t shape, ArrayOption option) {
-        return Array<T>{shape, option};
+        return Array<T>(shape, option);
     }
 
     template<typename T>
     Array<T> like(const Array<T>& array) {
-        return Array<T>{array.shape(), array.options()};
+        return Array<T>(array.shape(), array.options());
     }
 }
 
 namespace noa::memory {
     template<typename T>
     void arange(const Array<T>& output, T start, T step) {
-        const Device device{output.device()};
+        const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::memory::arange(output.share(), output.strides(), output.shape(), start, step, stream.cpu());
@@ -86,14 +86,14 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> arange(size4_t shape, T start, T step, ArrayOption option) {
-        Array<T> out{shape, option};
+        Array<T> out(shape, option);
         arange(out, start, step);
         return out;
     }
 
     template<typename T>
     Array<T> arange(size_t elements, T start, T step, ArrayOption option) {
-        Array<T> out{elements, option};
+        Array<T> out(elements, option);
         arange(out, start, step);
         return out;
     }
@@ -101,16 +101,16 @@ namespace noa::memory {
 
 namespace noa::memory {
     template<typename T>
-    void linspace(const Array<T>& output, T start, T stop, bool endpoint) {
-        const Device device{output.device()};
+    T linspace(const Array<T>& output, T start, T stop, bool endpoint) {
+        const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            cpu::memory::linspace(output.share(), output.strides(), output.shape(),
-                                  start, stop, endpoint, stream.cpu());
+            return cpu::memory::linspace(output.share(), output.strides(), output.shape(),
+                                         start, stop, endpoint, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::linspace(output.share(), output.strides(), output.shape(),
-                                   start, stop, endpoint, stream.cuda());
+            return cuda::memory::linspace(output.share(), output.strides(), output.shape(),
+                                          start, stop, endpoint, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -119,14 +119,14 @@ namespace noa::memory {
 
     template<typename T>
     Array<T> linspace(size4_t shape, T start, T stop, bool endpoint, ArrayOption option) {
-        Array<T> out{shape, option};
+        Array<T> out(shape, option);
         linspace(out, start, stop, endpoint);
         return out;
     }
 
     template<typename T>
     Array<T> linspace(size_t elements, T start, T stop, bool endpoint, ArrayOption option) {
-        Array<T> out{elements, option};
+        Array<T> out(elements, option);
         linspace(out, start, stop, endpoint);
         return out;
     }

@@ -8,8 +8,7 @@ namespace noa::memory {
     /// \tparam U           Any data type. If \p T is complex, \p U should be complex as well.
     /// \param[in] input    Array to convert.
     /// \param[out] output  Array with the converted values.
-    /// \param start        Start of interval.
-    /// \param step         Spacing between values.
+    /// \param clamp        Whether the input values should be clamped to the output range before casting.
     template<typename T, typename U>
     void cast(const Array<T>& input, const Array<U>& output, bool clamp = false);
 }

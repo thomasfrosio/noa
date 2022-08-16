@@ -33,33 +33,33 @@ namespace noa::signal::fft {
     /// \param[out] output  Cross-correlation map.
     ///                     If REMAP is H2F, the central peak is at indexes {n, 0, 0, 0}.
     ///                     If REMAP is H2FC, the central peal is at indexes {n, shape[1]/2, shape[2]/2, shape[3]/2}.
-    /// \param shape        Rightmost logical shape.
+    /// \param shape        BDHW logical shape.
     /// \param normalize    Whether the normalized cross-correlation should be returned.
     /// \param norm         Normalization mode to use for the C2R transform producing the final output.
-    /// \param[out] tmp     Contiguous buffer that can fit \p shape.fft() complex elements.
+    /// \param[out] tmp     Buffer that can fit \p shape.fft() complex elements. It is overwritten.
     ///                     Can be \p lhs or \p rhs. If empty, use \p rhs instead.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xmap_v<REMAP, T>>>
     void xmap(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, const Array<T>& output, size4_t shape,
               bool normalize = true, Norm norm = noa::fft::NORM_DEFAULT, const Array<Complex<T>>& tmp = {});
 
-    /// Find the highest peak in a cross-correlation map.
+    /// Find the highest peak in a cross-correlation line.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately to the peak and 2 adjacent points.
     /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T           float, double.
-    /// \param[in] xmap     1D cross-correlation map.
-    /// \param[out] peaks   Row vector with the rightmost coordinates of the highest peak. One per batch.
-    ///                     If \p xmap is on the CPU, it should be dereferencable by the CPU.
-    ///                     If \p xmap is on the CPU, it can be on any device, including the CPU.
+    /// \param[in] xmap     1D cross-correlation map. Should be a column or row vector.
+    /// \param[out] peaks   Coordinates of the highest peak. One per batch.
+    ///                     If \p xmap is on the CPU, it should be dereferenceable by the CPU.
+    ///                     If \p xmap is on the GPU, it can be on any device, including the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     void xpeak1D(const Array<T>& xmap, const Array<float>& peaks);
 
-    /// Returns the rightmost coordinates of the highest peak in a cross-correlation map.
+    /// Returns the coordinates of the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately to the peak and 2 adjacent points.
     /// \tparam REMAP   Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T       float, double.
-    /// \param xmap     Unbatched 1D cross-correlation map.
+    /// \param xmap     Unbatched 1D cross-correlation map. Should be a column or row vector.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     float xpeak1D(const Array<T>& xmap);
 
@@ -69,13 +69,13 @@ namespace noa::signal::fft {
     /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T           float, double.
     /// \param[in] xmap     2D cross-correlation map.
-    /// \param[out] peaks   Row vector with the rightmost coordinates of the highest peak. One per batch.
-    ///                     If \p xmap is on the CPU, it should be dereferencable by the CPU.
-    ///                     If \p xmap is on the CPU, it can be on any device, including the CPU.
+    /// \param[out] peaks   HW coordinates of the highest peak. One per batch.
+    ///                     If \p xmap is on the CPU, it should be dereferenceable by the CPU.
+    ///                     If \p xmap is on the GPU, it can be on any device, including the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     void xpeak2D(const Array<T>& xmap, const Array<float2_t>& peaks);
 
-    /// Returns the rightmost coordinates of the highest peak in a cross-correlation map.
+    /// Returns the HW coordinates of the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
     /// \tparam REMAP   Whether \p xmap is centered. Should be F2F or FC2FC.
@@ -90,13 +90,13 @@ namespace noa::signal::fft {
     /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \tparam T           float, double.
     /// \param[in] xmap     3D cross-correlation map.
-    /// \param[out] peak    Row vector with the rightmost coordinates of the highest peak. One per batch.
-    ///                     If \p xmap is on the CPU, it should be dereferencable by the CPU.
-    ///                     If \p xmap is on the CPU, it can be on any device, including the CPU.
+    /// \param[out] peak    DHW coordinates of the highest peak. One per batch.
+    ///                     If \p xmap is on the CPU, it should be dereferenceable by the CPU.
+    ///                     If \p xmap is on the GPU, it can be on any device, including the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
     void xpeak3D(const Array<T>& xmap, const Array<float3_t>& peak);
 
-    /// Returns the rightmost coordinates of the highest peak in a cross-correlation map.
+    /// Returns the DHW coordinates of the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
     /// \tparam REMAP   Whether \p xmap is centered. Should be F2F or FC2FC.
@@ -110,9 +110,9 @@ namespace noa::signal::fft {
     /// \tparam T           cfloat_t or cdouble_t.
     /// \param[in] lhs      Left-hand side FFT.
     /// \param[in] rhs      Right-hand side FFT.
-    /// \param shape        Rightmost logical shape.
-    /// \param[out] coeffs  Row vector with the cross-correlation coefficient(s). One per batch.
-    ///                     It should be dereferencable by the CPU.
+    /// \param shape        BDHW logical shape.
+    /// \param[out] coeffs  Cross-correlation coefficient(s). One per batch.
+    ///                     It should be dereferenceable by the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     void xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs,
                size4_t shape, const Array<T>& coeffs);
@@ -122,7 +122,7 @@ namespace noa::signal::fft {
     /// \tparam T           cfloat_t or cdouble_t.
     /// \param[in] lhs      Left-hand side FFT.
     /// \param[in,out] rhs  Right-hand side FFT.
-    /// \param shape        Rightmost logical shape. Should be unbatched.
+    /// \param shape        BDHW logical shape. Should not be batched.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, size4_t shape);
 }

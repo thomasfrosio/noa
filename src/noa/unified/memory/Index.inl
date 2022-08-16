@@ -1,6 +1,6 @@
 #pragma once
 #ifndef NOA_UNIFIED_INDEX_
-#error "This is an internal header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/memory/Index.h"
@@ -15,17 +15,18 @@ namespace noa::memory {
     void extract(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
                  BorderMode border_mode, T border_value) {
         NOA_CHECK(subregions.device() == input.device(),
-                  "The input and subregion arrays must be on the same device, but got input:{} and subregion:{}",
+                  "The input and subregion arrays must be on the same device, but got input:{} and subregions:{}",
                   input.device(), subregions.device());
-        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous()[3],
-                  "The indexes should be specified as a contiguous row vector of shape {} but got {}",
-                  int4_t{1, 1, 1, subregions.shape()[0]}, origins.shape());
+        NOA_CHECK(indexing::isVector(origins.shape()) && origins.contiguous() &&
+                  origins.shape().elements() == subregions.shape()[0],
+                  "The indexes should be a contiguous vector of {} elements but got shape {} and strides {}",
+                  subregions.shape()[0], origins.shape(), origins.strides());
         NOA_CHECK(subregions.get() != input.get(), "The subregion(s) and the output arrays should not overlap");
 
         const Device device = subregions.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            NOA_CHECK(origins.dereferencable(), "The origins should be accessible to the CPU");
+            NOA_CHECK(origins.dereferenceable(), "The origins should be accessible to the CPU");
             cpu::memory::extract<T>(input.share(), input.strides(), input.shape(),
                                     subregions.share(), subregions.strides(), subregions.shape(),
                                     origins.share(), border_mode, border_value, stream.cpu());
@@ -43,17 +44,18 @@ namespace noa::memory {
     template<typename T, typename>
     void insert(const Array<T>& subregions, const Array<T>& output, const Array<int4_t>& origins) {
         NOA_CHECK(subregions.device() == output.device(),
-                  "The output and subregion arrays must be on the same device, but got output:{} and subregion:{}",
+                  "The output and subregion arrays must be on the same device, but got output:{} and subregions:{}",
                   output.device(), subregions.device());
-        NOA_CHECK(origins.shape().ndim() == 1 && origins.shape()[3] == subregions.shape()[0] && origins.contiguous()[3],
-                  "The indexes should be specified as a contiguous row vector of shape {} but got {}",
-                  int4_t{1, 1, 1, subregions.shape()[0]}, origins.shape());
+        NOA_CHECK(indexing::isVector(origins.shape()) && origins.contiguous() &&
+                  origins.shape().elements() == subregions.shape()[0],
+                  "The indexes should be a contiguous vector of {} elements but got shape {} and strides {}",
+                  subregions.shape()[0], origins.shape(), origins.strides());
         NOA_CHECK(subregions.get() != output.get(), "The subregion(s) and the output arrays should not overlap");
 
         const Device device(subregions.device());
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            NOA_CHECK(origins.dereferencable(), "The origins should be accessible to the CPU");
+            NOA_CHECK(origins.dereferenceable(), "The origins should be accessible to the CPU");
             cpu::memory::insert<T>(subregions.share(), subregions.strides(), subregions.shape(),
                                    output.share(), output.strides(), output.shape(),
                                    origins.share(), stream.cpu());
@@ -68,7 +70,8 @@ namespace noa::memory {
         }
     }
 
-    size4_t atlasLayout(size4_t subregion_shape, int4_t* origins) {
+    template<typename T, typename>
+    size4_t atlasLayout(size4_t subregion_shape, T* origins) {
         return cpu::memory::atlasLayout(subregion_shape, origins);
     }
 }
@@ -77,31 +80,32 @@ namespace noa::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
                                          bool extract_values, bool extract_offsets) {
-        NOA_CHECK(all(input.shape() == lhs.shape()),
+        NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
+        NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
                   input.shape(), lhs.shape());
-        NOA_CHECK(input.device() == lhs.device(),
+        NOA_CHECK(input.empty() || input.device() == lhs.device(),
                   "The input arrays should be on the same device, but got input:{} and lhs:{}",
                   input.device(), lhs.device());
 
         Extracted<value_t, offset_t> out;
-        const Device device(input.device());
+        const Device device = lhs.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.strides(), lhs.share(), lhs.strides(), input.shape(),
                     unary_op, extract_values, extract_offsets, stream.cpu());
-            out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device}};
-            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device}};
+            out.values = Array<value_t>(extracted.values, extracted.count);
+            out.offsets = Array<offset_t>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_unary_v<T, U, value_t, offset_t, UnaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.strides(), lhs.share(), lhs.strides(), input.shape(),
                         unary_op, extract_values, extract_offsets, stream.cuda());
-                const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
-                out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
+                const ArrayOption option(input.device(), Allocator::DEFAULT_ASYNC);
+                out.values = Array<value_t>(extracted.values, extracted.count, option);
+                out.offsets = Array<offset_t>(extracted.offsets, extracted.count, option);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -116,10 +120,11 @@ namespace noa::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
                                         bool extract_values, bool extract_offsets) {
-        NOA_CHECK(all(input.shape() == lhs.shape()),
+        NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
+        NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
                   input.shape(), lhs.shape());
-        NOA_CHECK(input.device() == lhs.device(),
+        NOA_CHECK(input.empty() || input.device() == lhs.device(),
                   "The input arrays should be on the same device, but got input:{} and lhs:{}",
                   input.device(), lhs.device());
 
@@ -130,17 +135,17 @@ namespace noa::memory {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.strides(), lhs.share(), lhs.strides(), rhs, lhs.shape(),
                     binary_op, extract_values, extract_offsets, stream.cpu());
-            out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
-            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
+            out.values = Array<value_t>(extracted.values, extracted.count);
+            out.offsets = Array<offset_t>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, offset_t, BinaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.strides(), lhs.share(), lhs.strides(), static_cast<T>(rhs), lhs.shape(),
                         binary_op, extract_values, extract_offsets, stream.cuda());
-                const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
-                out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
+                const ArrayOption option(input.device(), Allocator::DEFAULT_ASYNC);
+                out.values = Array<value_t>(extracted.values, extracted.count, option);
+                out.offsets = Array<offset_t>(extracted.offsets, extracted.count, option);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -155,10 +160,11 @@ namespace noa::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
     Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
                                         bool extract_values, bool extract_offsets) {
-        NOA_CHECK(all(input.shape() == rhs.shape()),
+        NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
+        NOA_CHECK(input.empty() || all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and rhs:{}",
                   input.shape(), rhs.shape());
-        NOA_CHECK(input.device() == rhs.device(),
+        NOA_CHECK(input.empty() || input.device() == rhs.device(),
                   "The input arrays should be on the same device, but got input:{} and rhs:{}",
                   input.device(), rhs.device());
 
@@ -169,17 +175,17 @@ namespace noa::memory {
             auto extracted = cpu::memory::extract<value_t, offset_t>(
                     input.share(), input.strides(), lhs, rhs.share(), rhs.strides(), rhs.shape(),
                     binary_op, extract_values, extract_offsets, stream.cpu());
-            out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
-            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
+            out.values = Array<value_t>(extracted.values, extracted.count);
+            out.offsets = Array<offset_t>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, T, value_t, offset_t, BinaryOp>) {
                 auto extracted = cuda::memory::extract<value_t, offset_t>(
                         input.share(), input.strides(), static_cast<T>(lhs), rhs.share(), rhs.strides(), rhs.shape(),
                         binary_op, extract_values, extract_offsets, stream.cuda());
-                const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
-                out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
+                const ArrayOption option(input.device(), Allocator::DEFAULT_ASYNC);
+                out.values = Array<value_t>(extracted.values, extracted.count, option);
+                out.offsets = Array<offset_t>(extracted.offsets, extracted.count, option);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -194,10 +200,11 @@ namespace noa::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
                                         BinaryOp binary_op, bool extract_values, bool extract_offsets) {
-        NOA_CHECK(all(input.shape() == lhs.shape()) && all(input.shape() == rhs.shape()),
+        NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
+        NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()) && all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{}, lhs:{} and rhs:{}",
                   input.shape(), lhs.shape(), rhs.shape());
-        NOA_CHECK(input.device() == lhs.device() && input.device() == rhs.device(),
+        NOA_CHECK(input.empty() || input.device() == lhs.device() && input.device() == rhs.device(),
                   "The input arrays should be on the same device, but got input:{}, lhs:{} and rhs:{}",
                   input.device(), lhs.device(), rhs.device());
 
@@ -209,8 +216,8 @@ namespace noa::memory {
                     input.share(), input.strides(), lhs.share(), lhs.strides(),
                     rhs.share(), rhs.strides(), rhs.shape(), binary_op,
                     extract_values, extract_offsets, stream.cpu());
-            out.values = Array<value_t>{extracted.values, extracted.count, ArrayOption{input.device()}};
-            out.offsets = Array<offset_t>{extracted.offsets, extracted.count, ArrayOption{input.device()}};
+            out.values = Array<value_t>(extracted.values, extracted.count);
+            out.offsets = Array<offset_t>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<T, U, V, value_t, offset_t, BinaryOp>) {
@@ -218,9 +225,9 @@ namespace noa::memory {
                         input.share(), input.strides(), lhs.share(), lhs.strides(),
                         rhs.share(), rhs.strides(), rhs.shape(), binary_op,
                         extract_values, extract_offsets, stream.cuda());
-                const ArrayOption option{input.device(), Allocator::DEFAULT_ASYNC};
-                out.values = Array<value_t>{extracted.values, extracted.count, option};
-                out.offsets = Array<offset_t>{extracted.offsets, extracted.count, option};
+                const ArrayOption option(input.device(), Allocator::DEFAULT_ASYNC);
+                out.values = Array<value_t>(extracted.values, extracted.count, option);
+                out.offsets = Array<offset_t>(extracted.offsets, extracted.count, option);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
@@ -240,12 +247,13 @@ namespace noa::memory {
                   "but got values:{}, offsets:{} and output:{}",
                   extracted.values.device(), extracted.offsets.device(), output.device());
         NOA_CHECK(all(extracted.values.shape() == extracted.offsets.shape()) &&
-                  extracted.offsets.shape().ndim() == 1,
-                  "The sequence of values and offsets should be two row vectors of the same size, "
+                  indexing::isVector(extracted.offsets.shape()) &&
+                  extracted.values.contiguous() && extracted.offsets.contiguous(),
+                  "The sequence of values and offsets should be two contiguous vectors of the same size, "
                   "but got values:{} and offsets:{}", extracted.values.shape(), extracted.offsets.shape());
 
-        const size_t elements = extracted.values.shape()[3];
-        const Device device(output.device());
+        const size_t elements = extracted.values.shape().elements();
+        const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::memory::Extracted<value_t, offset_t> tmp{
@@ -261,7 +269,6 @@ namespace noa::memory {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See noa::cuda::memory::extract(...) for more details");
             }
-
             #else
             NOA_THROW("No GPU backend detected");
             #endif

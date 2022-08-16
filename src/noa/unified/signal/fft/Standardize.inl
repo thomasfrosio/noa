@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_STANDARDIZE_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/signal/fft/Standardize.h"
@@ -15,7 +15,7 @@ namespace noa::signal::fft {
         constexpr bool IS_FULL = REMAP == Remap::F2F || REMAP == Remap::FC2FC;
         const size4_t actual_shape = IS_FULL ? shape : shape.fft();
         NOA_CHECK(all(input.shape() == actual_shape) && all(output.shape() == actual_shape),
-                  "The input {} and output {} {}redundant FFTs don't match the expected logical shape {}",
+                  "The input {} and output {} {}redundant FFTs don't match the expected shape {}",
                   input.shape(), output.shape(), IS_FULL ? "" : "non-", actual_shape);
 
         const Device device = output.device();

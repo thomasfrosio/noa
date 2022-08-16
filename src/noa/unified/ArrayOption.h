@@ -28,7 +28,7 @@ namespace noa {
             return *this;
         }
 
-        [[nodiscard]] constexpr bool dereferencable() const noexcept {
+        [[nodiscard]] constexpr bool dereferenceable() const noexcept {
             return m_device.cpu() || m_allocator == Allocator::PINNED ||
                    m_allocator == Allocator::MANAGED || m_allocator == Allocator::MANAGED_GLOBAL;
         }

@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_TRANSFORM_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/fft/Transforms.h"
@@ -29,6 +29,9 @@ namespace noa::fft {
 
     template<typename T, typename>
     Array<T> alias(const Array<Complex<T>>& input, size4_t shape) {
+        NOA_CHECK(all(input.shape() == shape.fft()),
+                  "Given the {} logical shape, the non-redundant input should have a shape of {}, but got {}",
+                  shape, input.shape(), shape.fft());
         Array<T> tmp = input.template as<T>();
         return Array<T>(tmp.share(), shape, tmp.strides(), tmp.options());
     }

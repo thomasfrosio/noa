@@ -126,10 +126,10 @@ namespace noa {
         int m_id{-1}; // cpu
     };
 
-    NOA_IH bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
-    NOA_IH bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
+    inline bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
+    inline bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
 
-    NOA_IH std::ostream& operator<<(std::ostream& os, Device device) {
+    inline std::ostream& operator<<(std::ostream& os, Device device) {
         if (device.cpu())
             return os << "cpu";
         else
@@ -160,13 +160,13 @@ namespace noa {
         Device m_previous_current;
     };
 
-    NOA_IH bool operator==(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() == rhs.id(); }
-    NOA_IH bool operator==(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() == rhs.id(); }
+    inline bool operator==(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() == rhs.id(); }
+    inline bool operator==(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() == rhs.id(); }
 
-    NOA_IH bool operator!=(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() != rhs.id(); }
-    NOA_IH bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
+    inline bool operator!=(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() != rhs.id(); }
+    inline bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 
-    NOA_IH std::ostream& operator<<(std::ostream& os, const DeviceGuard& device) {
+    inline std::ostream& operator<<(std::ostream& os, const DeviceGuard& device) {
         if (device.cpu())
             return os << "cpu";
         else

@@ -1,13 +1,15 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_RESIZE_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/fft/Resize.h"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/fft/Resize.h"
 #endif
+
+// TODO: HC2HC, H2HC, HC2H, FC2FC, F2FC and FC2F could be useful to have and should be simple to add.
 
 namespace noa::fft {
     template<Remap REMAP, typename T, typename>
@@ -17,7 +19,6 @@ namespace noa::fft {
         constexpr bool IS_SRC_FULL = REMAP_ & Layout::SRC_FULL;
         constexpr bool IS_DST_FULL = REMAP_ & Layout::DST_FULL;
         static_assert(IS_SRC_FULL == IS_DST_FULL);
-        // TODO: HC2HC, H2HC, HC2H, FC2FC, F2FC and FC2F could be useful to have and should be simple to add.
 
         NOA_CHECK(all(input.shape() == (IS_SRC_FULL ? input_shape : input_shape.fft())),
                   "Given the {} remap, the input FFT is expected to have a physical shape of {}, but got {}",

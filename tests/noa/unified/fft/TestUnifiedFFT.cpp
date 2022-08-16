@@ -12,58 +12,50 @@ TEMPLATE_TEST_CASE("unified::fft::r2c|c2r", "[noa][unified]", float, double) {
 
     const size4_t shape = test::getRandomShapeBatched(3);
 
-    std::vector<Device> devices{Device{"cpu"}};
+    std::vector<Device> devices{Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        StreamGuard stream{device};
-        ArrayOption options{device, Allocator::MANAGED};
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
         INFO(device);
 
         Array image_fft = math::random<complex_t>(math::uniform_t{}, shape.fft(), -50, 50, options);
-        Array image = image_fft.template as<real_t>();
-        image = Array{image.share(), shape, image.strides(), options};
-
+        Array image = fft::alias(image_fft, shape);
         Array result = image.copy();
 
         fft::r2c(image, image_fft);
         fft::c2r(image_fft, image);
 
-        image = image.copy();
-
-        result.eval();
-        INFO(shape);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, image.get(), result.get(), shape.elements(), 5e-3));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, image, result, 5e-3));
     }
 }
 
 TEMPLATE_TEST_CASE("unified::fft::remap", "[noa][unified]", float, double, cfloat_t, cdouble_t) {
     const size4_t shape = test::getRandomShapeBatched(3);
 
-    std::vector<Device> devices{Device{"cpu"}};
+    std::vector<Device> devices{Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        StreamGuard stream{device};
-        ArrayOption options{device, Allocator::MANAGED};
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
         INFO(device);
 
-        Array in = memory::linspace<TestType>(shape.fft(), 0, 1000, true, options);
-        Array out = memory::empty<TestType>(shape, options);
+        Array half0 = memory::linspace<TestType>(shape.fft(), 0, 1000, true, options);
+        Array full0 = memory::empty<TestType>(shape, options);
 
-        Array tmp0 = memory::like(in);
-        Array tmp1 = memory::like(out);
+        Array half1 = memory::like(half0);
+        Array full1 = memory::like(full0);
 
-        fft::remap(fft::H2HC, in, tmp0, shape);
-        fft::remap(fft::HC2FC, tmp0, tmp1, shape);
-        fft::remap(fft::FC2F, tmp1, out, shape);
-        fft::remap(fft::F2H, out, tmp0, shape);
+        fft::remap(fft::H2HC, half0, half1, shape);
+        fft::remap(fft::HC2FC, half1, full1, shape);
+        fft::remap(fft::FC2F, full1, full0, shape);
+        fft::remap(fft::F2H, full0, half1, shape);
 
-        tmp0.eval();
-        INFO(shape);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, in.get(), tmp0.get(), in.shape().elements(), 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, half0, half1, 1e-6));
     }
 }
 
@@ -72,37 +64,35 @@ TEMPLATE_TEST_CASE("unified::fft::resize", "[noa][unified]", float, double, cflo
     const size4_t shape_padded{shape[0], shape[1] + 6, shape[2] + 10, shape[3] + 12};
     INFO("input" << shape << ", output:" << shape_padded);
 
-    std::vector<Device> devices{Device{"cpu"}};
+    std::vector<Device> devices{Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        StreamGuard stream{device};
-        ArrayOption options{device, Allocator::MANAGED};
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
         INFO(device);
 
         AND_THEN("half") {
-            Array in = memory::linspace<TestType>(shape.fft(), 0, 1000, true, options);
-            Array out = memory::empty<TestType>(shape_padded.fft(), options);
-            Array tmp0 = memory::like(in);
+            Array original0 = memory::linspace<TestType>(shape.fft(), 0, 1000, true, options);
+            Array padded = memory::empty<TestType>(shape_padded.fft(), options);
+            Array original1 = memory::like(original0);
 
-            fft::resize<fft::H2H>(in, shape, out, shape_padded);
-            fft::resize<fft::H2H>(out, shape_padded, tmp0, shape);
+            fft::resize<fft::H2H>(original0, shape, padded, shape_padded);
+            fft::resize<fft::H2H>(padded, shape_padded, original1, shape);
 
-            tmp0.eval();
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, in.get(), tmp0.get(), in.shape().elements(), 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, original0, original1, 1e-6));
         }
 
         AND_THEN("full") {
-            Array in = memory::linspace<TestType>(shape, 0, 1000, true, options);
-            Array out = memory::empty<TestType>(shape_padded, options);
-            Array tmp0 = memory::like(in);
+            Array original0 = memory::linspace<TestType>(shape, 0, 1000, true, options);
+            Array padded = memory::empty<TestType>(shape_padded, options);
+            Array original1 = memory::like(original0);
 
-            fft::resize<fft::F2F>(in, shape, out, shape_padded);
-            fft::resize<fft::F2F>(out, shape_padded, tmp0, shape);
+            fft::resize<fft::F2F>(original0, shape, padded, shape_padded);
+            fft::resize<fft::F2F>(padded, shape_padded, original1, shape);
 
-            tmp0.eval();
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, in.get(), tmp0.get(), in.shape().elements(), 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, original0, original1, 1e-6));
         }
     }
 }

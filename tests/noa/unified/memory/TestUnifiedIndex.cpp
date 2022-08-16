@@ -18,11 +18,11 @@ TEMPLATE_TEST_CASE("unified::memory::{extract|insert}, subregions", "[noa][unifi
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        StreamGuard stream{device};
-        ArrayOption options{device, Allocator::MANAGED};
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
 
-        Array<TestType> data{{2, 100, 200, 300}, options};
-        Array<TestType> subregions{{3, 64, 64, 64}, options};
+        Array<TestType> data({2, 100, 200, 300}, options);
+        Array<TestType> subregions({3, 64, 64, 64}, options);
 
         math::randomize(math::uniform_t{}, data, -5, 5);
         memory::fill(subregions, TestType{0});
@@ -36,20 +36,19 @@ TEMPLATE_TEST_CASE("unified::memory::{extract|insert}, subregions", "[noa][unifi
         Array result = data.to(options);
         memory::insert(subregions, result, origins_view);
 
-        subregions.eval();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, data.get(), result.get(), data.shape().elements(), 1e-7));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, data, result, 1e-7));
     }
 }
 
 TEMPLATE_TEST_CASE("unified::memory::{extract|insert}, sequences", "[noa][unified]",
                    int32_t, float, double) {
-    std::vector<Device> devices = {Device{"cpu"}};
+    std::vector<Device> devices = {Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        StreamGuard stream{device};
-        ArrayOption options{device, Allocator::DEFAULT_ASYNC};
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::DEFAULT_ASYNC);
         Array data = math::random<TestType>(math::uniform_t{}, {2, 100, 200, 300}, -5, 5, options);
 
         auto[values, indexes] = memory::extract<TestType, uint64_t>(data, data, TestType{0}, math::less_t{});
