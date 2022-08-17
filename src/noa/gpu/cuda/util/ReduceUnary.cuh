@@ -46,7 +46,8 @@ namespace noa::cuda::util::details {
         for (uint cid = base; cid < elements_per_batch; cid += BLOCK_WORK_SIZE * gridDim.x) {
             const uint remaining = elements_per_batch - cid;
             util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
-                    input + cid, input_strides[1], remaining, transform_op, reduce_op, &reduced, tid);
+                    input + cid * input_strides[1], input_strides[1], remaining,
+                    transform_op, reduce_op, &reduced, tid);
         }
 
         // Share thread's result to the other threads.
@@ -93,7 +94,7 @@ namespace noa::cuda::util::details {
             for (uint cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
                 const uint remaining = shape[3] - cid;
                 util::block::reduceUnaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
-                        input + offset + cid, input_strides[3], remaining,
+                        input + offset + cid * input_strides[3], input_strides[3], remaining,
                         transform_op, reduce_op, &reduced, threadIdx.x);
             }
         }
@@ -135,7 +136,8 @@ namespace noa::cuda::util::details {
         for (uint cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
             const uint remaining = elements_per_batch - cid;
             util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
-                    input + cid, input_strides[1], remaining, transform_op, reduce_op, &reduced, tid);
+                    input + cid * input_strides[1], input_strides[1], remaining,
+                    transform_op, reduce_op, &reduced, tid);
         }
 
         // one element per thread -> one element per block.

@@ -50,7 +50,8 @@ namespace noa::cuda::util::details {
         for (uint cid = base; cid < elements_per_batch; cid += BLOCK_WORK_SIZE * gridDim.x) {
             const uint remaining = elements_per_batch - cid;
             util::block::reduceBinaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
-                    lhs + cid, lhs_strides[1], rhs + cid, rhs_strides[1], remaining,
+                    lhs + cid * lhs_strides[1], lhs_strides[1],
+                    rhs + cid * rhs_strides[1], rhs_strides[1], remaining,
                     transform_op_lhs, transform_op_rhs, combine_op, reduce_op, &reduced, tid);
         }
 
@@ -104,7 +105,8 @@ namespace noa::cuda::util::details {
             for (uint cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
                 const uint remaining = shape[3] - cid;
                 util::block::reduceBinaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
-                        lhs + lhs_offset + cid, lhs_strides[3], rhs + rhs_offset + cid, rhs_strides[3], remaining,
+                        lhs + lhs_offset + cid * lhs_strides[3], lhs_strides[3],
+                        rhs + rhs_offset + cid * rhs_strides[3], rhs_strides[3], remaining,
                         transform_op_lhs, transform_op_rhs, combine_op, reduce_op, &reduced, threadIdx.x);
             }
         }
@@ -197,7 +199,8 @@ namespace noa::cuda::util::details {
         for (uint cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
             const uint remaining = elements_per_batch - cid;
             util::block::reduceBinaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
-                    lhs + cid, lhs_strides[1], rhs + cid, rhs_strides[1], remaining,
+                    lhs + cid * lhs_strides[1], lhs_strides[1],
+                    rhs + cid * rhs_strides[1], rhs_strides[1], remaining,
                     transform_op_lhs, transform_op_rhs, combine_op, reduce_op, &reduced, tid);
         }
 

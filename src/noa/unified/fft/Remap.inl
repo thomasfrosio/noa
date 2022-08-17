@@ -23,6 +23,13 @@ namespace noa::fft {
                   "Given the {} remap, the output FFT is expected to have a physical shape of {}, but got {}",
                   remap, is_dst_full ? shape : shape.fft(), output.shape());
 
+        NOA_CHECK(input.get() != output.get() ||
+                  (remap == fft::H2HC &&
+                   (shape[2] == 1 || !(shape[2] % 2)) &&
+                   (shape[1] == 1 || !(shape[1] % 2))),
+                  "In-place remapping is only available with {} and when the depth and height dimensions "
+                  "have an even number of elements, but got remap {} and shape {}", fft::H2HC, remap, shape);
+
         const Device device = output.device();
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
