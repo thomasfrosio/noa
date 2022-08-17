@@ -119,7 +119,7 @@ namespace {
 
         // TODO Move symmetry matrices to constant memory?
         const size_t count = symmetry.count();
-        const float33_t* symmetry_matrices = symmetry.matrices();
+        const float33_t* symmetry_matrices = symmetry.get();
         cuda::memory::PtrDevice<float33_t> d_matrices(count, stream);
         cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
         const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
@@ -202,7 +202,7 @@ namespace noa::cuda::geometry::fft {
                      float cutoff, bool normalize, Stream& stream) {
         launchTexture2D_<REMAP>(*texture, texture_interp_mode, output.get(), output_strides,
                                 output_shape, matrix, symmetry, shift, cutoff, normalize, stream);
-        stream.attach(array, texture, output);
+        stream.attach(array, texture, output, symmetry.share());
     }
 
     template<Remap REMAP, typename T, typename>
@@ -235,7 +235,7 @@ namespace noa::cuda::geometry::fft {
             launchTexture2D_<REMAP>(texture.get(), interp_mode, output.get() + i * output_strides[0], output_strides,
                                     o_shape, matrix, symmetry, shift, cutoff, normalize, stream);
         }
-        stream.attach(input, output, array.share(), texture.share());
+        stream.attach(input, output, symmetry.share(), array.share(), texture.share());
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_2D_(T)                                                                                                                                                                                            \

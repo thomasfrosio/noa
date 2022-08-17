@@ -16,7 +16,7 @@ namespace {
                                   float2_t shift, float22_t matrix, const geometry::Symmetry& symmetry, float2_t center,
                                   bool normalize, size_t threads) {
         const size_t count = symmetry.count();
-        const float33_t* sym_matrices = symmetry.matrices();
+        const float33_t* sym_matrices = symmetry.get();
 
         const size_t offset = input_shape[0] == 1 ? 0 : input_strides[0];
         const size2_t strides(input_strides[1], input_strides[2]);
@@ -57,7 +57,7 @@ namespace {
                                   float3_t shift, float33_t matrix, const geometry::Symmetry& symmetry, float3_t center,
                                   bool normalize, size_t threads) {
         const size_t count = symmetry.count();
-        const float33_t* sym_matrices = symmetry.matrices();
+        const float33_t* sym_matrices = symmetry.get();
 
         const size_t offset = input_shape[0] == 1 ? 0 : input_strides[0];
         const size3_t strides(input_strides.get() + 1);

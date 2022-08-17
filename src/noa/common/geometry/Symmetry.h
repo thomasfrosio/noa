@@ -46,18 +46,23 @@ namespace noa::geometry {
 
         /// Creates a symmetry from raw data.
         /// This is mostly to create an interface with non-supported symmetries.
-        /// \param symbol           New symmetry symbol store in the instance. Can be retrieved using symbol().
-        /// \param[in] matrices     DHW 3x3 symmetry matrices that will be pointed by the instance when calling matrices().
-        ///                         Note that this function does not copy the underlying data and nor does it
-        ///                         own it. It creates a view and the caller remains the owner of the matrices.
-        /// \param count            Number of 3x3 matrices in \p matrices.
+        /// \param symbol       New symmetry symbol. Can be retrieved using symbol().
+        /// \param[in] matrices DHW 3x3 symmetry matrices that will be pointed by the instance when calling matrices().
+        ///                     Note that this function does not copy the underlying data and nor does it
+        ///                     owns it. It creates a view and the caller remains the owner of the matrices.
+        /// \param count        Number of 3x3 matrices in \p matrices.
         Symmetry(Symbol symbol, const float33_t* matrices, size_t count)
                 : m_matrices(matrices), m_count(count), m_symbol(symbol) {}
 
     public: // Access data
         /// Returns the symmetry matrices, which doesn't include the identity, required to describe the symmetry.
         /// The number of returned matrices can be accessed at any time using count().
-        [[nodiscard]] const float33_t* matrices() const { return m_matrices; }
+        [[nodiscard]] const float33_t* get() const { return m_matrices; }
+
+        /// Returns a shared pointer of the internal data. Always points to the matrices returned by get().
+        [[nodiscard]] shared_t<const float33_t[]> share() const {
+            return {m_buffer, m_matrices};
+        }
 
         /// Returns the number of matrices returned by matrices().
         [[nodiscard]] size_t count() const { return m_count; }
@@ -72,12 +77,6 @@ namespace noa::geometry {
             else
                 return {m_symbol.type}; // O
         }
-
-    public: // Copy and move operations
-        Symmetry(const Symmetry& to_copy) = default;
-        Symmetry& operator=(const Symmetry& to_copy) = default;
-        Symmetry(Symmetry&& to_move) noexcept = default;
-        Symmetry& operator=(Symmetry&& to_move) noexcept = default;
 
     private: // Private member variables and functions
         std::shared_ptr<float33_t[]> m_buffer{}; // is only used for C and D symmetries

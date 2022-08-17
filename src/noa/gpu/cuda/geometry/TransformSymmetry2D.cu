@@ -49,7 +49,7 @@ namespace {
 
         // TODO Move symmetry matrices to constant memory?
         const size_t count = symmetry.count();
-        const float33_t* symmetry_matrices = symmetry.matrices();
+        const float33_t* symmetry_matrices = symmetry.get();
         cuda::memory::PtrDevice<float33_t> d_matrices(count, stream);
         cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
         const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
@@ -155,7 +155,7 @@ namespace noa::cuda::geometry {
                     texture.get(), interp_mode, output.get() + i * output_strides[0], output_strides, o_shape,
                     shift, matrix, symmetry, center, normalize, stream);
         }
-        stream.attach(input, output, array.share(), texture.share());
+        stream.attach(input, output, symmetry.share(), array.share(), texture.share());
         if (!buffer.empty())
             stream.attach(buffer.share());
     }
@@ -169,7 +169,7 @@ namespace noa::cuda::geometry {
         launchTransformSymmetryTexture2D_(*texture, texture_interp_mode,
                                           output.get(), output_strides, output_shape,
                                           shift, matrix, symmetry, center, normalize, stream);
-        stream.attach(array, texture, output);
+        stream.attach(array, texture, output, symmetry.share());
     }
 
     #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                                                             \

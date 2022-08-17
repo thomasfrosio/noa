@@ -15,7 +15,7 @@ namespace {
     void symmetrize_(const T* input, size4_t input_strides, T* output, size4_t output_strides, size4_t shape,
                      const geometry::Symmetry& symmetry, float2_t center, bool normalize, size_t threads) {
         const size_t count = symmetry.count();
-        const float33_t* matrices = symmetry.matrices();
+        const float33_t* matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
 
         const size3_t istrides(input_strides[0], input_strides[2], input_strides[3]);
@@ -50,7 +50,7 @@ namespace {
     void symmetrize_(const T* input, size4_t input_strides, T* output, size4_t output_strides, size4_t shape,
                      const geometry::Symmetry& symmetry, float3_t center, bool normalize, size_t threads) {
         const size_t count = symmetry.count();
-        const float33_t* matrices = symmetry.matrices();
+        const float33_t* matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
 
         const cpu::geometry::Interpolator3D<T> interp(

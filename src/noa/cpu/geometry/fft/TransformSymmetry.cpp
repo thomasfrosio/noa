@@ -87,7 +87,7 @@ namespace {
         cutoff *= cutoff;
 
         const size_t count = symmetry.count();
-        const float33_t* sym_matrices = symmetry.matrices();
+        const float33_t* sym_matrices = symmetry.get();
 
         using real_t = traits::value_type_t<T>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(count + 1) : 1;
@@ -153,7 +153,7 @@ namespace {
         cutoff *= cutoff;
 
         const size_t count = symmetry.count();
-        const float33_t* matrices = symmetry.matrices();
+        const float33_t* matrices = symmetry.get();
 
         using real_t = traits::value_type_t<T>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(count + 1) : 1;
