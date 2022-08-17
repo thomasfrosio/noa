@@ -17,7 +17,8 @@ namespace noa::cuda::geometry {
 
     // Symmetrizes the 2D texture.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void symmetrize2D(const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
+    void symmetrize2D(const shared_t<cudaArray>& array,
+                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                       const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                       const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream);
 
@@ -30,7 +31,8 @@ namespace noa::cuda::geometry {
 
     // Symmetrizes the 3D texture.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, cfloat_t>>>
-    void symmetrize3D(const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
+    void symmetrize3D(const shared_t<cudaArray>& array,
+                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                       const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                       const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_FFT_SYMMETRY_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/geometry/fft/Symmetry.h"

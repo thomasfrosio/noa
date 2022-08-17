@@ -156,18 +156,19 @@ namespace noa::cuda::geometry {
     }
 
     template<typename T, typename>
-    void symmetrize3D(const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
+    void symmetrize3D(const shared_t<cudaArray>& array,
+                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                       const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                       const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream) {
         launchSymmetrize3D_(*texture, texture_interp_mode, output.get(), output_strides, output_shape,
                             symmetry, center, normalize, stream);
-        stream.attach(texture, output);
+        stream.attach(array, texture, output);
     }
 
 
     #define NOA_INSTANTIATE_TRANSFORM_SYM_(T)                                                                                                                               \
     template void symmetrize3D<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, InterpMode, bool, bool, Stream&); \
-    template void symmetrize3D<T, void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, bool, Stream&)
+    template void symmetrize3D<T, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const Symmetry&, float3_t, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_SYM_(float);
     NOA_INSTANTIATE_TRANSFORM_SYM_(cfloat_t);

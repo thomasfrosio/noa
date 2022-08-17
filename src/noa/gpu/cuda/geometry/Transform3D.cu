@@ -294,7 +294,8 @@ namespace noa::cuda::geometry {
     }
 
     template<typename T, typename MAT, typename>
-    void transform3D(const shared_t<cudaTextureObject_t>& texture, size3_t texture_shape,
+    void transform3D(const shared_t<cudaArray>& array,
+                     const shared_t<cudaTextureObject_t>& texture, size3_t texture_shape,
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const MAT& matrices, Stream& stream) {
@@ -302,20 +303,20 @@ namespace noa::cuda::geometry {
             launchTransformTextureSingle3D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
                                             output.get(), output_strides, output_shape,
                                             matrices, stream);
-            stream.attach(texture, output);
+            stream.attach(array, texture, output);
         } else {
             launchTransformTexture3D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
                                       output.get(), output_strides, output_shape,
                                       matrices.get(), stream);
-            stream.attach(texture, output, matrices);
+            stream.attach(array, texture, output, matrices);
         }
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_3D_MATRIX(T, M)                                                                                                                                               \
-    template void transform3D<T, shared_t<M[]>, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<M[]>&, InterpMode, BorderMode, bool, Stream&); \
-    template void transform3D<T, M, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, InterpMode, BorderMode, bool, Stream&);                         \
-    template void transform3D<T, shared_t<M[]>, void>(const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const shared_t<M[]>&, Stream&);\
-    template void transform3D<T, M, void>(const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const M&, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_3D_MATRIX(T, M)                                                                                                                                                                           \
+    template void transform3D<T, shared_t<M[]>, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<M[]>&, InterpMode, BorderMode, bool, Stream&);                             \
+    template void transform3D<T, M, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, InterpMode, BorderMode, bool, Stream&);                                                     \
+    template void transform3D<T, shared_t<M[]>, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const shared_t<M[]>&, Stream&);\
+    template void transform3D<T, M, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const M&, Stream&)
 
     #define NOA_INSTANTIATE_TRANSFORM_3D_(T)            \
     NOA_INSTANTIATE_TRANSFORM_3D_MATRIX(T, float34_t);  \

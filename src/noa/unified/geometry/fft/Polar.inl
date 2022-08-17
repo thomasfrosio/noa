@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_FFT_POLAR_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/geometry/fft/Polar.h"
@@ -20,6 +20,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(all(cartesian.shape() == cartesian_shape.fft()),
                   "The non-redundant FFT with shape {} doesn't match the logical shape {}",
                   cartesian.shape(), cartesian_shape);
+        NOA_CHECK(cartesian.shape()[1] == 1 && polar.shape()[1] == 1, "3D arrays are not supported");
 
         const Device device = polar.device();
         Stream& stream = Stream::current(device);
@@ -38,9 +39,12 @@ namespace noa::geometry::fft {
             if constexpr (!traits::is_any_v<T, float, cfloat_t>) {
                 NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
             } else {
-                NOA_CHECK(cartesian.contiguous()[3],
-                          "The innermost dimension of the input should be contiguous, but got shape {} and stride {}",
-                          cartesian.shape(), cartesian.strides());
+                NOA_CHECK(indexing::isRightmost(cartesian.strides()) && cartesian.strides()[3] == 1,
+                          "The input should be in the rightmost order and the width dimension should be contiguous, "
+                          "but got shape {} and strides {}", cartesian.shape(), cartesian.strides());
+
+                if (cartesian.device().cpu())
+                    Stream::current(Device{}).synchronize();
 
                 cuda::geometry::fft::cartesian2polar<REMAP>(
                         cartesian.share(), cartesian.strides(), cartesian_shape,
@@ -51,5 +55,40 @@ namespace noa::geometry::fft {
             NOA_THROW("No GPU backend detected");
             #endif
         }
+    }
+
+    template<Remap REMAP, typename T, typename>
+    void cartesian2polar(const Texture<T>& cartesian, size4_t cartesian_shape, const Array<T>& polar,
+                         float2_t frequency_range, float2_t angle_range,
+                         bool log) {
+        if (cartesian.device().cpu()) {
+            const cpu::Texture<T>& texture = cartesian.cpu();
+            cartesian2polar<REMAP>(Array<T>(texture.ptr, cartesian.shape(), texture.strides, cartesian.options()),
+                                   polar, frequency_range, angle_range, log, cartesian.interp());
+            return;
+        }
+
+        #ifdef NOA_ENABLE_CUDA
+        if constexpr (!traits::is_any_v<T, float, cfloat_t>) {
+            NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+        } else {
+            NOA_CHECK(cartesian.shape()[0] == 1,
+                      "The number of batches in the texture ({}) should be 1, got {}", cartesian.shape()[0]);
+
+            const Device device = polar.device();
+            NOA_CHECK(device == cartesian.device(),
+                      "The input and output must be on the same device, "
+                      "but got input:{} and output:{}", cartesian.device(), device);
+
+            Stream& stream = Stream::current(device);
+            const cuda::Texture<T>& texture = cartesian.cuda();
+            cuda::geometry::fft::cartesian2polar<REMAP>(
+                    texture.array, texture.texture, cartesian.interp(),
+                    polar.share(), polar.strides(), polar.shape(),
+                    frequency_range, angle_range, log, stream.cuda());
+        }
+        #else
+        NOA_THROW("No GPU backend detected");
+        #endif
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/unified/Array.h"
+#include "noa/unified/Texture.h"
 
 namespace noa::geometry::fft::details {
     using Remap = noa::fft::Remap;
@@ -27,23 +28,26 @@ namespace noa::geometry::fft {
     /// \tparam REMAP               Remapping from the slice to the grid layout. Should be H2H, H2HC, HC2H or HC2HC.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[in] slice            Non-redundant 2D slice(s) to insert.
-    /// \param slice_shape          Rightmost logical shape of \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
     /// \param[out] grid            Non-redundant 3D grid inside which the slices are inserted.
-    /// \param grid_shape           Rightmost logical shape of \p grid.
-    /// \param[in] scaling_factors  2x2 rightmost \e inverse real-space scaling to apply to the
+    /// \param grid_shape           BDHW logical shape of \p grid.
+    /// \param[in] scaling_factors  2x2 HW \e inverse real-space scaling to apply to the
     ///                             slices before the rotation. Can be empty. One per slice.
-    /// \param[in] rotations        3x3 rightmost \e forward rotation matrices. One per slice.
+    /// \param[in] rotations        3x3 DHW \e forward rotation matrices. One per slice.
     /// \param cutoff               Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param sampling_factor      Under- or over-sampling factor applied after all transformations.
+    ///                             This function normalizes the slice and grid dimensions. This parameter works on
+    ///                             these normalizes coordinates, so a factor of 1 maps the slice onto the grid,
+    ///                             which e.g. implicitly stretches the slice if the grid is oversampled. A factor
+    ///                             of 2 scales the slice by a factor of 2 compared to the grid, inserting the 0.25
+    ///                             frequency of the slice into the 0.5 frequency of the grid.
+    /// \param ews_radius           HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     ///
     /// \note If \p grid is on the GPU, \p scaling_factors and \p rotations can be on any device,
-    ///       including the CPU. If \p grid is on the CPU, they should be dereferencable by the CPU.
-    /// \note To decrease artefacts, the cartesian grid is usually oversampled. While this can be achieved by zero
-    ///       padding the slices before the FFT, this function can also work with an oversampled grid. The oversampling
-    ///       ratio is the ratio between the two innermost dimensions of \p grid_shape and \p slice_shape.
+    ///       including the CPU. If \p grid is on the CPU, they should be dereferenceable by the CPU.
     /// \note In order to have both left and right beams assigned to different values, this function only computes one
     ///       "side" of the EWS, as specified by \p ews_radius. To insert the other side, one would have to
     ///       call this function a second time with \p ews_radius * -1.
@@ -57,7 +61,7 @@ namespace noa::geometry::fft {
                   const Array<T>& grid, size4_t grid_shape,
                   const Array<float22_t>& scaling_factors,
                   const Array<float33_t>& rotations,
-                  float cutoff = 0.5f, float2_t ews_radius = {});
+                  float cutoff = 0.5f, float sampling_factor = 1, float2_t ews_radius = {});
 
     /// Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
     /// \details This is the reverse operation of insert3D. The transformation itself is identical to insert3D's, so
@@ -66,35 +70,48 @@ namespace noa::geometry::fft {
     /// \tparam REMAP               Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
     /// \tparam T                   float, double, cfloat_t, cdouble_t.
     /// \param[out] grid            Non-redundant centered 3D grid from which to extract the slices.
-    /// \param grid_shape           Rightmost logical shape of \p grid.
+    /// \param grid_shape           BDHW logical shape of \p grid.
     /// \param[in] slice            Non-redundant 2D extracted slice(s).
-    /// \param slice_shape          Rightmost logical shape of \p slice.
-    /// \param[in] scaling_factors  2x2 rightmost \e inverse real-space scaling applied to the
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[in] scaling_factors  2x2 HW \e inverse real-space scaling applied to the
     ///                             slices before the rotation. Can be empty. One per slice.
-    /// \param[in] rotations        3x3 rightmost \e forward rotation matrices. One per slice.
+    /// \param[in] rotations        3x3 DHW \e forward rotation matrices. One per slice.
     /// \param cutoff               Frequency cutoff in \p grid, in cycle/pix.
     ///                             Values are clamped from 0 (DC) to 0.5 (Nyquist).
-    /// \param ews_radius           Rightmost Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    /// \param sampling_factor      Under- or over-sampling factor applied after all transformations.
+    ///                             This function normalizes the slice and grid dimensions. This parameter works on
+    ///                             these normalizes coordinates, so a factor of 1 maps the slice onto the grid,
+    ///                             which e.g. implicitly stretches the slice if the grid is oversampled. A factor
+    ///                             of 2 scales the slice by a factor of 2 compared to the grid, extracting the 0.25
+    ///                             frequency of the slice from the 0.5 frequency of the grid.
+    /// \param ews_radius           HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     ///
     /// \note If \p slice is on the CPU:
-    ///         - \p scaling_factors and \p rotations should be dereferencable by the CPU.
+    ///         - \p scaling_factors and \p rotations should be dereferenceable by the CPU.
     ///       If \p slice is on the GPU:
     ///         - Double precision is not supported.
     ///         - \p scaling_factors and \p rotations can be on any device, including the CPU.
-    ///         - The third-most and innermost dimension of the input should be contiguous.\n
+    ///         - \p grid should be in the rightmost order and the depth and width dimensions should be contiguous.\n
     ///         - \p grid can be on any device, including the CPU.
-    ///
-    /// \note To decrease artefacts, the cartesian grid is usually oversampled. While this can be achieved by zero
-    ///       padding the grid before the FFT, this function can also work with an oversampled grid. The oversampling
-    ///       ratio is the ratio between the two innermost dimensions of \p grid_shape and \p slice_shape.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
     void extract3D(const Array<T>& grid, size4_t grid_shape,
                    const Array<T>& slice, size4_t slice_shape,
                    const Array<float22_t>& scaling_factors,
                    const Array<float33_t>& rotations,
-                   float cutoff = 0.5f, float2_t ews_radius = {});
+                   float cutoff = 0.5f, float sampling_factor = 1, float2_t ews_radius = {});
+
+    /// Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
+    /// \details This functions has the same features and limitations as the overload taking arrays.
+    ///          However, for GPU textures, the border mode should be BORDER_ZERO, the interpolation mode
+    ///          should be INTERP_LINEAR or INTERP_LINEAR_FAST, and un-normalized coordinates should be used.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
+    void extract3D(const Texture<T>& grid, size4_t grid_shape,
+                   const Array<T>& slice, size4_t slice_shape,
+                   const Array<float22_t>& scaling_factors,
+                   const Array<float33_t>& rotations,
+                   float cutoff = 0.5f, float sampling_factor = 1, float2_t ews_radius = {});
 
     /// Corrects for the gridding, assuming tri-linear interpolation was used during the Fourier insertion.
     /// \details During direct Fourier insertion of slices S into a volume B, two problems arises:

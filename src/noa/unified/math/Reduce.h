@@ -68,7 +68,7 @@ namespace noa::math {
     /// \note For floating-point and complex types, the CPU backend uses a multi-threaded
     ///       Kahan summation (with Neumaier variation) algorithm is used.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    [[nodiscard]] auto std(const Array<T>& array);
+    [[nodiscard]] auto std(const Array<T>& array, int ddof = 0);
 
     /// Returns a tuple with the sum, mean, variance and stddev of the input array.
     /// \tparam T           float, double, cfloat_t, cdouble_t. For complex types, the absolute value is taken

@@ -298,31 +298,33 @@ namespace noa::cuda::geometry {
     }
 
     template<typename T, typename>
-    void cartesian2polar(const shared_t<cudaTextureObject_t>& cartesian, InterpMode cartesian_interp,
+    void cartesian2polar(const shared_t<cudaArray>& array,
+                         const shared_t<cudaTextureObject_t>& cartesian, InterpMode cartesian_interp,
                          const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, Stream& stream) {
         launchCartesianPolarTexture_(*cartesian, cartesian_interp, polar.get(), polar_strides, polar_shape,
                                      cartesian_center, radius_range, angle_range, log, stream);
-        stream.attach(cartesian, polar);
+        stream.attach(array, cartesian, polar);
     }
 
     template<typename T, typename>
-    void polar2cartesian(const shared_t<cudaTextureObject_t>& polar, InterpMode polar_interp, float2_t polar_shape,
+    void polar2cartesian(const shared_t<cudaArray>& array,
+                         const shared_t<cudaTextureObject_t>& polar, InterpMode polar_interp, float2_t polar_shape,
                          const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, Stream& stream) {
         launchPolarCartesianTexture_(*polar, polar_interp, polar_shape,
                                      cartesian.get(), cartesian_strides, cartesian_shape,
                                      cartesian_center, radius_range, angle_range, log, stream);
-        stream.attach(cartesian, polar);
+        stream.attach(array, cartesian, polar);
     }
 
     #define INSTANTIATE_POLAR(T) \
-    template void cartesian2polar<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&); \
-    template void polar2cartesian<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&); \
-    template void cartesian2polar<T,void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&);         \
-    template void polar2cartesian<T,void>(const shared_t<cudaTextureObject_t>&, InterpMode, float2_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&)
+    template void cartesian2polar<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&);                       \
+    template void polar2cartesian<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, InterpMode, bool, Stream&);                       \
+    template void cartesian2polar<T,void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&);   \
+    template void polar2cartesian<T,void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, float2_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, float2_t, bool, Stream&)
 
     INSTANTIATE_POLAR(float);
     INSTANTIATE_POLAR(cfloat_t);

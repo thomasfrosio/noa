@@ -243,7 +243,8 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform2D(const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
+    void transform2D(const shared_t<cudaArray>& array,
+                     const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      const M& matrices, const S& shifts, float cutoff, Stream& stream) {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
@@ -271,18 +272,18 @@ namespace noa::cuda::geometry::fft {
                                 output.get(), output_strides,
                                 output_shape, matrices_, shifts_, cutoff, stream);
 
-        stream.attach(texture, output);
+        stream.attach(array, texture, output);
         if constexpr (!SINGLE_MATRIX)
             stream.attach(matrices);
         if constexpr (!SINGLE_SHIFT)
             stream.attach(shifts);
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S)                                                                                                                                           \
-    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, InterpMode, Stream&);          \
-    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, InterpMode, Stream&);          \
-    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, Stream&);   \
-    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S)                                                                                                                                                                       \
+    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, InterpMode, Stream&);                                      \
+    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, InterpMode, Stream&);                                      \
+    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, Stream&);   \
+    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, Stream&)
 
     #define NOA_INSTANTIATE_TRANSFORM2D_ALL_(T)                                     \
     NOA_INSTANTIATE_TRANSFORM2D_(T, shared_t<float22_t[]>, shared_t<float2_t[]>);   \

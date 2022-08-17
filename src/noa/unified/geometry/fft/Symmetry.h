@@ -22,16 +22,18 @@ namespace noa::geometry::fft {
     /// \param normalize    Whether \p output should be normalized to have the same range as \p input.
     ///                     If false, output values end up being scaled by the symmetry count.
     ///
+    /// \note If the output is on the CPU:\n
+    ///         - \p input and \p output should not overlap.\n
     /// \note If the output is on the GPU:\n
     ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - The innermost dimension of the input should be contiguous.\n
+    ///         - \p input should be in the rightmost order and the width dimension should be contiguous.\n
     ///         - In-place transformation (\p input == \p output) is always allowed.\n
     ///         - \p input can be on any device, including the CPU.\n
     ///
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
     void symmetrize2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                       const Symmetry& symmetry, float2_t shift,
                       float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);
@@ -51,16 +53,18 @@ namespace noa::geometry::fft {
     /// \param normalize    Whether \p output should be normalized to have the same range as \p input.
     ///                     If false, output values end up being scaled by the symmetry count.
     ///
+    /// \note If the output is on the CPU:\n
+    ///         - \p input and \p output should not overlap.\n
     /// \note If the output is on the GPU:\n
     ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - The third-most and innermost dimension of the input should be contiguous.\n
+    ///         - \p input should be in the rightmost order and the height and width dimension should be contiguous.\n
     ///         - In-place transformation (\p input == \p output) is always allowed.\n
     ///         - \p input can be on any device, including the CPU.\n
     ///
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xform_v<REMAP, T>>>
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
     void symmetrize3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                       const Symmetry& symmetry, float3_t shift,
                       float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);

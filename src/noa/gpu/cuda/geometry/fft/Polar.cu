@@ -158,7 +158,8 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<typename T, typename>
-    void cartesian2polar(const shared_t<cudaTextureObject_t>& cartesian,
+    void cartesian2polar(const shared_t<cudaArray>& array,
+                         const shared_t<cudaTextureObject_t>& cartesian,
                          InterpMode cartesian_interp, size2_t cartesian_shape,
                          const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
@@ -166,12 +167,12 @@ namespace noa::cuda::geometry::fft {
         launch_(*cartesian, cartesian_interp, cartesian_shape,
                 polar.get(), polar_strides, polar_shape,
                 frequency_range, angle_range, log, stream);
-        stream.attach(cartesian, polar);
+        stream.attach(array, cartesian, polar);
     }
 
     #define INSTANTIATE_POLAR(T) \
     template void cartesian2polar<Remap::HC2FC, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void cartesian2polar<T, void>(const shared_t<cudaTextureObject_t>&, InterpMode, size2_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, bool, Stream&)
+    template void cartesian2polar<T, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, size2_t, const shared_t<T[]>&, size4_t, size4_t, float2_t, float2_t, bool, Stream&)
 
     INSTANTIATE_POLAR(float);
     INSTANTIATE_POLAR(cfloat_t);

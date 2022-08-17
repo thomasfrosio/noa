@@ -44,7 +44,7 @@ namespace {
         io::ImageFile file(filename, io::WRITE);
         file.shape(array.shape());
         file.dtype(io::FLOAT32);
-        Array<float> output = all(array.contiguous()) ? array : array.copy();
+        Array<float> output = array.contiguous() ? array : array.copy();
         file.writeAll(output.eval().get());
     }
 

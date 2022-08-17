@@ -340,14 +340,15 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void extract3D(const shared_t<cudaTextureObject_t>& grid, int3_t grid_shape,
+    void extract3D(const shared_t<cudaArray>& array,
+                   const shared_t<cudaTextureObject_t>& grid, int3_t grid_shape,
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
                    float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
         launchExtract3D_<REMAP>(*grid, grid_shape, slice.get(), slice_strides, slice_shape,
                                 scaling_factors.get(), rotations.get(), cutoff, sampling_factor, ews_radius, stream);
-        stream.attach(grid, slice, scaling_factors, rotations);
+        stream.attach(array, grid, slice, scaling_factors, rotations);
     }
 
     template<typename T, typename>
@@ -392,7 +393,8 @@ namespace noa::cuda::geometry::fft {
     #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                                              \
     template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,                 \
                                         const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&);   \
-    template void extract3D<R, T, void>(const shared_t<cudaTextureObject_t>&, int3_t, const shared_t<T[]>&, size4_t, size4_t,           \
+    template void extract3D<R, T, void>(const shared_t<cudaArray>&,                                                                     \
+                                        const shared_t<cudaTextureObject_t>&, int3_t, const shared_t<T[]>&, size4_t, size4_t,           \
                                         const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
 
     NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2HC);

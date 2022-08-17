@@ -59,7 +59,8 @@ TEMPLATE_TEST_CASE("unified::geometry, cosine stretch", "[.]", float) {
                     float33_t{geometry::rotate(-tilt_axis_angle)} *
                     geometry::translate(-center)
             };
-            geometry::transform2D<false>(src, dst, math::inverse(matrix), INTERP_CUBIC_BSPLINE_FAST);
+            geometry::transform2D(src, dst, math::inverse(matrix),
+                                  INTERP_CUBIC_BSPLINE_FAST, BORDER_ZERO, 0.f, false);
             file.writeSlice(dst.eval().get(), i, i + 1);
         }
     }

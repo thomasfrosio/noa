@@ -102,11 +102,11 @@ namespace noa::signal {
         }
     }
 
-    template<bool INVERT, typename T, typename>
+    template<typename T, typename>
     void rectangle(const Array<T>& input, const Array<T>& output,
                    float2_t center, float2_t radius, float taper_size, bool invert) {
-        return rectangle<INVERT>(input, output, float3_t{0, center[0], center[1]},
-                                 float3_t{1, radius[0], radius[1]}, taper_size, invert);
+        return rectangle(input, output, float3_t{0, center[0], center[1]},
+                         float3_t{1, radius[0], radius[1]}, taper_size, invert);
     }
 
     template<typename T, typename>

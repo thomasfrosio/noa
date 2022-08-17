@@ -195,13 +195,14 @@ namespace {
 
 namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename T, typename>
-    void transform3D(const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
+    void transform3D(const shared_t<cudaArray>& array,
+                     const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                      const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, bool normalize, Stream& stream) {
         launchTexture3D_<REMAP>(*texture, texture_interp_mode, output.get(), output_strides,
                                 output_shape, matrix, symmetry, shift, cutoff, normalize, stream);
-        stream.attach(texture, output);
+        stream.attach(array, texture, output);
     }
 
     template<Remap REMAP, typename T, typename>
@@ -238,11 +239,11 @@ namespace noa::cuda::geometry::fft {
         stream.attach(input, output, array.share(), texture.share());
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_3D_(T)                                                                                                                                                                \
-    template void transform3D<Remap::HC2HC, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);        \
-    template void transform3D<Remap::HC2H, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);         \
-    template void transform3D<Remap::HC2HC, T, void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, bool, Stream&); \
-    template void transform3D<Remap::HC2H, T, void>(const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, bool, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_3D_(T)                                                                                                                                                                                            \
+    template void transform3D<Remap::HC2HC, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);                                    \
+    template void transform3D<Remap::HC2H, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);                                     \
+    template void transform3D<Remap::HC2HC, T, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, bool, Stream&); \
+    template void transform3D<Remap::HC2H, T, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, float33_t, const Symmetry&, float3_t, float, bool, Stream&)
 
     NOA_INSTANTIATE_TRANSFORM_3D_(float);
     NOA_INSTANTIATE_TRANSFORM_3D_(cfloat_t);

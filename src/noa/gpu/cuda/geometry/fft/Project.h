@@ -37,7 +37,8 @@ namespace noa::cuda::geometry::fft {
 
     // Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
-    void extract3D(const shared_t<cudaTextureObject_t>& grid, int3_t grid_shape,
+    void extract3D(const shared_t<cudaArray>& array,
+                   const shared_t<cudaTextureObject_t>& grid, int3_t grid_shape,
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,

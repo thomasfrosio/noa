@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NOA_UNIFIED_PREFILTER_
-#error "This is a private header"
+#error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
 #include "noa/cpu/geometry/Prefilter.h"
@@ -12,8 +12,8 @@
 namespace noa::geometry::bspline {
     template<typename T, typename>
     void prefilter(const Array<T>& input, const Array<T>& output) {
-        size4_t input_stride = input.strides();
-        if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
+        size4_t input_strides = input.strides();
+        if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
@@ -26,13 +26,13 @@ namespace noa::geometry::bspline {
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             cpu::geometry::bspline::prefilter(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(),
                     output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::geometry::bspline::prefilter(
-                    input.share(), input_stride,
+                    input.share(), input_strides,
                     output.share(), output.strides(),
                     output.shape(), stream.cuda());
             #else

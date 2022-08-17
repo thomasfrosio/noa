@@ -17,10 +17,10 @@ namespace noa::geometry::fft {
     ///                         entire angular range (e.g. 0 to 2PI).
     /// \tparam T               float, double, cfloat_t or cdouble_t.
     /// \param[in] cartesian    Non-redundant centered 2D FFT to interpolate onto the new coordinate system.
-    /// \param cartesian_shape  Rightmost logical shape of \p cartesian.
+    /// \param cartesian_shape  BDHW logical shape of \p cartesian.
     /// \param[out] polar       Transformed 2D array on the (log-)polar grid.
-    ///                         The innermost dimension is the radius rho, from and to \p frequency_range.
-    ///                         The second-most dimension is the angle phi, from and to \p angle_range.
+    ///                         The width dimension is the radius rho, from and to \p radius_range.
+    ///                         The height dimension is the angle phi, from and to \p angle_range.
     /// \param frequency_range  Frequency [start,end] range of the bounding shells to transform, in cycle/pixels.
     ///                         While Nyquist is at 0.5, higher values can be specified.
     /// \param angle_range      Angle [start,end] range increasing in the counterclockwise orientation, in radians.
@@ -36,13 +36,22 @@ namespace noa::geometry::fft {
     ///         - \p cartesian and \p polar should be on the same device.\n
     /// \note If \p polar is on the GPU:\n
     ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - The innermost dimension of the cartesian input should be contiguous.\n
-    ///         - \p cartesian can be on the CPU.
+    ///         - \p input should be in the rightmost order and the width dimension should be contiguous.\n
+    ///         - \p cartesian can be on any device including the CPU.
     ///         - In-place transformation is always allowed.\n
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, T>>>
     void cartesian2polar(const Array<T>& cartesian, size4_t cartesian_shape, const Array<T>& polar,
                          float2_t frequency_range, float2_t angle_range,
                          bool log = false, InterpMode interp = INTERP_LINEAR);
+
+    /// Transforms 2D FFT(s) to (log-)polar coordinates.
+    /// \details This functions has the same features and limitations as the overload taking arrays.
+    ///          However, for GPU textures, 1) the border mode should be BORDER_ZERO and un-normalized coordinates
+    ///          should be used.
+    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, T>>>
+    void cartesian2polar(const Texture<T>& cartesian, size4_t cartesian_shape, const Array<T>& polar,
+                         float2_t frequency_range, float2_t angle_range,
+                         bool log = false);
 }
 
 #define NOA_UNIFIED_FFT_POLAR_

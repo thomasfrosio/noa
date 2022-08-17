@@ -285,7 +285,8 @@ namespace noa::cuda::geometry {
     }
 
     template<typename T, typename S, typename>
-    void shift3D(const shared_t<cudaTextureObject_t>& texture, size3_t texture_shape,
+    void shift3D(const shared_t<cudaArray>& array,
+                 const shared_t<cudaTextureObject_t>& texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
                  const S& shifts, Stream& stream) {
@@ -293,20 +294,20 @@ namespace noa::cuda::geometry {
             launchShiftTextureSingle3D_(
                     *texture, texture_shape, texture_interp_mode, texture_border_mode,
                     output.get(), output_strides, output_shape, shifts, stream);
-            stream.attach(texture, output);
+            stream.attach(array, texture, output);
         } else {
             launchShiftTexture3D_(
                     *texture, texture_shape, texture_interp_mode, texture_border_mode,
                     output.get(), output_strides, output_shape, shifts.get(), stream);
-            stream.attach(texture, output, shifts);
+            stream.attach(array, texture, output, shifts);
         }
     }
 
-    #define NOA_INSTANTIATE_SHIFT_3D_VECTOR_(T, S)                                                                                                                                              \
-    template void shift3D<T, shared_t<S[]>, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<S[]>&, InterpMode, BorderMode, bool, Stream&); \
-    template void shift3D<T, S, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const S&, InterpMode, BorderMode, bool, Stream&);                         \
-    template void shift3D<T, shared_t<S[]>, void>(const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const shared_t<S[]>&, Stream&);\
-    template void shift3D<T, S, void>(const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const S&, Stream&)
+    #define NOA_INSTANTIATE_SHIFT_3D_VECTOR_(T, S)                                                                                                                                                                          \
+    template void shift3D<T, shared_t<S[]>, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<S[]>&, InterpMode, BorderMode, bool, Stream&);                             \
+    template void shift3D<T, S, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const S&, InterpMode, BorderMode, bool, Stream&);                                                     \
+    template void shift3D<T, shared_t<S[]>, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const shared_t<S[]>&, Stream&);\
+    template void shift3D<T, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, size3_t, InterpMode, BorderMode, const shared_t<T[]>&, size4_t, size4_t, const S&, Stream&)
 
     #define NOA_INSTANTIATE_SHIFT_3D_(T)           \
     NOA_INSTANTIATE_SHIFT_3D_VECTOR_(T, float3_t); \
