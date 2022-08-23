@@ -46,7 +46,7 @@ namespace {
 
                     for (int64_t z = start; z < end; ++z) {
                         // Round coordinate to have the XYZ output index.
-                        const float3_t output_idx{math::floor(output_coords[0]) + z,
+                        const float3_t output_idx{math::floor(output_coords[0]) + static_cast<float>(z),
                                                   math::floor(output_coords[1]),
                                                   math::floor(output_coords[2])};
 

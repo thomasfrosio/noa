@@ -11,7 +11,6 @@ using namespace ::noa;
 
 TEMPLATE_TEST_CASE("unified::signal::fft::standardize()", "[noa][unified]", float, double) {
     using real_t = TestType;
-    using complex_t = Complex<real_t>;
 
     const fft::Norm norm = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO, fft::NORM_NONE);
     const uint ndim = GENERATE(2u, 3u);

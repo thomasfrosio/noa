@@ -21,8 +21,8 @@ namespace noa {
     protected:
         std::string m_buffer{};
 
-        NOA_HOST static std::string format_(const char* file, const char* function, int line,
-                                            const std::string& message) {
+        static std::string format_(const char* file, const char* function, int line,
+                                   const std::string& message) {
             namespace fs = std::filesystem;
             size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
             return string::format("ERROR:{}:{}:{}: {}",
@@ -56,7 +56,7 @@ namespace noa {
 
     /// Throw a nested noa::Exception if result evaluates to false.
     template<typename T>
-    NOA_IH void throwIf(T&& result, const char* file, const char* function, int line) {
+    void throwIf(T&& result, const char* file, const char* function, int line) {
         if (result)
             std::throw_with_nested(noa::Exception(file, function, line, string::format("{}", std::forward<T>(result))));
     }

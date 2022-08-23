@@ -1,0 +1,93 @@
+# Configuration file for noa.
+#
+# The goal is to find all of the dependencies of the library and recreate its targets.
+# One important feature is that the project options are set, so users can modify them
+# before calling this module. The default value of these options are set to the values
+# that were used to build the library. Some options cannot be changed though, and this
+# file will warn if the installed library is compatible with the options that are passed.
+
+# =====================================================================================
+# Find dependencies
+# =====================================================================================
+get_filename_component(_noa_install_lib_cmake_path "${CMAKE_CURRENT_LIST_DIR}/.." REALPATH)
+list(APPEND CMAKE_MODULE_PATH "${_noa_install_lib_cmake_path}/modules")
+
+include(CMakeFindDependencyMacro)
+find_dependency(Threads)
+
+# Logging:
+if (NOT TARGET spdlog::spdlog)
+    find_dependency(spdlog REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
+endif ()
+
+# Half precision:
+if (NOT TARGET half::half)
+    find_dependency(half REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
+endif ()
+
+# TIFF:
+if (@NOA_ENABLE_TIFF@ AND NOT TARGET TIFF::TIFF)
+    # TIFF_STATIC can be changed.
+    set(TIFF_STATIC @TIFF_STATIC@ CACHE BOOL "")
+    find_dependency(TIFF REQUIRED)
+endif ()
+
+# CPU backend dependencies:
+if (@NOA_ENABLE_CPU@)
+    if (NOT TARGET OpenMP::OpenMP_CXX AND @NOA_CPU_OPENMP@)
+        find_dependency(OpenMP 4.5 REQUIRED)
+    endif ()
+
+    if (@NOA_CPU_MATH_LIBRARY@ STREQUAL "CBLAS-LAPACKE-FFTW3")
+        set(BLA_STATIC @BLA_STATIC@ CACHE BOOL "")
+        set(BLA_VENDOR @BLA_VENDOR@ CACHE STRING "")
+        if (${BLA_VENDOR} MATCHES "Intel")
+            message(FATAL_ERROR "BLA_VENDOR=${BLA_VENDOR} is not compatible with this mode")
+        endif()
+
+        if (NOT TARGET CBLAS::CBLAS)
+            find_dependency(CBLAS REQUIRED)
+        endif ()
+
+        if (NOT TARGET LAPACKE::LAPACKE)
+            set(LAPACKE_STATIC @LAPACKE_STATIC@ CACHE BOOL "")
+            find_dependency(LAPACKE REQUIRED)
+        endif ()
+
+        set(FFTW3_THREADS @FFTW3_THREADS@ CACHE BOOL "")
+        set(FFTW3_OPENMP @FFTW3_OPENMP@ CACHE BOOL "")
+        set(FFTW3_STATIC @FFTW3_STATIC@ CACHE BOOL "")
+        if (NOT TARGET FFTW3::FFTW3_float AND NOT TARGET FFTW3::FFTW3_double)
+            find_dependency(FFTW3 REQUIRED)
+            # The threading model is encoded in the target name, so noaTargets.cmake
+            # will fail (as it should) if a different FFTW3 config is used for build and import.
+        endif ()
+
+    elseif(@NOA_CPU_MATH_LIBRARY@ STREQUAL "MKL")
+        message(FATAL_ERROR "NOA_CPU_MATH_LIBRARY: MKL is currently not supported")
+    else ()
+        message(FATAL_ERROR "NOA_CPU_MATH_LIBRARY is not recognized")
+    endif ()
+endif ()
+
+# CUDA backend dependencies:
+if (@NOA_ENABLE_CUDA@)
+    # TODO Can we do something about the architecture?
+    #      Of course CUDA will break at runtime if there's an incompatibility, but still...
+    find_dependency(CUDAToolkit 11 REQUIRED)
+endif ()
+
+unset(_noa_install_lib_cmake_path)
+list(POP_BACK CMAKE_MODULE_PATH)
+
+# =====================================================================================
+# Create targets
+# =====================================================================================
+if(NOT TARGET noa::noa)
+    include("${CMAKE_CURRENT_LIST_DIR}/noaTargets.cmake")
+    set(noa_FOUND TRUE)
+
+    if (noa_FIND_COMPONENTS AND NOT noa_FIND_QUIETLY)
+        message(STATUS "Some components where required, but noa doesn't support components yet, so this is ignored")
+    endif ()
+endif()

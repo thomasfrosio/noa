@@ -1,9 +1,6 @@
 #ifdef NOA_ENABLE_OPENMP
 #include <omp.h>
 #endif
-#ifdef NOA_ENABLE_CPU
-#include <cblas.h>
-#endif
 
 #include "noa/Session.h"
 #include "noa/common/string/Parse.h"

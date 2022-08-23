@@ -1,8 +1,8 @@
 message(STATUS "--------------------------------------")
-message(STATUS "noa::noa_benchmarks: configuring public target...")
+message(STATUS "-> noa::noa_benchmarks: configuring public target...")
 
-include(${PROJECT_SOURCE_DIR}/ext/google-benchmark/google-benchmark.cmake)
-include(${PROJECT_SOURCE_DIR}/ext/yaml-cpp/yaml-cpp.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/ext/google-benchmark.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/ext/yaml-cpp.cmake)
 
 add_executable(noa_benchmarks ${BENCHMARK_SOURCES})
 add_executable(noa::noa_benchmarks ALIAS noa_benchmarks)
@@ -32,5 +32,5 @@ install(TARGETS noa_benchmarks
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
-message(STATUS "noa::noa_benchmarks: configuring public target... done")
+message(STATUS "-> noa::noa_benchmarks: configuring public target... done")
 message(STATUS "--------------------------------------\n")

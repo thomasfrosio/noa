@@ -1,9 +1,0 @@
-@PACKAGE_INIT@
-
-if(NOT TARGET Noa::noa)
-    include("${CMAKE_CURRENT_LIST_DIR}/NoaTargets.cmake")
-endif()
-
-set(NOA_LIBRARIES Noa::noa)
-
-check_required_components("Noa")

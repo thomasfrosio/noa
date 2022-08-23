@@ -38,10 +38,6 @@
 #include <type_traits>
 #include <typeinfo>
 
-#ifdef NOA_ENABLE_CUDA
-#include <builtin_types.h>
-#endif
-
 #include "noa/common/Traits.h"
 
 namespace noa::string {

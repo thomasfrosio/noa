@@ -157,7 +157,7 @@ namespace noa::cpu::fft {
 
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, size4_t shape,
-                                                   uint flag, size_t threads) {
+                                                   uint flag, [[maybe_unused]] size_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -194,7 +194,8 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_strides,
                                                    Complex<T>* output, size4_t output_strides,
-                                                   size4_t shape, uint flag, size_t threads) {
+                                                   size4_t shape, uint flag,
+                                                   [[maybe_unused]] size_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -235,7 +236,8 @@ namespace noa::cpu::fft {
 
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
-                                                   size4_t shape, uint flag, size_t threads) {
+                                                   size4_t shape, uint flag,
+                                                   [[maybe_unused]] size_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -270,7 +272,8 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_strides,
                                                    T* output, size4_t output_strides,
-                                                   size4_t shape, uint flag, size_t threads) {
+                                                   size4_t shape, uint flag,
+                                                   [[maybe_unused]] size_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -315,7 +318,8 @@ namespace noa::cpu::fft {
 
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, Complex<T>* output, size4_t shape,
-                                                   Sign sign, uint flag, size_t threads) {
+                                                   Sign sign, uint flag,
+                                                   [[maybe_unused]] size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
@@ -356,7 +360,7 @@ namespace noa::cpu::fft {
     typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, size4_t input_strides,
                                                    Complex<T>* output, size4_t output_strides,
                                                    size4_t shape, Sign sign, uint flag,
-                                                   size_t threads) {
+                                                   [[maybe_unused]] size_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 

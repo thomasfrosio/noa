@@ -23,6 +23,7 @@ function(set_cxx_compiler_warnings interface)
             -Wnull-dereference # warn if a null dereference is detected
             -Wdouble-promotion # warn if float is implicit promoted to double
             -Wformat=2 # warn on security issues around functions that format output (ie printf)
+            -Wimplicit-fallthrough # warn on statements that fallthrough without an explicit annotation
             )
 
     if (NOA_ENABLE_WARNINGS_AS_ERRORS)

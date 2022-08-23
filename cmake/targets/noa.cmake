@@ -1,117 +1,99 @@
 message(STATUS "--------------------------------------")
-message(STATUS "noa::noa: configuring public target...")
+message(STATUS "-> noa::noa: configuring public target...")
 
 # ---------------------------------------------------------------------------------------
 # Linking options and libraries
 # ---------------------------------------------------------------------------------------
 # Common:
-include(${PROJECT_SOURCE_DIR}/ext/spdlog/spdlog.cmake)
-include(${PROJECT_SOURCE_DIR}/ext/half/half.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/ext/spdlog.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/ext/half.cmake)
 
-add_library(noa_libraries INTERFACE)
-target_link_libraries(noa_libraries
+# Interface gathering all of the dependencies of the library.
+add_library(noa_public_libraries INTERFACE)
+add_library(noa_private_libraries INTERFACE)
+
+target_link_libraries(noa_public_libraries
         INTERFACE
         spdlog::spdlog
-        half-ieee754
+        half::half
         )
 
 if (NOA_ENABLE_TIFF)
-    include(${PROJECT_SOURCE_DIR}/ext/tiff/tiff.cmake)
-    target_link_libraries(noa_libraries INTERFACE TIFF::TIFF)
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/tiff.cmake)
+    target_link_libraries(noa_public_libraries INTERFACE TIFF::TIFF)
 endif ()
 
 # CPU backend:
-if (NOA_ENABLE_CPU OR NOA_ENABLE_UNIFIED)
+if (NOA_ENABLE_CPU)
     find_package(Threads REQUIRED)
 
-    if (NOA_ENABLE_OPENMP)
-        find_package(OpenMP 4.5)
-        if (OpenMP_FOUND)
-            target_link_libraries(noa_libraries INTERFACE OpenMP::OpenMP_CXX)
-        else ()
-            message(WARN "NOA_ENABLE_OPENMP is ON, but could not find OpenMP")
-            set(NOA_ENABLE_OPENMP OFF)
-        endif()
+    if (NOA_CPU_OPENMP)
+        find_package(OpenMP 4.5 REQUIRED)
+        target_link_libraries(noa_private_libraries INTERFACE OpenMP::OpenMP_CXX)
     endif ()
 
-    include(${PROJECT_SOURCE_DIR}/ext/openblas/openblas.cmake)
-    include(${PROJECT_SOURCE_DIR}/ext/fftw/fftw.cmake)
-    target_link_libraries(noa_libraries
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/fftw.cmake)
+    target_link_libraries(noa_public_libraries
             INTERFACE
             Threads::Threads
-            OpenBLAS::OpenBLAS
-            fftw3::float
-            fftw3::double
+            ${FFTW3_TARGETS}
+            )
+
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/cblas.cmake)
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/lapacke.cmake)
+    target_link_libraries(noa_private_libraries
+            INTERFACE
+            CBLAS::CBLAS
+            LAPACKE::LAPACKE
             )
 endif ()
 
 # CUDA backend:
 if (NOA_ENABLE_CUDA)
-    include(${PROJECT_SOURCE_DIR}/ext/cuda-toolkit/cuda-toolkit.cmake)
-    if (NOA_CUDA_CUDART_STATIC)
-        target_link_libraries(noa_libraries INTERFACE CUDA::cudart_static)
-    else ()
-        target_link_libraries(noa_libraries INTERFACE CUDA::cudart)
-    endif ()
-
-    if (NOA_CUDA_CUFFT_STATIC)
-        target_link_libraries(noa_libraries INTERFACE CUDA::cufft_static)
-    else ()
-        target_link_libraries(noa_libraries INTERFACE CUDA::cufft)
-    endif ()
-
-    if (NOA_CUDA_CURAND_STATIC)
-        target_link_libraries(noa_libraries INTERFACE CUDA::curand_static)
-    else ()
-        target_link_libraries(noa_libraries INTERFACE CUDA::curand)
-    endif ()
-
-    if (NOA_CUDA_CUBLAS_STATIC)
-        target_link_libraries(noa_libraries INTERFACE CUDA::cublas_static)
-    else ()
-        target_link_libraries(noa_libraries INTERFACE CUDA::cublas)
-    endif ()
-
-    if (NOA_CUDA_CUSOLVER_STATIC)
-        target_link_libraries(noa_libraries INTERFACE CUDA::cusolver_static)
-    else ()
-        target_link_libraries(noa_libraries INTERFACE CUDA::cusolver)
-    endif ()
-
-    target_compile_options(noa_libraries INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/cuda-toolkit.cmake)
+    target_link_libraries(noa_public_libraries
+            INTERFACE
+            $<IF:$<BOOL:${NOA_CUDA_CUDART_STATIC}>, CUDA::cudart_static, CUDA::cudart>
+            $<IF:$<BOOL:${NOA_CUDA_CUFFT_STATIC}>,  CUDA::cufft_static,  CUDA::cufft>
+            )
+    target_link_libraries(noa_private_libraries
+            INTERFACE
+            $<IF:$<BOOL:${NOA_CUDA_CURAND_STATIC}>, CUDA::curand_static, CUDA::curand>
+            $<IF:$<BOOL:${NOA_CUDA_CUBLAS_STATIC}>, CUDA::cublas_static, CUDA::cublas>
+            )
 endif ()
 
 # ---------------------------------------------------------------------------------------
 # Creating the target
 # ---------------------------------------------------------------------------------------
-add_library(noa ${NOA_SOURCES} ${NOA_HEADERS})
+add_library(noa STATIC ${NOA_SOURCES} ${NOA_HEADERS})
 add_library(noa::noa ALIAS noa)
 
 target_link_libraries(noa
-        PRIVATE
-        prj_common_option
-        prj_compiler_warnings
-        PUBLIC
-        noa_libraries
+        PRIVATE prj_common_option prj_compiler_warnings
+        PRIVATE noa_private_libraries
+        PUBLIC noa_public_libraries
         )
 
 # Not sure why, but these need to be set on the target directly
 if (NOA_ENABLE_CUDA)
+    # The CUDA_ARCHITECTURES property defaults to CMAKE_CUDA_ARCHITECTURES.
     set_target_properties(noa
             PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
+            # POSITION_INDEPENDENT_CODE ON
             # CUDA_RESOLVE_DEVICE_SYMBOLS ON
-            CUDA_ARCHITECTURES ${NOA_CUDA_ARCH}
             )
 endif ()
 
 if (NOA_ENABLE_LTO)
+    # FIXME Do we need to have IPO for libraries targets?
+    #       This should be triggered on the compiler that compiles the executable and links against the library.
+    #       So I don't see the point of "enabling" LTO for the library itself...
     include(CheckIPOSupported)
     check_ipo_supported(
-            RESULT
-            result
-            OUTPUT
-            output)
+            RESULT result
+            OUTPUT output)
     if (result)
         set_target_properties(noa PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
     else ()
@@ -171,8 +153,9 @@ target_compile_definitions(noa
         "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
         "$<$<BOOL:${NOA_ENABLE_UNIFIED}>:NOA_ENABLE_UNIFIED>"
         "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
-        "$<$<BOOL:${NOA_ENABLE_OPENMP}>:NOA_ENABLE_OPENMP>"
-        "$<$<BOOL:${NOA_FFTW_THREADS}>:NOA_FFTW_THREADS>"
+        "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
+        "$<$<BOOL:${FFTW3_THREADS}>:NOA_FFTW_THREADS>"
+        "$<$<BOOL:${FFTW3_OPENMP}>:NOA_FFTW_THREADS>"
         "$<$<BOOL:${NOA_ENABLE_CHECKS_RELEASE}>:NOA_ENABLE_CHECKS_RELEASE>"
         )
 
@@ -184,22 +167,12 @@ target_include_directories(noa
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
         )
 
-# ---------------------------------------------------------------------------------------
-# API Compatibility - Versioning
-# ---------------------------------------------------------------------------------------
-# The library uses the semantic versioning: MAJOR.MINOR.PATCH
-# PATCH: Bug fix only. No API changes.
-# MINOR: Non-breaking additions to the API (i.e. something was added).
-#        W ensure that if someone had built against the previous version, they could simply
-#        rebuild their application with the new version without having to change the way they
-#        interact with the library. When updated, PATCH should be reset to 0.
-# MAJOR: Breaking change. Reset MINOR and PATCH to 0.
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/settings/Version.h.in"
+        "${PROJECT_SOURCE_DIR}/cmake/util/Version.h.in"
         "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         @ONLY)
 
-# NOTE: Since it is static library only, the SOVERSION doesn't matter much.
+# Since it is static library only, the SOVERSION shouldn't matter.
 set_target_properties(noa PROPERTIES
         SOVERSION ${PROJECT_VERSION_MAJOR}
         VERSION ${PROJECT_VERSION})
@@ -207,13 +180,13 @@ set_target_properties(noa PROPERTIES
 # ---------------------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------------------
-# Targets:
-#   - <install_path>/lib/libnoa(b).(a|so) (on Linux)
-#   - header location after install: <prefix>/noa/*.h
-#   - headers can be included by C++ code `#include <noa/*.h>`
-install(TARGETS spdlog half-ieee754 prj_common_option prj_compiler_warnings noa_libraries noa
-        EXPORT "${NOA_TARGETS_EXPORT_NAME}"
-        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+# FIXME We only have static linking so: LIBRARY could be removed, same for RUNTIME although in Windows I'm not sure...
+# FIXME We don't use components, but maybe we could use them to specify what's inside the library? e.g. cuda/cpu backend.
+install(TARGETS prj_common_option prj_compiler_warnings noa_private_libraries noa_public_libraries noa
+        EXPORT noa
+
+        INCLUDES
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 
         LIBRARY
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -230,32 +203,15 @@ install(TARGETS spdlog half-ieee754 prj_common_option prj_compiler_warnings noa_
         )
 
 # Headers:
-#   - *.h -> <install_path>/include/noa/*.h
 foreach (FILE ${NOA_HEADERS})
     get_filename_component(DIR ${FILE} DIRECTORY)
     install(FILES ${FILE} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/noa/${DIR})
 endforeach ()
 
-# Headers:
-#   - <build_path>/noa_generated_headers/noa/Version.h -> <install_path>/include/noa/Version.h
+# Generated headers:
 install(FILES
         "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 
-# Package config:
-#   - <install_path>/lib/cmake/noa/NoaConfig.cmake
-#   - <install_path>/lib/cmake/noa/NoaConfigVersion.cmake
-install(FILES
-        "${NOA_CONFIG_FILE}"
-        "${NOA_CONFIG_VERSION_FILE}"
-        DESTINATION "${NOA_INSTALL_LIBDIR}")
-
-# Package config:
-#   - <install_path>/lib/cmake/Noa/NoaTargets.cmake
-install(EXPORT "${NOA_TARGETS_EXPORT_NAME}"
-        FILE "${NOA_TARGETS_EXPORT_NAME}.cmake"
-        DESTINATION "${NOA_INSTALL_LIBDIR}"
-        NAMESPACE "noa::")
-
-message(STATUS "noa::noa: configuring public target... done")
+message(STATUS "-> noa::noa: configuring public target... done")
 message(STATUS "--------------------------------------\n")
