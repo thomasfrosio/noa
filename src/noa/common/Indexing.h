@@ -11,6 +11,9 @@
 #include "noa/common/types/Int2.h"
 #include "noa/common/types/Int3.h"
 #include "noa/common/types/Int4.h"
+#include "noa/common/types/Float2.h"
+#include "noa/common/types/Float3.h"
+#include "noa/common/types/Float4.h"
 #include "noa/common/types/ClampCast.h"
 
 namespace noa::indexing {
