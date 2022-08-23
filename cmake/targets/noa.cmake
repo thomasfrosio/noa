@@ -81,8 +81,8 @@ if (NOA_ENABLE_CUDA)
     set_target_properties(noa
             PROPERTIES
             CUDA_SEPARABLE_COMPILATION ON
-            # POSITION_INDEPENDENT_CODE ON
-            # CUDA_RESOLVE_DEVICE_SYMBOLS ON
+            POSITION_INDEPENDENT_CODE ON
+            CUDA_RESOLVE_DEVICE_SYMBOLS ON
             )
 endif ()
 
