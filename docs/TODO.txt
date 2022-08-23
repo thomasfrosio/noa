@@ -32,11 +32,6 @@ cryoEM:
 Development:
     -   Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
 
-    -   Atm, we need to compile OpenBLAS and add it to CMAKE_PREFIX_PATH. This is very annoying since it means the
-        build is not automatic and requires installing a dependency. I would like to either use an existing OpenBLAS
-        or BLAS library that contains CBLAS _and_ LAPACKE. One solution is also to build OpenBLAS ourselves with
-        a FetchContent call.
-
     -   Functions returning something by value, that currently requires to synchronize the stream: use std::future?
     -   Move the CPU reduction kernels in a details header and add a transform operator. This is especially useful
         when we want to apply a transform operator (e.g. abs_t) for the high precision sum reductions.
@@ -47,10 +42,6 @@ Development:
         Maybe we should link all global data to the session as well, but I don't think that's a good idea. Instead,
         maybe remove `Session` and create a `GlobalLogger` and a free function keeping track of the thread number or
         something like that.
-
-    -   Backends vs Unified API: The Unified API should become the main point of entry, gathering documentation and
-        come with tests. The main goal is to remove documentation on the backends, which becomes annoying to
-        maintain, and reduce code duplication. Then common/ and unified/ should be merged into the base directory.
 
     -   Add nvrtc when necessary.
         Atm, nvcc and the CUDA runtime are used to compile kernels. The idea is to use nvrtc to compile (some) kernels

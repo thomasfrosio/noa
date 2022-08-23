@@ -1,114 +1,78 @@
 ## `Dependencies`
 
-While some dependencies are directly fetched and installed by the library, some are not:
+The library as dependencies, most of which should be installed before starting to build the library.
+Take a look the [dependencies](Dependencies.md) for more details.
 
-- [CMake](https://cmake.org/download/). The minimum version is 3.18. Note that it has almost no dependencies and can 
-  be installed without root
-  privileges.
-
-- __C++__ compiler. The supported C++ compilers are `gcc >= 9.3` and `clang >= 10`. The C++ compiler path can be
-  specified to ensure that the correct host compiler is selected, or if the compiler is not installed in the default
-  paths and is not found, by setting the `CMAKE_CXX_COMPILER` variable.
-
-- The [FFTW3](http://fftw.org/) libraries are required for the CPU backend. We ask for the single and double precision
-  libraries. The multithreaded libraries will be used if found and if `NOA_FFTW_THREADS=1` (see
-  [options](../cmake/settings/ProjectOptions.cmake)). By default, the common installation directories are used but the
-  search can be guided by the following _environmental_ variables:
-    - `NOA_ENV_FFTW_LIBRARIES`: If set and not empty, the libraries are exclusively searched under this path.
-    - `NOA_ENV_FFTW_INCLUDE`: If set and not empty, the header `fftw3.h` is exclusively searched under this path.
-
-- The [OpenBLAS](https://www.openblas.net/) libraries are required for the CPU backend. We use the library for its 
-  CBLAS and LAPACKE API, so you need to make sure your OpenBLAS was compiled with LAPACK enabled, which requires a 
-  Fortran compiler. We recommend building the library from source since the build checks for the best implementation
-  given the current architecture and to make sure the OpenMP version is used (if multithreading).
-    ```shell
-    mkdir OpenBLAS && cd OpenBLAS
-    git clone --depth 1 --branch v0.3.20 https://github.com/xianyi/OpenBLAS.git
-    mkdir _build && cd _build
-    cmake -DCMAKE_INSTALL_PREFIX=../_install -DUSE_THREAD=1 -DUSE_OPENMP=1 ../OpenBLAS
-    cmake --build . --target install
-    ```
-  You can select a newer version or the develop branch directly. In that case, passing `-DC_LAPACK=1` will build the 
-  LAPACKE library without the need of a Fortran compiler. Then, simply add the pass of the `_install` directory to
-  `CMAKE_PREFIX_PATH`.
-
-- If the CUDA backend is built (see below), the [CUDA toolkit](https://docs.nvidia.com/cuda/index.html) version 11 is
-  required, although version 11.2 or any newer version is recommended. The CUDA compiler path can be specified to ensure
-  that the correct CUDA compiler is selected, or if the compiler is not installed in the default paths and is not found,
-  by setting the `CMAKE_CUDA_COMPILER` variable. Only __nvcc__ is currently supported.
-
-- (Optional) The TIFF library [TIFF library](https://gitlab.com/libtiff/libtiff) is necessary if the TIFF file format is
-  required. By default, the common installation directories are used but the search can be guided by the following _
-  environmental_ variables:
-    - `NOA_ENV_TIFF_LIBRARIES`: If set and not empty, the libraries are exclusively searched under this path.
-    - `NOA_ENV_TIFF_INCLUDE`: If set and not empty, the header `tiffio.h` is exclusively searched under this path.
+TODO Add package managers, e.g. conan, vkpg.
 
 ## `Build options`
 
-"Options" are CACHE variables (i.e. they are not updated if already set), so they can be set from the
-command line or the [cmake-gui](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html).
-Options should be prefixed with `-D` when passed through the command line.
+"Options" are cache variables (i.e. they are not updated if already set), so they can be set from the
+command line or using a tool like [cmake-gui](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html).
+Options should be prefixed with `-D` when entered on the command line.
 
-Here is the [list](../cmake/settings/ProjectOptions.cmake) of the project-specific available options. 
-Note that the following CMake CACHE variables are often useful:
+Here is the [list](../cmake/util/ProjectOptions.cmake) of the project-specific options available.
+Note that the following CMake cache variables are often useful:
 - `CMAKE_BUILD_TYPE`: The build type. Default: `Release`.
-- `CMAKE_INSTALL_PREFIX`: Install directory used by CMake.
-- `BUILD_SHARED_LIBS`: should be `OFF` as dynamic linking is not supported.
+- `CMAKE_INSTALL_PREFIX`: Directory where the library will be installed.
 
 ## `Build and Install`
 
-To build and install the library the easiest is probably to use the command line:
+To build and install the library the easiest is probably to use the command line. For instance:
 
 ```shell
-mkdir noa && cd noa                             # (1)
-git clone https://github.com/ffyr2w/noa.git     # (2)
-mkdir _build && cd _build                       # (3)
-cmake -DCMAKE_INSTALL_PREFIX=../_install ../noa # (4)
+git clone https://github.com/ffyr2w/noa.git     # (1)
+cd noa && mkdir build && cd build             # (2)
+cmake -DCMAKE_INSTALL_PREFIX=../install ../noa # (4)
 cmake --build . --target install                # (5)
 ```
 
-1. Create a directory where to put the source code as well as the build and install directory. We'll refer to this
-   directory as `{install_path}`.
-2. Once in `{install_path}`, clone the repository.
-3. Create and go into the build directory. This has to be outside the source directory that was just cloned.
-4. Sets the environmental variables if the defaults are not satisfying and if it is not already done. Then configure and
-   generate the project using _CMake_. This is also where the build options should be entered. It is usually useful to
-   specify the installation directory using `CMAKE_INSTALL_PREFIX`. Note that the library has a few dependencies
-   entirely managed by _CMake_ using
-   [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html). Although it simplifies most workflows,
-   this step requires a working internet connection to download the dependencies.
-5. Once the generation is done, _CMake_ can build and install the project.
+1. Clone the repository.
+2. Go inside the repository and create the build and install directory. Go in the build directory.
+3. Configure and generate the project. This is also where the build options should be entered. It is usually useful to
+   specify the installation directory using `CMAKE_INSTALL_PREFIX`. Note that this step can require a working internet 
+   connection to download the dependencies (see [dependencies](Dependencies.md)).
+4. Once the generation is done, we can build and install the project.
 
-In this example, the `{install_path}/_install` directory will include:
+The installation directory will look something like this:
 
 - `lib/`, which contains the library. In debug mode, the library is postfixed with "d", e.g. `libnoad.a`.
-- `lib/cmake/noa/`, which contains the _CMake_ project packaging files.
+- `lib/cmake/`, which contains the CMake project config and packaging files.
 - `bin/`, which contains the `noa_tests` and `noa_benchmarks` executables.
-- `include/`, which contains the headers. The directory hierarchy is identical to `src/` with the addition of some
-  generated headers, like `include/noa/Version.h`.
+- `include/`, which contains the headers. The directory hierarchy is identical to the one in the source directory 
+  inside `src/` with the addition of some generated headers, like `include/noa/Version.h`.
 
 _Note:_ Alternatively, one can use an IDE supporting _CMake_ projects, like _CLion_ and create a new project from an
 existing source.
-_Note:_ An `install_manifest.txt` is generated, so `make unistall` can be run to uninstall the library. However, if
-`CMAKE_INSTALL_PREFIX` is used as shown above, deleting the directory is equivalent.
+
+_Note:_ If you are using `make`, an `install_manifest.txt` is generated during the installation. We don't generate the
+`uninstall` target, but one can remove everything that was installed using ``xargs rm < install_manifest.txt``.
+However, if `CMAKE_INSTALL_PREFIX` is used as shown above, deleting that same directory is probably best.
 
 ## `Import`
 
 If the library is installed,
 [find_package](https://cmake.org/cmake/help/latest/command/find_package.html?highlight=find_package)
-can be used to import the library into a _CMake_ project. Otherwise,
-[FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html)
-can also be used, which in its simplest form would look something like:
+can be used to import the library into another CMake project.
+Suggested usage:
+```cmake
+find_package(noa)
+# or
+find_package(noa v0.1.0 EXACT CONFIG REQUIRED)
+```
+If you build the library from source, CMake will
+know where to look for, but you can always add the installation directory to the `CMAKE_PREFIX_PATH`.
+
+Otherwise, [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html) can be used instead, which in 
+its simplest form would look something like:
 
 ```cmake
 include(FetchContent)
-FetchContent_Declare(
-        noa
-        GIT_REPOSITORY https://github.com/ffyr2w/noa.git
-        GIT_TAG v0.1.0
-)
+FetchContent_Declare(noa GIT_REPOSITORY https://github.com/ffyr2w/noa.git GIT_TAG v0.1.0)
 FetchContent_MakeAvailable(noa)
 ```
 
-The imported target are 1) the library, aliased to `noa::noa`, 2) the test executable, `noa::tests`, and 3) the
-benchmark executable, `noa::benchmarks`.
+Either way, this will import in your CMake project the `noa::` namespace with the imported targets:
+- `noa`: the library.
+- `noa_tests`: the test executable (if `NOA_BUILD_TESTS` is `ON`).
+- `noa_benchmarks`: the benchmark executable (if `NOA_BUILD_BENCHMARKS` is `ON`).
