@@ -10,12 +10,18 @@ namespace noa::io::details {
         Header() = default;
         virtual ~Header() = default;
 
-        [[nodiscard]] virtual Format format() const noexcept { return Format::FORMAT_UNKNOWN; }
-
+    public:
         virtual void reset() = 0;
         virtual void open(const path_t&, open_mode_t) = 0;
         virtual void close() = 0;
 
+    public: // Getters
+        [[nodiscard]] virtual bool isOpen() const noexcept = 0;
+        [[nodiscard]] virtual const path_t& filename() const noexcept = 0;
+        [[nodiscard]] virtual std::string infoString(bool) const noexcept = 0;
+        [[nodiscard]] virtual Format format() const noexcept { return Format::FORMAT_UNKNOWN; }
+
+    public: // Getters and setters
         [[nodiscard]] virtual size4_t shape() const noexcept = 0;
         virtual void shape(size4_t) = 0;
 
@@ -28,8 +34,7 @@ namespace noa::io::details {
         [[nodiscard]] virtual DataType dtype() const noexcept = 0;
         virtual void dtype(DataType) = 0;
 
-        [[nodiscard]] virtual std::string infoString(bool) const noexcept = 0;
-
+    public:
         virtual void read(void* output, DataType data_type, size_t start, size_t end, bool clamp) = 0;
         virtual void readSlice(void* output, size4_t strides, size4_t shape, DataType data_type, size_t start, bool clamp) = 0;
         virtual void readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) = 0;

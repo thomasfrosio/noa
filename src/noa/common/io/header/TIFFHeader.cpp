@@ -1,6 +1,6 @@
 #if NOA_ENABLE_TIFF
 
-#include "noa/Session.h"
+#include "noa/common/Session.h"
 #include "noa/common/Types.h"
 #include "noa/common/OS.h"
 #include "noa/common/io/header/TIFFHeader.h"
@@ -38,13 +38,15 @@ namespace noa::io::details {
     void TIFFHeader::open(const path_t& filename, open_mode_t open_mode) {
         close();
 
+        NOA_CHECK(isValidOpenMode(open_mode), "File: {}. Invalid open mode", filename);
         bool write = open_mode & io::WRITE;
         m_is_read = open_mode & io::READ;
         if (write) {
             if (m_is_read)
-                NOA_THROW("Opening a TIFF file in READ|WRITE mode is not supported. Should be READ or WRITE");
+                NOA_THROW("File: {}. Opening a TIFF file in READ|WRITE mode is not supported. "
+                          "Should be READ or WRITE", filename);
         } else if (!m_is_read) {
-            NOA_THROW("Open mode not recognized. Should be READ or WRITE");
+            NOA_THROW("File: {}. Open mode is not supported. Should be READ or WRITE", filename);
         }
 
         try {
@@ -53,7 +55,8 @@ namespace noa::io::details {
             else
                 os::mkdir(filename.parent_path());
         } catch (...) {
-            NOA_THROW("OS failure when trying to open the file");
+            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
+                           filename, OpenModeStream{open_mode});
         }
 
         for (uint32_t it{0}; it < 5; ++it) {
@@ -61,19 +64,29 @@ namespace noa::io::details {
             // c: Disable the use of strip chopping when reading images
             m_tiff = TIFFOpen(filename.c_str(), write ? "rhc" : "w");
             if (m_tiff) {
-                if (m_is_read)
-                    readHeader_();
+                if (m_is_read) {
+                    try {
+                        readHeader_();
+                    } catch (...) {
+                        NOA_THROW_FUNC("open", "File: {}. Mode:{}. Failed while reading the header",
+                                       filename, OpenModeStream{open_mode});
+                    }
+                }
+                m_filename = filename;
                 return;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        NOA_THROW(s_error_buffer);
+        NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. {}",
+                       filename, OpenModeStream{open_mode}, s_error_buffer);
     }
 
     void TIFFHeader::close() {
         ::TIFFClose(m_tiff);
         if (!s_error_buffer.empty())
-            NOA_THROW("An error has occurred while closing the file. {}", s_error_buffer);
+            NOA_THROW("File: {}. An error has occurred while closing the file. {}", m_filename, s_error_buffer);
+        m_tiff = nullptr;
+        m_filename.clear();
     }
 
     // The logic comes from IMOD/libiimod/iitif.c::iiTIFFCheck
@@ -118,7 +131,7 @@ namespace noa::io::details {
                 else if (sample_per_pixel > 1)
                     NOA_THROW("Samples per pixel should be 1. {} is not supported", sample_per_pixel);
                 data_type = getDataType_(sample_format, bits_per_sample);
-                if (data_type == DATA_UNKNOWN)
+                if (data_type == DTYPE_UNKNOWN)
                     NOA_THROW("Data type was not recognized in directory {}", directories);
                 else if (data_type == DataType::UINT4)
                     shape[1] *= 2;
@@ -197,15 +210,14 @@ namespace noa::io::details {
 
     void TIFFHeader::readSlice(void* output, size4_t strides, size4_t shape,
                                DataType data_type, size_t start, bool clamp) {
-        if (m_shape[1] != shape[2] || m_shape[2] != shape[3]) {
-            NOA_THROW("The file shape {} is not compatible with the output shape {}", this->shape(), shape);
-        } else if (shape[1] != 1) {
-            NOA_THROW("The file shape {} describes a (stack of) 2D image(s). To read a slice, the provided "
-                      "shape should have a depth of 1, but got shape {}", this->shape(), shape);
-        } else if (m_shape[0] <= start + shape[0]) {
-            NOA_THROW("The file has less slices ({}) that what is about to be read (start:{}, count:{})",
-                      m_shape[0], start, shape[0]);
-        }
+        NOA_CHECK(isOpen(), "The file should be opened");
+        NOA_CHECK(m_shape[1] == shape[2] && m_shape[2] == shape[3],
+                  "File: {}. Cannot read a 2D slice of shape {} from a file with 2D slices of shape {}",
+                  m_filename, size2_t(shape.get(2)), size2_t(m_shape.get(1)));
+        NOA_CHECK(shape[1] == 1, "File {}. Can only read 2D slice(s), but asked to read shape {}", m_filename, shape);
+        NOA_CHECK(m_shape[0] > start + shape[0],
+                  "File: {}. The file has less slices ({}) that what is about to be read (start:{}, count:{})",
+                  m_filename, m_shape[0], start, shape[0]);
 
         // Output as array of bytes:
         auto* output_ptr = static_cast<byte_t*>(output);
@@ -232,7 +244,8 @@ namespace noa::io::details {
             for (tstrip_t strip = 0; strip < ::TIFFNumberOfStrips(m_tiff); ++strip) {
                 const tsize_t bytes_read = ::TIFFReadEncodedStrip(m_tiff, strip, buffer.get(), strip_size);
                 if (bytes_read == -1)
-                    NOA_THROW("An error occurred while reading slice:{}, strip:{}. {}", slice, strip, s_error_buffer);
+                    NOA_THROW("File: {}. An error occurred while reading slice:{}, strip:{}. {}",
+                              m_filename, slice, strip, s_error_buffer);
 
                 // Convert the bytes read in number of rows read:
                 NOA_ASSERT(!(static_cast<size_t>(bytes_read) % i_bytes_per_elements));
@@ -243,9 +256,14 @@ namespace noa::io::details {
 
                 // Convert and transfer to output:
                 const size_t output_offset = indexing::at(slice, 0, row_offset, strides) * o_bytes_per_elements;
-                deserialize(buffer.get(), m_data_type,
-                            output_ptr + output_offset, data_type, strides,
-                            shape_buffer, clamp);
+                try {
+                    deserialize(buffer.get(), m_data_type,
+                                output_ptr + output_offset, data_type, strides,
+                                shape_buffer, clamp);
+                } catch (...) {
+                    NOA_THROW("File {}. Failed to read strip with shape {} from the file. "
+                              "Deserialize from dtype {} to {}", m_filename, shape_buffer, m_data_type, data_type);
+                }
                 row_offset += rows_in_buffer;
             }
 
@@ -259,8 +277,8 @@ namespace noa::io::details {
                 flipY_(output_ptr + slice * strides[0] * o_bytes_per_elements, bytes_per_row,
                        m_shape[1], buffer_flip_row.get());
             } else if (orientation != ORIENTATION_BOTLEFT) {
-                NOA_THROW("Orientation of the slice(s) is not supported. "
-                          "The origin should be at the bottom left or top left.");
+                NOA_THROW("File: {}. Orientation of the slice(s) is not supported. "
+                          "The origin should be at the bottom left or top left", m_filename);
             }
         }
     }
@@ -272,7 +290,7 @@ namespace noa::io::details {
     }
 
     void TIFFHeader::readAll(void* output, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
-        if (shape[0] != m_shape[0] || shape[2] != m_shape[1] || shape[3] != m_shape[2])
+        if (shape[0] != m_shape[0])
             NOA_THROW("The file shape {} is not compatible with the output shape {}", this->shape(), shape);
         return readSlice(output, strides, shape, data_type, 0, clamp);
     }
@@ -287,21 +305,20 @@ namespace noa::io::details {
 
     void TIFFHeader::writeSlice(const void* input, size4_t strides, size4_t shape,
                                 DataType data_type, size_t start, bool clamp) {
-        if (m_data_type == DataType::DATA_UNKNOWN)
-            m_data_type = data_type;
+        NOA_CHECK(isOpen(), "The file should be opened");
+        NOA_CHECK(all(m_shape > 0),
+                  "File: {}. The shape of the file is not set or is empty. Set the shape first, "
+                  "and then write a slice to the file", m_filename);
+        NOA_CHECK(m_shape[1] == shape[2] && m_shape[2] == shape[3],
+                  "File: {}. Cannot write a 2D slice of shape {} into a file with 2D slices of shape {}",
+                  m_filename, size2_t(shape.get(2)), size2_t(m_shape.get(1)));
+        NOA_CHECK(shape[1] == 1, "File {}. Can only write 2D slice(s), but asked to write shape {}", m_filename, shape);
+        NOA_CHECK(m_shape[0] > start + shape[0],
+                  "File: {}. The file has less slices ({}) that what is about to be written (start:{}, count:{})",
+                  m_filename, m_shape[0], start, shape[0]);
 
-        if (any(m_shape == 0)) {
-            NOA_THROW("The shape of the file is not set or is empty. "
-                      "Set the shape first, and then write a slice to the file");
-        } else if (m_shape[1] != shape[2] || m_shape[2] != shape[3]) {
-            NOA_THROW("The file shape {} is not compatible with the input shape {}", this->shape(), shape);
-        } else if (shape[1] != 1) {
-            NOA_THROW("The file shape {} describes a (stack of) 2D image(s). To write a slice, the provided "
-                      "shape should have a depth of 1, but got shape {}", this->shape(), shape);
-        } else if (m_shape[0] <= start + shape[0]) {
-            NOA_THROW("The file has less slices ({}) that what is about to be written (start:{}, count:{})",
-                      m_shape[0], start, shape[0]);
-        }
+        if (m_data_type == DataType::DTYPE_UNKNOWN)
+            m_data_type = data_type;
 
         // Output as array of bytes:
         const auto* input_ptr = static_cast<const byte_t*>(input);
@@ -352,20 +369,26 @@ namespace noa::io::details {
                 ::TIFFSetField(m_tiff, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT);
 
                 if (!s_error_buffer.empty())
-                    NOA_THROW("An error has occurred while setting up the tags. {}", s_error_buffer);
+                    NOA_THROW("File: {}. An error has occurred while setting up the tags. {}",
+                              m_filename, s_error_buffer);
             }
 
             for (tstrip_t strip = 0; strip < strip_count; ++strip) {
                 byte_t* i_buffer = buffer.get() + strip * bytes_per_strip;
                 const size_t input_offset = indexing::at(slice, 0, strip * rows_per_strip, strides);
-                serialize(input_ptr + input_offset * i_bytes_per_elements, data_type, strides, strip_shape,
-                          i_buffer, m_data_type, clamp);
-
+                try {
+                    serialize(input_ptr + input_offset * i_bytes_per_elements, data_type, strides, strip_shape,
+                              i_buffer, m_data_type, clamp);
+                } catch (...) {
+                    NOA_THROW("File {}. Failed to write strip with shape {} from the file. "
+                              "Serialize from dtype {} to {}", m_filename, strip_shape, data_type, m_data_type);
+                }
                 if (::TIFFWriteEncodedStrip(m_tiff, strip, i_buffer, static_cast<tmsize_t>(bytes_per_strip)) == -1)
-                    NOA_THROW("An error occurred while writing slice:{}, strip:{}. {}", slice, strip, s_error_buffer);
+                    NOA_THROW("File: {}. An error occurred while writing slice:{}, strip:{}. {}",
+                              m_filename, slice, strip, s_error_buffer);
             }
             if (!::TIFFWriteDirectory(m_tiff))
-                NOA_THROW("Failed to write slice {} into the file", slice);
+                NOA_THROW("File: {}. Failed to write slice {} into the file", m_filename, slice);
         }
     }
 
@@ -382,10 +405,6 @@ namespace noa::io::details {
     }
 
     void TIFFHeader::writeAll(const void* input, DataType data_type, bool clamp) {
-        if (any(m_shape == 0)) {
-            NOA_THROW("The shape of the file is not set or is empty. "
-                      "Set the shape first, and then write something to the file");
-        }
         return writeSlice(input, data_type, 0, m_shape[0], clamp);
     }
 
@@ -436,7 +455,7 @@ namespace noa::io::details {
             default:
                 break;
         }
-        return DataType::DATA_UNKNOWN;
+        return DataType::DTYPE_UNKNOWN;
     }
 
     void TIFFHeader::setDataType_(DataType data_type, uint16_t* sample_format, uint16_t* bits_per_sample) {

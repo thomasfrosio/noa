@@ -43,22 +43,28 @@ namespace noa::io::details {
         MRCHeader() = default;
         ~MRCHeader() override { close_(); }
 
+    public:
         void reset() override {
             close();
             m_open_mode = open_mode_t{};
-            m_header = Header_impl{};
+            m_header = HeaderImp{};
         };
 
         void open(const path_t& path, open_mode_t open_mode) override { open_(path, open_mode); }
         void close() override { close_(); }
 
+    public:
+        [[nodiscard]] bool isOpen() const noexcept override { return m_fstream.is_open(); }
+        [[nodiscard]] const path_t& filename() const noexcept override { return m_filename; }
+        [[nodiscard]] std::string infoString(bool brief) const noexcept override;
         [[nodiscard]] Format format() const noexcept override { return Format::MRC; }
 
-        [[nodiscard]] std::string infoString(bool brief) const noexcept override;
-
-        [[nodiscard]] size4_t shape() const noexcept override {
+    public:
+        [[nodiscard]] size4_t shape() const noexcept  {
             return m_header.shape;
         }
+
+        void shape(size4_t new_shape) override;
 
         [[nodiscard]] stats_t stats() const noexcept override {
             stats_t out;
@@ -72,17 +78,6 @@ namespace noa::io::details {
             return out;
         }
 
-        [[nodiscard]] float3_t pixelSize() const noexcept override {
-            return m_header.pixel_size;
-        }
-
-        [[nodiscard]] DataType dtype() const noexcept override {
-            return m_header.data_type;
-        }
-
-        void shape(size4_t new_shape) override;
-        void dtype(io::DataType data_type) override;
-        void pixelSize(float3_t new_pixel_size) override;
         void stats(stats_t stats) override {
             // In reading mode, this will have no effect.
             if (stats.hasMin())
@@ -95,6 +90,19 @@ namespace noa::io::details {
                 m_header.std = stats.std();
         }
 
+        [[nodiscard]] float3_t pixelSize() const noexcept override {
+            return m_header.pixel_size;
+        }
+
+        void pixelSize(float3_t new_pixel_size) override;
+
+        [[nodiscard]] DataType dtype() const noexcept override {
+            return m_header.data_type;
+        }
+
+        void dtype(io::DataType data_type) override;
+
+    public:
         void read(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
         void readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
         void readSlice(void* output, size4_t strides, size4_t shape, DataType data_type, size_t start, bool clamp) override;
@@ -113,7 +121,7 @@ namespace noa::io::details {
         // Reads and checks the header of an existing file.
         // Throws if the header doesn't look like a MRC header or if the MRC file is not supported.
         // If read|write mode, the header is saved in m_header.buffer. This will be used before closing the file.
-        void readHeader_();
+        void readHeader_(const path_t& filename);
 
         // Swap the endianness of the header.
         // The buffer is at least the first 224 bytes of the MRC header.
@@ -152,13 +160,14 @@ namespace noa::io::details {
 
     private:
         std::fstream m_fstream{};
+        path_t m_filename{};
         open_mode_t m_open_mode{};
 
-        struct Header_impl {
+        struct HeaderImp {
             // Buffer containing the 1024 bytes of the header.
             // Only used if the header needs to be saved, that is, in in|out mode.
             std::unique_ptr<byte_t[]> buffer{nullptr};
-            DataType data_type{DataType::DATA_UNKNOWN};
+            DataType data_type{DataType::DTYPE_UNKNOWN};
 
             size4_t shape{0};               // BDHW order.
             float3_t pixel_size{0.f};       // Pixel spacing (DHW order) = cell_size / shape.
