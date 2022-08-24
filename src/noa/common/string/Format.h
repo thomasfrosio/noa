@@ -42,70 +42,70 @@
 
 namespace noa::string {
     /// Left trim.
-    [[nodiscard]] NOA_IH std::string_view leftTrim(std::string_view str) {
+    [[nodiscard]] inline std::string_view leftTrim(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
         const char* start = std::find_if(str.begin(), str.end(), is_not_space);
         return std::string_view{start, static_cast<size_t>(str.end() - start)};
     }
 
     /// Right trim.
-    [[nodiscard]] NOA_IH std::string_view rightTrim(std::string_view str) {
+    [[nodiscard]] inline std::string_view rightTrim(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
         const char* end = std::find_if(str.rbegin(), str.rend(), is_not_space).base();
         return std::string_view{str.begin(), static_cast<size_t>(end - str.begin())};
     }
 
     /// Trim (left and right).
-    [[nodiscard]] NOA_IH std::string_view trim(std::string_view str) {
+    [[nodiscard]] inline std::string_view trim(std::string_view str) {
         return leftTrim(rightTrim(str));
     }
 
     /// Converts the string \c str, in-place, to lowercase.
     /// \note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    NOA_IH std::string lower(std::string&& str) {
+    inline std::string lower(std::string&& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
         return str;
     }
 
     /// Converts to lowercase.
-    NOA_IH std::string lower(std::string_view str) {
+    inline std::string lower(std::string_view str) {
         return lower(std::string(str));
     }
 
     /// Converts the string \p str, in-place, to uppercase.
     /// \note Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    NOA_IH std::string& upper(std::string&& str) {
+    inline std::string& upper(std::string&& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
         return str;
     }
 
     /// Converts to uppercase.
-    NOA_IH std::string upper(std::string_view str) {
+    inline std::string upper(std::string_view str) {
         return upper(std::string(str));
     }
 
     /// Reverse a string, in-place.
-    NOA_IH std::string reverse(std::string&& str) {
+    inline std::string reverse(std::string&& str) {
         std::reverse(str.begin(), str.end());
         return str;
     }
 
     /// Reverse a string, out-of-place.
-    NOA_IH std::string reverse(std::string_view str) {
+    inline std::string reverse(std::string_view str) {
         return reverse(std::string(str));
     }
 
-    NOA_IH bool startsWith(std::string_view str, std::string_view prefix) {
+    inline bool startsWith(std::string_view str, std::string_view prefix) {
         return str.rfind(prefix, 0) == 0;
     }
 
     /// Formats a string, using {fmt}. Equivalent to fmt::format().
     template<typename... Args>
-    NOA_IH std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
+    inline std::string format(Args&& ...args) { return fmt::format(std::forward<Args>(args)...); }
 
     /// Gets an human-readable type name. Other types can then add their specializations.
     template<typename T>
-    NOA_IH std::string human() {
+    inline std::string human() {
         if constexpr (noa::traits::is_almost_same_v<float, T>) {
             return "float";
         } else if constexpr (noa::traits::is_almost_same_v<double, T>) {

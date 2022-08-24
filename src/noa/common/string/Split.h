@@ -17,28 +17,6 @@
 #include "noa/common/string/Parse.h"
 #include "noa/common/traits/BaseTypes.h"
 
-namespace noa::string::details {
-    template<typename T>
-    constexpr bool can_be_parsed_v = std::bool_constant<noa::traits::is_string_v<T> ||
-                                                        noa::traits::is_scalar_v<T> ||
-                                                        noa::traits::is_bool_v<T>>::value;
-
-    template<typename T>
-    NOA_IH auto parse(std::string&& string) { // std::string to make sure it is null terminated
-        if constexpr (noa::traits::is_string_v<T>) {
-            return std::move(string);
-        } else if constexpr (noa::traits::is_float_v<T>) {
-            return toFloat<T>(string);
-        } else if constexpr (noa::traits::is_bool_v<T>) {
-            return toBool(string);
-        } else if constexpr (noa::traits::is_int_v<T>) {
-            return toInt<T>(string);
-        } else {
-            static_assert(noa::traits::always_false_v<T>);
-        }
-    }
-}
-
 namespace noa::string {
     /// Splits (and parses) \p str.
     /// \details Split a string using commas as delimiters. Split strings are trimmed and empty strings are kept.
@@ -56,16 +34,15 @@ namespace noa::string {
     /// std::vector<float> vec2 = split<float>(" 1, 2,  ,  4 5 "); // throws noa::Exception
     /// std::vector<float> vec3 = split<float>(" 1, 2, 3 ,  4"); // {1.f, 2.f, 3.f, 4.f}
     /// \endcode
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
     std::vector<T> split(std::string_view str) {
-        static_assert(details::can_be_parsed_v<T> && !std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
         std::vector<T> out;
 
         for (size_t i{0}; i < str.size(); ++i) {
             if (str[i] == ',') {
-                out.emplace_back(details::parse<T>({str.data() + idx_start, idx_end - idx_start}));
+                out.emplace_back(parse<T>({str.data() + idx_start, idx_end - idx_start}));
                 idx_start = 0;
                 idx_end = 0;
                 capture = false;
@@ -79,7 +56,7 @@ namespace noa::string {
                 }
             }
         }
-        out.emplace_back(details::parse<T>({str.data() + idx_start, idx_end - idx_start}));
+        out.emplace_back(parse<T>({str.data() + idx_start, idx_end - idx_start}));
         return out;
     }
 
@@ -98,9 +75,8 @@ namespace noa::string {
     /// std::array<float, 2> vec2 = parse<float, 2>(" 1, 2, 3 "); // throws noa::Exception
     /// std::array<bool, 2> vec3 = parse<bool, 2>(" 1 "); // throws noa::Exception
     /// \endcode
-    template<typename T, uint N>
+    template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
     std::array<T, N> split(std::string_view string) {
-        static_assert(details::can_be_parsed_v<T> && !std::is_reference_v<T>);
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};
         std::array<T, N> out;
@@ -109,7 +85,7 @@ namespace noa::string {
             if (string[i] == ',') {
                 if (idx == N)
                     break;
-                out[idx] = details::parse<T>({string.data() + idx_start, idx_end - idx_start});
+                out[idx] = parse<T>({string.data() + idx_start, idx_end - idx_start});
                 ++idx;
                 idx_start = 0;
                 idx_end = 0;
@@ -127,7 +103,7 @@ namespace noa::string {
         if (idx + 1 != N)
             NOA_THROW("The number of value(s) ({}) does not match the number of "
                       "expected value(s) ({}). Input string: \"{}\"", idx + 1, N, string);
-        out[idx] = details::parse<T>({string.data() + idx_start, idx_end - idx_start});
+        out[idx] = parse<T>({string.data() + idx_start, idx_end - idx_start});
         return out;
     }
 
@@ -141,9 +117,8 @@ namespace noa::string {
     /// \return                 Output vector. The parsed values are inserted at the end of the vector.
     /// \throw Exception        If the conversion failed or if the number of fields in \p str and
     ///                         \p str_defaults do not match.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
     std::vector<T> split(std::string_view str, std::string_view str_defaults) {
-        static_assert(details::can_be_parsed_v<T> && !std::is_reference_v<T>);
         auto v1 = split<std::string>(str);
         auto v2 = split<std::string>(str_defaults);
 
@@ -153,7 +128,7 @@ namespace noa::string {
 
         std::vector<T> out;
         for (size_t i{0}; i < size; ++i)
-            out.emplace_back(details::parse<T>(v1[i].empty() ? std::move(v2[i]) : std::move(v1[i])));
+            out.emplace_back(parse<T>(v1[i].empty() ? v2[i] : v1[i]));
         return out;
     }
 
@@ -168,9 +143,8 @@ namespace noa::string {
     /// \return                 Output vector. The parsed values are inserted at the end of the vector.
     /// \throw Exception        If the conversion failed or if the number of fields in \p str and
     ///                         \p str_defaults do not match.
-    template<typename T, uint N>
+    template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
     std::array<T, N> split(std::string_view str, std::string_view str_defaults) {
-        static_assert(details::can_be_parsed_v<T> && !std::is_reference_v<T>);
         auto v1 = split<std::string>(str);
         auto v2 = split<std::string>(str_defaults);
 
@@ -180,7 +154,7 @@ namespace noa::string {
 
         std::array<T, N> out;
         for (size_t i{0}; i < N; ++i)
-            out[i] = details::parse<T>(v1[i].empty() ? std::move(v2[i]) : std::move(v1[i]));
+            out[i] = parse<T>(v1[i].empty() ? v2[i] : v1[i]);
         return out;
     }
 }

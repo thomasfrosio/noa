@@ -9,21 +9,16 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
-#include "noa/common/Types.h"
 
 /// Gathers a bunch of OS/filesystem related functions.
 /// All functions throws upon failure.
-///
-/// \note   It is useful to remember that with filesystem::status, symlinks ARE followed.
-///         As such, functions using filesystem::status work on the targets, not the links.
-///         Therefore, there's no need to explicitly check for and read symlinks.
+/// Symlinks are followed.
 namespace noa::os {
-    using copy_opt = fs::copy_options;
+    namespace fs = std::filesystem;
 
     /// Whether or not \a path points to an existing regular file. Symlinks are followed.
-    NOA_IH bool existsFile(const fs::path& path) {
+    inline bool existsFile(const fs::path& path) {
         try {
             return fs::is_regular_file(path);
         } catch (const fs::filesystem_error& e) {
@@ -34,12 +29,12 @@ namespace noa::os {
     }
 
     /// Whether or not \a file_status describes an existing regular file. Symlinks are followed.
-    NOA_IH bool existsFile(const fs::file_status& file_status) noexcept {
+    inline bool existsFile(const fs::file_status& file_status) noexcept {
         return fs::is_regular_file(file_status);
     }
 
     /// Whether or not \a path points to an existing file or directory. Symlinks are followed.
-    NOA_IH bool exists(const fs::path& path) {
+    inline bool exists(const fs::path& path) {
         try {
             return fs::exists(path);
         } catch (const fs::filesystem_error& e) {
@@ -50,14 +45,14 @@ namespace noa::os {
     }
 
     /// Whether or not \a file_status describes an existing file or directory. Symlinks are followed.
-    NOA_IH bool exists(const fs::file_status& file_status) noexcept {
+    inline bool exists(const fs::file_status& file_status) noexcept {
         return fs::exists(file_status);
     }
 
     /// Gets the size, in bytes, of a regular file. Symlinks are followed.
     /// \note The result of attempting to determine the size of a directory (as well as any other
     ///       file that is not a regular file or a symlink) is implementation-defined.
-    NOA_IH size_t size(const fs::path& path) {
+    inline size_t size(const fs::path& path) {
         try {
             return fs::file_size(path);
         } catch (const fs::filesystem_error& e) {
@@ -70,7 +65,7 @@ namespace noa::os {
     /// \param path  File or empty directory. If it doesn't exist, do nothing.
     /// \throw If the file or empty directory could not be removed or if the directory was not empty.
     /// \note Symlinks are removed but not their targets.
-    NOA_IH void remove(const fs::path& path) {
+    inline void remove(const fs::path& path) {
         try {
             fs::remove(path);
         } catch (const fs::filesystem_error& e) {
@@ -85,7 +80,7 @@ namespace noa::os {
     ///             If it does not exist, do nothing.
     /// \throw If the file or directory could not be removed.
     /// \note Symlinks are remove but not their targets.
-    NOA_IH void removeAll(const fs::path& path) {
+    inline void removeAll(const fs::path& path) {
         try {
             fs::remove_all(path);
         } catch (const fs::filesystem_error& e) {
@@ -108,7 +103,7 @@ namespace noa::os {
     ///
     /// \note    Symlinks are not followed: if \a from is a symlink, it is itself renamed,
     ///          not its target. If \a to is an existing symlink, it is itself erased, not its target.
-    NOA_IH void move(const fs::path& from, const fs::path& to) {
+    inline void move(const fs::path& from, const fs::path& to) {
         try {
             fs::rename(from, to);
         } catch (const fs::filesystem_error& e) {
@@ -133,8 +128,8 @@ namespace noa::os {
     /// \throw If \a from is not a regular file.
     ///        If \a from and \a to are equivalent.
     ///        If \a option is empty or if \a to exists and options == fs::copy_options::none.
-    NOA_IH bool copyFile(const fs::path& from, const fs::path& to,
-                         const copy_opt options = copy_opt::overwrite_existing) {
+    inline bool copyFile(const fs::path& from, const fs::path& to,
+                         const fs::copy_options options = fs::copy_options::overwrite_existing) {
         try {
             return fs::copy_file(from, to, options);
         } catch (const fs::filesystem_error& e) {
@@ -148,7 +143,7 @@ namespace noa::os {
     /// \param from     Path to a symbolic link to copy. Can resolve to a file or directory.
     /// \param to       Destination path of the new symlink.
     /// \throw          If the symlink could not be copied.
-    NOA_IH void copySymlink(const fs::path& from, const fs::path& to) {
+    inline void copySymlink(const fs::path& from, const fs::path& to) {
         try {
             fs::copy_symlink(from, to);
         } catch (const fs::filesystem_error& e) {
@@ -187,11 +182,11 @@ namespace noa::os {
     /// \note If \a from is a regular file and \a to is a directory, it copies \a from into \a to.
     /// \note If \a from and \a to are directories, it copies the content of \a from into \a to.
     /// \note To copy a single file, use copyFile().
-    NOA_IH void copy(const fs::path& from,
+    inline void copy(const fs::path& from,
                      const fs::path& to,
-                     const copy_opt options = copy_opt::recursive |
-                                              copy_opt::copy_symlinks |
-                                              copy_opt::overwrite_existing) {
+                     const fs::copy_options options = fs::copy_options::recursive |
+                                                      fs::copy_options::copy_symlinks |
+                                                      fs::copy_options::overwrite_existing) {
         try {
             fs::copy(from, to, options);
         } catch (const fs::filesystem_error& e) {
@@ -207,7 +202,7 @@ namespace noa::os {
     /// \throw   If the backup did not succeed.
     /// \warning With backup moves, symlinks are moved, whereas backup copies follow
     ///          the symlinks and copy the targets. This is usually the expected behavior.
-    NOA_IH void backup(const fs::path& from, bool overwrite = false) {
+    inline void backup(const fs::path& from, bool overwrite = false) {
         try {
             fs::path to(from.string() + '~');
             if (overwrite)
@@ -222,7 +217,7 @@ namespace noa::os {
     /// \param path     Path of the directory or directories to create.
     /// \throw          If the directory or directories could not be created.
     /// \note           Existing directories are tolerated and do not generate errors.
-    NOA_IH void mkdir(const fs::path& path) {
+    inline void mkdir(const fs::path& path) {
         if (path.empty())
             return;
         try {
@@ -235,7 +230,7 @@ namespace noa::os {
     }
 
     /// Returns the directory location suitable for temporary files.
-    NOA_IH path_t tempDirectory() {
+    inline fs::path tempDirectory() {
         try {
             return fs::temp_directory_path();
         } catch (const fs::filesystem_error& e) {
