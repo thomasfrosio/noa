@@ -34,15 +34,7 @@ namespace noa::io {
         /// Opens the image file.
         /// \param filename Path of the image file to open. The file format is deduced from the extension.
         /// \param mode     Open mode. See open() for more details.
-        template<typename T>
-        ImageFile(T&& filename, open_mode_t mode);
-
-        /// Opens the image file.
-        /// \param filename     Path of the image file to open.
-        /// \param file_format  File format used for this file.
-        /// \param mode         Open mode. See open() for more details.
-        template<typename T>
-        ImageFile(T&& filename, Format file_format, open_mode_t mode);
+        ImageFile(const path_t& filename, open_mode_t mode);
 
         ~ImageFile() noexcept(false);
         ImageFile(const ImageFile&) = delete;
@@ -69,8 +61,7 @@ namespace noa::io {
         ///       On the other hand, io::APP and io::ATE are always considered off.
         ///       Changing any of these bits has no effect.
         /// \note TIFF files don't support modes 2 and 4.
-        template<typename T>
-        void open(T&& filename, uint mode);
+        void open(const path_t& filename, uint mode);
 
         /// Closes the file. In writing mode and for some file format,
         /// there can be a write operation to save the buffered data.
@@ -89,7 +80,7 @@ namespace noa::io {
         [[nodiscard]] bool isPNG() const noexcept;
 
         /// Gets the path.
-        [[nodiscard]] const path_t& path() const noexcept;
+        [[nodiscard]] path_t filename() const noexcept;
 
         /// Returns a (brief) description of the file data.
         [[nodiscard]] std::string info(bool brief) const noexcept;
@@ -148,9 +139,10 @@ namespace noa::io {
         void readSlice(T* output, size_t start, size_t end, bool clamp = true);
 
         /// Deserializes some 2D slices from the file.
-        /// The file should describe a (stack of) 2D array(s), or a single volume.
+        /// The file should describe a (stack of) 2D images(s), or a single volume.
         /// \tparam T           Any data type (integer, floating-point, complex).
         /// \param[out] output  View of the output BDHW array where the deserialized slice(s) are saved.
+        ///                     Should describe a (stack of) 2D images(s), i.e. the depth should be 1.
         /// \param start        Index of the slice, in the file, where the deserialization starts.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
@@ -208,6 +200,7 @@ namespace noa::io {
         ///                     If the data type of the file is set, \p T should be compatible with it.
         ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
         /// \param[in] input    Input array to serialize. Should correspond to the file shape.
+        ///                     Should describe a (stack of) 2D images(s), i.e. the depth should be 1.
         /// \param start        Index of the slice, in the file, where the serialization starts.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
@@ -237,15 +230,14 @@ namespace noa::io {
         void writeAll(const View<T, I>& input, bool clamp = true);
 
     private:
-        path_t m_path{};
         std::unique_ptr<details::Header> m_header{};
         Format m_header_format{};
         bool m_is_open{};
 
     private:
-        void setHeader_(Format new_format);
+        void setHeader_(const path_t& filename, Format new_format);
         static Format format_(const path_t& extension) noexcept;
-        void open_(open_mode_t mode);
+        void open_(const path_t& filename, open_mode_t mode);
         void close_();
     };
 }
