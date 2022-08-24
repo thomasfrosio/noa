@@ -1,5 +1,5 @@
 /// \file noa/common/Exception.h
-/// \brief Various exceptions and error handling things.
+/// \brief Exceptions and error handling.
 /// \author Thomas - ffyr2w
 /// \date 14 Sep 2020
 
@@ -15,25 +15,6 @@
 namespace noa {
     /// Global (within ::noa) exception. Usually caught in main().
     class Exception : public std::exception {
-    private:
-        static thread_local std::string s_message;
-
-    protected:
-        std::string m_buffer{};
-
-        static std::string format_(const char* file, const char* function, int line,
-                                   const std::string& message) {
-            namespace fs = std::filesystem;
-            size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
-            return string::format("ERROR:{}:{}:{}: {}",
-                                  idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
-                                  function, line, message);
-        }
-
-        static void backtrace_(std::string& message,
-                               const std::exception_ptr& exception_ptr = std::current_exception(),
-                               size_t level = 0);
-
     public:
         /// Format the error message, which is then accessible with what().
         /// \tparam Args         Any types supported by string::format.
@@ -47,11 +28,38 @@ namespace noa {
             m_buffer = format_(file, function, line, string::format(args...));
         }
 
+        /// Returns the formatted error message of this (and only this) exception.
         [[nodiscard]] const char* what() const noexcept override {
-            s_message.clear();
-            backtrace_(s_message);
-            return s_message.data();
+            return m_buffer.data();
         }
+
+        /// Returns the message of all of the nested exceptions, from the newest to the oldest exception.
+        /// \details This gets the current exception and gets its message using what(). Then if the exception is
+        ///          a std::nested_exception, i.e. it was thrown using std::throw_with_nested, it gets the nested
+        ///          exceptions' messages until it reaches the last exception. These exceptions should inherit from
+        ///          std::exception, otherwise we have no way to retrieve its message and a generic message is
+        ///          returned instead saying that an unknown exception was thrown and the backtrace stops.
+        [[nodiscard]] static std::vector<std::string> backtrace() noexcept {
+            std::vector<std::string> message;
+            backtrace_(message);
+            return message;
+        }
+
+    protected:
+        static std::string format_(const char* file, const char* function, int line,
+                                   const std::string& message) {
+            namespace fs = std::filesystem;
+            size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
+            return string::format("ERROR:{}:{}:{}: {}",
+                                  idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
+                                  function, line, message);
+        }
+
+        static void backtrace_(std::vector<std::string>& message,
+                               const std::exception_ptr& exception_ptr = std::current_exception());
+
+    protected:
+        std::string m_buffer{};
     };
 
     /// Throw a nested noa::Exception if result evaluates to false.
