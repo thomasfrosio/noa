@@ -16,7 +16,7 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/OS.h"
 
-namespace noa {
+namespace noa::io {
     /// Binary file. This is also meant to be used as a temporary file.
     ///     - the data is not formatted on reads and writes.
     ///     - the filename and path can be generated automatically.
@@ -35,13 +35,13 @@ namespace noa {
         explicit BinaryFile(path_t path) : m_path(std::move(path)) {}
 
         /// Generates a temporary filename and opens the file.
-        explicit BinaryFile(uint open_mode, bool close_delete = false)
+        explicit BinaryFile(open_mode_t open_mode, bool close_delete = false)
                 : m_path(generateFilename_()), m_delete(close_delete) {
             open_(open_mode);
         }
 
         /// Stores the path and opens the file. \see open() for more details.
-        BinaryFile(path_t path, uint open_mode, bool close_delete = false)
+        BinaryFile(path_t path, open_mode_t open_mode, bool close_delete = false)
                 : m_path(std::move(path)), m_delete(close_delete) {
             open_(open_mode);
         }
@@ -62,7 +62,7 @@ namespace noa {
         ///         - If an underlying OS error was raised.
         ///
         /// \note   Internally, the \c io::BINARY flag is always considered on.
-        void open(path_t path, uint open_mode, bool close_delete = false) {
+        void open(path_t path, open_mode_t open_mode, bool close_delete = false) {
             m_path = std::move(path);
             m_delete = close_delete;
             open_(open_mode);
@@ -71,7 +71,7 @@ namespace noa {
         /// (Re)Opens the file.
         /// \note If the path is not set, a temporary filename is created.
         ///       In this case, \p open_mode should have the io::WRITE flag turned on.
-        void open(uint open_mode, bool close_delete = false) {
+        void open(open_mode_t open_mode, bool close_delete = false) {
             if (m_path.empty())
                 m_path = generateFilename_();
             m_delete = close_delete;
@@ -121,7 +121,15 @@ namespace noa {
         [[nodiscard]] bool isOpen() const noexcept { return m_fstream.is_open(); }
         [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
-        ~BinaryFile() { close(); }
+        ~BinaryFile() noexcept(false) {
+            try {
+                close();
+            } catch (...) {
+                if (!std::uncaught_exceptions()) {
+                    std::rethrow_exception(std::current_exception());
+                }
+            }
+        }
 
     private:
         // Generate an unused filename.
@@ -136,6 +144,6 @@ namespace noa {
             return out;
         }
 
-        void open_(uint open_mode);
+        void open_(open_mode_t open_mode);
     };
 }

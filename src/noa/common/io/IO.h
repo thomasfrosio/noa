@@ -18,10 +18,10 @@ namespace noa::io {
         JPEG,
         PNG
     };
-    NOA_IH std::ostream& operator<<(std::ostream& os, Format format);
+    inline std::ostream& operator<<(std::ostream& os, Format format);
 
     /// Bit masks to control file openings.
-    using open_mode_t = uint;
+    using open_mode_t = uint32_t;
     enum OpenMode : open_mode_t {
         READ = 1U << 0,
         WRITE = 1U << 1,
@@ -30,13 +30,17 @@ namespace noa::io {
         APP = 1U << 4,
         ATE = 1U << 5
     };
+    struct OpenModeStream { open_mode_t mode; };
+    inline std::ostream& operator<<(std::ostream& os, OpenModeStream open_mode);
+
+    inline constexpr bool isValidOpenMode(open_mode_t open_mode) noexcept;
 
     /// Switches from an OpenMode to a \c std::ios_base::openmode flag.
-    NOA_IH constexpr std::ios_base::openmode toIOSBase(open_mode_t open_mode) noexcept;
+    inline constexpr std::ios_base::openmode toIOSBase(open_mode_t open_mode) noexcept;
 
     /// Data type used for (de)serialization.
     enum DataType {
-        DATA_UNKNOWN,
+        DTYPE_UNKNOWN,
         INT8,
         UINT8,
         INT16,
@@ -55,12 +59,12 @@ namespace noa::io {
         UINT4, // not "real" type
         CINT16 // not "real" type
     };
-    NOA_IH std::ostream& operator<<(std::ostream& os, DataType data_type);
+    inline std::ostream& operator<<(std::ostream& os, DataType data_type);
 
     /// Returns the DataType corresponding to the type \p T.
     /// \tparam T Any data type.
     template<typename T>
-    NOA_IH constexpr DataType dtype() noexcept;
+    inline constexpr DataType dtype() noexcept;
 
     /// Returns the range that \T values, about to be converted to \p data_type, should be in.
     /// \details (De)Serialization functions can clamp the values to fit the destination types. However, if
@@ -68,35 +72,35 @@ namespace noa::io {
     ///          the lowest and maximum value that the \p data_type can hold and clamps them to type \p T.
     /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
     ///                     If complex, real and imaginary parts are set with the same value.
-    /// \param DataType     Data type. If DATA_UNKNOWN, return 0.
+    /// \param DataType     Data type. If DTYPE_UNKNOWN, return 0.
     /// \return             Minimum and maximum \p T values in the range of \p data_type.
     template<typename T>
-    NOA_IH constexpr std::pair<T, T> typeMinMax(DataType data_type) noexcept;
+    inline constexpr std::pair<T, T> typeMinMax(DataType data_type) noexcept;
 
     /// Whether this code was compiled for big-endian.
-    NOA_IH bool isBigEndian() noexcept;
+    inline bool isBigEndian() noexcept;
 
     /// Changes the endianness of the elements in an array, in-place.
     /// \param[in] ptr              Array of bytes to swap. Should contain at least (elements * bytes_per_element).
     /// \param elements             How many elements to swap.
     /// \param bytes_per_element    Size, in bytes, of one element. If not 2, 4, or 8, do nothing.
-    NOA_IH void swapEndian(byte_t* ptr, size_t elements, size_t bytes_per_elements) noexcept;
+    inline void swapEndian(byte_t* ptr, size_t elements, size_t bytes_per_elements) noexcept;
 
     /// Changes the endianness of the elements in an array, in-place.
     /// \param[in] ptr  Array of bytes to swap.
     /// \param elements How many elements to swap.
     template<typename T>
-    NOA_IH void swapEndian(T* ptr, size_t elements) noexcept;
+    inline void swapEndian(T* ptr, size_t elements) noexcept;
 
     /// Returns the number of bytes necessary to hold a number of \p elements formatted with a given \p data_type.
-    /// \param data_type        Data type used for serialization. If DATA_UNKNOWN, returns 0.
+    /// \param data_type        Data type used for serialization. If DTYPE_UNKNOWN, returns 0.
     /// \param elements         Number of elements.
     /// \param elements_per_row Number of \p T elements per row.
     ///                         Only used when \p data_type is UINT4.
     ///                         This is to account for the half-byte padding at the end of odd rows with UINT4.
     ///                         If 0, the number of elements per row is assumed to be even.
     ///                         Otherwise, \p elements should be a multiple of \p elements_per_row.
-    NOA_IH size_t serializedSize(DataType data_type, size_t elements, size_t elements_per_row = 0) noexcept;
+    inline size_t serializedSize(DataType data_type, size_t elements, size_t elements_per_row = 0) noexcept;
 }
 
 namespace noa::io {

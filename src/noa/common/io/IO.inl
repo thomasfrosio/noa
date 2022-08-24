@@ -40,6 +40,40 @@ namespace noa::io {
         return os;
     }
 
+    std::ostream& operator<<(std::ostream& os, OpenModeStream open_mode) {
+        // If any other than the first 6 bits are set, this is an invalid mode.
+        if (!isValidOpenMode(open_mode.mode)) {
+            os << "MODE_UNKNOWN";
+            return os;
+        }
+
+        struct Modes { OpenMode mode{}; const char* string{}; };
+        constexpr std::array<Modes, 6> MODES{
+                Modes{OpenMode::READ, "READ"},
+                Modes{OpenMode::WRITE, "WRITE"},
+                Modes{OpenMode::BINARY, "BINARY"},
+                Modes{OpenMode::TRUNC, "TRUNC"},
+                Modes{OpenMode::APP, "APP"},
+                Modes{OpenMode::ATE, "ATE"}
+        };
+
+        bool add{false};
+        for (size_t i = 0; i < 6; ++i) {
+            if (open_mode.mode & MODES[i].mode) {
+                if (add)
+                    os << '|';
+                os << MODES[i].string;
+                add = true;
+            }
+        }
+        return os;
+    }
+
+    constexpr bool isValidOpenMode(open_mode_t open_mode) noexcept {
+        constexpr open_mode_t MASK = 0xFFFFFFC0;
+        return !(open_mode & MASK);
+    }
+
     constexpr std::ios_base::openmode toIOSBase(open_mode_t open_mode) noexcept {
         std::ios_base::openmode mode{};
         if (open_mode & OpenMode::READ)
@@ -163,7 +197,7 @@ namespace noa::io {
 
     std::ostream& operator<<(std::ostream& os, DataType data_type) {
         switch (data_type) {
-            case DataType::DATA_UNKNOWN:
+            case DataType::DTYPE_UNKNOWN:
                 return os << "UNKNOWN";
             case DataType::UINT4:
                 return os << "UINT4";
@@ -248,7 +282,7 @@ namespace noa::io {
                 return elements * 8;
             case DataType::CFLOAT64:
                 return elements * 16;
-            case DataType::DATA_UNKNOWN:
+            case DataType::DTYPE_UNKNOWN:
                 return 0;
         }
         return 0;

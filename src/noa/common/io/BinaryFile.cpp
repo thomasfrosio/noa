@@ -1,10 +1,11 @@
 #include "noa/common/io/IO.h"
 #include "noa/common/io/BinaryFile.h"
 
-namespace noa {
-    void BinaryFile::open_(uint open_mode) {
+namespace noa::io {
+    void BinaryFile::open_(open_mode_t open_mode) {
         close();
 
+        NOA_CHECK(isValidOpenMode(open_mode), "File: {}. Invalid open mode", m_path);
         bool overwrite = open_mode & io::TRUNC || !(open_mode & (io::READ | io::APP));
         bool exists;
         try {
@@ -16,7 +17,8 @@ namespace noa {
                     os::mkdir(m_path.parent_path());
             }
         } catch (...) {
-            NOA_THROW("File: {}. OS failure when trying to open the file", m_path);
+            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
+                           m_path, OpenModeStream{open_mode});
         }
 
         open_mode |= io::BINARY;
@@ -26,6 +28,7 @@ namespace noa {
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        NOA_THROW("File: {}. Failed to open the file", m_path);
+        NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                       m_path, OpenModeStream{open_mode});
     }
 }

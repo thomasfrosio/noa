@@ -68,6 +68,7 @@ namespace noa::io {
     void TextFile<Stream>::open_(open_mode_t mode) {
         close();
 
+        NOA_CHECK(isValidOpenMode(mode), "File: {}. Invalid open mode", m_path);
         if constexpr (!std::is_same_v<Stream, std::ifstream>) {
             if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
                 bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
@@ -78,7 +79,8 @@ namespace noa::io {
                     else if (overwrite || mode & io::APP) /* all except case 2 */
                         os::mkdir(m_path.parent_path());
                 } catch (...) {
-                    NOA_THROW("File: {}. OS failure", m_path);
+                    NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
+                                   m_path, OpenModeStream{mode});
                 }
             }
         }
@@ -88,6 +90,7 @@ namespace noa::io {
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        NOA_THROW("File: {}. Failed to open the file", m_path);
+        NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                       m_path, OpenModeStream{mode});
     }
 }
