@@ -77,6 +77,10 @@ namespace noa::io::details {
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+        if (m_is_read && !os::existsFile(filename)) {
+            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. The file does not exist",
+                           filename, OpenModeStream{open_mode});
+        }
         NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. {}",
                        filename, OpenModeStream{open_mode}, s_error_buffer);
     }
@@ -215,7 +219,7 @@ namespace noa::io::details {
                   "File: {}. Cannot read a 2D slice of shape {} from a file with 2D slices of shape {}",
                   m_filename, size2_t(shape.get(2)), size2_t(m_shape.get(1)));
         NOA_CHECK(shape[1] == 1, "File {}. Can only read 2D slice(s), but asked to read shape {}", m_filename, shape);
-        NOA_CHECK(m_shape[0] > start + shape[0],
+        NOA_CHECK(m_shape[0] >= start + shape[0],
                   "File: {}. The file has less slices ({}) that what is about to be read (start:{}, count:{})",
                   m_filename, m_shape[0], start, shape[0]);
 
@@ -313,7 +317,7 @@ namespace noa::io::details {
                   "File: {}. Cannot write a 2D slice of shape {} into a file with 2D slices of shape {}",
                   m_filename, size2_t(shape.get(2)), size2_t(m_shape.get(1)));
         NOA_CHECK(shape[1] == 1, "File {}. Can only write 2D slice(s), but asked to write shape {}", m_filename, shape);
-        NOA_CHECK(m_shape[0] > start + shape[0],
+        NOA_CHECK(m_shape[0] >= start + shape[0],
                   "File: {}. The file has less slices ({}) that what is about to be written (start:{}, count:{})",
                   m_filename, m_shape[0], start, shape[0]);
 

@@ -113,6 +113,10 @@ namespace noa::io::details {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         m_fstream.clear();
+        if (open_mode & io::READ && !overwrite && !exists) {
+            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. The file does not exist",
+                           filename, OpenModeStream{open_mode});
+        }
         NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
                        filename, OpenModeStream{open_mode});
     }
@@ -488,7 +492,7 @@ namespace noa::io::details {
 
         // Make sure it doesn't go out of bound.
         const bool file_is_volume = m_header.shape[0] == 1 && m_header.shape[1] > 1;
-        NOA_CHECK(m_header.shape[file_is_volume] > start + shape[0],
+        NOA_CHECK(m_header.shape[file_is_volume] >= start + shape[0],
                   "File: {}. The file has less slices ({}) that what is about to be read (start:{}, count:{})",
                   m_filename, m_header.shape[file_is_volume], start, shape[0]);
 
@@ -593,7 +597,7 @@ namespace noa::io::details {
 
         // Make sure it doesn't go out of bound.
         const bool file_is_volume = m_header.shape[0] == 1 && m_header.shape[1] > 1;
-        NOA_CHECK(m_header.shape[file_is_volume] > start + shape[0],
+        NOA_CHECK(m_header.shape[file_is_volume] >= start + shape[0],
                   "File: {}. The file has less slices ({}) that what is about to be written (start:{}, count:{})",
                   m_filename, m_header.shape[file_is_volume], start, shape[0]);
 

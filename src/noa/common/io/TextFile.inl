@@ -72,17 +72,27 @@ namespace noa::io {
         if constexpr (!std::is_same_v<Stream, std::ifstream>) {
             if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
                 bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
+                bool exists = os::existsFile(m_path);
                 try {
-                    bool exists = os::existsFile(m_path);
                     if (exists)
                         os::backup(m_path, overwrite);
                     else if (overwrite || mode & io::APP) /* all except case 2 */
                         os::mkdir(m_path.parent_path());
                 } catch (...) {
-                    NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
-                                   m_path, OpenModeStream{mode});
+                    NOA_THROW("File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
+                              m_path, OpenModeStream{mode});
                 }
+                NOA_CHECK(overwrite || exists,
+                          "File: {}. Mode: {}. Trying to open a non-existing file in this mode is not allowed",
+                          m_path, OpenModeStream{mode});
             }
+        } else { // read only
+            NOA_CHECK(!(mode & (io::WRITE | io::TRUNC | io::APP)),
+                      "File: {}. Mode {} is not allowed for read-only TextFile",
+                      m_path, OpenModeStream{mode});
+            NOA_CHECK(os::existsFile(m_path),
+                      "File: {}. Mode: {}. Trying to open a file that does not exist with a read-only TextFile",
+                      m_path, OpenModeStream{mode});
         }
         for (int it{0}; it < 5; ++it) {
             m_fstream.open(m_path, io::toIOSBase(mode));
@@ -90,7 +100,7 @@ namespace noa::io {
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
-                       m_path, OpenModeStream{mode});
+        NOA_THROW("File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                  m_path, OpenModeStream{mode});
     }
 }

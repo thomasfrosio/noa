@@ -28,6 +28,10 @@ namespace noa::io {
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+        if (open_mode & io::READ && !overwrite && !exists) {
+            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. The file does not exist",
+                           m_path, OpenModeStream{open_mode});
+        }
         NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
                        m_path, OpenModeStream{open_mode});
     }
