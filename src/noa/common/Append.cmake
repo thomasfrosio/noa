@@ -6,9 +6,9 @@ set(NOA_COMMON_HEADERS
         common/Exception.h
         common/Functors.h
         common/Indexing.h
-
         common/Logger.h
         common/OS.h
+        common/Session.h
         common/Threadpool.h
 
         common/Math.h
@@ -76,6 +76,7 @@ set(NOA_COMMON_HEADERS
 set(NOA_COMMON_SOURCES
         common/Exception.cpp
         common/Logger.cpp
+        common/Session.cpp
 
         common/geometry/Symmetry.cpp
         common/io/BinaryFile.cpp

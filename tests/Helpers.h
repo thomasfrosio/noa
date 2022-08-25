@@ -5,7 +5,7 @@
 #include <noa/common/traits/BaseTypes.h>
 
 #ifdef NOA_ENABLE_UNIFIED
-#include <noa/unified/Array.h>
+#include <noa/Array.h>
 #endif
 
 #include <random>

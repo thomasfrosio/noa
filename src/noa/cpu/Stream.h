@@ -9,7 +9,7 @@
 #include <tuple>
 #include <functional>
 
-#include "noa/Session.h"
+#include "noa/common/Session.h"
 #include "noa/common/Definitions.h"
 #include "noa/common/types/Constants.h"
 

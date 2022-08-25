@@ -1,4 +1,4 @@
-#include "noa/Session.h"
+#include "noa/common/Session.h"
 #include "noa/common/Inputs.h"
 #include "noa/common/files/TextFile.h"
 
