@@ -64,7 +64,7 @@ Development:
         and kernel launch since the resource is global to the device.
 
     -   Use the CUDA driver to handle the context. That way, the library can keep track of its own context and reset it
-        without affecting then entire application.
+        without affecting then entire application. This could be attached to the current Session.
 
     -   Add transform operator to the math reduce functions. cuda::util::reduce showed that this is useful and often
         removes the need for a temporary array.

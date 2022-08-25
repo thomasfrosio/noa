@@ -1,4 +1,4 @@
-The library can automatically fetch and install dependencies from the web. However, in most cases, dependencies
+The library can automatically fetch and install _some_ dependencies from the web. However, in most cases, dependencies
 should be installed on the system. The library will search for these dependencies and users can guide this search as
 detailed below. If the dependencies are installed in common locations, no input from the user should be required.
 
