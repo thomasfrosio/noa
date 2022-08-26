@@ -1,20 +1,13 @@
 #pragma once
 
-#include <memory>
-#include <utility>
-#include <ios>
-#include <filesystem>
 #include <fstream>
-
-#include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
 #include "noa/common/Types.h"
 #include "noa/common/io/IO.h"
-#include "noa/common/io/header/Header.h"
+#include "noa/common/io/Stats.h"
+#include "noa/common/io/ImageFile.h"
 
-namespace noa::io::details {
-    // Handles MRC files.
-    //
+namespace noa::io {
+    // File supporting the MRC format.
     // Notes about the current implementation:
     //  - Pixel size:   If the cell size is equal to zero, the pixel size will be 0. This is allowed
     //                  since in some cases the pixel size is ignored. Thus, one should check the
@@ -38,10 +31,11 @@ namespace noa::io::details {
     //
     // see      https://bio3d.colorado.edu/imod/doc/mrc_format.txt or
     //          https://www.ccpem.ac.uk/mrc_format/mrc2014.php
-    class MRCHeader : public Header {
+    class MRCFile : public details::ImageFile {
     public:
-        MRCHeader() = default;
-        ~MRCHeader() override { close_(); }
+        MRCFile() = default;
+        MRCFile(const path_t& path, open_mode_t open_mode) { open_(path, open_mode); }
+        ~MRCFile() override { close_(); }
 
     public:
         void reset() override {
@@ -60,7 +54,7 @@ namespace noa::io::details {
         [[nodiscard]] Format format() const noexcept override { return Format::MRC; }
 
     public:
-        [[nodiscard]] size4_t shape() const noexcept  {
+        [[nodiscard]] size4_t shape() const noexcept override {
             return m_header.shape;
         }
 
@@ -114,6 +108,34 @@ namespace noa::io::details {
         void writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) override;
         void writeAll(const void* input, size4_t strides, size4_t shape, DataType data_type, bool clamp) override;
         void writeAll(const void* input, DataType data_type, bool clamp) override;
+
+    public:
+        template<typename T>
+        void read(T* output, size_t start, size_t end, bool clamp = false) {
+            read(output, io::dtype<T>(), start, end, clamp);
+        }
+
+        template<typename T>
+        void readAll(T* output, bool clamp = false) {
+            readAll(output, io::dtype<T>(), clamp);
+        }
+
+        template<typename T>
+        void readSlice(T* output, size_t start, size_t end, bool clamp = false) {
+            readSlice(output, io::dtype<T>(), start, end, clamp);
+        }
+
+        template<typename T>
+        void writeAll(T* output, bool clamp = false) {
+            writeAll(output, io::dtype<T>(), clamp);
+        }
+
+        template<typename T>
+        void writeSlice(T* output, size_t start, size_t end, bool clamp = false) {
+            writeSlice(output, io::dtype<T>(), start, end, clamp);
+        }
+
+        [[nodiscard]] explicit operator bool() const noexcept { return isOpen(); }
 
     private:
         void open_(const path_t& filename, open_mode_t mode);

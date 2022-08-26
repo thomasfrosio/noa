@@ -28,17 +28,14 @@ set(NOA_COMMON_HEADERS
         common/geometry/Symmetry.h
         common/geometry/Transform.h
 
-        common/io/BinaryFile.h
-        common/io/header/Header.h
-        common/io/header/MRCHeader.h
-        common/io/header/TIFFHeader.h
-        common/io/ImageFile.h
-        common/io/ImageFile.inl
         common/io/IO.h
         common/io/IO.inl
         common/io/Stats.h
+        common/io/BinaryFile.h
+        common/io/MRCFile.h
         common/io/TextFile.h
         common/io/TextFile.inl
+        common/io/TIFFFile.h
 
         common/signal/Windows.h
 
@@ -79,11 +76,14 @@ set(NOA_COMMON_SOURCES
         common/Session.cpp
 
         common/geometry/Symmetry.cpp
-        common/io/BinaryFile.cpp
-        common/io/header/MRCHeader.cpp
-        common/io/header/TIFFHeader.cpp
+
         common/io/IO.cpp
+        common/io/BinaryFile.cpp
+        common/io/MRCFile.cpp
+        common/io/TIFFFile.cpp
+
         common/string/Parse.cpp
+
         common/types/Constants.cpp
         )
 

@@ -4,13 +4,13 @@
 
 #include "noa/common/Session.h"
 #include "noa/common/OS.h"
-#include "noa/common/io/header/MRCHeader.h"
+#include "noa/common/io/MRCFile.h"
 
-namespace noa::io::details {
-    void MRCHeader::shape(size4_t new_shape) {
+namespace noa::io {
+    void MRCFile::shape(size4_t new_shape) {
         if (m_open_mode & OpenMode::READ) {
             if (m_open_mode & OpenMode::WRITE) {
-                Session::logger.warn("MRCHeader: changing the shape of the data in "
+                Session::logger.warn("MRCFile: changing the shape of the data in "
                                      "READ|WRITE mode might corrupt the file");
             } else {
                 NOA_THROW("Trying to change the shape of the data in read mode is not allowed. "
@@ -20,10 +20,10 @@ namespace noa::io::details {
         m_header.shape = new_shape;
     }
 
-    void MRCHeader::dtype(io::DataType data_type) {
+    void MRCFile::dtype(io::DataType data_type) {
         if (m_open_mode & io::READ) {
             if (m_open_mode & OpenMode::WRITE) {
-                Session::logger.warn("MRCHeader: changing the data type of the file in "
+                Session::logger.warn("MRCFile: changing the data type of the file in "
                                      "READ|WRITE mode might corrupt the file");
             } else {
                 NOA_THROW("Trying to change the data type of the file in read mode is not allowed. "
@@ -47,10 +47,10 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::pixelSize(float3_t new_pixel_size) {
+    void MRCFile::pixelSize(float3_t new_pixel_size) {
         if (m_open_mode & io::READ) {
             if (m_open_mode & OpenMode::WRITE) {
-                Session::logger.warn("MRCHeader: changing the pixel size of the file in "
+                Session::logger.warn("MRCFile: changing the pixel size of the file in "
                                      "READ|WRITE mode might corrupt the file");
             } else {
                 NOA_THROW("Trying to change the pixel size of the file in read mode is not allowed. "
@@ -63,7 +63,7 @@ namespace noa::io::details {
             NOA_THROW("The pixel size should be positive, got {}", new_pixel_size);
     }
 
-    std::string MRCHeader::infoString(bool brief) const noexcept {
+    std::string MRCFile::infoString(bool brief) const noexcept {
         if (brief)
             return string::format("Shape: {}; Pixel size: {:.3f}", m_header.shape, m_header.pixel_size);
 
@@ -80,7 +80,7 @@ namespace noa::io::details {
                               m_header.extended_bytes_nb);
     }
 
-    void MRCHeader::open_(const path_t& filename, open_mode_t open_mode) {
+    void MRCFile::open_(const path_t& filename, open_mode_t open_mode) {
         close_();
 
         NOA_CHECK(isValidOpenMode(open_mode), "File: {}. Invalid open mode", filename);
@@ -113,6 +113,7 @@ namespace noa::io::details {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         m_fstream.clear();
+
         if (open_mode & io::READ && !overwrite && !exists) {
             NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. The file does not exist",
                            filename, OpenModeStream{open_mode});
@@ -121,7 +122,7 @@ namespace noa::io::details {
                        filename, OpenModeStream{open_mode});
     }
 
-    void MRCHeader::readHeader_(const path_t& filename) {
+    void MRCFile::readHeader_(const path_t& filename) {
         byte_t buffer[1024];
         m_fstream.seekg(0);
         m_fstream.read(reinterpret_cast<char*>(buffer), 1024);
@@ -284,7 +285,7 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::close_() {
+    void MRCFile::close_() {
         if (!isOpen())
             return;
 
@@ -308,7 +309,7 @@ namespace noa::io::details {
         m_filename.clear();
     }
 
-    void MRCHeader::defaultHeader_(byte_t* buffer) {
+    void MRCFile::defaultHeader_(byte_t* buffer) {
         std::memset(buffer, 0, 1024); // Set everything to 0.
         auto* buffer_ptr = reinterpret_cast<char*>(buffer);
 
@@ -342,7 +343,7 @@ namespace noa::io::details {
         buffer_ptr[215] = 0;
     }
 
-    void MRCHeader::writeHeader_(byte_t* buffer) {
+    void MRCFile::writeHeader_(byte_t* buffer) {
         // Data type.
         int32_t mode{}, imod_stamp{0}, imod_flags{0};
         switch (m_header.data_type) {
@@ -451,7 +452,7 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::read(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
+    void MRCFile::read(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_CHECK(m_header.data_type != DataType::UINT4,
                   "File: {}. The 4bits format (mode 101) is not supported. Use readSlice or readAll instead",
@@ -477,8 +478,8 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::readSlice(void* output, size4_t strides, size4_t shape,
-                              DataType data_type, size_t start, bool clamp) {
+    void MRCFile::readSlice(void* output, size4_t strides, size4_t shape,
+                            DataType data_type, size_t start, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
 
         // Read either a 2D slice from a stack of 2D images or from a 3D volume.
@@ -516,13 +517,13 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
+    void MRCFile::readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
         const size4_t slice_shape{end - start, 1, m_header.shape[2], m_header.shape[3]};
         readSlice(output, slice_shape.strides(), slice_shape, data_type, start, clamp);
     }
 
-    void MRCHeader::readAll(void* output, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
+    void MRCFile::readAll(void* output, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_CHECK(all(shape == m_header.shape),
                   "File: {}. The file shape {} is not compatible with the output shape {}",
@@ -543,11 +544,11 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::readAll(void* output, DataType data_type, bool clamp) {
+    void MRCFile::readAll(void* output, DataType data_type, bool clamp) {
         return readAll(output, m_header.shape.strides(), m_header.shape, data_type, clamp);
     }
 
-    void MRCHeader::write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
+    void MRCFile::write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
 
         if (m_header.data_type == DataType::DTYPE_UNKNOWN)
@@ -577,8 +578,8 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::writeSlice(const void* input, size4_t strides, size4_t shape,
-                               DataType data_type, size_t start, bool clamp) {
+    void MRCFile::writeSlice(const void* input, size4_t strides, size4_t shape,
+                             DataType data_type, size_t start, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
 
         // For writing a slice, it's best if we require the shape to be already set.
@@ -624,13 +625,13 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
+    void MRCFile::writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) {
         NOA_ASSERT(end >= start);
         const size4_t slice_shape{end - start, 1, m_header.shape[2], m_header.shape[3]};
         return writeSlice(input, slice_shape.strides(), slice_shape, data_type, start, clamp);
     }
 
-    void MRCHeader::writeAll(const void* input, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
+    void MRCFile::writeAll(const void* input, size4_t strides, size4_t shape, DataType data_type, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
 
         if (m_header.data_type == DataType::DTYPE_UNKNOWN) // first write, set the data type
@@ -659,7 +660,7 @@ namespace noa::io::details {
         }
     }
 
-    void MRCHeader::writeAll(const void* input, DataType data_type, bool clamp) {
+    void MRCFile::writeAll(const void* input, DataType data_type, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_CHECK(all(m_header.shape > 0),
                   "The shape of the file is not set or is empty. "
@@ -667,7 +668,7 @@ namespace noa::io::details {
         return writeAll(input, m_header.shape.strides(), m_header.shape, data_type, clamp);
     }
 
-    DataType MRCHeader::closestSupportedDataType_(DataType data_type) {
+    DataType MRCFile::closestSupportedDataType_(DataType data_type) {
         switch (data_type) {
             case INT8:
                 return INT8;

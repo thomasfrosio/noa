@@ -1,17 +1,14 @@
-///
-
 #pragma once
 #if NOA_ENABLE_TIFF
 
-#include <tiffio.h>
+#include "noa/common/io/ImageFile.h"
 
-#include "noa/common/io/header/Header.h"
-
-namespace noa::io::details {
-    class TIFFHeader : public Header {
+namespace noa::io {
+    class TIFFFile : public details::ImageFile {
     public:
-        TIFFHeader();
-        ~TIFFHeader() override { close(); }
+        TIFFFile();
+        TIFFFile(const path_t& filename, open_mode_t open_mode) : TIFFFile() { open_(filename, open_mode); }
+        ~TIFFFile() override { close(); }
 
     public:
         void reset() override {
@@ -22,7 +19,7 @@ namespace noa::io::details {
             m_is_read = false;
         }
 
-        void open(const path_t& filename, open_mode_t mode) override;
+        void open(const path_t& filename, open_mode_t open_mode) override { open_(filename, open_mode); }
         void close() override;
 
     public:
@@ -32,31 +29,14 @@ namespace noa::io::details {
         [[nodiscard]] Format format() const noexcept override { return Format::TIFF; }
 
     public:
-        [[nodiscard]] size4_t shape() const noexcept override {
-            return size4_t{m_shape[0], 1, m_shape[1], m_shape[2]};
-        }
+        [[nodiscard]] size4_t shape() const noexcept override { return size4_t{m_shape[0], 1, m_shape[1], m_shape[2]}; }
+        [[nodiscard]] stats_t stats() const noexcept override { return stats_t{}; }
+        [[nodiscard]] float3_t pixelSize() const noexcept override { return {0.f, m_pixel_size[0], m_pixel_size[1]}; }
+        [[nodiscard]] DataType dtype() const noexcept override { return m_data_type; }
 
         void shape(size4_t shape) override;
-
-        [[nodiscard]] stats_t stats() const noexcept override {
-            return stats_t{};
-        }
-
-        void stats(stats_t) override {
-            // Ignore for now.
-        }
-
-        [[nodiscard]] float3_t pixelSize() const noexcept override {
-            return {0.f, m_pixel_size[0], m_pixel_size[1]};
-        }
-
+        void stats(stats_t) override { /* Ignore for now */ }
         void pixelSize(float3_t) override;
-
-
-        [[nodiscard]] DataType dtype() const noexcept override {
-            return m_data_type;
-        }
-
         void dtype(DataType) override;
 
     public:
@@ -73,13 +53,14 @@ namespace noa::io::details {
         void writeAll(const void* input, DataType data_type, bool clamp) override;
 
     private:
+        void open_(const path_t& filename, open_mode_t mode);
         void readHeader_();
         static DataType getDataType_(uint16_t sample_format, uint16_t bits_per_sample);
         static void setDataType_(DataType data_type, uint16_t* sample_format, uint16_t* bits_per_sample);
         static void flipY_(byte_t* slice, size_t bytes_per_row, size_t rows, byte_t* buffer);
 
     private:
-        ::TIFF* m_tiff{};
+        void* m_tiff{};
         path_t m_filename{};
         uint3_t m_shape{0}; // BHW
         float2_t m_pixel_size{0.f}; // HW

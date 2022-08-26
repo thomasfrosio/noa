@@ -82,23 +82,28 @@ namespace noa::io {
                     NOA_THROW("File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
                               m_path, OpenModeStream{mode});
                 }
-                NOA_CHECK(overwrite || exists,
-                          "File: {}. Mode: {}. Trying to open a non-existing file in this mode is not allowed",
-                          m_path, OpenModeStream{mode});
             }
-        } else { // read only
-            NOA_CHECK(!(mode & (io::WRITE | io::TRUNC | io::APP)),
+        }
+        const bool read_only = !(mode & (io::WRITE | io::TRUNC | io::APP));
+        const bool read_write_only = mode & io::WRITE && mode & io::READ && !(mode & (io::TRUNC | io::APP));
+        if constexpr (std::is_same_v<Stream, std::ifstream>) {
+            NOA_CHECK(read_only,
                       "File: {}. Mode {} is not allowed for read-only TextFile",
                       m_path, OpenModeStream{mode});
-            NOA_CHECK(os::existsFile(m_path),
-                      "File: {}. Mode: {}. Trying to open a file that does not exist with a read-only TextFile",
-                      m_path, OpenModeStream{mode});
         }
+
         for (int it{0}; it < 5; ++it) {
             m_fstream.open(m_path, io::toIOSBase(mode));
             if (m_fstream.is_open())
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        m_fstream.clear();
+
+        if (read_only || read_write_only) { // case 1|2
+            NOA_CHECK(os::existsFile(m_path),
+                      "File: {}. Mode: {}. Trying to open a file that does not exist",
+                      m_path, OpenModeStream{mode});
         }
         NOA_THROW("File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
                   m_path, OpenModeStream{mode});
