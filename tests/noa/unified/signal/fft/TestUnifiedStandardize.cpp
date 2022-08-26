@@ -2,7 +2,7 @@
 #include <noa/FFT.h>
 #include <noa/Memory.h>
 #include <noa/Math.h>
-#include <noa/signal/fft/Standardize.h>
+#include <noa/unified/signal/fft/Standardize.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"

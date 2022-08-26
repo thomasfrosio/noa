@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/geometry/Transform.h>
 #include <noa/common/geometry/Euler.h>
 
@@ -18,7 +18,7 @@ TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geome
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform2D_symmetry"];
     const auto input_path = path_base / param["input"].as<path_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -68,7 +68,7 @@ TEST_CASE("cuda::geometry::transform3D() - symmetry", "[assets][noa][cuda][geome
     const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform3D_symmetry"];
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

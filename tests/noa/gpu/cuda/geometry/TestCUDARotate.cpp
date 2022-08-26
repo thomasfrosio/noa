@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
 #include <noa/cpu/geometry/Rotate.h>
@@ -20,7 +20,7 @@ TEST_CASE("cuda::geometry::rotate2D()", "[assets][noa][cuda][geometry]") {
     const auto rotate = math::toRad(param["rotate"].as<float>());
     const auto center = param["center"].as<float2_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -159,7 +159,7 @@ TEST_CASE("cuda::geometry::rotate3D()", "[assets][noa][cuda][geometry]") {
     const auto center = param["center"].as<float3_t>();
 
     const float33_t matrix(geometry::euler2matrix(euler).transpose());
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

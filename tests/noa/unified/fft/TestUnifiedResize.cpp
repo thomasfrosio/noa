@@ -43,9 +43,7 @@ TEST_CASE("unified::fft::resize, crop entire stack", "[.]") {
     pixel_size[1] *= reduce_factor;
     pixel_size[2] *= reduce_factor;
 
-    Array<real_t> src(shape, options);
-    file.readAll(src.view());
-
+    Array src = file.read<real_t>(options);
     Array src_fft = fft::r2c(src.release());
 
     const size4_t shape_binned{shape[0], shape[1], shape[2] / reduce_factor, shape[3] / reduce_factor};
@@ -56,6 +54,5 @@ TEST_CASE("unified::fft::resize, crop entire stack", "[.]") {
 
     file.open(test::NOA_DATA_PATH / "tilt1_cropped.mrc", io::WRITE);
     file.pixelSize(pixel_size);
-    file.shape(dst.shape());
-    file.writeAll(dst.eval().view());
+    file.write(dst);
 }

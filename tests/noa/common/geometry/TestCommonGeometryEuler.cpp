@@ -1,5 +1,5 @@
 #include <noa/common/geometry/Euler.h>
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 
 #include "Assets.h"
@@ -16,7 +16,7 @@ TEST_CASE("geometry::euler2matrix()", "[noa][geometry]") {
     const auto angles = math::toRad(param["angles"].as<float3_t>());
 
     // Get expected:
-    io::ImageFile file(path_expected, io::READ);
+    io::MRCFile file(path_expected, io::READ);
     const size4_t shape = file.shape();
     const size_t elements = shape.elements();
     cpu::memory::PtrHost<float> expected(elements);

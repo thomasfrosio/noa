@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/signal/Convolve.h>
 
@@ -11,7 +11,7 @@ TEST_CASE("cpu::signal::convolve()", "[assets][noa][cpu][filter]") {
 
     const path_t path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve"]["tests"];
-    io::ImageFile file;
+    io::MRCFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);
@@ -56,7 +56,7 @@ TEST_CASE("cpu::signal::convolve() - separable", "[assets][noa][cpu][filter]") {
 
     const path_t path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve_separable"]["tests"];
-    io::ImageFile file;
+    io::MRCFile file;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
         INFO("test number = " << nb);

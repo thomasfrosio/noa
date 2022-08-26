@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
@@ -18,7 +18,7 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
     const auto scale = param["scale"].as<float2_t>();
     const auto center = param["center"].as<float2_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -73,7 +73,7 @@ TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
     const auto scale = param["scale"].as<float3_t>();
     const auto center = param["center"].as<float3_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

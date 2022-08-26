@@ -1,5 +1,5 @@
-#include <noa/math/Random.h>
-#include <noa/memory/Cast.h>
+#include <noa/unified/math/Random.h>
+#include <noa/unified/memory/Cast.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"

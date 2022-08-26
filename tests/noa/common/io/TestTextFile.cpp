@@ -14,14 +14,14 @@ TEST_CASE("TextFile:", "[noa][file]") {
     AND_WHEN("file should exists") {
         io::TextFile<std::ifstream> file;
 
+        REQUIRE(file);
         REQUIRE_THROWS_AS(file.open(test_file2, io::READ), noa::Exception);
+        REQUIRE(file);
         REQUIRE(!file.isOpen());
-        REQUIRE(!file);
 
-        file.clear();
         REQUIRE_THROWS_AS(file.open(test_file2, io::READ | io::WRITE), noa::Exception);
         REQUIRE(!file.isOpen());
-        REQUIRE(!file);
+        REQUIRE(file);
     }
 
     AND_WHEN("creating a file and its parent path") {

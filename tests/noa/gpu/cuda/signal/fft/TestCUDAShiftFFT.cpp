@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/signal/fft/Shift.h>
@@ -15,7 +15,7 @@
 using namespace ::noa;
 
 TEST_CASE("cuda::signal::fft::shift2D(), assets", "[assets][noa][cuda][signal]") {
-    io::ImageFile file;
+    io::MRCFile file;
     const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
     cuda::Stream stream;
@@ -59,7 +59,7 @@ TEST_CASE("cuda::signal::fft::shift2D(), assets", "[assets][noa][cuda][signal]")
 }
 
 TEST_CASE("cuda::signal::fft::shift3D(), assets", "[assets][noa][cuda][signal]") {
-    io::ImageFile file;
+    io::MRCFile file;
     const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
     cuda::Stream stream;

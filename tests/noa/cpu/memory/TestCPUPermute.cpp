@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Permute.h>
 
@@ -11,7 +11,7 @@ using namespace ::noa;
 TEST_CASE("cpu::memory::permute()", "[assets][noa][cpu][memory]") {
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

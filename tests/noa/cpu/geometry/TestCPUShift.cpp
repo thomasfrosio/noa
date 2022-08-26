@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/geometry/Shift.h>
 
@@ -15,7 +15,7 @@ TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
     const auto border_value = param["border_value"].as<float>();
     const auto shift = param["shift"].as<float2_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
@@ -60,7 +60,7 @@ TEST_CASE("cpu::geometry::shift3D()", "[assets][noa][cpu][geometry]") {
     const auto border_value = param["border_value"].as<float>();
     const auto shift = param["shift"].as<float3_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);

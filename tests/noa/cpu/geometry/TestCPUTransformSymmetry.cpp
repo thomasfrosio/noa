@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/geometry/Transform.h>
@@ -18,7 +18,7 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
     const path_t base_path = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(base_path / "tests.yaml")["transform2D_symmetry"];
     const path_t input_path = base_path / param["input"].as<path_t>();
-    io::ImageFile file;
+    io::MRCFile file;
 
     cpu::Stream stream;
 
@@ -92,7 +92,7 @@ TEST_CASE("cpu::geometry::transform2D() - symmetry", "[assets][noa][cpu][geometr
 TEST_CASE("cpu::geometry::transform3D() - symmetry", "[assets][noa][cpu][geometry]") {
     const path_t base_path = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(base_path / "tests.yaml")["transform3D_symmetry"];
-    io::ImageFile file;
+    io::MRCFile file;
 
     cpu::Stream stream;
 

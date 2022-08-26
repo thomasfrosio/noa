@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/io/TextFile.h>
 #include <noa/common/string/Parse.h>
 #include <noa/cpu/memory/PtrHost.h>
@@ -22,7 +22,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
 
-    io::ImageFile file(input_filename, io::READ);
+    io::MRCFile file(input_filename, io::READ);
     cpu::memory::PtrHost<float> data(elements);
     file.readAll(data.get());
 
@@ -76,7 +76,7 @@ TEST_CASE("cpu::math::statistics() - batch", "[assets][noa][cpu][math]") {
     const size4_t output_stride = output_shape.strides();
     const size_t output_elements = output_shape.elements();
 
-    io::ImageFile file(input_filename, io::READ);
+    io::MRCFile file(input_filename, io::READ);
     cpu::memory::PtrHost<float> data(elements);
     file.readAll(data.get());
 
@@ -127,7 +127,7 @@ TEST_CASE("cpu::math::statistics() - axes", "[assets][noa][cpu][math]") {
     const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
 
-    io::ImageFile file(input_path, io::READ);
+    io::MRCFile file(input_path, io::READ);
     cpu::memory::PtrHost<float> data(elements);
     file.readAll(data.get());
 
@@ -198,7 +198,7 @@ TEST_CASE("cpu::math::statistics() - complex", "[assets][noa][cpu][math]") {
     const auto expected_std = expected["std"].as<float>();
     const auto expected_var = expected["var"].as<float>();
 
-    io::ImageFile file(input_filename, io::READ);
+    io::MRCFile file(input_filename, io::READ);
     cpu::memory::PtrHost<cfloat_t> data(elements);
     file.readAll(data.get());
 

@@ -5,7 +5,7 @@
 #include <noa/cpu/math/Reduce.h>
 #include <noa/cpu/memory/PtrHost.h>
 
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 
 #include "Helpers.h"
 #include "Assets.h"
@@ -179,7 +179,7 @@ TEST_CASE("cpu::math::lstsq - scipy example()", "[cpu]") {
 
 TEST_CASE("cpu::math::surface()", "[assets][cpu]") {
     const path_t path = test::NOA_DATA_PATH / "math";
-    io::ImageFile mrc_file(path / "surface_input.mrc", io::READ);
+    io::MRCFile mrc_file(path / "surface_input.mrc", io::READ);
     const size4_t shape = mrc_file.shape();
     const size4_t strides = shape.strides();
 

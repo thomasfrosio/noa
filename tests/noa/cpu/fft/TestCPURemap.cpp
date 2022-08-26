@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fft/Remap.h>
 
@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE("cpu::fft::fc2f(), f2fc()", "[noa][cpu][fft]",
 TEST_CASE("cpu::fft::fc2f(), f2fc() -- vs numpy", "[assets][noa][cpu][fft]") {
     const fs::path path = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["remap"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
 
     AND_THEN("2D") {

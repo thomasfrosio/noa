@@ -1,6 +1,6 @@
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/geometry/Transform.h>
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
@@ -57,7 +57,7 @@ TEST_CASE("cpu::geometry::fft::insert3D", "[.]") {
     }
 
     stream.synchronize();
-    io::ImageFile file(test::NOA_DATA_PATH / "geometry" / "fft" / "test_insert3D.mrc", io::WRITE);
+    io::MRCFile file(test::NOA_DATA_PATH / "geometry" / "fft" / "test_insert3D.mrc", io::WRITE);
     file.shape(grid_shape.fft());
     file.writeAll(grid.get(), false);
 

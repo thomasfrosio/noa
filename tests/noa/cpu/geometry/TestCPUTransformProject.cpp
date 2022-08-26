@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/geometry/Transform.h>
 
@@ -84,7 +84,7 @@ TEST_CASE("cpu::geometry::transform3D(), project2", "[.]") {
     cpu::memory::PtrHost<float> output{elements};
     cpu::memory::arange(input.get(), strides, shape, 0.f, 1.f);
 
-    io::ImageFile file{test::NOA_DATA_PATH / "geometry" / "test_xform_project2_input.mrc", io::WRITE};
+    io::MRCFile file{test::NOA_DATA_PATH / "geometry" / "test_xform_project2_input.mrc", io::WRITE};
     file.shape(shape);
     file.writeAll(input.get());
 
@@ -120,7 +120,7 @@ TEST_CASE("cpu::geometry::transform3D(), project", "[.]") {
     cpu::memory::set(output.share(), strides, shape, 0.f, stream);
     cpu::memory::set(input.get() + 128 * strides[1], strides, size4_t{1, 1, 257, 257}, 1.f);
 
-    io::ImageFile file{test::NOA_DATA_PATH / "geometry" / "test_xform_project_input.mrc", io::WRITE};
+    io::MRCFile file{test::NOA_DATA_PATH / "geometry" / "test_xform_project_input.mrc", io::WRITE};
     file.shape(shape);
     file.writeAll(input.get());
 

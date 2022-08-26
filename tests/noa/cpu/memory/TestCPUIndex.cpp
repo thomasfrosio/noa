@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/Index.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
@@ -13,7 +13,7 @@ TEST_CASE("cpu::memory::extract(), insert() - subregions", "[assets][noa][cpu][m
     constexpr bool COMPUTE_ASSETS = false;
     const path_t path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["index"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

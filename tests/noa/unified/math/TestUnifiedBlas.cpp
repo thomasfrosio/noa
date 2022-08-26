@@ -1,5 +1,6 @@
-#include <noa/Array.h>
-#include <noa/Math.h>
+#include <noa/unified/Array.h>
+#include <noa/unified/math/Random.h>
+#include <noa/unified/math/Blas.h>
 
 #include <catch2/catch.hpp>
 

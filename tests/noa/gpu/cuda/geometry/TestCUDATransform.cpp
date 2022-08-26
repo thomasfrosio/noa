@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/geometry/Transform.h>
 #include <noa/common/geometry/Euler.h>
 
@@ -32,7 +32,7 @@ TEST_CASE("cuda::geometry::transform2D()", "[assets][noa][cuda][geometry]") {
                      geometry::translate(-center));
     matrix = math::inverse(matrix);
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -98,7 +98,7 @@ TEST_CASE("cuda::geometry::transform3D()", "[assets][noa][cuda][geometry]") {
                      geometry::translate(-center));
     matrix = math::inverse(matrix);
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

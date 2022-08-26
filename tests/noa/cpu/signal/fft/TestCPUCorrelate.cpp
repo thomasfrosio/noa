@@ -230,7 +230,7 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cpu]", 
 
 //TEST_CASE("cpu::signal::fft, register translation", "[noa][cpu]") {
 //    using namespace ::noa;
-//    io::ImageFile file{test::NOA_DATA_PATH / "signal" / "fft" / "tilt1.mrc", io::READ};
+//    io::MRCFile file{test::NOA_DATA_PATH / "signal" / "fft" / "tilt1.mrc", io::READ};
 //    const size4_t shape_stack = file.shape();
 //    const size4_t shape{1, 1, shape_stack[2], shape_stack[3]};
 //    const size4_t stride = shape.strides();

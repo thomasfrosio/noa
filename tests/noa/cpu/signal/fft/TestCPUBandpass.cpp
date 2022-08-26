@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/fft/Remap.h>
 #include <noa/cpu/signal/fft/Bandpass.h>
@@ -14,7 +14,7 @@ TEST_CASE("cpu::signal::fft::lowpass()", "[assets][noa][cpu][fft]") {
 
     const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["lowpass"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
@@ -98,7 +98,7 @@ TEST_CASE("cpu::signal::fft::highpass()", "[assets][noa][cpu][fft]") {
 
     const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["highpass"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {
@@ -182,7 +182,7 @@ TEST_CASE("cpu::signal::fft::bandpass()", "[assets][noa][cpu][fft]") {
 
     const path_t path_base = test::NOA_DATA_PATH / "signal" / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["bandpass"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/geometry/Rotate.h>
 
@@ -16,7 +16,7 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
     const auto rotate = math::toRad(param["rotate"].as<float>());
     const auto center = param["center"].as<float2_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
@@ -63,7 +63,7 @@ TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
     const auto center = param["center"].as<float3_t>();
 
     const float33_t matrix(geometry::euler2matrix(euler).transpose());
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);

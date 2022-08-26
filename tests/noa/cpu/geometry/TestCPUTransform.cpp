@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/geometry/Transform.h>
 
@@ -28,7 +28,7 @@ TEST_CASE("cpu::geometry::transform2D()", "[assets][noa][cpu][geometry]") {
                      geometry::translate(-center));
     matrix = math::inverse(matrix);
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -96,7 +96,7 @@ TEST_CASE("cpu::geometry::transform2D(), cubic", "[assets][noa][cpu][transform]"
                      geometry::translate(-center));
     matrix = math::inverse(matrix);
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -152,7 +152,7 @@ TEST_CASE("cpu::geometry::transform3D()", "[assets][noa][cpu][geometry]") {
                      geometry::translate(-center));
     matrix = math::inverse(matrix);
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
@@ -219,7 +219,7 @@ TEST_CASE("cpu::geometry::transform3D(), cubic", "[assets][noa][cpu][geometry]")
                      geometry::translate(-center));
     matrix = math::inverse(matrix);
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 

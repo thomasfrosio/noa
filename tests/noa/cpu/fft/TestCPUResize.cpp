@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/fft/Resize.h>
 #include <noa/cpu/memory/PtrHost.h>
 
@@ -64,7 +64,7 @@ TEMPLATE_TEST_CASE("cpu::fft::resize()", "[noa][cpu][fft]", float, cfloat_t, dou
 TEST_CASE("cpu::fft::resize(), assets", "[assets][noa][cpu][fft]") {
     const fs::path path = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["resize"];
-    io::ImageFile file;
+    io::MRCFile file;
 
     constexpr bool GENERATE_ASSETS = false;
     if constexpr (GENERATE_ASSETS) {

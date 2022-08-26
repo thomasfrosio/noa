@@ -1,7 +1,10 @@
-#include <noa/common/io/ImageFile.h>
-#include <noa/Math.h>
-#include <noa/Geometry.h>
-#include <noa/Signal.h>
+#include "noa/common/geometry/Transform.h"
+#include <noa/unified/io/ImageFile.h>
+#include <noa/unified/math/Ewise.h>
+#include <noa/unified/math/Reduce.h>
+#include <noa/unified/geometry/Transform.h>
+#include <noa/unified/geometry/Prefilter.h>
+#include <noa/unified/signal/Shape.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
@@ -27,7 +30,7 @@ TEMPLATE_TEST_CASE("unified::geometry, cosine stretch", "[.]", float) {
         io::ImageFile file{directory / "tilt1_slice21.mrc", io::READ};
         const size4_t shape = file.shape();
         Array<float> src{shape, options};
-        file.readAll(src.get());
+        file.read(src);
 
         const float2_t center{shape[2] / 2, shape[3] / 2};
 
@@ -39,7 +42,7 @@ TEMPLATE_TEST_CASE("unified::geometry, cosine stretch", "[.]", float) {
 
         file.open(directory / string::format("tilt1_slice21_mean0_{}.mrc", device), io::WRITE);
         file.shape(shape);
-        file.writeAll(src.eval().get());
+        file.write(src);
 
         geometry::bspline::prefilter(src, src);
 
@@ -61,7 +64,7 @@ TEMPLATE_TEST_CASE("unified::geometry, cosine stretch", "[.]", float) {
             };
             geometry::transform2D(src, dst, math::inverse(matrix),
                                   INTERP_CUBIC_BSPLINE_FAST, BORDER_ZERO, 0.f, false);
-            file.writeSlice(dst.eval().get(), i, i + 1);
+//            file.writeSlice(dst, i, i + 1);
         }
     }
 }

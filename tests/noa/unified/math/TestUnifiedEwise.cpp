@@ -1,6 +1,8 @@
-#include <noa/Array.h>
-#include <noa/Math.h>
-#include <noa/Memory.h>
+#include <noa/unified/Array.h>
+#include <noa/unified/math/Ewise.h>
+#include <noa/unified/math/Random.h>
+#include <noa/unified/math/Reduce.h>
+#include <noa/unified/memory/Factory.h>
 
 #include <catch2/catch.hpp>
 

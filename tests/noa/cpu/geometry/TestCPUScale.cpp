@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/geometry/Scale.h>
 
@@ -16,7 +16,7 @@ TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
     const auto scale = param["scale"].as<float2_t>();
     const auto center = param["center"].as<float2_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
@@ -60,7 +60,7 @@ TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
     const auto scale = param["scale"].as<float3_t>();
     const auto center = param["center"].as<float3_t>();
 
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);

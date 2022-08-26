@@ -1,15 +1,15 @@
-#include <noa/geometry/fft/Project.h>
-#include <noa/math/Ewise.h>
-#include <noa/math/Reduce.h>
-#include <noa/memory/Factory.h>
-#include <noa/memory/Resize.h>
-#include <noa/fft/Transform.h>
-#include <noa/fft/Remap.h>
-#include <noa/signal/fft/Shift.h>
-#include <noa/signal/fft/Bandpass.h>
+#include <noa/unified/geometry/fft/Project.h>
+#include <noa/unified/math/Ewise.h>
+#include <noa/unified/math/Reduce.h>
+#include <noa/unified/memory/Factory.h>
+#include <noa/unified/memory/Resize.h>
+#include <noa/unified/fft/Transform.h>
+#include <noa/unified/fft/Remap.h>
+#include <noa/unified/signal/fft/Shift.h>
+#include <noa/unified/signal/fft/Bandpass.h>
 
 #include <noa/common/geometry/Euler.h>
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/io/TextFile.h>
 
 #include <catch2/catch.hpp>
@@ -34,14 +34,14 @@ namespace {
     }
 
     Array<float> loadStack_(const path_t& filename) {
-        io::ImageFile file(filename, io::READ);
+        io::MRCFile file(filename, io::READ);
         Array<float> output(file.shape());
         file.readAll(output.get());
         return output;
     }
 
     void saveStack_(const path_t& filename, const Array<float>& array) {
-        io::ImageFile file(filename, io::WRITE);
+        io::MRCFile file(filename, io::WRITE);
         file.shape(array.shape());
         file.dtype(io::FLOAT32);
         Array<float> output = array.contiguous() ? array : array.copy();

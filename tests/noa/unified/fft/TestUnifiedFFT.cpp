@@ -1,6 +1,6 @@
 #include <noa/FFT.h>
-#include <noa/math/Random.h>
-#include <noa/memory/Factory.h>
+#include <noa/Math.h>
+#include <noa/Memory.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"

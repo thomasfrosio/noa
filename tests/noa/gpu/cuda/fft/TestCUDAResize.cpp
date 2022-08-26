@@ -1,4 +1,4 @@
-#include <noa/common/io//ImageFile.h>
+#include <noa/common/io//MRCFile.h>
 
 #include <noa/cpu/fft/Resize.h>
 #include <noa/cpu/memory/PtrHost.h>
@@ -77,7 +77,7 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
         cpu_stream.synchronize();
 
 
-        io::ImageFile file(test::NOA_DATA_PATH / "test_resize_cuda.mrc", io::WRITE);
+        io::MRCFile file(test::NOA_DATA_PATH / "test_resize_cuda.mrc", io::WRITE);
         file.shape(shape_padded);
         file.writeAll(d_pad.get());
         file.close();

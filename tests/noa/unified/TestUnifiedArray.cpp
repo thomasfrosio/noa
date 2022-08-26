@@ -1,6 +1,6 @@
-#include <noa/Array.h>
-#include <noa/memory/Factory.h>
-#include <noa/IO.h>
+#include <noa/unified/Array.h>
+#include <noa/unified/memory/Factory.h>
+#include <noa/unified/io/ImageFile.h>
 
 #include <catch2/catch.hpp>
 
@@ -21,7 +21,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", int32_t, float,
                                      Allocator::MANAGED_GLOBAL);
 
     // CPU
-    a = Array<TestType>{shape, {Device{}, alloc}};
+    a = Array<TestType>(shape, {Device{}, alloc});
     REQUIRE(a.device().cpu());
     REQUIRE(a.allocator() == alloc);
     REQUIRE(all(a.shape() == shape));
@@ -31,8 +31,8 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", int32_t, float,
     // GPU
     if (!Device::any(Device::GPU))
         return;
-    const Device gpu{"gpu:0"};
-    Array<TestType> b{shape, ArrayOption{}.device(gpu).allocator(alloc)};
+    const Device gpu("gpu:0");
+    Array<TestType> b(shape, ArrayOption{}.device(gpu).allocator(alloc));
     REQUIRE(b.device().gpu());
     REQUIRE(b.allocator() == alloc);
     REQUIRE(all(b.shape() == shape));
@@ -64,12 +64,12 @@ TEMPLATE_TEST_CASE("unified::Array, copy", "[noa][unified]",
     INFO(alloc);
 
     // CPU
-    Array<TestType> a{shape, {Device{}, alloc}};
+    Array<TestType> a(shape, {Device{}, alloc});
     REQUIRE(a.device().cpu());
     REQUIRE(a.allocator() == alloc);
     REQUIRE(a.get());
 
-    Array<TestType> b = a.to(Device{Device::CPU});
+    Array<TestType> b = a.to(Device(Device::CPU));
     REQUIRE(b.device().cpu());
     REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
@@ -78,7 +78,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy", "[noa][unified]",
     // GPU
     if (!Device::any(Device::GPU))
         return;
-    const Device gpu{"gpu:0"};
+    const Device gpu("gpu:0");
     a = Array<TestType>{shape, ArrayOption{}.device(gpu).allocator(alloc)};
     REQUIRE(a.device().gpu());
     REQUIRE(a.allocator() == alloc);
@@ -106,12 +106,12 @@ TEMPLATE_TEST_CASE("unified::Array, copy", "[noa][unified]",
 TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
                    int32_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     AND_THEN("as another type") {
-        Array<double> c{{2, 3, 4, 5}};
+        Array<double> c({2, 3, 4, 5});
         Array<unsigned char> d = c.as<unsigned char>();
         REQUIRE(all(d.shape() == size4_t{2, 3, 4, 40}));
         REQUIRE(all(d.strides() == size4_t{480, 160, 40, 1}));
 
-        Array<cdouble_t> e{{2, 3, 4, 5}};
+        Array<cdouble_t> e({2, 3, 4, 5});
         Array<double> f = e.as<double>();
         REQUIRE(all(f.shape() == size4_t{2, 3, 4, 10}));
         REQUIRE(all(f.strides() == size4_t{120, 40, 10, 1}));
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
     }
 
     AND_THEN("reshape") {
-        Array<TestType> a{{4, 10, 50, 30}};
+        Array<TestType> a({4, 10, 50, 30});
         a = a.reshape({1, 1, 1, a.shape().elements()});
         REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({4, 10, 50, 30});
@@ -133,7 +133,7 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
     }
 
     AND_THEN("permute") {
-        Array<TestType> a{{4, 10, 50, 30}};
+        Array<TestType> a({4, 10, 50, 30});
         Array<TestType> b = a.permute({0, 1, 2, 3});
         REQUIRE(all(b.shape() == size4_t{4, 10, 50, 30}));
         REQUIRE(all(b.strides() == size4_t{15000, 1500, 30, 1}));

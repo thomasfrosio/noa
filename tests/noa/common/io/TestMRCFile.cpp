@@ -1,6 +1,6 @@
 #include <noa/common/OS.h>
 #include "noa/common/io/IO.h"
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 
 #include <iostream>
 
@@ -38,7 +38,7 @@ TEST_CASE("io::Stats", "[noa][common][io]") {
     REQUIRE(out.std() == 6);
 }
 
-TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
+TEST_CASE("io::MRCFile: real dtype", "[noa][common][io]") {
     const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
     const std::string fixture_expected_header = "Format: MRC File\n"
                                                 "Shape (batches, depth, height, width): (11,1,576,410)\n"
@@ -52,7 +52,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
     AND_THEN("write and read to a volume") {
         // create a MRC file...
         const path_t file1 = test_dir / "file1.mrc";
-        io::ImageFile file(file1, io::WRITE);
+        io::MRCFile file(file1, io::WRITE);
         REQUIRE(file);
 
         const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
@@ -80,7 +80,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
         file.close();
 
         // reading the file and check that it matches...
-        io::ImageFile file_to_read(file1, io::READ);
+        io::MRCFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
         REQUIRE(all(file_to_read.pixelSize() == pixel_size));
         const io::stats_t file_stats = file_to_read.stats();
@@ -104,7 +104,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
     AND_THEN("write and read to a stack of volumes") {
         // create a MRC file...
         const path_t file1 = test_dir / "file1.mrc";
-        io::ImageFile file(file1, io::WRITE);
+        io::MRCFile file(file1, io::WRITE);
         REQUIRE(file);
 
         const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
@@ -129,7 +129,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
         file.close();
 
         // reading the file and check that it matches...
-        io::ImageFile file_to_read(file1, io::READ);
+        io::MRCFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
         REQUIRE(all(file_to_read.pixelSize() == pixel_size));
         const io::stats_t file_stats = file_to_read.stats();
@@ -149,7 +149,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
     AND_THEN("write and read a stack of 2D images") {
         // create a MRC file...
         const path_t file1 = test_dir / "file1.mrc";
-        io::ImageFile file(file1, io::WRITE);
+        io::MRCFile file(file1, io::WRITE);
         REQUIRE(file);
 
         const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
@@ -172,7 +172,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
         file.close();
 
         // reading the file and check that it matches...
-        io::ImageFile file_to_read(file1, io::READ);
+        io::MRCFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
         REQUIRE(all(file_to_read.pixelSize() == pixel_size));
 
@@ -190,7 +190,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
         // Writing permissions should not be necessary.
         fs::permissions(fixture_copy, fs::perms::owner_write | fs::perms::group_write |
                                       fs::perms::others_write, fs::perm_options::remove);
-        io::ImageFile file;
+        io::MRCFile file;
         REQUIRE_THROWS_AS(file.open(fixture_copy, io::READ | io::WRITE), noa::Exception);
         os::remove(fixture_copy.string() + "~"); // Remove backup copy from this attempt.
         REQUIRE_FALSE(file.isOpen());
@@ -205,7 +205,7 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
         std::unique_ptr<float[]> ptr = std::make_unique<float[]>(elements_per_slice);
         REQUIRE_THROWS_AS(file.writeSlice(ptr.get(), 0, 1), noa::Exception);
 
-        std::string str = file.info(false);
+        std::string str = file.infoString(false);
         REQUIRE(str == fixture_expected_header);
     }
 
@@ -214,12 +214,12 @@ TEST_CASE("io::ImageFile: MRC, real dtype", "[noa][common][io]") {
         os::mkdir(test_dir);
         REQUIRE(os::copyFile(data_file, fixture_copy));
 
-        io::ImageFile image_file(fixture_copy, io::READ | io::WRITE);
+        io::MRCFile image_file(fixture_copy, io::READ | io::WRITE);
         REQUIRE(image_file.isOpen());
 
         // Check backup copy.
         REQUIRE(os::existsFile(fixture_copy.string() + "~"));
-        REQUIRE(image_file.info(false) == fixture_expected_header);
+        REQUIRE(image_file.infoString(false) == fixture_expected_header);
 
         const size_t elements_per_slice = image_file.shape()[2] * image_file.shape()[3];
         std::unique_ptr<float[]> to_write = std::make_unique<float[]>(elements_per_slice);

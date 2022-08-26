@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/math/Ewise.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Arange.h>
@@ -26,7 +26,7 @@ TEST_CASE("cpu::geometry::cartesian2polar()", "[.]") {
     cpu::signal::sphere<false, float>(nullptr, {}, cartesian.share(), stride, shape, center, radius, taper, stream);
 
     stream.synchronize();
-    io::ImageFile file{test::NOA_DATA_PATH / "geometry" / "test-polar-img.mrc", io::WRITE};
+    io::MRCFile file{test::NOA_DATA_PATH / "geometry" / "test-polar-img.mrc", io::WRITE};
     file.shape(shape);
     file.writeAll(cartesian.get());
 
@@ -65,7 +65,7 @@ TEST_CASE("cpu::geometry::polar2cartesian()", "[.]") {
                      [=](float x) { return noa::math::abs(x - static_cast<float>(polar_elements / 2)); }, stream);
 
     stream.synchronize();
-    io::ImageFile file{test::NOA_DATA_PATH / "geometry" / "test-polar-img.mrc", io::WRITE};
+    io::MRCFile file{test::NOA_DATA_PATH / "geometry" / "test-polar-img.mrc", io::WRITE};
     file.shape(polar_shape);
     file.writeAll(polar.get());
 

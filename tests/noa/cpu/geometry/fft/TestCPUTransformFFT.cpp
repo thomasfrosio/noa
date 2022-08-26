@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/geometry/Transform.h>
 
@@ -18,7 +18,7 @@ using namespace ::noa;
 TEST_CASE("cpu::geometry::fft::transform2D()", "[assets][noa][cpu][geometry]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform2D"]["tests"];
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
 
     for (size_t i = 0; i < tests.size(); ++i) {
@@ -117,7 +117,7 @@ TEST_CASE("cpu::geometry::fft::transform3D()", "[assets][noa][cpu][geometry]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node& tests = YAML::LoadFile(path_base / "tests.yaml")["transform3D"]["tests"];
 
-    io::ImageFile file;
+    io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
     for (size_t i = 0; i < tests.size(); ++i) {
         INFO("test: " << i);

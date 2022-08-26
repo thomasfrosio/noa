@@ -4,7 +4,7 @@
 #include <noa/Geometry.h>
 #include <noa/Signal.h>
 
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <iostream>
 
 #include <catch2/catch.hpp>
@@ -28,7 +28,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]", float) {
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
-    io::ImageFile file;
+    io::MRCFile file;
     const path_t directory = test::NOA_DATA_PATH / "signal" / "fft";
 
     for (auto& device: devices) {
@@ -109,7 +109,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
     const path_t directory = test::NOA_DATA_PATH / "signal" / "fft";
     const fft::Norm norm = fft::NORM_FORWARD;
 
-    io::ImageFile file;
+    io::MRCFile file;
     for (auto& device: devices) {
         StreamGuard stream{device};
         ArrayOption options{device, Allocator::MANAGED};

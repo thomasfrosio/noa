@@ -1,4 +1,4 @@
-#include <noa/common/io/ImageFile.h>
+#include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/PtrManaged.h>
@@ -16,7 +16,7 @@ using namespace noa;
 TEST_CASE("cuda::signal::median()", "[assets][noa][cuda][filter]") {
     const path_t path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
-    io::ImageFile file;
+    io::MRCFile file;
     cuda::Stream stream;
 
     for (size_t nb = 0; nb < tests.size(); ++nb) {

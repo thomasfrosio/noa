@@ -7,7 +7,7 @@ set(TEST_COMMON_SOURCES
         noa/common/geometry/TestCommonGeometryEuler.cpp
 
         noa/common/io/TestCommonIO.cpp
-        noa/common/io/TestImageFile.cpp
+        noa/common/io/TestMRCFile.cpp
         noa/common/io/TestTextFile.cpp
 
         noa/common/string/TestCommonString.cpp

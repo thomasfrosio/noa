@@ -1,7 +1,12 @@
-#include <noa/common/io/ImageFile.h>
-#include <noa/Math.h>
-#include <noa/Geometry.h>
-#include <noa/Signal.h>
+#include <noa/common/io/MRCFile.h>
+#include "noa/common/geometry/Transform.h"
+#include <noa/unified/math/Ewise.h>
+#include <noa/unified/math/Random.h>
+#include <noa/unified/math/Reduce.h>
+#include <noa/unified/geometry/Transform.h>
+#include <noa/unified/geometry/Prefilter.h>
+#include <noa/unified/geometry/Shift.h>
+#include <noa/unified/signal/Shape.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
@@ -20,7 +25,7 @@ TEMPLATE_TEST_CASE("unified::geometry, Rotate subregion", "[.]", float) {
         ArrayOption options{device, Allocator::MANAGED};
         INFO(device);
 
-        io::ImageFile file{directory / "tilt1_slice21.mrc", io::READ};
+        io::MRCFile file{directory / "tilt1_slice21.mrc", io::READ};
         const size4_t shape = file.shape();
 
         // Select a subregion to save:
