@@ -630,14 +630,14 @@ namespace noa::indexing {
     };
 
     /// Splits a [0, \p size) range into \p n output \p slices of approximately equal length.
-    void split(size_t size, size_t n, slice_t* slices) {
+    NOA_IH void split(size_t size, size_t n, slice_t* slices) {
         const int count = static_cast<int>(n);
         const int size_ = static_cast<int>(size);
         for (int i = 0; i < count; ++i) {
             const int k = size_ / count;
             const int m = size_ % count;
-            const int slice_start = i * k + std::min(i, m);
-            const int slice_end = (i + 1) * k + std::min(i + 1, m);
+            const int slice_start = i * k + noa::math::min(i, m);
+            const int slice_end = (i + 1) * k + noa::math::min(i + 1, m);
             slices[i] = slice_t{slice_start, slice_end};
         }
     }
