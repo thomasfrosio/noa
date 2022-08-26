@@ -20,7 +20,7 @@ target_link_libraries(noa_public_libraries
 
 if (NOA_ENABLE_TIFF)
     include(${PROJECT_SOURCE_DIR}/cmake/ext/tiff.cmake)
-    target_link_libraries(noa_public_libraries INTERFACE TIFF::TIFF)
+    target_link_libraries(noa_private_libraries INTERFACE TIFF::TIFF)
 endif ()
 
 # CPU backend:
