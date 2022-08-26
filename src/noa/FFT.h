@@ -1,5 +1,7 @@
 #pragma once
 
-#include "noa/fft/Remap.h"
-#include "noa/fft/Resize.h"
-#include "noa/fft/Transform.h"
+#ifdef NOA_ENABLE_UNIFIED
+#include "noa/unified/fft/Remap.h"
+#include "noa/unified/fft/Resize.h"
+#include "noa/unified/fft/Transform.h"
+#endif

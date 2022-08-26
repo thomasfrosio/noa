@@ -1,10 +1,12 @@
 #pragma once
 
-#include "noa/signal/fft/Bandpass.h"
-#include "noa/signal/fft/Correlate.h"
-#include "noa/signal/fft/Shift.h"
-#include "noa/signal/fft/Standardize.h"
+#ifdef NOA_ENABLE_UNIFIED
+#include "noa/unified/signal/fft/Bandpass.h"
+#include "noa/unified/signal/fft/Correlate.h"
+#include "noa/unified/signal/fft/Shift.h"
+#include "noa/unified/signal/fft/Standardize.h"
 
-#include "noa/signal/Convolve.h"
-#include "noa/signal/Median.h"
-#include "noa/signal/Shape.h"
+#include "noa/unified/signal/Convolve.h"
+#include "noa/unified/signal/Median.h"
+#include "noa/unified/signal/Shape.h"
+#endif
