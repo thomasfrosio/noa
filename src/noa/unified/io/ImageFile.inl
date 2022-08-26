@@ -1,12 +1,15 @@
+#pragma once
+
 #ifndef NOA_IMAGEFILE_INL_
 #error "This is an internal header. Include the corresponding .h file instead"
 #endif
 
+
 #include <memory>
 #include <utility>
 
-#include "noa/common/io/header/MRCHeader.h"
-#include "noa/common/io/header/TIFFHeader.h"
+#include "noa/common/io/MRCFile.h"
+#include "noa/common/io/TIFFFile.h"
 
 namespace noa::io {
     inline ImageFile::ImageFile(const path_t& filename, open_mode_t mode)
@@ -112,17 +115,51 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::read(T* output, size_t start, size_t end, bool clamp) {
+    inline void ImageFile::read(const Array<T>& output, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
-        m_header->read(output, io::dtype<T>(), start, end, clamp);
+        if (output.dereferenceable()) {
+            m_header->readAll(output.eval().get(), output.strides(), output.shape(), io::dtype<T>(), clamp);
+        } else {
+            Array<T> tmp(this->shape());
+            m_header->readAll(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<T>(), clamp);
+            tmp.to(output);
+        }
     }
 
     template<typename T>
-    inline void ImageFile::readSlice(T* output, size_t start, size_t end, bool clamp) {
+    inline Array<T> ImageFile::read(ArrayOption option, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
-        m_header->readSlice(output, io::dtype<T>(), start, end, clamp);
+        if (option.dereferenceable()) {
+            Array<T> out(this->shape(), option);
+            m_header->readAll(out.eval().get(), out.strides(), out.shape(), io::dtype<T>(), clamp);
+            return out;
+        } else {
+            Array<T> tmp(this->shape());
+            m_header->readAll(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<T>(), clamp);
+            return tmp.to(option);
+        }
+    }
+
+    template<typename T, typename I>
+    inline void ImageFile::read(const View<T, I>& output, bool clamp) {
+        NOA_CHECK(isOpen(), "The file should be opened");
+        NOA_ASSERT(m_header);
+        m_header->readAll(output.get(), output.strides(), output.shape(), io::dtype<T>(), clamp);
+    }
+
+    template<typename T>
+    inline void ImageFile::readSlice(const Array<T>& output, size_t start, bool clamp) {
+        NOA_CHECK(isOpen(), "The file should be opened");
+        NOA_ASSERT(m_header);
+        if (output.dereferenceable()) {
+            m_header->readSlice(output.eval().get(), output.strides(), output.shape(), io::dtype<T>(), start, clamp);
+        } else {
+            Array<T> tmp(this->shape());
+            m_header->readSlice(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<T>(), start, clamp);
+            tmp.to(output);
+        }
     }
 
     template<typename T, typename I>
@@ -133,62 +170,51 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::readAll(T* output, bool clamp) {
+    inline void ImageFile::write(const Array<T>& input, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
-        m_header->readAll(output, io::dtype<T>(), clamp);
+        if (!input.dereferenceable()) {
+            Array tmp = input.to(Device{}).release();
+            m_header->writeAll(tmp.eval().get(), tmp.strides(), tmp.shape(), io::dtype<T>(), clamp);
+        } else {
+            m_header->writeAll(input.eval().get(), input.strides(), input.shape(), io::dtype<T>(), clamp);
+        }
     }
 
     template<typename T, typename I>
-    inline void ImageFile::readAll(const View<T, I>& output, bool clamp) {
-        NOA_CHECK(isOpen(), "The file should be opened");
-        NOA_ASSERT(m_header);
-        m_header->readAll(output.get(), output.strides(), output.shape(), io::dtype<T>(), clamp);
-    }
-
-    template<typename T>
-    inline void ImageFile::write(const T* input, size_t start, size_t end, bool clamp) {
-        NOA_CHECK(isOpen(), "The file should be opened");
-        NOA_ASSERT(m_header);
-        m_header->write(input, io::dtype<T>(), start, end, clamp);
-    }
-
-    template<typename T>
-    inline void ImageFile::writeSlice(const T* input, size_t start, size_t end, bool clamp) {
-        NOA_CHECK(isOpen(), "The file should be opened");
-        NOA_ASSERT(m_header);
-        m_header->writeSlice(input, io::dtype<T>(), start, end, clamp);
-    }
-
-    template<typename T, typename I>
-    void ImageFile::writeSlice(const View<T, I>& input, size_t start, bool clamp) {
-        NOA_CHECK(isOpen(), "The file should be opened");
-        NOA_ASSERT(m_header);
-        m_header->writeSlice(input.get(), input.strides(), input.shape(), io::dtype<T>(), start, clamp);
-    }
-
-    template<typename T>
-    inline void ImageFile::writeAll(const T* input, bool clamp) {
-        NOA_CHECK(isOpen(), "The file should be opened");
-        NOA_ASSERT(m_header);
-        m_header->writeAll(input, io::dtype<T>(), clamp);
-    }
-
-    template<typename T, typename I>
-    void ImageFile::writeAll(const View<T, I>& input, bool clamp) {
+    inline void ImageFile::write(const View<T, I>& input, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
         m_header->writeAll(input.get(), input.strides(), input.shape(), io::dtype<T>(), clamp);
     }
 
+    template<typename T>
+    inline void ImageFile::writeSlice(const Array<T>& input, size_t start, bool clamp) {
+        NOA_CHECK(isOpen(), "The file should be opened");
+        NOA_ASSERT(m_header);
+        if (!input.dereferenceable()) {
+            Array tmp = input.to(Device{}).release();
+            m_header->writeSlice(tmp.eval().get(), tmp.strides(), tmp.shape(), io::dtype<T>(), start, clamp);
+        } else {
+            m_header->writeSlice(input.eval().get(), input.strides(), input.shape(), io::dtype<T>(), start, clamp);
+        }
+    }
+
+    template<typename T, typename I>
+    inline void ImageFile::writeSlice(const View<T, I>& input, size_t start, bool clamp) {
+        NOA_CHECK(isOpen(), "The file should be opened");
+        NOA_ASSERT(m_header);
+        m_header->writeSlice(input.get(), input.strides(), input.shape(), io::dtype<T>(), start, clamp);
+    }
+
     inline void ImageFile::setHeader_(const path_t& filename, Format new_format) {
         switch (new_format) {
             case Format::MRC:
-                m_header = std::make_unique<details::MRCHeader>();
+                m_header = std::make_unique<MRCFile>();
                 break;
             case Format::TIFF:
                 #if NOA_ENABLE_TIFF
-                m_header = std::make_unique<details::TIFFHeader>();
+                m_header = std::make_unique<TIFFFile>();
                 #else
                 NOA_THROW("File {}: TIFF files are not supported in this build. See CMake option NOA_ENABLE_TIFF");
                 #endif
@@ -201,10 +227,11 @@ namespace noa::io {
     inline Format ImageFile::format_(const path_t& extension) noexcept {
         if (extension == ".mrc" || extension == ".st" || extension == ".rec" || extension == ".mrcs")
             return Format::MRC;
+        else if (extension == ".tif" || extension == ".tiff")
+            return Format::TIFF;
         else
             return Format::FORMAT_UNKNOWN;
     }
-
 
     inline void ImageFile::open_(const path_t& filename, open_mode_t mode) {
         NOA_ASSERT(m_header);
