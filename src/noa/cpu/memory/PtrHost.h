@@ -80,7 +80,7 @@ namespace noa::cpu::memory {
         PtrHost() = default;
         constexpr /*implicit*/ PtrHost(std::nullptr_t) {}
 
-        // Allocates elements elements of type T on the heap.
+        // Allocates elements of type T on the heap.
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         explicit PtrHost(I elements) : m_ptr(alloc(elements)), m_elements(static_cast<size_t>(elements)) {
             NOA_ASSERT(elements >= 0);

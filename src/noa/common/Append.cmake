@@ -28,11 +28,12 @@ set(NOA_COMMON_HEADERS
         common/geometry/Symmetry.h
         common/geometry/Transform.h
 
+        common/io/BinaryFile.h
+        common/io/ImageFile.h
         common/io/IO.h
         common/io/IO.inl
-        common/io/Stats.h
-        common/io/BinaryFile.h
         common/io/MRCFile.h
+        common/io/Stats.h
         common/io/TextFile.h
         common/io/TextFile.inl
         common/io/TIFFFile.h

@@ -12,4 +12,5 @@
 #include "noa/unified/math/LinAlg.h"
 #include "noa/unified/math/Random.h"
 #include "noa/unified/math/Reduce.h"
+#include "noa/unified/math/Sort.h"
 #endif

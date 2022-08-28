@@ -1,6 +1,8 @@
 # Collect header and source files in NOA_HEADERS and NOA_SOURCES
 set(NOA_SOURCES)
 set(NOA_HEADERS
+        Array.h
+        Device.h
         FFT.h
         Geometry.h
         IO.h
@@ -10,7 +12,9 @@ set(NOA_HEADERS
         OS.h
         Session.h
         Signal.h
+        Stream.h
         String.h
+        Texture.h
         Types.h
         )
 
