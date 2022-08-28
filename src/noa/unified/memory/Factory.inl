@@ -6,11 +6,13 @@
 
 #include "noa/cpu/memory/Arange.h"
 #include "noa/cpu/memory/Linspace.h"
+#include "noa/cpu/memory/Iota.h"
 #include "noa/cpu/memory/Set.h"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/memory/Arange.h"
 #include "noa/gpu/cuda/memory/Linspace.h"
+#include "noa/gpu/cuda/memory/Iota.h"
 #include "noa/gpu/cuda/memory/Set.h"
 #endif
 
@@ -140,6 +142,43 @@ namespace noa::memory {
     Array<T> linspace(size_t elements, T start, T stop, bool endpoint, ArrayOption option) {
         Array<T> out(elements, option);
         linspace(out, start, stop, endpoint);
+        return out;
+    }
+}
+
+namespace noa::memory {
+    template<typename T>
+    void iota(const Array<T>& output, size4_t tile) {
+        const Device device = output.device();
+        Stream& stream = Stream::current(device);
+        if (device.cpu()) {
+            return cpu::memory::iota(output.share(), output.strides(), output.shape(),
+                                     tile, stream.cpu());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (traits::is_restricted_scalar_v<T>) {
+                return cuda::memory::iota(output.share(), output.strides(), output.shape(),
+                                          tile, stream.cuda());
+            } else {
+                NOA_THROW("The CUDA backend does not support this type ({})", string::human<T>());
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    template<typename T>
+    Array<T> iota(size4_t shape, size4_t tile, ArrayOption option) {
+        Array<T> out(shape, option);
+        iota(out, tile);
+        return out;
+    }
+
+    template<typename T>
+    Array<T> iota(size_t elements, size_t tile, ArrayOption option) {
+        Array<T> out(elements, option);
+        iota(out, size4_t{1, 1, 1, tile});
         return out;
     }
 }

@@ -30,6 +30,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Cast.h
         gpu/cuda/memory/Copy.h
         gpu/cuda/memory/Index.h
+        gpu/cuda/memory/Iota.h
         gpu/cuda/memory/Linspace.h
         gpu/cuda/memory/MemoryPool.h
         gpu/cuda/memory/Permute.h
@@ -97,6 +98,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/memory/Copy.cu
         gpu/cuda/memory/Index.cu
         gpu/cuda/memory/IndexSequence.cu
+        gpu/cuda/memory/Iota.cu
         gpu/cuda/memory/Linspace.cu
         gpu/cuda/memory/Permute0132.cu
         gpu/cuda/memory/Permute0213.cu

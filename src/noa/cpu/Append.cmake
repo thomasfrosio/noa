@@ -42,6 +42,7 @@ set(NOA_CPU_HEADERS
         cpu/memory/Copy.h
         cpu/memory/Index.h
         cpu/memory/Index.inl
+        cpu/memory/Iota.h
         cpu/memory/Linspace.h
         cpu/memory/Permute.h
         cpu/memory/Permute.inl

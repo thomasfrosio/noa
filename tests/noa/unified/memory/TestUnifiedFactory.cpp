@@ -46,6 +46,20 @@ TEST_CASE("unified::memory::linspace()", "[noa][unified]") {
     REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.get(), elements, 1e-6));
 }
 
+TEST_CASE("unified::memory::iota()", "[.]") {
+    Device::Type type = GENERATE(Device::CPU, Device::GPU);
+    if (!Device::any(type))
+        return;
+
+    const size4_t shape = test::getRandomShapeBatched(3);
+    size4_t tile = shape;
+    tile[3] = 1;
+
+    Array<float> results = memory::iota<float>(shape, tile, {Device(type), Allocator::MANAGED});
+
+    io::save(results, test::NOA_DATA_PATH / "test_iota.mrc");
+}
+
 TEMPLATE_TEST_CASE("unified::memory::{zeros|ones|fill}()", "[noa][unified]",
                    int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
     Device::Type type = GENERATE(Device::CPU, Device::GPU);

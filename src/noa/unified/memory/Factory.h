@@ -104,6 +104,34 @@ namespace noa::memory {
     Array<T> linspace(size_t elements, T start, T stop, bool endpoint = true, ArrayOption option = {});
 }
 
+namespace noa::memory {
+    /// Returns a tiled sequence [0, elements), in the rightmost order.
+    /// \tparam T           Any restricted scalar.
+    /// \param[out] output  Array with the tiled sequence.
+    /// \param tile         Tile shape in each dimension.
+    ///                     If the tile is equal to the shape of \p output,
+    ///                     this is equivalent to `arange` with a start of 0 and step of 1.
+    template<typename T>
+    void iota(const Array<T>& output, size4_t tile);
+
+    /// Returns a tiled sequence [0, elements), in the rightmost order.
+    /// \tparam T       Any restricted scalar.
+    /// \param shape    Shape of the array.
+    /// \param tile     Tile shape in each dimension. If the tile is equal to \p shape,
+    ///                 this is equivalent to `arange` with a start of 0 and step of 1.
+    /// \param option   Options of the created array.
+    template<typename T>
+    Array<T> iota(size4_t shape, size4_t tile, ArrayOption option = {});
+
+    /// Returns a 1D tiled sequence [0, elements).
+    /// \tparam T       Any restricted scalar.
+    /// \param tile     Tile size. If the tile is equal to \p elements,
+    ///                 this is equivalent to `arange` with a start of 0 and step of 1.
+    /// \param option   Options of the created array.
+    template<typename T>
+    Array<T> iota(size_t elements, size_t tile, ArrayOption option = {});
+}
+
 #define NOA_UNIFIED_FACTORY_
 #include "noa/unified/memory/Factory.inl"
 #undef NOA_UNIFIED_FACTORY_
