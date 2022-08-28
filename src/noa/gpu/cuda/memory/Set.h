@@ -6,6 +6,10 @@
 #include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda::memory::details {
+    template<typename T>
+    constexpr bool is_valid_set_v = traits::is_restricted_data_v<T> ||
+                                    traits::is_floatX_v<T> || traits::is_intX_v<T> || traits::is_floatXX_v<T>;
+
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void set(T* src, size_t elements, T value, Stream& stream);
 
@@ -18,9 +22,9 @@ namespace noa::cuda::memory::details {
 namespace noa::cuda::memory {
     // Sets an array, that is on the device, with a given value.
     // One must make sure src stays valid until completion.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_set_v<T>>>
     inline void set(T* src, size_t elements, T value, Stream& stream) {
-        if constexpr (traits::is_data_v<T>) {
+        if constexpr (traits::is_restricted_data_v<T>) {
             if (value == T{0})
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, elements * sizeof(T), stream.id()));
             else
@@ -38,14 +42,14 @@ namespace noa::cuda::memory {
     }
 
     // Sets an array with a given value.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<details::is_valid_set_v<T>>>
     inline void set(const shared_t<T[]>& src, size_t elements, T value, Stream& stream) {
         set(src.get(), elements, value, stream);
         stream.attach(src);
     }
 
     // Sets an array with a given value.
-    template<bool SWAP_LAYOUT = true, typename T>
+    template<bool SWAP_LAYOUT = true, typename T, typename = std::enable_if_t<details::is_valid_set_v<T>>>
     inline void set(const shared_t<T[]>& src, size4_t strides, size4_t shape, T value, Stream& stream) {
         if constexpr (SWAP_LAYOUT) {
             const size4_t order = indexing::order(strides, shape);
@@ -53,7 +57,7 @@ namespace noa::cuda::memory {
             strides = indexing::reorder(strides, order);
         }
 
-        if constexpr (!traits::is_data_v<T>) {
+        if constexpr (!traits::is_restricted_data_v<T>) {
             NOA_CHECK(indexing::areContiguous(strides, shape),
                       "Setting a non-contiguous array of {} is currently not allowed", string::human<T>());
             return set(src, shape.elements(), value, stream);

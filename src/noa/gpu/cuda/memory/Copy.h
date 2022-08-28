@@ -46,7 +46,7 @@ namespace noa::cuda::memory::details {
 
     // Copy strided data between two pointers accessible by the stream's device.
     // No reordering is done here.
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void copy(const shared_t<T[]>& src, size4_t src_strides,
               const shared_t<T[]>& dst, size4_t dst_strides,
               size4_t shape, Stream& stream);

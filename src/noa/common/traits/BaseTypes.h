@@ -112,15 +112,19 @@ namespace noa::traits {
     /// One of: \c is_float_v, \c is_int_v.
     template<typename T> constexpr bool is_scalar_v = is_scalar<T>::value;
 
+    template<typename T> using is_restricted_scalar =
+            std::bool_constant<is_any_v<T, bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t> || is_float_v<T>>;
+    /// One of: bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t, half_t, float or double.
+    template<typename T> constexpr bool is_restricted_scalar_v = is_restricted_scalar<T>::value;
+
     template<typename T> using is_data = std::bool_constant<is_int<T>::value || is_float<T>::value || is_complex<T>::value>;
     /// One of: \c is_int_v, \c is_float_v, \c is_complex_v.
     template<typename T> constexpr bool is_data_v = is_data<T>::value;
 
-    template<typename T> using is_restricted_data =
-    std::bool_constant<is_any_v<bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t> || is_float_v<T> || is_complex_v<T>>;
+    template<typename T> using is_restricted_data = std::bool_constant<is_restricted_scalar_v<T> || is_complex_v<T>>;
     /// One of: bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t,
     /// half_t, float, double, chalf_t, cfloat_t or cdouble.
-    template<typename T> constexpr bool is_restricted_data_v = is_data<T>::value;
+    template<typename T> constexpr bool is_restricted_data_v = is_restricted_data<T>::value;
 
     template<typename> struct proclaim_is_string : std::false_type {};
     template<> struct proclaim_is_string<std::string> : std::true_type {};

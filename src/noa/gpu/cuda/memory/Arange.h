@@ -6,9 +6,7 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    constexpr bool is_valid_arange_v =
-            traits::is_any_v<T, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t> ||
-            traits::is_float_v<T> || traits::is_complex_v<T>;
+    constexpr bool is_valid_arange_v = traits::is_restricted_data_v<T> && !traits::is_bool_v<T>;
 }
 
 namespace noa::cuda::memory {

@@ -23,7 +23,11 @@ namespace noa::memory {
             cpu::memory::set(output.share(), output.strides(), output.shape(), value, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::set(output.share(), output.strides(), output.shape(), value, stream.cuda());
+            if constexpr (cuda::memory::details::is_valid_set_v<T>) {
+                cuda::memory::set(output.share(), output.strides(), output.shape(), value, stream.cuda());
+            } else {
+                NOA_THROW("The CUDA backend does not support this type ({})", string::human<T>());
+            }
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -77,7 +81,11 @@ namespace noa::memory {
             cpu::memory::arange(output.share(), output.strides(), output.shape(), start, step, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::memory::arange(output.share(), output.strides(), output.shape(), start, step, stream.cuda());
+            if constexpr (traits::is_restricted_data_v<T> && !traits::is_bool_v<T>) {
+                cuda::memory::arange(output.share(), output.strides(), output.shape(), start, step, stream.cuda());
+            } else {
+                NOA_THROW("The CUDA backend does not support this type ({})", string::human<T>());
+            }
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -109,8 +117,12 @@ namespace noa::memory {
                                          start, stop, endpoint, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::memory::linspace(output.share(), output.strides(), output.shape(),
-                                          start, stop, endpoint, stream.cuda());
+            if constexpr (traits::is_restricted_data_v<T> && !traits::is_bool_v<T>) {
+                return cuda::memory::linspace(output.share(), output.strides(), output.shape(),
+                                              start, stop, endpoint, stream.cuda());
+            } else {
+                NOA_THROW("The CUDA backend does not support this type ({})", string::human<T>());
+            }
             #else
             NOA_THROW("No GPU backend detected");
             #endif

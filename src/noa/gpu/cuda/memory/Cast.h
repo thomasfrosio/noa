@@ -7,8 +7,7 @@
 namespace noa::cuda::memory::details {
     template<typename T, typename U>
     constexpr bool is_valid_cast_v =
-            (traits::is_any_v<T, bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t, half_t, float, double> &&
-             traits::is_any_v<U, bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t, half_t, float, double>) ||
+            (traits::is_restricted_scalar_v<T> && traits::is_restricted_scalar_v<U>) ||
             (traits::is_complex_v<T> && traits::is_complex_v<U>);
 }
 
