@@ -336,6 +336,21 @@ namespace noa::indexing {
         return {v[order[0]], v[order[1]]};
     }
 
+    /// (Circular) shifts \p v by a given amount.
+    /// If \p shift is positive, shifts to the right, otherwise, shifts to the left.
+    template<typename T>
+    NOA_FHD Int4<T> shift(Int4<T> v, int shift) {
+        Int4 <T> out;
+        const bool right = shift >= 0;
+        if (shift < 0)
+            shift *= -1;
+        for (int i = 0; i < 4; ++i) {
+            const int idx = (i + shift) % 4;
+            out[idx * right + (1 - right) * i] = v[i * right + (1 - right) * idx];
+        }
+        return out;
+    }
+
     /// Whether \p strides describes a column-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
