@@ -43,6 +43,13 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, contiguous", "[noa][cuda][math]",
             auto diff = static_cast<double>(math::abs(gpu_results - cpu_results));
             REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-6));
         }
+
+        AND_THEN("median") {
+            gpu_results = cuda::math::median<TestType>(d_data.share(), stride, shape, false, gpu_stream);
+            cpu_results = cpu::math::median<TestType>(h_data.share(), stride, shape, false, cpu_stream);
+            auto diff = static_cast<double>(math::abs(gpu_results - cpu_results));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-6));
+        }
     }
 
     if constexpr (!std::is_same_v<half_t, TestType>) {
@@ -112,6 +119,13 @@ TEMPLATE_TEST_CASE("cuda::math:: reduce all, padded", "[noa][cuda][math]",
         AND_THEN("max") {
             gpu_results = cuda::math::max<TestType>(d_data.share(), d_data.strides(), shape, gpu_stream);
             cpu_results = cpu::math::max<TestType>(h_data.share(), stride, shape, cpu_stream);
+            auto diff = static_cast<double>(math::abs(gpu_results - cpu_results));
+            REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-6));
+        }
+
+        AND_THEN("median") {
+            gpu_results = cuda::math::median<TestType>(d_data.share(), d_data.strides(), shape, false, gpu_stream);
+            cpu_results = cpu::math::median<TestType>(h_data.share(), stride, shape, false, cpu_stream);
             auto diff = static_cast<double>(math::abs(gpu_results - cpu_results));
             REQUIRE_THAT(diff, Catch::WithinAbs(0., 1e-6));
         }

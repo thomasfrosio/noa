@@ -23,6 +23,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/math/TestCPUFind.cpp
         noa/cpu/math/TestCPURandom.cpp
         noa/cpu/math/TestCPUReduce.cpp
+        noa/cpu/math/TestCPUSort.cpp
 
         noa/cpu/memory/TestCPUIndex.cpp
         noa/cpu/memory/TestCPUInitialize.cpp

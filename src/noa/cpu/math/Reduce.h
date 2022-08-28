@@ -10,7 +10,7 @@
 
 namespace noa::cpu::math::details {
     template<typename T>
-    constexpr bool is_valid_min_max_v = traits::is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double>;
+    constexpr bool is_valid_min_max_median_v = traits::is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double>;
 
     template<typename T>
     constexpr bool is_valid_sum_mean_v = traits::is_any_v<T, int32_t, int64_t, uint32_t, uint64_t, float, double, cfloat_t, cdouble_t>;
@@ -27,11 +27,11 @@ namespace noa::cpu::math {
                            BinaryOp binary_op, T init, Stream& stream);
 
     // Returns the minimum value of the input array.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     [[nodiscard]] T min(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream);
 
     // Returns the maximum value of the input array.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     [[nodiscard]] T max(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream);
 
     // Returns the sum of the input array(s).
@@ -57,17 +57,22 @@ namespace noa::cpu::math {
              typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
     [[nodiscard]] std::tuple<T, T, U, U> statistics(
             const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream);
+
+    // Returns the median of the input array.
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
+    [[nodiscard]] T median(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+                           bool overwrite, Stream& stream);
 }
 
 // -- Reduce along particular axes -- //
 namespace noa::cpu::math {
     // Reduces an array along some dimensions by taking the minimum value.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     void min(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
 
     // Reduces an array along some dimensions by taking the maximum value.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     void max(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
              const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
 
@@ -90,6 +95,12 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
     inline void std(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
                     const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, int ddof, Stream& stream);
+
+    // Returns the median along a particular axis of the input array.
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_scalar_v<T>>>
+    void median(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
+                const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+                bool overwrite, Stream& stream);
 }
 
 #define NOA_REDUCTIONS_INL_

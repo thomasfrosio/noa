@@ -20,6 +20,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/math/TestCUDAFind.cpp
         noa/gpu/cuda/math/TestCUDARandom.cpp
         noa/gpu/cuda/math/TestCUDAReduce.cpp
+        noa/gpu/cuda/math/TestCUDASort.cpp
 
         noa/gpu/cuda/memory/TestCUDACopy.cpp
         noa/gpu/cuda/memory/TestCUDAIndex.cpp

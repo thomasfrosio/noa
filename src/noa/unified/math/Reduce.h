@@ -4,7 +4,7 @@
 
 namespace noa::math::details {
     template<typename T>
-    constexpr bool is_valid_min_max_v =
+    constexpr bool is_valid_min_max_median_v =
             traits::is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double>;
 
     template<typename T>
@@ -19,14 +19,23 @@ namespace noa::math {
     /// Returns the minimum value of the input array.
     /// \tparam T           (u)int16_t, (u)int32_t, (u)int64_t, half_t, float, double.
     /// \param[in] array    Array to reduce.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     [[nodiscard]] T min(const Array<T>& array);
 
     /// Returns the maximum value of the input array.
     /// \tparam T           (u)int16_t, (u)int32_t, (u)int64_t, half_t, float, double.
     /// \param[in] array    Array to reduce.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     [[nodiscard]] T max(const Array<T>& array);
+
+    /// Returns the median of the input array.
+    /// \tparam T               (u)int16_t, (u)int32_t, (u)int64_t, half_t, float, double.
+    /// \param[in,out] array    Input array.
+    /// \param overwrite        Whether the function is allowed to overwrite \p array for better efficiency.
+    ///                         If true and if the array is contiguous, the content of \p array is left
+    ///                         in an undefined state.
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
+    [[nodiscard]] T median(const Array<T>& array, bool overwrite = false);
 
     /// Returns the sum of the input array.
     /// \tparam T           (u)int32_t, (u)int64_t, float, double, cfloat_t, cdouble_t.
@@ -54,7 +63,7 @@ namespace noa::math {
     /// \param[in] array    Array to reduce.
     /// \note For floating-point and complex types, the CPU backend uses a multi-threaded
     ///       Kahan summation (with Neumaier variation) algorithm is used.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_var_std_v<T, traits::value_type_t<T>>>>
     [[nodiscard]] auto var(const Array<T>& array, int ddof = 0);
 
     /// Returns the standard-deviation of the input array.
@@ -67,7 +76,7 @@ namespace noa::math {
     ///                     of the variance for normally distributed variables.
     /// \note For floating-point and complex types, the CPU backend uses a multi-threaded
     ///       Kahan summation (with Neumaier variation) algorithm is used.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_var_std_v<T, traits::value_type_t<T>>>>
     [[nodiscard]] auto std(const Array<T>& array, int ddof = 0);
 
     /// Returns a tuple with the sum, mean, variance and stddev of the input array.
@@ -80,7 +89,7 @@ namespace noa::math {
     ///                     of the variance for normally distributed variables.
     /// \note For floating-point and complex types, the CPU backend uses a multi-threaded
     ///       Kahan summation (with Neumaier variation) algorithm is used.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_var_std_v<T, traits::value_type_t<T>>>>
     [[nodiscard]] auto statistics(const Array<T>& array, int ddof = 0);
 }
 
@@ -96,7 +105,7 @@ namespace noa::math {
     /// \param[out] output  Reduced array of minimum values.
     /// \note On the GPU, if the depth, height and width dimensions are reduced,
     ///       \p output can be on any device, including the CPU.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     void min(const Array<T>& input, const Array<T>& output);
 
     /// Reduces an array along some dimensions by taking the maximum value.
@@ -109,8 +118,10 @@ namespace noa::math {
     /// \param[out] output  Reduced array of maximum values.
     /// \note On the GPU, if the depth, height and width dimensions are reduced,
     ///       \p output can be on any device, including the CPU.
-    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_v<T>>>
+    template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
     void max(const Array<T>& input, const Array<T>& output);
+
+    // TODO Add median()
 
     /// Reduces an array along some dimensions by taking the sum.
     /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension

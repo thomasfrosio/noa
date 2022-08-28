@@ -41,6 +41,21 @@ namespace noa::math {
     }
 
     template<typename T, typename>
+    T median(const Array<T>& array, bool overwrite) {
+        const Device device = array.device();
+        Stream& stream = Stream::current(device);
+        if (device.cpu()) {
+            return cpu::math::median(array.share(), array.strides(), array.shape(), overwrite, stream.cpu());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda::math::median(array.share(), array.strides(), array.shape(), overwrite, stream.cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    template<typename T, typename>
     T sum(const Array<T>& array) {
         const Device device = array.device();
         Stream& stream = Stream::current(device);

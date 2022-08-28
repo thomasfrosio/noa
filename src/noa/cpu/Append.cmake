@@ -25,6 +25,7 @@ set(NOA_CPU_HEADERS
         cpu/math/Random.h
         cpu/math/Reduce.h
         cpu/math/Reduce.inl
+        cpu/math/Sort.h
 
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.h
@@ -81,6 +82,7 @@ set(NOA_CPU_SOURCES
         cpu/math/Random.cpp
         cpu/math/Reduce.cpp
         cpu/math/LinAlg.cpp
+        cpu/math/Sort.cpp
 
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.cpp

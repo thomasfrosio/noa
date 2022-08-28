@@ -1,5 +1,4 @@
 #include <noa/common/io/MRCFile.h>
-#include <noa/common/io/TextFile.h>
 #include <noa/common/string/Parse.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/math/Reduce.h>
@@ -29,6 +28,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     const YAML::Node expected = YAML::LoadFile(output_filename);
     const auto expected_max = expected["max"].as<float>();
     const auto expected_min = expected["min"].as<float>();
+    const auto expected_median = expected["median"].as<float>();
     const auto expected_mean = expected["mean"].as<float>();
     const auto expected_std = expected["std"].as<float>();
     const auto expected_sum = expected["sum"].as<float>();
@@ -39,6 +39,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
     WHEN("individual reduction") {
         const auto min = cpu::math::min<float>(data.share(), stride, shape, stream);
         const auto max = cpu::math::max<float>(data.share(), stride, shape, stream);
+        const auto median = cpu::math::median<float>(data.share(), stride, shape, false, stream);
         const auto sum = cpu::math::sum<float>(data.share(), stride, shape, stream);
         const auto mean = cpu::math::mean<float>(data.share(), stride, shape, stream);
         const auto var = cpu::math::var<float>(data.share(), stride, shape, 0, stream);
@@ -46,6 +47,7 @@ TEST_CASE("cpu::math::statistics() - all", "[assets][noa][cpu][math]") {
 
         REQUIRE_THAT(min, Catch::WithinAbs(static_cast<double>(expected_min), 1e-6));
         REQUIRE_THAT(max, Catch::WithinAbs(static_cast<double>(expected_max), 1e-6));
+        REQUIRE_THAT(median, Catch::WithinAbs(static_cast<double>(expected_median), 1e-6));
         REQUIRE_THAT(sum, Catch::WithinRel(expected_sum));
         REQUIRE_THAT(mean, Catch::WithinRel(expected_mean));
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));

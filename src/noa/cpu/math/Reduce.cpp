@@ -385,6 +385,39 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename>
+    T median(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+             bool overwrite, Stream& stream) {
+        using buffer_t = typename cpu::memory::PtrHost<T>::alloc_unique_t;
+
+        // Make it in rightmost order.
+        const size4_t order = indexing::order(strides, shape);
+        strides = indexing::reorder(strides, order);
+        shape = indexing::reorder(shape, order);
+
+        const size_t elements = shape.elements();
+        T* to_sort;
+        buffer_t buffer;
+        if (overwrite && indexing::areContiguous(strides, shape)) {
+            stream.synchronize();
+            to_sort = input.get();
+        } else {
+            buffer = cpu::memory::PtrHost<T>::alloc(elements);
+            stream.synchronize();
+            cpu::memory::copy(input.get(), strides, buffer.get(), shape.strides(), shape);
+            to_sort = buffer.get();
+        }
+
+        std::nth_element(to_sort, to_sort + elements / 2, to_sort + elements);
+        T half = to_sort[elements / 2];
+        if (elements % 2) {
+            return half;
+        } else {
+            std::nth_element(to_sort, to_sort + (elements - 1) / 2, to_sort + elements);
+            return T(to_sort[(elements - 1) / 2] + half) / T{2}; // cast to silence integer promotion
+        }
+    }
+
+    template<typename T, typename>
     T sum(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream) {
         T output;
         const size_t threads = stream.threads();
@@ -496,6 +529,7 @@ namespace noa::cpu::math {
     #define NOA_INSTANTIATE_MIN_MAX_(T)                                       \
     template T min<T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
     template T max<T, void>(const shared_t<T[]>&, size4_t, size4_t, Stream&); \
+    template T median<T, void>(const shared_t<T[]>&, size4_t, size4_t, bool, Stream&); \
     template void min<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&); \
     template void max<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
 

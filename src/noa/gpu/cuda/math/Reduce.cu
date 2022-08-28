@@ -1,5 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/math/Reduce.h"
+#include "noa/gpu/cuda/math/Sort.h"
 #include "noa/gpu/cuda/util/ReduceUnary.cuh"
 
 namespace noa::cuda::math {
@@ -25,6 +26,41 @@ namespace noa::cuda::math {
                      &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
         stream.synchronize();
         return output;
+    }
+
+    template<typename T, typename>
+    T median(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+             bool overwrite, Stream& stream) {
+        // Make it in rightmost order.
+        const size4_t order = indexing::order(strides, shape);
+        strides = indexing::reorder(strides, order);
+        shape = indexing::reorder(shape, order);
+
+        const size_t elements = shape.elements();
+        const shared_t<T[]>* to_sort;
+        shared_t<T[]> buffer;
+        if (overwrite && indexing::areContiguous(strides, shape)) {
+            to_sort = &input;
+        } else {
+            buffer = memory::PtrDevice<T>::alloc(elements, stream);
+            memory::copy(input, strides, buffer, shape.strides(), shape, stream);
+            to_sort = &buffer;
+        }
+
+        // Sort the entire contiguous array.
+        const size4_t shape_1d{1, 1, 1, elements};
+        sort(*to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
+
+        // Retrieve the median.
+        const bool is_even = !(elements % 2);
+        T out[2];
+        memory::copy(to_sort->get() + (elements - is_even) / 2, out, 1 + is_even, stream);
+        stream.synchronize();
+
+        if (is_even)
+            return (out[0] + out[1]) / T{2};
+        else
+            return out[0];
     }
 
     template<typename T, typename>
@@ -114,7 +150,8 @@ namespace noa::cuda::math {
 
     #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                  \
     template T min<T,void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
-    template T max<T,void>(const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    template T max<T,void>(const shared_t<T[]>&, size4_t, size4_t, Stream&);    \
+    template T median<T,void>(const shared_t<T[]>&, size4_t, size4_t, bool, Stream&)
 
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(half_t);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(float);
