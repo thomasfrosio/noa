@@ -228,6 +228,10 @@ namespace noa {
         /// \return An alias of the array with the new shape and strides.
         Array reshape(size4_t shape) const;
 
+        /// Reshapes the array in a vector along a particular axis.
+        /// Returns a row vector by default.
+        Array flat(int axis = 3) const;
+
         /// Permutes the array.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
         /// \param copy         Whether the permuted array should be copied into a C-contiguous array, completely

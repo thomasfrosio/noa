@@ -270,6 +270,13 @@ namespace noa {
     }
 
     template<typename T>
+    Array<T> Array<T>::flat(int axis) const {
+        size4_t output_shape(1);
+        output_shape[axis] = m_shape.elements();
+        return reshape(output_shape);
+    }
+
+    template<typename T>
     Array<T> Array<T>::permute(uint4_t permutation, bool copy) const {
         const size4_t permuted_shape = indexing::reorder(m_shape, permutation);
         if (!copy)
