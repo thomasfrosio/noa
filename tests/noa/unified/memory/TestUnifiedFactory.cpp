@@ -1,5 +1,6 @@
 #include <noa/unified/Array.h>
 #include <noa/unified/memory/Factory.h>
+#include <noa/unified/io/ImageFile.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
