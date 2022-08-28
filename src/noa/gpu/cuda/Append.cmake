@@ -57,6 +57,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Find.h
         gpu/cuda/math/Random.h
         gpu/cuda/math/Reduce.h
+        gpu/cuda/math/Sort.h
 
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.h
@@ -120,6 +121,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/Reduce.cu
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu
+        gpu/cuda/math/Sort.cu
 
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.cu

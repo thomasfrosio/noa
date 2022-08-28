@@ -95,6 +95,8 @@ set(NOA_UNIFIED_HEADERS
         unified/math/Random.inl
         unified/math/Reduce.h
         unified/math/Reduce.inl
+        unified/math/Sort.h
+        unified/math/Sort.inl
         )
 
 set(NOA_UNIFIED_SOURCES
