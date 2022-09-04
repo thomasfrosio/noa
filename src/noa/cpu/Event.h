@@ -9,6 +9,8 @@ namespace noa::cpu {
     // Elapsed time can be measured between events.
     class Event {
     public:
+        Event() = default;
+
         // Waits ("busy sleep") until the completion of the event.
         void synchronize() {
             while (m_event.load(std::memory_order_acquire) != Status::COMPLETED)
