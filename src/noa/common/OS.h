@@ -33,6 +33,22 @@ namespace noa::os {
         return fs::is_regular_file(file_status);
     }
 
+    /// Whether or not \a path points to an existing directory.
+    inline bool existsDirectory(const fs::path& path) {
+        try {
+            return fs::is_directory(path);
+        } catch (const fs::filesystem_error& e) {
+            NOA_THROW(e.what());
+        } catch (const std::exception& e) {
+            NOA_THROW("Path: {}. {}", path, e.what());
+        }
+    }
+
+    /// Whether or not \a file_status describes an existing directory.
+    inline bool existsDirectory(const fs::file_status& file_status) noexcept {
+        return fs::is_directory(file_status);
+    }
+
     /// Whether or not \a path points to an existing file or directory. Symlinks are followed.
     inline bool exists(const fs::path& path) {
         try {

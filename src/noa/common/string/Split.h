@@ -35,13 +35,13 @@ namespace noa::string {
     /// std::vector<float> vec3 = split<float>(" 1, 2, 3 ,  4"); // {1.f, 2.f, 3.f, 4.f}
     /// \endcode
     template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
-    std::vector<T> split(std::string_view str) {
+    std::vector<T> split(std::string_view str, char separator = ',') {
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
         std::vector<T> out;
 
         for (size_t i{0}; i < str.size(); ++i) {
-            if (str[i] == ',') {
+            if (str[i] == separator) {
                 out.emplace_back(parse<T>({str.data() + idx_start, idx_end - idx_start}));
                 idx_start = 0;
                 idx_end = 0;
@@ -76,13 +76,13 @@ namespace noa::string {
     /// std::array<bool, 2> vec3 = parse<bool, 2>(" 1 "); // throws noa::Exception
     /// \endcode
     template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
-    std::array<T, N> split(std::string_view string) {
+    std::array<T, N> split(std::string_view string, char separator = ',') {
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};
         std::array<T, N> out;
 
         for (size_t i{0}; i < string.size(); ++i) {
-            if (string[i] == ',') {
+            if (string[i] == separator) {
                 if (idx == N)
                     break;
                 out[idx] = parse<T>({string.data() + idx_start, idx_end - idx_start});
@@ -118,9 +118,9 @@ namespace noa::string {
     /// \throw Exception        If the conversion failed or if the number of fields in \p str and
     ///                         \p str_defaults do not match.
     template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
-    std::vector<T> split(std::string_view str, std::string_view str_defaults) {
-        auto v1 = split<std::string>(str);
-        auto v2 = split<std::string>(str_defaults);
+    std::vector<T> split(std::string_view str, std::string_view str_defaults, char separator = ',') {
+        auto v1 = split<std::string>(str, separator);
+        auto v2 = split<std::string>(str_defaults, separator);
 
         size_t size = v1.size();
         if (size != v2.size())
@@ -144,9 +144,9 @@ namespace noa::string {
     /// \throw Exception        If the conversion failed or if the number of fields in \p str and
     ///                         \p str_defaults do not match.
     template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
-    std::array<T, N> split(std::string_view str, std::string_view str_defaults) {
-        auto v1 = split<std::string>(str);
-        auto v2 = split<std::string>(str_defaults);
+    std::array<T, N> split(std::string_view str, std::string_view str_defaults, char separator = ',') {
+        auto v1 = split<std::string>(str, separator);
+        auto v2 = split<std::string>(str_defaults, separator);
 
         if (N != v1.size() || N != v2.size())
             NOA_THROW("The input string \"{}\" and/or default string \"{}\" do not match the expected "

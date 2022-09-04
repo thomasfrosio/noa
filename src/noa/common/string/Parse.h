@@ -30,7 +30,7 @@ namespace noa::string {
 
     /// Parses a null-terminated string into a \p T.
     template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T>>>
-    inline auto parse(const std::string& string) {
+    inline T parse(const std::string& string) {
         if constexpr (traits::is_string_v<T>) {
             return string;
         } else if constexpr (traits::is_float_v<T>) {
@@ -41,6 +41,27 @@ namespace noa::string {
             return toInt<T>(string);
         } else {
             static_assert(traits::always_false_v<T>);
+        }
+    }
+
+    template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T>>>
+    inline std::vector<T> parse(const std::vector<std::string>& vector) {
+        if constexpr (traits::is_string_v<T>) {
+            return vector;
+        } else {
+            std::vector<T> output;
+            for (const auto& string: vector) {
+                if constexpr (traits::is_float_v<T>) {
+                    output.emplace_back(toFloat<T>(string));
+                } else if constexpr (traits::is_bool_v<T>) {
+                    output.emplace_back(toBool(string));
+                } else if constexpr (traits::is_int_v<T>) {
+                    output.emplace_back(toInt<T>(string));
+                } else {
+                    static_assert(traits::always_false_v<T>);
+                }
+            }
+            return output;
         }
     }
 }
