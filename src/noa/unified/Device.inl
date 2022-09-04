@@ -15,7 +15,7 @@ namespace noa {
             if (!unsafe)
                 validate_(m_id);
         } catch (...) {
-            NOA_THROW("Failed to parse the input ID \"{}\" into a valid ID", name);
+            NOA_THROW("Failed to parse the device ID \"{}\" into a valid ID", name);
         }
     }
 

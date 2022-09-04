@@ -9,7 +9,7 @@ namespace noa::memory {
     /// \param[out] subregions  Output subregion(s).
     /// \param[in] origins      BDHW (vector of) indexes, defining the origin where to extract subregions from \p input.
     ///                         While usually within the input frame, subregions can be (partially) out-of-bound.
-    ///                         The batch dimension of \p subregion_shape sets the number of subregions to extract
+    ///                         The batch dimension of \p subregion sets the number of subregions to extract
     ///                         and therefore the number of origins to enter.
     /// \param border_mode      Border mode used for out-of-bound conditions.
     ///                         Can be BORDER_{NOTHING|ZERO|VALUE|CLAMP|MIRROR|REFLECT}.
@@ -27,7 +27,7 @@ namespace noa::memory {
     /// \param[out] output      Output array.
     /// \param[in] origins      BDHW (vector of) indexes, defining the origin where to insert subregions into \p output.
     ///                         While usually within the output frame, subregions can be (partially) out-of-bound.
-    ///                         The batch dimension of \p subregion_shape sets the number of subregions to insert
+    ///                         The batch dimension of \p subregion sets the number of subregions to insert
     ///                         and therefore the number of origins to enter. Note that this function assumes no
     ///                         overlap between subregions since there's no guarantee on the order of insertion.
     /// \note \p subregions and \p output should not overlap.

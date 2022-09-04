@@ -32,7 +32,18 @@ namespace noa::cuda {
 
         // Creates a CUDA device from a name.
         // The device name should be of the form, "cuda:N", where N is a device ID.
-        explicit Device(std::string_view name, bool unsafe = false) : m_id(parse_(name)) {
+        explicit Device(std::string_view name, bool unsafe = false) {
+            name = string::trim(string::lower(name));
+
+            if (!string::startsWith(name, "cuda"))
+                NOA_THROW("Failed to parse CUDA device name:\"{}\"", name);
+
+            const size_t length = name.length();
+            if (length == 4)
+                m_id = 0;
+            else if (length >= 6 && name[4] == ':')
+                m_id = string::toInt<int>(std::string{name.data() + 5});
+
             if (!unsafe)
                 validate_(m_id);
         };
@@ -201,20 +212,6 @@ namespace noa::cuda {
 
     private:
         int m_id{};
-
-        static int parse_(std::string_view name) {
-            name = string::trim(string::lower(name));
-            const size_t length = name.length();
-
-            if (string::startsWith(name, "cuda")) {
-                if (length == 4)
-                    return 0;
-                else if (length >= 6 && name[4] == ':')
-                    return string::toInt<int>(std::string{name.data() + 5});
-            }
-
-            NOA_THROW("Failed to parse CUDA device name:\"{}\"", name);
-        }
 
         static void validate_(int id) {
             const size_t count = Device::count();
