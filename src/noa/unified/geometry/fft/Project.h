@@ -88,13 +88,8 @@ namespace noa::geometry::fft {
     ///                             If negative, the negative curve is computed.
     ///                             If {0,0}, the slices are projections.
     ///
-    /// \note If \p slice is on the CPU:
-    ///         - \p scaling_factors and \p rotations should be dereferenceable by the CPU.
-    ///       If \p slice is on the GPU:
-    ///         - Double precision is not supported.
-    ///         - \p scaling_factors and \p rotations can be on any device, including the CPU.
-    ///         - \p grid should be in the rightmost order and the depth and width dimensions should be contiguous.\n
-    ///         - \p grid can be on any device, including the CPU.
+    /// \note If \p slice is on the CPU, \p scaling_factors and \p rotations should be dereferenceable by the CPU.
+    ///       If \p slice is on the GPU, they can be on any device, including the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
     void extract3D(const Array<T>& grid, size4_t grid_shape,
                    const Array<T>& slice, size4_t slice_shape,
@@ -106,6 +101,9 @@ namespace noa::geometry::fft {
     /// \details This functions has the same features and limitations as the overload taking arrays.
     ///          However, for GPU textures, the border mode should be BORDER_ZERO, the interpolation mode
     ///          should be INTERP_LINEAR or INTERP_LINEAR_FAST, and un-normalized coordinates should be used.
+    /// \note If \p slice is on the GPU:
+    ///         - Double precision is not supported.
+    ///         - \p scaling_factors and \p rotations can be on any device, including the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
     void extract3D(const Texture<T>& grid, size4_t grid_shape,
                    const Array<T>& slice, size4_t slice_shape,

@@ -228,6 +228,15 @@ namespace noa::cuda::geometry::details {
         T tmp2 = linear1D(v10, v11, rx);
         return linear1D(tmp1, tmp2, ry);
     }
+
+    template<typename T>
+    NOA_FD T linear3D(T v000, T v001, T v010, T v011,
+                      T v100, T v101, T v110, T v111,
+                      float rx, float ry, float rz) noexcept {
+        T tmp1 = linear2D(v000, v001, v010, v011, rx, ry);
+        T tmp2 = linear2D(v100, v101, v110, v111, rx, ry);
+        return linear1D(tmp1, tmp2, rz);
+    }
 }
 
 namespace noa::cuda::geometry::details::linear {

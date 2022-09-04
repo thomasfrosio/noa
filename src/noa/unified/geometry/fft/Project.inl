@@ -108,11 +108,12 @@ namespace noa::geometry::fft {
                   "of slices, but got {} rotations and {} slices", rotations.shape().elements(), slices);
 
         const Device device = slice.device();
+        NOA_CHECK(grid.device() == device,
+                  "The slices and the grid should be on the same device but got slice:{} and grid:{}",
+                  device, grid.device());
+
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
-            NOA_CHECK(grid.device() == device,
-                      "The slices and the grid should be on the same device but got slice:{} and grid:{}",
-                      device, grid.device());
             NOA_CHECK(rotations.dereferenceable() &&
                       (scaling_factors.empty() || scaling_factors.dereferenceable()),
                       "The transform parameters should be accessible to the CPU");
@@ -130,23 +131,16 @@ namespace noa::geometry::fft {
                     cutoff, sampling_factor, ews_radius, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                NOA_CHECK(indexing::isRightmost(grid.strides()) &&
-                          indexing::isContiguous(grid.strides(), grid.shape())[1] && grid.strides()[3] == 1,
-                          "The grid should be in the rightmost order and the depth and width dimension should be "
-                          "contiguous, but got shape {} and strides {}", grid.shape(), grid.strides());
-                if (rotations.device().cpu() ||
-                    (!scaling_factors.empty() && scaling_factors.device().cpu()))
-                    Stream::current(Device{}).synchronize();
+            if (rotations.device().cpu() ||
+                (!scaling_factors.empty() && scaling_factors.device().cpu()))
+                Stream::current(Device{}).synchronize();
 
-                cuda::geometry::fft::extract3D<REMAP>(
-                        grid.share(), grid.strides(), grid_shape,
-                        slice.share(), slice.strides(), slice_shape,
-                        scaling_factors.share(), rotations.share(),
-                        cutoff, sampling_factor, ews_radius, stream.cuda());
-            }
+            constexpr bool NO_TEXTURE = true;
+            cuda::geometry::fft::extract3D<REMAP>(
+                    grid.share(), grid.strides(), grid_shape,
+                    slice.share(), slice.strides(), slice_shape,
+                    scaling_factors.share(), rotations.share(),
+                    cutoff, sampling_factor, ews_radius, NO_TEXTURE, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -168,7 +162,7 @@ namespace noa::geometry::fft {
 
         #ifdef NOA_ENABLE_CUDA
         if constexpr (!traits::is_any_v<T, float, cfloat_t>) {
-            NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+            NOA_THROW("In the CUDA backend, double-precision floating-points are not supported by this function");
         } else {
             NOA_CHECK(all(slice.shape() == slice_shape.fft()),
                       "The shape of the non-redundant slices do not match the expected shape. Got {} and expected {}",
