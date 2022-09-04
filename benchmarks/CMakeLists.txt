@@ -8,24 +8,25 @@ set(BENCHMARK_SOURCES
         )
 
 set(BENCHMARK_CPU_SOURCES
-        src/cpu/fft/BenchCPURemap.cpp
-        src/cpu/fft/BenchCPUResize.cpp
-        src/cpu/fft/BenchCPUTransforms.cpp
-
-        src/cpu/math/BenchCPUBlas.cpp
-        src/cpu/math/BenchCPUReductions.cpp
-
-        src/cpu/signal/BenchCPUConvolve.cpp
+#        src/cpu/fft/BenchCPURemap.cpp
+#        src/cpu/fft/BenchCPUResize.cpp
+#        src/cpu/fft/BenchCPUTransforms.cpp
+#
+#        src/cpu/math/BenchCPUBlas.cpp
+#        src/cpu/math/BenchCPUReductions.cpp
+#
+#        src/cpu/signal/BenchCPUConvolve.cpp
 #        src/cpu/signal/BenchCPUMedian.cpp
 #        src/cpu/signal/BenchCPUShape.cpp
 #
 #        src/cpu/memory/BenchCPUCast.cpp
 #        src/cpu/memory/BenchCPUTranspose.cpp
 #
-        src/cpu/geometry/BenchCPURotate.cpp
-        src/cpu/geometry/BenchCPUSymmetry.cpp
-#        src/cpu/geometry/fft/BenchCPURotate.cpp
+#        src/cpu/geometry/BenchCPURotate.cpp
+#        src/cpu/geometry/BenchCPUSymmetry.cpp
+        src/cpu/geometry/fft/BenchCPURotate.cpp
 #        src/cpu/geometry/fft/BenchCPUShift.cpp
+        src/cpu/geometry/fft/BenchCPUProject.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES
@@ -36,15 +37,15 @@ set(BENCHMARK_CUDA_SOURCES
 #        src/gpu/cuda/math/BenchCUDABlas.cpp
 #        src/gpu/cuda/math/BenchCUDAReductions.cpp
 
-        src/gpu/cuda/memory/BenchCUDACopy.cpp
+#        src/gpu/cuda/memory/BenchCUDACopy.cpp
 
-#        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
+        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
 #        src/gpu/cuda/geometry/BenchCUDARotate.cpp
 #        src/gpu/cuda/geometry/BenchCUDASymmetry.cpp
         )
 
 set(BENCHMARK_UNIFIED_SOURCES
-        src/unified/fft/BenchUnifiedTransforms.cpp
+#        src/unified/fft/BenchUnifiedTransforms.cpp
 
         )
 
