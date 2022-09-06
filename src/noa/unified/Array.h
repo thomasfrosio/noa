@@ -57,9 +57,9 @@ namespace noa {
     ///   stream of the output Array's device. As such, one does not and should not synchronize the stream between each
     ///   operation involving an Array, except if:\n
     ///     - The input and output Array(s) are used in a "unsafe" way between the function call and a synchronization
-    ///       point. These unsafe ways of accessing the managed data of an Array are by get()/data(), share() or view().
-    ///       While these are often required, e.g. for efficient loop-like indexing, one must make sure the current
-    ///       stream of the Array's device is synchronized.\n
+    ///       point. These unsafe ways of accessing the managed data of an Array are by get()/data()/operator[],
+    ///       share() or view(). While these are often required, e.g. for efficient loop-like indexing, one must make
+    ///       sure the current stream of the Array's device is synchronized.\n
     ///     - The input and output Array(s) are on the same device but used by different streams. The unified API will
     ///       always use the current stream of the device. If an array is used by a non-current stream (e.g. the current
     ///       stream was changed), one must make sure that stream-ordering is respected by synchronizing this stream
@@ -74,6 +74,7 @@ namespace noa {
     class Array {
     public: // typedefs
         using value_t = T;
+        using value_type = T;
         using dim_t = size_t;
         using dim4_t = Int4<dim_t>;
         using ptr_t = T*;
@@ -162,24 +163,46 @@ namespace noa {
         /// Returns the BDHW strides of the array.
         [[nodiscard]] const size4_t& strides() const noexcept;
 
+        /// Returns the number of elements in the array.
+        [[nodiscard]] size_t elements() const noexcept;
+        [[nodiscard]] size_t size() const noexcept;
+
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
         [[nodiscard]] bool contiguous() const noexcept;
 
     public: // Accessors
         /// Returns the pointer to the data.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may create a data race.
         [[nodiscard]] constexpr T* get() const noexcept;
+
+        /// Returns the pointer to the data.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may create a data race.
         [[nodiscard]] constexpr T* data() const noexcept;
 
+        /// Returns a reference of the element at the specified memory \p offset.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this reference may create a data race.
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
+        [[nodiscard]] constexpr T& operator[](I offset) const noexcept;
+
         /// Returns a reference of the managed resource.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may create a data race.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept;
 
         /// Returns a const view of the array.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this view may create a data race.
         template<typename I = size_t>
         [[nodiscard]] constexpr View<T, I> view() const noexcept;
 
         /// Synchronizes the current stream of the Array's device.
-        /// It guarantees safe access to the Array's managed memory using get(), data(), share() or view().
+        /// \details It guarantees safe access to the Array's managed memory using get(), data(),
+        ///          operator[], share() or view(). Stream-ordered access is safe and doesn't need
+        ///          synchronization.
         const Array& eval() const;
 
         /// Releases the array. *this is left empty.

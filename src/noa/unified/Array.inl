@@ -128,6 +128,12 @@ namespace noa {
     const size4_t& Array<T>::strides() const noexcept { return m_strides; }
 
     template<typename T>
+    size_t Array<T>::elements() const noexcept { return m_shape.elements(); }
+
+    template<typename T>
+    size_t Array<T>::size() const noexcept { return elements(); }
+
+    template<typename T>
     template<char ORDER>
     bool Array<T>::contiguous() const noexcept {
         return indexing::areContiguous<ORDER>(m_strides, m_shape);
@@ -138,6 +144,12 @@ namespace noa {
 
     template<typename T>
     constexpr T* Array<T>::data() const noexcept { return m_ptr.get(); }
+
+    template<typename T>
+    template<typename I, typename>
+    [[nodiscard]] constexpr T& Array<T>::operator[](I offset) const noexcept {
+        return m_ptr.get()[offset];
+    }
 
     template<typename T>
     constexpr const std::shared_ptr<T[]>& Array<T>::share() const noexcept { return m_ptr; }
