@@ -439,6 +439,16 @@ namespace noa {
         [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v) noexcept {
             return sort(v, [](const T& a, const T& b) { return a < b; });
         }
+
+        template<typename T>
+        [[nodiscard]] NOA_FHD constexpr Float3<T> deg2rad(Float3<T> v) noexcept {
+            return {deg2rad(v[0]), deg2rad(v[1]), deg2rad(v[2])};
+        }
+
+        template<typename T>
+        [[nodiscard]] NOA_FHD constexpr Float3<T> rad2deg(Float3<T> v) noexcept {
+            return {rad2deg(v[0]), rad2deg(v[1]), rad2deg(v[2])};
+        }
     }
 
     namespace traits {
