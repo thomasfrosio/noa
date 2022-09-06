@@ -127,7 +127,7 @@ namespace {
     void fourierInsert_(const T* slice, size3_t slice_strides, int3_t slice_shape,
                         T* grid, size3_t grid_strides, int3_t grid_shape,
                         const float22_t* inv_scaling_factors, const float33_t* rotations,
-                        float cutoff, float sampling_factor, float2_t ews_radius, size_t threads) {
+                        float cutoff, float3_t sampling_factor, float2_t ews_radius, size_t threads) {
         using real_t = traits::value_type_t<T>;
         const int2_t l_shape(slice_shape.get(1));
         const float2_t f_slice_shape(l_shape / 2 * 2 + int2_t(l_shape == 1));
@@ -200,7 +200,7 @@ namespace {
     void fourierExtract_(const T* grid, size3_t grid_strides, int3_t grid_shape,
                          T* slice, size3_t slice_strides, int3_t slice_shape,
                          const float22_t* inv_scaling_factors, const float33_t* rotations,
-                         float cutoff, float sampling_factor, float2_t ews_radius, size_t threads) {
+                         float cutoff, float3_t sampling_factor, float2_t ews_radius, size_t threads) {
         using real_t = traits::value_type_t<T>;
         const int2_t l_shape(slice_shape.get(1));
         const float2_t f_slice_shape(l_shape / 2 * 2 + int2_t(l_shape == 1));
@@ -237,8 +237,10 @@ namespace {
                     float3_t freq_3d{z, freq_2d[0], freq_2d[1]};
                     freq_3d = rotations[i] * freq_3d;
 
-                    if (math::dot(freq_3d, freq_3d) > cutoff)
+                    if (math::dot(freq_3d, freq_3d) > cutoff) {
+                        slice[indexing::at(i, y, u, slice_strides)] = T{0};
                         continue;
+                    }
 
                     [[maybe_unused]] real_t conj = 1;
                     if (freq_3d[2] < 0) {
@@ -301,7 +303,7 @@ namespace noa::cpu::geometry::fft {
                   const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
-                  float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
+                  float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
 
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -333,7 +335,7 @@ namespace noa::cpu::geometry::fft {
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
 
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -376,11 +378,11 @@ namespace noa::cpu::geometry::fft {
 
     #define NOA_INSTANTIATE_INSERT_(T, R)                                                                               \
     template void insert3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,  \
-                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
+                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                              \
     template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
+                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_(T)         \
     NOA_INSTANTIATE_INSERT_(T, Remap::H2H);     \

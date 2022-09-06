@@ -209,8 +209,10 @@ namespace {
         float3_t freq_3d{z, freq_2d[0], freq_2d[1]};
         freq_3d = rotations[gid[0]] * freq_3d;
 
-        if (math::dot(freq_3d, freq_3d) > cutoff_sqd)
+        if (math::dot(freq_3d, freq_3d) > cutoff_sqd) {
+            slice[indexing::at(gid, slice_strides)] = U{0};
             return;
+        }
 
         real_t conj = 1;
         if (freq_3d[2] < 0) {
@@ -269,7 +271,7 @@ namespace {
     void launchExtract3D_(const T* grid, uint3_t grid_strides, int3_t grid_shape,
                           U* slice, size4_t slice_strides, size4_t slice_shape,
                           const float22_t* scaling_factors, const float33_t* rotations,
-                          float cutoff, float sampling_factor, float2_t ews_radius, cuda::Stream& stream) {
+                          float cutoff, float3_t sampling_factor, float2_t ews_radius, cuda::Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
@@ -326,7 +328,7 @@ namespace noa::cuda::geometry::fft {
                   const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
-                  float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
+                  float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
@@ -378,7 +380,7 @@ namespace noa::cuda::geometry::fft {
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius,
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius,
                    bool no_texture, Stream& stream) {
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
@@ -416,7 +418,7 @@ namespace noa::cuda::geometry::fft {
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream) {
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
         launchExtract3D_<REMAP>(grid.get(), uint3_t{}, grid_shape,
                                 slice.get(), slice_strides, slice_shape,
                                 scaling_factors.get(), rotations.get(),
@@ -449,7 +451,7 @@ namespace noa::cuda::geometry::fft {
 
     #define NOA_INSTANTIATE_INSERT_(T, R)                                                                               \
     template void insert3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,  \
-                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
+                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_(T)         \
     NOA_INSTANTIATE_INSERT_(T, Remap::H2H);     \
@@ -465,12 +467,12 @@ namespace noa::cuda::geometry::fft {
 
     #define NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(T, R)                                                                   \
     template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, bool, Stream&)
+                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, bool, Stream&)
 
     #define NOA_INSTANTIATE_EXTRACT_TEXTURE_(T, R)                                                                              \
     template void extract3D<R, T, void>(const shared_t<cudaArray>&,                                                             \
                                         const shared_t<cudaTextureObject_t>&, int3_t, const shared_t<T[]>&, size4_t, size4_t,   \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float, float2_t, Stream&)
+                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_EXTRACT_(T, R)      \
     NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(T, R);  \

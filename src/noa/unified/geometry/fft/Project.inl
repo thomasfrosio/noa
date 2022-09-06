@@ -15,7 +15,7 @@ namespace noa::geometry::fft {
                   const Array<T>& grid, size4_t grid_shape,
                   const Array<float22_t>& scaling_factors,
                   const Array<float33_t>& rotations,
-                  float cutoff, float sampling_factor, float2_t ews_radius) {
+                  float cutoff, float3_t sampling_factor, float2_t ews_radius) {
         NOA_CHECK(all(slice.shape() == slice_shape.fft()),
                   "The shape of the non-redundant slices do not match the expected shape. Got {} and expected {}",
                   slice.shape(), slice_shape.fft());
@@ -83,7 +83,7 @@ namespace noa::geometry::fft {
                    const Array<T>& slice, size4_t slice_shape,
                    const Array<float22_t>& scaling_factors,
                    const Array<float33_t>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius) {
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius) {
         NOA_CHECK(all(slice.shape() == slice_shape.fft()),
                   "The shape of the non-redundant slices do not match the expected shape. Got {} and expected {}",
                   slice.shape(), slice_shape.fft());
@@ -152,7 +152,7 @@ namespace noa::geometry::fft {
                    const Array<T>& slice, size4_t slice_shape,
                    const Array<float22_t>& scaling_factors,
                    const Array<float33_t>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius) {
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius) {
         if (grid.device().cpu()) {
             const cpu::Texture<T>& texture = grid.cpu();
             extract3D<REMAP>(Array<T>(texture.ptr, grid.shape(), texture.strides, grid.options()), grid_shape,

@@ -25,7 +25,7 @@ namespace noa::cuda::geometry::fft {
                   const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
-                  float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream);
+                  float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream);
 
     // Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
@@ -33,7 +33,7 @@ namespace noa::cuda::geometry::fft {
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius, bool no_texture, Stream& stream);
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius, bool no_texture, Stream& stream);
 
     // Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_extract_v<REMAP, T>>>
@@ -42,7 +42,7 @@ namespace noa::cuda::geometry::fft {
                    const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
-                   float cutoff, float sampling_factor, float2_t ews_radius, Stream& stream);
+                   float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream);
 
     // Corrects for the gridding, assuming tri-linear interpolation is used during the insertion or extraction.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
