@@ -16,6 +16,7 @@ set(NOA_HEADERS
         String.h
         Texture.h
         Types.h
+        Utils.h
         )
 
 include(${PROJECT_SOURCE_DIR}/src/noa/common/Append.cmake)
