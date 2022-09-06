@@ -42,7 +42,7 @@ namespace noa::geometry::fft {
             matrices_ = &matrices;
         }
 
-        constexpr bool SINGLE_SHIFT = traits::is_float2_v<M>;
+        constexpr bool SINGLE_SHIFT = traits::is_float2_v<S>;
         using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>>>;
         const shift_t* shifts_;
         if constexpr (!SINGLE_SHIFT) {
@@ -63,7 +63,7 @@ namespace noa::geometry::fft {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.dereferenceable(), "The matrices should be accessible to the CPU");

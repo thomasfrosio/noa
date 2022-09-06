@@ -64,13 +64,13 @@ namespace noa::geometry::fft {
         if (cartesian.device().cpu()) {
             const cpu::Texture<T>& texture = cartesian.cpu();
             cartesian2polar<REMAP>(Array<T>(texture.ptr, cartesian.shape(), texture.strides, cartesian.options()),
-                                   polar, frequency_range, angle_range, log, cartesian.interp());
+                                   cartesian_shape, polar, frequency_range, angle_range, log, cartesian.interp());
             return;
         }
 
         #ifdef NOA_ENABLE_CUDA
         if constexpr (!traits::is_any_v<T, float, cfloat_t>) {
-            NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+            NOA_THROW("In the CUDA backend, double-precision floating-points are not supported by this function");
         } else {
             NOA_CHECK(cartesian.shape()[0] == 1,
                       "The number of batches in the texture ({}) should be 1, got {}", cartesian.shape()[0]);
