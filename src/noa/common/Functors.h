@@ -267,6 +267,13 @@ namespace noa::math {
         }
     };
 
+    struct divide_epsilon_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& input, const U& div, const V& epsilon) const {
+            return input / (div + epsilon);
+        }
+    };
+
     struct within_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& low, const U& high) const {

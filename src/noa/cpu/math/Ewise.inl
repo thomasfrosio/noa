@@ -29,7 +29,7 @@ namespace noa::cpu::math {
         });
     }
 
-    template<typename T, typename U, typename V, typename BinaryOp, std::enable_if_t<traits::is_data_v<U>, bool>>
+    template<typename T, typename U, typename V, typename BinaryOp, typename>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U rhs,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
@@ -50,7 +50,7 @@ namespace noa::cpu::math {
         });
     }
 
-    template<typename T, typename U, typename V, typename BinaryOp, std::enable_if_t<traits::is_data_v<T>, bool>>
+    template<typename T, typename U, typename V, typename BinaryOp, typename>
     void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_strides,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream) {
@@ -96,9 +96,9 @@ namespace noa::cpu::math {
         });
     }
 
-    template<typename T, typename U, typename V, typename TrinaryOp, typename>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, U rhs,
-               const shared_t<V[]>& output, size4_t output_strides,
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, V rhs,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream) {
         stream.enqueue([=]() mutable {
             const size4_t order = indexing::order(output_strides, shape);
@@ -107,19 +107,18 @@ namespace noa::cpu::math {
             shape = indexing::reorder(shape, order);
 
             const T* lptr = lhs.get();
-            V* optr = output.get();
+            W* optr = output.get();
                 for (size_t i = 0; i < shape[0]; ++i)
                     for (size_t j = 0; j < shape[1]; ++j)
                         for (size_t k = 0; k < shape[2]; ++k)
                             for (size_t l = 0; l < shape[3]; ++l)
                                 optr[indexing::at(i, j, k, l, output_strides)] =
-                                        static_cast<V>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_strides)],
+                                        static_cast<W>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_strides)],
                                                                   mhs, rhs));
         });
     }
 
-    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             std::enable_if_t<traits::is_data_v<V>, bool>>
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
                const shared_t<U[]>& mhs, size4_t mhs_strides, V rhs,
                const shared_t<W[]>& output, size4_t output_strides,
@@ -139,14 +138,13 @@ namespace noa::cpu::math {
                     for (size_t k = 0; k < shape[2]; ++k)
                         for (size_t l = 0; l < shape[3]; ++l)
                             optr[indexing::at(i, j, k, l, output_strides)] =
-                                    static_cast<V>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_strides)],
+                                    static_cast<W>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_strides)],
                                                               mptr[indexing::at(i, j, k, l, mhs_strides)],
                                                               rhs));
         });
     }
 
-    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             std::enable_if_t<traits::is_data_v<U>, bool>>
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs,
                const shared_t<V[]>& rhs, size4_t rhs_strides,
                const shared_t<W[]>& output, size4_t output_strides,
@@ -166,7 +164,7 @@ namespace noa::cpu::math {
                     for (size_t k = 0; k < shape[2]; ++k)
                         for (size_t l = 0; l < shape[3]; ++l)
                             optr[indexing::at(i, j, k, l, output_strides)] =
-                                    static_cast<V>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_strides)],
+                                    static_cast<W>(trinary_op(lptr[indexing::at(i, j, k, l, lhs_strides)],
                                                               mhs,
                                                               rptr[indexing::at(i, j, k, l, rhs_strides)]));
         });

@@ -15,14 +15,14 @@ namespace noa::cpu::math {
 
     // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     template<typename T, typename U, typename V, typename BinaryOp,
-             std::enable_if_t<noa::traits::is_data_v<U>, bool> = true>
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U rhs,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
     // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
     template<typename T, typename U, typename V, typename BinaryOp,
-             std::enable_if_t<noa::traits::is_data_v<T>, bool> = true>
+             typename = std::enable_if_t<noa::traits::is_data_v<T>>>
     void ewise(T lhs, const shared_t<U[]>& rhs, size4_t rhs_strides,
                const shared_t<V[]>& output, size4_t output_strides,
                size4_t shape, BinaryOp binary_op, Stream& stream);
@@ -35,15 +35,15 @@ namespace noa::cpu::math {
                size4_t shape, BinaryOp binary_op, Stream& stream);
 
     // Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
-    template<typename T, typename U, typename V, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
-    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, U rhs,
-               const shared_t<V[]>& output, size4_t output_strides,
+    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<U> && noa::traits::is_data_v<V>>>
+    void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs, V rhs,
+               const shared_t<W[]>& output, size4_t output_strides,
                size4_t shape, TrinaryOp trinary_op, Stream& stream);
 
     // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             std::enable_if_t<noa::traits::is_data_v<V>, bool> = true>
+             typename = std::enable_if_t<noa::traits::is_data_v<V>>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides,
                const shared_t<U[]>& mhs, size4_t mhs_strides, V rhs,
                const shared_t<W[]>& output, size4_t output_strides,
@@ -51,7 +51,7 @@ namespace noa::cpu::math {
 
     // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
     template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             std::enable_if_t<noa::traits::is_data_v<U>, bool> = true>
+             typename = std::enable_if_t<noa::traits::is_data_v<U>>>
     void ewise(const shared_t<T[]>& lhs, size4_t lhs_strides, U mhs,
                const shared_t<V[]>& rhs, size4_t rhs_strides,
                const shared_t<W[]>& output, size4_t output_strides,

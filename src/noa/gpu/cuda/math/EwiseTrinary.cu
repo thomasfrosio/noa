@@ -110,9 +110,10 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(float);
     NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(double);
 
-    #define NOA_INSTANTIATE_EWISE_TRINARY_FMA(T,U)          \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::fma_t);\
-    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::plus_divide_t)
+    #define NOA_INSTANTIATE_EWISE_TRINARY_FMA(T,U)                  \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::fma_t);        \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::plus_divide_t);\
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,T,::noa::math::divide_epsilon_t)
 
     NOA_INSTANTIATE_EWISE_TRINARY_FMA(chalf_t, chalf_t);
     NOA_INSTANTIATE_EWISE_TRINARY_FMA(cfloat_t, cfloat_t);

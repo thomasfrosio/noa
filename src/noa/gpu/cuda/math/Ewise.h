@@ -36,10 +36,10 @@ namespace noa::cuda::math::details {
 
     template<typename lhs_t, typename mhs_t, typename rhs_t, typename out_t, typename op_t>
     constexpr bool is_valid_ewise_trinary_v =
-            (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, within_t, within_equal_t, clamp_t, fma_t, plus_divide_t>) ||
+            (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, within_t, within_equal_t, clamp_t, fma_t, plus_divide_t, divide_epsilon_t>) ||
             (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t> && std::is_same_v<out_t, bool> && is_any_v<op_t, within_t, within_equal_t, clamp_t>) ||
-            ((is_float_v<lhs_t> || is_complex_v<lhs_t>) && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && are_all_same_v<op_t, fma_t, plus_divide_t>) ||
-            (is_complex_v<lhs_t> && std::is_same_v<lhs_t, out_t> && are_all_same_v<mhs_t, rhs_t, value_type_t<out_t>> && are_all_same_v<op_t, fma_t, plus_divide_t>);
+            ((is_float_v<lhs_t> || is_complex_v<lhs_t>) && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, fma_t, plus_divide_t, divide_epsilon_t>) ||
+            (is_complex_v<lhs_t> && std::is_same_v<lhs_t, out_t> && are_all_same_v<mhs_t, rhs_t, value_type_t<out_t>> && is_any_v<op_t, fma_t, plus_divide_t, divide_epsilon_t>);
 }
 
 namespace noa::cuda::math {

@@ -86,13 +86,13 @@ namespace noa::math {
     /// \note On the GPU, supported operators and types are limited to the following list:
     ///     Integers:
     ///       - (within|within_equal|clamp)_t(A,A,A) -> A or bool
-    ///       - (fma|plus_divide)_t(A,A,A) -> A
+    ///       - (fma|plus_divide|divide_threshold)_t(A,A,A) -> A
     ///     Floating-points:
     ///       - (within|within_equal|clamp)_t(B,B,B) -> B or bool
-    ///       - (fma|plus_divide)_t(B,B,B) -> B
+    ///       - (fma|plus_divide|divide_threshold)_t(B,B,B) -> B
     ///     Complex:
-    ///       - (fma|plus_divide)_t(C,C,C) -> C
-    ///       - (fma|plus_divide)_t(C,B,B) -> C
+    ///       - (fma|plus_divide|divide_threshold)_t(C,C,C) -> C
+    ///       - (fma|plus_divide|divide_threshold)_t(C,B,B) -> C
     ///     Where:
     ///         A = (u)int16_t, (u)int32_t, (u)int64_t
     ///         B = half_t, float, double
