@@ -45,7 +45,7 @@ namespace {
                                                         grid.share(), grid_strides, grid_shape,
                                                         nullptr,
                                                         rotations.share(),
-                                                        0.5f, 1, float2_t{0}, stream);
+                                                        0.5f, float3_t{1, 1, 1}, float2_t{0}, stream);
 
             end.record(stream);
             end.synchronize();

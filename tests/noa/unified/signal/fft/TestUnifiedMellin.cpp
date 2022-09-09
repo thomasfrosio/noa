@@ -1,10 +1,12 @@
 #include <noa/Array.h>
 #include <noa/FFT.h>
 #include <noa/Math.h>
+#include <noa/Memory.h>
 #include <noa/Geometry.h>
 #include <noa/Signal.h>
+#include <noa/IO.h>
+#include <noa/Utils.h>
 
-#include <noa/common/io/MRCFile.h>
 #include <iostream>
 
 #include <catch2/catch.hpp>
@@ -13,7 +15,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]", float) {
+TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
     const size4_t shape{1, 1, 512, 512};
     const float2_t center{shape[2] / 2, shape[3] / 2};
     const float2_t radius{128, 128};

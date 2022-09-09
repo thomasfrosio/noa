@@ -52,7 +52,7 @@ namespace {
             cuda::geometry::fft::insert3D<fft::HC2HC>(slice.share(), slice_strides, slice_shape,
                                                       grid.share(), grid_strides, grid_shape,
                                                       nullptr, rotations.share(),
-                                                      cutoff, 1.f, ews_radius, stream);
+                                                      cutoff, float3_t{1, 1, 1}, ews_radius, stream);
 
             end.record(stream);
             end.synchronize();
@@ -104,7 +104,7 @@ namespace {
                                                        int3_t(array.shape()),
                                                        slice.share(), slice_strides, slice_shape,
                                                        nullptr, rotations.share(),
-                                                       cutoff, 1.f, ews_radius, stream);
+                                                       cutoff, float3_t{1, 1, 1}, ews_radius, stream);
 
             end.record(stream);
             end.synchronize();
@@ -152,7 +152,7 @@ namespace {
             cuda::geometry::fft::extract3D<fft::HC2HC>(grid.share(), grid_strides, grid_shape,
                                                        slice.share(), slice_strides, slice_shape,
                                                        nullptr, rotations.share(),
-                                                       cutoff, 1.f, ews_radius, true, stream);
+                                                       cutoff, float3_t{1, 1, 1}, ews_radius, true, stream);
 
             end.record(stream);
             end.synchronize();

@@ -23,7 +23,7 @@ namespace {
         io::TextFile<std::ifstream> file(filename, io::READ);
         std::string line;
         while(file.getLine(line))
-            tilt_angles.emplace_back(float3_t{0, math::deg2rad(-string::toFloat(line)), 0});
+            tilt_angles.emplace_back(float3_t{0, math::deg2rad(-string::parse<float>(line)), 0});
         if (file.bad())
             throw std::runtime_error("failed reading the tlt file");
 

@@ -73,40 +73,40 @@ TEMPLATE_TEST_CASE("string::toInt()", "[noa][common][string]",
         std::vector<TestType> expected = {1, 6, 7, 9, 56, 11, 0, 10, 10, 123, 123, 0, min, max};
 
         for (size_t i{0}; i < tests.size(); ++i) {
-            result = string::toInt<TestType>(tests[i]);
+            result = string::parse<TestType>(tests[i]);
             REQUIRE(result == expected[i]);
         }
 
-        auto test1 = string::toInt<int8_t>(" -43");
+        auto test1 = string::parse<int8_t>(" -43");
         REQUIRE(test1 == -43);
-        auto test2 = string::toInt<short>("\t  -194");
+        auto test2 = string::parse<short>("\t  -194");
         REQUIRE(test2 == -194);
-        int test3 = string::toInt("-54052");
+        int test3 = string::parse<int>("-54052");
         REQUIRE(test3 == -54052);
-        auto test4 = string::toInt<long>("   -525107745");
+        auto test4 = string::parse<long>("   -525107745");
         REQUIRE(test4 == -525107745);
-        auto test5 = string::toInt<uint64_t>("11111111155488");
+        auto test5 = string::parse<uint64_t>("11111111155488");
         REQUIRE(test5 == 11111111155488);
     }
 
     GIVEN("a string that cannot be converted to an integer") {
         auto to_test = GENERATE("     ", "", ".", " n10", "--10", "e10");
-        REQUIRE_THROWS_AS(string::toInt<TestType>(to_test), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<TestType>(to_test), noa::Exception);
     }
 
     GIVEN("a string that falls out of range") {
         std::string tmp;
         if (std::is_signed_v<TestType>)
-            REQUIRE_THROWS_AS(string::toInt<TestType>(fmt::format("  {}1,,", min)), noa::Exception);
+            REQUIRE_THROWS_AS(string::parse<TestType>(fmt::format("  {}1,,", min)), noa::Exception);
         else
-            REQUIRE_THROWS_AS(string::toInt<TestType>(fmt::format("  -{}1,,", min)), noa::Exception);
+            REQUIRE_THROWS_AS(string::parse<TestType>(fmt::format("  -{}1,,", min)), noa::Exception);
 
-        REQUIRE_THROWS_AS(string::toInt<TestType>(fmt::format("  {}1  ", max)), noa::Exception);
-        REQUIRE_THROWS_AS(string::toInt<uint8_t>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(string::toInt<unsigned short>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(string::toInt<unsigned int>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(string::toInt<unsigned long>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(string::toInt<unsigned long long>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<TestType>(fmt::format("  {}1  ", max)), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<uint8_t>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<unsigned short>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<unsigned int>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<unsigned long>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<unsigned long long>("-1"), noa::Exception);
     }
 }
 
@@ -121,25 +121,25 @@ TEMPLATE_TEST_CASE("string::toFloat()", "[noa][common][string]", float, double) 
             std::vector<float> expected = {1, 6, 7, 9, .5, 11, -1, 123.123f, 0, 10, -10.3f,
                                            10e3, 10e-04f, 0e-12f, 9999910., 4723., -4723.};
             for (size_t i{0}; i < tests.size(); ++i) {
-                result = string::toFloat<TestType>(tests[i]);
+                result = string::parse<TestType>(tests[i]);
                 REQUIRE_THAT(result, Catch::WithinULP(expected[i], 2));
             }
         }
 
         WHEN("should return NaN") {
             auto tests = GENERATE("nan", "Nan", "-NaN" "-nan");
-            REQUIRE(std::isnan(string::toFloat<TestType>(tests)) == true);
+            REQUIRE(std::isnan(string::parse<TestType>(tests)) == true);
         }
 
         WHEN("should return Inf") {
             auto tests = GENERATE("inf", "-inf", "INFINITY" "-INFINITY", "-Inf");
-            REQUIRE(std::isinf(string::toFloat<TestType>(tests)) == true);
+            REQUIRE(std::isinf(string::parse<TestType>(tests)) == true);
         }
     }
 
     GIVEN("a string that can be converted to a floating point") {
         auto tests = GENERATE("     ", "", ".", " n10", "--10", "e10");
-        REQUIRE_THROWS_AS(string::toFloat<TestType>(tests), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<TestType>(tests), noa::Exception);
     }
 
     GIVEN("a string that falls out of the floating point range") {
@@ -150,7 +150,7 @@ TEMPLATE_TEST_CASE("string::toFloat()", "[noa][common][string]", float, double) 
                                        fmt::format("  {}1  ", max),
                                        fmt::format("  {}1  ", lowest)};
         for (auto& test: tests)
-            REQUIRE_THROWS_AS(string::toFloat<TestType>(test), noa::Exception);
+            REQUIRE_THROWS_AS(string::parse<TestType>(test), noa::Exception);
     }
 }
 
@@ -158,18 +158,18 @@ TEST_CASE("string::toBool()", "[noa][common][string]") {
     GIVEN("a string that can be converted to a bool") {
         WHEN("should return true") {
             auto to_test = GENERATE("1", "true", "TRUE", "y", "yes", "YES", "on", "ON");
-            REQUIRE(string::toBool(to_test) == true);
+            REQUIRE(string::parse<bool>(to_test) == true);
         }
 
         WHEN("should return false") {
             auto to_test = GENERATE("0", "false", "FALSE", "n", "no", "NO", "off", "OFF");
-            REQUIRE(string::toBool(to_test) == false);
+            REQUIRE(string::parse<bool>(to_test) == false);
         }
     }
 
     GIVEN("a string that cannot be converted to a bool") {
         auto to_test = GENERATE(" y", "yes please", ".", "", " 0", "wrong");
-        REQUIRE_THROWS_AS(string::toBool(to_test), noa::Exception);
+        REQUIRE_THROWS_AS(string::parse<bool>(to_test), noa::Exception);
     }
 }
 
