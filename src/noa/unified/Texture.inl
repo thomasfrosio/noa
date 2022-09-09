@@ -34,16 +34,17 @@ namespace noa {
 
                 using namespace noa::cuda::memory;
                 const size3_t shape_3d(array.shape().get(1));
-                m_texture = cuda::Texture<T>{};
-                m_texture.array = PtrArray<T>::alloc(shape_3d);
-                m_texture.texture = PtrTexture::alloc(m_texture.array.get(), interp_mode, border_mode);
-                m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
-
-                if (device_target != array.device())
-                    array.eval();
+                cuda::Texture<T> texture{};
+                texture.array = PtrArray<T>::alloc(shape_3d);
+                texture.texture = PtrTexture::alloc(texture.array.get(), interp_mode, border_mode);
 
                 Stream& stream = Stream::current(device_target);
-                cuda::memory::copy(array.share(), array.strides()[2], m_texture.array, shape_3d, stream.cuda());
+                if (device_target != array.device())
+                    array.eval();
+                cuda::memory::copy(array.share(), array.strides()[2], texture.array, shape_3d, stream.cuda());
+
+                m_texture = texture;
+                m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -139,7 +140,7 @@ namespace noa {
 
     template<typename T>
     void Texture<T>::update(const Array<T>& array, bool prefilter) {
-        NOA_CHECK(!empty(), "The texture should already be created");
+        NOA_CHECK(!empty(), "Trying to update an empty texture is not allowed. Create the texture first.");
         NOA_CHECK(all(array.shape() == m_shape),
                   "The input array should have the same shape as the texture {}, but got {}", m_shape, array.shape());
 
@@ -171,7 +172,8 @@ namespace noa {
 
                 Stream& stream = Stream::current(device_target);
                 cuda::memory::copy(array.share(), array.strides()[2],
-                                   m_texture.array, size3_t(m_shape.get(1)), stream.cuda());
+                                   std::get<gpu::Texture<T>>(m_texture).array,
+                                   size3_t(m_shape.get(1)), stream.cuda());
             }
             #else
             NOA_THROW("No GPU backend detected");

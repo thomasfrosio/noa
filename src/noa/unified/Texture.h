@@ -23,7 +23,7 @@ namespace noa::cpu {
     template<typename T>
     struct Texture {
         size4_t strides;
-        shared_t<T> ptr;
+        shared_t<T[]> ptr;
         T cvalue;
     };
 }
