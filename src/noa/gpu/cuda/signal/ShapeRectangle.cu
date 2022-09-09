@@ -65,11 +65,11 @@ namespace {
     template<bool TAPER, bool INVERT, typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void rectangle_(const T* input, uint4_t input_strides, T* output, uint4_t output_strides,
-                    uint2_t start, uint2_t end, uint batches,
+                    uint3_t start, uint2_t end, uint batches,
                     float3_t center, float3_t radius, float taper_size) {
-        const uint3_t gid{blockIdx.z,
-                          blockIdx.y * BLOCK_SIZE.y + threadIdx.y + start[0],
-                          blockIdx.x * BLOCK_SIZE.x + threadIdx.x + start[1]};
+        const uint3_t gid{blockIdx.z + start[0],
+                          blockIdx.y * BLOCK_SIZE.y + threadIdx.y + start[1],
+                          blockIdx.x * BLOCK_SIZE.x + threadIdx.x + start[2]};
         if (gid[1] >= end[0] || gid[2] >= end[1])
             return;
 
@@ -129,7 +129,7 @@ namespace noa::cuda::signal {
         const bool taper = taper_size > 1e-5f;
         stream.enqueue("signal::rectangle", taper ? rectangle_<true, INVERT, T> : rectangle_<false, INVERT, T>, config,
                        input.get(), uint4_t(input_strides), output.get(), uint4_t(output_strides),
-                       uint2_t(start.get(1)), uint2_t(end.get(1)), shape[0],
+                       start, uint2_t(end.get(1)), shape[0],
                        center, radius, taper_size);
         stream.attach(input, output);
     }

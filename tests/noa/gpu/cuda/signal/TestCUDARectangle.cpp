@@ -13,7 +13,7 @@ using namespace noa;
 TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, float, double) {
     test::Randomizer<TestType> randomizer(-5, 5);
 
-    uint ndim = GENERATE(1u, 2u, 3u);
+    const uint ndim = GENERATE(1u, 2u, 3u);
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
@@ -32,10 +32,11 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, f
     // Sphere parameters:
     test::Randomizer<float> randomizer_float(-10.f, 10.f);
     test::Randomizer<float> randomizer_radius(1, 30);
-    float3_t shifts(ndim == 3 ? randomizer_float.get() * 10 : 0,
-                    randomizer_float.get() * 10, randomizer_float.get() * 10);
+    float3_t shifts(ndim == 3 ? randomizer_float.get() : 0,
+                    randomizer_float.get(),
+                    randomizer_float.get());
     float3_t radius(randomizer_radius.get(), randomizer_radius.get(), randomizer_radius.get());
-    float taper = test::Randomizer<float>(0, 20).get();
+    const float taper = test::Randomizer<float>(0, 20).get();
     float3_t center(size3_t{shape.get() + 1} / 2);
     center += shifts;
 
@@ -86,10 +87,12 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle()", "[noa][cuda][filter]", half_t, f
         REQUIRE(test::Matcher(test::MATCH_ABS, h_mask.get(), h_cuda_mask.get(), elements, epsilon));
 
         // Test on-the-fly, in-place.
-        cuda::signal::rectangle<true, TestType>(d_data.share(), d_data.strides(), d_data.share(), d_data.strides(), shape,
+        cuda::signal::rectangle<true, TestType>(d_data.share(), d_data.strides(),
+                                                d_data.share(), d_data.strides(), shape,
                                                 center, radius, taper, gpu_stream);
         cuda::memory::copy(d_data.share(), d_data.strides(), h_cuda_data.share(), stride, shape, gpu_stream);
-        cpu::signal::rectangle<true, TestType>(h_data.share(), stride, h_data.share(), stride, shape,
+        cpu::signal::rectangle<true, TestType>(h_data.share(), stride,
+                                               h_data.share(), stride, shape,
                                                center, radius, taper, cpu_stream);
         gpu_stream.synchronize();
         cpu_stream.synchronize();
