@@ -119,8 +119,7 @@ namespace noa {
         static Device mostFree(Type type);
 
     private:
-        static int parse_(std::string_view str);
-        static void validate_(int id);
+        static void validate_(Type type, int id);
 
     private:
         int m_id{-1}; // cpu

@@ -87,7 +87,7 @@ namespace {
     size_t parseSizeFromLine(const std::string& line) {
         const size_t colon_id = line.find_first_of(':');
         std::string value{line.c_str() + colon_id + 1};
-        return string::toInt<size_t>(value);
+        return string::parse<size_t>(value);
     }
 
     cpu::DeviceMemory getMemoryInfoLinux() {

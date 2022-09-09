@@ -17,12 +17,12 @@ void noa::Session::threads(size_t threads) {
         try {
             str = std::getenv("NOA_THREADS");
             if (str) {
-                max_threads = noa::string::toInt<uint>(str);
+                max_threads = noa::string::parse<uint>(str);
             } else {
                 #ifdef NOA_ENABLE_OPENMP
                 str = std::getenv("OMP_NUM_THREADS");
                 if (str)
-                    max_threads = noa::string::toInt<uint>(str);
+                    max_threads = noa::string::parse<uint>(str);
                 else
                     max_threads = static_cast<uint>(omp_get_max_threads());
                 #else

@@ -6,17 +6,51 @@ namespace noa {
     inline constexpr Device::Device(Device::Type type, int id, bool unsafe)
             : m_id(type == Type::CPU ? -1 : id) {
         if (!unsafe)
-            validate_(m_id);
+            validate_(type, m_id);
     }
 
     inline Device::Device(std::string_view name, bool unsafe) {
-        try {
-            m_id = parse_(name);
-            if (!unsafe)
-                validate_(m_id);
-        } catch (...) {
-            NOA_THROW("Failed to parse the device ID \"{}\" into a valid ID", name);
+        std::string str_ = string::lower(string::trim(name));
+        const size_t length = name.length();
+
+        Type type;
+        int error{0};
+        if (string::startsWith(str_, "cpu")) {
+            if (length == 3) {
+                m_id = -1;
+                type = Type::CPU;
+            } else {
+                NOA_THROW("CPU device name \"{}\" is not supported", str_);
+            }
+
+        } else if (string::startsWith(str_, "gpu")) {
+            if (length == 3) {
+                m_id = 0;
+            } else if (length >= 5 && str_[3] == ':') {
+                m_id = string::parse<int>(std::string(str_.data() + 4), error);
+            } else {
+                NOA_THROW("GPU device name \"{}\" is not supported", str_);
+            }
+            type = Type::GPU;
+
+        } else if (string::startsWith(str_, "cuda")) {
+            if (length == 4) {
+                m_id = 0;
+            } else if (length >= 6 && str_[4] == ':') {
+                m_id = string::parse<int>(std::string(str_.data() + 5), error);
+            } else {
+                NOA_THROW("CUDA device name \"{}\" is not supported", str_);
+            }
+            type = Type::GPU;
+        } else {
+            NOA_THROW("Failed to parse \"{}\" as a valid device name", str_);
         }
+
+        if (error)
+            NOA_THROW("Failed to parse the device ID. {}", string::parseErrorMessage<int>(str_, error));
+
+        if (!unsafe)
+            validate_(type, m_id);
     }
 
     inline std::string Device::summary() const {
@@ -133,41 +167,24 @@ namespace noa {
         }
     }
 
-    inline int Device::parse_(std::string_view str) {
-        str = string::trim(string::lower(str));
-        const size_t length = str.length();
-
-        if (string::startsWith(str, "cpu")) {
-            if (length == 3)
-                return -1;
-
-        } else if (string::startsWith(str, "gpu")) {
-            if (length == 3)
-                return 0;
-            else if (length >= 5 && str[3] == ':')
-                return string::toInt<int>(std::string(str.data() + 4));
-
-        } else if (string::startsWith(str, "cuda")) {
-            if (length == 4)
-                return 0;
-            else if (length >= 6 && str[4] == ':')
-                return string::toInt<int>(std::string(str.data() + 5));
-        }
-        NOA_THROW("Device type not recognized");
-    }
-
-    inline void Device::validate_(int id) {
-        if (id == -1)
+    inline void Device::validate_(Type type, int id) {
+        if (type == Type::CPU) {
+            if (id != -1)
+                NOA_THROW("The device ID for the CPU should be -1, but got {}", id);
             return;
-        if (id < 0)
-            NOA_THROW("Device IDs should be positive, got {}", id);
+        } else if (type == Type::GPU) {
+            if (id < 0)
+                NOA_THROW("GPU device ID should be positive, but got {}", id);
 
-        #ifdef NOA_ENABLE_CUDA
-        const size_t count = cuda::Device::count();
-        if (static_cast<size_t>(id) + 1 > count)
-            NOA_THROW("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
-        #else
-        NOA_THROW("GPU backend is not detected");
-        #endif
+            #ifdef NOA_ENABLE_CUDA
+            const size_t count = cuda::Device::count();
+            if (static_cast<size_t>(id) + 1 > count)
+                NOA_THROW("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
+            #else
+            NOA_THROW("GPU backend is not detected");
+            #endif
+        } else {
+            NOA_THROW("Unrecognized type. Should be {} or {}, but got {}", Type::CPU, Type::GPU, type);
+        }
     }
 }

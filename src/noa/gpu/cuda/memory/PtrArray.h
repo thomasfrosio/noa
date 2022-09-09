@@ -38,7 +38,7 @@ namespace noa::cuda::memory {
         // Allocates a CUDA array.
         // shape:  DHW shape of the array. 2D/3D array, or column/row vector.
         // flag:   Any flag supported by cudaMalloc3DArray().
-        static std::unique_ptr<cudaArray, Deleter> alloc(size3_t shape, uint flag) {
+        static std::unique_ptr<cudaArray, Deleter> alloc(size3_t shape, uint flag = cudaArrayDefault) {
             cudaExtent extent{};
             const size_t ndim = shape.ndim();
             if (ndim == 3) {

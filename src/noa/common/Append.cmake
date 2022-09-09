@@ -42,6 +42,7 @@ set(NOA_COMMON_HEADERS
 
         common/string/Format.h
         common/string/Parse.h
+        common/string/Parse.inl
         common/string/Split.h
 
         common/Traits.h
@@ -82,8 +83,6 @@ set(NOA_COMMON_SOURCES
         common/io/BinaryFile.cpp
         common/io/MRCFile.cpp
         common/io/TIFFFile.cpp
-
-        common/string/Parse.cpp
 
         common/types/Constants.cpp
         )

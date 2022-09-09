@@ -19,15 +19,9 @@
 
 namespace noa::string {
     /// Splits (and parses) \p str.
-    /// \details Split a string using commas as delimiters. Split strings are trimmed and empty strings are kept.
-    ///          If \p T is an integer, floating-point or boolean, the strings are parsed using toInt(), toFloat()
-    ///          or toBool(), respectively. If \p T is a string, the strings are not parsed.
-    ///
-    /// \tparam T        Parsing type.
-    /// \param[in] str   String to parse. Read only.
-    /// \return          Output vector.
-    /// \throw Exception If the parsing failed.
-    ///
+    /// \details Splits a string using \p separator as delimiter. Then, trim each token (empty strings are kept).
+    ///          If \p T is an integer, floating-point or boolean, the strings are parsed.
+    ///          If \p T is a string, the strings are not parsed.
     /// \example
     /// \code
     /// std::vector<std::string> vec1 = split<std::string>(" 1, 2,  ,  4 5 "); // {"1", "2", "", "4 5"}
@@ -61,14 +55,8 @@ namespace noa::string {
     }
 
     /// Splits (and parses) \p str.
-    /// This is identical to the overload above, but given a known number of fields.
-    ///
-    /// \tparam T        Parsing type.
-    /// \tparam N        Number of fields to expect.
-    /// \param[in] str   String to parse. Read only.
-    /// \return          Output array.
-    /// \throw Exception If the conversion failed or if the number of fields is not equal to \p N.
-    ///
+    /// \details This is identical to the overload returning a vector, except that this overload
+    ///          expects a compile time known number of fields.
     /// \example
     /// \code
     /// std::array<float, 5> vec1 = parse<float, 5>(" 1, 2,  3,  4, 5 "); // {"1", "2", "3", "4", "5"}
@@ -109,22 +97,15 @@ namespace noa::string {
 
     /// Splits (and parses) \p str, allowing default values.
     /// \details This is similar to the parsing functions above, except that if one field in \p str is empty or
-    ///          contains only whitespaces, it falls back to the corresponding field in \p str_defaults.
-    ///
-    /// \tparam T               Parsing type.
-    /// \param[in] str          String to parse. Read only.
-    /// \param[in] str_defaults String containing the default field(s). Read only.
-    /// \return                 Output vector. The parsed values are inserted at the end of the vector.
-    /// \throw Exception        If the conversion failed or if the number of fields in \p str and
-    ///                         \p str_defaults do not match.
+    ///          contains only whitespaces, it falls back to the corresponding field in \p fallback.
     template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
-    std::vector<T> split(std::string_view str, std::string_view str_defaults, char separator = ',') {
+    std::vector<T> split(std::string_view str, std::string_view fallback, char separator = ',') {
         auto v1 = split<std::string>(str, separator);
-        auto v2 = split<std::string>(str_defaults, separator);
+        auto v2 = split<std::string>(fallback, separator);
 
         size_t size = v1.size();
         if (size != v2.size())
-            NOA_THROW("The input string \"{}\" and default string \"{}\" do not match", str, str_defaults);
+            NOA_THROW("The input string \"{}\" and fallback string \"{}\" do not match", str, fallback);
 
         std::vector<T> out;
         for (size_t i{0}; i < size; ++i)
@@ -134,23 +115,15 @@ namespace noa::string {
 
     /// Splits (and parses) \p str, allowing default values.
     /// \details This is similar to the parsing functions above, except that if one field in \p str is empty or
-    ///          contains only whitespaces, it falls back to the corresponding field in \p str_defaults.
-    ///
-    /// \tparam T               Parsing type.
-    /// \tparam N               Number of fields to expect.
-    /// \param[in] str          String to parse. Read only.
-    /// \param[in] str_defaults String containing the default field(s). Read only.
-    /// \return                 Output vector. The parsed values are inserted at the end of the vector.
-    /// \throw Exception        If the conversion failed or if the number of fields in \p str and
-    ///                         \p str_defaults do not match.
+    ///          contains only whitespaces, it falls back to the corresponding field in \p fallback.
     template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
-    std::array<T, N> split(std::string_view str, std::string_view str_defaults, char separator = ',') {
+    std::array<T, N> split(std::string_view str, std::string_view fallback, char separator = ',') {
         auto v1 = split<std::string>(str, separator);
-        auto v2 = split<std::string>(str_defaults, separator);
+        auto v2 = split<std::string>(fallback, separator);
 
         if (N != v1.size() || N != v2.size())
-            NOA_THROW("The input string \"{}\" and/or default string \"{}\" do not match the expected "
-                      "number of field(s) ({})", str, str_defaults, N);
+            NOA_THROW("The input string \"{}\" and/or fallback string \"{}\" do not match the expected "
+                      "number of field(s) ({})", str, fallback, N);
 
         std::array<T, N> out;
         for (size_t i{0}; i < N; ++i)

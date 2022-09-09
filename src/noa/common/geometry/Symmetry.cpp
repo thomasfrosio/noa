@@ -218,7 +218,7 @@ namespace noa::geometry {
 
             if (symbol.size() > 1) {
                 std::string number(symbol, 1, symbol.length()); // offset by 1
-                out.order = string::toInt<ushort>(number);
+                out.order = string::parse<ushort>(number);
             } else {
                 out.order = 0;
             }
