@@ -17,7 +17,8 @@ namespace noa {
 
         if (device_target.cpu()) {
             NOA_CHECK(array.device() == device_target,
-                      "CPU textures can only be constructed from CPU arrays, but got input device {}", array.device());
+                      "CPU textures can only be constructed/updated from CPU arrays, but got array device {}",
+                      array.device());
             m_texture = cpu::Texture<T>{array.strides(), array.share(), cvalue};
             m_options = array.options();
 
@@ -33,7 +34,9 @@ namespace noa {
                           "and strides {}", array.shape(), array.strides());
 
                 using namespace noa::cuda::memory;
+                const DeviceGuard guard(device_target);
                 const size3_t shape_3d(array.shape().get(1));
+
                 cuda::Texture<T> texture{};
                 texture.array = PtrArray<T>::alloc(shape_3d);
                 texture.texture = PtrTexture::alloc(texture.array.get(), interp_mode, border_mode);
@@ -43,6 +46,36 @@ namespace noa {
                     array.eval();
                 cuda::memory::copy(array.share(), array.strides()[2], texture.array, shape_3d, stream.cuda());
 
+                m_texture = texture;
+                m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    template<typename T>
+    Texture<T>::Texture(size4_t shape, Device device_target,
+                        InterpMode interp_mode, BorderMode border_mode,
+                        T cvalue)
+            : m_shape(shape), m_interp(interp_mode), m_border(border_mode) {
+
+        if (device_target.cpu()) {
+            m_texture = cpu::Texture<T>{size4_t{}, nullptr, cvalue};
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
+                NOA_THROW("Double-precision textures are not supported by the CUDA backend");
+            } else {
+                NOA_CHECK(shape.ndim() <= 3, "CUDA textures cannot be batched");
+
+                using namespace noa::cuda::memory;
+                const DeviceGuard guard(device_target);
+
+                cuda::Texture<T> texture{};
+                texture.array = PtrArray<T>::alloc(size3_t(shape.get(1)));
+                texture.texture = PtrTexture::alloc(texture.array.get(), interp_mode, border_mode);
                 m_texture = texture;
                 m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
             }
@@ -91,32 +124,67 @@ namespace noa {
     template<typename T>
     cpu::Texture<T>& Texture<T>::cpu() {
         if (!device().cpu())
-            NOA_THROW("");
+            NOA_THROW("Trying to retrieve at CPU texture from a GPU texture");
 
-        auto* ptr = std::get_if<cpu::Texture<T>>(m_texture);
+        auto* ptr = std::get_if<cpu::Texture<T>>(&m_texture);
         if (!ptr)
-            NOA_THROW("empty");
+            NOA_THROW("Texture is not initialized");
+        return *ptr;
+    }
+
+    template<typename T>
+    const cpu::Texture<T>& Texture<T>::cpu() const {
+        if (!device().cpu())
+            NOA_THROW("Trying to retrieve at CPU texture from a GPU texture");
+
+        auto* ptr = std::get_if<cpu::Texture<T>>(&m_texture);
+        if (!ptr)
+            NOA_THROW("Texture is not initialized");
         return *ptr;
     }
 
     template<typename T>
     gpu::Texture<T>& Texture<T>::gpu() {
-    #ifdef NOA_ENABLE_CUDA
+        #ifdef NOA_ENABLE_CUDA
         return cuda();
-    #else
+        #else
         NOA_THROW("No GPU backend detected");
-    #endif
+        #endif
+    }
+
+    template<typename T>
+    const gpu::Texture<T>& Texture<T>::gpu() const {
+        #ifdef NOA_ENABLE_CUDA
+        return cuda();
+        #else
+        NOA_THROW("No GPU backend detected");
+        #endif
     }
 
     template<typename T>
     cuda::Texture<T>& Texture<T>::cuda() {
         if (!device().gpu())
-            NOA_THROW("");
+            NOA_THROW("Trying to retrieve at CUDA texture from a CPU texture");
 
         #ifdef NOA_ENABLE_CUDA
-        auto* ptr = std::get_if<cuda::Texture<T>>(m_texture);
+        auto* ptr = std::get_if<cuda::Texture<T>>(&m_texture);
         if (!ptr)
-            NOA_THROW("empty");
+            NOA_THROW("Texture is not initialized");
+        return *ptr;
+        #else
+        NOA_THROW("No GPU backend detected");
+        #endif
+    }
+
+    template<typename T>
+    const cuda::Texture<T>& Texture<T>::cuda() const {
+        if (!device().gpu())
+            NOA_THROW("Trying to retrieve at CUDA texture from a CPU texture");
+
+        #ifdef NOA_ENABLE_CUDA
+        auto* ptr = std::get_if<cuda::Texture<T>>(&m_texture);
+        if (!ptr)
+            NOA_THROW("Texture is not initialized");
         return *ptr;
         #else
         NOA_THROW("No GPU backend detected");
@@ -153,7 +221,8 @@ namespace noa {
         const Device device_target = device();
         if (device_target.cpu()) {
             NOA_CHECK(array.device() == device_target,
-                      "CPU textures can only be constructed from CPU arrays, but got input device {}", array.device());
+                      "CPU textures can only be constructed/updated from CPU arrays, but got array device {}",
+                      array.device());
             m_texture = cpu::Texture<T>{array.strides(), array.share()};
             m_options = array.options();
 

@@ -80,6 +80,28 @@ namespace noa {
         Texture(const Array<T>& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
                 T cvalue = T{0}, bool prefilter = true);
 
+        /// Creates a texture.
+        /// \param shape            BDHW shape of the new texture.
+        /// \param device_target    Device where the texture should be constructed.
+        /// \param interp_mode      Interpolation mode.
+        /// \param border_mode      Border mode.
+        /// \param cvalue           Constant value to use for out-of-bounds coordinates.
+        ///                         Only used if \p border_mode is BORDER_VALUE.
+        ///
+        /// \note If \p device_target is a GPU:
+        ///         - Double precision is not supported.
+        ///         - \p shape cannot be batched.
+        ///         - \p border_mode should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+        ///         - INTERP_{NEAREST|LINEAR_FAST} are the only modes supporting BORDER_{MIRROR|PERIODIC}.
+        ///         - A CUDA array is allocated of \p T type and \p shape, a texture is attached to the new array's
+        ///           memory. The new CUDA array is left uninitialized (see update()).
+        ///       If \p device_target is a CPU:
+        ///         - No computation is performed. The texture is non-empty and valid, but the underlying managed
+        ///           data (i.e. the cpu::Texture) points to a null pointer. Use update() to set the texture to
+        ///           a valid memory region.
+        Texture(size4_t shape, Device device_target, InterpMode interp_mode, BorderMode border_mode,
+                T cvalue = T{0});
+
     public: // Getters
         /// Returns the options used to create the array.
         [[nodiscard]] constexpr ArrayOption options() const noexcept;
@@ -106,20 +128,22 @@ namespace noa {
         /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] cpu::Texture<T>& cpu();
+        [[nodiscard]] const cpu::Texture<T>& cpu() const;
 
         /// Gets the underlying texture, assuming it is a GPU texture (i.e. device is GPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] gpu::Texture<T>& gpu();
+        [[nodiscard]] const gpu::Texture<T>& gpu() const;
 
         /// Gets the underlying texture, assuming it is a CUDA texture (i.e. device is a CUDA-capable GPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] cuda::Texture<T>& cuda();
+        [[nodiscard]] const cuda::Texture<T>& cuda() const;
 
         [[nodiscard]] InterpMode interp() const noexcept;
         [[nodiscard]] BorderMode border() const noexcept;
 
     public:
-
         /// Releases the array. *this is left empty.
         Texture release() noexcept;
 
@@ -133,8 +157,11 @@ namespace noa {
         ///       Also, with GPU textures:
         ///         - \p array should be in the rightmost order and its depth and width dimensions should be contiguous.
         ///         - \p array can be on any device, including the CPU.
+        ///         - A deep copy is performed from \p array to the managed texture data.
         ///       With CPU textures:
         ///         - \p array should be on the CPU.
+        ///         - No computation is performed (other the the optional pre-filtering)
+        ///           and the texture simply points to \p array.
         void update(const Array<T>& array, bool prefilter = true);
 
     private:
