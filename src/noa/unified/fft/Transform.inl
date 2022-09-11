@@ -10,32 +10,6 @@
 #endif
 
 namespace noa::fft {
-    size_t nextFastSize(size_t size) {
-        #ifdef NOA_ENABLE_CUDA
-        return noa::cuda::fft::fastSize(size);
-        #else
-        return noa::cpu::fft::fastSize(size);
-        #endif
-    }
-
-    template<typename T>
-    Int4<T> nextFastShape(Int4<T> shape) {
-        #ifdef NOA_ENABLE_CUDA
-        return noa::cuda::fft::fastShape(shape);
-        #else
-        return noa::cpu::fft::fastShape(shape);
-        #endif
-    }
-
-    template<typename T, typename>
-    Array<T> alias(const Array<Complex<T>>& input, size4_t shape) {
-        NOA_CHECK(all(input.shape() == shape.fft()),
-                  "Given the {} logical shape, the non-redundant input should have a shape of {}, but got {}",
-                  shape, input.shape(), shape.fft());
-        Array<T> tmp = input.template as<T>();
-        return Array<T>(tmp.share(), shape, tmp.strides(), tmp.options());
-    }
-
     template<typename T, typename>
     void r2c(const Array<T>& input, const Array<Complex<T>>& output, Norm norm) {
         NOA_CHECK(all(output.shape() == input.shape().fft()),

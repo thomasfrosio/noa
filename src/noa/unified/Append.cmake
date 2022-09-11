@@ -20,6 +20,8 @@ set(NOA_UNIFIED_HEADERS
         unified/io/ImageFile.inl
 
         # noa::fft
+        unified/fft/Factory.h
+        unified/fft/Factory.inl
         unified/fft/Remap.h
         unified/fft/Remap.inl
         unified/fft/Resize.h

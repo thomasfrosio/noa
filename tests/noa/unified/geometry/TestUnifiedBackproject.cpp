@@ -3,6 +3,7 @@
 #include <noa/unified/math/Reduce.h>
 #include <noa/unified/memory/Factory.h>
 #include <noa/unified/memory/Resize.h>
+#include <noa/unified/fft/Factory.h>
 #include <noa/unified/fft/Transform.h>
 #include <noa/unified/fft/Remap.h>
 #include <noa/unified/signal/fft/Shift.h>
