@@ -105,7 +105,7 @@ namespace noa::geometry {
         } else {
             constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
             using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
-            matrix_t* matrices_;
+            const matrix_t* matrices_;
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(indexing::isVector(matrices.shape()) &&
@@ -152,7 +152,7 @@ namespace noa::geometry {
                      InterpMode interp_mode, BorderMode border_mode, T value, bool prefilter) {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
         using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
-        matrix_t* matrices_;
+        const matrix_t* matrices_;
 
         if constexpr (!traits::is_floatXX_v<M>) {
             NOA_CHECK(indexing::isVector(matrices.shape()) &&
@@ -240,7 +240,7 @@ namespace noa::geometry {
         } else {
             constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
             using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
-            matrix_t* matrices_;
+            const matrix_t* matrices_;
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(indexing::isVector(matrices.shape()) &&
