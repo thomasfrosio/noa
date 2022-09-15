@@ -92,6 +92,7 @@ set(NOA_CPU_SOURCES
         cpu/signal/Convolve.cpp
         cpu/signal/Median.cpp
         cpu/signal/ShapeCylinder.cpp
+        cpu/signal/ShapeEllipse.cpp
         cpu/signal/ShapeRectangle.cpp
         cpu/signal/ShapeSphere.cpp
 

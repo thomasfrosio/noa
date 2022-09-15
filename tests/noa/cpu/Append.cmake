@@ -37,6 +37,7 @@ set(TEST_CPU_SOURCES
         noa/cpu/signal/fft/TestCPUStandardize.cpp
         noa/cpu/signal/TestCPUConvolve.cpp
         noa/cpu/signal/TestCPUCylinder.cpp
+        noa/cpu/signal/TestCPUEllipse.cpp
         noa/cpu/signal/TestCPUMedian.cpp
         noa/cpu/signal/TestCPURectangle.cpp
         noa/cpu/signal/TestCPUSphere.cpp
