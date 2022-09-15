@@ -51,14 +51,14 @@ namespace {
         float2_t cartesian_coordinate{gid[1], gid[2]};
         cartesian_coordinate -= center;
 
-        const float angle_rad = geometry::cartesian2angle(cartesian_coordinate);
-        const float magnitude = geometry::cartesian2magnitude(cartesian_coordinate);
+        const float phi = geometry::cartesian2phi(cartesian_coordinate);
+        const float rho = geometry::cartesian2rho(cartesian_coordinate);
 
-        const float phi = (angle_rad - start_angle) / step_angle;
-        const float rho = log ?
-                          math::log(magnitude + 1 - start_magnitude) / step_magnitude :
-                          (magnitude - start_magnitude) / step_magnitude;
-        float2_t polar_coordinate{phi, rho};
+        const float py = (phi - start_angle) / step_angle;
+        const float px = log ?
+                          math::log(rho + 1 - start_magnitude) / step_magnitude :
+                          (rho - start_magnitude) / step_magnitude;
+        float2_t polar_coordinate{py, px};
         polar_coordinate += 0.5f;
 
         cartesian[indexing::at(gid, cartesian_strides)] = cuda::geometry::tex2D<T, MODE>(polar, polar_coordinate);

@@ -30,20 +30,20 @@ namespace {
                step_angle, step_radius, start_radius, start_angle)
 
         for (size_t batch = 0; batch < polar_shape[0]; ++batch) {
-            for (size_t phi = 0; phi < polar_shape[1]; ++phi) {
-                for (size_t rho = 0; rho < polar_shape[2]; ++rho) {
+            for (size_t y = 0; y < polar_shape[1]; ++y) {
+                for (size_t x = 0; x < polar_shape[2]; ++x) {
 
-                    const float2_t polar_coordinate{phi, rho};
-                    const float angle_rad = polar_coordinate[0] * step_angle + start_angle;
-                    const float magnitude = log ?
-                                            math::exp(polar_coordinate[1] * step_radius) - 1 + start_radius :
-                                            (polar_coordinate[1] * step_radius) + start_radius;
+                    const float2_t polar_coordinate{y, x};
+                    const float phi = polar_coordinate[0] * step_angle + start_angle;
+                    const float rho = log ?
+                                      math::exp(polar_coordinate[1] * step_radius) - 1 + start_radius :
+                                      (polar_coordinate[1] * step_radius) + start_radius;
 
-                    float2_t cartesian_coordinates{math::sin(angle_rad), math::cos(angle_rad)};
-                    cartesian_coordinates *= magnitude;
+                    float2_t cartesian_coordinates{math::sin(phi), math::cos(phi)};
+                    cartesian_coordinates *= rho;
                     cartesian_coordinates += cartesian_center;
 
-                    polar[indexing::at(batch, phi, rho, polar_strides)] =
+                    polar[indexing::at(batch, y, x, polar_strides)] =
                             interp.template get<INTERP, BORDER_ZERO>(cartesian_coordinates, offset * batch);
                 }
             }
@@ -79,14 +79,14 @@ namespace {
                     float2_t cartesian_coordinate{y, x};
                     cartesian_coordinate -= cartesian_center;
 
-                    const float angle_rad = geometry::cartesian2angle(cartesian_coordinate);
-                    const float magnitude = geometry::cartesian2magnitude(cartesian_coordinate);
+                    const float phi = geometry::cartesian2phi(cartesian_coordinate);
+                    const float rho = geometry::cartesian2rho(cartesian_coordinate);
 
-                    const float phi = (angle_rad - start_angle) / step_angle;
-                    const float rho = log ?
-                                      math::log(magnitude + 1 - start_radius) / step_radius :
-                                      (magnitude - start_radius) / step_radius;
-                    const float2_t polar_coordinate{phi, rho};
+                    const float py = (phi - start_angle) / step_angle;
+                    const float px = log ?
+                                      math::log(rho + 1 - start_radius) / step_radius :
+                                      (rho - start_radius) / step_radius;
+                    const float2_t polar_coordinate{py, px};
 
                     cartesian[indexing::at(batch, y, x, cartesian_strides)] =
                             interp.template get<INTERP, BORDER_ZERO>(polar_coordinate, offset * batch);
