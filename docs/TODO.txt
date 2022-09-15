@@ -31,7 +31,6 @@ cryoEM:
 
 Development:
     -   Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
-
     -   Functions returning something by value, that currently requires to synchronize the stream: use std::future?
     -   Move the CPU reduction kernels in a details header and add a transform operator. This is especially useful
         when we want to apply a transform operator (e.g. abs_t) for the high precision sum reductions.
@@ -70,7 +69,9 @@ Development:
         removes the need for a temporary array.
 
     -   Add `ewise(...)` with indexes: iwise(...). The lambda parameters could be: (T*, i, j, k, l).
-        This is only for the CPU backend now since we cannot really pre-instantiate these operators...
+        This could actually trigger be a huge refactoring to remove code duplication and centralize most CPU and
+        CUDA to a few index-wise functions. Then we just need to provide functors/lambdas, which can be shared by
+        all the backends... I really think this is where the library should go.
 
     -   JIT, lazy evaluation and kernel fusion.
         This is cool, is efficient and uses fewer temporaries, BUT, I much prefer the simplicity of `std::transform` or
