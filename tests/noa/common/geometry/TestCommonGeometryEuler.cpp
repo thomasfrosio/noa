@@ -13,7 +13,7 @@ TEST_CASE("geometry::euler2matrix()", "[noa][geometry]") {
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto path_expected = path_base / param["file"].as<path_t>();
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
-    const auto angles = math::toRad(param["angles"].as<float3_t>());
+    const auto angles = math::deg2rad(param["angles"].as<float3_t>());
 
     // Get expected:
     io::MRCFile file(path_expected, io::READ);
@@ -44,7 +44,7 @@ TEST_CASE("geometry::matrix2euler()", "[noa][geometry]") {
     const path_t path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
-    const auto eulers = math::toRad(float3_t{10, 20, 30});
+    const auto eulers = math::deg2rad(float3_t{10, 20, 30});
     for (auto& axes: valid_axes) {
         for (int intrinsic = 0; intrinsic < 2; ++intrinsic) {
             for (int right_handed = 0; right_handed < 2; ++right_handed) {

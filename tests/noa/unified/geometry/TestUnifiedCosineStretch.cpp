@@ -47,14 +47,14 @@ TEMPLATE_TEST_CASE("unified::geometry, cosine stretch", "[.]", float) {
         geometry::bspline::prefilter(src, src);
 
         Array<float> dst{shape, options};
-        const float tilt_axis_angle = math::toRad(-5.f);
+        const float tilt_axis_angle = math::deg2rad(-5.f);
         const size_t tilts = 41;
 
         file.open(directory / string::format("tilt1_slice21_cos_stretch_{}.mrc", device), io::WRITE);
         file.shape(size4_t{tilts, 1, shape[2], shape[3]});
 
         for (size_t i = 0; i < tilts; ++i) {
-            const float tilt_angle = math::toRad(TILT_ANGLES[i]);
+            const float tilt_angle = math::deg2rad(TILT_ANGLES[i]);
             const float33_t matrix{
                     geometry::translate(center) *
                     float33_t{geometry::rotate(tilt_axis_angle)} *

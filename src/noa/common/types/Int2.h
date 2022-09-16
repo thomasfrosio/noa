@@ -341,110 +341,14 @@ namespace noa {
         T m_data[2]{};
     };
 
-    namespace math {
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T sum(Int2<T> v) noexcept {
-            return v[0] + v[1];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T prod(Int2<T> v) noexcept {
-            return v[0] * v[1];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> abs(Int2<T> v) noexcept {
-            return {abs(v[0]), abs(v[1])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T min(Int2<T> v) noexcept {
-            return min(v[0], v[1]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> min(Int2<T> lhs, Int2<T> rhs) noexcept {
-            return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> min(Int2<T> lhs, T rhs) noexcept {
-            return {min(lhs[0], rhs), min(lhs[1], rhs)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> min(T lhs, Int2<T> rhs) noexcept {
-            return {min(lhs, rhs[0]), min(lhs, rhs[1])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T max(Int2<T> v) noexcept {
-            return max(v[0], v[1]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> max(Int2<T> lhs, Int2<T> rhs) noexcept {
-            return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> max(Int2<T> lhs, T rhs) noexcept {
-            return {max(lhs[0], rhs), max(lhs[1], rhs)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> max(T lhs, Int2<T> rhs) noexcept {
-            return {max(lhs, rhs[0]), max(lhs, rhs[1])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, Int2<T> low, Int2<T> high) noexcept {
-            return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, T low, T high) noexcept {
-            return {clamp(lhs[0], low, high), clamp(lhs[1], low, high)};
-        }
-
-        template<typename T, typename U>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> sort(Int2<T> v, U&& comp) noexcept {
-            smallStableSort<2>(v.get(), std::forward<U>(comp));
-            return v;
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int2<T> sort(Int2<T> v) noexcept {
-            return sort(v, [](const T& a, const T& b) { return a < b; });
-        }
-    }
-
     using int2_t = Int2<int>;
     using uint2_t = Int2<uint>;
     using long2_t = Int2<int64_t>;
     using ulong2_t = Int2<uint64_t>;
     using size2_t = Int2<size_t>;
 
-    namespace traits {
-        template<typename>
-        struct p_is_int2 : std::false_type {};
-        template<typename T>
-        struct p_is_int2<Int2<T>> : std::true_type {};
-        template<typename T> using is_int2 = std::bool_constant<p_is_int2<remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_int2_v = is_int2<T>::value;
-
-        template<typename>
-        struct p_is_uint2 : std::false_type {};
-        template<typename T>
-        struct p_is_uint2<Int2<T>> : std::bool_constant<is_uint_v<T>> {};
-        template<typename T> using is_uint2 = std::bool_constant<p_is_uint2<remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_uint2_v = is_uint2<T>::value;
-
-        template<typename T>
-        struct proclaim_is_intX<Int2<T>> : std::true_type {};
-        template<typename T>
-        struct proclaim_is_uintX<Int2<T>> : std::bool_constant<is_uint_v<T>> {};
-    }
+    template<typename T> struct traits::proclaim_is_int2<Int2<T>> : std::true_type {};
+    template<typename T> struct traits::proclaim_is_uint2<Int2<T>> : std::bool_constant<is_uint_v<T>> {};
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr std::array<T, 2> toArray(Int2<T> v) noexcept {
@@ -483,4 +387,83 @@ namespace fmt {
             return out;
         }
     };
+}
+
+
+namespace noa::math {
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T sum(Int2<T> v) noexcept {
+        return v[0] + v[1];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T prod(Int2<T> v) noexcept {
+        return v[0] * v[1];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> abs(Int2<T> v) noexcept {
+        return {abs(v[0]), abs(v[1])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T min(Int2<T> v) noexcept {
+        return min(v[0], v[1]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> min(Int2<T> lhs, Int2<T> rhs) noexcept {
+        return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> min(Int2<T> lhs, T rhs) noexcept {
+        return {min(lhs[0], rhs), min(lhs[1], rhs)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> min(T lhs, Int2<T> rhs) noexcept {
+        return {min(lhs, rhs[0]), min(lhs, rhs[1])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T max(Int2<T> v) noexcept {
+        return max(v[0], v[1]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> max(Int2<T> lhs, Int2<T> rhs) noexcept {
+        return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> max(Int2<T> lhs, T rhs) noexcept {
+        return {max(lhs[0], rhs), max(lhs[1], rhs)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> max(T lhs, Int2<T> rhs) noexcept {
+        return {max(lhs, rhs[0]), max(lhs, rhs[1])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, Int2<T> low, Int2<T> high) noexcept {
+        return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> clamp(Int2<T> lhs, T low, T high) noexcept {
+        return {clamp(lhs[0], low, high), clamp(lhs[1], low, high)};
+    }
+
+    template<typename T, typename U>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> sort(Int2<T> v, U&& comp) noexcept {
+        smallStableSort<2>(v.get(), std::forward<U>(comp));
+        return v;
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int2<T> sort(Int2<T> v) noexcept {
+        return sort(v, [](const T& a, const T& b) { return a < b; });
+    }
 }

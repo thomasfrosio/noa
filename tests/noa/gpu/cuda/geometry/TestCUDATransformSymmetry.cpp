@@ -26,7 +26,7 @@ TEST_CASE("cuda::geometry::transform2D() - symmetry", "[assets][noa][cuda][geome
         const auto current = param["tests"][nb];
         const auto filename_expected = path_base / current["expected"].as<path_t>();
         const auto shift = current["shift"].as<float2_t>();
-        const float22_t matrix = geometry::rotate(-math::toRad(current["angle"].as<float>())); // inverse
+        const float22_t matrix = geometry::rotate(-math::deg2rad(current["angle"].as<float>())); // inverse
         const geometry::Symmetry symmetry(current["symmetry"].as<std::string>());
         const auto center = current["center"].as<float2_t>();
         const auto interp = current["interp"].as<InterpMode>();
@@ -77,7 +77,7 @@ TEST_CASE("cuda::geometry::transform3D() - symmetry", "[assets][noa][cuda][geome
         const auto filename_expected = path_base / current["expected"].as<path_t>();
         const auto filename_input = path_base / current["input"].as<path_t>();
         const auto shift = current["shift"].as<float3_t>();
-        const auto euler = math::toRad(current["angle"].as<float3_t>());
+        const auto euler = math::deg2rad(current["angle"].as<float3_t>());
         float33_t matrix = geometry::euler2matrix(euler, "ZYZ").transpose();
         const geometry::Symmetry symmetry(current["symmetry"].as<std::string>());
         const auto center = current["center"].as<float3_t>();

@@ -487,12 +487,12 @@ namespace noa {
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t toDeg(half_t x) {
-            return Half(toDeg(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+        [[nodiscard]] NOA_FHD half_t rad2deg(half_t x) {
+            return Half(rad2deg(static_cast<HALF_ARITHMETIC_TYPE>(x)));
         }
 
-        [[nodiscard]] NOA_FHD half_t toRad(half_t x) {
-            return Half(toRad(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+        [[nodiscard]] NOA_FHD half_t deg2rad(half_t x) {
+            return Half(deg2rad(static_cast<HALF_ARITHMETIC_TYPE>(x)));
         }
 
         [[nodiscard]] NOA_FHD half_t pow(half_t x, half_t exp) {

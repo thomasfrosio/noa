@@ -9,6 +9,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/types/Float3.h"
 
 // A few necessary forward declarations:
@@ -352,74 +353,8 @@ namespace noa {
         Float3<T> m_row[ROWS];
     };
 
-    namespace math {
-        /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat33<T> elementMultiply(const Mat33<T>& m1, const Mat33<T>& m2) noexcept {
-            Mat33<T> out;
-            for (size_t i = 0; i < Mat33<T>::ROWS; ++i)
-                out[i] = m1[i] * m2[i];
-            return out;
-        }
-
-        /// Given the column vector \a column and row vector \a row,
-        /// computes the linear algebraic matrix multiply `c * r`.
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat33<T> outerProduct(Float3<T> column, Float3<T> row) noexcept {
-            return Mat33<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2],
-                            column[1] * row[0], column[1] * row[1], column[1] * row[2],
-                            column[2] * row[0], column[2] * row[1], column[2] * row[2]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat33<T> transpose(Mat33<T> m) noexcept {
-            return Mat33<T>(m[0][0], m[1][0], m[2][0],
-                            m[0][1], m[1][1], m[2][1],
-                            m[0][2], m[1][2], m[2][2]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr T determinant(Mat33<T> m) noexcept {
-            return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-                   m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-                   m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_HD constexpr Mat33<T> inverse(Mat33<T> m) noexcept {
-            T det = determinant(m);
-            NOA_ASSERT(!isEqual(det, static_cast<T>(0))); // non singular
-            T one_over_determinant = 1 / det;
-            return Mat33<T>(+(m[1][1] * m[2][2] - m[1][2] * m[2][1]) * one_over_determinant,
-                            -(m[0][1] * m[2][2] - m[0][2] * m[2][1]) * one_over_determinant,
-                            +(m[0][1] * m[1][2] - m[0][2] * m[1][1]) * one_over_determinant,
-                            -(m[1][0] * m[2][2] - m[1][2] * m[2][0]) * one_over_determinant,
-                            +(m[0][0] * m[2][2] - m[0][2] * m[2][0]) * one_over_determinant,
-                            -(m[0][0] * m[1][2] - m[0][2] * m[1][0]) * one_over_determinant,
-                            +(m[1][0] * m[2][1] - m[1][1] * m[2][0]) * one_over_determinant,
-                            -(m[0][0] * m[2][1] - m[0][1] * m[2][0]) * one_over_determinant,
-                            +(m[0][0] * m[1][1] - m[0][1] * m[1][0]) * one_over_determinant);
-        }
-
-        template<uint ULP = 2, typename T>
-        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat33<T> m1, Mat33<T> m2, T e = 1e-6f) noexcept {
-            return all(isEqual<ULP>(m1[0], m2[0], e)) &&
-                   all(isEqual<ULP>(m1[1], m2[1], e)) &&
-                   all(isEqual<ULP>(m1[2], m2[2], e));
-        }
-    }
-
-    namespace traits {
-        template<typename>
-        struct p_is_float33 : std::false_type {};
-        template<typename T>
-        struct p_is_float33<Mat33<T>> : std::true_type {};
-        template<typename T> using is_float33 = std::bool_constant<p_is_float33<traits::remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_float33_v = is_float33<T>::value;
-
-        template<typename T>
-        struct proclaim_is_floatXX<Mat33<T>> : std::true_type {};
-    }
+    template<typename T> struct traits::proclaim_is_float33<Mat33<T>> : std::true_type {};
+    template<typename T> struct traits::proclaim_is_mat33<Mat33<T>> : std::true_type {};
 
     using float33_t = Mat33<float>;
     using double33_t = Mat33<double>;
@@ -435,4 +370,61 @@ namespace noa {
     NOA_IH std::string string::human<float33_t>() { return "float33"; }
     template<>
     NOA_IH std::string string::human<double33_t>() { return "double33"; }
+}
+
+namespace noa::math {
+    /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat33<T> elementMultiply(const Mat33<T>& m1, const Mat33<T>& m2) noexcept {
+        Mat33<T> out;
+        for (size_t i = 0; i < Mat33<T>::ROWS; ++i)
+            out[i] = m1[i] * m2[i];
+        return out;
+    }
+
+    /// Given the column vector \a column and row vector \a row,
+    /// computes the linear algebraic matrix multiply `c * r`.
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat33<T> outerProduct(Float3<T> column, Float3<T> row) noexcept {
+        return Mat33<T>(column[0] * row[0], column[0] * row[1], column[0] * row[2],
+                        column[1] * row[0], column[1] * row[1], column[1] * row[2],
+                        column[2] * row[0], column[2] * row[1], column[2] * row[2]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat33<T> transpose(Mat33<T> m) noexcept {
+        return Mat33<T>(m[0][0], m[1][0], m[2][0],
+                        m[0][1], m[1][1], m[2][1],
+                        m[0][2], m[1][2], m[2][2]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr T determinant(Mat33<T> m) noexcept {
+        return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+               m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+               m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_HD constexpr Mat33<T> inverse(Mat33<T> m) noexcept {
+        T det = determinant(m);
+        NOA_ASSERT(!isEqual(det, static_cast<T>(0))); // non singular
+        T one_over_determinant = 1 / det;
+        return Mat33<T>(+(m[1][1] * m[2][2] - m[1][2] * m[2][1]) * one_over_determinant,
+                        -(m[0][1] * m[2][2] - m[0][2] * m[2][1]) * one_over_determinant,
+                        +(m[0][1] * m[1][2] - m[0][2] * m[1][1]) * one_over_determinant,
+                        -(m[1][0] * m[2][2] - m[1][2] * m[2][0]) * one_over_determinant,
+                        +(m[0][0] * m[2][2] - m[0][2] * m[2][0]) * one_over_determinant,
+                        -(m[0][0] * m[1][2] - m[0][2] * m[1][0]) * one_over_determinant,
+                        +(m[1][0] * m[2][1] - m[1][1] * m[2][0]) * one_over_determinant,
+                        -(m[0][0] * m[2][1] - m[0][1] * m[2][0]) * one_over_determinant,
+                        +(m[0][0] * m[1][1] - m[0][1] * m[1][0]) * one_over_determinant);
+    }
+
+    template<uint ULP = 2, typename T>
+    [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat33<T> m1, Mat33<T> m2, T e = 1e-6f) noexcept {
+        return all(isEqual<ULP>(m1[0], m2[0], e)) &&
+               all(isEqual<ULP>(m1[1], m2[1], e)) &&
+               all(isEqual<ULP>(m1[2], m2[2], e));
+    }
 }

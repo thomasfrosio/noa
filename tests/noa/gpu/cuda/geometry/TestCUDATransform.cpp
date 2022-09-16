@@ -23,7 +23,7 @@ TEST_CASE("cuda::geometry::transform2D()", "[assets][noa][cuda][geometry]") {
 
     const auto center = param["center"].as<float2_t>();
     const auto scale = param["scale"].as<float2_t>();
-    const auto rotate = math::toRad(param["rotate"].as<float>());
+    const auto rotate = math::deg2rad(param["rotate"].as<float>());
     const auto shift = param["shift"].as<float2_t>();
     float33_t matrix(geometry::translate(center) *
                      geometry::translate(shift) *
@@ -89,7 +89,7 @@ TEST_CASE("cuda::geometry::transform3D()", "[assets][noa][cuda][geometry]") {
 
     const auto center = param["center"].as<float3_t>();
     const auto scale = param["scale"].as<float3_t>();
-    const auto euler = math::toRad(param["euler"].as<float3_t>());
+    const auto euler = math::deg2rad(param["euler"].as<float3_t>());
     const auto shift = param["shift"].as<float3_t>();
     float44_t matrix(geometry::translate(center) *
                      geometry::translate(shift) *

@@ -19,7 +19,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
     const size4_t shape{1, 1, 512, 512};
     const float2_t center{shape[2] / 2, shape[3] / 2};
     const float2_t radius{128, 128};
-    const float rotation = math::toRad(45.f);
+    const float rotation = math::deg2rad(45.f);
 
     constexpr float PI = math::Constants<float>::PI;
     const float2_t frequency_range{0, 0.5};

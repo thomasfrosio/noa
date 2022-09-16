@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("unified::geometry, Rotate subregion", "[.]", float) {
         const size4_t subregion_shape{1,1, shape[2], shape[3]};
         const float2_t subregion_shape2d{subregion_shape.get() + 2};
         const float2_t center = float2_t{shape.get() + 2} / 2;
-        const float rotation = math::toRad(-9.1f);
+        const float rotation = math::deg2rad(-9.1f);
         const float33_t matrix{
                 geometry::translate(subregion_shape2d / 2) *
                 float33_t{geometry::rotate(rotation)} *

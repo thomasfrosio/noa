@@ -29,7 +29,7 @@ TEST_CASE("cuda::transform::fft::transform2D()", "[assets][noa][cuda][transform]
         const auto path_input = path_base / test["input"].as<path_t>();
         const auto path_expected = path_base / test["expected"].as<path_t>();
         const auto scale = test["scale"].as<float2_t>();
-        const auto rotate = math::toRad(test["rotate"].as<float>());
+        const auto rotate = math::deg2rad(test["rotate"].as<float>());
         const auto center = test["center"].as<float2_t>();
         const auto shift = test["shift"].as<float2_t>();
         const auto cutoff = test["cutoff"].as<float>();
@@ -131,7 +131,7 @@ TEST_CASE("cuda::transform::fft::transform3D()", "[assets][noa][cuda][transform]
         const auto path_input = path_base / test["input"].as<path_t>();
         const auto path_expected = path_base / test["expected"].as<path_t>();
         const auto scale = test["scale"].as<float3_t>();
-        const auto rotate = geometry::euler2matrix(math::toRad(test["rotate"].as<float3_t>()));
+        const auto rotate = geometry::euler2matrix(math::deg2rad(test["rotate"].as<float3_t>()));
         const auto center = test["center"].as<float3_t>();
         const auto shift = test["shift"].as<float3_t>();
         const auto cutoff = test["cutoff"].as<float>();

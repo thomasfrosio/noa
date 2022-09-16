@@ -13,7 +13,7 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
-    const auto rotate = math::toRad(param["rotate"].as<float>());
+    const auto rotate = math::deg2rad(param["rotate"].as<float>());
     const auto center = param["center"].as<float2_t>();
 
     io::MRCFile file;
@@ -59,7 +59,7 @@ TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto border_value = param["border_value"].as<float>();
-    const auto euler = math::toRad(param["euler"].as<float3_t>());
+    const auto euler = math::deg2rad(param["euler"].as<float3_t>());
     const auto center = param["center"].as<float3_t>();
 
     const float33_t matrix(geometry::euler2matrix(euler).transpose());

@@ -17,7 +17,7 @@ TEST_CASE("cuda::geometry::rotate2D()", "[assets][noa][cuda][geometry]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
-    const auto rotate = math::toRad(param["rotate"].as<float>());
+    const auto rotate = math::deg2rad(param["rotate"].as<float>());
     const auto center = param["center"].as<float2_t>();
 
     io::MRCFile file;
@@ -78,7 +78,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- accurate modes", "[noa][cuda][
     INFO(border);
 
     const TestType value = test::Randomizer<TestType>(-3., 3.).get();
-    const float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
+    const float rotation = math::deg2rad(test::Randomizer<float>(-360., 360.).get());
     const size4_t shape = test::getRandomShapeBatched(2u);
     const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- fast modes", "[noa][cuda][geom
     INFO(border);
 
     const TestType value = test::Randomizer<TestType>(-3., 3.).get();
-    const float rotation = math::toRad(test::Randomizer<float>(-360., 360.).get());
+    const float rotation = math::deg2rad(test::Randomizer<float>(-360., 360.).get());
     const size4_t shape = test::getRandomShapeBatched(2u);
     const size4_t stride = shape.strides();
     const size_t elements = shape.elements();
@@ -155,7 +155,7 @@ TEST_CASE("cuda::geometry::rotate3D()", "[assets][noa][cuda][geometry]") {
     const path_t path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["rotate3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
-    const auto euler = math::toRad(param["euler"].as<float3_t>());
+    const auto euler = math::deg2rad(param["euler"].as<float3_t>());
     const auto center = param["center"].as<float3_t>();
 
     const float33_t matrix(geometry::euler2matrix(euler).transpose());
@@ -220,7 +220,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- accurate modes", "[noa][cuda][
     float3_t eulers = {test::Randomizer<float>(-360., 360.).get(),
                        test::Randomizer<float>(-360., 360.).get(),
                        test::Randomizer<float>(-360., 360.).get()};
-    eulers = math::toRad(eulers);
+    eulers = math::deg2rad(eulers);
     const float33_t matrix = geometry::euler2matrix(eulers).transpose();
 
     const size4_t shape = test::getRandomShapeBatched(3u);
@@ -265,7 +265,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- fast modes", "[noa][cuda][geom
     float3_t eulers = {test::Randomizer<float>(-360., 360.).get(),
                        test::Randomizer<float>(-360., 360.).get(),
                        test::Randomizer<float>(-360., 360.).get()};
-    eulers = math::toRad(eulers);
+    eulers = math::deg2rad(eulers);
     const float33_t matrix = geometry::euler2matrix(eulers).transpose();
     const size4_t shape = test::getRandomShapeBatched(3u);
     const size4_t stride = shape.strides();

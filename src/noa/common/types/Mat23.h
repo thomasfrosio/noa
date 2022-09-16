@@ -9,6 +9,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/types/Float3.h"
 
 namespace noa {
@@ -231,33 +232,8 @@ namespace noa {
         Float3<T> m_row[ROWS];
     };
 
-    namespace math {
-        /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat23<T> elementMultiply(Mat23<T> m1, Mat23<T> m2) noexcept {
-            Mat23<T> out;
-            for (size_t i = 0; i < Mat23<T>::ROWS; ++i)
-                out[i] = m1[i] * m2[i];
-            return out;
-        }
-
-        template<uint ULP = 2, typename T>
-        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat23<T> m1, Mat23<T> m2, T e = 1e-6f) noexcept {
-            return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
-        }
-    }
-
-    namespace traits {
-        template<typename>
-        struct p_is_float23 : std::false_type {};
-        template<typename T>
-        struct p_is_float23<Mat23<T>> : std::true_type {};
-        template<typename T> using is_float23 = std::bool_constant<p_is_float23<traits::remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_float23_v = is_float23<T>::value;
-
-        template<typename T>
-        struct proclaim_is_floatXX<Mat23<T>> : std::true_type {};
-    }
+    template<typename T> struct traits::proclaim_is_float23<Mat23<T>> : std::true_type {};
+    template<typename T> struct traits::proclaim_is_mat23<Mat23<T>> : std::true_type {};
 
     using float23_t = Mat23<float>;
     using double23_t = Mat23<double>;
@@ -270,4 +246,20 @@ namespace noa {
 
     template<> [[nodiscard]] NOA_IH std::string string::human<float23_t>() { return "float23"; }
     template<> [[nodiscard]] NOA_IH std::string string::human<double23_t>() { return "double23"; }
+}
+
+namespace noa::math {
+    /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat23<T> elementMultiply(Mat23<T> m1, Mat23<T> m2) noexcept {
+        Mat23<T> out;
+        for (size_t i = 0; i < Mat23<T>::ROWS; ++i)
+            out[i] = m1[i] * m2[i];
+        return out;
+    }
+
+    template<uint ULP = 2, typename T>
+    [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat23<T> m1, Mat23<T> m2, T e = 1e-6f) noexcept {
+        return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
+    }
 }

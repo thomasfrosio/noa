@@ -9,6 +9,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/types/Float2.h"
 
 // A few necessary forward declarations:
@@ -286,63 +287,8 @@ namespace noa {
         Float2<T> m_row[ROWS];
     };
 
-    namespace math {
-        /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat22<T> elementMultiply(const Mat22<T>& m1, const Mat22<T>& m2) noexcept {
-            Mat22<T> out;
-            for (size_t i = 0; i < Mat22<T>::ROWS; ++i)
-                out[i] = m1[i] * m2[i];
-            return out;
-        }
-
-        /// Given the column vector \a column and row vector \a row,
-        /// computes the linear algebraic matrix multiply `c * r`.
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat22<T> outerProduct(Float2<T> column, Float2<T> row) noexcept {
-            return Mat22<T>(column[0] * row[0], column[0] * row[1],
-                            column[1] * row[0], column[1] * row[1]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat22<T> transpose(Mat22<T> m) noexcept {
-            return Mat22<T>(m[0][0], m[1][0],
-                            m[0][1], m[1][1]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr T determinant(Mat22<T> m) noexcept {
-            return m[0][0] * m[1][1] - m[0][1] * m[1][0];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat22<T> inverse(Mat22<T> m) noexcept {
-            T det = determinant(m);
-            NOA_ASSERT(!isEqual(det, static_cast<T>(0))); // non singular
-            T one_over_determinant = 1 / det;
-            return Mat22<T>(+m[1][1] * one_over_determinant,
-                            -m[0][1] * one_over_determinant,
-                            -m[1][0] * one_over_determinant,
-                            +m[0][0] * one_over_determinant);
-        }
-
-        template<uint ULP = 2, typename T>
-        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat22<T> m1, Mat22<T> m2, T e = 1e-6f) {
-            return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
-        }
-    }
-
-    namespace traits {
-        template<typename>
-        struct p_is_float22 : std::false_type {};
-        template<typename T>
-        struct p_is_float22<Mat22<T>> : std::true_type {};
-        template<typename T> using is_float22 = std::bool_constant<p_is_float22<traits::remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_float22_v = is_float22<T>::value;
-
-        template<typename T>
-        struct proclaim_is_floatXX<Mat22<T>> : std::true_type {};
-    }
+    template<typename T> struct traits::proclaim_is_float22<Mat22<T>> : std::true_type {};
+    template<typename T> struct traits::proclaim_is_mat22<Mat22<T>> : std::true_type {};
 
     using float22_t = Mat22<float>;
     using double22_t = Mat22<double>;
@@ -355,4 +301,50 @@ namespace noa {
 
     template<> [[nodiscard]] NOA_IH std::string string::human<float22_t>() { return "float22"; }
     template<> [[nodiscard]] NOA_IH std::string string::human<double22_t>() { return "double22"; }
+}
+
+namespace noa::math {
+    /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat22<T> elementMultiply(const Mat22<T>& m1, const Mat22<T>& m2) noexcept {
+        Mat22<T> out;
+        for (size_t i = 0; i < Mat22<T>::ROWS; ++i)
+            out[i] = m1[i] * m2[i];
+        return out;
+    }
+
+    /// Given the column vector \a column and row vector \a row,
+    /// computes the linear algebraic matrix multiply `c * r`.
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat22<T> outerProduct(Float2<T> column, Float2<T> row) noexcept {
+        return Mat22<T>(column[0] * row[0], column[0] * row[1],
+                        column[1] * row[0], column[1] * row[1]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat22<T> transpose(Mat22<T> m) noexcept {
+        return Mat22<T>(m[0][0], m[1][0],
+                        m[0][1], m[1][1]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr T determinant(Mat22<T> m) noexcept {
+        return m[0][0] * m[1][1] - m[0][1] * m[1][0];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat22<T> inverse(Mat22<T> m) noexcept {
+        T det = determinant(m);
+        NOA_ASSERT(!isEqual(det, static_cast<T>(0))); // non singular
+        T one_over_determinant = 1 / det;
+        return Mat22<T>(+m[1][1] * one_over_determinant,
+                        -m[0][1] * one_over_determinant,
+                        -m[1][0] * one_over_determinant,
+                        +m[0][0] * one_over_determinant);
+    }
+
+    template<uint ULP = 2, typename T>
+    [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat22<T> m1, Mat22<T> m2, T e = 1e-6f) {
+        return all(isEqual<ULP>(m1[0], m2[0], e)) && all(isEqual<ULP>(m1[1], m2[1], e));
+    }
 }

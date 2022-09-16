@@ -14,6 +14,7 @@
 #include "noa/common/Math.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/types/Bool4.h"
 #include "noa/common/utils/Sort.h"
 
@@ -375,106 +376,8 @@ namespace noa {
         T m_data[4]{};
     };
 
-    namespace math {
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T sum(Int4<T> v) noexcept {
-            return v[0] + v[1] + v[2] + v[3];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T prod(Int4<T> v) noexcept {
-            return v[0] * v[1] * v[2] * v[3];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> abs(Int4<T> v) noexcept {
-            return {abs(v[0]), abs(v[1]), abs(v[2]), abs(v[3])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T min(Int4<T> v) noexcept {
-            return min(min(v[0], v[1]), min(v[2], v[3]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> min(Int4<T> lhs, Int4<T> rhs) noexcept {
-            return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1]), min(lhs[2], rhs[2]), min(lhs[3], rhs[3])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> min(Int4<T> lhs, T rhs) noexcept {
-            return {min(lhs[0], rhs), min(lhs[1], rhs), min(lhs[2], rhs), min(lhs[3], rhs)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> min(T lhs, Int4<T> rhs) noexcept {
-            return {min(lhs, rhs[0]), min(lhs, rhs[1]), min(lhs, rhs[2]), min(lhs, rhs[3])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T max(Int4<T> v) noexcept {
-            return max(max(v[0], v[1]), max(v[2], v[3]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> max(Int4<T> lhs, Int4<T> rhs) noexcept {
-            return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1]), max(lhs[2], rhs[2]), max(lhs[3], rhs[3])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> max(Int4<T> lhs, T rhs) noexcept {
-            return {max(lhs[0], rhs), max(lhs[1], rhs), max(lhs[2], rhs), max(lhs[3], rhs)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> max(T lhs, Int4<T> rhs) noexcept {
-            return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2]), max(lhs, rhs[3])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> clamp(Int4<T> lhs, Int4<T> low, Int4<T> high) noexcept {
-            return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1]),
-                    clamp(lhs[2], low[2], high[2]), clamp(lhs[3], low[3], high[3])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> clamp(Int4<T> lhs, T low, T high) noexcept {
-            return {clamp(lhs[0], low, high), clamp(lhs[1], low, high),
-                    clamp(lhs[2], low, high), clamp(lhs[3], low, high)};
-        }
-
-        template<typename T, typename U>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> sort(Int4<T> v, U&& comp) noexcept {
-            smallStableSort<4>(v.get(), std::forward<U>(comp));
-            return v;
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Int4<T> sort(Int4<T> v) noexcept {
-            return sort(v, [](const T& a, const T& b) { return a < b; });
-        }
-    }
-
-    namespace traits {
-        template<typename>
-        struct p_is_int4 : std::false_type {};
-        template<typename T>
-        struct p_is_int4<Int4<T>> : std::true_type {};
-        template<typename T> using is_int4 = std::bool_constant<p_is_int4<remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_int4_v = is_int4<T>::value;
-
-        template<typename>
-        struct p_is_uint4 : std::false_type {};
-        template<typename T>
-        struct p_is_uint4<Int4<T>> : std::bool_constant<is_uint_v<T>> {};
-        template<typename T> using is_uint4 = std::bool_constant<p_is_uint4<remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_uint4_v = is_uint4<T>::value;
-
-        template<typename T>
-        struct proclaim_is_intX<Int4<T>> : std::true_type {};
-        template<typename T>
-        struct proclaim_is_uintX<Int4<T>> : std::bool_constant<is_uint_v<T>> {};
-    }
+    template<typename T> struct traits::proclaim_is_int4<Int4<T>> : std::true_type {};
+    template<typename T> struct traits::proclaim_is_uint4<Int4<T>> : std::bool_constant<is_uint_v<T>> {};
 
     using int4_t = Int4<int>;
     using uint4_t = Int4<uint>;
@@ -525,4 +428,84 @@ namespace fmt {
             return out;
         }
     };
+}
+
+namespace noa::math {
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T sum(Int4<T> v) noexcept {
+        return v[0] + v[1] + v[2] + v[3];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T prod(Int4<T> v) noexcept {
+        return v[0] * v[1] * v[2] * v[3];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> abs(Int4<T> v) noexcept {
+        return {abs(v[0]), abs(v[1]), abs(v[2]), abs(v[3])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T min(Int4<T> v) noexcept {
+        return min(min(v[0], v[1]), min(v[2], v[3]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> min(Int4<T> lhs, Int4<T> rhs) noexcept {
+        return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1]), min(lhs[2], rhs[2]), min(lhs[3], rhs[3])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> min(Int4<T> lhs, T rhs) noexcept {
+        return {min(lhs[0], rhs), min(lhs[1], rhs), min(lhs[2], rhs), min(lhs[3], rhs)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> min(T lhs, Int4<T> rhs) noexcept {
+        return {min(lhs, rhs[0]), min(lhs, rhs[1]), min(lhs, rhs[2]), min(lhs, rhs[3])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T max(Int4<T> v) noexcept {
+        return max(max(v[0], v[1]), max(v[2], v[3]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> max(Int4<T> lhs, Int4<T> rhs) noexcept {
+        return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1]), max(lhs[2], rhs[2]), max(lhs[3], rhs[3])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> max(Int4<T> lhs, T rhs) noexcept {
+        return {max(lhs[0], rhs), max(lhs[1], rhs), max(lhs[2], rhs), max(lhs[3], rhs)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> max(T lhs, Int4<T> rhs) noexcept {
+        return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2]), max(lhs, rhs[3])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> clamp(Int4<T> lhs, Int4<T> low, Int4<T> high) noexcept {
+        return {clamp(lhs[0], low[0], high[0]), clamp(lhs[1], low[1], high[1]),
+                clamp(lhs[2], low[2], high[2]), clamp(lhs[3], low[3], high[3])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> clamp(Int4<T> lhs, T low, T high) noexcept {
+        return {clamp(lhs[0], low, high), clamp(lhs[1], low, high),
+                clamp(lhs[2], low, high), clamp(lhs[3], low, high)};
+    }
+
+    template<typename T, typename U>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> sort(Int4<T> v, U&& comp) noexcept {
+        smallStableSort<4>(v.get(), std::forward<U>(comp));
+        return v;
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Int4<T> sort(Int4<T> v) noexcept {
+        return sort(v, [](const T& a, const T& b) { return a < b; });
+    }
 }

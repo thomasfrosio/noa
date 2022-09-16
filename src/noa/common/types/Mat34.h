@@ -9,6 +9,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/types/Float4.h"
 
 namespace noa {
@@ -261,34 +262,8 @@ namespace noa {
         Float4<T> m_row[ROWS];
     };
 
-    namespace math {
-        /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
-        template<typename T>
-        [[nodiscard]] NOA_IHD constexpr Mat34<T> elementMultiply(Mat34<T> m1, Mat34<T> m2) noexcept {
-            Mat34<T> out;
-            for (size_t i = 0; i < Mat34<T>::ROWS; ++i)
-                out[i] = m1[i] * m2[i];
-            return out;
-        }
-
-        template<uint ULP = 2, typename T>
-        [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat34<T> m1, Mat34<T> m2, T e = 1e-6f) noexcept {
-            return all(isEqual<ULP>(m1[0], m2[0], e)) &&
-                   all(isEqual<ULP>(m1[1], m2[1], e));
-        }
-    }
-
-    namespace traits {
-        template<typename>
-        struct p_is_float34 : std::false_type {};
-        template<typename T>
-        struct p_is_float34<Mat34<T>> : std::true_type {};
-        template<typename T> using is_float34 = std::bool_constant<p_is_float34<traits::remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_float34_v = is_float34<T>::value;
-
-        template<typename T>
-        struct proclaim_is_floatXX<Mat34<T>> : std::true_type {};
-    }
+    template<typename T> struct traits::proclaim_is_float34<Mat34<T>> : std::true_type {};
+    template<typename T> struct traits::proclaim_is_mat34<Mat34<T>> : std::true_type {};
 
     using float34_t = Mat34<float>;
     using double34_t = Mat34<double>;
@@ -302,4 +277,21 @@ namespace noa {
 
     template<> [[nodiscard]] NOA_IH std::string string::human<float34_t>() { return "float34"; }
     template<> [[nodiscard]] NOA_IH std::string string::human<double34_t>() { return "double34"; }
+}
+
+namespace noa::math {
+    /// Multiplies matrix \a lhs by matrix \a rhs element-wise, i.e. `out[i][j] = lhs[i][j] * rhs[i][j]`.
+    template<typename T>
+    [[nodiscard]] NOA_IHD constexpr Mat34<T> elementMultiply(Mat34<T> m1, Mat34<T> m2) noexcept {
+        Mat34<T> out;
+        for (size_t i = 0; i < Mat34<T>::ROWS; ++i)
+            out[i] = m1[i] * m2[i];
+        return out;
+    }
+
+    template<uint ULP = 2, typename T>
+    [[nodiscard]] NOA_IHD constexpr bool isEqual(Mat34<T> m1, Mat34<T> m2, T e = 1e-6f) noexcept {
+        return all(isEqual<ULP>(m1[0], m2[0], e)) &&
+               all(isEqual<ULP>(m1[1], m2[1], e));
+    }
 }

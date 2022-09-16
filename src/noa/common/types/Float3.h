@@ -12,6 +12,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/types/Bool3.h"
 #include "noa/common/types/Half.h"
@@ -275,193 +276,8 @@ namespace noa {
         T m_data[3]{};
     };
 
-    namespace math {
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> toRad(Float3<T> v) noexcept {
-            return Float3<T>(toRad(v[0]), toRad(v[1]), toRad(v[2]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> toDeg(Float3<T> v) noexcept {
-            return Float3<T>(toDeg(v[0]), toDeg(v[1]), toDeg(v[2]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> floor(Float3<T> v) noexcept {
-            return Float3<T>(floor(v[0]), floor(v[1]), floor(v[2]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> ceil(Float3<T> v) noexcept {
-            return Float3<T>(ceil(v[0]), ceil(v[1]), ceil(v[2]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> rint(Float3<T> v) noexcept {
-            return Float3<T>(rint(v[0]), rint(v[1]), rint(v[2]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> abs(Float3<T> v) noexcept {
-            return Float3<T>(abs(v[0]), abs(v[1]), abs(v[2]));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T sum(Float3<T> v) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return static_cast<T>(sum(Float3<HALF_ARITHMETIC_TYPE>(v)));
-            return v[0] + v[1] + v[2];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T prod(Float3<T> v) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return static_cast<T>(prod(Float3<HALF_ARITHMETIC_TYPE>(v)));
-            return v[0] * v[1] * v[2];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T dot(Float3<T> a, Float3<T> b) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return static_cast<T>(dot(Float3<HALF_ARITHMETIC_TYPE>(a), Float3<HALF_ARITHMETIC_TYPE>(b)));
-            return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T innerProduct(Float3<T> a, Float3<T> b) noexcept {
-            return dot(a, b);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T norm(Float3<T> v) noexcept {
-            if constexpr (std::is_same_v<T, half_t>) {
-                auto tmp = Float3<HALF_ARITHMETIC_TYPE>(v);
-                return static_cast<T>(sqrt(dot(tmp, tmp)));
-            }
-            return sqrt(dot(v, v));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T length(Float3<T> v) noexcept {
-            return norm(v);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> normalize(Float3<T> v) noexcept {
-            return v / norm(v);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> cross(Float3<T> a, Float3<T> b) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return Float3<T>(cross(Float3<HALF_ARITHMETIC_TYPE>(a), Float3<HALF_ARITHMETIC_TYPE>(b)));
-            return {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T min(Float3<T> v) noexcept {
-            return (v[0] < v[1]) ? min(v[0], v[2]) : min(v[1], v[2]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> min(Float3<T> lhs, Float3<T> rhs) noexcept {
-            return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1]), min(lhs[2], rhs[2])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> min(Float3<T> lhs, T rhs) noexcept {
-            return {min(lhs[0], rhs), min(lhs[1], rhs), min(lhs[2], rhs)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> min(T lhs, Float3<T> rhs) noexcept {
-            return {min(lhs, rhs[0]), min(lhs, rhs[1]), min(lhs, rhs[2])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T max(Float3<T> v) noexcept {
-            return (v[0] > v[1]) ? max(v[0], v[2]) : max(v[1], v[2]);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> max(Float3<T> lhs, Float3<T> rhs) noexcept {
-            return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1]), max(lhs[2], rhs[2])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> max(Float3<T> lhs, T rhs) noexcept {
-            return {max(lhs[0], rhs), max(lhs[1], rhs), max(lhs[2], rhs)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> max(T lhs, Float3<T> rhs) noexcept {
-            return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> clamp(Float3<T> lhs, Float3<T> low, Float3<T> high) noexcept {
-            return min(max(lhs, low), high);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> clamp(Float3<T> lhs, T low, T high) noexcept {
-            return min(max(lhs, low), high);
-        }
-
-        #define NOA_ULP_ 2
-        #define NOA_EPSILON_ 1e-6f
-
-        template<uint ULP = NOA_ULP_, typename T>
-        [[nodiscard]] NOA_FHD constexpr Bool3 isEqual(Float3<T> a, Float3<T> b, T e = NOA_EPSILON_) noexcept {
-            return {isEqual<ULP>(a[0], b[0], e), isEqual<ULP>(a[1], b[1], e), isEqual<ULP>(a[2], b[2], e)};
-        }
-
-        template<uint ULP = NOA_ULP_, typename T>
-        [[nodiscard]] NOA_FHD constexpr Bool3 isEqual(Float3<T> a, T b, T e = NOA_EPSILON_) noexcept {
-            return {isEqual<ULP>(a[0], b, e), isEqual<ULP>(a[1], b, e), isEqual<ULP>(a[2], b, e)};
-        }
-
-        template<uint ULP = NOA_ULP_, typename T>
-        [[nodiscard]] NOA_FHD constexpr Bool3 isEqual(T a, Float3<T> b, T e = NOA_EPSILON_) noexcept {
-            return {isEqual<ULP>(a, b[0], e), isEqual<ULP>(a, b[1], e), isEqual<ULP>(a, b[2], e)};
-        }
-
-        #undef NOA_ULP_
-        #undef NOA_EPSILON_
-
-        template<typename T, typename U>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v, U&& comp) noexcept {
-            smallStableSort<3>(v.get(), std::forward<U>(comp));
-            return v;
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v) noexcept {
-            return sort(v, [](const T& a, const T& b) { return a < b; });
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> deg2rad(Float3<T> v) noexcept {
-            return {deg2rad(v[0]), deg2rad(v[1]), deg2rad(v[2])};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Float3<T> rad2deg(Float3<T> v) noexcept {
-            return {rad2deg(v[0]), rad2deg(v[1]), rad2deg(v[2])};
-        }
-    }
-
-    namespace traits {
-        template<typename T>
-        struct p_is_float3 : std::false_type {};
-        template<typename T>
-        struct p_is_float3<noa::Float3<T>> : std::true_type {};
-        template<typename T> using is_float3 = std::bool_constant<p_is_float3<noa::traits::remove_ref_cv_t<T>>::value>;
-        template<typename T> constexpr bool is_float3_v = is_float3<T>::value;
-
-        template<typename T>
-        struct proclaim_is_floatX<noa::Float3<T>> : std::true_type {};
-    }
+    template<typename T>
+    struct traits::proclaim_is_float3<Float3<T>> : std::true_type {};
 
     using half3_t = Float3<half_t>;
     using float3_t = Float3<float>;
@@ -505,4 +321,261 @@ namespace fmt {
             return out;
         }
     };
+}
+
+
+namespace noa::math {
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> cos(Float3<T> v) {
+        return Float3<T>(cos(v[0]), cos(v[1]), cos(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> sin(Float3<T> v) {
+        return Float3<T>(sin(v[0]), sin(v[1]), sin(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> sinc(Float3<T> v) {
+        return Float3<T>(sinc(v[0]), sinc(v[1]), sinc(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> tan(Float3<T> v) {
+        return Float3<T>(tan(v[0]), tan(v[1]), tan(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> acos(Float3<T> v) {
+        return Float3<T>(acos(v[0]), acos(v[1]), acos(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> asin(Float3<T> v) {
+        return Float3<T>(asin(v[0]), asin(v[1]), asin(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> atan(Float3<T> v) {
+        return Float3<T>(atan(v[0]), atan(v[1]), atan(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> cosh(Float3<T> v) {
+        return Float3<T>(cosh(v[0]), cosh(v[1]), cosh(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> sinh(Float3<T> v) {
+        return Float3<T>(sinh(v[0]), sinh(v[1]), sinh(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> tanh(Float3<T> v) {
+        return Float3<T>(tanh(v[0]), tanh(v[1]), tanh(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> acosh(Float3<T> v) {
+        return Float3<T>(acosh(v[0]), acosh(v[1]), acosh(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> asinh(Float3<T> v) {
+        return Float3<T>(asinh(v[0]), asinh(v[1]), asinh(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> atanh(Float3<T> v) {
+        return Float3<T>(atanh(v[0]), atanh(v[1]), atanh(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> deg2rad(Float3<T> v) noexcept {
+        return Float3<T>(deg2rad(v[0]), deg2rad(v[1]), deg2rad(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> rad2deg(Float3<T> v) noexcept {
+        return Float3<T>(rad2deg(v[0]), rad2deg(v[1]), rad2deg(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> exp(Float3<T> v) {
+        return Float3<T>(exp(v[0]), exp(v[1]), exp(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> log(Float3<T> v) {
+        return Float3<T>(log(v[0]), log(v[1]), log(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> log10(Float3<T> v) {
+        return Float3<T>(log10(v[0]), log10(v[1]), log10(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> log1p(Float3<T> v) {
+        return Float3<T>(log1p(v[0]), log1p(v[1]), log1p(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> sqrt(Float3<T> v) {
+        return Float3<T>(sqrt(v[0]), sqrt(v[1]), sqrt(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> rsqrt(Float3<T> v) {
+        return Float3<T>(rsqrt(v[0]), rsqrt(v[1]), rsqrt(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> rint(Float3<T> v) noexcept {
+        return Float3<T>(rint(v[0]), rint(v[1]), rint(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> ceil(Float3<T> v) noexcept {
+        return Float3<T>(ceil(v[0]), ceil(v[1]), ceil(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> floor(Float3<T> v) noexcept {
+        return Float3<T>(floor(v[0]), floor(v[1]), floor(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> abs(Float3<T> v) noexcept {
+        return Float3<T>(abs(v[0]), abs(v[1]), abs(v[2]));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T sum(Float3<T> v) noexcept {
+        if constexpr (std::is_same_v<T, half_t>)
+            return static_cast<T>(sum(Float3<HALF_ARITHMETIC_TYPE>(v)));
+        return v[0] + v[1] + v[2];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T prod(Float3<T> v) noexcept {
+        if constexpr (std::is_same_v<T, half_t>)
+            return static_cast<T>(prod(Float3<HALF_ARITHMETIC_TYPE>(v)));
+        return v[0] * v[1] * v[2];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T dot(Float3<T> a, Float3<T> b) noexcept {
+        if constexpr (std::is_same_v<T, half_t>)
+            return static_cast<T>(dot(Float3<HALF_ARITHMETIC_TYPE>(a), Float3<HALF_ARITHMETIC_TYPE>(b)));
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T norm(Float3<T> v) noexcept {
+        if constexpr (std::is_same_v<T, half_t>) {
+            auto tmp = Float3<HALF_ARITHMETIC_TYPE>(v);
+            return static_cast<T>(sqrt(dot(tmp, tmp)));
+        }
+        return sqrt(dot(v, v));
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T length(Float3<T> v) noexcept {
+        return norm(v);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> normalize(Float3<T> v) noexcept {
+        return v / norm(v);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> cross(Float3<T> a, Float3<T> b) noexcept {
+        if constexpr (std::is_same_v<T, half_t>)
+            return Float3<T>(cross(Float3<HALF_ARITHMETIC_TYPE>(a), Float3<HALF_ARITHMETIC_TYPE>(b)));
+        return {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T min(Float3<T> v) noexcept {
+        return (v[0] < v[1]) ? min(v[0], v[2]) : min(v[1], v[2]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> min(Float3<T> lhs, Float3<T> rhs) noexcept {
+        return {min(lhs[0], rhs[0]), min(lhs[1], rhs[1]), min(lhs[2], rhs[2])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> min(Float3<T> lhs, T rhs) noexcept {
+        return {min(lhs[0], rhs), min(lhs[1], rhs), min(lhs[2], rhs)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> min(T lhs, Float3<T> rhs) noexcept {
+        return {min(lhs, rhs[0]), min(lhs, rhs[1]), min(lhs, rhs[2])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T max(Float3<T> v) noexcept {
+        return (v[0] > v[1]) ? max(v[0], v[2]) : max(v[1], v[2]);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> max(Float3<T> lhs, Float3<T> rhs) noexcept {
+        return {max(lhs[0], rhs[0]), max(lhs[1], rhs[1]), max(lhs[2], rhs[2])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> max(Float3<T> lhs, T rhs) noexcept {
+        return {max(lhs[0], rhs), max(lhs[1], rhs), max(lhs[2], rhs)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> max(T lhs, Float3<T> rhs) noexcept {
+        return {max(lhs, rhs[0]), max(lhs, rhs[1]), max(lhs, rhs[2])};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> clamp(Float3<T> lhs, Float3<T> low, Float3<T> high) noexcept {
+        return min(max(lhs, low), high);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> clamp(Float3<T> lhs, T low, T high) noexcept {
+        return min(max(lhs, low), high);
+    }
+
+    #define NOA_ULP_ 2
+    #define NOA_EPSILON_ 1e-6f
+
+    template<uint ULP = NOA_ULP_, typename T>
+    [[nodiscard]] NOA_FHD constexpr Bool3 isEqual(Float3<T> a, Float3<T> b, T e = NOA_EPSILON_) noexcept {
+        return {isEqual<ULP>(a[0], b[0], e), isEqual<ULP>(a[1], b[1], e), isEqual<ULP>(a[2], b[2], e)};
+    }
+
+    template<uint ULP = NOA_ULP_, typename T>
+    [[nodiscard]] NOA_FHD constexpr Bool3 isEqual(Float3<T> a, T b, T e = NOA_EPSILON_) noexcept {
+        return {isEqual<ULP>(a[0], b, e), isEqual<ULP>(a[1], b, e), isEqual<ULP>(a[2], b, e)};
+    }
+
+    template<uint ULP = NOA_ULP_, typename T>
+    [[nodiscard]] NOA_FHD constexpr Bool3 isEqual(T a, Float3<T> b, T e = NOA_EPSILON_) noexcept {
+        return {isEqual<ULP>(a, b[0], e), isEqual<ULP>(a, b[1], e), isEqual<ULP>(a, b[2], e)};
+    }
+
+    #undef NOA_ULP_
+    #undef NOA_EPSILON_
+
+    template<typename T, typename U>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v, U&& comp) noexcept {
+        smallStableSort<3>(v.get(), std::forward<U>(comp));
+        return v;
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> sort(Float3<T> v) noexcept {
+        return sort(v, [](const T& a, const T& b) { return a < b; });
+    }
 }

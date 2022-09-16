@@ -73,7 +73,7 @@ TEST_CASE("cpu::geometry::transform3D(), project2", "[.]") {
     const size_t elements = shape.elements();
 
     const float3_t center{size3_t{shape.get() + 1} / 2};
-    const float3_t euler{0, math::toRad(60.), 0};
+    const float3_t euler{0, math::deg2rad(60.), 0};
     float44_t matrix{geometry::translate(center) *
                      float44_t{geometry::euler2matrix(euler)} * // ZYZ intrinsic right-handed
                      geometry::translate(-center)};
@@ -106,7 +106,7 @@ TEST_CASE("cpu::geometry::transform3D(), project", "[.]") {
     const size_t elements = shape.elements();
 
     const float3_t center{size3_t{shape.get() + 1} / 2};
-    const float3_t euler{0, math::toRad(45.), 0};
+    const float3_t euler{0, math::deg2rad(45.), 0};
     float44_t matrix{geometry::translate(center) *
                      float44_t{geometry::euler2matrix(euler)} * // ZYZ intrinsic right-handed
                      geometry::translate(-center)};

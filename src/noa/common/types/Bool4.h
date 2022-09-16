@@ -11,6 +11,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/string/Format.h"
 #include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/ArrayTypes.h"
 
 namespace noa {
     struct Bool4 {
@@ -147,7 +148,7 @@ namespace noa {
     }
 
     template<>
-    struct traits::proclaim_is_boolX<Bool4> : std::true_type {};
+    struct traits::proclaim_is_bool4<Bool4> : std::true_type {};
 }
 
 namespace fmt {
