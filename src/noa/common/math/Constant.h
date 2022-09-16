@@ -27,7 +27,7 @@ namespace noa::math {
             } else if constexpr (std::is_same_v<T, double>) {
                 return DBL_EPSILON;
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
             }
             return static_cast<T>(0); // unreachable
         }
@@ -53,7 +53,7 @@ namespace noa::math {
             } else if constexpr (std::is_same_v<T, long long>) {
                 return LLONG_MIN;
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
             }
             return static_cast<T>(0); // unreachable
             #else
@@ -90,7 +90,7 @@ namespace noa::math {
             } else if constexpr (std::is_same_v<T, long long>) {
                 return LLONG_MAX;
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(traits::always_false_v<T>);
             }
             return static_cast<T>(0); // unreachable
             #else
@@ -100,7 +100,7 @@ namespace noa::math {
 
         NOA_FHD static constexpr T lowest() {
             #ifdef __CUDA_ARCH__
-            if constexpr (noa::traits::is_float_v<T>) {
+            if constexpr (traits::is_float_v<T>) {
                 return -max();
             } else {
                 return min();

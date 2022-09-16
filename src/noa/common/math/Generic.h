@@ -62,15 +62,11 @@ namespace noa::math {
     NOA_FHD double atan2(double y, double x) { return ::atan2(y, x); }
     NOA_FHD float atan2(float y, float x) { return ::atan2f(y, x); }
 
-    NOA_FHD constexpr double toDeg(double x) { return x * (180. / Constants<double>::PI); }
-    NOA_FHD constexpr float toDeg(float x) { return x * (180.f / Constants<float>::PI); }
-    NOA_FHD constexpr double rad2deg(double x) { return x * (180. / Constants<double>::PI); }
-    NOA_FHD constexpr float rad2deg(float x) { return x * (180.f / Constants<float>::PI); }
+    NOA_FHD constexpr double rad2deg(double x) noexcept { return x * (180. / Constants<double>::PI); }
+    NOA_FHD constexpr float rad2deg(float x) noexcept { return x * (180.f / Constants<float>::PI); }
 
-    NOA_FHD constexpr double toRad(double x) { return x * (Constants<double>::PI / 180.); }
-    NOA_FHD constexpr float toRad(float x) { return x * (Constants<float>::PI / 180.f); }
-    NOA_FHD constexpr double deg2rad(double x) { return x * (Constants<double>::PI / 180.); }
-    NOA_FHD constexpr float deg2rad(float x) { return x * (Constants<float>::PI / 180.f); }
+    NOA_FHD constexpr double deg2rad(double x) noexcept { return x * (Constants<double>::PI / 180.); }
+    NOA_FHD constexpr float deg2rad(float x) noexcept { return x * (Constants<float>::PI / 180.f); }
 
     ///  Returns the hyperbolic cosine of x.
     NOA_FHD double cosh(double x) { return ::cosh(x); }
@@ -214,13 +210,13 @@ namespace noa::math {
     NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
 
     /// Returns the centered index of the corresponding non-centered idx. Should be within `0 <= idx < dim`.
-    template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
+    template<typename T, typename = std::enable_if_t<traits::is_int_v<T>>>
     [[nodiscard]] NOA_FHD constexpr T FFTShift(T idx, T dim) {
         return (idx < (dim + 1) / 2) ? idx + dim / 2 : idx - (dim + 1) / 2; // or (idx + dim / 2) % dim
     }
 
     /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
-    template<typename T, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
+    template<typename T, typename = std::enable_if_t<traits::is_int_v<T>>>
     [[nodiscard]] NOA_FHD constexpr T iFFTShift(T idx, T dim) {
         return (idx < dim / 2) ? idx + (dim + 1) / 2 : idx - dim / 2; // or (idx + (dim + 1) / 2) % dim
     }

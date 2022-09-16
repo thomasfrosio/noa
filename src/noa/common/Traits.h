@@ -5,5 +5,7 @@
 
 #pragma once
 
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/traits/STLContainers.h"
+#include "noa/common/traits/Utilities.h"

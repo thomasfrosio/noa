@@ -1,8 +1,7 @@
-/// @file noa/common/traits/BaseTypes.h
-/// @brief Some type traits.
-/// @author Thomas - ffyr2w
-/// @date 23 Jul 2020
-
+/// \file noa/common/traits/BaseTypes.h
+/// \brief Some type traits.
+/// \author Thomas - ffyr2w
+/// \date 23 Jul 2020
 #pragma once
 
 #include <cstdint>
@@ -11,45 +10,9 @@
 #include <string_view>
 #include <complex>
 
+#include "noa/common/traits/Utilities.h"
+
 namespace noa::traits {
-    template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
-    /// Removes the const/volatile and reference from T.
-    template<typename T> using remove_ref_cv_t = typename remove_ref_cv<T>::type;
-
-    template<typename T, typename = void> struct private_value_type { using type = T; };
-    template<typename T> struct private_value_type<T, std::void_t<typename T::value_type>> { using type = typename T::value_type; };
-    template<typename T> struct value_type { using type = typename private_value_type<T>::type ; };
-    /// Extracts the typedef value_type from T if it exists, returns T otherwise. \c remove_ref_cv_t is applied to T.
-    template<typename T> using value_type_t = typename value_type<remove_ref_cv_t<T>>::type;
-
-    template<typename T, typename = void> struct private_element_type { using type = T; };
-    template<typename T> struct private_element_type<T, std::void_t<typename T::element_type>> { using type = typename T::element_type; };
-    template<typename T> struct element_type { using type = typename private_element_type<T>::type ; };
-    /// Extracts the typedef element_type from T if it exists, returns T otherwise. \c remove_ref_cv_t is applied to T.
-    template<typename T> using element_type_t = typename element_type<remove_ref_cv_t<T>>::type;
-
-    template<typename T, typename = void> struct private_ptr_type { using type = T; };
-    template<typename T> struct private_ptr_type<T, std::void_t<typename T::ptr_type>> { using type = typename T::ptr_type; };
-    template<typename T> struct ptr_type { using type = typename private_ptr_type<T>::type ; };
-    /// Extracts the typedef ptr_type from T if it exists, returns T otherwise. \c remove_ref_cv_t is applied to T.
-    template<typename T> using ptr_type_t = typename ptr_type<remove_ref_cv_t<T>>::type;
-
-    template<typename T1, typename T2> using is_almost_same = std::bool_constant<std::is_same_v<remove_ref_cv_t<T1>, remove_ref_cv_t<T2>>>;
-    /// Whether \a T1 and \a T2 are the same types, ignoring const/volatile and reference.
-    template<typename T1, typename T2> inline constexpr bool is_almost_same_v = is_almost_same<T1, T2>::value;
-
-    template <class T, class... Ts> struct is_any : std::bool_constant<(std::is_same_v<T, Ts> || ...)> {};
-    /// Whether \p T1 is the same type as any of the \p Ts types.
-    template<typename T1, typename... Ts> inline constexpr bool is_any_v = is_any<T1, Ts...>::value;
-
-    template <class T, class... Ts> struct are_all_same : std::bool_constant<(std::is_same_v<T, Ts> && ...)> {};
-    /// Whether \p T1 and the \p Ts types are all the same type.
-    template<typename T1, typename... Ts> inline constexpr bool are_all_same_v = are_all_same<T1, Ts...>::value;
-
-    template<typename T> using always_false = std::false_type;
-    /// Always false. Used to invalidate some code paths at compile time.
-    template<typename T> inline constexpr bool always_false_v = always_false<T>::value;
-
     template<typename> struct proclaim_is_bool : std::false_type {};
     template<> struct proclaim_is_bool<bool> : std::true_type {};
     template<typename T> using is_bool = std::bool_constant<proclaim_is_bool<remove_ref_cv_t<T>>::value>;
@@ -136,31 +99,6 @@ namespace noa::traits {
     template<typename E> using is_scoped_enum = std::bool_constant<std::is_enum_v<E> && !std::is_convertible_v<E, int>>;
     /// Whether \a E is an enum class.
     template<typename E> constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
-
-    template<typename> struct proclaim_is_boolX : std::false_type {}; // added by BoolX.h
-    template<typename T> using is_boolX = std::bool_constant<proclaim_is_boolX<remove_ref_cv_t<T>>::value>;
-    /// One of: bool2_t, bool3_t, bool4_t. \c remove_ref_cv_t is applied to T.
-    template<typename T> constexpr bool is_boolX_v = is_boolX<T>::value;
-
-    template<typename> struct proclaim_is_intX : std::false_type {}; // added by IntX.h
-    template<typename T> using is_intX = std::bool_constant<proclaim_is_intX<remove_ref_cv_t<T>>::value>;
-    /// One of: int2_t, int3_t, int4_t, long2_t, long3_t, long4_t. \c remove_ref_cv_t is applied to T.
-    template<typename T> constexpr bool is_intX_v = is_intX<T>::value;
-
-    template<typename> struct proclaim_is_uintX : std::false_type {}; // added by IntX.h
-    template<typename T> using is_uintX = std::bool_constant<proclaim_is_uintX<remove_ref_cv_t<T>>::value>;
-    /// One of: uint2_t, uint3_t, uint4_t, ulong2_t, ulong3_t, ulong4_t. \c remove_ref_cv_t is applied to T.
-    template<typename T> constexpr bool is_uintX_v = is_uintX<T>::value;
-
-    template<typename> struct proclaim_is_floatX : std::false_type {}; // added by FloatX.h
-    template<typename T> using is_floatX = std::bool_constant<proclaim_is_floatX<remove_ref_cv_t<T>>::value>;
-    /// One of: float2_t, float3_t, float4_t. \c remove_ref_cv_t is applied to T.
-    template<typename T> constexpr bool is_floatX_v = is_floatX<T>::value;
-
-    template<typename> struct proclaim_is_floatXX : std::false_type {}; // added by MatX.h
-    template<typename T> using is_floatXX = std::bool_constant<proclaim_is_floatXX<remove_ref_cv_t<T>>::value>;
-    /// One of: float22_t, float23_t, float33_t, float34_t, float44_t. \c remove_ref_cv_t is applied to T.
-    template<typename T> constexpr bool is_floatXX_v = is_floatXX<T>::value;
 
     template<typename T> using is_function_ptr = std::bool_constant<std::is_pointer_v<T> && std::is_function_v<std::remove_pointer_t<T>>>;
     template<typename T> constexpr bool is_function_ptr_v = is_function_ptr<T>::value;

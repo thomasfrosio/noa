@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/Utilities.h"
 
 namespace noa {
     /// In-place stable sort for small arrays.

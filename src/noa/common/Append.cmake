@@ -46,8 +46,10 @@ set(NOA_COMMON_HEADERS
         common/string/Split.h
 
         common/Traits.h
+        common/traits/ArrayTypes.h
         common/traits/BaseTypes.h
         common/traits/STLContainers.h
+        common/traits/Utilities.h
 
         common/Types.h
         common/types/Bool2.h
