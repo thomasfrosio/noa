@@ -51,7 +51,7 @@ namespace {
 
     void testInsert3D_(const path_t& filename, size_t size, const Array<float33_t>& tilt_angles) {
         const size4_t slice_shape{1, 1, size, size};
-        const size4_t slices_shape{tilt_angles.shape().elements(), 1, size, size};
+        const size4_t slices_shape{tilt_angles.elements(), 1, size, size};
         const size4_t recons_shape{1, size, size, size};
 
         Array weights_fft = memory::ones<float>(slice_shape.fft());
@@ -189,7 +189,7 @@ TEST_CASE("geometry::fft, back-projection", "[.]") {
 
     // Insert the weights:
     const size4_t shape{1, 1, 512, 512};
-    const size4_t shape_batched{tilt_angles.shape().elements(), 1, 512, 512};
+    const size4_t shape_batched{tilt_angles.elements(), 1, 512, 512};
     const size4_t shape_recons{1, 512, 512, 512};
     Array weights_fft = memory::ones<float>(shape.fft());
     weights_fft = indexing::broadcast(weights_fft, shape_batched.fft());

@@ -75,10 +75,13 @@ namespace noa {
     public: // typedefs
         using value_t = T;
         using value_type = T;
+        using ptr_t = T*;
+        using ptr_type = T*;
+        using ref_t = T&;
+        using ref_type = T&;
+
         using dim_t = size_t;
         using dim4_t = Int4<dim_t>;
-        using ptr_t = T*;
-        using ref_t = T&;
 
         static_assert(!std::is_const_v<T>);
         static_assert(!std::is_pointer_v<T>);
@@ -154,7 +157,7 @@ namespace noa {
         ///       as a GPU array and will therefore prioritizing GPU access.
         [[nodiscard]] constexpr bool dereferenceable() const noexcept;
 
-        /// Whether the array is empty.
+        /// Whether the array is empty. An array is empty if not initialized or if one of its dimension is 0.
         [[nodiscard]] bool empty() const noexcept;
 
         /// Returns the BDHW shape of the array.
@@ -172,6 +175,12 @@ namespace noa {
         [[nodiscard]] bool contiguous() const noexcept;
 
     public: // Accessors
+        /// Synchronizes the current stream of the Array's device.
+        /// \details It guarantees safe access to the Array's managed memory using get(), data(),
+        ///          operator[], operator(...), share() or view(). Stream-ordered access is safe
+        ///          and doesn't need synchronization.
+        const Array& eval() const;
+
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may create a data race.
@@ -181,12 +190,6 @@ namespace noa {
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may create a data race.
         [[nodiscard]] constexpr T* data() const noexcept;
-
-        /// Returns a reference of the element at the specified memory \p offset.
-        /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this reference may create a data race.
-        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        [[nodiscard]] constexpr T& operator[](I offset) const noexcept;
 
         /// Returns a reference of the managed resource.
         /// \warning Depending on the current stream of this array's device,
@@ -199,14 +202,43 @@ namespace noa {
         template<typename I = size_t>
         [[nodiscard]] constexpr View<T, I> view() const noexcept;
 
-        /// Synchronizes the current stream of the Array's device.
-        /// \details It guarantees safe access to the Array's managed memory using get(), data(),
-        ///          operator[], share() or view(). Stream-ordered access is safe and doesn't need
-        ///          synchronization.
-        const Array& eval() const;
-
         /// Releases the array. *this is left empty.
+        /// \note Moving an array using std::move() is effectively equivalent.
         Array release() noexcept;
+
+        /// Returns a reference of the element at the specified memory \p offset.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this reference may create a data race.
+        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
+        [[nodiscard]] constexpr T& operator[](I offset) const noexcept;
+
+        /// Returns a reference at the beginning of the specified batch index.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this reference may create a data race.
+        template<typename I0, typename = std::enable_if_t<traits::is_int_v<I0>>>
+        [[nodiscard]] constexpr T& operator()(I0 batch) const noexcept;
+
+        /// Returns a reference at the beginning of the specified batch and depth indexes.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this reference may create a data race.
+        template<typename I0, typename I1,
+                 typename = std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I0>>>
+        [[nodiscard]] constexpr T& operator()(I0 batch, I1 depth) const noexcept;
+
+        /// Returns a reference at the beginning of the specified batch, depth and height indexes.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this reference may create a data race.
+        template<typename I0, typename I1, typename I2,
+                 typename = std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> && traits::is_int_v<I2>>>
+        [[nodiscard]] constexpr T& operator()(I0 batch, I1 depth, I2 height) const noexcept;
+
+        /// Returns a reference at the beginning of the specified batch, depth, height and width indexes.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this reference may create a data race.
+        template<typename I0, typename I1, typename I2, typename I3,
+                 typename = std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> &&
+                                             traits::is_int_v<I2> && traits::is_int_v<I3>>>
+        [[nodiscard]] constexpr T& operator()(I0 batch, I1 depth, I2 height, I3 width) const noexcept;
 
     public: // Deep copy
         /// Performs a deep copy of the array to \p output.
@@ -269,45 +301,57 @@ namespace noa {
         /// Fills the array with \p value.
         Array& operator=(T value);
 
+        // -- add -- //
+
         /// Add \p value to the array.
         Array& operator+=(T value);
 
-        /// Subtract \p value to the array.
-        Array& operator-=(T value);
-
-        /// Multiplies the array by \p value.
-        Array& operator*=(T value);
-
-        /// Divide the array by \p value.
-        Array& operator/=(T value);
+        /// Add \p value to the array.
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator+=(U value);
 
         /// Element-wise addition of \p array.
         template<typename U>
         Array& operator+=(const Array<U>& array);
 
+        // -- subtract -- //
+
+        /// Subtract \p value to the array.
+        Array& operator-=(T value);
+
+        /// Element-wise subtraction of \p array.
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator-=(U value);
+
         /// Element-wise subtraction of \p array.
         template<typename U>
         Array& operator-=(const Array<U>& array);
+
+        // -- multiply -- //
+
+        /// Multiplies the array by \p value.
+        Array& operator*=(T value);
+
+        /// Element-wise multiplication of \p array.
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator*=(U value);
 
         /// Element-wise multiplication of \p array.
         template<typename U>
         Array& operator*=(const Array<U>& array);
 
+        // -- divide -- //
+
+        /// Divide the array by \p value.
+        Array& operator/=(T value);
+
+        /// Element-wise division of \p array.
+        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
+        Array& operator/=(U value);
+
         /// Element-wise division by \p array.
         template<typename U>
         Array& operator/=(const Array<U>& array);
-
-        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
-        Array& operator+=(U value);
-
-        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
-        Array& operator-=(U value);
-
-        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
-        Array& operator*=(U value);
-
-        template<typename U, typename = std::enable_if_t<traits::is_complex_v<T> && traits::is_scalar_v<U>>>
-        Array& operator/=(U value);
 
     public: // Subregion
         template<typename A,
@@ -347,6 +391,15 @@ namespace noa::indexing {
     /// Broadcasts an array to a given shape.
     template<typename T>
     Array<T> broadcast(const Array<T>& input, size4_t shape);
+
+    /// Whether \p lhs and \p rhs overlap in memory.
+    template<typename T, typename U>
+    bool isOverlap(const Array<T>& lhs, const Array<U>& rhs);
+
+    /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
+    /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
+    template<typename I, typename T, typename = std::enable_if_t<traits::is_int_v<I>>>
+    constexpr size4_t indexes(I offset, const Array<T>& array);
 }
 
 #define NOA_UNIFIED_ARRAY_

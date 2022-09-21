@@ -14,7 +14,7 @@ TEST_CASE("View") {
     REQUIRE(a.empty());
 
     a = View<int>(nullptr, size4_t{10, 10, 10, 10});
-    REQUIRE(all(a.contiguous()));
+    REQUIRE(a.contiguous());
 
     // to const
     View<const int> d(a.data(), a.shape(), a.strides());
@@ -83,8 +83,8 @@ TEST_CASE("View - indexing") {
     AND_THEN("stride") {
         const View<int> v1 = v0.subregion(ellipsis_t{}, slice_t{0, 60, 2});
         REQUIRE(all(v1.shape() == size4_t{3, 50, 40, 30}));
-        REQUIRE(v0(1, 6, -3, 10) == v1(1, 6, -3, 5));
-        REQUIRE(v0(1, 6, -3, 28) == v1(1, 6, -3, 14));
+        REQUIRE(v0(1, 6, 3, 10) == v1(1, 6, 3, 5));
+        REQUIRE(v0(1, 6, 3, 28) == v1(1, 6, 3, 14));
     }
 
     AND_THEN("empty or oob") {
@@ -129,7 +129,7 @@ TEMPLATE_TEST_CASE("View, shape manipulation", "[noa]", int32_t, uint64_t, float
     AND_THEN("reshape") {
         TestType* ptr{};
         View<TestType, int32_t> a(ptr, {4, 10, 50, 30});
-        a = a.reshape({1, 1, 1, a.shape().elements()});
+        a = a.reshape({1, 1, 1, a.elements()});
         REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({4, 10, 50, 30});
         REQUIRE(all(a.strides() == a.shape().strides()));

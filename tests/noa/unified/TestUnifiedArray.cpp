@@ -123,7 +123,7 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]",
 
     AND_THEN("reshape") {
         Array<TestType> a({4, 10, 50, 30});
-        a = a.reshape({1, 1, 1, a.shape().elements()});
+        a = a.reshape({1, 1, 1, a.elements()});
         REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({4, 10, 50, 30});
         REQUIRE(all(a.strides() == a.shape().strides()));
@@ -165,4 +165,20 @@ TEST_CASE("unified::io, quick load and save", "[noa][unified][io]") {
 
     std::error_code er;
     fs::remove_all(directory, er); // silence possible error
+}
+
+TEST_CASE("unified::Array, overlap", "[noa][unified]") {
+    Array<float> lhs;
+    Array<float> rhs;
+
+    REQUIRE_FALSE(indexing::isOverlap(lhs, rhs));
+
+    lhs = Array<float>(4);
+    REQUIRE_FALSE(indexing::isOverlap(lhs, rhs));
+    rhs = Array<float>(4);
+    REQUIRE_FALSE(indexing::isOverlap(lhs, rhs));
+
+    rhs = lhs.subregion(indexing::ellipsis_t{}, 1);
+    REQUIRE(indexing::isOverlap(lhs, rhs));
+    REQUIRE(indexing::isOverlap(rhs, lhs));
 }

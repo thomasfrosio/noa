@@ -79,10 +79,12 @@ namespace {
                               ogid[1] >= pad_left[1] && ogid[1] < static_cast<int>(gridDim.y) - pad_right[1] &&
                               ogid[2] >= pad_left[2] && ogid[2] < static_cast<int>(output_shape[0]) - pad_right[2];
 
-        const int ii = ogid[0] - pad_left[0] + crop_left[0]; // cannot be negative
+        const int ii = ogid[0] - pad_left[0] + crop_left[0]; // can be negative, but is_valid protects against it-
         const int ij = ogid[1] - pad_left[1] + crop_left[1];
         const int ik = ogid[2] - pad_left[2] + crop_left[2];
-        input += indexing::at(ii, ij, ik, input_strides);
+        // Cast the indexes here, since at() asserts against negative indexes and loss of range.
+        // In this case, we allow it since we precompute the offset but only use it when the index is valid.
+        input += indexing::at(static_cast<uint>(ii), static_cast<uint>(ij), static_cast<uint>(ik), input_strides);
         output += indexing::at(ogid[0], ogid[1], ogid[2], output_strides);
 
         for (int i = 0; i < ELEMENT_PER_THREAD; ++i) {

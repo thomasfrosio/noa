@@ -390,7 +390,7 @@ TEST_CASE("common: Reinterpret", "[noa][common]") {
     REQUIRE(all(real.strides == size4_t{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2}));
 }
 
-TEMPLATE_TEST_CASE("common: indexes()", "[noa][common]", int2_t, uint2_t, int3_t, uint3_t, int4_t, uint4_t) {
+TEMPLATE_TEST_CASE("common: indexes()", "[noa][common]", int2_t, uint2_t, int3_t, uint3_t, int4_t, uint4_t, long3_t) {
     const uint ndim = GENERATE(1u, 2u, 3u);
 
     using value_t = traits::value_type_t<TestType>;

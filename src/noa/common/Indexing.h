@@ -15,102 +15,147 @@
 #include "noa/common/types/Float3.h"
 #include "noa/common/types/Float4.h"
 #include "noa/common/types/ClampCast.h"
+#include "noa/common/types/SafeCast.h"
 
 namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 4D indexes.
     /// \param i0,i1,i2,i3  Multi-dimensional indexes.
-    /// \param strides       Strides associated with these indexes.
-    template<typename T, typename U, typename V, typename W, typename Z>
-    NOA_FHD constexpr auto at(T i0, U i1, V i2, W i3, Int4<Z> strides) noexcept {
-        static_assert(sizeof(Z) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        static_assert(std::is_integral_v<T> || std::is_integral_v<U> ||
-                      std::is_integral_v<V> || std::is_integral_v<W>);
-        return static_cast<Z>(i0) * strides[0] +
-               static_cast<Z>(i1) * strides[1] +
-               static_cast<Z>(i2) * strides[2] +
-               static_cast<Z>(i3) * strides[3];
+    /// \param strides      Strides associated with these indexes.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
+    template<typename I0, typename I1, typename I2, typename I3, typename S,
+             typename std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> &&
+                                       traits::is_int_v<I2> && traits::is_int_v<I3>, bool> = true>
+    NOA_FHD constexpr auto at(I0 i0, I1 i1, I2 i2, I3 i3, const Int4<S>& strides) noexcept {
+        static_assert(sizeof(S) >= 4, "don't compute memory offsets with less than 4 bytes values...");
+
+        NOA_ASSERT((traits::is_uint_v<I0> || i0 >= I0{0}) &&
+                   (traits::is_uint_v<I1> || i1 >= I1{0}) &&
+                   (traits::is_uint_v<I2> || i2 >= I2{0}) &&
+                   (traits::is_uint_v<I3> || i3 >= I3{0}));
+        NOA_ASSERT(isSafeCast<S>(i0) && isSafeCast<S>(i1) &&
+                   isSafeCast<S>(i2) && isSafeCast<S>(i3));
+
+        return static_cast<S>(i0) * strides[0] +
+               static_cast<S>(i1) * strides[1] +
+               static_cast<S>(i2) * strides[2] +
+               static_cast<S>(i3) * strides[3];
     }
 
     /// Returns the memory offset corresponding to the given 4D indexes.
-    /// \param index    Multi-dimensional indexes.
-    /// \param strides  Strides associated with these indexes.
+    /// \param index        Multi-dimensional indexes.
+    /// \param strides      Strides associated with these indexes.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
     template<typename T, typename U>
-    NOA_FHD constexpr auto at(Int4<T> index, Int4<U> strides) noexcept {
+    NOA_FHD constexpr auto at(const Int4<T>& index, const Int4<U>& strides) noexcept {
         return at(index[0], index[1], index[2], index[3], strides);
     }
 
     /// Returns the memory offset corresponding to the given 3D indexes.
-    /// \tparam W       Int3 or Int4.
-    /// \param i0,i1,i2 Multi-dimensional indexes.
-    /// \param strides  Strides associated with these indexes. Only the first 3 values are used.
-    template<typename T, typename U, typename V, typename W,
-             typename = std::enable_if_t<traits::is_int4_v<W> || traits::is_int3_v<W>>>
-    NOA_FHD constexpr auto at(T i0, U i1, V i2, W strides) noexcept {
-        using offset_t = traits::value_type_t<W>;
-        static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        static_assert(std::is_integral_v<T> || std::is_integral_v<U> || std::is_integral_v<V>);
-        return static_cast<offset_t>(i0) * strides[0] +
-               static_cast<offset_t>(i1) * strides[1] +
-               static_cast<offset_t>(i2) * strides[2];
+    /// \tparam S           Int3 or Int4.
+    /// \param i0,i1,i2     Multi-dimensional indexes.
+    /// \param strides      Strides associated with these indexes. Only the first 3 values are used.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
+    template<typename I0, typename I1, typename I2, typename S,
+             typename std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> && traits::is_int_v<I2> &&
+                                       (traits::is_int4_v<S> || traits::is_int3_v<S>), bool> = true>
+    NOA_FHD constexpr auto at(I0 i0, I1 i1, I2 i2, const S& strides) noexcept {
+        using out_t = traits::value_type_t<S>;
+        static_assert(sizeof(out_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
+
+        NOA_ASSERT((traits::is_uint_v<I0> || i0 >= I0{0}) &&
+                   (traits::is_uint_v<I1> || i1 >= I1{0}) &&
+                   (traits::is_uint_v<I2> || i2 >= I2{0}));
+        NOA_ASSERT(isSafeCast<out_t>(i0) && isSafeCast<out_t>(i1) && isSafeCast<out_t>(i2));
+
+        return static_cast<out_t>(i0) * strides[0] +
+               static_cast<out_t>(i1) * strides[1] +
+               static_cast<out_t>(i2) * strides[2];
     }
 
     /// Returns the memory offset corresponding to the given 3D indexes.
-    /// \tparam U       Int3 or Int4.
-    /// \param index    Multi-dimensional indexes.
-    /// \param strides  Strides associated with these indexes. Only the first 3 values are used.
-    template<typename T, typename U,
-             typename = std::enable_if_t<traits::is_int4_v<U> || traits::is_int3_v<U>>>
-    NOA_FHD constexpr auto at(Int3<T> index, U strides) noexcept {
+    /// \tparam S           Int3 or Int4.
+    /// \param index        Multi-dimensional indexes.
+    /// \param strides      Strides associated with these indexes. Only the first 3 values are used.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
+    template<typename I, typename S,
+             typename std::enable_if_t<traits::is_int4_v<S> || traits::is_int3_v<S>, bool> = true>
+    NOA_FHD constexpr auto at(const Int3<I>& index, const S& strides) noexcept {
         return at(index[0], index[1], index[2], strides);
     }
 
     /// Returns the memory offset corresponding to the given 2D indexes.
-    /// \tparam W       Int2, Int3, or Int4.
-    /// \param i0,i1    Multi-dimensional indexes.
-    /// \param strides  Strides associated with these indexes. Only the first 2 values are used.
-    template<typename T, typename U, typename V,
-             typename = std::enable_if_t<traits::is_intX_v<V>>>
-    NOA_FHD constexpr auto at(T i0, U i1, V strides) noexcept {
-        using offset_t = traits::value_type_t<V>;
-        static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        static_assert(std::is_integral_v<T> || std::is_integral_v<U>);
-        return static_cast<offset_t>(i0) * strides[0] +
-               static_cast<offset_t>(i1) * strides[1];
+    /// \tparam S           Int2, Int3, or Int4.
+    /// \param i0,i1        Multi-dimensional indexes.
+    /// \param strides      Strides associated with these indexes. Only the first 2 values are used.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
+    template<typename I0, typename I1, typename S,
+             typename std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> && traits::is_intX_v<S>, bool> = true>
+    NOA_FHD constexpr auto at(I0 i0, I1 i1, const S& strides) noexcept {
+        using out_t = traits::value_type_t<S>;
+        static_assert(sizeof(out_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
+
+        NOA_ASSERT((traits::is_uint_v<I0> || i0 >= I0{0}) &&
+                   (traits::is_uint_v<I1> || i1 >= I1{0}));
+        NOA_ASSERT(isSafeCast<out_t>(i0) && isSafeCast<out_t>(i1));
+
+        return static_cast<out_t>(i0) * strides[0]+
+               static_cast<out_t>(i1) * strides[1];
     }
 
     /// Returns the memory offset corresponding to the given 2D indexes.
-    /// \tparam W       Int2, Int3, or Int4.
-    /// \param i0,i1    Multi-dimensional indexes.
-    /// \param strides  Strides associated with these indexes. Only the first 2 values are used.
-    template<typename T, typename U,
-             typename = std::enable_if_t<traits::is_intX_v<U>>>
-    NOA_FHD constexpr auto at(Int2<T> index, U strides) noexcept {
+    /// \tparam S           Int2, Int3, or Int4.
+    /// \param i0,i1        Multi-dimensional indexes.
+    /// \param strides      Strides associated with these indexes. Only the first 2 values are used.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
+    template<typename I, typename S,
+             typename std::enable_if_t<traits::is_int_v<I> && traits::is_intX_v<S>, bool> = true>
+    NOA_FHD constexpr auto at(const Int2<I>& index, const S& strides) noexcept {
         return at(index[0], index[1], strides);
     }
 
     /// Returns the memory offset corresponding to the given 1D indexes.
-    /// \tparam W       Integer, Int2, Int3, or Int4.
-    /// \param i0       Index.
-    /// \param strides  Strides associated with these indexes. Only the first value is used.
-    template<typename T, typename U,
-             typename = std::enable_if_t<traits::is_int_v<U> || traits::is_intX_v<U>>>
-    NOA_FHD constexpr auto at(T i0, U strides) noexcept {
-        using offset_t = traits::value_type_t<U>;
-        static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        static_assert(std::is_integral_v<T>);
-        if constexpr (noa::traits::is_int_v<U>)
-            return static_cast<offset_t>(i0) * strides;
-        else
-            return static_cast<offset_t>(i0) * strides[0];
+    /// \tparam S           Integer, Int2, Int3, or Int4.
+    /// \param i0           Index.
+    /// \param strides      Strides associated with these indexes. Only the first value is used.
+    /// \note In Debug mode, assertions are added to check for negative indexes
+    ///       and if the cast to the offset type is bound safe. However, it doesn't
+    ///       check for integer overflow.
+    template<typename I, typename S,
+             typename std::enable_if_t<traits::is_int_v<I> && (traits::is_intX_v<S> || traits::is_int_v<S>), bool> = true>
+    NOA_FHD constexpr auto at(I i0, S strides) noexcept {
+        using out_t = traits::value_type_t<S>;
+        static_assert(sizeof(out_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
+
+        NOA_ASSERT(traits::is_uint_v<I> || i0 >= I{0});
+        NOA_ASSERT(isSafeCast<out_t>(i0));
+
+        if constexpr (traits::is_int_v<S>) {
+            return static_cast<out_t>(i0) * strides;
+        } else {
+            return static_cast<out_t>(i0) * strides[0];
+        }
     }
 
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
-    /// Otherwise, returns \p idx.
-    /// \p size should be > 0.
+    /// Otherwise, returns \p idx. \p size should be > 0.
     template<BorderMode MODE, typename T, typename = std::enable_if_t<std::is_signed_v<T>>>
     NOA_IHD T at(T idx, T size) {
         static_assert(MODE == BORDER_CLAMP || MODE == BORDER_PERIODIC ||
                       MODE == BORDER_MIRROR || MODE == BORDER_REFLECT);
+        NOA_ASSERT(size > 0);
+
         // a % b == a - b * (a / b) == a + b * (-a / b)
         // Having a < 0 is well-defined since C++11.
         if constexpr (MODE == BORDER_CLAMP) {
@@ -475,6 +520,12 @@ namespace noa::indexing {
         }
         return view_d == -1;
     }
+
+    /// Whether the range [lhs_start, lhs_end] overlaps with the range [rhs_start, rhs_end].
+    constexpr inline bool isOverlap(std::uintptr_t lhs_start, std::uintptr_t lhs_end,
+                                    std::uintptr_t rhs_start, std::uintptr_t rhs_end) noexcept {
+        return lhs_start <= rhs_end && lhs_end >= rhs_start;
+    }
 }
 
 namespace noa::indexing {
@@ -527,13 +578,12 @@ namespace noa::indexing {
 
     /// Returns the multidimensional indexes corresponding to a memory \p offset.
     /// \details Given a memory offset and a memory layout (i.e. strides and shape), this function computes
-    ///          the ND logical indexes. Broadcasting is not supported, so the strides should be greater than 0.
+    ///          the 4D logical indexes. Broadcasting is not supported, so the strides should be greater than 0.
     ///          Otherwise, any ordering is supported.
     /// \param offset   Memory offset with the array.
     /// \param strides  Strides of the array.
     /// \param shape    Shape of the array.
-    template<typename T, typename U,
-             typename = std::enable_if_t<traits::is_int2_v<U> || traits::is_int3_v<U> || traits::is_int4_v<U>>>
+    template<typename T, typename U, typename = std::enable_if_t<traits::is_intX_v<U>>>
     NOA_IHD constexpr auto indexes(T offset, U strides, U shape) noexcept {
         NOA_ASSERT(all(shape > 0));
         using vec_t = traits::remove_ref_cv_t<U>;
@@ -658,6 +708,7 @@ namespace noa::indexing {
     }
 
     /// Utility for indexing subregions.
+    /// The indexing operator is bound-checked.
     struct Subregion {
     private:
         template<typename U>

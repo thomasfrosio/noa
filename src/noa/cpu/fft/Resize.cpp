@@ -64,6 +64,7 @@ namespace noa::cpu::fft::details {
         NOA_ASSERT(input != output);
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
+
         if (all(input_shape == output_shape))
             return cpu::memory::copy(input, input_strides, output, output_strides, input_shape.fft());
 

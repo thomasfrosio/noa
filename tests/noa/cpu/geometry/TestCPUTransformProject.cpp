@@ -38,32 +38,31 @@ namespace {
         const float34_t fwd_matrix_{fwd_matrix};
         const float34_t inv_matrix_{inv_matrix};
 
-            for (size_t y = 0; y < output_shape[2]; ++y) {
-                for (size_t x = 0; x < output_shape[3]; ++x) {
+        for (size_t y = 0; y < output_shape[2]; ++y) {
+            for (size_t x = 0; x < output_shape[3]; ++x) {
 
-                    // Find output ZYX coordinate by applying forward transform for the given zyx
-                    const float3_t output_coords = fwd_matrix_ * float4_t{0, y, x, 1.f};
+                // Find output ZYX coordinate by applying forward transform for the given zyx
+                const float3_t output_coords = fwd_matrix_ * float4_t{0, y, x, 1.f};
 
-                    for (int64_t z = start; z < end; ++z) {
-                        // Round coordinate to have the XYZ output index.
-                        const float3_t output_idx{math::floor(output_coords[0]) + static_cast<float>(z),
-                                                  math::floor(output_coords[1]),
-                                                  math::floor(output_coords[2])};
+                for (int64_t z = start; z < end; ++z) {
+                    // Round coordinate to have the XYZ output index.
+                    const float3_t output_idx{math::floor(output_coords[0]) + static_cast<float>(z),
+                                              math::floor(output_coords[1]),
+                                              math::floor(output_coords[2])};
+                    const auto offset = indexing::at(size4_t{0, output_idx[0] + 128, output_idx[1], output_idx[2]},
+                                                     output_strides);
+                    mask[offset] += 1;
 
-                        mask[indexing::at(0, output_idx[0]+128, output_idx[1], output_idx[2], output_strides)] += 1;
+                    // Apply inverse transform on the ZYX output index.
+                    const float3_t input_coords =
+                            inv_matrix_ * float4_t{output_idx[0], output_idx[1], output_idx[2], 1.f};
 
-                        // Apply inverse transform on the ZYX output index.
-                        const float3_t input_coords =
-                                inv_matrix_ * float4_t{output_idx[0], output_idx[1], output_idx[2], 1.f};
-
-                        // Add the interpolated value at output index 0YZ
-                        output[indexing::at(0, 0, output_idx[1], output_idx[2], output_strides)] +=
-                                interp.get<INTERP_LINEAR, BORDER_ZERO>(input_coords);
-                    }
-
-
+                    // Add the interpolated value at output index 0YZ
+                    output[indexing::at(size4_t{0, 0, output_idx[1], output_idx[2]}, output_strides)] +=
+                            interp.get<INTERP_LINEAR, BORDER_ZERO>(input_coords);
                 }
             }
+        }
     }
 }
 

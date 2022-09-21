@@ -119,7 +119,7 @@ namespace noa {
     constexpr bool Array<T>::dereferenceable() const noexcept { return m_options.dereferenceable(); }
 
     template<typename T>
-    bool Array<T>::empty() const noexcept { return !m_ptr || !m_shape.elements(); }
+    bool Array<T>::empty() const noexcept { return !m_ptr || any(m_shape == 0); }
 
     template<typename T>
     const size4_t& Array<T>::shape() const noexcept { return m_shape; }
@@ -146,9 +146,60 @@ namespace noa {
     constexpr T* Array<T>::data() const noexcept { return m_ptr.get(); }
 
     template<typename T>
+    const Array<T>& Array<T>::eval() const {
+        Stream::current(device()).synchronize();
+        return *this;
+    }
+
+    template<typename T>
+    Array<T> Array<T>::release() noexcept {
+        return std::exchange(*this, Array<T>{});
+    }
+
+    template<typename T>
     template<typename I, typename>
     [[nodiscard]] constexpr T& Array<T>::operator[](I offset) const noexcept {
+        NOA_ASSERT(!empty() && dereferenceable() &&
+                   static_cast<size_t>(offset) <= indexing::at(m_shape - 1, m_strides));
         return m_ptr.get()[offset];
+    }
+
+    template<typename T>
+    template<typename I0, typename>
+    [[nodiscard]] constexpr T& Array<T>::operator()(I0 batch) const noexcept {
+        NOA_ASSERT(!empty() && dereferenceable() &&
+                   static_cast<size_t>(batch) < m_shape[0]);
+        return m_ptr.get()[indexing::at(batch, m_strides[0])];
+    }
+
+    template<typename T>
+    template<typename I0, typename I1, typename>
+    [[nodiscard]] constexpr T& Array<T>::operator()(I0 batch, I1 depth) const noexcept {
+        NOA_ASSERT(!empty() && dereferenceable() &&
+                   static_cast<size_t>(batch) < m_shape[0] &&
+                   static_cast<size_t>(depth) < m_shape[1]);
+        return m_ptr.get()[indexing::at(batch, depth, m_strides)];
+    }
+
+    template<typename T>
+    template<typename I0, typename I1, typename I2, typename>
+    [[nodiscard]] constexpr T& Array<T>::operator()(I0 batch, I1 depth, I2 height) const noexcept {
+        NOA_ASSERT(!empty() && dereferenceable() &&
+                   static_cast<size_t>(batch) < m_shape[0] &&
+                   static_cast<size_t>(depth) < m_shape[1] &&
+                   static_cast<size_t>(height) < m_shape[2]);
+        return m_ptr.get()[indexing::at(batch, depth, height, m_strides)];
+    }
+
+    template<typename T>
+    template<typename I0, typename I1, typename I2, typename I3, typename>
+    [[nodiscard]] constexpr T& Array<T>::operator()(I0 batch, I1 depth, I2 height, I3 width) const noexcept {
+        NOA_ASSERT(!empty() && dereferenceable() &&
+                   static_cast<size_t>(batch) < m_shape[0] &&
+                   static_cast<size_t>(depth) < m_shape[1] &&
+                   static_cast<size_t>(height) < m_shape[2] &&
+                   static_cast<size_t>(width) < m_shape[3]);
+        return m_ptr.get()[indexing::at(batch, depth, height, width, m_strides)];
     }
 
     template<typename T>
@@ -158,17 +209,6 @@ namespace noa {
     template<typename I>
     constexpr View<T, I> Array<T>::view() const noexcept {
         return {get(), Int4<I>(m_shape), Int4<I>(m_strides)};
-    }
-
-    template<typename T>
-    const Array<T>& Array<T>::eval() const {
-        Stream::current(device()).synchronize();
-        return *this;
-    }
-
-    template<typename T>
-    Array<T> Array<T>::release() noexcept {
-        return std::exchange(*this, Array<T>{});
     }
 
     template<typename T>
@@ -575,5 +615,24 @@ namespace noa::indexing {
         if (!broadcast(input.shape(), strides, shape))
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}", input.shape(), shape);
         return Array<T>{input.share(), shape, strides, input.options()};
+    }
+
+    template<typename T, typename U>
+    bool isOverlap(const Array<T>& lhs, const Array<U>& rhs) {
+        if (lhs.empty() || rhs.empty())
+            return false;
+
+        return isOverlap(reinterpret_cast<uintptr_t>(lhs.get()),
+                         reinterpret_cast<uintptr_t>(lhs.get() + at(lhs.shape() - 1, lhs.strides())),
+                         reinterpret_cast<uintptr_t>(rhs.get()),
+                         reinterpret_cast<uintptr_t>(rhs.get() + at(rhs.shape() - 1, rhs.strides())));
+    }
+
+    template<typename I, typename T, typename>
+    constexpr size4_t indexes(I offset, const Array<T>& array) {
+        NOA_CHECK(!any(array.strides() == 0),
+                  "Cannot retrieve the 4D index from a broadcast array. Got strides:{}",
+                  array.strides());
+        return indexing::indexes(offset, array.strides(), array.shape());
     }
 }
