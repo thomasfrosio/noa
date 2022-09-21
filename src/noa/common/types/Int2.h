@@ -15,6 +15,8 @@
 #include "noa/common/string/Format.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/types/Bool2.h"
+#include "noa/common/types/ClampCast.h"
+#include "noa/common/types/SafeCast.h"
 #include "noa/common/utils/Sort.h"
 
 namespace noa {
@@ -389,6 +391,19 @@ namespace fmt {
     };
 }
 
+namespace noa {
+    template<typename TTo, typename TFrom, typename = std::enable_if_t<traits::is_int2_v<TTo>>>
+    [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Int2<TFrom>& src) noexcept {
+        using value_t = traits::value_type_t<TTo>;
+        return {clamp_cast<value_t>(src[0]), clamp_cast<value_t>(src[1])};
+    }
+
+    template<typename TTo, typename TFrom, typename = std::enable_if_t<traits::is_int2_v<TTo>>>
+    [[nodiscard]] NOA_FHD constexpr bool isSafeCast(const Int2<TFrom>& src) noexcept {
+        using value_t = traits::value_type_t<TTo>;
+        return isSafeCast<value_t>(src[0]) && isSafeCast<value_t>(src[1]);
+    }
+}
 
 namespace noa::math {
     template<typename T>

@@ -43,6 +43,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/common/types/Constants.h"
 #include "noa/common/types/Half.h"
 #include "noa/common/types/Pair.h"
+#include "noa/common/types/SafeCast.h"
 #include "noa/common/types/View.h"
 
 #include "noa/common/utils/Any.h"

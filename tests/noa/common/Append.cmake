@@ -19,6 +19,7 @@ set(TEST_COMMON_SOURCES
         noa/common/types/TestCommonComplex.cpp
         noa/common/types/TestCommonHalf.cpp
         noa/common/types/TestCommonMatrices.cpp
+        noa/common/types/TestCommonSafeCast.cpp
         noa/common/types/TestCommonVectors.cpp
 
         )

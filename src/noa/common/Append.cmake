@@ -71,6 +71,7 @@ set(NOA_COMMON_HEADERS
         common/types/Mat34.h
         common/types/Mat44.h
         common/types/Pair.h
+        common/types/SafeCast.h
         common/types/View.h
         )
 

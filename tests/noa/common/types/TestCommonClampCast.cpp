@@ -26,14 +26,14 @@ TEMPLATE_TEST_CASE("clamp_cast, floating-point to signed integer", "[noa][common
     REQUIRE(0 == clamp_cast<TestType>(::sqrt(-1)));
     REQUIRE(0 == clamp_cast<TestType>(math::sqrt(half_t(-1))));
 
-    REQUIRE(int_limit::max() == clamp_cast<TestType>(float(int_limit::max()) + 10));
-    REQUIRE(int_limit::min() == clamp_cast<TestType>(float(int_limit::min()) - 10));
+    REQUIRE(int_limit::max() == clamp_cast<TestType>(float(int_limit::max()) * 2));
+    REQUIRE(int_limit::min() == clamp_cast<TestType>(float(int_limit::min()) * 2));
     REQUIRE(int_limit::max() == clamp_cast<TestType>(std::numeric_limits<float>::max()));
     REQUIRE(int_limit::min() == clamp_cast<TestType>(std::numeric_limits<float>::lowest()));
     REQUIRE(0 == clamp_cast<TestType>(std::numeric_limits<float>::min()));
 
-    REQUIRE(int_limit::max() == clamp_cast<TestType>(double(int_limit::max()) + 10));
-    REQUIRE(int_limit::min() == clamp_cast<TestType>(double(int_limit::min()) - 10));
+    REQUIRE(int_limit::max() == clamp_cast<TestType>(double(int_limit::max()) * 2));
+    REQUIRE(int_limit::min() == clamp_cast<TestType>(double(int_limit::min()) * 2));
     REQUIRE(int_limit::max() == clamp_cast<TestType>(std::numeric_limits<double>::max()));
     REQUIRE(int_limit::min() == clamp_cast<TestType>(std::numeric_limits<double>::lowest()));
     REQUIRE(0 == clamp_cast<TestType>(std::numeric_limits<double>::min()));

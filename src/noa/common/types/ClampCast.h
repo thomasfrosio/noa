@@ -17,14 +17,16 @@ namespace noa {
     /// the value is clamped to the range of the destination type in a way that is always well defined.
     /// \see https://en.cppreference.com/w/cpp/language/implicit_conversion
     /// \note For floating-point to integral types, NaN returns 0, -/+Inf returns the min/max integral value.
-    template<typename TTo, typename TFrom>
+    /// \note If the output type has a wider range than the input type, this function should have no runtime
+    ///       overhead compared to static_cast.
+    template<typename TTo, typename TFrom,
+             typename std::enable_if_t<traits::is_data_v<TTo> && traits::is_data_v<TFrom>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
-        static_assert(traits::is_data_v<TTo> && traits::is_data_v<TFrom>);
         if constexpr (std::is_same_v<TTo, TFrom>) {
             return src;
 
         } else if constexpr(traits::is_complex_v<TFrom>) {
-            static_assert(traits::is_complex_v<TTo>); // only Complex<T>->Complex<U>
+            static_assert(traits::is_complex_v<TTo>); // only Complex<T> -> Complex<U>
             return {clamp_cast<typename TTo::value_type>(src.real),
                     clamp_cast<typename TTo::value_type>(src.imag)};
 
@@ -61,8 +63,8 @@ namespace noa {
                                            TFrom(math::Limits<TTo>::lowest()),
                                            TFrom(math::Limits<TTo>::max())));
                 }
-            } else if constexpr (std::is_integral_v<TFrom> || std::is_same_v<TTo, double>) {
-                return TTo(src); // implicit integral->float/double conversion or float->double
+            } else if constexpr (std::is_integral_v<TFrom> || (sizeof(TFrom) < sizeof(TTo))) {
+                return TTo(src); // implicit integral/half_t->float/double conversion or float->double
             } else { // double->float
                 return TTo(math::clamp(src,
                                        TFrom(math::Limits<TTo>::lowest()),
@@ -80,8 +82,8 @@ namespace noa {
             //      - half_t is an exception since some integral types have a wider range. In these cases, no need to
             //        clamp, but still check for NaN and +/-Inf.
             using int_limits = math::Limits<TTo>;
-            if constexpr (std::is_same_v<TFrom, half_t> &&
-                          (sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>))) {
+            constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>);
+            if constexpr (std::is_same_v<TFrom, half_t> && IS_WIDER_THAN_HALF) {
                 if (math::isNaN(src)) {
                     return 0;
                 } else if (src == half_t(half_t::Mode::BINARY, 0x7C00)) { // +inf

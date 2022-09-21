@@ -13,9 +13,11 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/string/Format.h"
-#include "noa/common/traits/BaseTypes.h"
 #include "noa/common/traits/ArrayTypes.h"
+#include "noa/common/traits/BaseTypes.h"
 #include "noa/common/types/Bool4.h"
+#include "noa/common/types/ClampCast.h"
+#include "noa/common/types/SafeCast.h"
 #include "noa/common/utils/Sort.h"
 
 namespace noa {
@@ -428,6 +430,22 @@ namespace fmt {
             return out;
         }
     };
+}
+
+namespace noa {
+    template<typename TTo, typename TFrom, typename = std::enable_if_t<traits::is_int4_v<TTo>>>
+    [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Int4<TFrom>& src) noexcept {
+        using value_t = traits::value_type_t<TTo>;
+        return {clamp_cast<value_t>(src[0]), clamp_cast<value_t>(src[1]),
+                clamp_cast<value_t>(src[2]), clamp_cast<value_t>(src[3])};
+    }
+
+    template<typename TTo, typename TFrom, typename = std::enable_if_t<traits::is_int4_v<TTo>>>
+    [[nodiscard]] NOA_FHD constexpr bool isSafeCast(const Int4<TFrom>& src) noexcept {
+        using value_t = traits::value_type_t<TTo>;
+        return isSafeCast<value_t>(src[0]) && isSafeCast<value_t>(src[1]) &&
+               isSafeCast<value_t>(src[2] && isSafeCast<value_t>(src[2]));
+    }
 }
 
 namespace noa::math {
