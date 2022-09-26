@@ -50,6 +50,11 @@ TEMPLATE_TEST_CASE("cpu::memory::PtrHost", "[noa][cpu][memory]",
         REQUIRE(ptr1.bytes() == elements * sizeof(TestType));
     }
 
+    AND_THEN("accessor") {
+        // Just check it compiles...
+        [[maybe_unused]] const auto accessor = ptr.template accessor<const TestType, int64_t>();
+    }
+
     AND_THEN("transfer data") {
         cpu::memory::PtrHost<TestType> ptr1;
         REQUIRE_FALSE(ptr1);

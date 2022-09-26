@@ -182,3 +182,23 @@ TEST_CASE("unified::Array, overlap", "[noa][unified]") {
     REQUIRE(indexing::isOverlap(lhs, rhs));
     REQUIRE(indexing::isOverlap(rhs, lhs));
 }
+
+TEST_CASE("unified::Array, view and accessor", "[noa][unified]") {
+    Array<float> lhs({9, 10, 11, 12});
+
+    const auto [accessor0, size] = lhs.accessor<float, 1>();
+    for (dim_t i = 0; i < size; ++i)
+        accessor0[i] = static_cast<float>(i);
+
+    const dim_t offset = indexing::at(3, 5, 1, 10, lhs.strides());
+    REQUIRE(accessor0(offset) == static_cast<float>(offset));
+
+    // Just check that it compiles
+    const auto [accessor1, a_shape] = lhs.accessor<unsigned char, 4>();
+    for (dim_t i = 0; i < a_shape[0]; ++i)
+        for (dim_t j = 0; j < a_shape[1]; ++j)
+            for (dim_t k = 0; k < a_shape[2]; ++k)
+                for (dim_t l = 0; l < a_shape[3]; ++l)
+                    accessor1[i][j][k][l] = 0;
+    REQUIRE(test::Matcher(test::MATCH_ABS, lhs, 0.f, 1e-10));
+}
