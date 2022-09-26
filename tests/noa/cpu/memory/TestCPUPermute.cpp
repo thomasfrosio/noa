@@ -20,7 +20,7 @@ TEST_CASE("cpu::memory::permute()", "[assets][noa][cpu][memory]") {
         const YAML::Node& test = tests[nb];
         const auto filename_input = path_base / test["input"].as<path_t>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
-        const auto permutation = test["permutation"].as<uint4_t>();
+        const auto permutation = test["permutation"].as<dim4_t>();
         const auto inplace = test["inplace"].as<bool>();
 
         file.open(filename_input, io::READ);

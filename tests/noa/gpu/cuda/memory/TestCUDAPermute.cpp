@@ -23,7 +23,7 @@ TEST_CASE("cuda::memory::permute()", "[assets][noa][cuda][memory]") {
         const YAML::Node& test = tests[nb];
         const auto filename_input = path_base / test["input"].as<path_t>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
-        const auto permutation = test["permutation"].as<uint4_t>();
+        const auto permutation = test["permutation"].as<dim4_t>();
         const auto inplace = test["inplace"].as<bool>();
 
         file.open(filename_input, io::READ);
@@ -48,7 +48,7 @@ TEST_CASE("cuda::memory::permute()", "[assets][noa][cuda][memory]") {
         if (inplace) {
             cuda::memory::copy(data.share(), stride, d_data.share(), d_data.strides(), shape, stream);
             cuda::memory::permute(d_data.share(), d_data.strides(), shape,
-                                           d_data.share(), d_data.strides(), permutation, stream);
+                                  d_data.share(), d_data.strides(), permutation, stream);
             cuda::memory::copy(d_data.share(), d_data.strides(), data.share(), output_stride, output_shape, stream);
             stream.synchronize();
 
@@ -56,7 +56,7 @@ TEST_CASE("cuda::memory::permute()", "[assets][noa][cuda][memory]") {
         } else {
             cuda::memory::copy(data.share(), stride, d_data.share(), d_data.strides(), shape, stream);
             cuda::memory::permute(d_data.share(), d_data.strides(), shape,
-                                           d_result.share(), d_result.strides(), permutation, stream);
+                                  d_result.share(), d_result.strides(), permutation, stream);
             cuda::memory::copy(d_result.share(), d_result.strides(), result.share(), output_stride, output_shape, stream);
             stream.synchronize();
 
@@ -67,15 +67,15 @@ TEST_CASE("cuda::memory::permute()", "[assets][noa][cuda][memory]") {
 
 TEMPLATE_TEST_CASE("cuda::memory::permute() - random shapes - contiguous layouts", "[noa][cuda][memory]",
                    int, int64_t, double, cfloat_t) {
-    const std::array<uint4_t, 6> permutations{uint4_t{0, 1, 2, 3},
-                                              uint4_t{0, 1, 3, 2},
-                                              uint4_t{0, 3, 1, 2},
-                                              uint4_t{0, 3, 2, 1},
-                                              uint4_t{0, 2, 1, 3},
-                                              uint4_t{0, 2, 3, 1}};
+    const std::array<dim4_t, 6> permutations{dim4_t{0, 1, 2, 3},
+                                             dim4_t{0, 1, 3, 2},
+                                             dim4_t{0, 3, 1, 2},
+                                             dim4_t{0, 3, 2, 1},
+                                             dim4_t{0, 2, 1, 3},
+                                             dim4_t{0, 2, 3, 1}};
     const uint ndim = GENERATE(2U, 3U);
     const uint number = GENERATE(0U, 1U, 2U, 3U, 4U, 5U);
-    const uint4_t permutation = permutations[number];
+    const dim4_t permutation = permutations[number];
 
     test::Randomizer<TestType> randomizer(-5., 5.);
     const size4_t shape = test::getRandomShapeBatched(ndim);
@@ -94,7 +94,7 @@ TEMPLATE_TEST_CASE("cuda::memory::permute() - random shapes - contiguous layouts
     const size4_t output_shape = indexing::reorder(shape, permutation);
     const size4_t output_stride = output_shape.strides();
 
-    if (ndim == 2 && !(all(permutation == uint4_t{0, 1, 2, 3}) || all(permutation == uint4_t{0, 1, 3, 2}))) {
+    if (ndim == 2 && !(all(permutation == dim4_t{0, 1, 2, 3}) || all(permutation == dim4_t{0, 1, 3, 2}))) {
         // While this is technically OK, it doesn't make much sense to test these...
         return;
     }

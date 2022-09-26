@@ -49,8 +49,8 @@ TEMPLATE_TEST_CASE("unified::math::ewise, broadcast", "[noa][unified]", int32_t,
         Array<TestType> data1{{1, 64, 64, 64}, options};
         math::ewise(data0, TestType{-1}, data1, math::multiply_t{});
 
-        const auto view = data1.eval().view();
-        REQUIRE_THAT(view.front(), Catch::WithinAbs(50, 1e-6));
-        REQUIRE_THAT(view.back(), Catch::WithinAbs(-50, 1e-6));
+        data1.eval();
+        REQUIRE_THAT(data1[0], Catch::WithinAbs(50, 1e-6));
+        REQUIRE_THAT(data1[data1.size() - 1], Catch::WithinAbs(-50, 1e-6));
     }
 }

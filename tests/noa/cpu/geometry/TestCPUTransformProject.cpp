@@ -27,7 +27,7 @@ namespace {
         // Broadcast the input if it is not batched.
         const size3_t strides{0, input_strides[2], input_strides[3]};
         const size3_t shape{1, input_shape[2], input_shape[3]};
-        const cpu::geometry::Interpolator3D<float> interp(input, strides, shape, 0.f);
+        const cpu::geometry::Interpolator3D interp(input, strides, shape, 0.f);
 
         // Check YX range in output to not go through pixels that are OOB.
 

@@ -11,18 +11,18 @@
 using namespace ::noa;
 
 TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", int32_t, float, double, cfloat_t) {
-    const std::array<uint4_t, 6> permutations{uint4_t{0, 1, 2, 3},
-                                              uint4_t{0, 1, 3, 2},
-                                              uint4_t{0, 3, 1, 2},
-                                              uint4_t{0, 3, 2, 1},
-                                              uint4_t{0, 2, 1, 3},
-                                              uint4_t{0, 2, 3, 1}};
+    const std::array<dim4_t, 6> permutations{dim4_t{0, 1, 2, 3},
+                                             dim4_t{0, 1, 3, 2},
+                                             dim4_t{0, 3, 1, 2},
+                                             dim4_t{0, 3, 2, 1},
+                                             dim4_t{0, 2, 1, 3},
+                                             dim4_t{0, 2, 3, 1}};
     const uint ndim = GENERATE(2U, 3U);
     const uint number = GENERATE(0U, 1U, 2U, 3U, 4U, 5U);
-    const uint4_t permutation = permutations[number];
+    const dim4_t permutation = permutations[number];
     const size4_t shape = test::getRandomShapeBatched(ndim);
     const size4_t permuted_shape = indexing::reorder(shape, permutation);
-    if (ndim == 2 && !(all(permutation == uint4_t{0, 1, 2, 3}) || all(permutation == uint4_t{0, 1, 3, 2})))
+    if (ndim == 2 && !(all(permutation == dim4_t{0, 1, 2, 3}) || all(permutation == dim4_t{0, 1, 3, 2})))
         return; // while this is technically OK, it doesn't make much sense to test these...
 
     StreamGuard stream(Device{}, Stream::DEFAULT);
@@ -48,14 +48,14 @@ TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", int32_t, float,
 }
 
 TEST_CASE("unified::memory::permute, broadcast", "[noa][unified]") {
-    const std::array<uint4_t, 6> permutations{uint4_t{0, 1, 2, 3},
-                                              uint4_t{0, 1, 3, 2},
-                                              uint4_t{0, 3, 1, 2},
-                                              uint4_t{0, 3, 2, 1},
-                                              uint4_t{0, 2, 1, 3},
-                                              uint4_t{0, 2, 3, 1}};
+    const std::array<dim4_t, 6> permutations{dim4_t{0, 1, 2, 3},
+                                             dim4_t{0, 1, 3, 2},
+                                             dim4_t{0, 3, 1, 2},
+                                             dim4_t{0, 3, 2, 1},
+                                             dim4_t{0, 2, 1, 3},
+                                             dim4_t{0, 2, 3, 1}};
     const uint number = GENERATE(0U, 1U, 2U, 3U, 4U, 5U);
-    const uint4_t permutation = permutations[number];
+    const dim4_t permutation = permutations[number];
     const size4_t shape{1, 20, 50, 60};
     const size4_t permuted_shape = indexing::reorder(shape, permutation);
 
