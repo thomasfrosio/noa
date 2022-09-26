@@ -5,7 +5,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("clamp_cast, floating-point to signed integer", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, floating-point to signed integer", "[noa][common]",
                    int8_t, int16_t, int32_t, int64_t) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(123 == clamp_cast<TestType>(123.f));
@@ -50,7 +50,7 @@ TEMPLATE_TEST_CASE("clamp_cast, floating-point to signed integer", "[noa][common
     REQUIRE(0 == clamp_cast<TestType>(std::numeric_limits<half_t>::min()));
 }
 
-TEMPLATE_TEST_CASE("clamp_cast, floating-point to unsigned integer", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, floating-point to unsigned integer", "[noa][common]",
                    uint8_t, uint16_t, uint32_t, uint64_t) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(123 == clamp_cast<TestType>(123.f));
@@ -74,7 +74,7 @@ TEMPLATE_TEST_CASE("clamp_cast, floating-point to unsigned integer", "[noa][comm
     REQUIRE(int_limit::min() == clamp_cast<TestType>(half_t(int_limit::min())));
 }
 
-TEMPLATE_TEST_CASE("clamp_cast, integer to floating-point", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, integer to floating-point", "[noa][common]",
                    int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(static_cast<float>(int_limit::min()) == clamp_cast<float>(int_limit::min()));
@@ -83,7 +83,7 @@ TEMPLATE_TEST_CASE("clamp_cast, integer to floating-point", "[noa][common]",
     REQUIRE(static_cast<double>(int_limit::max()) == clamp_cast<double>(int_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("clamp_cast, half_t to float/double", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, half_t to float/double", "[noa][common]",
                    float, double) {
     test::Randomizer<half_t> randomizer(math::Limits<half_t>::lowest(), math::Limits<half_t>::max());
     for (size_t i = 0; i < 1000; ++i) {
@@ -93,14 +93,14 @@ TEMPLATE_TEST_CASE("clamp_cast, half_t to float/double", "[noa][common]",
     }
 }
 
-TEMPLATE_TEST_CASE("clamp_cast, small integer to half_t", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, small integer to half_t", "[noa][common]",
                    int8_t, int16_t, uint8_t) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(static_cast<half_t>(int_limit::min()) == clamp_cast<half_t>(int_limit::min()));
     REQUIRE(static_cast<half_t>(int_limit::max()) == clamp_cast<half_t>(int_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("clamp_cast, large integer to half_t", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, large integer to half_t", "[noa][common]",
                    int32_t, int64_t, uint16_t, uint32_t, uint64_t) {
     using int_limit = std::numeric_limits<TestType>;
     if constexpr (std::is_signed_v<TestType>) {
@@ -112,7 +112,7 @@ TEMPLATE_TEST_CASE("clamp_cast, large integer to half_t", "[noa][common]",
     }
 }
 
-TEST_CASE("clamp_cast, double to float/half_t", "[noa][common]") {
+TEST_CASE("common: clamp_cast, double to float/half_t", "[noa][common]") {
     using double_limit = std::numeric_limits<double>;
     REQUIRE(static_cast<float>(12456.251) == clamp_cast<float>(12456.251));
     REQUIRE(static_cast<float>(double_limit::min()) == clamp_cast<float>(double_limit::min()));
@@ -125,7 +125,7 @@ TEST_CASE("clamp_cast, double to float/half_t", "[noa][common]") {
     REQUIRE(std::numeric_limits<half_t>::max() == clamp_cast<half_t>(double_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("clamp_cast, scalar to complex", "[noa][common]",
+TEMPLATE_TEST_CASE("common: clamp_cast, scalar to complex", "[noa][common]",
                    int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t, half_t, float, double) {
     auto c1 = clamp_cast<cfloat_t>(std::numeric_limits<TestType>::lowest());
     REQUIRE(clamp_cast<float>(std::numeric_limits<TestType>::lowest()) == c1.real);
@@ -152,7 +152,7 @@ TEMPLATE_TEST_CASE("clamp_cast, scalar to complex", "[noa][common]",
     REQUIRE(half_t(0) == c3.imag);
 }
 
-TEST_CASE("clamp_cast, integer to integer", "[noa][common]") {
+TEST_CASE("common: clamp_cast, integer to integer", "[noa][common]") {
     // Unsigned to sign:
     REQUIRE(123456 == clamp_cast<int32_t>(uint32_t(123456)));
     REQUIRE(0 == clamp_cast<int32_t>(std::numeric_limits<uint32_t>::min()));

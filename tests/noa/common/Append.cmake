@@ -2,7 +2,6 @@ set(TEST_COMMON_SOURCES
         noa/common/TestCommonIndexing.cpp
         noa/common/TestCommonIRange.cpp
         noa/common/TestCommonOS.cpp
-        noa/common/TestCommonView.cpp
 
         noa/common/geometry/TestCommonGeometryEuler.cpp
 
@@ -15,12 +14,14 @@ set(TEST_COMMON_SOURCES
         noa/common/traits/TestCommonTraits.cpp
         noa/common/traits/TestCommonTraitsVectors.cpp
 
+        noa/common/types/TestCommonAccessor.cpp
         noa/common/types/TestCommonClampCast.cpp
         noa/common/types/TestCommonComplex.cpp
         noa/common/types/TestCommonHalf.cpp
         noa/common/types/TestCommonMatrices.cpp
         noa/common/types/TestCommonSafeCast.cpp
         noa/common/types/TestCommonVectors.cpp
+        noa/common/types/TestCommonView.cpp
 
         )
 
