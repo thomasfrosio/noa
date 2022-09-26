@@ -488,8 +488,8 @@ namespace noa::indexing {
     /// \return Whether the input and output shape and strides are compatible.
     ///         If false, \p new_strides is left in an undefined state.
     template<typename T>
-    NOA_IH bool reshape(Int4<T> old_shape, Int4<T> old_strides,
-                        Int4<T> new_shape, Int4<T>& new_strides) noexcept {
+    NOA_IH bool reshape(const Int4<T>& old_shape, const Int4<T>& old_strides,
+                        const Int4<T>& new_shape, Int4<T>& new_strides) noexcept {
         // see https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/TensorUtils.cpp
         if (!math::prod(old_shape))
             return false;
@@ -525,6 +525,26 @@ namespace noa::indexing {
     constexpr inline bool isOverlap(std::uintptr_t lhs_start, std::uintptr_t lhs_end,
                                     std::uintptr_t rhs_start, std::uintptr_t rhs_end) noexcept {
         return lhs_start <= rhs_end && lhs_end >= rhs_start;
+    }
+
+    template<typename T, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
+    constexpr bool isOverlap(const T* lhs, intX_t lhs_strides, intX_t lhs_shape,
+                             const T* rhs, intX_t rhs_strides, intX_t rhs_shape) noexcept {
+        if (any(lhs_shape == 0) || any(rhs_shape == 0))
+            return false;
+
+        const auto lhs_start = reinterpret_cast<std::uintptr_t>(lhs);
+        const auto rhs_start = reinterpret_cast<std::uintptr_t>(rhs);
+        const auto lhs_end = reinterpret_cast<std::uintptr_t>(lhs + at(lhs_shape - 1, lhs_strides));
+        const auto rhs_end = reinterpret_cast<std::uintptr_t>(rhs + at(rhs_shape - 1, rhs_strides));
+        return isOverlap(lhs_start, lhs_end, rhs_start, rhs_end);
+    }
+
+    template<typename T, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
+    constexpr bool isOverlap(const T* lhs, intX_t lhs_strides,
+                             const T* rhs, intX_t rhs_strides,
+                             intX_t shape) noexcept {
+        return isOverlap(lhs, lhs_strides, shape, rhs, rhs_strides, shape);
     }
 }
 
@@ -633,7 +653,9 @@ namespace noa::indexing {
         Reinterpret<V> as() const {
             using origin_t = T;
             using new_t = V;
-            Reinterpret<V> out{shape, strides, reinterpret_cast<V*>(ptr)};
+            Reinterpret<V> out{shape, strides, reinterpret_cast<new_t*>(ptr)};
+            if constexpr (traits::is_almost_same_v<origin_t, new_t>)
+                return out;
 
             // The "downsize" and "upsize" branches expects the strides and shape to be in the rightmost order.
             const size4_t rightmost_order = order(out.strides, out.shape);
