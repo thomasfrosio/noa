@@ -35,29 +35,43 @@ namespace noa {
         constexpr Int4(Int4&&) noexcept = default;
 
     public: // Conversion constructors
-        template<class X, class Y, class Z, class W>
+        template<typename X, typename Y, typename Z, typename W,
+                 typename = std::enable_if_t<traits::is_scalar_v<X> && traits::is_scalar_v<Y> &&
+                                             traits::is_scalar_v<Z> && traits::is_scalar_v<W>>>
         NOA_HD constexpr Int4(X a0, Y a1, Z a2, W a3) noexcept
-                : m_data{static_cast<T>(a0), static_cast<T>(a1), static_cast<T>(a2), static_cast<T>(a3)} {}
+                : m_data{static_cast<T>(a0), static_cast<T>(a1), static_cast<T>(a2), static_cast<T>(a3)} {
+            NOA_ASSERT(isSafeCast<T>(a0) && isSafeCast<T>(a1) && isSafeCast<T>(a2) && isSafeCast<T>(a3));
+        }
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Int4(U v) noexcept
-                : m_data{static_cast<T>(v), static_cast<T>(v), static_cast<T>(v), static_cast<T>(v)} {}
+                : m_data{static_cast<T>(v), static_cast<T>(v), static_cast<T>(v), static_cast<T>(v)} {
+            NOA_ASSERT(isSafeCast<T>(v));
+        }
 
         NOA_HD constexpr explicit Int4(Bool4 v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Int4(Int4<U> v) noexcept
-                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {
+            NOA_ASSERT(isSafeCast<T>(v[0]) && isSafeCast<T>(v[1]) && isSafeCast<T>(v[2]) && isSafeCast<T>(v[3]));
+        }
 
         template<typename U>
         NOA_HD constexpr explicit Int4(Float4<U> v) noexcept
-                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2]), static_cast<T>(v[3])} {
+            NOA_ASSERT(isSafeCast<T>(v[0]) && isSafeCast<T>(v[1]) && isSafeCast<T>(v[2]) && isSafeCast<T>(v[3]));
+        }
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
-        NOA_HD constexpr explicit Int4(const U* ptr) noexcept
-                : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1]),
-                         static_cast<T>(ptr[2]), static_cast<T>(ptr[3])} {}
+        NOA_HD constexpr explicit Int4(const U* ptr) noexcept {
+            NOA_ASSERT(ptr != nullptr);
+            for (size_t i = 0; i < COUNT; ++i) {
+                NOA_ASSERT(isSafeCast<T>(ptr[i]));
+                m_data[i] = static_cast<T>(ptr[i]);
+            }
+        }
 
     public: // Assignment operators
         constexpr Int4& operator=(const Int4& v) noexcept = default;

@@ -34,8 +34,11 @@ namespace noa {
                 : m_data{static_cast<bool>(x), static_cast<bool>(x)} {}
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
-        NOA_HD constexpr explicit Bool2(const U* ptr)
-                : m_data{static_cast<bool>(ptr[0]), static_cast<bool>(ptr[1])} {}
+        NOA_HD constexpr explicit Bool2(const U* ptr) noexcept {
+            NOA_ASSERT(ptr != nullptr);
+            for (size_t i = 0; i < COUNT; ++i)
+                m_data[i] = static_cast<bool>(ptr[i]);
+        }
 
     public: // Assignment operators
         constexpr Bool2& operator=(const Bool2& v) noexcept = default;

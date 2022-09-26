@@ -35,28 +35,41 @@ namespace noa {
         constexpr Float2(Float2&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename X, typename Y>
+        template<typename X, typename Y, typename = std::enable_if_t<traits::is_scalar_v<X> && traits::is_scalar_v<Y>>>
         NOA_HD constexpr Float2(X a0, Y a1) noexcept
-                : m_data{static_cast<T>(a0), static_cast<T>(a1)} {}
+                : m_data{static_cast<T>(a0), static_cast<T>(a1)} {
+            NOA_ASSERT(isSafeCast<T>(a0) && isSafeCast<T>(a1));
+        }
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
         NOA_HD constexpr explicit Float2(U x) noexcept
-                : m_data{static_cast<T>(x), static_cast<T>(x)} {}
+                : m_data{static_cast<T>(x), static_cast<T>(x)} {
+            NOA_ASSERT(isSafeCast<T>(x));
+        }
 
         template<typename U>
         NOA_HD constexpr explicit Float2(Float2<U> v) noexcept
-                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {
+            NOA_ASSERT(isSafeCast<T>(v[0]) && isSafeCast<T>(v[1]));
+        }
 
         NOA_HD constexpr explicit Float2(Bool2 v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Float2(Int2<U> v) noexcept
-                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1])} {
+            NOA_ASSERT(isSafeCast<T>(v[0]) && isSafeCast<T>(v[1]));
+        }
 
         template<typename U, typename = std::enable_if_t<traits::is_scalar_v<U>>>
-        NOA_HD constexpr explicit Float2(U* ptr) noexcept
-                : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1])} {}
+        NOA_HD constexpr explicit Float2(U* ptr) noexcept {
+            NOA_ASSERT(ptr != nullptr);
+            for (size_t i = 0; i < COUNT; ++i) {
+                NOA_ASSERT(isSafeCast<T>(ptr[i]));
+                m_data[i] = static_cast<T>(ptr[i]);
+            }
+        }
 
     public: // Assignment operators
         constexpr Float2& operator=(const Float2& v) noexcept = default;

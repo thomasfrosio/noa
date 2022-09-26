@@ -35,28 +35,44 @@ namespace noa {
         constexpr Float3(Float3&&) noexcept = default;
 
     public: // Conversion constructors
-        template<typename X, typename Y, typename Z>
+        template<typename X, typename Y, typename Z,
+                 typename = std::enable_if_t<traits::is_scalar_v<X> &&
+                                             traits::is_scalar_v<Y> &&
+                                             traits::is_scalar_v<Z>>>
         NOA_HD constexpr Float3(X a0, Y a1, Z a2) noexcept
-                : m_data{static_cast<T>(a0), static_cast<T>(a1), static_cast<T>(a2)} {}
+                : m_data{static_cast<T>(a0), static_cast<T>(a1), static_cast<T>(a2)} {
+            NOA_ASSERT(isSafeCast<T>(a0) && isSafeCast<T>(a1) && isSafeCast<T>(a2));
+        }
 
         template<typename U>
         NOA_HD constexpr explicit Float3(U x) noexcept
-                : m_data{static_cast<T>(x), static_cast<T>(x), static_cast<T>(x)} {}
+                : m_data{static_cast<T>(x), static_cast<T>(x), static_cast<T>(x)} {
+            NOA_ASSERT(isSafeCast<T>(x));
+        }
 
         template<typename U>
         NOA_HD constexpr explicit Float3(Float3<U> v) noexcept
-                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {
+            NOA_ASSERT(isSafeCast<T>(v[0]) && isSafeCast<T>(v[1]) && isSafeCast<T>(v[2]));
+        }
 
         NOA_HD constexpr explicit Float3(Bool3 v) noexcept
                 : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {}
 
         template<typename U>
         NOA_HD constexpr explicit Float3(Int3<U> v) noexcept
-                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {}
+                : m_data{static_cast<T>(v[0]), static_cast<T>(v[1]), static_cast<T>(v[2])} {
+            NOA_ASSERT(isSafeCast<T>(v[0]) && isSafeCast<T>(v[1]) && isSafeCast<T>(v[2]));
+        }
 
         template<typename U>
-        NOA_HD constexpr explicit Float3(U* ptr) noexcept
-                : m_data{static_cast<T>(ptr[0]), static_cast<T>(ptr[1]), static_cast<T>(ptr[2])} {}
+        NOA_HD constexpr explicit Float3(U* ptr) noexcept {
+            NOA_ASSERT(ptr != nullptr);
+            for (size_t i = 0; i < COUNT; ++i) {
+                NOA_ASSERT(isSafeCast<T>(ptr[i]));
+                m_data[i] = static_cast<T>(ptr[i]);
+            }
+        }
 
     public: // Assignment operators
         constexpr Float3& operator=(const Float3& v) noexcept = default;
