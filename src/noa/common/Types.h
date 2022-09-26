@@ -38,6 +38,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/common/types/Mat34.h"
 #include "noa/common/types/Mat44.h"
 
+#include "noa/common/types/Accessor.h"
 #include "noa/common/types/ClampCast.h"
 #include "noa/common/types/Complex.h"
 #include "noa/common/types/Constants.h"

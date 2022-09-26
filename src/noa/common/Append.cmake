@@ -52,6 +52,7 @@ set(NOA_COMMON_HEADERS
         common/traits/Utilities.h
 
         common/Types.h
+        common/types/Accessor.h
         common/types/Bool2.h
         common/types/Bool3.h
         common/types/Bool4.h
