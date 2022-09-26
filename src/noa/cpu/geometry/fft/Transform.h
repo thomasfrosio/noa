@@ -25,16 +25,16 @@ namespace noa::cpu::geometry::fft {
     // Rotates/scales a non-redundant 2D (batched) FFT.
     template<Remap REMAP, typename T, typename M, typename S,
              typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
-    void transform2D(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void transform2D(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream);
 
     // Rotates/scales a non-redundant 3D (batched) FFT.
     template<Remap REMAP, typename T, typename M, typename S,
              typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, T, M, S>>>
-    void transform3D(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void transform3D(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream);
 }
@@ -45,16 +45,16 @@ namespace noa::cpu::geometry::fft {
     // Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
     // TODO ADD TESTS!
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform2D(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void transform2D(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     // TODO ADD TESTS!
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform3D(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void transform3D(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 }

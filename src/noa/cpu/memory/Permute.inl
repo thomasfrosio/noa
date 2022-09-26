@@ -8,27 +8,27 @@
 
 namespace noa::cpu::memory::details {
     template<typename T>
-    void permute(const T*, size4_t, size4_t, T*, size4_t, uint4_t);
+    void permute(const T*, dim4_t, dim4_t, T*, dim4_t, dim4_t);
 }
 
 namespace noa::cpu::memory::details::inplace {
     template<typename T>
-    void permute0213(T*, size4_t, size4_t);
+    void permute0213(T*, dim4_t, dim4_t);
     template<typename T>
-    void permute0132(T*, size4_t, size4_t);
+    void permute0132(T*, dim4_t, dim4_t);
     template<typename T>
-    void permute0321(T*, size4_t, size4_t);
+    void permute0321(T*, dim4_t, dim4_t);
 }
 
 namespace noa::cpu::memory {
     template<typename T, typename>
-    void permute(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, uint4_t permutation, Stream& stream) {
+    void permute(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t permutation, Stream& stream) {
         if (any(permutation > 3) || noa::math::sum(permutation) != 6)
             NOA_THROW("Permutation {} is not valid", permutation);
 
         if (input == output) {
-            const uint idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
+            const dim_t idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
             switch (idx) {
                 case 123:
                     return;

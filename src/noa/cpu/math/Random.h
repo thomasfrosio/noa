@@ -16,37 +16,37 @@ namespace noa::cpu::math::details {
 namespace noa::cpu::math {
     // Randomizes an array with uniform random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size_t elements, U min, U max, Stream& stream);
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim_t elements, U min, U max, Stream& stream);
 
     // Randomizes an array with normal random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size_t elements, U mean, U stddev, Stream& stream);
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim_t elements, U mean, U stddev, Stream& stream);
 
     // Randomizes an array with log-normal random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size_t elements, U mean, U stddev, Stream& stream);
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim_t elements, U mean, U stddev, Stream& stream);
 
     // Randomizes an array with poisson random values.
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size_t elements, float lambda, Stream& stream);
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim_t elements, float lambda, Stream& stream);
 
     // Randomizes an array with uniform random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U min, U max, Stream& stream);
 
     // Randomizes an array with normal random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream);
 
     // Randomizes an array with log-normal random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream);
 
     // Randomizes an array with poisson random values.
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    float lambda, Stream& stream);
 }

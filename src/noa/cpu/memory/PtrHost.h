@@ -3,7 +3,6 @@
 #include <string>
 #include <type_traits>
 #include <utility>      // std::exchange
-#include <cstddef>      // size_t
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Exception.h"
@@ -37,8 +36,8 @@ namespace noa::cpu::memory {
     public:
         using alloc_unique_t = unique_t<T[], Deleter>;
         using calloc_unique_t = unique_t<T[], DeleterCalloc>;
-        static constexpr size_t ALIGNMENT = traits::is_float_v<T> || traits::is_complex_v<T> ?
-                                            128 : traits::is_int_v<T> ? 64 : alignof(T);
+        static constexpr dim_t ALIGNMENT = traits::is_float_v<T> || traits::is_complex_v<T> ?
+                                           128 : traits::is_int_v<T> ? 64 : alignof(T);
 
     public:
         // Allocates some elements of uninitialized storage. Throws if the allocation fails.
@@ -82,7 +81,7 @@ namespace noa::cpu::memory {
 
         // Allocates elements of type T on the heap.
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
-        explicit PtrHost(I elements) : m_ptr(alloc(elements)), m_elements(static_cast<size_t>(elements)) {
+        explicit PtrHost(I elements) : m_ptr(alloc(elements)), m_elements(static_cast<dim_t>(elements)) {
             NOA_ASSERT(elements >= 0);
         }
 
@@ -106,25 +105,29 @@ namespace noa::cpu::memory {
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         // How many elements of type T are pointed by the managed object.
-        [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
-        [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr dim_t elements() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr dim_t size() const noexcept { return m_elements; }
 
         // Returns the shape of the allocated data as a row vector.
-        [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
+        [[nodiscard]] constexpr dim4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
 
         // Returns the strides of the allocated data as a C-contiguous row vector.
-        [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
+        [[nodiscard]] constexpr dim4_t strides() const noexcept { return shape().strides(); }
 
         // How many bytes are pointed by the managed object.
-        [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
+        [[nodiscard]] constexpr dim_t bytes() const noexcept { return m_elements * sizeof(T); }
 
-        // Whether or not the managed object points to some data.
+        // Whether the managed object points to some data.
         [[nodiscard]] constexpr bool empty() const noexcept { return m_elements == 0; }
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         // Returns a View of the allocated data as a C-contiguous row vector.
-        template<typename I>
+        template<typename U = T, typename I = dim_t, typename = std::enable_if_t<traits::is_almost_same_v<U, T>>>
         [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
+
+        template<typename U = T, typename I = dim_t, AccessorTraits TRAITS = AccessorTraits::DEFAULT,
+                 typename = std::enable_if_t<traits::is_almost_same_v<U, T>>>
+        [[nodiscard]] constexpr Accessor<U, 1, I, TRAITS> accessor() const noexcept { return {m_ptr.get(), 1}; }
 
     public: // Iterators
         [[nodiscard]] constexpr T* begin() const noexcept { return m_ptr.get(); }
@@ -147,6 +150,6 @@ namespace noa::cpu::memory {
     private:
         static_assert(traits::is_valid_ptr_type_v<T>);
         std::shared_ptr<T[]> m_ptr{};
-        size_t m_elements{0};
+        dim_t m_elements{0};
     };
 }

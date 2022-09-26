@@ -16,17 +16,17 @@ namespace noa::cpu::math::details {
 namespace noa::cpu::math {
     // Returns the memory offset(s) of a particular kind of value(s).
     template<typename S, typename T, typename U, typename = std::enable_if_t<details::is_valid_find_v<S, T, U>>>
-    void find(S searcher, const shared_t<T[]>& input, size4_t strides, size4_t shape,
+    void find(S searcher, const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
               const shared_t<U[]>& offsets, bool batch, bool swap_layout, Stream& stream);
 
     // Returns the memory offset of a particular kind of value.
-    template<typename offset_t = size_t, typename S, typename T,
+    template<typename offset_t = dim_t, typename S, typename T,
              typename = std::enable_if_t<details::is_valid_find_v<S, T, offset_t>>>
-    offset_t find(S searcher, const shared_t<T[]>& input, size4_t strides, size4_t shape,
+    offset_t find(S searcher, const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
                   bool swap_layout, Stream& stream);
 
     // Returns the index of a particular kind of value.
-    template<typename offset_t = size_t, typename S, typename T,
+    template<typename offset_t = dim_t, typename S, typename T,
              typename = std::enable_if_t<details::is_valid_find_v<S, T, offset_t>>>
-    offset_t find(S searcher, const shared_t<T[]>& input, size_t elements, Stream& stream);
+    offset_t find(S searcher, const shared_t<T[]>& input, dim_t elements, Stream& stream);
 }

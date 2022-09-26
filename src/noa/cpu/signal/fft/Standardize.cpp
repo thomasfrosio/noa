@@ -8,20 +8,20 @@ namespace {
     using Norm = noa::fft::Norm;
 
     template<fft::Remap REMAP, typename T>
-    void standardizeFull_(const shared_t<Complex<T>[]>& input, size4_t input_strides,
-                          const shared_t<Complex<T>[]>& output, size4_t output_strides,
-                          const shared_t<T[]>& buffer, size4_t buffer_strides,
-                          size4_t shape, Norm norm, cpu::Stream& stream) {
+    void standardizeFull_(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
+                          const shared_t<Complex<T>[]>& output, dim4_t output_strides,
+                          const shared_t<T[]>& buffer, dim4_t buffer_strides,
+                          dim4_t shape, Norm norm, cpu::Stream& stream) {
         NOA_ASSERT(shape.ndim() <= 3);
         const auto count = static_cast<T>(math::prod(shape));
         const auto scale = norm == fft::NORM_FORWARD ? 1 : norm == fft::NORM_ORTHO ? math::sqrt(count) : count;
 
-        size4_t index_dc{};
+        dim4_t index_dc{};
         if constexpr (REMAP == fft::Remap::FC2FC) {
             index_dc = {0,
-                        math::FFTShift(size_t{0}, shape[1]),
-                        math::FFTShift(size_t{0}, shape[2]),
-                        math::FFTShift(size_t{0}, shape[3])};
+                        math::FFTShift(dim_t{0}, shape[1]),
+                        math::FFTShift(dim_t{0}, shape[2]),
+                        math::FFTShift(dim_t{0}, shape[3])};
         }
 
         cpu::math::ewise(input, input_strides, buffer, buffer_strides, shape, math::abs_squared_t{}, stream);
@@ -33,10 +33,10 @@ namespace {
     }
 
     template<fft::Remap REMAP, typename T>
-    void standardizeHalf_(const shared_t<Complex<T>[]>& input, size4_t input_strides,
-                          const shared_t<Complex<T>[]>& output, size4_t output_strides,
+    void standardizeHalf_(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
+                          const shared_t<Complex<T>[]>& output, dim4_t output_strides,
                           const shared_t<T[]>& buffer,
-                          size4_t shape, size4_t shape_fft, Norm norm, cpu::Stream& stream) {
+                          dim4_t shape, dim4_t shape_fft, Norm norm, cpu::Stream& stream) {
         NOA_ASSERT(shape.ndim() <= 3);
         using namespace noa::indexing;
         const auto count = static_cast<T>(math::prod(shape));
@@ -44,9 +44,9 @@ namespace {
 
         const Subregion original(shape_fft, input_strides);
         const bool even = !(shape[3] % 2);
-        size4_t index_dc{};
+        dim4_t index_dc{};
         if constexpr (REMAP == fft::Remap::HC2HC)
-            index_dc = {0, math::FFTShift(size_t{0}, shape[1]), math::FFTShift(size_t{0}, shape[2]), 0};
+            index_dc = {0, math::FFTShift(dim_t{0}, shape[1]), math::FFTShift(dim_t{0}, shape[2]), 0};
 
         // Reduce unique chunk:
         auto subregion = original(ellipsis_t{}, slice_t{1, original.shape()[3] - even});
@@ -86,13 +86,13 @@ namespace {
 
 namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename T, typename>
-    void standardize(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Norm norm, Stream& stream) {
+    void standardize(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             using real_t = traits::value_type_t<T>;
-            const size4_t shape_{1, shape[1], shape[2], shape[3]};
-            const size4_t shape_fft = REMAP == Remap::F2F || REMAP == Remap::FC2FC ? shape_ : shape_.fft();
+            const dim4_t shape_{1, shape[1], shape[2], shape[3]};
+            const dim4_t shape_fft = REMAP == Remap::F2F || REMAP == Remap::FC2FC ? shape_ : shape_.fft();
 
             // TODO Expose the reduction kernel with a transform operator like in the CUDA backend.
             //      That way, the buffer can be removed entirely.
@@ -100,7 +100,7 @@ namespace noa::cpu::signal::fft {
                                               std::reinterpret_pointer_cast<real_t[]>(output) :
                                               cpu::memory::PtrHost<real_t>::alloc(shape_fft.elements());
 
-            for (size_t batch = 0; batch < shape[0]; ++batch) {
+            for (dim_t batch = 0; batch < shape[0]; ++batch) {
                 if constexpr (REMAP == Remap::F2F || REMAP == Remap::FC2FC) {
                     standardizeFull_<REMAP>(input, input_strides, output, output_strides,
                                             buffer, shape_.strides(), shape_, norm, stream);
@@ -114,11 +114,11 @@ namespace noa::cpu::signal::fft {
         });
     }
 
-    #define INSTANTIATE_STANDARDIZE_(T)                                                                                                 \
-    template void standardize<Remap::F2F, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);     \
-    template void standardize<Remap::FC2FC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);   \
-    template void standardize<Remap::H2H, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&);     \
-    template void standardize<Remap::HC2HC, T>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Norm, Stream&)
+    #define INSTANTIATE_STANDARDIZE_(T)                                                                                             \
+    template void standardize<Remap::F2F, T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&);    \
+    template void standardize<Remap::FC2FC, T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&);  \
+    template void standardize<Remap::H2H, T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&);    \
+    template void standardize<Remap::HC2HC, T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&)
 
     INSTANTIATE_STANDARDIZE_(cfloat_t);
     INSTANTIATE_STANDARDIZE_(cdouble_t);

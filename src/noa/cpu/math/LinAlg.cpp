@@ -142,7 +142,7 @@ namespace {
         using unique_t = typename cpu::memory::PtrHost<T>::alloc_unique_t;
 
     public:
-        SurfaceFitter(const T* input, size4_t input_strides, size4_t input_shape, int order)
+        SurfaceFitter(const T* input, dim4_t input_strides, dim4_t input_shape, int order)
                 : m_shape(input_shape[2], input_shape[3]),
                   m_m(m_shape.elements()),
                   m_n(nbParameters_(order)),
@@ -172,16 +172,16 @@ namespace {
         }
 
         void saveParameters(T* parameters) {
-            const size4_t b_strides{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
-            const size4_t x_shape{1, 1, m_n, m_nrhs};
-            const size4_t x_strides{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
+            const dim4_t b_strides{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
+            const dim4_t x_shape{1, 1, m_n, m_nrhs};
+            const dim4_t x_strides{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
             cpu::memory::copy(m_b.get(), b_strides, parameters, x_strides, x_shape);
         }
 
-        void computeSurface(T* input, size4_t input_strides,
-                            T* output, size4_t output_strides, size4_t shape) {
-            size2_t output_strides_2d(output_strides.get(2));
-            size2_t input_strides_2d(input_strides.get(2));
+        void computeSurface(T* input, dim4_t input_strides,
+                            T* output, dim4_t output_strides, dim4_t shape) {
+            dim2_t output_strides_2d(output_strides.get(2));
+            dim2_t input_strides_2d(input_strides.get(2));
 
             // If arrays are column-major, make sure to loop in the column major order.
             const bool swap = indexing::isColMajor(output_strides) && (!input || indexing::isColMajor(input_strides));
@@ -192,7 +192,7 @@ namespace {
             }
 
             std::array<T, 10> p{};
-            for (size_t batch = 0; batch < shape[0]; ++batch) {
+            for (dim_t batch = 0; batch < shape[0]; ++batch) {
                 T* output_ptr = output + output_strides[0] * batch;
                 T* input_ptr = input + input_strides[0] * batch;
 
@@ -206,8 +206,8 @@ namespace {
                 }
 
                 T surface;
-                for (size_t iy = 0; iy < shape[2]; ++iy) {
-                    for (size_t ix = 0; ix < shape[3]; ++ix) {
+                for (dim_t iy = 0; iy < shape[2]; ++iy) {
+                    for (dim_t ix = 0; ix < shape[3]; ++ix) {
                         const T y = static_cast<T>(iy);
                         const T x = static_cast<T>(ix);
 
@@ -227,16 +227,16 @@ namespace {
     private:
         void computeRegularGrid_() {
             T* matrix = m_A.get();
-            for (size_t y = 0; y < m_shape[0]; ++y) {
-                for (size_t x = 0; x < m_shape[1]; ++x) {
+            for (dim_t y = 0; y < m_shape[0]; ++y) {
+                for (dim_t x = 0; x < m_shape[1]; ++x) {
                     matrix[m_m * 0 + y * m_shape[1] + x] = T{1};
                     matrix[m_m * 1 + y * m_shape[1] + x] = static_cast<T>(x);
                     matrix[m_m * 2 + y * m_shape[1] + x] = static_cast<T>(y);
                 }
             }
             if (order_() >= 2) {
-                for (size_t y = 0; y < m_shape[0]; ++y) {
-                    for (size_t x = 0; x < m_shape[1]; ++x) {
+                for (dim_t y = 0; y < m_shape[0]; ++y) {
+                    for (dim_t x = 0; x < m_shape[1]; ++x) {
                         matrix[m_m * 3 + y * m_shape[1] + x] = static_cast<T>(x * y);
                         matrix[m_m * 4 + y * m_shape[1] + x] = static_cast<T>(x * x);
                         matrix[m_m * 5 + y * m_shape[1] + x] = static_cast<T>(y * y);
@@ -244,8 +244,8 @@ namespace {
                 }
             }
             if (order_() == 3) {
-                for (size_t y = 0; y < m_shape[0]; ++y) {
-                    for (size_t x = 0; x < m_shape[1]; ++x) {
+                for (dim_t y = 0; y < m_shape[0]; ++y) {
+                    for (dim_t x = 0; x < m_shape[1]; ++x) {
                         matrix[m_m * 6 + y * m_shape[1] + x] = static_cast<T>(x * x * y);
                         matrix[m_m * 7 + y * m_shape[1] + x] = static_cast<T>(x * y * y);
                         matrix[m_m * 8 + y * m_shape[1] + x] = static_cast<T>(x * x * x);
@@ -255,8 +255,8 @@ namespace {
             }
         }
 
-        static size_t nbParameters_(int order) {
-            return order == 3 ? 10 : static_cast<size_t>(order * 3);
+        static dim_t nbParameters_(int order) {
+            return order == 3 ? 10 : static_cast<dim_t>(order * 3);
         }
 
         int order_() {
@@ -266,25 +266,25 @@ namespace {
     private:
         unique_t m_A{};
         unique_t m_b{};
-        size2_t m_shape;
-        size_t m_m, m_n, m_nrhs;
+        dim2_t m_shape;
+        dim_t m_m, m_n, m_nrhs;
     };
 }
 
 namespace noa::cpu::math {
     template<typename T, typename U, typename>
-    void lstsq(const shared_t<T[]>& a, size4_t a_strides, size4_t a_shape,
-               const shared_t<T[]>& b, size4_t b_strides, size4_t b_shape,
+    void lstsq(const shared_t<T[]>& a, dim4_t a_strides, dim4_t a_shape,
+               const shared_t<T[]>& b, dim4_t b_strides, dim4_t b_shape,
                float cond, const shared_t<U[]>& svd,
                Stream& stream) {
         NOA_ASSERT(a_shape[0] == b_shape[0]);
         NOA_ASSERT(a_shape[1] == 1 && b_shape[1] == 1);
-        const size_t batches = a_shape[0];
+        const dim_t batches = a_shape[0];
 
-        const int2_t a_shape_{a_shape.get(2)};
-        const int2_t b_shape_{b_shape.get(2)};
-        const int2_t a_strides_{a_strides.get(2)};
-        const int2_t b_strides_{b_strides.get(2)};
+        const auto a_shape_ = safe_cast<int2_t>(dim2_t(a_shape.get(2)));
+        const auto b_shape_ = safe_cast<int2_t>(dim2_t(b_shape.get(2)));
+        const auto a_strides_ = safe_cast<int2_t>(dim2_t(a_strides.get(2)));
+        const auto b_strides_ = safe_cast<int2_t>(dim2_t(b_strides.get(2)));
 
         // Ax = b, where A is m-by-n, x is n-by-nrhs and b is m-by-nrhs. Most often, nrhs is 1.
         const int m = a_shape_[0];
@@ -313,7 +313,7 @@ namespace noa::cpu::math {
         stream.enqueue([=]() {
             const LAPACKDriver driver = svd ? GELSD : GELSY;
             LinearLeastSquareSolver<T> solver(driver, matrix_layout, m, n, nrhs, lda, ldb, cond);
-            for (size_t batch = 0; batch < batches; ++batch) {
+            for (dim_t batch = 0; batch < batches; ++batch) {
                 solver.solve(a.get() + a_strides[0] * batch,
                              b.get() + b_strides[0] * batch,
                              svd.get() + mn_min);
@@ -322,8 +322,8 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename>
-    void surface(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, bool subtract,
+    void surface(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, bool subtract,
                  int order, const shared_t<T[]>& parameters, Stream& stream) {
         if (!output && !parameters)
             return;
@@ -341,7 +341,7 @@ namespace noa::cpu::math {
     }
 
     #define NOA_INSTANTIATE_LSTSQ_(T, U) \
-    template void lstsq<T,U,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, const shared_t<U[]>&, Stream&)
+    template void lstsq<T,U,void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, const shared_t<U[]>&, Stream&)
 
     NOA_INSTANTIATE_LSTSQ_(float, float);
     NOA_INSTANTIATE_LSTSQ_(double, double);
@@ -349,7 +349,7 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_LSTSQ_(cdouble_t, double);
 
     #define NOA_INSTANTIATE_SURFACE_(T) \
-    template void surface<T,void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, \
+    template void surface<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, \
                                   int, const shared_t<T[]>&, Stream&)
 
     NOA_INSTANTIATE_SURFACE_(float);

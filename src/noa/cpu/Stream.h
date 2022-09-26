@@ -41,7 +41,7 @@ namespace noa::cpu {
             // synchronization
             std::condition_variable condition;
             std::mutex mutex_queue;
-            uint16_t threads{static_cast<uint16_t>(Session::threads())};
+            dim_t threads{Session::threads()};
             bool is_waiting{true};
             bool stop{};
 
@@ -101,14 +101,14 @@ namespace noa::cpu {
 
         // Sets the number of internal threads that enqueued functions are allowed to use.
         // When the stream is created, this value is set to the corresponding value of the current session.
-        void threads(size_t threads) noexcept {
+        void threads(dim_t threads) noexcept {
             NOA_ASSERT(m_imp);
-            m_imp->threads = threads ? static_cast<uint16_t>(threads) : 1;
+            m_imp->threads = threads ? threads : 1;
         }
 
         // Returns the number of internal threads that enqueued functions are allowed to use.
         // When the stream is created, this value is set to the corresponding value of the current session.
-        [[nodiscard]] size_t threads() const noexcept {
+        [[nodiscard]] dim_t threads() const noexcept {
             NOA_ASSERT(m_imp);
             return m_imp->threads;
         }

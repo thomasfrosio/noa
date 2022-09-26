@@ -29,14 +29,14 @@ namespace noa::cpu::memory::details {
 
 namespace noa::cpu::memory {
     template<typename T, typename>
-    size4_t atlasLayout(size4_t subregion_shape, T* origins) {
+    dim4_t atlasLayout(dim4_t subregion_shape, T* origins) {
         using namespace noa::math;
-        const auto col = static_cast<size_t>(ceil(sqrt(static_cast<float>(subregion_shape[0]))));
-        const size_t row = (subregion_shape[0] + col - 1) / col;
-        const size4_t atlas_shape{1, subregion_shape[1], row * subregion_shape[2], col * subregion_shape[3]};
-        for (size_t y = 0; y < row; ++y) {
-            for (size_t x = 0; x < col; ++x) {
-                const size_t idx = y * col + x;
+        const auto col = static_cast<dim_t>(ceil(sqrt(static_cast<float>(subregion_shape[0]))));
+        const dim_t row = (subregion_shape[0] + col - 1) / col;
+        const dim4_t atlas_shape{1, subregion_shape[1], row * subregion_shape[2], col * subregion_shape[3]};
+        for (dim_t y = 0; y < row; ++y) {
+            for (dim_t x = 0; x < col; ++x) {
+                const dim_t idx = y * col + x;
                 if (idx >= subregion_shape[0])
                     break;
                 if constexpr (traits::is_int4_v<T>)
@@ -49,10 +49,10 @@ namespace noa::cpu::memory {
     }
 
     template<typename value_t, typename offset_, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                        const shared_t<U[]>& lhs, size4_t lhs_strides, size4_t shape,
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                        const shared_t<U[]>& lhs, dim4_t lhs_strides, dim4_t shape,
                                         UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream) {
-        const size4_t order = indexing::order(input_strides, shape);
+        const dim4_t order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         lhs_strides = indexing::reorder(lhs_strides, order);
         shape = indexing::reorder(shape, order);
@@ -63,12 +63,12 @@ namespace noa::cpu::memory {
         std::vector<offset_> offsets;
         stream.synchronize();
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
                         if (unary_op(lhs_[indexing::at(i, j, k, l, lhs_strides)])) {
-                            const size_t offset = indexing::at(i, j, k, l, input_strides);
+                            const dim_t offset = indexing::at(i, j, k, l, input_strides);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_offsets)
@@ -82,10 +82,10 @@ namespace noa::cpu::memory {
     }
 
     template<typename value_t, typename offset_, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                        const shared_t<U[]>& lhs, size4_t lhs_strides, V rhs, size4_t shape,
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                        const shared_t<U[]>& lhs, dim4_t lhs_strides, V rhs, dim4_t shape,
                                         BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream) {
-        const size4_t order = indexing::order(input_strides, shape);
+        const dim4_t order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         lhs_strides = indexing::reorder(lhs_strides, order);
         shape = indexing::reorder(shape, order);
@@ -96,12 +96,12 @@ namespace noa::cpu::memory {
         std::vector<offset_> offsets;
         stream.synchronize();
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
                         if (binary_op(lhs_[indexing::at(i, j, k, l, lhs_strides)], rhs)) {
-                            const size_t offset = indexing::at(i, j, k, l, input_strides);
+                            const dim_t offset = indexing::at(i, j, k, l, input_strides);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_offsets)
@@ -115,10 +115,10 @@ namespace noa::cpu::memory {
     }
 
     template<typename value_t, typename offset_, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                        U lhs, const shared_t<V[]>& rhs, size4_t rhs_strides, size4_t shape,
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                        U lhs, const shared_t<V[]>& rhs, dim4_t rhs_strides, dim4_t shape,
                                         BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream) {
-        const size4_t order = indexing::order(input_strides, shape);
+        const dim4_t order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         rhs_strides = indexing::reorder(rhs_strides, order);
         shape = indexing::reorder(shape, order);
@@ -129,12 +129,12 @@ namespace noa::cpu::memory {
         std::vector<offset_> offsets;
         stream.synchronize();
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
                         if (binary_op(lhs, rhs_[indexing::at(i, j, k, l, rhs_strides)])) {
-                            const size_t offset = indexing::at(i, j, k, l, input_strides);
+                            const dim_t offset = indexing::at(i, j, k, l, input_strides);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_offsets)
@@ -148,12 +148,12 @@ namespace noa::cpu::memory {
     }
 
     template<typename value_t, typename offset_, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                        const shared_t<U[]>& lhs, size4_t lhs_strides,
-                                        const shared_t<V[]>& rhs, size4_t rhs_strides,
-                                        size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
+    Extracted<value_t, offset_> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                        const shared_t<U[]>& lhs, dim4_t lhs_strides,
+                                        const shared_t<V[]>& rhs, dim4_t rhs_strides,
+                                        dim4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                         Stream& stream) {
-        const size4_t order = indexing::order(input_strides, shape);
+        const dim4_t order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         lhs_strides = indexing::reorder(lhs_strides, order);
         rhs_strides = indexing::reorder(rhs_strides, order);
@@ -166,13 +166,13 @@ namespace noa::cpu::memory {
         std::vector<offset_> offsets;
         stream.synchronize();
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
                         if (binary_op(lhs_[indexing::at(i, j, k, l, lhs_strides)],
                                       rhs_[indexing::at(i, j, k, l, rhs_strides)])) {
-                            const size_t offset = indexing::at(i, j, k, l, input_strides);
+                            const dim_t offset = indexing::at(i, j, k, l, input_strides);
                             if (extract_values)
                                 values.emplace_back(static_cast<value_t>(input_[offset]));
                             if (extract_offsets)
@@ -187,12 +187,12 @@ namespace noa::cpu::memory {
 
     template<typename T, typename U, typename V>
     void extract(const shared_t<T[]>& input, const shared_t<U[]>& offsets,
-                 const shared_t<V[]>& output, size_t elements, Stream& stream){
+                 const shared_t<V[]>& output, dim_t elements, Stream& stream){
         stream.enqueue([=]() {
             const auto* input_ = input.get();
             const auto* offsets_ = offsets.get();
             auto* output_ = output.get();
-            for (size_t idx = 0; idx < elements; ++idx, ++offsets_, ++output_)
+            for (dim_t idx = 0; idx < elements; ++idx, ++offsets_, ++output_)
                 *output_ = static_cast<V>(input_[*offsets_]);
         });
     }
@@ -203,7 +203,7 @@ namespace noa::cpu::memory {
             const auto* elements = extracted.values.get();
             const auto* offsets = extracted.offsets.get();
             auto* output_ = output.get();
-            for (size_t idx = 0; idx < extracted.count; ++idx, ++elements, ++offsets)
+            for (dim_t idx = 0; idx < extracted.count; ++idx, ++elements, ++offsets)
                 output_[*offsets] = static_cast<value_t>(*elements);
         });
     }

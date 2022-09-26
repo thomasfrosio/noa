@@ -1,16 +1,12 @@
-/// \file noa/cpu/geometry/Interpolate.h
-/// \brief Interpolate values using different methods of interpolation.
-/// \author Thomas - ffyr2w
-/// \date 3 Jul 2020
-/// \details The values are entered in the x, then y, then z order.
-///          The naming convention is vX for 1D, vYX for 2D and vZYX for 3D.
-///          For cubic interpolations, the 4x4 square and 4x4x4 cube are entered in the [z][y][x] order.
-
 #pragma once
 
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
 #include "noa/common/Types.h"
+
+// The values are entered in the x, then y, then z order.
+// The naming convention is vX for 1D, vYX for 2D and vZYX for 3D.
+// For cubic interpolations, the 4x4 square and 4x4x4 cube are entered in the [z][y][x] order.
 
 // With nearest neighbor, the coordinate is directly rounded (e.g. array[floor(x+0.5)]),
 // so there's no real need to have a function for it.
@@ -52,8 +48,8 @@ namespace noa::cpu::geometry {
     /// This function assumes an unit square, i.e. the (x,y) coordinates, \a rx and \a ry, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T linear2D(T v00, T v01, T v10, T v11, R rx, R ry) noexcept {
-        T tmp1 = linear1D(v00, v01, rx);
-        T tmp2 = linear1D(v10, v11, rx);
+        const T tmp1 = linear1D(v00, v01, rx);
+        const T tmp2 = linear1D(v10, v11, rx);
         return linear1D(tmp1, tmp2, ry); // https://godbolt.org/z/eGcThbaGG
     }
 
@@ -63,8 +59,8 @@ namespace noa::cpu::geometry {
     constexpr NOA_IH T linear3D(T v000, T v001, T v010, T v011,
                                 T v100, T v101, T v110, T v111,
                                 R rx, R ry, R rz) noexcept {
-        T tmp1 = linear2D(v000, v001, v010, v011, rx, ry);
-        T tmp2 = linear2D(v100, v101, v110, v111, rx, ry);
+        const T tmp1 = linear2D(v000, v001, v010, v011, rx, ry);
+        const T tmp2 = linear2D(v100, v101, v110, v111, rx, ry);
         return linear1D(tmp1, tmp2, rz);
     }
 
@@ -77,7 +73,7 @@ namespace noa::cpu::geometry {
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine1D(T v0, T v1, R r) {
-        R tmp = (static_cast<R>(1) - noa::math::cos(r * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        const R tmp = (static_cast<R>(1) - noa::math::cos(r * noa::math::Constants<R>::PI)) / static_cast<R>(2);
         return linear1D(v0, v1, tmp);
     }
 
@@ -85,8 +81,8 @@ namespace noa::cpu::geometry {
     /// This function assumes an unit square, i.e. the (x,y) coordinates, \a rx and \a ry, are between 0 and 1.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_IH T cosine2D(T v00, T v01, T v10, T v11, R rx, R ry) {
-        R tmp1 = (static_cast<R>(1) - noa::math::cos(rx * noa::math::Constants<R>::PI)) / static_cast<R>(2);
-        R tmp2 = (static_cast<R>(1) - noa::math::cos(ry * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        const R tmp1 = (static_cast<R>(1) - noa::math::cos(rx * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        const R tmp2 = (static_cast<R>(1) - noa::math::cos(ry * noa::math::Constants<R>::PI)) / static_cast<R>(2);
         return linear2D(v00, v01, v10, v11, tmp1, tmp2);
     }
 
@@ -96,9 +92,9 @@ namespace noa::cpu::geometry {
     constexpr NOA_IH T cosine3D(T v000, T v001, T v010, T v011,
                                 T v100, T v101, T v110, T v111,
                                 R rx, R ry, R rz) {
-        R tmp1 = (static_cast<R>(1) - noa::math::cos(rx * noa::math::Constants<R>::PI)) / static_cast<R>(2);
-        R tmp2 = (static_cast<R>(1) - noa::math::cos(ry * noa::math::Constants<R>::PI)) / static_cast<R>(2);
-        R tmp3 = (static_cast<R>(1) - noa::math::cos(rz * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        const R tmp1 = (static_cast<R>(1) - noa::math::cos(rx * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        const R tmp2 = (static_cast<R>(1) - noa::math::cos(ry * noa::math::Constants<R>::PI)) / static_cast<R>(2);
+        const R tmp3 = (static_cast<R>(1) - noa::math::cos(rz * noa::math::Constants<R>::PI)) / static_cast<R>(2);
         return linear3D(v000, v001, v010, v011, v100, v101, v110, v111, tmp1, tmp2, tmp3);
     }
 
@@ -113,14 +109,14 @@ namespace noa::cpu::geometry {
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_HOST T cubic1D(T v0, T v1, T v2, T v3, R r) {
-        T a0 = v3 - v2 - v0 + v1;
-        T a1 = v0 - v1 - a0;
-        T a2 = v2 - v0;
-        T a3 = v1;
+        const T a0 = v3 - v2 - v0 + v1;
+        const T a1 = v0 - v1 - a0;
+        const T a2 = v2 - v0;
+        const T a3 = v1;
 
-        auto r1 = static_cast<traits::value_type_t<T>>(r);
-        auto r2 = r1 * r1;
-        auto r3 = r2 * r1;
+        const auto r1 = static_cast<traits::value_type_t<T>>(r);
+        const auto r2 = r1 * r1;
+        const auto r3 = r2 * r1;
         return a0 * r3 + a1 * r2 + a2 * r1 + a3;
     }
 
@@ -133,10 +129,10 @@ namespace noa::cpu::geometry {
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_HOST T cubic2D(T v[4][4], R rx, R ry) {
-        T a0 = cubic1D(v[0][0], v[0][1], v[0][2], v[0][3], rx);
-        T a1 = cubic1D(v[1][0], v[1][1], v[1][2], v[1][3], rx);
-        T a2 = cubic1D(v[2][0], v[2][1], v[2][2], v[2][3], rx);
-        T a3 = cubic1D(v[3][0], v[3][1], v[3][2], v[3][3], rx);
+        const T a0 = cubic1D(v[0][0], v[0][1], v[0][2], v[0][3], rx);
+        const T a1 = cubic1D(v[1][0], v[1][1], v[1][2], v[1][3], rx);
+        const T a2 = cubic1D(v[2][0], v[2][1], v[2][2], v[2][3], rx);
+        const T a3 = cubic1D(v[3][0], v[3][1], v[3][2], v[3][3], rx);
         return cubic1D(a0, a1, a2, a3, ry);
     }
 
@@ -150,10 +146,10 @@ namespace noa::cpu::geometry {
     /// \return     Interpolated value.
     template<typename T, typename R, typename = NOA_ENABLE_IF_FP_>
     constexpr NOA_HOST T cubic3D(T v[4][4][4], R rx, R ry, R rz) {
-        T a0 = cubic2D(v[0], rx, ry);
-        T a1 = cubic2D(v[1], rx, ry);
-        T a2 = cubic2D(v[2], rx, ry);
-        T a3 = cubic2D(v[3], rx, ry);
+        const T a0 = cubic2D(v[0], rx, ry);
+        const T a1 = cubic2D(v[1], rx, ry);
+        const T a2 = cubic2D(v[2], rx, ry);
+        const T a3 = cubic2D(v[3], rx, ry);
         return cubic1D(a0, a1, a2, a3, rz);
     }
 
@@ -198,10 +194,10 @@ namespace noa::cpu::geometry {
         using real_t = traits::value_type_t<T>;
         real_t w0, w1, w2, w3;
         details::bsplineWeights(rx, &w0, &w1, &w2, &w3);
-        T a0 = v[0][0] * w0 + v[0][1] * w1 + v[0][2] * w2 + v[0][3] * w3;
-        T a1 = v[1][0] * w0 + v[1][1] * w1 + v[1][2] * w2 + v[1][3] * w3;
-        T a2 = v[2][0] * w0 + v[2][1] * w1 + v[2][2] * w2 + v[2][3] * w3;
-        T a3 = v[3][0] * w0 + v[3][1] * w1 + v[3][2] * w2 + v[3][3] * w3;
+        const T a0 = v[0][0] * w0 + v[0][1] * w1 + v[0][2] * w2 + v[0][3] * w3;
+        const T a1 = v[1][0] * w0 + v[1][1] * w1 + v[1][2] * w2 + v[1][3] * w3;
+        const T a2 = v[2][0] * w0 + v[2][1] * w1 + v[2][2] * w2 + v[2][3] * w3;
+        const T a3 = v[3][0] * w0 + v[3][1] * w1 + v[3][2] * w2 + v[3][3] * w3;
 
         return cubicBSpline1D(a0, a1, a2, a3, ry);
     }

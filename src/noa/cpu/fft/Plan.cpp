@@ -77,7 +77,7 @@ namespace {
 
     // All subsequent plans will use this number of threads.
     template<bool IS_SINGLE_PRECISION>
-    void setThreads_(int3_t shape, int batches, size_t max_threads) {
+    void setThreads_(int3_t shape, int batches, dim_t max_threads) {
         initialize_<IS_SINGLE_PRECISION>();
         if (max_threads > 1) {
             const int threads = math::min(getThreads_(shape, batches, shape.ndim()), static_cast<int>(max_threads));
@@ -96,11 +96,11 @@ namespace {
 }
 
 namespace noa::cpu::fft {
-    size_t fastSize(size_t size) {
+    dim_t fastSize(dim_t size) {
         auto tmp = static_cast<uint>(size);
         for (uint16_t nice_size: sizes_even_fftw_)
             if (tmp < nice_size)
-                return static_cast<size_t>(nice_size);
+                return static_cast<dim_t>(nice_size);
         return size % 2 ? size : (size + 1); // fall back to next even number
     }
 }
@@ -131,9 +131,9 @@ namespace noa::cpu::fft {
     void Plan<T>::cache_(fftw_plan_t plan, bool clear) {
         // FFTW accumulates a "wisdom" automatically. This circular buffer is here
         // in case fftw_destroy_plan destructs that wisdom.
-        static constexpr size_t MAX_SIZE = 6;
+        static constexpr dim_t MAX_SIZE = 6;
         static std::array<fftw_plan_t, MAX_SIZE> s_bin{nullptr};
-        static size_t s_index{0};
+        static dim_t s_index{0};
         auto destruct_plan = [](fftw_plan_t plan_) {
             if (plan_) {
                 if constexpr (IS_SINGLE_PRECISION)
@@ -156,8 +156,8 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, size4_t shape,
-                                                   uint flag, [[maybe_unused]] size_t threads) {
+    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, dim4_t shape,
+                                                   uint flag, [[maybe_unused]] dim_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -192,10 +192,10 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, size4_t input_strides,
-                                                   Complex<T>* output, size4_t output_strides,
-                                                   size4_t shape, uint flag,
-                                                   [[maybe_unused]] size_t threads) {
+    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, dim4_t input_strides,
+                                                   Complex<T>* output, dim4_t output_strides,
+                                                   dim4_t shape, uint flag,
+                                                   [[maybe_unused]] dim_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -205,8 +205,8 @@ namespace noa::cpu::fft {
             std::swap(output_strides[2], output_strides[3]);
         }
 
-        const int4_t i_strides(input_strides);
-        const int4_t o_strides(output_strides);
+        const auto i_strides = safe_cast<int4_t>(input_strides);
+        const auto o_strides = safe_cast<int4_t>(output_strides);
         const int3_t inembed(i_strides.pitches());
         const int3_t onembed(o_strides.pitches());
         const int how_many = static_cast<int>(shape[0]);
@@ -236,8 +236,8 @@ namespace noa::cpu::fft {
 
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
-                                                   size4_t shape, uint flag,
-                                                   [[maybe_unused]] size_t threads) {
+                                                   dim4_t shape, uint flag,
+                                                   [[maybe_unused]] dim_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -270,10 +270,10 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, size4_t input_strides,
-                                                   T* output, size4_t output_strides,
-                                                   size4_t shape, uint flag,
-                                                   [[maybe_unused]] size_t threads) {
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, dim4_t input_strides,
+                                                   T* output, dim4_t output_strides,
+                                                   dim4_t shape, uint flag,
+                                                   [[maybe_unused]] dim_t threads) {
         int3_t s_shape(shape.get(1));
         const int rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
@@ -283,8 +283,8 @@ namespace noa::cpu::fft {
             std::swap(output_strides[2], output_strides[3]);
         }
 
-        const int4_t i_strides(input_strides);
-        const int4_t o_strides(output_strides);
+        const auto i_strides = safe_cast<int4_t>(input_strides);
+        const auto o_strides = safe_cast<int4_t>(output_strides);
         const int3_t inembed(i_strides.pitches());
         const int3_t onembed(o_strides.pitches());
         const int off = 3 - rank;
@@ -317,9 +317,9 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, Complex<T>* output, size4_t shape,
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, Complex<T>* output, dim4_t shape,
                                                    Sign sign, uint flag,
-                                                   [[maybe_unused]] size_t threads) {
+                                                   [[maybe_unused]] dim_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
@@ -357,10 +357,10 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, size4_t input_strides,
-                                                   Complex<T>* output, size4_t output_strides,
-                                                   size4_t shape, Sign sign, uint flag,
-                                                   [[maybe_unused]] size_t threads) {
+    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, dim4_t input_strides,
+                                                   Complex<T>* output, dim4_t output_strides,
+                                                   dim4_t shape, Sign sign, uint flag,
+                                                   [[maybe_unused]] dim_t threads) {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
@@ -372,8 +372,8 @@ namespace noa::cpu::fft {
             std::swap(output_strides[2], output_strides[3]);
         }
 
-        const int4_t i_strides(input_strides);
-        const int4_t o_strides(output_strides);
+        const auto i_strides = safe_cast<int4_t>(input_strides);
+        const auto o_strides = safe_cast<int4_t>(output_strides);
         const int3_t inembed(i_strides.pitches());
         const int3_t onembed(o_strides.pitches());
         const int rank = s_shape.ndim();

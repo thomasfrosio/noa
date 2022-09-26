@@ -14,8 +14,8 @@ namespace noa::cpu::geometry::fft {
 
     // Transforms 2D FFT(s) to (log-)polar coordinates.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, T>>>
-    void cartesian2polar(const shared_t<T[]>& cartesian, size4_t cartesian_strides, size4_t cartesian_shape,
-                         const shared_t<T[]>& polar, size4_t polar_strides, size4_t polar_shape,
+    void cartesian2polar(const shared_t<T[]>& cartesian, dim4_t cartesian_strides, dim4_t cartesian_shape,
+                         const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream);
 }

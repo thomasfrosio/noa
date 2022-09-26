@@ -8,16 +8,16 @@ namespace {
     using namespace noa;
 
     template<typename T>
-    void extractOrNothing_(const T* input, size4_t input_strides, size4_t input_shape,
-                           T* subregions, size4_t subregion_strides, size4_t subregion_shape,
-                           const int4_t* origins, int4_t order, size_t threads) {
-        NOA_ASSERT(input != subregions);
+    void extractOrNothing_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
+                           AccessorRestrict<T, 4, dim_t> subregions, dim4_t subregion_shape,
+                           const int4_t* origins, int4_t order, dim_t threads) {
+        NOA_ASSERT(input.get() != subregions.get());
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
-        [[maybe_unused]] const size_t elements_per_subregion = size3_t(subregion_shape.get(1)).elements();
+        [[maybe_unused]] const dim_t elements_per_subregion = dim3_t(subregion_shape.get(1)).elements();
         #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none) \
-        shared(input, input_strides, input_shape, subregions, subregion_strides, origins, order, i_shape, o_shape)
+        shared(input, input_shape, subregions, origins, order, i_shape, o_shape)
 
         for (int batch = 0; batch < o_shape[0]; ++batch) {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
@@ -27,6 +27,7 @@ namespace {
             if (ii < 0 || ii >= i_shape[0])
                 continue;
 
+            const auto subregion = subregions[batch];
             for (int oj = 0; oj < o_shape[1]; ++oj) {
                 for (int ok = 0; ok < o_shape[2]; ++ok) {
                     for (int ol = 0; ol < o_shape[3]; ++ol) {
@@ -39,8 +40,7 @@ namespace {
                             il < 0 || il >= i_shape[3])
                             continue;
 
-                        subregions[indexing::at(batch, oj, ok, ol, subregion_strides)] =
-                                input[indexing::at(ii, ij, ik, il, input_strides)];
+                        subregion(oj, ok, ol) = input(ii, ij, ik, il);
                     }
                 }
             }
@@ -48,26 +48,27 @@ namespace {
     }
 
     template<typename T>
-    void extractOrValue_(const T* input, size4_t input_strides, size4_t input_shape,
-                         T* subregions, size4_t subregion_strides, size4_t subregion_shape,
-                         const int4_t* origins, T value, int4_t order, size_t threads) {
-        NOA_ASSERT(input != subregions);
+    void extractOrValue_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
+                         AccessorRestrict<T, 4, dim_t> subregions, dim4_t subregion_shape,
+                         const int4_t* origins, T value, int4_t order, dim_t threads) {
+        NOA_ASSERT(input.get() != subregions.get());
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
-        [[maybe_unused]] const size_t elements_per_subregion = size3_t(subregion_shape.get(1)).elements();
-        #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none)      \
-        shared(input, input_strides, input_shape, subregions, subregion_strides, subregion_shape, origins,  \
-               value, order, i_shape, o_shape)
+        [[maybe_unused]] const dim_t elements_per_subregion = dim3_t(subregion_shape.get(1)).elements();
+        #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none) \
+        shared(input, input_shape, subregions, subregion_shape, origins, value, order, i_shape, o_shape)
 
-        for (size_t batch = 0; batch < subregion_shape[0]; ++batch) {
+        for (dim_t batch = 0; batch < subregion_shape[0]; ++batch) {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
+            const auto subregion = subregions[batch];
+
             // The outermost dimension of subregions is used as batch.
             // We don't use it to index the input.
             const int ii = corner_left[0];
             if (ii < 0 || ii >= i_shape[0]) {
-                const size4_t one_subregion{1, subregion_shape[1], subregion_shape[2], subregion_shape[3]};
-                cpu::memory::set(subregions + subregion_strides[0] * batch, subregion_strides, one_subregion, value);
+                const dim4_t one_subregion{1, subregion_shape[1], subregion_shape[2], subregion_shape[3]};
+                cpu::memory::set(subregion.get(), dim4_t(subregions.strides()), one_subregion, value);
                 continue;
             }
 
@@ -82,8 +83,7 @@ namespace {
                                            ik >= 0 && ik < i_shape[2] &&
                                            il >= 0 && il < i_shape[3];
 
-                        subregions[indexing::at(batch, oj, ok, ol, subregion_strides)] =
-                                valid ? input[indexing::at(ii, ij, ik, il, input_strides)] : value;
+                        subregion(oj, ok, ol) = valid ? input(ii, ij, ik, il) : value;
                     }
                 }
             }
@@ -91,19 +91,18 @@ namespace {
     }
 
     template<BorderMode MODE, typename T>
-    void extract_(const T* input, size4_t input_strides, size4_t input_shape,
-                  T* subregions, size4_t subregion_strides, size4_t subregion_shape,
-                  const int4_t* origins, int4_t order, size_t threads) {
-        NOA_ASSERT(input != subregions);
+    void extract_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
+                  AccessorRestrict<T, 4, dim_t> subregions, dim4_t subregion_shape,
+                  const int4_t* origins, int4_t order, dim_t threads) {
+        NOA_ASSERT(input.get() != subregions.get());
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
-        [[maybe_unused]] const size_t elements_per_subregion = size3_t(subregion_shape.get(1)).elements();
-        #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none)  \
-        shared(input, input_strides, input_shape, subregions, subregion_strides, subregion_shape,       \
-               origins, order, i_shape, o_shape)
+        [[maybe_unused]] const dim_t elements_per_subregion = dim3_t(subregion_shape.get(1)).elements();
+        #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none) \
+        shared(input, input_shape, subregions, subregion_shape, origins, order, i_shape, o_shape)
 
-        for (size_t batch = 0; batch < subregion_shape[0]; ++batch) {
+        for (dim_t batch = 0; batch < subregion_shape[0]; ++batch) {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
             // The outermost dimension of subregions is used as batch.
             // We don't use it to index the input.
@@ -116,8 +115,7 @@ namespace {
                         const int ij = indexing::at<MODE>(oj + corner_left[1], i_shape[1]);
                         const int ik = indexing::at<MODE>(ok + corner_left[2], i_shape[2]);
                         const int il = indexing::at<MODE>(ol + corner_left[3], i_shape[3]);
-                        subregions[indexing::at(batch, oj, ok, ol, subregion_strides)] =
-                                input[indexing::at(ii, ij, ik, il, input_strides)];
+                        subregions(batch, oj, ok, ol) = input(ii, ij, ik, il);
                     }
                 }
             }
@@ -125,23 +123,24 @@ namespace {
     }
 
     template<typename T>
-    void insert_(const T* subregions, size4_t subregion_strides, size4_t subregion_shape,
-                 T* output, size4_t output_strides, size4_t output_shape, const int4_t* origins,
-                 int4_t order, size_t threads) {
-        NOA_ASSERT(output != subregions);
+    void insert_(AccessorRestrict<const T, 4, dim_t> subregions, dim4_t subregion_shape,
+                 AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape, const int4_t* origins,
+                 int4_t order, dim_t threads) {
+        NOA_ASSERT(output.get() != subregions.get());
         const int4_t i_shape(subregion_shape);
         const int4_t o_shape(output_shape);
 
-        [[maybe_unused]] const size_t elements_per_subregion = size3_t(subregion_shape.get(1)).elements();
+        [[maybe_unused]] const dim_t elements_per_subregion = dim3_t(subregion_shape.get(1)).elements();
         #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none) \
-        shared(subregions, subregion_strides, subregion_shape, output, output_strides, origins, order, i_shape, o_shape)
+        shared(subregions, subregion_shape, output, origins, order, i_shape, o_shape)
 
-        for (size_t batch = 0; batch < subregion_shape[0]; ++batch) {
+        for (dim_t batch = 0; batch < subregion_shape[0]; ++batch) {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
             const int oi = corner_left[0];
             if (oi < 0 || oi >= o_shape[0])
                 continue;
 
+            const auto subregion = subregions[batch];
             for (int ij = 0; ij < i_shape[1]; ++ij) {
                 for (int ik = 0; ik < i_shape[2]; ++ik) {
                     for (int il = 0; il < i_shape[3]; ++il) {
@@ -155,8 +154,7 @@ namespace {
                             continue;
 
                         // We assume no overlap in the output between subregions.
-                        output[indexing::at(oi, oj, ok, ol, output_strides)] =
-                                subregions[indexing::at(batch, ij, ik, il, subregion_strides)];
+                        output(oi, oj, ok, ol) = subregion(ij, ik, il);
                     }
                 }
             }
@@ -166,16 +164,16 @@ namespace {
 
 namespace noa::cpu::memory {
     template<typename T, typename>
-    void extract(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& subregions, size4_t subregion_strides, size4_t subregion_shape,
+    void extract(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
                  const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
                  Stream& stream) {
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
             // Reorder the DHW dimensions to the rightmost order.
             // We'll have to reorder the origins similarly later.
-            const size3_t order_3d = indexing::order(size3_t(subregion_strides.get(1)),
-                                                     size3_t(subregion_shape.get(1))) + 1;
+            const dim3_t order_3d = indexing::order(dim3_t(subregion_strides.get(1)),
+                                                    dim3_t(subregion_shape.get(1))) + 1;
             const int4_t order(0, order_3d[0], order_3d[1], order_3d[2]);
             input_strides = indexing::reorder(input_strides, order);
             input_shape = indexing::reorder(input_shape, order);
@@ -184,29 +182,29 @@ namespace noa::cpu::memory {
 
             switch (border_mode) {
                 case BORDER_NOTHING:
-                    return extractOrNothing_(input.get(), input_strides, input_shape,
-                                             subregions.get(), subregion_strides, subregion_shape,
-                                             origins.get(), order, threads);
+                    return extractOrNothing_<T>({input.get(), input_strides}, input_shape,
+                                                {subregions.get(), subregion_strides}, subregion_shape,
+                                                origins.get(), order, threads);
                 case BORDER_ZERO:
-                    return extractOrValue_(input.get(), input_strides, input_shape,
-                                           subregions.get(), subregion_strides, subregion_shape,
-                                           origins.get(), static_cast<T>(0), order, threads);
+                    return extractOrValue_({input.get(), input_strides}, input_shape,
+                                           {subregions.get(), subregion_strides}, subregion_shape,
+                                           origins.get(), T{0}, order, threads);
                 case BORDER_VALUE:
-                    return extractOrValue_(input.get(), input_strides, input_shape,
-                                           subregions.get(), subregion_strides, subregion_shape,
+                    return extractOrValue_({input.get(), input_strides}, input_shape,
+                                           {subregions.get(), subregion_strides}, subregion_shape,
                                            origins.get(), border_value, order, threads);
                 case BORDER_CLAMP:
-                    return extract_<BORDER_CLAMP>(input.get(), input_strides, input_shape,
-                                                  subregions.get(), subregion_strides, subregion_shape,
-                                                  origins.get(), order, threads);
+                    return extract_<BORDER_CLAMP, T>({input.get(), input_strides}, input_shape,
+                                                     {subregions.get(), subregion_strides}, subregion_shape,
+                                                     origins.get(), order, threads);
                 case BORDER_MIRROR:
-                    return extract_<BORDER_MIRROR>(input.get(), input_strides, input_shape,
-                                                   subregions.get(), subregion_strides, subregion_shape,
-                                                   origins.get(), order, threads);
+                    return extract_<BORDER_MIRROR, T>({input.get(), input_strides}, input_shape,
+                                                      {subregions.get(), subregion_strides}, subregion_shape,
+                                                      origins.get(), order, threads);
                 case BORDER_REFLECT:
-                    return extract_<BORDER_REFLECT>(input.get(), input_strides, input_shape,
-                                                    subregions.get(), subregion_strides, subregion_shape,
-                                                    origins.get(), order, threads);
+                    return extract_<BORDER_REFLECT, T>({input.get(), input_strides}, input_shape,
+                                                       {subregions.get(), subregion_strides}, subregion_shape,
+                                                       origins.get(), order, threads);
                 default:
                     NOA_THROW("{} is not supported", border_mode);
             }
@@ -214,29 +212,29 @@ namespace noa::cpu::memory {
     }
 
     template<typename T, typename>
-    void insert(const shared_t<T[]>& subregions, size4_t subregion_strides, size4_t subregion_shape,
-                const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void insert(const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
+                const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                 const shared_t<int4_t[]>& origins, Stream& stream) {
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
             // Reorder the DHW dimensions to the rightmost order.
             // We'll have to reorder the origins similarly later.
-            const size3_t order_3d = indexing::order(size3_t(subregion_strides.get(1)),
-                                                     size3_t(subregion_shape.get(1))) + 1;
+            const dim3_t order_3d = indexing::order(dim3_t(subregion_strides.get(1)),
+                                                    dim3_t(subregion_shape.get(1))) + 1;
             const int4_t order(0, order_3d[0], order_3d[1], order_3d[2]);
             output_strides = indexing::reorder(output_strides, order);
             output_shape = indexing::reorder(output_shape, order);
             subregion_strides = indexing::reorder(subregion_strides, order);
             subregion_shape = indexing::reorder(subregion_shape, order);
 
-            insert_<T>(subregions.get(), subregion_strides, subregion_shape,
-                       output.get(), output_strides, output_shape, origins.get(), order, threads);
+            insert_<T>({subregions.get(), subregion_strides}, subregion_shape,
+                       {output.get(), output_strides}, output_shape, origins.get(), order, threads);
         });
     }
 
-    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                          \
-    template void extract<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, BorderMode, T, Stream&);  \
-    template void insert<T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<int4_t[]>&, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)                                                                                                                      \
+    template void extract<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<int4_t[]>&, BorderMode, T, Stream&);  \
+    template void insert<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<int4_t[]>&, Stream&)
 
     NOA_INSTANTIATE_EXTRACT_INSERT_(bool);
     NOA_INSTANTIATE_EXTRACT_INSERT_(int8_t);

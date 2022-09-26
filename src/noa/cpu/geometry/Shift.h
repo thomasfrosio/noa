@@ -15,15 +15,15 @@ namespace noa::cpu::geometry::details {
 namespace noa::cpu::geometry {
     // Applies one or multiple 2D shifts.
     template<typename T, typename S, typename = std::enable_if_t<details::is_valid_shift_v<2, T, S>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void shift2D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, InterpMode interp_mode, BorderMode border_mode,
                  T value, bool prefilter, Stream& stream);
 
     // Applies one or multiple 3D shifts.
     template<typename T, typename S, typename = std::enable_if_t<details::is_valid_shift_v<3, T, S>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void shift3D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, InterpMode interp_mode, BorderMode border_mode,
                  T value, bool prefilter, Stream& stream);
 }

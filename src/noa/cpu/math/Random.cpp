@@ -11,11 +11,10 @@ namespace {
     // Based on the C version by David Blackman and Sebastiano Vigna (2018),
     // https://prng.di.unimi.it/xoshiro256starstar.c
     struct xoshiro256ss {
-        using u64 = unsigned long long;
-        u64 s[4] {};
+        uint64_t s[4] {};
 
-        static constexpr u64 splitmix64(u64& x) {
-            u64 z = (x += 0x9e3779b97f4a7c15uLL);
+        static constexpr uint64_t splitmix64(uint64_t& x) {
+            uint64_t z = (x += 0x9e3779b97f4a7c15uLL);
             z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9uLL;
             z = (z ^ (z >> 27)) * 0x94d049bb133111ebuLL;
             return z ^ (z >> 31);
@@ -23,24 +22,24 @@ namespace {
 
         constexpr explicit xoshiro256ss() : xoshiro256ss(0) {}
 
-        constexpr explicit xoshiro256ss(u64 seed) {
+        constexpr explicit xoshiro256ss(uint64_t seed) {
             s[0] = splitmix64(seed);
             s[1] = splitmix64(seed);
             s[2] = splitmix64(seed);
             s[3] = splitmix64(seed);
         }
 
-        using result_type = u64;
-        static constexpr u64 min() { return 0; }
-        static constexpr u64 max() { return u64(-1); }
+        using result_type = uint64_t;
+        static constexpr uint64_t min() { return 0; }
+        static constexpr uint64_t max() { return uint64_t(-1); }
 
-        static constexpr u64 rotl(u64 x, int k) {
+        static constexpr uint64_t rotl(uint64_t x, int k) {
             return (x << k) | (x >> (64 - k));
         }
 
-        constexpr u64 operator()() {
-            u64 result = rotl(s[1] * 5, 7) * 9;
-            u64 t = s[1] << 17;
+        constexpr uint64_t operator()() {
+            uint64_t result = rotl(s[1] * 5, 7) * 9;
+            uint64_t t = s[1] << 17;
             s[2] ^= s[0];
             s[3] ^= s[1];
             s[1] ^= s[2];
@@ -77,54 +76,54 @@ namespace {
                                                      std::poisson_distribution<int64_t>>;
 
     template<typename T, typename distributor_t>
-    void generate_(T* ptr, size_t elements, distributor_t& distributor) {
+    void generate_(T* ptr, dim_t elements, distributor_t& distributor) {
         std::random_device seeder;
         xoshiro256ss generator(seeder());
 
-        for (size_t i = 0; i < elements; ++i)
+        for (dim_t i = 0; i < elements; ++i)
             ptr[i] = static_cast<T>(distributor(generator));
     }
 
     template<typename T, typename distributor_t>
-    void generate_(T* ptr, size4_t strides, size4_t shape, distributor_t& distributor) {
+    void generate_(T* ptr, dim4_t strides, dim4_t shape, distributor_t& distributor) {
         std::random_device seeder;
         xoshiro256ss generator(seeder());
 
-        const size4_t order = indexing::order(strides, shape);
+        const dim4_t order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
         shape = indexing::reorder(shape, order);
 
-        for (size_t i = 0; i < shape[0]; ++i)
-            for (size_t j = 0; j < shape[1]; ++j)
-                for (size_t k = 0; k < shape[2]; ++k)
-                    for (size_t l = 0; l < shape[3]; ++l)
+        for (dim_t i = 0; i < shape[0]; ++i)
+            for (dim_t j = 0; j < shape[1]; ++j)
+                for (dim_t k = 0; k < shape[2]; ++k)
+                    for (dim_t l = 0; l < shape[3]; ++l)
                         ptr[indexing::at(i, j, k, l, strides)] = static_cast<T>(distributor(generator));
     }
 
     template<typename T, typename distributor_t>
-    void generate_(Complex<T>* ptr, size_t elements,
+    void generate_(Complex<T>* ptr, dim_t elements,
                    distributor_t& distributor_real, distributor_t& distributor_imag) {
         std::random_device seeder;
         xoshiro256ss generator(seeder());
 
-        for (size_t i = 0; i < elements; ++i)
+        for (dim_t i = 0; i < elements; ++i)
             ptr[i] = static_cast<Complex<T>>(distributor_real(generator), distributor_imag(generator));
     }
 
     template<typename T, typename distributor_t>
-    void generate_(Complex<T>* ptr, size4_t strides, size4_t shape,
+    void generate_(Complex<T>* ptr, dim4_t strides, dim4_t shape,
                    distributor_t& distributor_real, distributor_t& distributor_imag) {
         std::random_device seeder;
         xoshiro256ss generator(seeder());
 
-        const size4_t order = indexing::order(strides, shape);
+        const dim4_t order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
         shape = indexing::reorder(shape, order);
 
-        for (size_t i = 0; i < shape[0]; ++i)
-            for (size_t j = 0; j < shape[1]; ++j)
-                for (size_t k = 0; k < shape[2]; ++k)
-                    for (size_t l = 0; l < shape[3]; ++l)
+        for (dim_t i = 0; i < shape[0]; ++i)
+            for (dim_t j = 0; j < shape[1]; ++j)
+                for (dim_t k = 0; k < shape[2]; ++k)
+                    for (dim_t l = 0; l < shape[3]; ++l)
                         ptr[indexing::at(i, j, k, l, strides)] =
                                 static_cast<Complex<T>>(distributor_real(generator), distributor_imag(generator));
     }
@@ -132,7 +131,7 @@ namespace {
 
 namespace noa::cpu::math {
     template<typename T, typename U, typename>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim_t elements,
                    U min, U max, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
@@ -167,7 +166,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim_t elements,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
@@ -202,7 +201,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim_t elements,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
@@ -237,7 +236,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size_t elements, float lambda, Stream& stream) {
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim_t elements, float lambda, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
             randomize(noa::math::poisson_t{}, std::reinterpret_pointer_cast<real_t[]>(output), elements * 2,
@@ -252,7 +251,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U min, U max, Stream& stream) {
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::uniform_t{}, output, shape.elements(), min, max, stream);
@@ -292,7 +291,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream) {
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::normal_t{}, output, shape.elements(), mean, stddev, stream);
@@ -332,7 +331,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream) {
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::log_normal_t{}, output, shape.elements(), mean, stddev, stream);
@@ -372,7 +371,7 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    float lambda, Stream& stream) {
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::poisson_t{}, output, shape.elements(), lambda, stream);
@@ -392,12 +391,12 @@ namespace noa::cpu::math {
     }
 
     #define INSTANTIATE_RANDOM_(T, U)                                                                                   \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);   \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);    \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);\
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, U, U, Stream&);             \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);              \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, U, U, Stream&)
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);     \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);      \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);  \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim_t, U, U, Stream&);              \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&);               \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&)
 
     INSTANTIATE_RANDOM_(int16_t, int16_t);
     INSTANTIATE_RANDOM_(uint16_t, uint16_t);
@@ -415,21 +414,21 @@ namespace noa::cpu::math {
     INSTANTIATE_RANDOM_(cfloat_t, cfloat_t);
     INSTANTIATE_RANDOM_(cdouble_t, cdouble_t);
 
-    #define INSTANTIATE_RANDOM_POISSON_(T)                                                                          \
-    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, size_t, float, Stream&);           \
-    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, size4_t, size4_t, float, Stream&)
+    #define INSTANTIATE_RANDOM_POISSON_(T)                                                                  \
+    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, dim_t, float, Stream&);    \
+    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, dim4_t, dim4_t, float, Stream&)
 
     INSTANTIATE_RANDOM_POISSON_(half_t);
     INSTANTIATE_RANDOM_POISSON_(float);
     INSTANTIATE_RANDOM_POISSON_(double);
 
-    #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                                  \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);       \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);        \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);    \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, U, U, Stream&);                 \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);                  \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, U, U, Stream&)
+    #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                              \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);     \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);      \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);  \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim_t, U, U, Stream&);              \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&);               \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&)
 
     INSTANTIATE_RANDOM_HALF_(half_t, float);
     INSTANTIATE_RANDOM_HALF_(chalf_t, float);

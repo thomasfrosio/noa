@@ -33,27 +33,24 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void ellipse_(const T* input, size4_t input_strides,
-                  T* output, size4_t output_strides,
-                  size3_t start, size3_t end, size_t batches,
+    void ellipse_(Accessor<const T, 4, dim_t> input,
+                  Accessor<T, 4, dim_t> output,
+                  dim3_t start, dim3_t end, dim_t batches,
                   float3_t center, float3_t radius) {
         using real_t = traits::value_type_t<T>;
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         const float z = math::pow(static_cast<float>(j) - center[0] / radius[0], 2.f);
                         const float y = math::pow(static_cast<float>(k) - center[1] / radius[1], 2.f);
                         const float x = math::pow(static_cast<float>(l) - center[2] / radius[2], 2.f);
                         const float rho = z + y + x;
-                        const float mask = getHardMask_<INVERT>(rho);
+                        const auto mask = static_cast<real_t>(getHardMask_<INVERT>(rho));
 
-                        output[indexing::at(i, j, k, l, output_strides)] =
-                                input ?
-                                input[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        output(i, j, k, l) = input ? input(i, j, k, l) * mask : mask;
                     }
                 }
             }
@@ -61,30 +58,27 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void ellipseOMP_(const T* input, size4_t input_strides,
-                     T* output, size4_t output_strides,
-                     size3_t start, size3_t end, size_t batches,
-                     float3_t center, float3_t radius, size_t threads) {
+    void ellipseOMP_(Accessor<const T, 4, dim_t> input,
+                     Accessor<T, 4, dim_t> output,
+                     dim3_t start, dim3_t end, dim_t batches,
+                     float3_t center, float3_t radius, dim_t threads) {
         using real_t = traits::value_type_t<T>;
 
         #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
-        shared(input, input_strides, output, output_strides, start, end, batches, center, radius)
+        shared(input, output, start, end, batches, center, radius)
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         float3_t coords(j, k, l);
                         coords -= center;
                         coords /= radius;
                         const float rho = math::dot(coords, coords);
-                        const float mask = getHardMask_<INVERT>(rho);
+                        const auto mask = static_cast<real_t>(getHardMask_<INVERT>(rho));
 
-                        output[indexing::at(i, j, k, l, output_strides)] =
-                                input ?
-                                input[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        output(i, j, k, l) = input ? input(i, j, k, l) * mask : mask;
                     }
                 }
             }
@@ -92,20 +86,19 @@ namespace {
     }
 
     template<bool INVERT, typename T>
-    void ellipse2DSmoothOMP_(const T* input, size4_t input_strides,
-                             T* output, size4_t output_strides,
-                             size2_t start, size2_t end, size_t batches,
-                             float2_t center, float2_t radius, float taper_size, size_t threads) {
+    void ellipse2DSmoothOMP_(Accessor<const T, 3, dim_t> input,
+                             Accessor<T, 3, dim_t> output,
+                             dim2_t start, dim2_t end, dim_t batches,
+                             float2_t center, float2_t radius, float taper_size, dim_t threads) {
         using real_t = traits::value_type_t<T>;
         const float2_t radius_sqd = radius * radius;
 
-        #pragma omp parallel for default(none) collapse(3) num_threads(threads)     \
-        shared(input, input_strides, output, output_strides, start, end, batches,   \
-               center, radius, taper_size, radius_sqd)
+        #pragma omp parallel for default(none) collapse(3) num_threads(threads) \
+        shared(input, output, start, end, batches, center, radius, taper_size, radius_sqd)
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t k = start[0]; k < end[0]; ++k) {
-                for (size_t l = start[1]; l < end[1]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t k = start[0]; k < end[0]; ++k) {
+                for (dim_t l = start[1]; l < end[1]; ++l) {
 
                     float2_t cartesian{k, l};
                     cartesian -= center;
@@ -121,33 +114,29 @@ namespace {
                                                         sin2phi / radius_sqd[0]);
 
                     // Get mask value for this radius.
-                    const float mask = getSoftMask_<INVERT>(irho, erho, taper_size);
+                    const auto mask = static_cast<real_t>(getSoftMask_<INVERT>(irho, erho, taper_size));
 
-                    output[indexing::at(i, 0, k, l, output_strides)] =
-                            input ?
-                            input[indexing::at(i, 0, k, l, input_strides)] * static_cast<real_t>(mask) :
-                            static_cast<real_t>(mask);
+                    output(i, k, l) = input ? input(i, k, l) * mask : mask;
                 }
             }
         }
     }
 
     template<bool INVERT, typename T>
-    void ellipse3DSmoothOMP_(const T* input, size4_t input_strides,
-                             T* output, size4_t output_strides,
-                             size3_t start, size3_t end, size_t batches,
-                             float3_t center, float3_t radius, float taper_size, size_t threads) {
+    void ellipse3DSmoothOMP_(Accessor<const T, 4, dim_t> input,
+                             Accessor<T, 4, dim_t> output,
+                             dim3_t start, dim3_t end, dim_t batches,
+                             float3_t center, float3_t radius, float taper_size, dim_t threads) {
         using real_t = traits::value_type_t<T>;
         const float3_t radius_sqd = radius * radius;
 
-        #pragma omp parallel for default(none) collapse(4) num_threads(threads)     \
-        shared(input, input_strides, output, output_strides, start, end, batches,   \
-               center, radius, taper_size, radius_sqd)
+        #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
+        shared(input, output, start, end, batches, center, radius, taper_size, radius_sqd)
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         float3_t cartesian{j, k, l};
                         cartesian -= center;
@@ -167,12 +156,9 @@ namespace {
                                                             cos2theta / radius_sqd[0]);
 
                         // Get mask value for this radius.
-                        const float mask = getSoftMask_<INVERT>(irho, erho, taper_size);
+                        const auto mask = static_cast<real_t>(getSoftMask_<INVERT>(irho, erho, taper_size));
 
-                        output[indexing::at(i, j, k, l, output_strides)] =
-                                input ?
-                                input[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        output(i, j, k, l) = input ? input(i, j, k, l) * mask : mask;
                     }
                 }
             }
@@ -182,12 +168,12 @@ namespace {
 
 namespace noa::cpu::signal {
     template<bool INVERT, typename T, typename>
-    void ellipse(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void ellipse(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float3_t center, float3_t radius, float taper_size, Stream& stream) {
-        const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1)));
-        if (any(order_3d != size3_t{0, 1, 2})) {
-            const size4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
+        const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
+        if (any(order_3d != dim3_t{0, 1, 2})) {
+            const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
             input_strides = indexing::reorder(input_strides, order);
             output_strides = indexing::reorder(output_strides, order);
             shape = indexing::reorder(shape, order);
@@ -195,43 +181,46 @@ namespace noa::cpu::signal {
             radius = indexing::reorder(radius, order_3d);
         }
 
-        size3_t start{0}, end(shape.get(1));
+        dim3_t start{0}, end(shape.get(1));
         if (INVERT && input.get() == output.get()) {
-            start = size3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
-            end = size3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
+            start = dim3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
+            end = dim3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
             if (any(end <= start))
                 return;
         }
 
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         const bool taper = taper_size > 1e-5f;
         if (taper) {
             stream.enqueue([=]() {
                 if (shape[1] == 1) {
-                    ellipse2DSmoothOMP_<INVERT>(input.get(), input_strides, output.get(), output_strides,
-                                                size2_t(start.get(1)), size2_t(end.get(1)), shape[0],
-                                                float2_t(center.get(1)), float2_t(radius.get(1)), taper_size, threads);
+                    const dim3_t istrides_2d{input_strides[0], input_strides[2], input_strides[3]};
+                    const dim3_t ostrides_2d{output_strides[0], output_strides[2], output_strides[3]};
+                    ellipse2DSmoothOMP_<INVERT, T>({input.get(), istrides_2d}, {output.get(), ostrides_2d},
+                                                   dim2_t(start.get(1)), dim2_t(end.get(1)), shape[0],
+                                                   float2_t(center.get(1)), float2_t(radius.get(1)), taper_size,
+                                                   threads);
                 } else {
-                    ellipse3DSmoothOMP_<INVERT>(input.get(), input_strides, output.get(), output_strides,
-                                                start, end, shape[0], center, radius, taper_size, threads);
+                    ellipse3DSmoothOMP_<INVERT, T>({input.get(), input_strides}, {output.get(), output_strides},
+                                                   start, end, shape[0], center, radius, taper_size, threads);
                 };
             });
         } else {
             stream.enqueue([=]() {
                 if (threads) {
-                    ellipseOMP_<INVERT>(input.get(), input_strides, output.get(), output_strides,
-                                        start, end, shape[0], center, radius, threads);
+                    ellipseOMP_<INVERT, T>({input.get(), input_strides}, {output.get(), output_strides},
+                                           start, end, shape[0], center, radius, threads);
                 } else {
-                    ellipse_<INVERT>(input.get(), input_strides, output.get(), output_strides,
-                                     start, end, shape[0], center, radius);
+                    ellipse_<INVERT, T>({input.get(), input_strides}, {output.get(), output_strides},
+                                        start, end, shape[0], center, radius);
                 }
             });
         }
     }
 
-    #define NOA_INSTANTIATE_ELLIPSE_(T)                                                                                                                 \
-    template void ellipse<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);    \
-    template void ellipse<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_ELLIPSE_(T)                                                                                                             \
+    template void ellipse<true, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float3_t, float3_t, float, Stream&);   \
+    template void ellipse<false, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float3_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_ELLIPSE_(half_t);
     NOA_INSTANTIATE_ELLIPSE_(float);

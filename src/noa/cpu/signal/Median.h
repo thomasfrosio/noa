@@ -18,19 +18,19 @@ namespace noa::cpu::signal::details {
 namespace noa::cpu::signal {
     // Computes the median filter using a 1D window.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
-    void median1(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides,
-                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
+    void median1(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides,
+                 dim4_t shape, BorderMode border_mode, dim_t window_size, Stream& stream);
 
     // Computes the median filter using a 2D square window.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
-    void median2(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides,
-                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
+    void median2(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides,
+                 dim4_t shape, BorderMode border_mode, dim_t window_size, Stream& stream);
 
     // Computes the median filter using a 3D cubic window.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
-    void median3(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides,
-                 size4_t shape, BorderMode border_mode, size_t window_size, Stream& stream);
+    void median3(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides,
+                 dim4_t shape, BorderMode border_mode, dim_t window_size, Stream& stream);
 }

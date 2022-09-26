@@ -33,9 +33,9 @@ namespace {
         float3_t fraction[2];
         fraction[1] = freq - float3_t(base0);
         fraction[0] = 1.f - fraction[1];
-        for (size_t w = 0; w < 2; ++w)
-            for (size_t v = 0; v < 2; ++v)
-                for (size_t u = 0; u < 2; ++u)
+        for (dim_t w = 0; w < 2; ++w)
+            for (dim_t v = 0; v < 2; ++v)
+                for (dim_t u = 0; u < 2; ++u)
                     o_weights[w][v][u] = fraction[w][0] * fraction[v][1] * fraction[u][2];
     }
 
@@ -60,22 +60,22 @@ namespace {
     }
 
     template<typename T>
-    inline void atomicAdd_(T* grid, size_t offset, T value) {
+    inline void atomicAdd_(T& grid, T value) {
         if constexpr (traits::is_complex_v<T>) {
             #pragma omp atomic
-            grid[offset][0] += value[0];
+            grid[0] += value[0];
             #pragma omp atomic
-            grid[offset][1] += value[1];
+            grid[1] += value[1];
         } else {
             #pragma omp atomic
-            grid[offset] += value;
+            grid += value;
         }
     }
 
     // Spread the value within a 2x2x2 centered on a particular frequency using linear interpolation.
     // "frequency" is the frequency centered on DC (i.e. 0 is the DC), with negative frequencies on the left.
     template<bool IS_DST_CENTERED, typename T>
-    void addByGridding_(T* grid, size3_t grid_strides, int3_t grid_shape, T data, float3_t frequency) {
+    void addByGridding_(const AccessorRestrict<T, 3, dim_t>& grid, int3_t grid_shape, T data, float3_t frequency) {
         using real_t = traits::value_type_t<T>;
         const int3_t base0{math::floor(frequency)};
 
@@ -93,7 +93,7 @@ namespace {
                         const int idx_v = getIndex_<IS_DST_CENTERED>(base0[1] + v, grid_shape[1]);
                         const int idx_u = base0[2] + u;
                         const auto fraction = static_cast<real_t>(kernel[w][v][u]);
-                        atomicAdd_(grid, indexing::at(idx_w, idx_v, idx_u, grid_strides), data * fraction);
+                        atomicAdd_(grid(idx_w, idx_v, idx_u), data * fraction);
                     }
                 }
             }
@@ -111,7 +111,7 @@ namespace {
                         const int idx_w = getIndex_<IS_DST_CENTERED>(-(base0[0] + w), grid_shape[0]);
                         const int idx_v = getIndex_<IS_DST_CENTERED>(-(base0[1] + v), grid_shape[1]);
                         const auto fraction = static_cast<real_t>(kernel[w][v][0]);
-                        atomicAdd_(grid, indexing::at(idx_w, idx_v, grid_strides), data * fraction);
+                        atomicAdd_(grid(idx_w, idx_v), data * fraction);
                     }
                 }
             }
@@ -124,10 +124,10 @@ namespace {
     // 2) Normalization: the weights are inserted as well, so the grid can and should be normalized
     //                   before taking the iFFT by dividing (+ threshold) using these weights.
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
-    void fourierInsert_(const T* slice, size3_t slice_strides, int3_t slice_shape,
-                        T* grid, size3_t grid_strides, int3_t grid_shape,
+    void fourierInsert_(AccessorRestrict<const T, 3, dim_t> slice, int3_t slice_shape,
+                        AccessorRestrict<T, 3, dim_t> grid, int3_t grid_shape,
                         const float22_t* inv_scaling_factors, const float33_t* rotations,
-                        float cutoff, float3_t sampling_factor, float2_t ews_radius, size_t threads) {
+                        float cutoff, float3_t sampling_factor, float2_t ews_radius, dim_t threads) {
         using real_t = traits::value_type_t<T>;
         const int2_t l_shape(slice_shape.get(1));
         const float2_t f_slice_shape(l_shape / 2 * 2 + int2_t(l_shape == 1));
@@ -141,10 +141,9 @@ namespace {
         cutoff = math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)   \
-        shared(slice, slice_strides, slice_shape, grid, grid_strides, grid_shape, \
-               inv_scaling_factors, rotations, cutoff, ews_diam_inv,              \
-               f_slice_shape, f_grid_shape)
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)                 \
+        shared(slice, slice_shape, grid, grid_shape, inv_scaling_factors, rotations, cutoff,    \
+               ews_diam_inv, f_slice_shape, f_grid_shape)
 
         for (int i = 0; i < slice_shape[0]; ++i) {
             for (int y = 0; y < slice_shape[1]; ++y) {
@@ -184,11 +183,11 @@ namespace {
                     freq_3d *= f_grid_shape;
 
                     // At this point, we know we are going to use the slice value.
-                    T value = slice[indexing::at(i, y, u, slice_strides)];
+                    T value = slice(i, y, u);
                     if constexpr(traits::is_complex_v<T>)
                         value.imag *= conj;
 
-                    addByGridding_<IS_DST_CENTERED>(grid, grid_strides, grid_shape, value, freq_3d);
+                    addByGridding_<IS_DST_CENTERED>(grid, grid_shape, value, freq_3d);
                 }
             }
         }
@@ -197,13 +196,13 @@ namespace {
     // The exact same transformation as fourierInsert_ is applied here, but instead of inserting the transformed
     // slice(s) into the grid, the transformed slice(s) is extracted from the grid.
     template<bool IS_DST_CENTERED, typename T>
-    void fourierExtract_(const T* grid, size3_t grid_strides, int3_t grid_shape,
-                         T* slice, size3_t slice_strides, int3_t slice_shape,
+    void fourierExtract_(AccessorRestrict<const T, 3, dim_t> grid, int3_t grid_shape,
+                         AccessorRestrict<T, 3, dim_t> slice, int3_t slice_shape,
                          const float22_t* inv_scaling_factors, const float33_t* rotations,
-                         float cutoff, float3_t sampling_factor, float2_t ews_radius, size_t threads) {
+                         float cutoff, float3_t sampling_factor, float2_t ews_radius, dim_t threads) {
         using real_t = traits::value_type_t<T>;
-        const int2_t l_shape(slice_shape.get(1));
-        const float2_t f_slice_shape(l_shape / 2 * 2 + int2_t(l_shape == 1));
+        const long2_t l_shape(slice_shape.get(1));
+        const float2_t f_slice_shape(l_shape / 2 * 2 + long2_t(l_shape == 1));
         float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
         f_grid_shape *= sampling_factor;
 
@@ -214,12 +213,11 @@ namespace {
         cutoff = math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        cpu::geometry::Interpolator3D<T> interp(grid, grid_strides, size3_t(grid_shape).fft(), T{0});
+        const cpu::geometry::Interpolator3D interp(grid, dim3_t(grid_shape).fft(), T{0});
 
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)   \
-        shared(slice, slice_strides, slice_shape, grid, grid_strides, grid_shape, \
-               inv_scaling_factors, rotations, cutoff, ews_diam_inv,              \
-               f_slice_shape, f_grid_shape, interp)
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)                 \
+        shared(slice, slice_shape, grid, grid_shape, inv_scaling_factors, rotations, cutoff,    \
+               ews_diam_inv, f_slice_shape, f_grid_shape, interp)
 
         for (int i = 0; i < slice_shape[0]; ++i) {
             for (int y = 0; y < slice_shape[1]; ++y) {
@@ -238,7 +236,7 @@ namespace {
                     freq_3d = rotations[i] * freq_3d;
 
                     if (math::dot(freq_3d, freq_3d) > cutoff) {
-                        slice[indexing::at(i, y, u, slice_strides)] = T{0};
+                        slice(i, y, u) = T{0};
                         continue;
                     }
 
@@ -257,27 +255,28 @@ namespace {
                     if constexpr(traits::is_complex_v<T>)
                         value.imag *= conj;
 
-                    slice[indexing::at(i, y, u, slice_strides)] = value;
+                    slice(i, y, u) = value;
                 }
             }
         }
     }
 
     template<bool POST_CORRECTION, typename T>
-    void correctGriddingSinc2_(const T* input, size4_t input_strides,
-                               T* output, size4_t output_strides, size4_t shape, size_t threads) {
+    void correctGriddingSinc2_(Accessor<const T, 4, dim_t> input,
+                               Accessor<T, 4, dim_t> output,
+                               dim4_t shape, dim_t threads) {
         constexpr float PI = math::Constants<float>::PI;
-        const int3_t l_shape(shape.get(1));
+        const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape);
         const float3_t half(f_shape / 2 * float3_t(l_shape != 1)); // if size == 1, half should be 0
 
         #pragma omp parallel for collapse(4) num_threads(threads) default(none) \
-        shared(input, input_strides, output, output_strides, shape, f_shape, half)
+        shared(input, output, shape, f_shape, half)
 
-        for (size_t i = 0; i < shape[0]; ++i) {
-            for (size_t j = 0; j < shape[1]; ++j) {
-                for (size_t k = 0; k < shape[2]; ++k) {
-                    for (size_t l = 0; l < shape[3]; ++l) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
 
                         float3_t dist{j, k, l};
                         dist -= half;
@@ -287,9 +286,8 @@ namespace {
                         const float sinc = math::sinc(PI * radius);
                         const T sinc2 = static_cast<T>(sinc * sinc); // > 0.05
 
-                        const size_t offset = indexing::at(i, j, k, l, input_strides);
-                        output[indexing::at(i, j, k, l, output_strides)] =
-                                POST_CORRECTION ? input[offset] / sinc2 : input[offset] * sinc2;
+                        const T value = input(i, j, k, l);
+                        output(i, j, k, l) = POST_CORRECTION ? value / sinc2 : value * sinc2;
                     }
                 }
             }
@@ -299,8 +297,8 @@ namespace {
 
 namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename T, typename>
-    void insert3D(const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
-                  const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
+    void insert3D(const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
                   const shared_t<float22_t[]>& scaling_factors,
                   const shared_t<float33_t[]>& rotations,
                   float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
@@ -312,27 +310,29 @@ namespace noa::cpu::geometry::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
+        NOA_ASSERT(!indexing::isOverlap(slice.get(), slice_strides, slice_shape.fft(),
+                                        grid.get(), grid_strides, grid_shape.fft()));
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
 
         const int3_t slice_shape_{slice_shape[0], slice_shape[2], slice_shape[3]};
         const int3_t grid_shape_{grid_shape[1], grid_shape[2], grid_shape[3]};
-        const size3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
-        const size3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
+        const dim3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
+        const dim3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
 
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() {
             fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                    slice.get(), slice_strides_, slice_shape_,
-                    grid.get(), grid_strides_, grid_shape_,
+                    {slice.get(), slice_strides_}, slice_shape_,
+                    {grid.get(), grid_strides_}, grid_shape_,
                     scaling_factors.get(), rotations.get(),
                     cutoff, sampling_factor, ews_radius, threads);
         });
     }
 
     template<Remap REMAP, typename T, typename>
-    void extract3D(const shared_t<T[]>& grid, size4_t grid_strides, size4_t grid_shape,
-                   const shared_t<T[]>& slice, size4_t slice_strides, size4_t slice_shape,
+    void extract3D(const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                   const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
                    float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
@@ -345,43 +345,48 @@ namespace noa::cpu::geometry::fft {
                       REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
+        NOA_ASSERT(!indexing::isOverlap(slice.get(), slice_strides, slice_shape.fft(),
+                                        grid.get(), grid_strides, grid_shape.fft()));
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
 
         const int3_t slice_shape_{slice_shape[0], slice_shape[2], slice_shape[3]};
         const int3_t grid_shape_{grid_shape[1], grid_shape[2], grid_shape[3]};
-        const size3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
-        const size3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
+        const dim3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
+        const dim3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
 
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() {
             fourierExtract_<IS_DST_CENTERED, T>(
-                    grid.get(), grid_strides_, grid_shape_,
-                    slice.get(), slice_strides_, slice_shape_,
+                    {grid.get(), grid_strides_}, grid_shape_,
+                    {slice.get(), slice_strides_}, slice_shape_,
                     scaling_factors.get(), rotations.get(),
                     cutoff, sampling_factor, ews_radius, threads);
         });
     }
 
     template<typename T, typename>
-    void griddingCorrection(const shared_t<T[]>& input, size4_t input_strides,
-                            const shared_t<T[]>& output, size4_t output_strides,
-                            size4_t shape, bool post_correction, Stream& stream) {
-        const size_t threads = stream.threads();
+    void griddingCorrection(const shared_t<T[]>& input, dim4_t input_strides,
+                            const shared_t<T[]>& output, dim4_t output_strides,
+                            dim4_t shape, bool post_correction, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() {
-            if (post_correction)
-                correctGriddingSinc2_<true>(input.get(), input_strides, output.get(), output_strides, shape, threads);
-            else
-                correctGriddingSinc2_<false>(input.get(), input_strides, output.get(), output_strides, shape, threads);
+            if (post_correction) {
+                correctGriddingSinc2_<true, T>({input.get(), input_strides},
+                                               {output.get(), output_strides}, shape, threads);
+            } else {
+                correctGriddingSinc2_<false, T>({input.get(), input_strides},
+                                                {output.get(), output_strides}, shape, threads);
+            }
         });
     }
 
-    #define NOA_INSTANTIATE_INSERT_(T, R)                                                                               \
-    template void insert3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t,  \
+    #define NOA_INSTANTIATE_INSERT_(T, R)                                                                           \
+    template void insert3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t,  \
                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
 
-    #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                              \
-    template void extract3D<R, T, void>(const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, size4_t, size4_t, \
+    #define NOA_INSTANTIATE_EXTRACT_(T, R)                                                                          \
+    template void extract3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, \
                                         const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_(T)         \
@@ -391,7 +396,7 @@ namespace noa::cpu::geometry::fft {
     NOA_INSTANTIATE_INSERT_(T, Remap::HC2HC);   \
     NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2H);   \
     NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2HC);  \
-    template void griddingCorrection<T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, bool, Stream&)
+    template void griddingCorrection<T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&)
 
     NOA_INSTANTIATE_PROJECT_(float);
     NOA_INSTANTIATE_PROJECT_(double);

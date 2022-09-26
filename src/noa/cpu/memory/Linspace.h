@@ -6,8 +6,8 @@
 
 namespace noa::cpu::memory {
     template<typename T>
-    std::tuple<size_t, T, T> linspaceStep(size_t elements, T start, T stop, bool endpoint = true) {
-        const size_t count = elements - static_cast<size_t>(endpoint);
+    std::tuple<dim_t, T, T> linspaceStep(dim_t elements, T start, T stop, bool endpoint = true) {
+        const dim_t count = elements - static_cast<dim_t>(endpoint);
         const T delta = stop - start;
         const T step = delta / static_cast<T>(count);
         return {count, delta, step};
@@ -15,14 +15,14 @@ namespace noa::cpu::memory {
 
     // Returns evenly spaced values within a given interval.
     template<typename T>
-    T linspace(T* src, size_t elements, T start, T stop, bool endpoint = true) {
+    T linspace(T* src, dim_t elements, T start, T stop, bool endpoint = true) {
         if (elements <= 1) {
             if (elements)
                 *src = start;
             return T(0);
         }
         auto[count, delta, step] = linspaceStep(elements, start, stop, endpoint);
-        for (size_t i = 0; i < count; ++i)
+        for (dim_t i = 0; i < count; ++i)
             src[i] = start + static_cast<T>(i) * step;
         if (endpoint)
             src[elements - 1] = stop;
@@ -31,23 +31,23 @@ namespace noa::cpu::memory {
 
     // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T>
-    T linspace(T* src, size4_t strides, size4_t shape,
+    T linspace(T* src, dim4_t strides, dim4_t shape,
                T start, T stop, bool endpoint = true) {
         if (indexing::areContiguous(strides, shape))
             return linspace(src, shape.elements(), start, stop, endpoint);
 
-        const size_t elements = shape.elements();
+        const dim_t elements = shape.elements();
         if (elements <= 1) {
             if (elements)
                 *src = start;
             return T(0);
         }
         auto[count, delta, step] = linspaceStep(elements, start, stop, endpoint);
-        size_t inc = 0;
-        for (size_t i = 0; i < shape[0]; ++i)
-            for (size_t j = 0; j < shape[1]; ++j)
-                for (size_t k = 0; k < shape[2]; ++k)
-                    for (size_t l = 0; l < shape[3]; ++l, ++inc)
+        dim_t inc = 0;
+        for (dim_t i = 0; i < shape[0]; ++i)
+            for (dim_t j = 0; j < shape[1]; ++j)
+                for (dim_t k = 0; k < shape[2]; ++k)
+                    for (dim_t l = 0; l < shape[3]; ++l, ++inc)
                         src[indexing::at(i, j, k, l, strides)] = start + static_cast<T>(inc) * step;
         if (endpoint)
             src[indexing::at(shape - 1, strides)] = stop;
@@ -56,7 +56,7 @@ namespace noa::cpu::memory {
 
     // Returns evenly spaced values within a given interval.
     template<typename T>
-    inline T linspace(const shared_t<T[]>& src, size_t elements,
+    inline T linspace(const shared_t<T[]>& src, dim_t elements,
                       T start, T stop, bool endpoint, Stream& stream) {
         auto[a_, b_, step] = linspaceStep(elements, start, stop, endpoint);
         stream.enqueue([=]() {
@@ -67,7 +67,7 @@ namespace noa::cpu::memory {
 
     // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename T>
-    inline T linspace(const shared_t<T[]>& src, size4_t strides, size4_t shape,
+    inline T linspace(const shared_t<T[]>& src, dim4_t strides, dim4_t shape,
                       T start, T stop, bool endpoint, Stream& stream) {
         auto[a_, b_, step] = linspaceStep(shape.elements(), start, stop, endpoint);
         stream.enqueue([=]() {

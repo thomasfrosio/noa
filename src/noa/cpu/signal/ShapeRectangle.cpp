@@ -60,23 +60,24 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void rectangleOMP_(const shared_t<T[]> input, size4_t input_strides,
-                       const shared_t<T[]> output, size4_t output_strides,
-                       size3_t start, size3_t end, size_t batches,
-                       float3_t center, float3_t radius, float taper_size, size_t threads) {
-        const T* iptr = input.get();
-        T* optr = output.get();
+    void rectangleOMP_(shared_t<T[]> input, dim4_t input_strides,
+                       shared_t<T[]> output, dim4_t output_strides,
+                       dim3_t start, dim3_t end, dim_t batches,
+                       float3_t center, float3_t radius, float taper_size, dim_t threads) {
+
+        const Accessor<const T, 4, dim_t> iptr(input.get(), input_strides);
+        const Accessor<T, 4, dim_t> optr(output.get(), output_strides);
+
         using real_t = traits::value_type_t<T>;
         [[maybe_unused]] const float3_t radius_with_taper = radius + taper_size;
 
-        #pragma omp parallel for collapse(4) default(none) num_threads(threads)   \
-        shared(iptr, input_strides, optr, output_strides, start, end, batches,    \
-               center, radius, taper_size, radius_with_taper)
+        #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
+        shared(iptr, optr, start, end, batches, center, radius, taper_size, radius_with_taper)
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         float3_t distance{j, k, l};
                         distance -= center;
@@ -88,10 +89,8 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(distance, radius);
 
-                        optr[indexing::at(i, j, k, l, output_strides)] =
-                                iptr ?
-                                iptr[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        const auto mask_ = static_cast<real_t>(mask);
+                        optr(i, j, k, l) = iptr ? iptr(i, j, k, l) * mask_ : mask_;
                     }
                 }
             }
@@ -99,19 +98,21 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void rectangle_(const shared_t<T[]> input, size4_t input_strides,
-                    const shared_t<T[]> output, size4_t output_strides,
-                    size3_t start, size3_t end, size_t batches,
+    void rectangle_(shared_t<T[]> input, dim4_t input_strides,
+                    shared_t<T[]> output, dim4_t output_strides,
+                    dim3_t start, dim3_t end, dim_t batches,
                     float3_t center, float3_t radius, float taper_size) {
-        const T* iptr = input.get();
-        T* optr = output.get();
+
+        const Accessor<const T, 4, dim_t> iptr(input.get(), input_strides);
+        const Accessor<T, 4, dim_t> optr(output.get(), output_strides);
+
         using real_t = traits::value_type_t<T>;
         [[maybe_unused]] const float3_t radius_with_taper = radius + taper_size;
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         const float3_t distance{math::abs(static_cast<float>(j) - center[0]),
                                                 math::abs(static_cast<float>(k) - center[1]),
@@ -123,10 +124,8 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(distance, radius);
 
-                        optr[indexing::at(i, j, k, l, output_strides)] =
-                                iptr ?
-                                iptr[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        const auto mask_ = static_cast<real_t>(mask);
+                        optr(i, j, k, l) = iptr ? iptr(i, j, k, l) * mask_ : mask_;
                     }
                 }
             }
@@ -136,12 +135,12 @@ namespace {
 
 namespace noa::cpu::signal {
     template<bool INVERT, typename T, typename>
-    void rectangle(const shared_t<T[]>& input, size4_t input_strides,
-                   const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void rectangle(const shared_t<T[]>& input, dim4_t input_strides,
+                   const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
-        const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1)));
-        if (any(order_3d != size3_t{0, 1, 2})) {
-            const size4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
+        const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
+        if (any(order_3d != dim3_t{0, 1, 2})) {
+            const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
             input_strides = indexing::reorder(input_strides, order);
             output_strides = indexing::reorder(output_strides, order);
             shape = indexing::reorder(shape, order);
@@ -149,15 +148,15 @@ namespace noa::cpu::signal {
             radius = indexing::reorder(radius, order_3d);
         }
 
-        size3_t start{0}, end(shape.get(1));
+        dim3_t start{0}, end(shape.get(1));
         if (INVERT && input.get() == output.get()) {
-            start = size3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
-            end = size3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
+            start = dim3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
+            end = dim3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
             if (any(end <= start))
                 return;
         }
 
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         const bool taper = taper_size > 1e-5f;
         if (threads > 1)
             stream.enqueue(taper ? rectangleOMP_<true, INVERT, T> : rectangleOMP_<false, INVERT, T>,
@@ -169,9 +168,9 @@ namespace noa::cpu::signal {
                            start, end, shape[0], center, radius, taper_size);
     }
 
-    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                               \
-    template void rectangle<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&);  \
-    template void rectangle<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float3_t, float, Stream&)
+    #define NOA_INSTANTIATE_RECTANGLE_(T)                                                                                                           \
+    template void rectangle<true, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float3_t, float3_t, float, Stream&); \
+    template void rectangle<false, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float3_t, float3_t, float, Stream&)
 
     NOA_INSTANTIATE_RECTANGLE_(half_t);
     NOA_INSTANTIATE_RECTANGLE_(float);

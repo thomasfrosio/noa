@@ -5,8 +5,8 @@ namespace {
     using namespace noa;
 
     template<bool INVERT>
-    static float getSoftMask_(float distance_sqd, float radius, float radius_sqd,
-                              float radius_taper_sqd, float taper_size) {
+    float getSoftMask_(float distance_sqd, float radius, float radius_sqd,
+                       float radius_taper_sqd, float taper_size) {
         float mask;
         constexpr float PI = math::Constants<float>::PI;
         if constexpr (INVERT) {
@@ -32,7 +32,7 @@ namespace {
     }
 
     template<bool INVERT>
-    static float getHardMask_(float distance_sqd, float radius_sqd) {
+    float getHardMask_(float distance_sqd, float radius_sqd) {
         float mask;
         if constexpr (INVERT) {
             if (distance_sqd > radius_sqd)
@@ -49,24 +49,25 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void sphereOMP_(const shared_t<T[]> input, size4_t input_strides,
-                    const shared_t<T[]> output, size4_t output_strides,
-                    size3_t start, size3_t end, size_t batches,
-                    float3_t center, float radius, float taper_size, size_t threads) {
-        const T* iptr = input.get();
-        T* optr = output.get();
+    void sphereOMP_(const shared_t<T[]> input, dim4_t input_strides,
+                    const shared_t<T[]> output, dim4_t output_strides,
+                    dim3_t start, dim3_t end, dim_t batches,
+                    float3_t center, float radius, float taper_size, dim_t threads) {
+
+        const Accessor<const T, 4, dim_t> iptr(input.get(), input_strides);
+        const Accessor<T, 4, dim_t> optr(output.get(), output_strides);
+
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
-        #pragma omp parallel for default(none) collapse(4) num_threads(threads)   \
-        shared(iptr, input_strides, optr, output_strides, start, end, batches,    \
-               center, radius, taper_size, radius_sqd, radius_taper_sqd)
+        #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
+        shared(iptr, optr, start, end, batches, center, radius, taper_size, radius_sqd, radius_taper_sqd)
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         float3_t pos_sqd{j, k, l};
                         pos_sqd -= center;
@@ -79,10 +80,8 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(dst_sqd, radius_sqd);
 
-                        optr[indexing::at(i, j, k, l, output_strides)] =
-                                iptr ?
-                                iptr[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        const auto mask_ = static_cast<real_t>(mask);
+                        optr(i, j, k, l) = iptr ? iptr(i, j, k, l) * mask_ : mask_;
                     }
                 }
             }
@@ -90,20 +89,22 @@ namespace {
     }
 
     template<bool TAPER, bool INVERT, typename T>
-    void sphere_(const shared_t<T[]> input, size4_t input_strides,
-                 const shared_t<T[]> output, size4_t output_strides,
-                 size3_t start, size3_t end, size_t batches,
+    void sphere_(const shared_t<T[]> input, dim4_t input_strides,
+                 const shared_t<T[]> output, dim4_t output_strides,
+                 dim3_t start, dim3_t end, dim_t batches,
                  float3_t center, float radius, float taper_size) {
-        const T* iptr = input.get();
-        T* optr = output.get();
+
+        const Accessor<const T, 4, dim_t> iptr(input.get(), input_strides);
+        const Accessor<T, 4, dim_t> optr(output.get(), output_strides);
+
         using real_t = traits::value_type_t<T>;
         const float radius_sqd = radius * radius;
         [[maybe_unused]] float radius_taper_sqd = math::pow(radius + taper_size, 2.f);
 
-        for (size_t i = 0; i < batches; ++i) {
-            for (size_t j = start[0]; j < end[0]; ++j) {
-                for (size_t k = start[1]; k < end[1]; ++k) {
-                    for (size_t l = start[2]; l < end[2]; ++l) {
+        for (dim_t i = 0; i < batches; ++i) {
+            for (dim_t j = start[0]; j < end[0]; ++j) {
+                for (dim_t k = start[1]; k < end[1]; ++k) {
+                    for (dim_t l = start[2]; l < end[2]; ++l) {
 
                         const float dst_sqd_j = math::pow(static_cast<float>(j) - center[0], 2.f);
                         const float dst_sqd_k = math::pow(static_cast<float>(k) - center[1], 2.f);
@@ -116,10 +117,8 @@ namespace {
                         else
                             mask = getHardMask_<INVERT>(dst_sqd, radius_sqd);
 
-                        optr[indexing::at(i, j, k, l, output_strides)] =
-                                iptr ?
-                                iptr[indexing::at(i, j, k, l, input_strides)] * static_cast<real_t>(mask) :
-                                static_cast<real_t>(mask);
+                        const auto mask_ = static_cast<real_t>(mask);
+                        optr(i, j, k, l) = iptr ? iptr(i, j, k, l) * mask_ : mask_;
                     }
                 }
             }
@@ -129,27 +128,27 @@ namespace {
 
 namespace noa::cpu::signal {
     template<bool INVERT, typename T, typename>
-    void sphere(const shared_t<T[]>& input, size4_t input_strides,
-                const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void sphere(const shared_t<T[]>& input, dim4_t input_strides,
+                const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream) {
-        const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1)));
-        if (any(order_3d != size3_t{0, 1, 2})) {
-            const size4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
+        const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
+        if (any(order_3d != dim3_t{0, 1, 2})) {
+            const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
             input_strides = indexing::reorder(input_strides, order);
             output_strides = indexing::reorder(output_strides, order);
             shape = indexing::reorder(shape, order);
             center = indexing::reorder(center, order_3d);
         }
 
-        size3_t start{0}, end(shape.get(1));
+        dim3_t start{0}, end(shape.get(1));
         if (INVERT && input.get() == output.get()) {
-            start = size3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
-            end = size3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
+            start = dim3_t(noa::math::clamp(int3_t(center - (radius + taper_size)), int3_t{}, int3_t(end)));
+            end = dim3_t(noa::math::clamp(int3_t(center + (radius + taper_size) + 1), int3_t{}, int3_t(end)));
             if (any(end <= start))
                 return;
         }
 
-        const size_t threads = stream.threads();
+        const dim_t threads = stream.threads();
         const bool taper = taper_size > 1e-5f;
         if (threads > 1)
             stream.enqueue(taper ? sphereOMP_<true, INVERT, T> : sphereOMP_<false, INVERT, T>,
@@ -161,9 +160,9 @@ namespace noa::cpu::signal {
                            start, end, shape[0], center, radius, taper_size);
     }
 
-    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                              \
-    template void sphere<true, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&);    \
-    template void sphere<false, T, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float3_t, float, float, Stream&)
+    #define NOA_INSTANTIATE_SPHERE_(T)                                                                                                          \
+    template void sphere<true, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float3_t, float, float, Stream&);   \
+    template void sphere<false, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float3_t, float, float, Stream&)
 
     NOA_INSTANTIATE_SPHERE_(half_t);
     NOA_INSTANTIATE_SPHERE_(float);

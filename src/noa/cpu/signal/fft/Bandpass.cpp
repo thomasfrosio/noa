@@ -71,16 +71,18 @@ namespace {
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T, typename U>
-    void applyPass_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
-                    size4_t shape, size_t threads, U&& getPass) {
+    void applyPass_(Accessor<const T, 4, dim_t> input,
+                    Accessor<T, 4, dim_t> output,
+                    dim4_t shape, dim_t threads, U&& getPass) {
         using real_t = noa::traits::value_type_t<T>;
-        const size_t batches = shape[0];
+        const dim_t batches = shape[0];
         const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape / 2 * 2 + long3_t(l_shape == 1)); // if odd, subtract 1 to keep Nyquist at 0.5
 
         #pragma omp parallel for collapse(4) num_threads(threads) default(none) \
-                    shared(input, input_strides, output, output_strides, getPass, batches, l_shape, f_shape)
-        for (size_t ii = 0; ii < batches; ++ii) {
+        shared(input, output, getPass, batches, l_shape, f_shape)
+
+        for (dim_t ii = 0; ii < batches; ++ii) {
             for (int64_t ij = 0; ij < l_shape[0]; ++ij) {
                 for (int64_t ik = 0; ik < l_shape[1]; ++ik) {
                     for (int64_t il = 0; il < l_shape[2] / 2 + 1; ++il) {
@@ -96,8 +98,7 @@ namespace {
                         // Compute the index of the current frequency in the output:
                         const int64_t oj = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(ij, l_shape[0]);
                         const int64_t ol = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(ik, l_shape[1]);
-                        output[indexing::at(ii, oj, ol, il, output_strides)] =
-                                input ? input[indexing::at(ii, ij, ik, il, input_strides)] * filter : filter;
+                        output(ii, oj, ol, il) = input ? input(ii, ij, ik, il) * filter : filter;
                     }
                 }
             }
@@ -107,13 +108,14 @@ namespace {
     // The omp collapse clause is preventing some optimizations. If threads > 1, it's worth it. Since I don't
     // want to penalize the single threaded version, just duplicate the entire kernel...
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T, typename U>
-    void applyPass_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
-                    size4_t shape, U&& getPass) {
+    void applyPass_(Accessor<const T, 4, dim_t> input,
+                    Accessor<T, 4, dim_t> output,
+                    dim4_t shape, U&& getPass) {
         using real_t = noa::traits::value_type_t<T>;
         const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape / 2 * 2 + long3_t(l_shape == 1)); // if odd, subtract 1 to keep Nyquist at 0.5
 
-        for (size_t ii = 0; ii < shape[0]; ++ii) {
+        for (dim_t ii = 0; ii < shape[0]; ++ii) {
             for (int64_t ij = 0; ij < l_shape[0]; ++ij) {
                 for (int64_t ik = 0; ik < l_shape[1]; ++ik) {
                     for (int64_t il = 0; il < l_shape[2] / 2 + 1; ++il) {
@@ -129,8 +131,7 @@ namespace {
                         // Compute the index of the current frequency in the output:
                         const int64_t oz = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(ij, l_shape[0]);
                         const int64_t oy = getOutputIndex_<IS_SRC_CENTERED, IS_DST_CENTERED>(ik, l_shape[1]);
-                        output[indexing::at(ii, oz, oy, il, output_strides)] =
-                                input ? input[indexing::at(ii, ij, ik, il, input_strides)] * filter : filter;
+                        output(ii, oz, oy, il) = input ? input(ii, ij, ik, il) * filter : filter;
                     }
                 }
             }
@@ -140,17 +141,18 @@ namespace {
 
 namespace {
     template<Type PASS, bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
-    inline void singlePassSoft_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
-                                size4_t shape, size_t threads, float cutoff, float width) {
+    inline void singlePassSoft_(const Accessor<const T, 4, dim_t>& input,
+                                const Accessor<T, 4, dim_t>& output,
+                                dim4_t shape, dim_t threads, float cutoff, float width) {
         if (threads > 1) {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape, threads,
+                    input, output, shape, threads,
                     [cutoff, width](float frequency_sqd) -> float {
                         return getSoftWindow_<PASS>(cutoff, width, math::sqrt(frequency_sqd));
                     });
         } else {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape,
+                    input, output, shape,
                     [cutoff, width](float frequency_sqd) -> float {
                         return getSoftWindow_<PASS>(cutoff, width, math::sqrt(frequency_sqd));
                     });
@@ -158,18 +160,19 @@ namespace {
     }
 
     template<Type PASS, bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
-    inline void singlePassHard_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
-                                size4_t shape, size_t threads, float cutoff, [[maybe_unused]] float width) {
+    inline void singlePassHard_(const Accessor<const T, 4, dim_t>& input,
+                                const Accessor<T, 4, dim_t>& output,
+                                dim4_t shape, dim_t threads, float cutoff, [[maybe_unused]] float width) {
         const float freq_cutoff_sqd = cutoff * cutoff;
         if (threads > 1) {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape, threads,
+                    input, output, shape, threads,
                     [freq_cutoff_sqd](float frequency_sqd) -> float {
                         return getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd);
                     });
         } else {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape,
+                    input, output, shape,
                     [freq_cutoff_sqd](float frequency_sqd) -> float {
                         return getHardWindow_<PASS>(freq_cutoff_sqd, frequency_sqd);
                     });
@@ -177,9 +180,9 @@ namespace {
     }
 
     template<Type PASS, fft::Remap REMAP, typename T>
-    inline void singlePass(const shared_t<T[]>& input, size4_t input_strides,
-                           const shared_t<T[]>& output, size4_t output_strides,
-                           size4_t shape, float cutoff, float width, cpu::Stream& stream) {
+    inline void singlePass(const shared_t<T[]>& input, dim4_t input_strides,
+                           const shared_t<T[]>& output, dim4_t output_strides,
+                           dim4_t shape, float cutoff, float width, cpu::Stream& stream) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & fft::Layout::SRC_CENTERED;
         constexpr bool IS_DST_CENTERED = REMAP_ & fft::Layout::DST_CENTERED;
@@ -192,11 +195,11 @@ namespace {
             stream.enqueue([=]() {
                 if (width > 1e-6f)
                     singlePassSoft_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                            input.get(), input_strides, output.get(), output_strides, shape,
+                            {input.get(), input_strides}, {output.get(), output_strides}, shape,
                             stream.threads(), cutoff, width);
                 else
                     singlePassHard_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                            input.get(), input_strides, output.get(), output_strides, shape,
+                            {input.get(), input_strides}, {output.get(), output_strides}, shape,
                             stream.threads(), cutoff, width);
             });
         } else {
@@ -204,11 +207,11 @@ namespace {
                 stream.enqueue([=]() {
                     if (width > 1e-6f)
                         singlePassSoft_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                                nullptr, size4_t{}, output.get(), output_strides, shape,
+                                {}, {output.get(), output_strides}, shape,
                                 stream.threads(), cutoff, width);
                     else
                         singlePassHard_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                                nullptr, size4_t{}, output.get(), output_strides, shape,
+                                {}, {output.get(), output_strides}, shape,
                                 stream.threads(), cutoff, width);
                 });
             } else {
@@ -220,15 +223,15 @@ namespace {
 
 namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename T, typename>
-    void lowpass(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void lowpass(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float cutoff, float width, Stream& stream) {
         singlePass<Type::LOWPASS, REMAP>(input, input_strides, output, output_strides, shape, cutoff, width, stream);
     }
 
     template<Remap REMAP, typename T, typename>
-    void highpass(const shared_t<T[]>& input, size4_t input_strides,
-                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void highpass(const shared_t<T[]>& input, dim4_t input_strides,
+                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   float cutoff, float width, Stream& stream) {
         singlePass<Type::HIGHPASS, REMAP>(input, input_strides, output, output_strides, shape, cutoff, width, stream);
     }
@@ -236,12 +239,13 @@ namespace noa::cpu::signal::fft {
 
 namespace {
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
-    inline void bandPassSoft_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
-                              size4_t shape, size_t threads, float cutoff_1, float cutoff_2,
+    inline void bandPassSoft_(const Accessor<const T, 4, dim_t>& input,
+                              const Accessor<T, 4, dim_t>& output,
+                              dim4_t shape, dim_t threads, float cutoff_1, float cutoff_2,
                               float width_1, float width_2) {
         if (threads > 1) {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape, threads,
+                    input, output, shape, threads,
                     [cutoff_1, cutoff_2, width_1, width_2](float frequency_sqd) -> float {
                         frequency_sqd = math::sqrt(frequency_sqd);
                         return getSoftWindow_<Type::HIGHPASS>(cutoff_1, width_1, frequency_sqd) *
@@ -249,7 +253,7 @@ namespace {
                     });
         } else {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape,
+                    input, output, shape,
                     [cutoff_1, cutoff_2, width_1, width_2](float frequency_sqd) -> float {
                         frequency_sqd = math::sqrt(frequency_sqd);
                         return getSoftWindow_<Type::HIGHPASS>(cutoff_1, width_1, frequency_sqd) *
@@ -259,21 +263,22 @@ namespace {
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
-    inline void bandPassHard_(const T* input, size4_t input_strides, T* output, size4_t output_strides,
-                              size4_t shape, size_t threads, float cutoff_1, float cutoff_2,
+    inline void bandPassHard_(const Accessor<const T, 4, dim_t>& input,
+                              const Accessor<T, 4, dim_t>& output,
+                              dim4_t shape, dim_t threads, float cutoff_1, float cutoff_2,
                               [[maybe_unused]] float width_1, [[maybe_unused]] float width_2) {
         const float cutoff_sqd_1 = cutoff_1 * cutoff_1;
         const float cutoff_sqd_2 = cutoff_2 * cutoff_2;
         if (threads > 1) {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape, threads,
+                    input, output, shape, threads,
                     [cutoff_sqd_1, cutoff_sqd_2](float frequency_sqd) -> float {
                         return getHardWindow_<Type::HIGHPASS>(cutoff_sqd_1, frequency_sqd) *
                                getHardWindow_<Type::LOWPASS>(cutoff_sqd_2, frequency_sqd);
                     });
         } else {
             applyPass_<IS_SRC_CENTERED, IS_DST_CENTERED>(
-                    input, input_strides, output, output_strides, shape,
+                    input, output, shape,
                     [cutoff_sqd_1, cutoff_sqd_2](float frequency_sqd) -> float {
                         return getHardWindow_<Type::HIGHPASS>(cutoff_sqd_1, frequency_sqd) *
                                getHardWindow_<Type::LOWPASS>(cutoff_sqd_2, frequency_sqd);
@@ -284,8 +289,8 @@ namespace {
 
 namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename T, typename>
-    void bandpass(const shared_t<T[]>& input, size4_t input_strides,
-                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void bandpass(const shared_t<T[]>& input, dim4_t input_strides,
+                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   float cutoff_1, float cutoff_2, float width_1, float width_2, Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -299,13 +304,13 @@ namespace noa::cpu::signal::fft {
             stream.enqueue([=]() {
                 if (width_1 > 1e-6f || width_2 > 1e-6f)
                     bandPassSoft_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                            input.get(), input_strides, output.get(),
-                            output_strides, shape, stream.threads(),
+                            {input.get(), input_strides}, {output.get(), output_strides},
+                            shape, stream.threads(),
                             cutoff_1, cutoff_2, width_1, width_2);
                 else
                     bandPassHard_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                            input.get(), input_strides, output.get(),
-                            output_strides, shape, stream.threads(),
+                            {input.get(), input_strides}, {output.get(), output_strides},
+                            shape, stream.threads(),
                             cutoff_1, cutoff_2, width_1, width_2);
             });
         } else {
@@ -313,13 +318,13 @@ namespace noa::cpu::signal::fft {
                 stream.enqueue([=]() {
                     if (width_1 > 1e-6f || width_2 > 1e-6f)
                         bandPassSoft_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                                nullptr, size4_t{}, output.get(),
-                                output_strides, shape, stream.threads(),
+                                {}, {output.get(), output_strides},
+                                shape, stream.threads(),
                                 cutoff_1, cutoff_2, width_1, width_2);
                     else
                         bandPassHard_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
-                                nullptr, size4_t{}, output.get(),
-                                output_strides, shape, stream.threads(),
+                                {}, {output.get(), output_strides},
+                                shape, stream.threads(),
                                 cutoff_1, cutoff_2, width_1, width_2);
                 });
             } else {
@@ -328,19 +333,19 @@ namespace noa::cpu::signal::fft {
         }
     }
 
-    #define NOA_INSTANTIATE_FILTERS_(T)                                                                                                                    \
-    template void lowpass<Remap::H2H, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);               \
-    template void highpass<Remap::H2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);               \
-    template void bandpass<Remap::H2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&); \
-    template void lowpass<Remap::H2HC, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void highpass<Remap::H2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void bandpass<Remap::H2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&);\
-    template void lowpass<Remap::HC2H, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void highpass<Remap::HC2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);              \
-    template void bandpass<Remap::HC2H,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&);\
-    template void lowpass<Remap::HC2HC, T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);             \
-    template void highpass<Remap::HC2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, Stream&);             \
-    template void bandpass<Remap::HC2HC,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, float, float, float, float, Stream&)
+    #define NOA_INSTANTIATE_FILTERS_(T)                                                                                                                     \
+    template void lowpass<Remap::H2H, T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                   \
+    template void highpass<Remap::H2H,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                   \
+    template void bandpass<Remap::H2H,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, float, float, Stream&);     \
+    template void lowpass<Remap::H2HC, T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                  \
+    template void highpass<Remap::H2HC,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                  \
+    template void bandpass<Remap::H2HC,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, float, float, Stream&);    \
+    template void lowpass<Remap::HC2H, T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                  \
+    template void highpass<Remap::HC2H,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                  \
+    template void bandpass<Remap::HC2H,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, float, float, Stream&);    \
+    template void lowpass<Remap::HC2HC, T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                 \
+    template void highpass<Remap::HC2HC,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, Stream&);                 \
+    template void bandpass<Remap::HC2HC,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, float, float, float, Stream&)
 
     NOA_INSTANTIATE_FILTERS_(half_t);
     NOA_INSTANTIATE_FILTERS_(float);

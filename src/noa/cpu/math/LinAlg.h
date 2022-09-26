@@ -21,8 +21,8 @@ namespace noa::cpu::math {
     // In the case of M < N, \p b should be extended to fit the output and its shape should reflect that,
     // i.e. its second-most dimension should have max(M,N) elements.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_lstsq_t<T, U>>>
-    void lstsq(const shared_t<T[]>& a, size4_t a_strides, size4_t a_shape,
-               const shared_t<T[]>& b, size4_t b_strides, size4_t b_shape,
+    void lstsq(const shared_t<T[]>& a, dim4_t a_strides, dim4_t a_shape,
+               const shared_t<T[]>& b, dim4_t b_strides, dim4_t b_shape,
                float cond, const shared_t<U[]>& svd,
                Stream& stream);
 
@@ -31,7 +31,7 @@ namespace noa::cpu::math {
     // order 2: p[0] + p[1]*x + p[2]*y + p[3]*x*y + p[4]*x*x + p[5]*y*y = 0
     // order 3: p[0] + p[1]*x + p[2]*y + p[3]*x*y + p[4]*x*x + p[5]*y*y + p[6]*x^2*y + p[7]*x*y^2 + p[8]*x^3 + p[9]*y^3 = 0
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
-    void surface(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, bool subtract,
+    void surface(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, bool subtract,
                  int order, const shared_t<T[]>& parameters, Stream& stream);
 }

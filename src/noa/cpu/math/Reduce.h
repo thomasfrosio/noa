@@ -23,44 +23,44 @@ namespace noa::cpu::math::details {
 namespace noa::cpu::math {
     // Reduces the input array to one value using a binary operator()(\p T, \p T) -> \p T.
     template<typename T, typename BinaryOp>
-    [[nodiscard]] T reduce(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+    [[nodiscard]] T reduce(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
                            BinaryOp binary_op, T init, Stream& stream);
 
     // Returns the minimum value of the input array.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
-    [[nodiscard]] T min(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream);
+    [[nodiscard]] T min(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream);
 
     // Returns the maximum value of the input array.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
-    [[nodiscard]] T max(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream);
+    [[nodiscard]] T max(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream);
 
     // Returns the sum of the input array(s).
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
-    [[nodiscard]] T sum(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream);
+    [[nodiscard]] T sum(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream);
 
     // Returns the mean of the input array.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
-    [[nodiscard]] inline T mean(const shared_t<T[]>& input, size4_t strides, size4_t shape, Stream& stream);
+    [[nodiscard]] inline T mean(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream);
 
     // Returns the variance of the input array.
     template<typename T, typename U = noa::traits::value_type_t<T>,
              typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
-    [[nodiscard]] U var(const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream);
+    [[nodiscard]] U var(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int ddof, Stream& stream);
 
     // Returns the standard-deviation of the input array.
     template<typename T, typename U = noa::traits::value_type_t<T>,
              typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
-    [[nodiscard]] inline U std(const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream);
+    [[nodiscard]] inline U std(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int ddof, Stream& stream);
 
     // Returns the sum, mean, variance and stddev of the input array.
     template<typename T, typename U = noa::traits::value_type_t<T>,
              typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
     [[nodiscard]] std::tuple<T, T, U, U> statistics(
-            const shared_t<T[]>& input, size4_t strides, size4_t shape, int ddof, Stream& stream);
+            const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int ddof, Stream& stream);
 
     // Returns the median of the input array.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
-    [[nodiscard]] T median(const shared_t<T[]>& input, size4_t strides, size4_t shape,
+    [[nodiscard]] T median(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
                            bool overwrite, Stream& stream);
 }
 
@@ -68,39 +68,33 @@ namespace noa::cpu::math {
 namespace noa::cpu::math {
     // Reduces an array along some dimensions by taking the minimum value.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
-    void min(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-             const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
+    void min(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+             const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream);
 
     // Reduces an array along some dimensions by taking the maximum value.
     template<typename T, typename = std::enable_if_t<details::is_valid_min_max_median_v<T>>>
-    void max(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-             const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
+    void max(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+             const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream);
 
     // Reduces an array along some dimensions by taking the sum.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
-    void sum(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-             const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
+    void sum(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+             const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream);
 
     // Reduces an array along some dimensions by taking the mean.
     template<typename T, typename = std::enable_if_t<details::is_valid_sum_mean_v<T>>>
-    void mean(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-              const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape, Stream& stream);
+    void mean(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+              const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream);
 
     // Reduces an array along some dimensions by taking the variance.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
-    void var(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-             const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, int ddof, Stream& stream);
+    void var(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+             const shared_t<U[]>& output, dim4_t output_strides, dim4_t output_shape, int ddof, Stream& stream);
 
     // Reduces an array along some dimensions by taking the standard-deviation.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_var_std_v<T, U>>>
-    inline void std(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                    const shared_t<U[]>& output, size4_t output_strides, size4_t output_shape, int ddof, Stream& stream);
-
-    // Returns the median along a particular axis of the input array.
-    template<typename T, typename = std::enable_if_t<traits::is_restricted_scalar_v<T>>>
-    void median(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
-                bool overwrite, Stream& stream);
+    inline void std(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                    const shared_t<U[]>& output, dim4_t output_strides, dim4_t output_shape, int ddof, Stream& stream);
 }
 
 #define NOA_REDUCTIONS_INL_
