@@ -76,6 +76,6 @@ option(TIFF_STATIC "Use the TIFF static library instead of the shared ones." OFF
 # Targets
 # =====================================================================================
 option(NOA_BUILD_TESTS "Build tests" ON)
-option(NOA_BUILD_BENCHMARKS "Build benchmarks" ON)
+option(NOA_BUILD_BENCHMARKS "Build benchmarks" OFF)
 #option(NOA_BUILD_DOC "Build Doxygen-Sphinx documentation" OFF)
 #option(NOA_PACKAGING "Generate packaging" OFF)
