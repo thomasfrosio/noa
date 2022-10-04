@@ -73,15 +73,9 @@ namespace noa {
     template<typename T>
     class Array {
     public: // typedefs
-        using value_t = T;
         using value_type = T;
-        using ptr_t = T*;
         using ptr_type = T*;
-        using ref_t = T&;
-        using ref_type = T&;
-
-        using dim_t = size_t;
-        using dim4_t = Int4<dim_t>;
+        using reference_type = T&;
 
         static_assert(!std::is_const_v<T>);
         static_assert(!std::is_pointer_v<T>);
@@ -105,39 +99,39 @@ namespace noa {
         /// \param elements Number of elements.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
-        constexpr explicit Array(size_t elements, ArrayOption option = {});
+        constexpr explicit Array(dim_t elements, ArrayOption option = {});
 
         /// Creates a contiguous array.
         /// \param shape    BDHW shape of the array.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
-        constexpr explicit Array(size4_t shape, ArrayOption option = {});
+        constexpr explicit Array(dim4_t shape, ArrayOption option = {});
 
         /// Creates a non-owning contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param elements     Number of elements in \p data.
         /// \param option       Options of \p data.
-        constexpr Array(T* data, size_t elements, ArrayOption option = {});
+        constexpr Array(T* data, dim_t elements, ArrayOption option = {});
 
         /// Creates a non-owning array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param shape        BDHW shape of \p data.
         /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
-        constexpr Array(T* data, size4_t shape, size4_t stride, ArrayOption option = {});
+        constexpr Array(T* data, dim4_t shape, dim4_t stride, ArrayOption option = {});
 
         /// Creates a contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param elements     Number of elements in \p data.
         /// \param option       Options of \p data.
-        constexpr Array(shared_t<T[]> data, size_t elements, ArrayOption option = {});
+        constexpr Array(shared_t<T[]> data, dim_t elements, ArrayOption option = {});
 
         /// Creates an array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param shape        BDHW shape of \p data.
         /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
-        constexpr Array(shared_t<T[]> data, size4_t shape, size4_t strides, ArrayOption option = {});
+        constexpr Array(shared_t<T[]> data, dim4_t shape, dim4_t strides, ArrayOption option = {});
 
     public: // Getters
         /// Returns the options used to create the array.
@@ -161,14 +155,14 @@ namespace noa {
         [[nodiscard]] bool empty() const noexcept;
 
         /// Returns the BDHW shape of the array.
-        [[nodiscard]] const size4_t& shape() const noexcept;
+        [[nodiscard]] const dim4_t& shape() const noexcept;
 
         /// Returns the BDHW strides of the array.
-        [[nodiscard]] const size4_t& strides() const noexcept;
+        [[nodiscard]] const dim4_t& strides() const noexcept;
 
         /// Returns the number of elements in the array.
-        [[nodiscard]] size_t elements() const noexcept;
-        [[nodiscard]] size_t size() const noexcept;
+        [[nodiscard]] dim_t elements() const noexcept;
+        [[nodiscard]] dim_t size() const noexcept;
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
@@ -177,8 +171,8 @@ namespace noa {
     public: // Accessors
         /// Synchronizes the current stream of the Array's device.
         /// \details It guarantees safe access to the Array's managed memory using get(), data(),
-        ///          operator[], operator(...), share() or view(). Stream-ordered access is safe
-        ///          and doesn't need synchronization.
+        ///          operator[], operator(...), share(), view() and accessor(). Note that stream-ordered
+        ///          access is safe and doesn't need synchronization.
         const Array& eval() const;
 
         /// Returns the pointer to the data.
@@ -196,49 +190,57 @@ namespace noa {
         ///          reading/writing to this pointer may create a data race.
         [[nodiscard]] constexpr const std::shared_ptr<T[]>& share() const noexcept;
 
-        /// Returns a const view of the array.
+        /// Returns a view of the array.
+        /// \note This is only well defined in cases where Array::as<T0>() is well defined.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this view may create a data race.
-        template<typename I = size_t>
-        [[nodiscard]] constexpr View<T, I> view() const noexcept;
+        template<typename T0 = T, typename I0 = dim_t>
+        [[nodiscard]] constexpr View<T0, I0> view() const noexcept;
+
+        [[nodiscard]] constexpr auto accessor() const noexcept;
+
+        /// Returns an accessor of the array.
+        /// \note This is only well defined in cases where Array::as<T0>() is well defined.
+        ///       If N < 4, the outer-dimensions are stacked together.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this accessor may create a data race.
+        template<typename T0, int N, typename I0 = dim_t,
+                 AccessorTraits TRAITS = AccessorTraits::DEFAULT>
+        [[nodiscard]] constexpr auto accessor() const noexcept;
 
         /// Releases the array. *this is left empty.
         /// \note Moving an array using std::move() is effectively equivalent.
         Array release() noexcept;
 
-        /// Returns a reference of the element at the specified memory \p offset.
+        /// Returns a reference at the specified memory \p offset.
         /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this reference may create a data race.
-        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        [[nodiscard]] constexpr T& operator[](I offset) const noexcept;
+        ///          reading/writing to this accessor may create a data race.
+        template<typename I0, typename = std::enable_if_t<traits::is_int_v<I0>>>
+        [[nodiscard]] constexpr T& operator[](I0 offset) const noexcept;
 
         /// Returns a reference at the beginning of the specified batch index.
         /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this reference may create a data race.
-        template<typename I0, typename = std::enable_if_t<traits::is_int_v<I0>>>
-        [[nodiscard]] constexpr T& operator()(I0 batch) const noexcept;
+        ///          reading/writing to this accessor may create a data race.
+        template<typename I0>
+        [[nodiscard]] constexpr T& operator()(I0 i0) const noexcept;
 
         /// Returns a reference at the beginning of the specified batch and depth indexes.
         /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this reference may create a data race.
-        template<typename I0, typename I1,
-                 typename = std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I0>>>
-        [[nodiscard]] constexpr T& operator()(I0 batch, I1 depth) const noexcept;
+        ///          reading/writing to this accessor may create a data race.
+        template<typename I0, typename I1>
+        [[nodiscard]] constexpr T& operator()(I0 i0, I1 i1) const noexcept;
 
         /// Returns a reference at the beginning of the specified batch, depth and height indexes.
         /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this reference may create a data race.
-        template<typename I0, typename I1, typename I2,
-                 typename = std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> && traits::is_int_v<I2>>>
-        [[nodiscard]] constexpr T& operator()(I0 batch, I1 depth, I2 height) const noexcept;
+        ///          reading/writing to this accessor may create a data race.
+        template<typename I0, typename I1, typename I2>
+        [[nodiscard]] constexpr T& operator()(I0 i0, I1 i1, I2 i2) const noexcept;
 
         /// Returns a reference at the beginning of the specified batch, depth, height and width indexes.
         /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this reference may create a data race.
-        template<typename I0, typename I1, typename I2, typename I3,
-                 typename = std::enable_if_t<traits::is_int_v<I0> && traits::is_int_v<I1> &&
-                                             traits::is_int_v<I2> && traits::is_int_v<I3>>>
-        [[nodiscard]] constexpr T& operator()(I0 batch, I1 depth, I2 height, I3 width) const noexcept;
+        ///          reading/writing to this accessor may create a data race.
+        template<typename I0, typename I1, typename I2, typename I3>
+        [[nodiscard]] constexpr T& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept;
 
     public: // Deep copy
         /// Performs a deep copy of the array to \p output.
@@ -261,10 +263,10 @@ namespace noa {
         Array copy() const;
 
     public: // Data reinterpretation
-        /// Reinterprets the managed array of \p T as an array of \p U.
+        /// Reinterpret the managed array of \p T as an array of \p U.
         /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
-        ///       when \p U is a unsigned char (to represent any data type as a array of bytes), or to switch between
-        ///       complex and real floating-point numbers with the same precision.
+        ///       when \p U is a unsigned char or std::byte to represent any data type as an array of bytes,
+        ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
         Array<U> as() const;
 
@@ -284,7 +286,7 @@ namespace noa {
         Array reshape(size4_t shape) const;
 
         /// Reshapes the array in a vector along a particular axis.
-        /// Returns a row vector by default.
+        /// Returns a row vector by default (axis = 3).
         Array flat(int axis = 3) const;
 
         /// Permutes the array.
@@ -292,7 +294,7 @@ namespace noa {
         /// \param copy         Whether the permuted array should be copied into a C-contiguous array, completely
         ///                     independent from the original one.
         /// \return The permuted array. If \p copy is false, this new array is an alias from the original array.
-        Array permute(uint4_t permutation, bool copy = false) const;
+        Array permute(dim4_t permutation, bool copy = false) const;
 
     public: // Assignment operators
         /// Clears the array. Equivalent to assigning *this with an empty array.
@@ -380,8 +382,8 @@ namespace noa {
         static void validate_(void* ptr, ArrayOption option);
 
     private:
-        size4_t m_shape;
-        size4_t m_strides;
+        dim4_t m_shape;
+        dim4_t m_strides;
         std::shared_ptr<T[]> m_ptr;
         ArrayOption m_options;
     };
