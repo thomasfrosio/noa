@@ -176,7 +176,8 @@ namespace noa::cpu::geometry::fft {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
+        NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
+
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
         const dim_t threads = stream.threads();
 
@@ -188,10 +189,12 @@ namespace noa::cpu::geometry::fft {
         const float2_t* shifts_;
         constexpr dim_t MATRICES_STRIDE = !traits::is_floatXX_v<M>;
         constexpr dim_t SHIFTS_STRIDE = !traits::is_floatX_v<S>;
-        if constexpr (MATRICES_STRIDE)
+        if constexpr (MATRICES_STRIDE) {
+            NOA_ASSERT(matrices);
             matrices_ = matrices.get();
-        else
+        } else {
             matrices_ = &matrices;
+        }
         if constexpr (SHIFTS_STRIDE)
             shifts_ = shifts.get();
         else
@@ -228,7 +231,8 @@ namespace noa::cpu::geometry::fft {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
+        NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
+
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
         const dim_t threads = stream.threads();
 
@@ -236,10 +240,12 @@ namespace noa::cpu::geometry::fft {
         const float3_t* shifts_;
         constexpr dim_t MATRICES_STRIDE = !traits::is_floatXX_v<M>;
         constexpr dim_t SHIFTS_STRIDE = !traits::is_floatX_v<S>;
-        if constexpr (MATRICES_STRIDE)
+        if constexpr (MATRICES_STRIDE) {
+            NOA_ASSERT(matrices);
             matrices_ = matrices.get();
-        else
+        } else {
             matrices_ = &matrices;
+        }
         if constexpr (SHIFTS_STRIDE)
             shifts_ = shifts.get();
         else

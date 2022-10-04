@@ -202,6 +202,8 @@ namespace noa::cuda::geometry::fft {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, bool normalize, Stream& stream) {
+        NOA_ASSERT(array && texture && all(output_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         launchTexture3D_<REMAP>(*texture, texture_interp_mode, output.get(), output_strides,
                                 output_shape, matrix, symmetry, shift, cutoff, normalize, stream);
         stream.attach(array, texture, output, symmetry.share());
@@ -216,6 +218,8 @@ namespace noa::cuda::geometry::fft {
             return transform3D<REMAP>(input, input_strides, output, output_strides, shape,
                                       matrix, shift, cutoff, interp_mode, stream);
 
+        NOA_ASSERT(input && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         NOA_ASSERT(indexing::isRightmost(input_strides) &&
                    indexing::isContiguous(input_strides, shape.fft())[3] &&
                    indexing::isContiguous(input_strides, shape.fft())[1]);

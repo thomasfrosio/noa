@@ -112,7 +112,7 @@ namespace {
                        const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                        const geometry::Symmetry& symmetry, V center, InterpMode interp_mode, bool prefilter,
                        bool normalize, cpu::Stream& stream) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape));
+        NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
         NOA_ASSERT((std::is_same_v<V, float3_t> && dim3_t(shape.get(1)).ndim() <= 3) ||
                    (std::is_same_v<V, float2_t> && dim3_t(shape.get(1)).ndim() <= 2));
 

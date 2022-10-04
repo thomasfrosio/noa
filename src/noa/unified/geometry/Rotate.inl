@@ -24,11 +24,11 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_ROTATION) {
             NOA_CHECK(indexing::isVector(rotations.shape()) &&
-                      rotations.shape().elements() == output.shape()[0] &&
+                      rotations.elements() == output.shape()[0] &&
                       rotations.contiguous(),
                       "The number of rotations, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} rotations and {} output batches",
-                      rotations.shape().elements(), output.shape()[0]);
+                      rotations.elements(), output.shape()[0]);
             NOA_CHECK(rotations.dereferenceable(), "The rotations should be accessible to the CPU");
             rotations_ = &rotations.share();
         } else {
@@ -37,17 +37,18 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_CENTER) {
             NOA_CHECK(indexing::isVector(rotation_centers.shape()) &&
-                      rotation_centers.shape().elements() == output.shape()[0] &&
+                      rotation_centers.elements() == output.shape()[0] &&
                       rotation_centers.contiguous(),
                       "The number of rotation centers, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} rotation centers and {} output batches",
-                      rotation_centers.shape().elements(), output.shape()[0]);
+                      rotation_centers.elements(), output.shape()[0]);
             NOA_CHECK(rotation_centers.dereferenceable(), "The rotations centers should be accessible to the CPU");
             centers_ = &rotation_centers.share();
         } else {
             centers_ = &rotation_centers;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -61,7 +62,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_ROTATION) {
                 if (rotations.device().gpu())
@@ -128,11 +129,11 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_ROTATION) {
             NOA_CHECK(indexing::isVector(rotations.shape()) &&
-                      rotations.shape().elements() == output.shape()[0] &&
+                      rotations.elements() == output.shape()[0] &&
                       rotations.contiguous(),
                       "The number of rotations, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} rotations and {} output batches",
-                      rotations.shape().elements(), output.shape()[0]);
+                      rotations.elements(), output.shape()[0]);
             NOA_CHECK(rotations.dereferenceable(), "The rotations should be accessible to the CPU");
             rotations_ = &rotations.share();
         } else {
@@ -141,17 +142,18 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_CENTER) {
             NOA_CHECK(indexing::isVector(rotation_centers.shape()) &&
-                      rotation_centers.shape().elements() == output.shape()[0] &&
+                      rotation_centers.elements() == output.shape()[0] &&
                       rotation_centers.contiguous(),
                       "The number of rotation centers, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} rotation centers and {} output batches",
-                      rotation_centers.shape().elements(), output.shape()[0]);
+                      rotation_centers.elements(), output.shape()[0]);
             NOA_CHECK(rotation_centers.dereferenceable(), "The rotations centers should be accessible to the CPU");
             centers_ = &rotation_centers.share();
         } else {
             centers_ = &rotation_centers;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -162,7 +164,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_ROTATION) {
                 if (rotations.device().gpu())

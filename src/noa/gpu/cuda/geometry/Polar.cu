@@ -7,6 +7,7 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -203,6 +204,8 @@ namespace noa::cuda::geometry {
                          const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, bool prefilter, Stream& stream) {
+        NOA_ASSERT(cartesian && polar && all(cartesian_shape > 0) && all(polar_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
 
@@ -253,6 +256,8 @@ namespace noa::cuda::geometry {
                          const shared_t<T[]>& cartesian, dim4_t cartesian_strides, dim4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, bool prefilter, Stream& stream) {
+        NOA_ASSERT(cartesian && polar && all(cartesian_shape > 0) && all(polar_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(cartesian.get(), stream.device());
         NOA_ASSERT(polar_shape[0] == 1 || polar_shape[0] == cartesian_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
 
@@ -305,6 +310,8 @@ namespace noa::cuda::geometry {
                          const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, Stream& stream) {
+        NOA_ASSERT(all(polar_shape > 0) && array && cartesian);
+        NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
         launchCartesianPolarTexture_(*cartesian, cartesian_interp, polar.get(), polar_strides, polar_shape,
                                      cartesian_center, radius_range, angle_range, log, stream);
         stream.attach(array, cartesian, polar);
@@ -316,6 +323,8 @@ namespace noa::cuda::geometry {
                          const shared_t<T[]>& cartesian, dim4_t cartesian_strides, dim4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, Stream& stream) {
+        NOA_ASSERT(all(polar_shape > 0) && array && polar);
+        NOA_ASSERT_DEVICE_PTR(cartesian.get(), stream.device());
         launchPolarCartesianTexture_(*polar, polar_interp, polar_shape,
                                      cartesian.get(), cartesian_strides, cartesian_shape,
                                      cartesian_center, radius_range, angle_range, log, stream);

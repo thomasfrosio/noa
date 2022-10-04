@@ -195,6 +195,8 @@ namespace noa::cpu::geometry::bspline {
     void prefilter(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides,
                    dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input && output && all(shape > 0));
+
         const dim_t ndim = dim3_t(shape.get(1)).ndim();
         if (ndim == 3) {
             stream.enqueue([=]() {

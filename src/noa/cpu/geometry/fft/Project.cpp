@@ -310,8 +310,8 @@ namespace noa::cpu::geometry::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
-        NOA_ASSERT(!indexing::isOverlap(slice.get(), slice_strides, slice_shape.fft(),
-                                        grid.get(), grid_strides, grid_shape.fft()));
+        NOA_ASSERT(slice && grid && rotations && slice.get() != grid.get() &&
+                   all(slice_shape > 0) && all(grid_shape > 0));
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
 
@@ -345,8 +345,8 @@ namespace noa::cpu::geometry::fft {
                       REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
-        NOA_ASSERT(!indexing::isOverlap(slice.get(), slice_strides, slice_shape.fft(),
-                                        grid.get(), grid_strides, grid_shape.fft()));
+        NOA_ASSERT(slice && grid && rotations && slice.get() != grid.get() &&
+                   all(slice_shape > 0) && all(grid_shape > 0));
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
 
@@ -369,6 +369,8 @@ namespace noa::cpu::geometry::fft {
     void griddingCorrection(const shared_t<T[]>& input, dim4_t input_strides,
                             const shared_t<T[]>& output, dim4_t output_strides,
                             dim4_t shape, bool post_correction, Stream& stream) {
+        NOA_ASSERT(input && input && all(shape > 0));
+
         const dim_t threads = stream.threads();
         stream.enqueue([=]() {
             if (post_correction) {

@@ -108,6 +108,8 @@ namespace noa::cuda::geometry {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
+        NOA_ASSERT(input && all(input_shape > 0) && all(output_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         if (input_strides[0] == 0)
@@ -171,6 +173,8 @@ namespace noa::cuda::geometry {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      bool normalize, Stream& stream) {
+        NOA_ASSERT(array && texture && all(output_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         launchTransformSymmetryTexture3D_(*texture, texture_interp_mode,
                                           output.get(), output_strides, output_shape,
                                           shift, matrix, symmetry, center, normalize, stream);

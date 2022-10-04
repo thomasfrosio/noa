@@ -285,6 +285,8 @@ namespace noa::cuda::geometry {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
                      bool prefilter, Stream& stream) {
+        NOA_ASSERT(input && all(input_shape > 0) && all(output_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         return launchTransform2D_(input, input_strides, input_shape, output, output_strides, output_shape,
                                   matrices, interp_mode, border_mode, prefilter, stream);
     }
@@ -295,12 +297,15 @@ namespace noa::cuda::geometry {
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const MAT& matrices, Stream& stream) {
+        NOA_ASSERT(array && texure && all(texture_shape > 0) && all(output_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if constexpr (traits::is_floatXX_v<MAT>) {
             launchTransformTextureSingle2D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
                                             output.get(), output_strides, output_shape,
                                             matrices, stream);
             stream.attach(array, texture, output);
         } else {
+            NOA_ASSERT(matrices);
             launchTransformTexture2D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
                                       output.get(), output_strides, output_shape,
                                       matrices.get(), stream);

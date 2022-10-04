@@ -14,6 +14,7 @@ namespace noa::geometry::fft {
     void cartesian2polar(const Array<T>& cartesian, size4_t cartesian_shape, const Array<T>& polar,
                          float2_t frequency_range, float2_t angle_range,
                          bool log, InterpMode interp) {
+        NOA_CHECK(!cartesian.empty() && !polar.empty(), "Empty array detected");
         NOA_CHECK(cartesian.shape()[0] == 1 || cartesian.shape()[0] == polar.shape()[0],
                   "The number of batches in the cartesian array ({}) is not compatible with the number of "
                   "batches in the polar array ({})", cartesian.shape()[0], polar.shape()[0]);
@@ -28,7 +29,7 @@ namespace noa::geometry::fft {
             NOA_CHECK(device == cartesian.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", cartesian.device(), device);
-            NOA_CHECK(cartesian.get() != polar.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(cartesian, polar), "Input and output arrays should not overlap");
 
             cpu::geometry::fft::cartesian2polar<REMAP>(
                     cartesian.share(), cartesian.strides(), cartesian_shape,
@@ -61,6 +62,8 @@ namespace noa::geometry::fft {
     void cartesian2polar(const Texture<T>& cartesian, size4_t cartesian_shape, const Array<T>& polar,
                          float2_t frequency_range, float2_t angle_range,
                          bool log) {
+        NOA_CHECK(!cartesian.empty() && !polar.empty(), "Empty array detected");
+
         if (cartesian.device().cpu()) {
             const cpu::Texture<T>& texture = cartesian.cpu();
             cartesian2polar<REMAP>(Array<T>(texture.ptr, cartesian.shape(), texture.strides, cartesian.options()),

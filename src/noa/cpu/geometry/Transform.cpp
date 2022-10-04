@@ -230,8 +230,7 @@ namespace noa::cpu::geometry {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, bool prefilter, Stream& stream) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, input_shape,
-                                        output.get(), output_strides, output_shape));
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] == 1);
 
@@ -256,6 +255,7 @@ namespace noa::cpu::geometry {
                                {output.get(), ostrides_2d}, oshape_2d,
                                float23_t(matrices), value, interp_mode, border_mode, threads);
                 } else {
+                    NOA_ASSERT(matrices);
                     launch_<3>({buffer.get(), strides_2d}, ishape_2d,
                                {output.get(), ostrides_2d}, oshape_2d,
                                matrices.get(), value, interp_mode, border_mode, threads);
@@ -268,6 +268,7 @@ namespace noa::cpu::geometry {
                                {output.get(), ostrides_2d}, oshape_2d,
                                float23_t(matrices), value, interp_mode, border_mode, threads);
                 } else {
+                    NOA_ASSERT(matrices);
                     launch_<3>({input.get(), istrides_2d}, ishape_2d,
                                {output.get(), ostrides_2d}, oshape_2d,
                                matrices.get(), value, interp_mode, border_mode, threads);
@@ -281,8 +282,7 @@ namespace noa::cpu::geometry {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
                      T value, bool prefilter, Stream& stream) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, input_shape,
-                                        output.get(), output_strides, output_shape));
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
         const dim_t threads = stream.threads();
@@ -300,6 +300,7 @@ namespace noa::cpu::geometry {
                                {output.get(), output_strides}, output_shape,
                                float34_t(matrices), value, interp_mode, border_mode, threads);
                 } else {
+                    NOA_ASSERT(matrices);
                     launch_<4>({buffer.get(), strides}, input_shape,
                                {output.get(), output_strides}, output_shape,
                                matrices.get(), value, interp_mode, border_mode, threads);
@@ -312,6 +313,7 @@ namespace noa::cpu::geometry {
                                {output.get(), output_strides}, output_shape,
                                float34_t(matrices), value, interp_mode, border_mode, threads);
                 } else {
+                    NOA_ASSERT(matrices);
                     launch_<4>({input.get(), input_strides}, input_shape,
                                {output.get(), output_strides}, output_shape,
                                matrices.get(), value, interp_mode, border_mode, threads);

@@ -133,6 +133,8 @@ namespace noa::cuda::geometry::fft {
                          const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream) {
+        NOA_ASSERT(cartesian && all(cartesian_shape > 0) && all(polar_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_strides[3] == 1);
@@ -165,6 +167,8 @@ namespace noa::cuda::geometry::fft {
                          const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
                          bool log, Stream& stream) {
+        NOA_ASSERT(array && cartesian && all(cartesian_shape > 0) && all(polar_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
         launch_(*cartesian, cartesian_interp, cartesian_shape,
                 polar.get(), polar_strides, polar_shape,
                 frequency_range, angle_range, log, stream);

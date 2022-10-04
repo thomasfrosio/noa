@@ -229,7 +229,7 @@ namespace noa::cpu::geometry::fft {
             return transform2D<REMAP>(input, input_strides, output, output_strides, shape, matrix, shift,
                                       cutoff, interp_mode, stream);
 
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
+        NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
         NOA_ASSERT(shape[1] == 1);
 
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();

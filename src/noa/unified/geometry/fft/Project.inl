@@ -16,6 +16,9 @@ namespace noa::geometry::fft {
                   const Array<float22_t>& scaling_factors,
                   const Array<float33_t>& rotations,
                   float cutoff, float3_t sampling_factor, float2_t ews_radius) {
+        NOA_CHECK(!slice.empty() && !grid.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(slice, grid), "Input and output arrays should not overlap");
+
         NOA_CHECK(all(slice.shape() == slice_shape.fft()),
                   "The shape of the non-redundant slices do not match the expected shape. Got {} and expected {}",
                   slice.shape(), slice_shape.fft());
@@ -29,15 +32,15 @@ namespace noa::geometry::fft {
         [[maybe_unused]] const size_t slices = slice.shape()[0];
         NOA_CHECK(scaling_factors.empty() ||
                   (indexing::isVector(scaling_factors.shape()) &&
-                   scaling_factors.shape().elements() == slices &&
+                   scaling_factors.elements() == slices &&
                    scaling_factors.contiguous()),
                   "The number of scaling factors, specified as a contiguous vector, should be equal to the number "
-                  "of slices, but got {} scaling factors and {} slices", scaling_factors.shape().elements(), slices);
+                  "of slices, but got {} scaling factors and {} slices", scaling_factors.elements(), slices);
         NOA_CHECK(indexing::isVector(rotations.shape()) &&
-                  rotations.shape().elements() == slices &&
+                  rotations.elements() == slices &&
                   rotations.contiguous(),
                   "The number of rotations, specified as a contiguous vector, should be equal to the number "
-                  "of slices, but got {} rotations and {} slices", rotations.shape().elements(), slices);
+                  "of slices, but got {} rotations and {} slices", rotations.elements(), slices);
 
         const Device device = grid.device();
         NOA_CHECK(slice.device() == device,
@@ -84,6 +87,9 @@ namespace noa::geometry::fft {
                    const Array<float22_t>& scaling_factors,
                    const Array<float33_t>& rotations,
                    float cutoff, float3_t sampling_factor, float2_t ews_radius) {
+        NOA_CHECK(!slice.empty() && !grid.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(slice, grid), "Input and output arrays should not overlap");
+
         NOA_CHECK(all(slice.shape() == slice_shape.fft()),
                   "The shape of the non-redundant slices do not match the expected shape. Got {} and expected {}",
                   slice.shape(), slice_shape.fft());
@@ -97,15 +103,15 @@ namespace noa::geometry::fft {
         [[maybe_unused]] const size_t slices = slice.shape()[0];
         NOA_CHECK(scaling_factors.empty() ||
                   (indexing::isVector(scaling_factors.shape()) &&
-                   scaling_factors.shape().elements() == slices &&
+                   scaling_factors.elements() == slices &&
                    scaling_factors.contiguous()),
                   "The number of scaling factors, specified as a contiguous vector, should be equal to the number "
-                  "of slices, but got {} scaling factors and {} slices", scaling_factors.shape().elements(), slices);
+                  "of slices, but got {} scaling factors and {} slices", scaling_factors.elements(), slices);
         NOA_CHECK(indexing::isVector(rotations.shape()) &&
-                  rotations.shape().elements() == slices &&
+                  rotations.elements() == slices &&
                   rotations.contiguous(),
                   "The number of rotations, specified as a contiguous vector, should be equal to the number "
-                  "of slices, but got {} rotations and {} slices", rotations.shape().elements(), slices);
+                  "of slices, but got {} rotations and {} slices", rotations.elements(), slices);
 
         const Device device = slice.device();
         NOA_CHECK(grid.device() == device,
@@ -153,6 +159,8 @@ namespace noa::geometry::fft {
                    const Array<float22_t>& scaling_factors,
                    const Array<float33_t>& rotations,
                    float cutoff, float3_t sampling_factor, float2_t ews_radius) {
+        NOA_CHECK(!slice.empty() && !grid.empty(), "Empty array detected");
+
         if (grid.device().cpu()) {
             const cpu::Texture<T>& texture = grid.cpu();
             extract3D<REMAP>(Array<T>(texture.ptr, grid.shape(), texture.strides, grid.options()), grid_shape,
@@ -176,15 +184,15 @@ namespace noa::geometry::fft {
             [[maybe_unused]] const size_t slices = slice.shape()[0];
             NOA_CHECK(scaling_factors.empty() ||
                       (indexing::isVector(scaling_factors.shape()) &&
-                       scaling_factors.shape().elements() == slices &&
+                       scaling_factors.elements() == slices &&
                        scaling_factors.contiguous()),
                       "The number of scaling factors, specified as a contiguous vector, should be equal to the number "
-                      "of slices, but got {} scaling factors and {} slices", scaling_factors.shape().elements(), slices);
+                      "of slices, but got {} scaling factors and {} slices", scaling_factors.elements(), slices);
             NOA_CHECK(indexing::isVector(rotations.shape()) &&
-                      rotations.shape().elements() == slices &&
+                      rotations.elements() == slices &&
                       rotations.contiguous(),
                       "The number of rotations, specified as a contiguous vector, should be equal to the number "
-                      "of slices, but got {} rotations and {} slices", rotations.shape().elements(), slices);
+                      "of slices, but got {} rotations and {} slices", rotations.elements(), slices);
 
             const Device device = slice.device();
             NOA_CHECK(device == grid.device(),
@@ -206,6 +214,8 @@ namespace noa::geometry::fft {
 
     template<typename T, typename>
     void griddingCorrection(const Array<T>& input, const Array<T>& output, bool post_correction) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         size4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",

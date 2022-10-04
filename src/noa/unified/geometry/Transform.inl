@@ -20,16 +20,16 @@ namespace noa::geometry {
 
         if constexpr (!traits::is_floatXX_v<M>) {
             NOA_CHECK(indexing::isVector(matrices.shape()) &&
-                      matrices.shape().elements() == output.shape()[0] &&
+                      matrices.elements() == output.shape()[0] &&
                       matrices.contiguous(),
                       "The number of matrices, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} matrices and {} output batches",
-                      matrices.shape().elements(), output.shape()[0]);
+                      matrices.elements(), output.shape()[0]);
             matrices_ = &matrices.share();
         } else {
             matrices_ = &matrices;
         }
-
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -43,7 +43,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.dereferenceable(), "The matrices should be accessible to the host");
@@ -88,6 +88,7 @@ namespace noa::geometry {
 
     template<typename T, typename M, typename>
     void transform2D(const Texture<T>& input, const Array<T>& output, const M& matrices) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.device() == output.device(),
                   "The input texture and output array must be on the same device, "
                   "but got input:{} and output:{}", input.device(), output.device());
@@ -109,11 +110,11 @@ namespace noa::geometry {
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(indexing::isVector(matrices.shape()) &&
-                          matrices.shape().elements() == output.shape()[0] &&
+                          matrices.elements() == output.shape()[0] &&
                           matrices.contiguous(),
                           "The number of matrices, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} matrices and {} output batches",
-                          matrices.shape().elements(), output.shape()[0]);
+                          matrices.elements(), output.shape()[0]);
 
                 if (matrices.device().cpu())
                     Stream::current(Device{}).synchronize();
@@ -156,16 +157,17 @@ namespace noa::geometry {
 
         if constexpr (!traits::is_floatXX_v<M>) {
             NOA_CHECK(indexing::isVector(matrices.shape()) &&
-                      matrices.shape().elements() == output.shape()[0] &&
+                      matrices.elements() == output.shape()[0] &&
                       matrices.contiguous(),
                       "The number of matrices, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} matrices and {} output batches",
-                      matrices.shape().elements(), output.shape()[0]);
+                      matrices.elements(), output.shape()[0]);
             matrices_ = &matrices.share();
         } else {
             matrices_ = &matrices;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -176,7 +178,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.dereferenceable(), "The matrices should be accessible to the host");
@@ -223,6 +225,7 @@ namespace noa::geometry {
 
     template<typename T, typename M, typename>
     void transform3D(const Texture<T>& input, const Array<T>& output, const M& matrices) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.device() == output.device(),
                   "The input texture and output array must be on the same device, "
                   "but got input:{} and output:{}", input.device(), output.device());
@@ -244,11 +247,11 @@ namespace noa::geometry {
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(indexing::isVector(matrices.shape()) &&
-                          matrices.shape().elements() == output.shape()[0] &&
+                          matrices.elements() == output.shape()[0] &&
                           matrices.contiguous(),
                           "The number of matrices, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} matrices and {} output batches",
-                          matrices.shape().elements(), output.shape()[0]);
+                          matrices.elements(), output.shape()[0]);
 
                 if (matrices.device().cpu())
                     Stream::current(Device{}).synchronize();
@@ -285,6 +288,7 @@ namespace noa::geometry {
     void transform2D(const Array<T>& input, const Array<T>& output,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -295,7 +299,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             cpu::geometry::transform2D(
                     input.share(), input.strides(), input.shape(),
@@ -332,6 +336,8 @@ namespace noa::geometry {
     void transform2D(const Texture<T>& input, const Array<T>& output,
                      float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
                      bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             transform2D(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()), output,
@@ -367,6 +373,7 @@ namespace noa::geometry {
     void transform3D(const Array<T>& input, const Array<T>& output,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -377,7 +384,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             cpu::geometry::transform3D(
                     input.share(), input.strides(), input.shape(),
@@ -416,6 +423,8 @@ namespace noa::geometry {
     void transform3D(const Texture<T>& input, const Array<T>& output,
                      float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
                      bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             transform3D(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()), output,

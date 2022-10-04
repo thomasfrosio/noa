@@ -188,6 +188,8 @@ namespace noa::cuda::geometry::fft {
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         NOA_ASSERT(indexing::isRightmost(input_strides) &&
                    indexing::isContiguous(input_strides, shape.fft())[3] &&
                    indexing::isContiguous(input_strides, shape.fft())[1]);
@@ -196,10 +198,12 @@ namespace noa::cuda::geometry::fft {
         using matrix_t = std::conditional_t<SINGLE_MATRIX, float33_t, const float33_t*>;
         matrix_t matrices_;
         cuda::memory::PtrDevice<float33_t> m_buffer;
-        if constexpr (!SINGLE_MATRIX)
+        if constexpr (!SINGLE_MATRIX) {
+            NOA_ASSERT(matrices);
             matrices_ = cuda::util::ensureDeviceAccess(matrices.get(), stream, m_buffer, shape[0]);
-        else
+        } else {
             matrices_ = matrices;
+        }
 
         constexpr bool SINGLE_SHIFT = traits::is_floatX_v<S>;
         using shift_t = std::conditional_t<SINGLE_SHIFT, float3_t, const float3_t*>;
@@ -245,14 +249,19 @@ namespace noa::cuda::geometry::fft {
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const M& matrices, const S& shifts, float cutoff, Stream& stream) {
+        NOA_ASSERT(array && texture && all(output_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
         using matrix_t = std::conditional_t<SINGLE_MATRIX, float33_t, const float33_t*>;
         matrix_t matrices_;
         cuda::memory::PtrDevice<float33_t> m_buffer;
-        if constexpr (!SINGLE_MATRIX)
+        if constexpr (!SINGLE_MATRIX) {
+            NOA_ASSERT(matrices);
             matrices_ = cuda::util::ensureDeviceAccess(matrices.get(), stream, m_buffer, output_shape[0]);
-        else
+        } else {
             matrices_ = matrices;
+        }
 
         constexpr bool SINGLE_SHIFT = traits::is_floatX_v<S>;
         using shift_t = std::conditional_t<SINGLE_SHIFT, float3_t, const float3_t*>;

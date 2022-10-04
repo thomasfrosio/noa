@@ -14,6 +14,7 @@ namespace noa::geometry {
     void symmetrize2D(const Array<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool prefilter, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[3] == output.shape()[3] &&
                   input.shape()[2] == output.shape()[2],
                   "The input {} and output {} shapes don't match", input.shape(), output.shape());
@@ -34,7 +35,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             cpu::geometry::symmetrize2D(
                     input.share(), input_strides,
@@ -71,6 +72,8 @@ namespace noa::geometry {
     void symmetrize2D(const Texture<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float2_t center,
                       bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             symmetry2D(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()), output,
@@ -111,6 +114,7 @@ namespace noa::geometry {
     void symmetrize3D(const Array<T[]>& input, const Array<T[]>& output,
                       const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool prefilter, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[3] == input.shape()[3] &&
                   input.shape()[2] == input.shape()[2] &&
                   input.shape()[1] == input.shape()[1],
@@ -129,7 +133,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             cpu::geometry::symmetrize3D(
                     input.share(), input_strides,
@@ -167,6 +171,8 @@ namespace noa::geometry {
     void symmetrize3D(const Texture<T>& input, const Array<T>& output,
                       const Symmetry& symmetry, float3_t center,
                       bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             symmetry3D(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()), output,

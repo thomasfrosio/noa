@@ -3,6 +3,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/geometry/Interpolate.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // See licences/CubicInterpolationCUDA.txt
@@ -278,6 +279,10 @@ namespace noa::cuda::geometry::bspline {
     void prefilter(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides,
                    dim4_t shape, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         const auto input_strides_ = safe_cast<uint4_t>(input_strides);
         const auto output_strides_ = safe_cast<uint4_t>(output_strides);
         const auto shape_ = safe_cast<uint4_t>(shape);

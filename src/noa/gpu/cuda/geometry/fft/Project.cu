@@ -336,6 +336,9 @@ namespace noa::cuda::geometry::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
+        NOA_ASSERT(rotations && slice.get() != grid.get() && all(slice_shape > 0) && all(grid_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
 
@@ -382,11 +385,15 @@ namespace noa::cuda::geometry::fft {
                    const shared_t<float33_t[]>& rotations,
                    float cutoff, float3_t sampling_factor, float2_t ews_radius,
                    bool no_texture, Stream& stream) {
+        NOA_ASSERT(rotations && all(slice_shape > 0) && all(grid_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
         const auto int3_grid_shape = safe_cast<int3_t>(dim3_t(grid_shape.get(1)));
 
         if (no_texture) {
+            NOA_ASSERT(slice.get() != grid.get());
+            NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
             launchExtract3D_<REMAP>(grid.get(), grid_strides, int3_grid_shape,
                                     slice.get(), slice_strides, slice_shape,
                                     scaling_factors.get(), rotations.get(),
@@ -418,6 +425,8 @@ namespace noa::cuda::geometry::fft {
                    const shared_t<float22_t[]>& scaling_factors,
                    const shared_t<float33_t[]>& rotations,
                    float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
+        NOA_ASSERT(array && grid && rotations && all(slice_shape > 0) && all(grid_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
         launchExtract3D_<REMAP>(grid.get(), {}, grid_shape,
                                 slice.get(), slice_strides, slice_shape,
                                 scaling_factors.get(), rotations.get(),
@@ -429,6 +438,10 @@ namespace noa::cuda::geometry::fft {
     void griddingCorrection(const shared_t<T[]>& input, dim4_t input_strides,
                             const shared_t<T[]>& output, dim4_t output_strides,
                             dim4_t shape, bool post_correction, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         const uint2_t shape_(shape.get(2));
         const uint32_t blocks_x = math::divideUp(shape_[1], THREADS.x);
         const uint32_t blocks_y = math::divideUp(shape_[0], THREADS.y);

@@ -282,6 +282,8 @@ namespace noa::cuda::geometry {
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                  Stream& stream) {
+        NOA_ASSERT(all(input_shape > 0) && all(output_shape > 0) && input);
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         launchShift3D_(input, input_strides, input_shape, output, output_strides, output_shape,
                        shifts, interp_mode, border_mode, prefilter, stream);
     }
@@ -292,12 +294,15 @@ namespace noa::cuda::geometry {
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, Stream& stream) {
+        NOA_ASSERT(all(texture_shape > 0) && all(output_shape > 0) && array && texture);
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if constexpr (traits::is_floatX_v<S>) {
             launchShiftTextureSingle3D_(
                     *texture, texture_shape, texture_interp_mode, texture_border_mode,
                     output.get(), output_strides, output_shape, shifts, stream);
             stream.attach(array, texture, output);
         } else {
+            NOA_ASSERT(shifts);
             launchShiftTexture3D_(
                     *texture, texture_shape, texture_interp_mode, texture_border_mode,
                     output.get(), output_strides, output_shape, shifts.get(), stream);

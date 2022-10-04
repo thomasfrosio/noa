@@ -16,6 +16,7 @@ namespace noa::geometry::fft {
     void transform2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
@@ -32,11 +33,11 @@ namespace noa::geometry::fft {
         using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
         const matrix_t* matrices_;
         if constexpr (!SINGLE_MATRIX) {
-            NOA_CHECK(matrices.shape().elements() == output.shape()[0] &&
+            NOA_CHECK(matrices.elements() == output.shape()[0] &&
                       indexing::isVector(matrices.shape()) && matrices.contiguous(),
                       "The number of matrices, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} matrices and {} output batches",
-                      matrices.shape().elements(), output.shape()[0]);
+                      matrices.elements(), output.shape()[0]);
             matrices_ = &matrices.share();
         } else {
             matrices_ = &matrices;
@@ -47,11 +48,11 @@ namespace noa::geometry::fft {
         const shift_t* shifts_;
         if constexpr (!SINGLE_SHIFT) {
             NOA_CHECK(shifts.empty() ||
-                      (shifts.shape().elements() == output.shape()[0] &&
+                      (shifts.elements() == output.shape()[0] &&
                        indexing::isVector(shifts.shape()) && shifts.contiguous()),
                       "The number of shifts, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} shifts and {} output batches",
-                      shifts.shape().elements(), output.shape()[0]);
+                      shifts.elements(), output.shape()[0]);
             shifts_ = &shifts.share();
         } else {
             shifts_ = &shifts;
@@ -63,7 +64,7 @@ namespace noa::geometry::fft {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.dereferenceable(), "The matrices should be accessible to the CPU");
@@ -120,6 +121,8 @@ namespace noa::geometry::fft {
     void transform2D(const Texture<T>& input, const Array<T>& output, size4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             transform2D<REMAP>(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()),
@@ -142,11 +145,11 @@ namespace noa::geometry::fft {
             using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
             const matrix_t* matrices_;
             if constexpr (!SINGLE_MATRIX) {
-                NOA_CHECK(matrices.shape().elements() == output.shape()[0] &&
+                NOA_CHECK(matrices.elements() == output.shape()[0] &&
                           indexing::isVector(matrices.shape()) && matrices.contiguous(),
                           "The number of matrices, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} matrices and {} output batches",
-                          matrices.shape().elements(), output.shape()[0]);
+                          matrices.elements(), output.shape()[0]);
                 matrices_ = &matrices.share();
             } else {
                 matrices_ = &matrices;
@@ -157,11 +160,11 @@ namespace noa::geometry::fft {
             const shift_t* shifts_;
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(shifts.empty() ||
-                          (shifts.shape().elements() == output.shape()[0] &&
+                          (shifts.elements() == output.shape()[0] &&
                            indexing::isVector(shifts.shape()) && shifts.contiguous()),
                           "The number of shifts, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} shifts and {} output batches",
-                          shifts.shape().elements(), output.shape()[0]);
+                          shifts.elements(), output.shape()[0]);
                 shifts_ = &shifts.share();
             } else {
                 shifts_ = &shifts;
@@ -198,6 +201,7 @@ namespace noa::geometry::fft {
     void transform3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
@@ -216,11 +220,11 @@ namespace noa::geometry::fft {
         using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
         const matrix_t* matrices_;
         if constexpr (!SINGLE_MATRIX) {
-            NOA_CHECK(matrices.shape().elements() == output.shape()[0] &&
+            NOA_CHECK(matrices.elements() == output.shape()[0] &&
                       indexing::isVector(matrices.shape()) && matrices.contiguous(),
                       "The number of matrices, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} matrices and {} output batches",
-                      matrices.shape().elements(), output.shape()[0]);
+                      matrices.elements(), output.shape()[0]);
             matrices_ = &matrices.share();
         } else {
             matrices_ = &matrices;
@@ -231,11 +235,11 @@ namespace noa::geometry::fft {
         const shift_t* shifts_;
         if constexpr (!SINGLE_SHIFT) {
             NOA_CHECK(shifts.empty() ||
-                      (shifts.shape().elements() == output.shape()[0] &&
+                      (shifts.elements() == output.shape()[0] &&
                        indexing::isVector(shifts.shape()) && shifts.contiguous()),
                       "The number of shifts, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} shifts and {} output batches",
-                      shifts.shape().elements(), output.shape()[0]);
+                      shifts.elements(), output.shape()[0]);
             shifts_ = &shifts.share();
         } else {
             shifts_ = &shifts;
@@ -247,7 +251,7 @@ namespace noa::geometry::fft {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.dereferenceable(), "The matrices should be accessible to the CPU");
@@ -305,6 +309,8 @@ namespace noa::geometry::fft {
     void transform3D(const Texture<T>& input, const Array<T>& output, size4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             transform3D<REMAP>(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()),
@@ -328,11 +334,11 @@ namespace noa::geometry::fft {
             using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>>>;
             const matrix_t* matrices_;
             if constexpr (!SINGLE_MATRIX) {
-                NOA_CHECK(matrices.shape().elements() == output.shape()[0] &&
+                NOA_CHECK(matrices.elements() == output.shape()[0] &&
                           indexing::isVector(matrices.shape()) && matrices.contiguous(),
                           "The number of matrices, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} matrices and {} output batches",
-                          matrices.shape().elements(), output.shape()[0]);
+                          matrices.elements(), output.shape()[0]);
                 matrices_ = &matrices.share();
             } else {
                 matrices_ = &matrices;
@@ -343,11 +349,11 @@ namespace noa::geometry::fft {
             const shift_t* shifts_;
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(shifts.empty() ||
-                          (shifts.shape().elements() == output.shape()[0] &&
+                          (shifts.elements() == output.shape()[0] &&
                            indexing::isVector(shifts.shape()) && shifts.contiguous()),
                           "The number of shifts, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} shifts and {} output batches",
-                          shifts.shape().elements(), output.shape()[0]);
+                          shifts.elements(), output.shape()[0]);
                 shifts_ = &shifts.share();
             } else {
                 shifts_ = &shifts;
@@ -388,6 +394,7 @@ namespace noa::geometry::fft {
     void transform2D(const Array<T>& input, const Array<T>& output, size4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
@@ -406,7 +413,7 @@ namespace noa::geometry::fft {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             cpu::geometry::fft::transform2D<REMAP>(
                     input.share(), input_strides,
@@ -438,6 +445,8 @@ namespace noa::geometry::fft {
     void transform2D(const Texture<T>& input, const Array<T>& output, size4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             transform3D<REMAP>(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()),
@@ -477,6 +486,7 @@ namespace noa::geometry::fft {
     void transform3D(const Array<T>& input, const Array<T>& output, size4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
                   shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
@@ -496,7 +506,7 @@ namespace noa::geometry::fft {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             cpu::geometry::fft::transform3D<REMAP>(
                     input.share(), input_strides,
@@ -529,6 +539,8 @@ namespace noa::geometry::fft {
     void transform3D(const Texture<T>& input, const Array<T>& output, size4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, bool normalize) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             transform3D<REMAP>(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()),

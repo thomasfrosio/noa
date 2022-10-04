@@ -98,7 +98,8 @@ namespace noa::cpu::geometry {
                          const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, bool prefilter, Stream& stream) {
-        NOA_ASSERT(cartesian.get() != polar.get());
+        NOA_ASSERT(cartesian && polar && cartesian.get() != polar.get() &&
+                   all(cartesian_shape > 0) && all(polar_shape > 0));
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
@@ -159,6 +160,9 @@ namespace noa::cpu::geometry {
                             {src, src_strides}, src_shape, {polar.get(), dst_strides}, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
+
+            default:
+                NOA_ASSERT(false && "DEV: Missing InterpMode entry");
         }
     }
 
@@ -167,7 +171,8 @@ namespace noa::cpu::geometry {
                          const shared_t<T[]>& cartesian, dim4_t cartesian_strides, dim4_t cartesian_shape,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interp, bool prefilter, Stream& stream) {
-        NOA_ASSERT(cartesian.get() != polar.get());
+        NOA_ASSERT(cartesian && polar && cartesian.get() != polar.get() &&
+                   all(cartesian_shape > 0) && all(polar_shape > 0));
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
@@ -226,6 +231,9 @@ namespace noa::cpu::geometry {
                             {src, src_strides}, src_shape, {cartesian.get(), dst_strides}, dst_shape,
                             cartesian_center, radius_range, angle_range, log, threads);
                 });
+
+            default:
+                NOA_ASSERT(false && "DEV: Missing InterpMode entry");
         }
     }
 

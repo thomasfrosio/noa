@@ -81,8 +81,8 @@ namespace noa::cpu::geometry::fft {
                          const shared_t<T[]>& polar, dim4_t polar_strides, dim4_t polar_shape,
                          float2_t frequency_range, float2_t angle_range,
                          bool log, InterpMode interp, Stream& stream) {
-        NOA_ASSERT(!indexing::isOverlap(cartesian.get(), cartesian_strides, cartesian_shape.fft(),
-                                        polar.get(), polar_strides, polar_shape));
+        NOA_ASSERT(cartesian && polar && cartesian.get() != polar.get() &&
+                   all(cartesian_shape > 0) && all(polar_shape > 0));
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 

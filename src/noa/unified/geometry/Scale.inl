@@ -24,11 +24,11 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_SCALE) {
             NOA_CHECK(indexing::isVector(scaling_factors.shape()) &&
-                      scaling_factors.shape().elements() == output.shape()[0] &&
+                      scaling_factors.elements() == output.shape()[0] &&
                       scaling_factors.contiguous(),
                       "The number of scaling factors, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} scaling factors and {} output batches",
-                      scaling_factors.shape().elements(), output.shape()[0]);
+                      scaling_factors.elements(), output.shape()[0]);
             NOA_CHECK(scaling_factors.dereferenceable(), "The scaling factors should be accessible to the CPU");
             scaling_factors_ = &scaling_factors.share();
         } else {
@@ -37,17 +37,18 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_CENTER) {
             NOA_CHECK(indexing::isVector(scaling_centers.shape()) &&
-                      scaling_centers.shape().elements() == output.shape()[0] &&
+                      scaling_centers.elements() == output.shape()[0] &&
                       scaling_centers.contiguous(),
                       "The number of scaling centers, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} scaling centers and {} output batches",
-                      scaling_centers.shape().elements(), output.shape()[0]);
+                      scaling_centers.elements(), output.shape()[0]);
             NOA_CHECK(scaling_centers.dereferenceable(), "The scaling centers should be accessible to the CPU");
             centers_ = &scaling_centers.share();
         } else {
             centers_ = &scaling_centers;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -61,7 +62,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_SCALE) {
                 if (scaling_factors.device().gpu())
@@ -128,11 +129,11 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_SCALE) {
             NOA_CHECK(indexing::isVector(scaling_factors.shape()) &&
-                      scaling_factors.shape().elements() == output.shape()[0] &&
+                      scaling_factors.elements() == output.shape()[0] &&
                       scaling_factors.contiguous(),
                       "The number of scaling factors, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} scaling factors and {} output batches",
-                      scaling_factors.shape().elements(), output.shape()[0]);
+                      scaling_factors.elements(), output.shape()[0]);
             NOA_CHECK(scaling_factors.dereferenceable(), "The scaling factors should be accessible to the CPU");
             scaling_factors_ = &scaling_factors.share();
         } else {
@@ -141,17 +142,18 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_CENTER) {
             NOA_CHECK(indexing::isVector(scaling_centers.shape()) &&
-                      scaling_centers.shape().elements() == output.shape()[0] &&
+                      scaling_centers.elements() == output.shape()[0] &&
                       scaling_centers.contiguous(),
                       "The number of scaling centers, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} scaling centers and {} output batches",
-                      scaling_centers.shape().elements(), output.shape()[0]);
+                      scaling_centers.elements(), output.shape()[0]);
             NOA_CHECK(scaling_centers.dereferenceable(), "The scaling centers should be accessible to the CPU");
             centers_ = &scaling_centers.share();
         } else {
             centers_ = &scaling_centers;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -162,7 +164,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_SCALE) {
                 if (scaling_factors.device().gpu())

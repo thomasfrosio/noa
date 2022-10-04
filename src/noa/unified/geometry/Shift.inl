@@ -19,16 +19,17 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_SHIFT) {
             NOA_CHECK(indexing::isVector(shifts.shape()) &&
-                      shifts.shape().elements() == output.shape()[0] &&
+                      shifts.elements() == output.shape()[0] &&
                       shifts.contiguous(),
                       "The number of shifts, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} shifts and {} output batches",
-                      shifts.shape().elements(), output.shape()[0]);
+                      shifts.elements(), output.shape()[0]);
             shifts_ = &shifts.share();
         } else {
             shifts_ = &shifts;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -42,7 +43,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(shifts.dereferenceable(), "The rotation parameters should be accessible to the CPU");
@@ -87,6 +88,8 @@ namespace noa::geometry {
 
     template<typename T, typename S, typename>
     void shift2D(const Texture<T>& input, const Array<T>& output, const S& shifts) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             shift2D(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()), output, shifts,
@@ -110,11 +113,11 @@ namespace noa::geometry {
 
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(indexing::isVector(shifts.shape()) &&
-                          shifts.shape().elements() == output.shape()[0] &&
+                          shifts.elements() == output.shape()[0] &&
                           shifts.contiguous(),
                           "The number of shifts, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} shifts and {} output batches",
-                          shifts.shape().elements(), output.shape()[0]);
+                          shifts.elements(), output.shape()[0]);
 
                 if (shifts.device().cpu())
                     Stream::current(Device{}).synchronize();
@@ -150,16 +153,17 @@ namespace noa::geometry {
 
         if constexpr (!SINGLE_SHIFT) {
             NOA_CHECK(indexing::isVector(shifts.shape()) &&
-                      shifts.shape().elements() == output.shape()[0] &&
+                      shifts.elements() == output.shape()[0] &&
                       shifts.contiguous(),
                       "The number of shifts, specified as a contiguous vector, should be equal to the number "
                       "of batches in the output, got {} shifts and {} output batches",
-                      shifts.shape().elements(), output.shape()[0]);
+                      shifts.elements(), output.shape()[0]);
             shifts_ = &shifts.share();
         } else {
             shifts_ = &shifts;
         }
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
@@ -170,7 +174,7 @@ namespace noa::geometry {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
-            NOA_CHECK(input.get() != output.get(), "In-place transformations are not supported");
+            NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
 
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(shifts.dereferenceable(), "The rotation parameters should be accessible to the CPU");
@@ -217,6 +221,8 @@ namespace noa::geometry {
 
     template<typename T, typename S, typename>
     void shift3D(const Texture<T>& input, const Array<T>& output, const S& shifts) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
         if (input.device().cpu()) {
             const cpu::Texture<T>& texture = input.cpu();
             shift3D(Array<T>(texture.ptr, input.shape(), texture.strides, input.options()), output, shifts,
@@ -237,11 +243,11 @@ namespace noa::geometry {
 
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(indexing::isVector(shifts.shape()) &&
-                          shifts.shape().elements() == output.shape()[0] &&
+                          shifts.elements() == output.shape()[0] &&
                           shifts.contiguous(),
                           "The number of shifts, specified as a contiguous vector, should be equal to the number "
                           "of batches in the output, got {} shifts and {} output batches",
-                          shifts.shape().elements(), output.shape()[0]);
+                          shifts.elements(), output.shape()[0]);
 
                 if (shifts.device().cpu())
                     Stream::current(Device{}).synchronize();

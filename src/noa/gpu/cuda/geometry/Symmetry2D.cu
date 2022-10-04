@@ -106,6 +106,8 @@ namespace noa::cuda::geometry {
                       const shared_t<T[]>& output, dim4_t output_strides,
                       dim4_t shape, const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
+        NOA_ASSERT(all(shape > 0) && input);
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         NOA_ASSERT(shape[1] == 1);
 
         if (!symmetry.count()) {
@@ -158,6 +160,8 @@ namespace noa::cuda::geometry {
                       const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
                       const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                       const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream) {
+        NOA_ASSERT(all(output_shape > 0) && array && texture);
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         launchSymmetrize2D_(*texture, texture_interp_mode, output.get(), output_strides, output_shape,
                             symmetry, center, normalize, stream);
         stream.attach(array, texture, output, symmetry.share());
