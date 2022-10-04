@@ -1,9 +1,155 @@
+#include "noa/common/signal/Shape.h"
+
 #include "noa/cpu/fft/Transforms.h"
 #include "noa/cpu/math/Ewise.h"
 #include "noa/cpu/math/Find.h"
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/signal/fft/Correlate.h"
 #include "noa/cpu/signal/fft/Shift.h"
+
+namespace {
+    using namespace noa;
+
+    template<bool IS_CENTERED, typename T, typename ellipse_t>
+    void applyEllipse3DOMP_(Accessor<T, 4, dim_t> output, dim4_t shape, ellipse_t ellipse, dim_t threads) {
+
+        #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
+        shared(output, shape, ellipse)
+
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
+                        const float3_t coords{IS_CENTERED ? j : math::FFTShift(j, shape[1]),
+                                              IS_CENTERED ? k : math::FFTShift(k, shape[2]),
+                                              IS_CENTERED ? l : math::FFTShift(l, shape[3])};
+                        const auto mask = ellipse(coords);
+                        output(i, j, k, l) *= mask;
+                    }
+                }
+            }
+        }
+    }
+
+    template<bool IS_CENTERED, typename T, typename ellipse_t>
+    void applyEllipse2DOMP_(Accessor<T, 3, dim_t> output, dim4_t shape, ellipse_t ellipse, dim_t threads) {
+
+        #pragma omp parallel for default(none) collapse(3) num_threads(threads) \
+        shared(output, shape, ellipse)
+
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[2]; ++j) {
+                for (dim_t k = 0; k < shape[3]; ++k) {
+                    const float2_t coords{IS_CENTERED ? j : math::FFTShift(j, shape[2]),
+                                          IS_CENTERED ? k : math::FFTShift(k, shape[3])};
+                    const auto mask = ellipse(coords);
+                    output(i, j, k) *= mask;
+                }
+            }
+        }
+    }
+
+    template<bool IS_CENTERED, typename T, typename ellipse_t>
+    void applyEllipse3D_(Accessor<T, 4, dim_t> output, dim4_t shape, ellipse_t ellipse) {
+
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[1]; ++j) {
+                for (dim_t k = 0; k < shape[2]; ++k) {
+                    for (dim_t l = 0; l < shape[3]; ++l) {
+                        const float3_t coords{IS_CENTERED ? j : math::FFTShift(j, shape[1]),
+                                              IS_CENTERED ? k : math::FFTShift(k, shape[2]),
+                                              IS_CENTERED ? l : math::FFTShift(l, shape[3])};
+                        const auto mask = ellipse(coords);
+                        output(i, j, k, l) *= mask;
+                    }
+                }
+            }
+        }
+    }
+
+    template<bool IS_CENTERED, typename T, typename ellipse_t>
+    void applyEllipse2D_(Accessor<T, 3, dim_t> output, dim4_t shape, ellipse_t ellipse) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t j = 0; j < shape[2]; ++j) {
+                for (dim_t l = 0; l < shape[3]; ++l) {
+                    const float2_t coords{IS_CENTERED ? j : math::FFTShift(j, shape[2]),
+                                          IS_CENTERED ? l : math::FFTShift(l, shape[3])};
+                    const auto mask = ellipse(coords);
+                    output(i, j, l) *= mask;
+                }
+            }
+        }
+    }
+
+    template<bool IS_CENTERED, typename T, typename line_t>
+    void applyLine1D_(Accessor<T, 2, dim_t> output, dim4_t shape, line_t line) {
+        for (dim_t i = 0; i < shape[0]; ++i) {
+            for (dim_t l = 0; l < shape[3]; ++l) {
+                const auto coords = static_cast<float>(IS_CENTERED ? l : math::FFTShift(l, shape[3]));
+                const auto mask = line(coords);
+                output(i, l) *= mask;
+            }
+        }
+    }
+
+    template<bool IS_CENTERED, typename T>
+    void enforceMaxRadiusInPlace3D_(T* xmap, dim4_t strides, dim4_t shape,
+                                    float3_t max_radius, cpu::Stream& stream) {
+        const dim3_t shape_3d(shape.get(1));
+        const float3_t center(shape_3d / 2);
+        const float edge_size = static_cast<float>(noa::math::max(shape_3d)) * 0.05f;
+
+        using real_t = traits::value_type_t<T>;
+        using ellipse_t = noa::signal::EllipseSmooth<3, real_t>;
+        const ellipse_t ellipse(center, max_radius, edge_size);
+        const Accessor<T, 4, dim_t> accessor(xmap, strides);
+
+        const dim_t threads = stream.threads();
+        stream.enqueue([=](){
+            if (threads > 1)
+                applyEllipse3DOMP_<IS_CENTERED>(accessor, shape, ellipse, threads);
+            else
+                applyEllipse3D_<IS_CENTERED>(accessor, shape, ellipse);
+        });
+    }
+
+    template<bool IS_CENTERED, typename T>
+    void enforceMaxRadiusInPlace2D_(T* xmap, dim4_t strides, dim4_t shape,
+                                    float2_t max_radius, cpu::Stream& stream) {
+        const dim2_t shape_2d(shape.get(2));
+        const float2_t center(shape_2d / 2);
+        const float edge_size = static_cast<float>(noa::math::max(shape_2d)) * 0.05f;
+
+        using real_t = traits::value_type_t<T>;
+        using ellipse_t = noa::signal::EllipseSmooth<2, real_t>;
+        const ellipse_t ellipse(center, max_radius, edge_size);
+        const Accessor<T, 3, dim_t> accessor(xmap, dim3_t{strides[0], strides[2], strides[3]});
+
+        const dim_t threads = stream.threads();
+        stream.enqueue([=](){
+            if (threads > 1)
+                applyEllipse2DOMP_<IS_CENTERED>(accessor, shape, ellipse, threads);
+            else
+                applyEllipse2D_<IS_CENTERED>(accessor, shape, ellipse);
+        });
+    }
+
+    template<bool IS_CENTERED, typename T>
+    void enforceMaxRadiusInPlace1D_(T* xmap, dim4_t strides, dim4_t shape,
+                                    float max_radius, cpu::Stream& stream) {
+        const auto center = static_cast<float>(shape[3] / 2);
+        const auto edge_size = static_cast<float>(shape[3]) * 0.05f;
+
+        using real_t = traits::value_type_t<T>;
+        using line_t = noa::signal::LineSmooth<real_t>;
+        const line_t line(center, max_radius, edge_size);
+        const Accessor<T, 2, dim_t> accessor(xmap, dim2_t{strides[0], strides[3]});
+
+        stream.enqueue([=](){
+            applyLine1D_<IS_CENTERED>(accessor, shape, line);
+        });
+    }
+}
 
 namespace {
     using namespace ::noa;
@@ -150,9 +296,13 @@ namespace noa::cpu::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     void xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                 const shared_t<float[]>& peaks, Stream& stream) {
+                 const shared_t<float[]>& peaks, float max_radius, Stream& stream) {
         NOA_ASSERT(dim3_t(shape.get(1)).ndim() == 1);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+
+        if (max_radius > 0)
+            enforceMaxRadiusInPlace1D_<IS_CENTERED>(xmap.get(), strides, shape, max_radius, stream);
+
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
             math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
@@ -170,11 +320,15 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    float xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, Stream& stream) {
+    float xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float max_radius, Stream& stream) {
         const bool is_column = shape[3] == 1;
         NOA_ASSERT(shape.ndim() == 1);
         NOA_ASSERT(strides[3 - is_column] > 0);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+
+        if (max_radius > 0)
+            enforceMaxRadiusInPlace1D_<IS_CENTERED>(xmap.get(), strides, shape, max_radius, stream);
+
         const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, true, stream);
 
         const long1_t peak{offset / safe_cast<int64_t>(strides[3 - is_column])};
@@ -185,12 +339,17 @@ namespace noa::cpu::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     void xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                 const shared_t<float2_t[]>& peaks, Stream& stream) {
+                 const shared_t<float2_t[]>& peaks, float2_t max_radius, Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+
+        if (any(max_radius > 0))
+            enforceMaxRadiusInPlace2D_<IS_CENTERED>(xmap.get(), strides, shape, max_radius, stream);
+
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
             math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
+
             const auto shape_2d = safe_cast<long2_t>(dim2_t(shape.get(2)));
             const auto strides_2d = safe_cast<long2_t>(dim2_t(strides.get(2)));
             for (dim_t batch = 0; batch < shape[0]; ++batch) {
@@ -202,9 +361,13 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    float2_t xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, Stream& stream) {
+    float2_t xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float2_t max_radius, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 2);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+
+        if (any(max_radius > 0))
+            enforceMaxRadiusInPlace2D_<IS_CENTERED>(xmap.get(), strides, shape, max_radius, stream);
+
         const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, true, stream);
         const auto shape_2d = safe_cast<long2_t>(dim2_t(shape.get(2)));
         const auto strides_2d = safe_cast<long2_t>(dim2_t(strides.get(2)));
@@ -214,11 +377,16 @@ namespace noa::cpu::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     void xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                 const shared_t<float3_t[]>& peaks, Stream& stream) {
+                 const shared_t<float3_t[]>& peaks, float3_t max_radius, Stream& stream) {
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+
+        if (any(max_radius > 0))
+            enforceMaxRadiusInPlace3D_<IS_CENTERED>(xmap.get(), strides, shape, max_radius, stream);
+
         stream.enqueue([=]() mutable {
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
             math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
+
             const auto shape_3d = safe_cast<long3_t>(dim3_t(shape.get(1)));
             const auto strides_3d = safe_cast<long3_t>(dim3_t(strides.get(1)));
             for (dim_t batch = 0; batch < shape[0]; ++batch) {
@@ -230,10 +398,15 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    float3_t xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, Stream& stream) {
+    float3_t xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float3_t max_radius, Stream& stream) {
         NOA_ASSERT(shape.ndim() == 3);
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
+
+        if (any(max_radius > 0))
+            enforceMaxRadiusInPlace3D_<IS_CENTERED>(xmap.get(), strides, shape, max_radius, stream);
+
         const auto offset = math::find<int64_t>(noa::math::first_max_t{}, xmap, strides, shape, true, stream);
+
         const auto shape_3d = safe_cast<long3_t>(dim3_t(shape.get(1)));
         const auto strides_3d = safe_cast<long3_t>(dim3_t(strides.get(1)));
         const long3_t peak = indexing::indexes(offset, strides_3d, shape_3d);
@@ -243,18 +416,18 @@ namespace noa::cpu::signal::fft {
     #define INSTANTIATE_XMAP(T) \
     template void xmap<Remap::H2F, T, void>(const shared_t<Complex<T>[]>&, dim4_t, const shared_t<Complex<T>[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, dim4_t);   \
     template void xmap<Remap::H2FC, T, void>(const shared_t<Complex<T>[]>&, dim4_t, const shared_t<Complex<T>[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, Norm, Stream&, const shared_t<Complex<T>[]>&, dim4_t);  \
-    template void xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float[]>&, Stream&);      \
-    template void xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float[]>&, Stream&);    \
-    template void xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float2_t[]>&, Stream&);   \
-    template void xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float2_t[]>&, Stream&); \
-    template void xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float3_t[]>&, Stream&);   \
-    template void xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float3_t[]>&, Stream&); \
-    template float xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);       \
-    template float xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);     \
-    template float2_t xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);    \
-    template float2_t xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template float3_t xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);    \
-    template float3_t xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
+    template void xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float[]>&, float, Stream&);         \
+    template void xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float[]>&, float, Stream&);       \
+    template void xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float2_t[]>&, float2_t, Stream&);   \
+    template void xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float2_t[]>&, float2_t, Stream&); \
+    template void xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float3_t[]>&, float3_t, Stream&);   \
+    template void xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float3_t[]>&, float3_t, Stream&); \
+    template float xpeak1D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, Stream&);          \
+    template float xpeak1D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, Stream&);        \
+    template float2_t xpeak2D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, Stream&);    \
+    template float2_t xpeak2D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, Stream&);  \
+    template float3_t xpeak3D<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, Stream&);    \
+    template float3_t xpeak3D<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, Stream&)
 
     INSTANTIATE_XMAP(float);
     INSTANTIATE_XMAP(double);
