@@ -50,11 +50,13 @@ namespace noa::cuda::memory {
         // Allocates device memory using cudaMalloc3D.
         // Returns 1: Pointer pointing to device memory.
         //         2: Pitch of the padded layout, in number of elements.
-        static std::pair<alloc_unique_t, size_t> alloc(size4_t shape) {
+        static std::pair<alloc_unique_t, dim_t> alloc(dim4_t shape) {
             if (!shape.elements())
                 return {nullptr, 0};
 
-            cudaExtent extent{shape[3] * sizeof(T), shape[2] * shape[1], shape[0]};
+            NOA_ASSERT(all(shape > 0));
+            const auto s_shape = safe_cast<size4_t>(shape);
+            cudaExtent extent{s_shape[3] * sizeof(T), s_shape[2] * s_shape[1], s_shape[0]};
             cudaPitchedPtr pitched_ptr{};
             NOA_THROW_IF(cudaMalloc3D(&pitched_ptr, extent));
 
@@ -69,8 +71,8 @@ namespace noa::cuda::memory {
         }
 
         // Allocates device memory using cudaMalloc3D. The shape is DHW.
-        static std::pair<std::unique_ptr<T[], Deleter>, size_t> alloc(size3_t shape) {
-            return alloc(size4_t{1, shape[0], shape[1], shape[2]});
+        static std::pair<std::unique_ptr<T[], Deleter>, dim_t> alloc(dim3_t shape) {
+            return alloc(dim4_t{1, shape[0], shape[1], shape[2]});
         }
 
     public: // member functions
@@ -79,7 +81,7 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrDevicePadded(std::nullptr_t) {}
 
         // Allocates "padded" memory with a given BDHW shape on the current device using cudaMalloc3D().
-        explicit PtrDevicePadded(size4_t shape) : m_shape(shape) {
+        explicit PtrDevicePadded(dim4_t shape) : m_shape(shape) {
             std::tie(m_ptr, m_pitch) = alloc(shape);
         }
 
@@ -103,10 +105,10 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         // Returns the logical BDHW shape of the managed data.
-        [[nodiscard]] constexpr size4_t shape() const noexcept { return m_shape; }
+        [[nodiscard]] constexpr dim4_t shape() const noexcept { return m_shape; }
 
         // Returns the C-major strides that can be used to access the managed data.
-        [[nodiscard]] constexpr size4_t strides() const noexcept {
+        [[nodiscard]] constexpr dim4_t strides() const noexcept {
             return {m_pitch * m_shape[2] * m_shape[1],
                     m_pitch * m_shape[2],
                     m_pitch,
@@ -114,12 +116,14 @@ namespace noa::cuda::memory {
         }
 
         // Returns the rightmost pitches of the managed object.
-        [[nodiscard]] constexpr size3_t pitches() const noexcept {
+        [[nodiscard]] constexpr dim3_t pitches() const noexcept {
             return {m_shape[1], m_shape[2], m_pitch};
         }
 
         // How many bytes are pointed by the managed object.
-        [[nodiscard]] constexpr size_t bytes() const noexcept { return strides()[0] * m_shape[0] * sizeof(T); }
+        [[nodiscard]] constexpr size_t bytes() const noexcept {
+            return static_cast<size_t>(strides()[0] * m_shape[0]) * sizeof(T);
+        }
 
         // Returns a View of the allocated data using C-major strides.
         template<typename I>
@@ -139,8 +143,8 @@ namespace noa::cuda::memory {
 
     private:
         static_assert(traits::is_valid_ptr_type_v<T> && sizeof(T) <= 16);
-        size4_t m_shape{}; // in elements
+        dim4_t m_shape{}; // in elements
         std::shared_ptr<T[]> m_ptr{};
-        size_t m_pitch{}; // in elements
+        dim_t m_pitch{}; // in elements
     };
 }

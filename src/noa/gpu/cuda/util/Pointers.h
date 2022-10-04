@@ -42,7 +42,7 @@ namespace noa::cuda::util {
     // corresponding device pointer). Otherwise, allocates new memory asynchronously, copy ptr to that new memory
     // and return a pointer to that new memory.
     template<typename T>
-    NOA_IH shared_t<T[]> ensureDeviceAccess(const shared_t<T[]>& ptr, Stream& stream, size_t elements) {
+    NOA_IH shared_t<T[]> ensureDeviceAccess(const shared_t<T[]>& ptr, Stream& stream, dim_t elements) {
         T* tmp = devicePointer(ptr.get(), stream.device());
         if (!tmp) {
             shared_t<T[]> buffer = memory::PtrDevice<T>::alloc(elements, stream);
@@ -59,7 +59,7 @@ namespace noa::cuda::util {
     // corresponding device pointer). Otherwise, allocates new memory asynchronously, copy ptr to that new memory
     // and return a pointer to that new memory.
     template<typename T, typename U, typename = std::enable_if_t<std::is_same_v<noa::traits::remove_ref_cv_t<T>, U>>>
-    NOA_IH T* ensureDeviceAccess(T* ptr, Stream& stream, memory::PtrDevice<U>& allocator, size_t elements) {
+    NOA_IH T* ensureDeviceAccess(T* ptr, Stream& stream, memory::PtrDevice<U>& allocator, dim_t elements) {
         T* tmp = devicePointer(ptr, stream.device());
         if (!tmp) {
             allocator = memory::PtrDevice<U>{elements, stream};
@@ -83,25 +83,5 @@ namespace noa::cuda::util {
             return 2;
         else
             return 1;
-    }
-
-    // Simple wrapper to add, programmatically, __restrict__ attributes to pointers.
-    template<bool RESTRICT, typename Pointer>
-    struct accessor_t {
-    public:
-        using ptr_type = std::conditional_t<RESTRICT, Pointer __restrict__, Pointer>;
-        using value_type = std::remove_pointer<Pointer>;
-        NOA_HD explicit accessor_t(Pointer ptr) : m_data(ptr) {};
-        NOA_HD ptr_type get() noexcept { return m_data; }
-        NOA_HD auto& operator[](size_t i) noexcept { return m_data[i]; }
-    private:
-        ptr_type m_data;
-    };
-
-    namespace traits {
-        template<typename T> struct p_is_accessor : std::false_type {};
-        template<typename T, bool R> struct p_is_accessor<accessor_t<R, T>> : std::true_type {};
-        template<typename T> using is_accessor = std::bool_constant<p_is_accessor<noa::traits::remove_ref_cv_t<T>>::value>;
-        template<typename T> inline constexpr bool is_accessor_v = is_accessor<T>::value;
     }
 }

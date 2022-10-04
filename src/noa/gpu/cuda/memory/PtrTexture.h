@@ -167,7 +167,7 @@ namespace noa::cuda::memory {
         // NOTE: cudaDeviceProp::textureAlignment is satisfied by cudaMalloc* and cudaDeviceProp::texturePitchAlignment
         //       is satisfied by cudaMalloc3D/Pitch. Care should be taken about offsets when working on subregions.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static cudaTextureObject_t alloc(const T* array, size_t pitch, size3_t shape,
+        static cudaTextureObject_t alloc(const T* array, dim_t pitch, dim3_t shape,
                                          cudaTextureFilterMode interp_mode,
                                          cudaTextureAddressMode border_mode,
                                          cudaTextureReadMode normalized_reads_to_float,
@@ -179,8 +179,8 @@ namespace noa::cuda::memory {
             res_desc.resType = cudaResourceTypePitch2D;
             res_desc.res.pitch2D.devPtr = const_cast<T*>(array);
             res_desc.res.pitch2D.desc = cudaCreateChannelDesc<T>();
-            res_desc.res.pitch2D.width = shape[2];
-            res_desc.res.pitch2D.height = shape[1];
+            res_desc.res.pitch2D.width = safe_cast<size_t>(shape[2]);
+            res_desc.res.pitch2D.height = safe_cast<size_t>(shape[1]);
             res_desc.res.pitch2D.pitchInBytes = pitch * sizeof(T);
 
             cudaTextureDesc tex_desc{};
@@ -210,7 +210,7 @@ namespace noa::cuda::memory {
         // NOTE: cudaDeviceProp::textureAlignment is satisfied by cudaMalloc*.
         //       Care should be taken about offsets when working on subregions.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static cudaTextureObject_t alloc(const T* array, size_t elements,
+        static cudaTextureObject_t alloc(const T* array, dim_t elements,
                                          cudaTextureReadMode normalized_reads_to_float,
                                          bool normalized_coordinates) {
             cudaResourceDesc res_desc{};
@@ -261,7 +261,7 @@ namespace noa::cuda::memory {
         // See PtrTexture::description() for more details.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
         static std::unique_ptr<cudaTextureObject_t, Deleter>
-        alloc(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode) {
+        alloc(const T* array, dim_t pitch, dim3_t shape, InterpMode interp_mode, BorderMode border_mode) {
             cudaTextureFilterMode filter;
             cudaTextureAddressMode address;
             bool normalized_coords;
@@ -281,7 +281,7 @@ namespace noa::cuda::memory {
 
         // Creates a 2D texture from a padded memory layout.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        PtrTexture(const T* array, size_t pitch, size3_t shape, InterpMode interp_mode, BorderMode border_mode)
+        PtrTexture(const T* array, dim_t pitch, dim3_t shape, InterpMode interp_mode, BorderMode border_mode)
                 : m_texture(alloc(array, pitch, shape, interp_mode, border_mode)) {}
 
     public:

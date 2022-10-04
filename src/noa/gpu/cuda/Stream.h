@@ -115,6 +115,7 @@ namespace noa::cuda::details {
 
         template<typename T>
         void pushBack_(int key, const std::shared_ptr<T>& ptr) {
+            // TODO When moving to C++20, use std::forward to remove extra copy if original shared_ptr is a rvalue.
             m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
         }
     };

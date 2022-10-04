@@ -10,16 +10,16 @@
 namespace {
     using namespace ::noa;
 
-    constexpr uint ELEMENTS_PER_THREAD = 4;
-    constexpr uint BLOCK_SIZE = 128;
-    constexpr uint BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
-    constexpr uint MAX_GRID_SIZE = 4096;
+    constexpr uint32_t ELEMENTS_PER_THREAD = 4;
+    constexpr uint32_t BLOCK_SIZE = 128;
+    constexpr uint32_t BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
+    constexpr uint32_t MAX_GRID_SIZE = 4096;
 
     using state_t = curandStateMRG32k3a; // FIXME
 
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void init_(state_t* state, int seed_base) {
-        const uint tid = blockIdx.x * BLOCK_SIZE + threadIdx.y * blockDim.x + threadIdx.x;
+    void init_(state_t* state, int32_t seed_base) {
+        const uint32_t tid = blockIdx.x * BLOCK_SIZE + threadIdx.y * blockDim.x + threadIdx.x;
         // Each thread gets its own seed, with no subsequence and no offsets.
         // FIXME Shouldn't we use the same state for multiple threads, and each thread uses
         //       its tid as subsequence/offset? Because having one state per thread uses (at most)
@@ -27,31 +27,31 @@ namespace {
         curand_init(seed_base + tid, 0, 0, &state[tid]);
     }
 
-    template<typename T, typename F, int VEC_SIZE>
+    template<typename T, typename F, int32_t VEC_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void randomize1D_(state_t* state, F distribution, T* output, uint strides, uint elements) {
-        constexpr uint EPT = ELEMENTS_PER_THREAD;
-        const uint state_idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+    void randomize1D_(state_t* state, F distribution, T* output, uint32_t strides, uint32_t elements) {
+        constexpr uint32_t EPT = ELEMENTS_PER_THREAD;
+        const uint32_t state_idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
         state_t local_state = state[state_idx];
 
         // loop until reach the end
-        const uint tid = blockIdx.x * BLOCK_WORK_SIZE;
-        const uint grid_size = BLOCK_WORK_SIZE * gridDim.x;
-        for (uint cid = tid; cid < elements; cid += grid_size) {
+        const uint32_t tid = blockIdx.x * BLOCK_WORK_SIZE;
+        const uint32_t grid_size = BLOCK_WORK_SIZE * gridDim.x;
+        for (uint32_t cid = tid; cid < elements; cid += grid_size) {
             if constexpr (VEC_SIZE == 1) {
-                for (int i = 0; i < EPT; ++i) {
-                    const uint iid = cid + BLOCK_SIZE * i + threadIdx.x;
+                for (int32_t i = 0; i < EPT; ++i) {
+                    const uint32_t iid = cid + BLOCK_SIZE * i + threadIdx.x;
                     if (iid < elements)
                         output[iid * strides] = distribution(local_state);
                 }
             } else {
                 NOA_ASSERT(strides == 1);
                 (void) strides;
-                const uint remaining = elements - cid;
+                const uint32_t remaining = elements - cid;
                 T* ptr = output + cid;
                 if (remaining < BLOCK_WORK_SIZE) {
-                    for (int i = 0; i < EPT; ++i) {
-                        const uint iid = BLOCK_SIZE * i + threadIdx.x;
+                    for (int32_t i = 0; i < EPT; ++i) {
+                        const uint32_t iid = BLOCK_SIZE * i + threadIdx.x;
                         if (iid < remaining)
                             ptr[iid] = distribution(local_state);
                     }
@@ -68,21 +68,21 @@ namespace {
     // TODO Add vectorization store?
     template<typename T, typename F>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void randomize4D_(state_t* state, F distribution, T* output, uint4_t strides, uint4_t shape, uint rows) {
-        const uint rows_per_grid = blockDim.y * gridDim.x;
-        const uint initial_row = blockDim.y * blockIdx.x + threadIdx.y;
-        const uint state_idx = blockIdx.x * BLOCK_SIZE + threadIdx.y * blockDim.x + threadIdx.x;
+    void randomize4D_(state_t* state, F distribution, Accessor<T, 4, uint32_t> output, uint4_t shape, uint32_t rows) {
+        const uint32_t rows_per_grid = blockDim.y * gridDim.x;
+        const uint32_t initial_row = blockDim.y * blockIdx.x + threadIdx.y;
+        const uint32_t state_idx = blockIdx.x * BLOCK_SIZE + threadIdx.y * blockDim.x + threadIdx.x;
         state_t local_state = state[state_idx];
 
         // Initial reduction. Loop until all rows are consumed.
-        for (uint row = initial_row; row < rows; row += rows_per_grid) {
+        for (uint32_t row = initial_row; row < rows; row += rows_per_grid) {
             // Retrieve the 3D block index from the linear Grid.X:
             const uint3_t index = indexing::indexes(row, shape[1], shape[2]); // row -> W,Z,Y
-            const uint offset = indexing::at(index, strides);
+            const auto output_row = output[index[0]][index[1]][index[2]];
 
             // Consume the row:
-            for (uint cid = threadIdx.x; cid < shape[3]; cid += blockDim.x)
-                output[offset + cid * strides[3]] = distribution(local_state);
+            for (uint32_t cid = threadIdx.x; cid < shape[3]; cid += blockDim.x)
+                output_row[cid] = distribution(local_state);
         }
     }
 
@@ -203,9 +203,9 @@ namespace {
     };
 
     template<typename T, typename F>
-    void launch1D_(cuda::LaunchConfig config, state_t* state, T* output, uint strides, uint elements,
+    void launch1D_(cuda::LaunchConfig config, state_t* state, T* output, uint32_t strides, uint32_t elements,
                    F distribution, cuda::Stream& stream) {
-        const int vec_size = strides == 1 ? noa::cuda::util::maxVectorCount(output) : 1;
+        const int32_t vec_size = strides == 1 ? noa::cuda::util::maxVectorCount(output) : 1;
         if (vec_size == 4) {
             stream.enqueue("math::randomize", randomize1D_<T, F, 4>, config,
                            state, distribution, output, strides, elements);
@@ -220,31 +220,34 @@ namespace {
 
     template<typename D, typename T, typename U>
     void randomize1D_(D, const shared_t<T[]>& output,
-                      uint strides, uint elements, U x, U y, cuda::Stream& stream) {
-        const uint blocks_x = noa::math::min(noa::math::divideUp(elements, BLOCK_WORK_SIZE), MAX_GRID_SIZE);
+                      dim_t strides, dim_t elements, U x, U y, cuda::Stream& stream) {
+        const auto s_elements = safe_cast<uint32_t>(elements);
+        const auto s_strides = safe_cast<uint32_t>(strides);
+
+        const uint32_t blocks_x = noa::math::min(noa::math::divideUp(s_elements, BLOCK_WORK_SIZE), MAX_GRID_SIZE);
         const dim3 blocks(blocks_x);
         const cuda::LaunchConfig config{blocks, BLOCK_SIZE};
 
         cuda::memory::PtrDevice<state_t> states(blocks_x * BLOCK_SIZE, stream);
-        const uint seed = std::random_device{}();
+        const uint32_t seed = std::random_device{}();
         stream.enqueue("math::randomize::init", init_, config, states.get(), seed);
 
         if constexpr (std::is_same_v<D, noa::math::uniform_t>) {
             using distributor_t = std::conditional_t<traits::is_complex_v<U>, UniformComplex_<T>, Uniform_<T>>;
             distributor_t distribution(x, y);
-            launch1D_<T, distributor_t>(config, states.get(), output.get(), strides, elements, distribution, stream);
+            launch1D_<T, distributor_t>(config, states.get(), output.get(), s_strides, s_elements, distribution, stream);
         } else if constexpr (std::is_same_v<D, noa::math::normal_t>) {
             using distributor_t = std::conditional_t<traits::is_complex_v<U>, NormalComplex_<T>, Normal_<T>>;
             distributor_t distribution(x, y);
-            launch1D_<T, distributor_t>(config, states.get(), output.get(), strides, elements, distribution, stream);
+            launch1D_<T, distributor_t>(config, states.get(), output.get(), s_strides, s_elements, distribution, stream);
         } else if constexpr (std::is_same_v<D, noa::math::log_normal_t>) {
             using distributor_t = std::conditional_t<traits::is_complex_v<U>, LogNormalComplex_<T>, LogNormal_<T>>;
             distributor_t distribution(x, y);
-            launch1D_<T, distributor_t>(config, states.get(), output.get(), strides, elements, distribution, stream);
+            launch1D_<T, distributor_t>(config, states.get(), output.get(), s_strides, s_elements, distribution, stream);
         } else if constexpr (std::is_same_v<D, noa::math::poisson_t>) {
             (void) y;
             Poisson_<T> distribution(x);
-            launch1D_<T, Poisson_<T>>(config, states.get(), output.get(), strides, elements, distribution, stream);
+            launch1D_<T, Poisson_<T>>(config, states.get(), output.get(), s_strides, s_elements, distribution, stream);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -252,47 +255,49 @@ namespace {
     }
 
     template<typename D, typename T, typename U>
-    void randomize4D_(D, const shared_t<T[]>& output, size4_t strides, size4_t shape, U x, U y, cuda::Stream& stream) {
-        const size4_t order = indexing::order(strides, shape);
+    void randomize4D_(D, const shared_t<T[]>& output, dim4_t strides, dim4_t shape, U x, U y, cuda::Stream& stream) {
+        const auto order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
         shape = indexing::reorder(shape, order);
 
-        const bool4_t contiguous = indexing::isContiguous(strides, shape);
-        if (contiguous[0] && contiguous[1] && contiguous[2])
-            return randomize1D_(D{}, output, strides[3], shape.elements(), x, y, stream);
+        const auto strides_ = safe_cast<uint4_t>(strides);
+        const auto shape_ = safe_cast<uint4_t>(shape);
 
-        const uint block_dim_x = shape[3] > 512 ? 128 : 64;
+        const bool4_t contiguous = indexing::isContiguous(strides_, shape_);
+        if (contiguous[0] && contiguous[1] && contiguous[2])
+            return randomize1D_(D{}, output, strides_[3], safe_cast<uint32_t>(shape.elements()), x, y, stream);
+
+        const uint32_t block_dim_x = shape_[3] > 512 ? 128 : 64;
         const dim3 threads(block_dim_x, BLOCK_SIZE / block_dim_x);
-        const uint rows = shape[2] * shape[1] * shape[0];
+        const auto rows = safe_cast<uint32_t>(shape[2] * shape[1] * shape[0]);
         const dim3 blocks(noa::math::min(noa::math::divideUp(rows, threads.y), MAX_GRID_SIZE));
         const cuda::LaunchConfig config{blocks, threads};
 
         cuda::memory::PtrDevice<state_t> states(blocks.x * BLOCK_SIZE, stream);
-        const uint seed = std::random_device{}();
+        const uint32_t seed = std::random_device{}();
         stream.enqueue("math::randomize::init", init_, config, states.get(), seed);
 
-        const uint4_t strides_(strides);
-        const uint4_t shape_(shape);
+        const Accessor<T, 4, uint32_t> output_accessor(output.get(), strides_);
         if constexpr (std::is_same_v<D, noa::math::uniform_t>) {
             using distributor_t = std::conditional_t<traits::is_complex_v<U>, UniformComplex_<T>, Uniform_<T>>;
             distributor_t distribution(x, y);
             stream.enqueue("math::randomize", randomize4D_<T, distributor_t>, config,
-                           states.get(), distribution, output.get(), strides_, shape_, rows);
+                           states.get(), distribution, output_accessor, shape_, rows);
         } else if constexpr (std::is_same_v<D, noa::math::normal_t>) {
             using distributor_t = std::conditional_t<traits::is_complex_v<U>, NormalComplex_<T>, Normal_<T>>;
             distributor_t distribution(x, y);
             stream.enqueue("math::randomize", randomize4D_<T, distributor_t>, config,
-                           states.get(), distribution, output.get(), strides_, shape_, rows);
+                           states.get(), distribution, output_accessor, shape_, rows);
         } else if constexpr (std::is_same_v<D, noa::math::log_normal_t>) {
             using distributor_t = std::conditional_t<traits::is_complex_v<U>, LogNormalComplex_<T>, LogNormal_<T>>;
             distributor_t distribution(x, y);
             stream.enqueue("math::randomize", randomize4D_<T, distributor_t>, config,
-                           states.get(), distribution, output.get(), strides_, shape_, rows);
+                           states.get(), distribution, output_accessor, shape_, rows);
         } else if constexpr (std::is_same_v<D, noa::math::poisson_t>) {
             (void) y;
             Poisson_<T> distribution(x);
             stream.enqueue("math::randomize", randomize4D_<T, Poisson_<T>>, config,
-                           states.get(), distribution, output.get(), strides_, shape_, rows);
+                           states.get(), distribution, output_accessor, shape_, rows);
         } else {
             static_assert(noa::traits::always_false_v<T>);
         }
@@ -302,7 +307,7 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim_t elements,
                    U min, U max, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T> && traits::is_float_v<U>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -315,7 +320,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim_t elements,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T> && traits::is_float_v<U>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -328,7 +333,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim_t elements,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T> && traits::is_float_v<U>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -341,7 +346,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size_t elements,
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim_t elements,
                    float lambda, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -353,7 +358,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U min, U max, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T> && traits::is_float_v<U>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -368,7 +373,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T> && traits::is_float_v<U>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -383,7 +388,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T> && traits::is_float_v<U>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -398,7 +403,7 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, size4_t strides, size4_t shape,
+    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    float lambda, Stream& stream) {
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
@@ -411,12 +416,12 @@ namespace noa::cuda::math {
     }
 
     #define INSTANTIATE_RANDOM_(T, U)                                                                                   \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);   \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);    \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);\
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, U, U, Stream&);             \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);              \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, U, U, Stream&)
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);     \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);      \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);  \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim_t, U, U, Stream&);              \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&);               \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&)
 
     INSTANTIATE_RANDOM_(int16_t, int16_t);
     INSTANTIATE_RANDOM_(uint16_t, uint16_t);
@@ -434,21 +439,21 @@ namespace noa::cuda::math {
     INSTANTIATE_RANDOM_(cfloat_t, cfloat_t);
     INSTANTIATE_RANDOM_(cdouble_t, cdouble_t);
 
-    #define INSTANTIATE_RANDOM_POISSON_(T)                                                                          \
-    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, size_t, float, Stream&);           \
-    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, size4_t, size4_t, float, Stream&)
+    #define INSTANTIATE_RANDOM_POISSON_(T)                                                                  \
+    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, dim_t, float, Stream&);    \
+    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, dim4_t, dim4_t, float, Stream&)
 
     INSTANTIATE_RANDOM_POISSON_(half_t);
     INSTANTIATE_RANDOM_POISSON_(float);
     INSTANTIATE_RANDOM_POISSON_(double);
 
-    #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                                  \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);       \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);        \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size4_t, size4_t, U, U, Stream&);    \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, size_t, U, U, Stream&);                 \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, size_t, U, U, Stream&);                  \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, size_t, U, U, Stream&)
+    #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                              \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);     \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);      \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);  \
+    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim_t, U, U, Stream&);              \
+    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&);               \
+    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&)
 
     INSTANTIATE_RANDOM_HALF_(half_t, float);
     INSTANTIATE_RANDOM_HALF_(chalf_t, float);

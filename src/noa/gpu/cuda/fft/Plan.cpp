@@ -4,7 +4,7 @@
 
 namespace {
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
-    constexpr uint sizes_even_cufft_[315] = {
+    constexpr uint32_t sizes_even_cufft_[315] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 48, 50, 54, 56, 60, 64, 70, 72, 80, 84,
             90, 96, 98, 100, 108, 112, 120, 126, 128, 140, 144, 150, 160, 162, 168, 180, 192, 196, 200, 210, 216,
             224, 240, 250, 252, 256, 270, 280, 288, 294, 300, 320, 324, 336, 350, 360, 378, 384, 392, 400, 420, 432,
@@ -29,7 +29,7 @@ namespace {
     public:
         CufftCache() = default;
 
-        void limit(size_t size) noexcept {
+        void limit(dim_t size) noexcept {
             m_max_size = size;
             while (m_queue.size() > m_max_size)
                 m_queue.pop_back();
@@ -40,7 +40,7 @@ namespace {
                 m_queue.pop_back();
         }
 
-        [[nodiscard]] size_t limit() const noexcept { return m_max_size; }
+        [[nodiscard]] dim_t limit() const noexcept { return m_max_size; }
 
         [[nodiscard]] std::shared_ptr<cufftHandle> find(const std::string& key) const noexcept {
             std::shared_ptr<cufftHandle> res;
@@ -69,13 +69,13 @@ namespace {
     private:
         using plan_pair_t = typename std::pair<std::string, std::shared_ptr<cufftHandle>>;
         std::deque<plan_pair_t> m_queue;
-        size_t m_max_size{4};
+        dim_t m_max_size{4};
     };
 
     // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-host-thread cache.
     // Each GPU has its own cache of course.
-    CufftCache& getCache_(int device) {
-        constexpr size_t MAX_DEVICES = 16;
+    CufftCache& getCache_(int32_t device) {
+        constexpr dim_t MAX_DEVICES = 16;
         thread_local std::unique_ptr<CufftCache> g_cache[MAX_DEVICES];
 
         std::unique_ptr<CufftCache>& cache = g_cache[device];
@@ -86,10 +86,10 @@ namespace {
 }
 
 namespace noa::cuda::fft::details {
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t shape, int device) {
-        const auto batch = static_cast<int>(shape[0]);
-        int3_t s_shape(shape.get(1));
-        const int rank = s_shape.ndim();
+    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, dim4_t shape, int32_t device) {
+        const auto batch = static_cast<int32_t>(shape[0]);
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
+        const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
             std::swap(s_shape[1], s_shape[2]);
@@ -112,7 +112,7 @@ namespace noa::cuda::fft::details {
 
         // Create and cache the plan:
         cufftHandle plan{};
-        for (size_t i = 0; i < 2; ++i) {
+        for (dim_t i = 0; i < 2; ++i) {
             const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(3 - rank),
                                              nullptr, 1, 0, nullptr, 1, 0,
                                              type, batch);
@@ -128,10 +128,10 @@ namespace noa::cuda::fft::details {
         return cache.push(std::move(hash), plan);
     }
 
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, size4_t input_strides, size4_t output_strides,
-                                         size4_t shape, int device) {
-        int3_t s_shape(shape.get(1));
-        const int rank = s_shape.ndim();
+    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, dim4_t input_strides, dim4_t output_strides,
+                                         dim4_t shape, int32_t device) {
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
+        const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
             std::swap(s_shape[1], s_shape[2]);
@@ -139,12 +139,12 @@ namespace noa::cuda::fft::details {
             std::swap(output_strides[2], output_strides[3]);
         }
 
-        const int4_t i_strides(input_strides);
-        const int4_t o_strides(output_strides);
+        const auto i_strides = safe_cast<int4_t>(input_strides);
+        const auto o_strides = safe_cast<int4_t>(output_strides);
         int3_t i_pitch(i_strides.pitches());
         int3_t o_pitch(o_strides.pitches());
-        const auto batch = static_cast<int>(shape[0]);
-        const int offset = 3 - rank;
+        const auto batch = static_cast<int32_t>(shape[0]);
+        const int32_t offset = 3 - rank;
 
         using enum_type = std::underlying_type_t<cufftType_t>;
         const auto type_ = static_cast<enum_type>(type);
@@ -154,15 +154,15 @@ namespace noa::cuda::fft::details {
             tmp.seekp(0); // clear
 
             tmp << rank << ':';
-            for (int i = 0; i < rank; ++i)
+            for (int32_t i = 0; i < rank; ++i)
                 tmp << s_shape[offset + i] << ',';
 
-            for (int i = 0; i < rank; ++i)
+            for (int32_t i = 0; i < rank; ++i)
                 tmp << i_pitch[offset + i] << ',';
             tmp << i_strides[3] << ':';
             tmp << i_strides[0] << ':';
 
-            for (int i = 0; i < rank; ++i)
+            for (int32_t i = 0; i < rank; ++i)
                 tmp << o_pitch[offset + i] << ',';
             tmp << o_strides[3] << ':';
             tmp << o_strides[0] << ':';
@@ -180,7 +180,7 @@ namespace noa::cuda::fft::details {
 
         // Create and cache the plan:
         cufftHandle plan;
-        for (size_t i = 0; i < 2; ++i) {
+        for (dim_t i = 0; i < 2; ++i) {
             const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(offset),
                                              i_pitch.get(offset), i_strides[3], i_strides[0],
                                              o_pitch.get(offset), o_strides[3], o_strides[0],
@@ -195,22 +195,23 @@ namespace noa::cuda::fft::details {
         return cache.push(std::move(hash), plan);
     }
 
-    void cacheClear(int device) noexcept {
+    void cacheClear(int32_t device) noexcept {
         getCache_(device).clear();
     }
 
-    void cacheLimit(int device, size_t count) noexcept {
+    void cacheLimit(int32_t device, dim_t count) noexcept {
         getCache_(device).limit(count);
     }
 }
 
 namespace noa::cuda::fft {
     // cuFFT has stronger requirements compared FFTW.
-    size_t fastSize(size_t size) {
-        auto tmp = static_cast<uint>(size);
-        for (uint nice_size: sizes_even_cufft_)
-            if (tmp < nice_size)
-                return static_cast<size_t>(nice_size);
+    dim_t fastSize(dim_t size) {
+        for (auto nice_size: sizes_even_cufft_) {
+            const auto tmp = static_cast<dim_t>(nice_size);
+            if (size < tmp)
+                return tmp;
+        }
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
     }
 }

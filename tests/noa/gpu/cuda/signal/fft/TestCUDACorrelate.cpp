@@ -49,7 +49,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float, 
                                       rhs.share(), stride,
                                       shape, normalize, norm_mode, stream);
 
-    float2_t shift1 = cuda::signal::fft::xpeak2D<fft::F2F>(rhs.share(), stride, shape, stream);
+    float2_t shift1 = cuda::signal::fft::xpeak2D<fft::F2F>(rhs.share(), stride, shape, {}, stream);
     shift1 -= lhs_center;
 
     INFO(shift0);
@@ -101,7 +101,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cuda]"
                                        shape, normalize, norm_mode, stream);
 
     cpu::memory::PtrHost<float2_t> shift1{shape[0]};
-    cuda::signal::fft::xpeak2D<fft::FC2FC>(rhs.share(), stride, shape, shift1.share(), stream);
+    cuda::signal::fft::xpeak2D<fft::FC2FC>(rhs.share(), stride, shape, shift1.share(), {}, stream);
     stream.synchronize();
 
     for (size_t i = 0 ; i < shape[0]; ++i) {
@@ -158,7 +158,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}()", "[noa][cuda]", float, 
                                       rhs.share(), stride,
                                       shape, normalize, norm_mode, stream);
 
-    float3_t shift1 = cuda::signal::fft::xpeak3D<fft::F2F>(rhs.share(), stride, shape, stream);
+    float3_t shift1 = cuda::signal::fft::xpeak3D<fft::F2F>(rhs.share(), stride, shape, {}, stream);
     shift1 -= lhs_center;
 
     INFO(shift0);
@@ -212,7 +212,7 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cuda]"
                                        shape, normalize, norm_mode, stream);
 
     cpu::memory::PtrHost<float3_t> shift1{shape[0]};
-    cuda::signal::fft::xpeak3D<fft::FC2FC>(rhs.share(), stride, shape, shift1.share(), stream);
+    cuda::signal::fft::xpeak3D<fft::FC2FC>(rhs.share(), stride, shape, shift1.share(), {}, stream);
     stream.synchronize();
 
     for (auto shift: shift1) {

@@ -4,19 +4,18 @@
 
 namespace noa::cuda::memory::details {
     template<typename T, typename>
-    void copy(const shared_t<T[]>& src, size4_t src_strides,
-              const shared_t<T[]>& dst, size4_t dst_strides,
-              size4_t shape, Stream& stream) {
+    void copy(const T* src, dim4_t src_strides,
+              T* dst, dim4_t dst_strides,
+              dim4_t shape, Stream& stream) {
         // This function is called from noa::cuda::memory::copy(), which already has reordered to C-major.
         util::ewise::unary<true>("memory::copy",
-                                 src.get(), src_strides,
-                                 dst.get(), dst_strides,
+                                 src, src_strides,
+                                 dst, dst_strides,
                                  shape, false, stream, noa::math::copy_t{});
-        stream.attach(src, dst);
     }
 
     #define NOA_INSTANTIATE_COPY_(T) \
-    template void copy<T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, Stream&)
+    template void copy<T,void>(const T*, dim4_t, T*, dim4_t, dim4_t, Stream&)
 
     NOA_INSTANTIATE_COPY_(bool);
     NOA_INSTANTIATE_COPY_(int8_t);

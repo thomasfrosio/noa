@@ -52,38 +52,38 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename S, typename T, typename U, typename>
-    void find(S, const shared_t<T[]>& input, size4_t strides, size4_t shape,
+    void find(S, const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
               const shared_t<U[]>& offsets, bool batch, bool swap_layout, Stream& stream) {
         if constexpr (std::is_same_v<S, noa::math::first_min_t>) {
-            util::find("math::find(first_min_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(first_min_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindFirstMin<T, U>{}, noa::math::Limits<T>::max(), offsets.get(), !batch, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::first_max_t>) {
-            util::find("math::find(first_max_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(first_max_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindFirstMax<T, U>{}, noa::math::Limits<T>::lowest(), offsets.get(), !batch, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_min_t>) {
-            util::find("math::find(last_min_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(last_min_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindLastMin<T, U>{}, noa::math::Limits<T>::max(), offsets.get(), !batch, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_max_t>) {
-            util::find("math::find(last_max_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(last_max_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindLastMax<T, U>{}, noa::math::Limits<T>::lowest(), offsets.get(), !batch, swap_layout, stream);
         }
         stream.attach(input, offsets);
     }
 
     template<typename offset_t, typename S, typename T, typename>
-    offset_t find(S, const shared_t<T[]>& input, size4_t strides, size4_t shape, bool swap_layout, Stream& stream) {
+    offset_t find(S, const shared_t<T[]>& input, dim4_t strides, dim4_t shape, bool swap_layout, Stream& stream) {
         offset_t offset;
         if constexpr (std::is_same_v<S, noa::math::first_min_t>) {
-            util::find("math::find(first_min_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(first_min_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindFirstMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, true, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::first_max_t>) {
-            util::find("math::find(first_max_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(first_max_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindFirstMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, true, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_min_t>) {
-            util::find("math::find(last_min_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(last_min_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindLastMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, true, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_max_t>) {
-            util::find("math::find(last_max_t)", input.get(), uint4_t(strides), uint4_t(shape), noa::math::copy_t{},
+            util::find("math::find(last_max_t)", input.get(), strides, shape, noa::math::copy_t{},
                        FindLastMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, true, swap_layout, stream);
         }
         stream.synchronize();
@@ -91,15 +91,15 @@ namespace noa::cuda::math {
     }
 
     template<typename offset_t, typename S, typename T, typename>
-    offset_t find(S searcher, const shared_t<T[]>& input, size_t elements, Stream& stream) {
-        const size4_t shape_{1, 1, 1, elements};
+    offset_t find(S searcher, const shared_t<T[]>& input, dim_t elements, Stream& stream) {
+        const dim4_t shape_{1, 1, 1, elements};
         return find<offset_t>(searcher, input, shape_.strides(), shape_, false, stream);
     }
 
-    #define NOA_INSTANTIATE_FIND_(S, T, U)                                                                                   \
-    template void find<S, T, U, void>(S, const shared_t<T[]>&, size4_t, size4_t, const shared_t<U[]>&, bool, bool, Stream&); \
-    template U find<U, S, T, void>(S, const shared_t<T[]>&, size4_t, size4_t, bool, Stream&);                                \
-    template U find<U, S, T, void>(S, const shared_t<T[]>&, size_t, Stream&)
+    #define NOA_INSTANTIATE_FIND_(S, T, U)                                                                                  \
+    template void find<S, T, U, void>(S, const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<U[]>&, bool, bool, Stream&);  \
+    template U find<U, S, T, void>(S, const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&);                                 \
+    template U find<U, S, T, void>(S, const shared_t<T[]>&, dim_t, Stream&)
 
     #define NOA_INSTANTIATE_FIND_OP_(T, U)               \
     NOA_INSTANTIATE_FIND_(noa::math::first_min_t, T, U); \

@@ -8,45 +8,45 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute0213(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Stream& stream);
+    void permute0213(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Stream& stream);
     template<typename T>
-    void permute0132(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Stream& stream);
+    void permute0132(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Stream& stream);
     template<typename T>
-    void permute0312(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Stream& stream);
+    void permute0312(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Stream& stream);
     template<typename T>
-    void permute0231(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Stream& stream);
+    void permute0231(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Stream& stream);
     template<typename T>
-    void permute0321(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Stream& stream);
+    void permute0321(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void permute0213(const shared_t<T[]>& output, size4_t output_strides, size4_t shape, Stream& stream);
+    void permute0213(const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream);
     template<typename T>
-    void permute0132(const shared_t<T[]>& output, size4_t output_strides, size4_t shape, Stream& stream);
+    void permute0132(const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream);
     template<typename T>
-    void permute0321(const shared_t<T[]>& output, size4_t output_strides, size4_t shape, Stream& stream);
+    void permute0321(const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::memory {
     // Permutes, in memory, the axes of an array.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void permute(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, uint4_t permutation, Stream& stream) {
+    void permute(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t permutation, Stream& stream) {
         if (any(permutation > 3) || noa::math::sum(permutation) != 6)
             NOA_THROW("Permutation {} is not valid", permutation);
 
-        const uint idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
+        const dim_t idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
         if (input == output) {
             switch (idx) {
                 case 123:
@@ -76,8 +76,8 @@ namespace noa::cuda::memory {
                     return details::permute0321(input, input_strides, output, output_strides, input_shape, stream);
                 default:
                     // Much slower...
-                    const size4_t output_shape = indexing::reorder(input_shape, permutation);
-                    const size4_t input_strides_permuted = indexing::reorder(input_strides, permutation);
+                    const dim4_t output_shape = indexing::reorder(input_shape, permutation);
+                    const dim4_t input_strides_permuted = indexing::reorder(input_strides, permutation);
                     copy(input, input_strides_permuted, output, output_strides, output_shape, stream);
             }
         }

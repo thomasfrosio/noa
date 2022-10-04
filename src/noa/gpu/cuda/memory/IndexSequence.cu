@@ -16,9 +16,9 @@
 namespace {
     using namespace ::noa;
 
-    constexpr uint ELEMENTS_PER_THREAD = 4;
-    constexpr uint BLOCK_SIZE = 128;
-    constexpr uint BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
+    constexpr uint32_t ELEMENTS_PER_THREAD = 4;
+    constexpr uint32_t BLOCK_SIZE = 128;
+    constexpr uint32_t BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
 
     constexpr dim3 ELEMENTS_PER_THREAD_2D(1, ELEMENTS_PER_THREAD);
     constexpr dim3 BLOCK_SIZE_2D(32, BLOCK_SIZE / 32);
@@ -27,16 +27,16 @@ namespace {
 
     template<typename T, typename I>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void extract1DContiguous_(const T* input, uint elements,
-                              const uint* __restrict__ map, const uint* __restrict__ map_scan,
+    void extract1DContiguous_(const T* __restrict__ input, uint32_t elements,
+                              const uint32_t* __restrict__ map, const uint32_t* __restrict__ map_scan,
                               T* __restrict__ sequence_elements, I* __restrict__ sequence_offsets) {
-        const uint base = BLOCK_WORK_SIZE * blockIdx.x + threadIdx.x;
+        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x + threadIdx.x;
         #pragma unroll
-        for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-            const uint gid = base + BLOCK_SIZE * i;
+        for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+            const uint32_t gid = base + BLOCK_SIZE * i;
             if (gid < elements) {
                 if (map[gid]) {
-                    const uint pos_sequence = map_scan[gid] - 1; // inclusive sum will start at 1
+                    const uint32_t pos_sequence = map_scan[gid] - 1; // inclusive sum will start at 1
                     if (sequence_elements)
                         sequence_elements[pos_sequence] = input[gid];
                     if (sequence_offsets)
@@ -48,9 +48,9 @@ namespace {
 
     template<typename T, typename I>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void extractStride4D_(const T* input, uint4_t strides, uint4_t shape,
-                          const uint* __restrict__ map, const uint* __restrict__ map_scan,
-                          T* __restrict__ sequence_elements, I* __restrict__ sequence_offsets, uint blocks_x) {
+    void extractStride4D_(const T* __restrict__ input, uint4_t strides, uint4_t shape,
+                          const uint32_t* __restrict__ map, const uint32_t* __restrict__ map_scan,
+                          T* __restrict__ sequence_elements, I* __restrict__ sequence_offsets, uint32_t blocks_x) {
         const uint4_t contiguous_strides = shape.strides();
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int4_t gid{blockIdx.z,
@@ -61,16 +61,16 @@ namespace {
         map_scan += indexing::at(gid[0], gid[1], contiguous_strides);
 
         #pragma unroll
-        for (int k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
+        for (int32_t k = 0; k < ELEMENTS_PER_THREAD_2D.y; ++k) {
             #pragma unroll
-            for (int l = 0; l < ELEMENTS_PER_THREAD_2D.x; ++l) {
-                const uint ik = gid[2] + BLOCK_SIZE_2D.y * k;
-                const uint il = gid[3] + BLOCK_SIZE_2D.x * l;
+            for (int32_t l = 0; l < ELEMENTS_PER_THREAD_2D.x; ++l) {
+                const uint32_t ik = gid[2] + BLOCK_SIZE_2D.y * k;
+                const uint32_t il = gid[3] + BLOCK_SIZE_2D.x * l;
                 if (ik < shape[2] && il < shape[3]) {
-                    const uint offset = ik * contiguous_strides[2] + il * contiguous_strides[3];
+                    const uint32_t offset = ik * contiguous_strides[2] + il * contiguous_strides[3];
                     if (map[offset]) {
-                        const uint pos_sequence = map_scan[offset] - 1; // inclusive sum will start at 1
-                        const uint pos_input = indexing::at(gid[0], gid[1], ik, il, strides);
+                        const uint32_t pos_sequence = map_scan[offset] - 1; // inclusive sum will start at 1
+                        const uint32_t pos_input = indexing::at(gid[0], gid[1], ik, il, strides);
                         if (sequence_elements)
                             sequence_elements[pos_sequence] = input[pos_input];
                         if (sequence_offsets)
@@ -88,22 +88,23 @@ namespace {
     //      forth to the host is faster (it will use less memory that's for sure).
     template<typename T, typename I>
     cuda::memory::Extracted<T, I>
-    extract_(const T* input, size4_t strides, size4_t shape, size_t elements,
-             const uint* map, bool extract_values, bool extract_offsets, cuda::Stream& stream) {
+    extract_(const T* input, dim4_t strides, dim4_t shape, dim_t elements,
+             const uint32_t* map, bool extract_values, bool extract_offsets, cuda::Stream& stream) {
         using namespace ::noa::cuda::memory;
 
         // Inclusive scan sum to get the number of elements to extract and
         // map_scan to know the order of the elements to extract.
-        uint elements_to_extract{};
-        PtrDevice<uint> map_scan(elements, stream);
+        const auto int_elements = safe_cast<int32_t>(elements);
+        uint32_t elements_to_extract{};
+        PtrDevice<uint32_t> map_scan(elements, stream);
         {
             size_t cub_tmp_bytes{};
             NOA_THROW_IF(cub::DeviceScan::InclusiveSum(nullptr, cub_tmp_bytes, map,
-                                                       map_scan.get(), elements, stream.id()));
+                                                       map_scan.get(), int_elements, stream.id()));
             PtrDevice<std::byte> cub_tmp(cub_tmp_bytes, stream);
             NOA_THROW_IF(cub::DeviceScan::InclusiveSum(cub_tmp.get(), cub_tmp_bytes, map,
-                                                       map_scan.get(), elements, stream.id()));
-            copy<uint>(map_scan.get() + elements - 1, &elements_to_extract, 1, stream);
+                                                       map_scan.get(), int_elements, stream.id()));
+            copy(map_scan.get() + int_elements - 1, &elements_to_extract, 1, stream);
             stream.synchronize(); // we cannot use elements_to_extract before that point
             if (!elements_to_extract)
                 return {};
@@ -117,47 +118,47 @@ namespace {
 
         // Compute the sequence(s).
         if (indexing::areContiguous(strides, shape)) {
-            const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BLOCK_WORK_SIZE);
+            const uint32_t blocks = noa::math::divideUp(static_cast<uint32_t>(int_elements), BLOCK_WORK_SIZE);
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE};
             stream.enqueue("memory::extract", extract1DContiguous_<T, I>, config,
                            input, elements, map, map_scan.get(),
                            extracted.values.get(), extracted.offsets.get());
         } else {
-            const uint4_t i_shape(shape.get());
-            const uint blocks_x = noa::math::divideUp(i_shape[3], BLOCK_WORK_SIZE_2D.x);
-            const uint blocks_y = noa::math::divideUp(i_shape[2], BLOCK_WORK_SIZE_2D.y);
+            const auto i_shape = safe_cast<uint4_t>(shape);
+            const uint32_t blocks_x = noa::math::divideUp(i_shape[3], BLOCK_WORK_SIZE_2D.x);
+            const uint32_t blocks_y = noa::math::divideUp(i_shape[2], BLOCK_WORK_SIZE_2D.y);
             const dim3 blocks(blocks_x * blocks_y, i_shape[1], i_shape[0]);
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE_2D};
             stream.enqueue("memory::extract", extractStride4D_<T, I>, config,
-                           input, uint4_t(strides), i_shape, map, map_scan.get(),
+                           input, safe_cast<uint4_t>(strides), i_shape, map, map_scan.get(),
                            extracted.values.get(), extracted.offsets.get(), blocks_x);
         }
         stream.attach(extracted.values, extracted.offsets);
         return extracted;
     }
 
-    template<typename T, typename I, int VEC_SIZE>
+    template<typename T, typename I, int32_t VEC_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void extract_(const T* input, T* output, const I* offsets, size_t elements) {
-        const uint base = BLOCK_WORK_SIZE * blockIdx.x;
+    void extract_(const T* input, T* output, const I* offsets, uint32_t elements) {
+        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x;
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                const uint gid = base + BLOCK_SIZE * i + threadIdx.x;
+            for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements) {
                     const I offset = offsets[gid];
                     output[gid] = input[offset];
                 }
             }
         } else {
-            const uint remaining = elements - base;
+            const uint32_t remaining = elements - base;
             offsets += base;
             output += base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint cid = BLOCK_SIZE * i + threadIdx.x;
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t cid = BLOCK_SIZE * i + threadIdx.x;
                     if (cid < remaining) {
                         const I offset = offsets[cid];
                         output[cid] = input[offset];
@@ -169,35 +170,35 @@ namespace {
                 using namespace noa::cuda::util::block;
                 vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offsets_, threadIdx.x);
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i)
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i)
                     values[i] = input[offsets_[i]];
                 vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, output, threadIdx.x);
             }
         }
     }
 
-    template<typename T, typename I, int VEC_SIZE>
+    template<typename T, typename I, int32_t VEC_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void insert_(const T* sequence_values, const I* sequence_offsets, size_t sequence_size, T* output) {
-        const uint base = BLOCK_WORK_SIZE * blockIdx.x;
+    void insert_(const T* sequence_values, const I* sequence_offsets, uint32_t sequence_size, T* output) {
+        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x;
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                const uint gid = base + BLOCK_SIZE * i + threadIdx.x;
+            for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < sequence_size) {
                     const I index = sequence_offsets[gid];
                     output[index] = sequence_values[gid];
                 }
             }
         } else {
-            const uint remaining = sequence_size - base;
+            const uint32_t remaining = sequence_size - base;
             sequence_values += base;
             sequence_offsets += base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint cid = BLOCK_SIZE * i + threadIdx.x;
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t cid = BLOCK_SIZE * i + threadIdx.x;
                     if (cid < remaining) {
                         const I index = sequence_offsets[cid];
                         output[index] = sequence_values[cid];
@@ -210,7 +211,7 @@ namespace {
                 vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(sequence_values, values, threadIdx.x);
                 vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(sequence_offsets, indexes, threadIdx.x);
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i)
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i)
                     output[indexes[i]] = values[i];
             }
         }
@@ -221,20 +222,20 @@ namespace {
 //      cud::DeviceSelect::If can be used instead.
 namespace noa::cuda::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                         const shared_t<U[]>& lhs, size4_t lhs_strides, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                         const shared_t<U[]>& lhs, dim4_t lhs_strides, dim4_t shape,
                                          UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t order = indexing::order(input_strides, shape);
+        const auto order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         lhs_strides = indexing::reorder(lhs_strides, order);
         shape = indexing::reorder(shape, order);
 
-        const size4_t contiguous_strides = shape.strides();
-        const size_t elements = shape.elements();
-        PtrDevice<uint> map(elements, stream);
+        const dim4_t contiguous_strides = shape.strides();
+        const dim_t elements = shape.elements();
+        PtrDevice<uint32_t> map(elements, stream);
         util::ewise::unary<true>("memory::extract",
                                  lhs.get(), lhs_strides,
                                  map.get(), contiguous_strides,
@@ -247,7 +248,7 @@ namespace noa::cuda::memory {
 
     #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, I)                               \
     template Extracted<T, I> extract<T,I,T,T,::noa::math::logical_not_t,void>(  \
-        const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
+        const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_UNARY_(T)           \
     INSTANTIATE_EXTRACT_UNARY_BASE_(T, uint32_t);   \
@@ -263,21 +264,21 @@ namespace noa::cuda::memory {
 
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                         const shared_t<U[]>& lhs, size4_t lhs_strides, V rhs, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                         const shared_t<U[]>& lhs, dim4_t lhs_strides, V rhs, dim4_t shape,
                                          BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t order = indexing::order(input_strides, shape);
+        const auto order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         lhs_strides = indexing::reorder(lhs_strides, order);
         shape = indexing::reorder(shape, order);
 
-        const size4_t contiguous_strides = shape.strides();
-        const size_t elements = shape.elements();
-        PtrDevice<uint> map(elements, stream);
+        const dim4_t contiguous_strides = shape.strides();
+        const dim_t elements = shape.elements();
+        PtrDevice<uint32_t> map(elements, stream);
         util::ewise::binary<true>("memory::extract",
                                   lhs.get(), lhs_strides, rhs,
                                   map.get(), contiguous_strides,
@@ -289,21 +290,21 @@ namespace noa::cuda::memory {
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                         U lhs, const shared_t<V[]>& rhs, size4_t rhs_strides, size4_t shape,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                         U lhs, const shared_t<V[]>& rhs, dim4_t rhs_strides, dim4_t shape,
                                          BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t order = indexing::order(input_strides, shape);
+        const auto order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         rhs_strides = indexing::reorder(rhs_strides, order);
         shape = indexing::reorder(shape, order);
 
-        const size4_t contiguous_strides = shape.strides();
-        const size_t elements = shape.elements();
-        PtrDevice<uint> map(elements, stream);
+        const dim4_t contiguous_strides = shape.strides();
+        const dim_t elements = shape.elements();
+        PtrDevice<uint32_t> map(elements, stream);
         util::ewise::binary<true>("memory::extract",
                                   lhs, rhs.get(), rhs_strides,
                                   map.get(), contiguous_strides,
@@ -315,23 +316,23 @@ namespace noa::cuda::memory {
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, size4_t input_strides,
-                                         const shared_t<U[]>& lhs, size4_t lhs_strides,
-                                         const shared_t<V[]>& rhs, size4_t rhs_strides,
-                                         size4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
+    Extracted<value_t, offset_t> extract(const shared_t<T[]>& input, dim4_t input_strides,
+                                         const shared_t<U[]>& lhs, dim4_t lhs_strides,
+                                         const shared_t<V[]>& rhs, dim4_t rhs_strides,
+                                         dim4_t shape, BinaryOp binary_op, bool extract_values, bool extract_offsets,
                                          Stream& stream) {
         if (!extract_values && !extract_offsets)
             return {};
 
-        const size4_t order = indexing::order(input_strides, shape);
+        const auto order = indexing::order(input_strides, shape);
         input_strides = indexing::reorder(input_strides, order);
         lhs_strides = indexing::reorder(lhs_strides, order);
         rhs_strides = indexing::reorder(rhs_strides, order);
         shape = indexing::reorder(shape, order);
 
-        const size4_t contiguous_strides = shape.strides();
-        const size_t elements = shape.elements();
-        PtrDevice<uint> map(elements, stream);
+        const dim4_t contiguous_strides = shape.strides();
+        const dim_t elements = shape.elements();
+        PtrDevice<uint32_t> map(elements, stream);
         util::ewise::binary<true>("memory::extract",
                                   lhs.get(), lhs_strides,
                                   rhs.get(), rhs_strides,
@@ -343,10 +344,10 @@ namespace noa::cuda::memory {
         return out;
     }
 
-    #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)                                                                                                         \
-    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, T, size4_t, BINARY, bool, bool, Stream&);  \
-    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, size4_t, T, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&);  \
-    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, BINARY, bool, bool, Stream&)
+    #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)                                                                                                     \
+    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, T, dim4_t, BINARY, bool, bool, Stream&); \
+    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, dim4_t, T, const shared_t<T[]>&, dim4_t, dim4_t, BINARY, bool, bool, Stream&); \
+    template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, BINARY, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_BINARY_BASE2_(T, I)                   \
     INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::equal_t);      \
@@ -371,10 +372,10 @@ namespace noa::cuda::memory {
 
     template<typename T, typename U, typename V, typename>
     void extract(const shared_t<T[]>& input, const shared_t<U[]>& offsets,
-                 const shared_t<V[]>& output, size_t elements, Stream& stream) {
-        const uint blocks = noa::math::divideUp(static_cast<uint>(elements), BLOCK_WORK_SIZE);
-        const int vec_size = std::min(util::maxVectorCount(output.get()),
-                                      util::maxVectorCount(offsets.get()));
+                 const shared_t<V[]>& output, dim_t elements, Stream& stream) {
+        const uint32_t blocks = noa::math::divideUp(safe_cast<uint32_t>(elements), BLOCK_WORK_SIZE);
+        const int32_t vec_size = std::min(util::maxVectorCount(output.get()),
+                                          util::maxVectorCount(offsets.get()));
         if (vec_size == 4) {
             stream.enqueue("memory::extract", extract_<T, U, 4>, {blocks, BLOCK_SIZE},
                            input.get(), output.get(), offsets.get(), elements);
@@ -390,9 +391,9 @@ namespace noa::cuda::memory {
 
     template<typename value_t, typename offset_t, typename T, typename>
     void insert(const Extracted<value_t, offset_t>& extracted, const shared_t<T[]>& output, Stream& stream) {
-        const uint blocks = noa::math::divideUp(static_cast<uint>(extracted.count), BLOCK_WORK_SIZE);
-        const int vec_size = std::min(util::maxVectorCount(extracted.values.get()),
-                                      util::maxVectorCount(extracted.offsets.get()));
+        const uint32_t blocks = noa::math::divideUp(static_cast<uint>(extracted.count), BLOCK_WORK_SIZE);
+        const int32_t vec_size = std::min(util::maxVectorCount(extracted.values.get()),
+                                          util::maxVectorCount(extracted.offsets.get()));
         if (vec_size == 4) {
             stream.enqueue("memory::insert", insert_<value_t, offset_t, 4>, {blocks, BLOCK_SIZE},
                            extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());
@@ -407,7 +408,7 @@ namespace noa::cuda::memory {
     }
 
     #define INSTANTIATE_INSERT_BASE_(T, I)                                                                                  \
-    template void extract<T,I,T,void>(const shared_t<T[]>&, const shared_t<I[]>&, const shared_t<T[]>&, size_t, Stream&);   \
+    template void extract<T,I,T,void>(const shared_t<T[]>&, const shared_t<I[]>&, const shared_t<T[]>&, dim_t, Stream&);    \
     template void insert<T,I,T,void>(const Extracted<T, I>&, const shared_t<T[]>&, Stream&)
 
     #define INSTANTIATE_INSERT_(T)          \

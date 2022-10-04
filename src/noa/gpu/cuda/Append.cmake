@@ -133,10 +133,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/signal/Convolve3.cu
         gpu/cuda/signal/ConvolveSeparable.cu
         gpu/cuda/signal/Median.cu
-        gpu/cuda/signal/ShapeCylinder.cu
-        gpu/cuda/signal/ShapeEllipse.cu
-        gpu/cuda/signal/ShapeRectangle.cu
-        gpu/cuda/signal/ShapeSphere.cu
+        gpu/cuda/signal/Shape.cu
 
         # noa::cuda::geometry
         gpu/cuda/geometry/fft/Polar.cu

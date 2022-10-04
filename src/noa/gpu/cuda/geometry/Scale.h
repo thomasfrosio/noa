@@ -20,15 +20,15 @@ namespace noa::cuda::geometry::details {
 namespace noa::cuda::geometry {
     // Applies one or multiple 2D scaling/stretching.
     template<typename T, typename S, typename C, typename = std::enable_if_t<details::is_valid_scale_v<2, T, S, C>>>
-    void scale2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void scale2D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& scaling_factors, const C& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
 
         constexpr bool SINGLE_SCALING = traits::is_float2_v<S>;
         constexpr bool SINGLE_CENTER = traits::is_float2_v<C>;
 
-        auto getInvertTransform_ = [=](size_t index) {
+        auto getInvertTransform_ = [=](dim_t index) {
             float2_t scaling_factor;
             if constexpr (SINGLE_SCALING)
                 scaling_factor = scaling_factors;
@@ -51,7 +51,7 @@ namespace noa::cuda::geometry {
                         getInvertTransform_(0), interp_mode, border_mode, prefilter, stream);
         } else {
             memory::PtrPinned<float23_t> inv_matrices(output_shape[0]);
-            for (size_t i = 0; i < output_shape[0]; ++i)
+            for (dim_t i = 0; i < output_shape[0]; ++i)
                 inv_matrices[i] = getInvertTransform_(i);
             transform2D(input, input_strides, input_shape, output, output_strides, output_shape,
                         inv_matrices.share(), interp_mode, border_mode, prefilter, stream);
@@ -60,15 +60,15 @@ namespace noa::cuda::geometry {
 
     // Applies one or multiple 3D scaling/stretching.
     template<typename T, typename S, typename C, typename = std::enable_if_t<details::is_valid_scale_v<3, T, S, C>>>
-    void scale3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void scale3D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& scaling_factors, const C& scaling_centers,
                  InterpMode interp_mode, BorderMode border_mode, bool prefilter, Stream& stream) {
 
         constexpr bool SINGLE_SCALING = traits::is_float3_v<S>;
         constexpr bool SINGLE_CENTER = traits::is_float3_v<C>;
 
-        auto getInvertTransform_ = [=](size_t index) -> float34_t {
+        auto getInvertTransform_ = [=](dim_t index) -> float34_t {
             float3_t scaling_factor;
             if constexpr (SINGLE_SCALING)
                 scaling_factor = scaling_factors;
@@ -91,7 +91,7 @@ namespace noa::cuda::geometry {
                         getInvertTransform_(0), interp_mode, border_mode, prefilter, stream);
         } else {
             memory::PtrPinned<float34_t> inv_matrices(output_shape[0]);
-            for (size_t i = 0; i < output_shape[0]; ++i)
+            for (dim_t i = 0; i < output_shape[0]; ++i)
                 inv_matrices[i] = getInvertTransform_(i);
             transform3D(input, input_strides, input_shape, output, output_strides, output_shape,
                         inv_matrices.share(), interp_mode, border_mode, prefilter, stream);

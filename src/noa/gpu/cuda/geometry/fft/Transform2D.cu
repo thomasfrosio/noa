@@ -13,7 +13,7 @@ namespace {
     constexpr dim3 THREADS(32, 8);
 
     template<bool IS_DST_CENTERED>
-    __forceinline__ __device__ int getFrequency_(int idx, int dim) {
+    __forceinline__ __device__ int32_t getFrequency_(int32_t idx, int32_t dim) {
         if constexpr(IS_DST_CENTERED)
             return idx - dim / 2;
         else
@@ -31,7 +31,7 @@ namespace {
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT, InterpMode INTERP,
              typename T, typename MAT, typename VEC>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void transform2D_(cudaTextureObject_t tex, T* output, uint3_t output_strides,
+    void transform2D_(cudaTextureObject_t tex, Accessor<T, 3, uint32_t> output,
                       int2_t shape, float2_t norm_shape,
                       MAT matrices, // const float22_t* or float22_t
                       [[maybe_unused]] VEC shifts, // const float2_t* or float2_t
@@ -44,11 +44,11 @@ namespace {
             return;
 
         // Compute the frequency corresponding to the gid and inverse transform.
-        const int v = getFrequency_<IS_DST_CENTERED>(gid[1], shape[0]);
+        const int32_t v = getFrequency_<IS_DST_CENTERED>(gid[1], shape[0]);
         float2_t freq{v, gid[2]};
         freq /= norm_shape; // [-0.5, 0.5]
         if (math::dot(freq, freq) > cutoff_sqd) {
-            output[indexing::at(gid, output_strides)] = 0;
+            output(gid) = 0;
             return;
         }
 
@@ -87,7 +87,7 @@ namespace {
             (void) shifts;
         }
 
-        output[indexing::at(gid, output_strides)] = value;
+        output(gid) = value;
     }
 
     template<fft::Remap REMAP, typename T = void>
@@ -105,12 +105,12 @@ namespace {
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
              typename T, typename MAT, typename VEC>
     void launch_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                 T* output, size4_t output_strides, size4_t output_shape,
+                 T* output, dim4_t output_strides, dim4_t output_shape,
                  MAT matrices, VEC shifts,
                  float cutoff, cuda::Stream& stream) {
         NOA_ASSERT(output_shape[1] == 1);
-        const uint3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
-        const int2_t s_shape(output_shape.get(2));
+        const auto s_shape = safe_cast<int2_t>(dim2_t(output_shape.get(2)));
+        const auto o_strides = safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]});
         const float2_t f_shape(s_shape / 2 * 2 + int2_t(s_shape == 1)); // if odd, n-1
 
         cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
@@ -123,6 +123,7 @@ namespace {
                           math::divideUp(s_shape[0], static_cast<int>(THREADS.y)),
                           output_shape[0]);
         const cuda::LaunchConfig config{blocks, THREADS};
+        const Accessor<T, 3, uint32_t> output_accessor(output, o_strides);
 
         NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
         switch (texture_interp_mode) {
@@ -130,27 +131,27 @@ namespace {
                 return stream.enqueue(
                         "geometry::fft::transform2D",
                         transform2D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_NEAREST, T, MAT, VEC>, config,
-                        texture, output, o_strides, s_shape, f_shape, matrices, shifts, cutoff);
+                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff);
             case INTERP_LINEAR:
                 return stream.enqueue(
                         "geometry::fft::transform2D",
                         transform2D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_LINEAR, T, MAT, VEC>, config,
-                        texture, output, o_strides, s_shape, f_shape, matrices, shifts, cutoff);
+                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff);
             case INTERP_COSINE:
                 return stream.enqueue(
                         "geometry::fft::transform2D",
                         transform2D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_COSINE, T, MAT, VEC>, config,
-                        texture, output, o_strides, s_shape, f_shape, matrices, shifts, cutoff);
+                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff);
             case INTERP_LINEAR_FAST:
                 return stream.enqueue(
                         "geometry::fft::transform2D",
                         transform2D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_LINEAR_FAST, T, MAT, VEC>, config,
-                        texture, output, o_strides, s_shape, f_shape, matrices, shifts, cutoff);
+                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff);
             case INTERP_COSINE_FAST:
                 return stream.enqueue(
                         "geometry::fft::transform2D",
                         transform2D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_COSINE_FAST, T, MAT, VEC>, config,
-                        texture, output, o_strides, s_shape, f_shape, matrices, shifts, cutoff);
+                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff);
             default:
                 NOA_THROW_FUNC("transform2D", "{} is not supported", texture_interp_mode);
         }
@@ -158,7 +159,7 @@ namespace {
 
     template<fft::Remap REMAP, typename T, typename M, typename S>
     void launchTexture2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                          T* output, size4_t output_strides, size4_t shape,
+                          T* output, dim4_t output_strides, dim4_t shape,
                           M matrices, S shifts, float cutoff,
                           cuda::Stream& stream) {
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
@@ -184,8 +185,8 @@ namespace {
 
 namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform2D(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void transform2D(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(indexing::isRightmost(input_strides) &&
@@ -214,8 +215,8 @@ namespace noa::cuda::geometry::fft {
         memory::PtrArray<T> array(shape_3d);
         memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
 
-        size_t iter;
-        size4_t o_shape;
+        dim_t iter;
+        dim4_t o_shape;
         if (input_strides[0] == 0) {
             iter = 1;
             o_shape = {shape[0], 1, shape[2], shape[3]};
@@ -224,7 +225,7 @@ namespace noa::cuda::geometry::fft {
             o_shape = {1, 1, shape[2], shape[3]};
         }
 
-        for (size_t i = 0; i < iter; ++i) {
+        for (dim_t i = 0; i < iter; ++i) {
             cuda::memory::copy(input.get() + i * input_strides[0], input_strides[2], array.get(), shape_3d, stream);
             launchTexture2D_<REMAP>(texture.get(), interp_mode,
                                     output.get() + i * output_strides[0], output_strides,
@@ -245,7 +246,7 @@ namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename T, typename M, typename S, typename>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const M& matrices, const S& shifts, float cutoff, Stream& stream) {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
         using matrix_t = std::conditional_t<SINGLE_MATRIX, float22_t, const float22_t*>;
@@ -279,11 +280,11 @@ namespace noa::cuda::geometry::fft {
             stream.attach(shifts);
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S)                                                                                                                                                                       \
-    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, InterpMode, Stream&);                                      \
-    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, InterpMode, Stream&);                                      \
-    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, Stream&);   \
-    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, size4_t, size4_t, const M&, const S&, float, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S)                                                                                                                                                                   \
+    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&);                                     \
+    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&);                                     \
+    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, Stream&); \
+    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, Stream&)
 
     #define NOA_INSTANTIATE_TRANSFORM2D_ALL_(T)                                     \
     NOA_INSTANTIATE_TRANSFORM2D_(T, shared_t<float22_t[]>, shared_t<float2_t[]>);   \

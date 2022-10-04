@@ -38,18 +38,20 @@ namespace noa::cuda::memory {
         // Allocates a CUDA array.
         // shape:  DHW shape of the array. 2D/3D array, or column/row vector.
         // flag:   Any flag supported by cudaMalloc3DArray().
-        static std::unique_ptr<cudaArray, Deleter> alloc(size3_t shape, uint flag = cudaArrayDefault) {
+        static std::unique_ptr<cudaArray, Deleter> alloc(dim3_t shape, uint32_t flag = cudaArrayDefault) {
+            NOA_ASSERT(all(shape > 0));
             cudaExtent extent{};
-            const size_t ndim = shape.ndim();
+            const dim_t ndim = shape.ndim();
+            const auto s_shape = safe_cast<size3_t>(shape);
             if (ndim == 3) {
-                extent.width = shape[2];
-                extent.height = shape[1];
-                extent.depth = shape[0];
+                extent.width = s_shape[2];
+                extent.height = s_shape[1];
+                extent.depth = s_shape[0];
             } else if (ndim == 2) {
-                extent.width = shape[2];
-                extent.height = shape[1];
+                extent.width = s_shape[2];
+                extent.height = s_shape[1];
             } else {
-                extent.width = shape[2] ? shape[2] : shape[1];
+                extent.width = s_shape[2] ? s_shape[2] : s_shape[1];
             }
             cudaArray* ptr;
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<Type>();
@@ -63,7 +65,7 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrArray(std::nullptr_t) {}
 
         // Allocates a ND CUDA array with a given DHW shape on the current device using cudaMalloc3DArray.
-        explicit PtrArray(size3_t shape, uint flags = cudaArrayDefault)
+        explicit PtrArray(dim3_t shape, uint32_t flags = cudaArrayDefault)
                 : m_ptr(alloc(shape, flags)), m_shape(shape) {}
 
     public:
@@ -88,11 +90,11 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr size_t bytes() const noexcept { return elements() * sizeof(Type); }
 
         // Returns the number of elements of the underlying CUDA array.
-        [[nodiscard]] constexpr size_t elements() const noexcept { return m_shape.elements(); }
-        [[nodiscard]] constexpr size_t size() const noexcept { return elements(); }
+        [[nodiscard]] constexpr dim_t elements() const noexcept { return m_shape.elements(); }
+        [[nodiscard]] constexpr dim_t size() const noexcept { return elements(); }
 
         // Returns the shape, in elements, of the underlying CUDA array.
-        [[nodiscard]] constexpr size3_t shape() const noexcept { return m_shape; }
+        [[nodiscard]] constexpr dim3_t shape() const noexcept { return m_shape; }
 
         // Whether or not the managed object points to some data.
         [[nodiscard]] constexpr bool empty() const noexcept { return m_ptr == nullptr; }
@@ -107,6 +109,6 @@ namespace noa::cuda::memory {
     private:
         static_assert(traits::is_any_v<Type, int32_t, uint32_t, float, cfloat_t>);
         std::shared_ptr<cudaArray> m_ptr{nullptr};
-        size3_t m_shape{};
+        dim3_t m_shape{};
     };
 }

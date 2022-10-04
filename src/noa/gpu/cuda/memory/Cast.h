@@ -16,11 +16,11 @@ namespace noa::cuda::memory {
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_cast_v<T, U>>>
     void cast(const shared_t<T[]>& input,
               const shared_t<U[]>& output,
-              size_t elements, bool clamp, Stream& stream);
+              dim_t elements, bool clamp, Stream& stream);
 
     // Casts one array to another type.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_cast_v<T, U>>>
-    void cast(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<U[]>& output, size4_t output_strides,
-              size4_t shape, bool clamp, Stream& stream);
+    void cast(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<U[]>& output, dim4_t output_strides,
+              dim4_t shape, bool clamp, Stream& stream);
 }

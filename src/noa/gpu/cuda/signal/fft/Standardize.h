@@ -17,7 +17,7 @@ namespace noa::cuda::signal::fft {
 
     // Standardizes (mean=0, stddev=1) a real-space signal, in Fourier space.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_std_v<REMAP, T>>>
-    void standardize(const shared_t<T[]>& input, size4_t input_strides,
-                     const shared_t<T[]>& output, size4_t output_strides,
-                     size4_t shape, Norm norm, Stream& stream);
+    void standardize(const shared_t<T[]>& input, dim4_t input_strides,
+                     const shared_t<T[]>& output, dim4_t output_strides,
+                     dim4_t shape, Norm norm, Stream& stream);
 }

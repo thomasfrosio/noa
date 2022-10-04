@@ -161,10 +161,10 @@ namespace noa::cuda {
 
     public: // Static functions
         // Returns the number of compute-capable devices.
-        static size_t count() {
+        static dim_t count() {
             int count{};
             NOA_THROW_IF(cudaGetDeviceCount(&count));
-            return static_cast<size_t>(count);
+            return static_cast<dim_t>(count);
         }
 
         // Whether there's any CUDA capable device.
@@ -175,7 +175,7 @@ namespace noa::cuda {
         // Returns the number of compute-capable devices.
         static std::vector<Device> all() {
             std::vector<Device> devices;
-            size_t count = Device::count();
+            const dim_t count = Device::count();
             devices.reserve(count);
             for (int id = 0; id < static_cast<int>(count); ++id)
                 devices.emplace_back(id);
@@ -207,7 +207,7 @@ namespace noa::cuda {
             Device most_free(0, true);
             size_t available_mem{0};
             for (auto& device: all()) {
-                size_t dev_available_mem = device.memory().free;
+                const size_t dev_available_mem = device.memory().free;
                 if (dev_available_mem > available_mem) {
                     most_free = device;
                     available_mem = dev_available_mem;
@@ -220,8 +220,8 @@ namespace noa::cuda {
         int m_id{};
 
         static void validate_(int id) {
-            const size_t count = Device::count();
-            if (static_cast<size_t>(id) + 1 > count)
+            const dim_t count = Device::count();
+            if (static_cast<dim_t>(id) + 1 > count)
                 NOA_THROW("Invalid device ID. Got ID:{}, count:{}", id, count);
         }
     };

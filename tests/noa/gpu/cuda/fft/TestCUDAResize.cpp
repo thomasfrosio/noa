@@ -60,6 +60,7 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
         const size4_t stride_padded = shape_padded.strides();
         const size_t elements = shape.elements();
         const size_t elements_padded = shape_padded.elements();
+
         cuda::memory::PtrManaged<TestType> d_original(elements, gpu_stream);
         cuda::memory::PtrManaged<TestType> d_pad(elements_padded, gpu_stream);
         cuda::memory::PtrManaged<TestType> d_crop(elements, gpu_stream);
@@ -76,16 +77,15 @@ TEMPLATE_TEST_CASE("cuda::fft::resize(), non-redundant", "[noa][cuda][fft]",
         gpu_stream.synchronize();
         cpu_stream.synchronize();
 
-
-        io::MRCFile file(test::NOA_DATA_PATH / "test_resize_cuda.mrc", io::WRITE);
-        file.shape(shape_padded);
-        file.writeAll(d_pad.get());
-        file.close();
-
-        file.open(test::NOA_DATA_PATH / "test_resize_cpu.mrc", io::WRITE);
-        file.shape(shape_padded);
-        file.writeAll(h_pad.get());
-        file.close();
+//        io::MRCFile file(test::NOA_DATA_PATH / "test_resize_cuda.mrc", io::WRITE);
+//        file.shape(shape_padded);
+//        file.writeAll(d_pad.get());
+//        file.close();
+//
+//        file.open(test::NOA_DATA_PATH / "test_resize_cpu.mrc", io::WRITE);
+//        file.shape(shape_padded);
+//        file.writeAll(h_pad.get());
+//        file.close();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, d_pad.get(), h_pad.get(), elements_padded, 1e-10));
 

@@ -61,7 +61,7 @@ namespace noa::cuda::memory {
 
     public: // static functions
         // Allocates pinned memory using cudaMallocHost.
-        static alloc_unique_t alloc(size_t elements) {
+        static alloc_unique_t alloc(dim_t elements) {
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
             NOA_THROW_IF(cudaMallocHost(&tmp, elements * sizeof(T)));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -73,7 +73,7 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrPinned(std::nullptr_t) {}
 
         // Allocates elements of type T on page-locked memory using cudaMallocHost.
-        explicit PtrPinned(size_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
+        explicit PtrPinned(dim_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
 
     public: // Getters
         // Returns the host pointer.
@@ -95,14 +95,14 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         // How many elements of type are pointed by the managed object.
-        [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
-        [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr dim_t elements() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr dim_t size() const noexcept { return m_elements; }
 
         // Returns the shape of the allocated data as a row vector.
-        [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
+        [[nodiscard]] constexpr dim4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
 
         // Returns the strides of the allocated data as a C-contiguous row vector.
-        [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
+        [[nodiscard]] constexpr dim4_t strides() const noexcept { return shape().strides(); }
 
         // How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
@@ -114,6 +114,11 @@ namespace noa::cuda::memory {
         // Returns a View of the allocated data as a C-contiguous row vector.
         template<typename I>
         [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
+
+        // Returns a 1D Accessor of the allocated data.
+        template<typename U = T, typename I = dim_t, AccessorTraits TRAITS = AccessorTraits::DEFAULT,
+                 typename = std::enable_if_t<traits::is_almost_same_v<U, T>>>
+        [[nodiscard]] constexpr Accessor<U, 1, I, TRAITS> accessor() const noexcept { return {m_ptr.get(), 1}; }
 
     public: // Iterators
         [[nodiscard]] constexpr T* begin() const noexcept { return m_ptr.get(); }
@@ -136,6 +141,6 @@ namespace noa::cuda::memory {
     private:
         static_assert(traits::is_valid_ptr_type_v<T>);
         std::shared_ptr<T[]> m_ptr{nullptr};
-        size_t m_elements{0};
+        dim_t m_elements{0};
     };
 }

@@ -12,7 +12,7 @@ namespace noa::cuda {
     // A CUDA event (and its associated device).
     class Event {
     public:
-        enum Mode : uint {
+        enum Mode : uint32_t {
             // Default behavior, i.e. record time and busy-wait on synchronization.
             BUSY_TIMER = 0U,
 

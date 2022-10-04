@@ -16,8 +16,8 @@ namespace noa::cuda::geometry::details {
 namespace noa::cuda::geometry {
     // Applies one or multiple 2D translations.
     template<typename T, typename S, typename = std::enable_if_t<details::is_valid_shift_v<2, T, S>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void shift2D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                  Stream& stream);
 
@@ -26,13 +26,13 @@ namespace noa::cuda::geometry {
     void shift2D(const shared_t<cudaArray>& array,
                  const shared_t<cudaTextureObject_t>& texture, size2_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, Stream& stream);
 
     // Applies one or multiple 3D translations.
     template<typename T, typename S, typename = std::enable_if_t<details::is_valid_shift_v<3, T, S>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_strides, size4_t input_shape,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void shift3D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, InterpMode interp_mode, BorderMode border_mode, bool prefilter,
                  Stream& stream);
 
@@ -41,6 +41,6 @@ namespace noa::cuda::geometry {
     void shift3D(const shared_t<cudaArray>& array,
                  const shared_t<cudaTextureObject_t>& texture, size3_t texture_shape,
                  InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t output_shape,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                  const S& shifts, Stream& stream);
 }

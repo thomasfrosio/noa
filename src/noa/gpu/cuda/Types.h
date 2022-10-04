@@ -30,10 +30,10 @@ namespace noa::cuda {
     };
 
     struct Limits {
-        static constexpr uint WARP_SIZE = 32;
-        static constexpr uint MAX_THREADS = 1024;
-        static constexpr uint MAX_X_BLOCKS = (1U << 31) - 1U;
-        static constexpr uint MAX_YZ_BLOCKS = 65535;
+        static constexpr uint32_t WARP_SIZE = 32;
+        static constexpr uint32_t MAX_THREADS = 1024;
+        static constexpr uint32_t MAX_X_BLOCKS = (1U << 31) - 1U;
+        static constexpr uint32_t MAX_YZ_BLOCKS = 65535;
     };
 
     template<typename T>

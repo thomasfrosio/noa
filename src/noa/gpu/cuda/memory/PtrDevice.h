@@ -62,14 +62,14 @@ namespace noa::cuda::memory {
 
     public: // static functions
         // Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
-        static alloc_unique_t alloc(size_t elements) {
+        static alloc_unique_t alloc(dim_t elements) {
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMalloc(&tmp, elements * sizeof(T)));
             return {static_cast<T*>(tmp), Deleter{}};
         }
 
         // Allocates device memory asynchronously using cudaMallocAsync, with an alignment of at least 256 bytes.
-        static alloc_unique_t alloc(size_t elements, Stream& stream) {
+        static alloc_unique_t alloc(dim_t elements, Stream& stream) {
             void* tmp{nullptr}; // X** to void** is not allowed
             #if CUDART_VERSION >= 11020
             NOA_THROW_IF(cudaMallocAsync(&tmp, elements * sizeof(T), stream.id()));
@@ -87,13 +87,13 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrDevice(std::nullptr_t) {}
 
         // Allocates some elements on the current device using cudaMalloc().
-        explicit PtrDevice(size_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
+        explicit PtrDevice(dim_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
 
         // Allocates some elements using cudaMallocAsync().
         // If the stream is not empty, the deleter of the created shared object keeps a copy of the stream to
         // ensure that the stream stays allocated until the deleter is called and the memory is released to
         // the stream's device memory pool.
-        explicit PtrDevice(size_t elements, Stream& stream)
+        explicit PtrDevice(dim_t elements, Stream& stream)
                 : m_ptr(alloc(elements, stream)), m_elements(elements) {}
 
     public: // Getters
@@ -116,14 +116,14 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
         // How many elements of type T are pointed by the managed object.
-        [[nodiscard]] constexpr size_t elements() const noexcept { return m_elements; }
-        [[nodiscard]] constexpr size_t size() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr dim_t elements() const noexcept { return m_elements; }
+        [[nodiscard]] constexpr dim_t size() const noexcept { return m_elements; }
 
         // Returns the shape of the allocated data as a row vector.
-        [[nodiscard]] constexpr size4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
+        [[nodiscard]] constexpr dim4_t shape() const noexcept { return {1, 1, 1, m_elements}; }
 
         // Returns the strides of the allocated data as a C-contiguous row vector.
-        [[nodiscard]] constexpr size4_t strides() const noexcept { return shape().strides(); }
+        [[nodiscard]] constexpr dim4_t strides() const noexcept { return shape().strides(); }
 
         // How many bytes are pointed by the managed object.
         [[nodiscard]] constexpr size_t bytes() const noexcept { return m_elements * sizeof(T); }
@@ -133,8 +133,13 @@ namespace noa::cuda::memory {
         [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
 
         // Returns a View of the allocated data as a C-contiguous row vector.
-        template<typename I>
+        template<typename I = dim_t>
         [[nodiscard]] constexpr View<T, I> view() const noexcept { return {m_ptr.get(), shape(), strides()}; }
+
+        // Returns a 1D Accessor of the allocated data.
+        template<typename U = T, typename I = dim_t, AccessorTraits TRAITS = AccessorTraits::DEFAULT,
+                 typename = std::enable_if_t<traits::is_almost_same_v<U, T>>>
+        [[nodiscard]] constexpr Accessor<U, 1, I, TRAITS> accessor() const noexcept { return {m_ptr.get(), 1}; }
 
         // Returns the stream handle used to allocate the managed data.
         // If the data was created synchronously (without a stream), returns the NULL stream.
@@ -162,6 +167,6 @@ namespace noa::cuda::memory {
     private:
         static_assert(traits::is_valid_ptr_type_v<T>);
         std::shared_ptr<T[]> m_ptr{};
-        size_t m_elements{0};
+        dim_t m_elements{0};
     };
 }

@@ -17,25 +17,25 @@ namespace noa::cuda::signal::fft {
 
     // Phase-shifts a non-redundant 2D (batched) FFT.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void shift2D(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  const shared_t<float2_t[]>& shifts, float cutoff, Stream& stream);
 
     //  Phase-shifts a non-redundant 2D (batched) FFT.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift2D(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void shift2D(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float2_t shift, float cutoff, Stream& stream);
 
     // Phase-shifts a non-redundant 3D (batched) FFT.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void shift3D(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  const shared_t<float3_t[]>& shifts, float cutoff, Stream& stream);
 
     // Phase-shifts a non-redundant 3D (batched) FFT.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift3D(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void shift3D(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float3_t shift, float cutoff, Stream& stream);
 }

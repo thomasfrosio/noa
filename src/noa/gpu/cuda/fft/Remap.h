@@ -9,54 +9,54 @@
 
 namespace noa::cuda::fft::details {
     template<typename T>
-    void hc2h(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void hc2h(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void h2hc(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void h2hc(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void fc2f(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void fc2f(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void f2fc(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void f2fc(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void f2h(const shared_t<T[]>& input, size4_t input_strides,
-             const shared_t<T[]>& output, size4_t output_strides,
-             size4_t shape, Stream& stream);
+    void f2h(const shared_t<T[]>& input, dim4_t input_strides,
+             const shared_t<T[]>& output, dim4_t output_strides,
+             dim4_t shape, Stream& stream);
 
     template<typename T>
-    void h2f(const shared_t<T[]>& input, size4_t input_strides,
-             const shared_t<T[]>& output, size4_t output_strides,
-             size4_t shape, Stream& stream);
+    void h2f(const shared_t<T[]>& input, dim4_t input_strides,
+             const shared_t<T[]>& output, dim4_t output_strides,
+             dim4_t shape, Stream& stream);
 
     template<typename T>
-    void f2hc(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void f2hc(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void hc2f(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void hc2f(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void fc2h(const shared_t<T[]>& input, size4_t input_strides,
-              const shared_t<T[]>& output, size4_t output_strides,
-              size4_t shape, Stream& stream);
+    void fc2h(const shared_t<T[]>& input, dim4_t input_strides,
+              const shared_t<T[]>& output, dim4_t output_strides,
+              dim4_t shape, Stream& stream);
 
     template<typename T>
-    void fc2hc(const shared_t<T[]>& input, size4_t input_strides,
-               const shared_t<T[]>& output, size4_t output_strides,
-               size4_t shape, Stream& stream);
+    void fc2hc(const shared_t<T[]>& input, dim4_t input_strides,
+               const shared_t<T[]>& output, dim4_t output_strides,
+               dim4_t shape, Stream& stream);
 }
 
 namespace noa::cuda::fft {
@@ -65,9 +65,9 @@ namespace noa::cuda::fft {
     // Remaps FFT(s).
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
     void remap(Remap remap,
-               const shared_t<T[]>& input, size4_t input_strides,
-               const shared_t<T[]>& output, size4_t output_strides,
-               size4_t shape, Stream& stream) {
+               const shared_t<T[]>& input, dim4_t input_strides,
+               const shared_t<T[]>& output, dim4_t output_strides,
+               dim4_t shape, Stream& stream) {
         switch (remap) {
             case Remap::H2H:
             case Remap::HC2HC:

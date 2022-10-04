@@ -16,19 +16,19 @@ namespace noa::cuda::signal::fft {
 
     // Lowpass FFTs.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void lowpass(const shared_t<T[]>& input, size4_t input_strides,
-                 const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void lowpass(const shared_t<T[]>& input, dim4_t input_strides,
+                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float cutoff, float width, Stream& stream);
 
     // Highpass FFTs.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void highpass(const shared_t<T[]>& input, size4_t input_strides,
-                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void highpass(const shared_t<T[]>& input, dim4_t input_strides,
+                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   float cutoff, float width, Stream& stream);
 
     // Bandpass FFTs.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void bandpass(const shared_t<T[]>& input, size4_t input_strides,
-                  const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void bandpass(const shared_t<T[]>& input, dim4_t input_strides,
+                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2, Stream& stream);
 }

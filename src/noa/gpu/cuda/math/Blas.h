@@ -18,29 +18,29 @@ namespace noa::cuda::math::details {
 namespace noa::cuda::math {
     // Returns the vector-vector dot product.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
-    T dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
-          const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
+    T dot(const std::shared_ptr<T[]>& lhs, dim4_t lhs_strides, dim4_t lhs_shape,
+          const std::shared_ptr<T[]>& rhs, dim4_t rhs_strides, dim4_t rhs_shape,
           Stream& stream);
 
     // Computes the (batched) vector-vector dot product.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
-    void dot(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
-             const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
+    void dot(const std::shared_ptr<T[]>& lhs, dim4_t lhs_strides, dim4_t lhs_shape,
+             const std::shared_ptr<T[]>& rhs, dim4_t rhs_strides, dim4_t rhs_shape,
              const std::shared_ptr<T[]>& output, Stream& stream);
 
     // Computes a scalar-matrix-matrix product and add the result to a scalar-matrix product, with general matrices.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
-    void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
-                const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
+    void matmul(const std::shared_ptr<T[]>& lhs, dim4_t lhs_strides, dim4_t lhs_shape,
+                const std::shared_ptr<T[]>& rhs, dim4_t rhs_strides, dim4_t rhs_shape,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-                const std::shared_ptr<T[]>& output, size4_t output_strides, size4_t output_shape,
+                const std::shared_ptr<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                 Stream& stream);
 
     // Computes a matrix-matrix product with general matrices.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
-    void matmul(const std::shared_ptr<T[]>& lhs, size4_t lhs_strides, size4_t lhs_shape,
-                const std::shared_ptr<T[]>& rhs, size4_t rhs_strides, size4_t rhs_shape,
-                const std::shared_ptr<T[]>& output, size4_t output_strides, size4_t output_shape,
+    void matmul(const std::shared_ptr<T[]>& lhs, dim4_t lhs_strides, dim4_t lhs_shape,
+                const std::shared_ptr<T[]>& rhs, dim4_t rhs_strides, dim4_t rhs_shape,
+                const std::shared_ptr<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                 Stream& stream) {
         matmul(lhs, lhs_strides, lhs_shape, rhs, rhs_strides, rhs_shape,
                T{1}, T{0}, false, false,

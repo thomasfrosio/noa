@@ -1,8 +1,3 @@
-/// \file noa/gpu/cuda/geometry/Interpolate.h
-/// \brief Overloads of the CUDA tex1D, tex2D, tex3D functions to support different interpolation methods.
-/// \author Thomas - ffyr2w
-/// \date 19 Jun 2021
-
 #pragma once
 
 #include "noa/common/Definitions.h"
@@ -48,18 +43,17 @@ namespace noa::cuda::geometry::details {
 }
 
 namespace noa::cuda::geometry {
-    /// 1D interpolation of the data in \p texture at the texture coordinate \p x, using ::tex1D.
-    /// \tparam T               float or cfloat_t.
-    /// \tparam MODE            Interpolation method to use. Any of InterpMode.
-    /// \param[out] fetched     Interpolated output value.
-    /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param x                First dimension coordinate.
-    ///
-    /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
-    ///       mode (normalized or unnormalized). See PtrTexture::description() for more details.
-    /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
-    ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
-    ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
+    // - The texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
+    // mode (normalized or unnormalized). See PtrTexture::description() for more details.
+    // - An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
+    // if this file is included before the "texture" (or the underlying CUDA array) creation, or if it was
+    // created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
+
+    // 1D interpolation of the data in "texture" at the texture coordinate "x", using ::tex1D.
+    // T:       float or cfloat_t.
+    // MODE:    Interpolation method to use. Any of InterpMode.
+    // texture: Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
+    // x:       Width coordinate.
     template<typename T, InterpMode MODE>
     NOA_FD T tex1D(cudaTextureObject_t texture, float x) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
@@ -87,18 +81,11 @@ namespace noa::cuda::geometry {
         return 0; // unreachable, to fix spurious warning: https://stackoverflow.com/questions/64523302
     }
 
-    /// 2D interpolation of the data in \p texture at the texture coordinates, using ::tex2D.
-    /// \tparam T               float or cfloat_t.
-    /// \tparam MODE            Interpolation method to use. Any of InterpMode.
-    /// \param[out] fetched     Interpolated output value.
-    /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param y,x              Coordinates.
-    ///
-    /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
-    ///       mode (normalized or unnormalized). See PtrTexture::description() for more details.
-    /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
-    ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
-    ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
+    // 2D interpolation of the data in "texture" at the texture coordinate "x", using ::tex1D.
+    // T:       float or cfloat_t.
+    // MODE:    Interpolation method to use. Any of InterpMode.
+    // texture: Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
+    // y,x:     Height and width coordinates.
     template<typename T, InterpMode MODE>
     NOA_FD T tex2D(cudaTextureObject_t texture, float y, float x) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
@@ -126,24 +113,17 @@ namespace noa::cuda::geometry {
         return 0;
     }
 
-    /// 2D interpolation of the data in \p texture at the texture coordinates, using ::tex2D.
+    // 2D interpolation of the data in "texture" at the texture coordinates, using ::tex2D.
     template<typename T, InterpMode MODE>
     NOA_FD T tex2D(cudaTextureObject_t texture, float2_t coordinates) {
         return tex2D<T, MODE>(texture, coordinates[0], coordinates[1]);
     }
 
-    /// 3D interpolation of the data in \p texture at the texture coordinates, using ::tex3D.
-    /// \tparam T               float or cfloat_t.
-    /// \tparam MODE            Interpolation method to use. Any of InterpMode.
-    /// \param[out] fetched     Interpolated output value.
-    /// \param texture          Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
-    /// \param z,y,x            Coordinates.
-    ///
-    /// \note \p texture is expected to have the correct filter and addressing mode, as well as the correct coordinate
-    ///       mode (normalized or unnormalized). See PtrTexture::description() for more details.
-    /// \note An overload of `cudaCreateChannelDesc<>(::noa::cfloat_t)` is added by "noa/gpu/cuda/Types.h", so
-    ///       if this file is included before the \p texture (or the underlying CUDA array) creation, or if it was
-    ///       created by PtrTexture<> (or PtrArray<>), the channel descriptor will be correctly set for cfloat_t.
+    // 3D interpolation of the data in "texture" at the texture coordinate "x", using ::tex1D.
+    // T:       float or cfloat_t.
+    // MODE:    Interpolation method to use. Any of InterpMode.
+    // texture: Valid CUDA texture object. The channel descriptor should be float2 if \p T is cfloat_t.
+    // z,y,x:   Depth, height and width coordinates.
     template<typename T, InterpMode MODE>
     NOA_FD T tex3D(cudaTextureObject_t texture, float z, float y, float x) {
         static_assert(std::is_same_v<T, float> || std::is_same_v<T, cfloat_t>);
@@ -171,7 +151,7 @@ namespace noa::cuda::geometry {
         return 0;
     }
 
-    /// 3D interpolation of the data in \p texture at the texture coordinates, using ::tex3D.
+    // 3D interpolation of the data in "texture" at the texture coordinates, using ::tex3D.
     template<typename T, InterpMode MODE>
     NOA_FD T tex3D(cudaTextureObject_t texture, float3_t coordinates) {
         return tex3D<T, MODE>(texture, coordinates[0], coordinates[1], coordinates[2]);
@@ -410,11 +390,11 @@ namespace noa::cuda::geometry::details::cosine {
 namespace noa::cuda::geometry::details::cubic {
     template<typename T>
     NOA_DEVICE T cubic1D(T v0, T v1, T v2, T v3, float r) {
-        T a0 = v3 - v2 - v0 + v1;
-        T a1 = v0 - v1 - a0;
-        T a2 = v2 - v0;
+        const T a0 = v3 - v2 - v0 + v1;
+        const T a1 = v0 - v1 - a0;
+        const T a2 = v2 - v0;
         // a3 = v1
-        float r2 = r * r;
+        const float r2 = r * r;
         return a0 * r2 * r + a1 * r2 + a2 * r + v1;
     }
 
@@ -424,7 +404,7 @@ namespace noa::cuda::geometry::details::cubic {
     NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
         x -= 0.5f;
         float index = noa::math::floor(x);
-        float fraction = x - index;
+        const float fraction = x - index;
         index += 0.5f;
         return cubic1D(details::tex1D<T>(tex, index - 1.0f),
                        details::tex1D<T>(tex, index),
@@ -444,8 +424,8 @@ namespace noa::cuda::geometry::details::cubic {
 
         T v[4];
         #pragma unroll
-        for (int i = 0; i < 4; ++i) {
-            float i_y = index[1] + static_cast<float>(i - 1);
+        for (int32_t i = 0; i < 4; ++i) {
+            const float i_y = index[1] + static_cast<float>(i - 1);
             v[i] = cubic1D(details::tex2D<T>(tex, index[0] - 1.f, i_y),
                            details::tex2D<T>(tex, index[0], i_y),
                            details::tex2D<T>(tex, index[0] + 1.f, i_y),
@@ -467,11 +447,11 @@ namespace noa::cuda::geometry::details::cubic {
         T v[4];
         T tmp[4];
         #pragma unroll
-        for (int j = 0; j < 4; ++j) {
-            float i_z = index[2] + static_cast<float>(j - 1);
+        for (int32_t j = 0; j < 4; ++j) {
+            const float i_z = index[2] + static_cast<float>(j - 1);
             #pragma unroll
-            for (int i = 0; i < 4; ++i) {
-                float i_y = index[1] + static_cast<float>(i - 1);
+            for (int32_t i = 0; i < 4; ++i) {
+                const float i_y = index[1] + static_cast<float>(i - 1);
                 tmp[i] = cubic1D(details::tex3D<T>(tex, index[0] - 1.f, i_y, i_z),
                                  details::tex3D<T>(tex, index[0], i_y, i_z),
                                  details::tex3D<T>(tex, index[0] + 1.f, i_y, i_z),
@@ -519,8 +499,8 @@ namespace noa::cuda::geometry::details::bspline {
         const float h1 = (w3 / g1) + 1.5f + index; // h1 = w3/g1 + 1 + index, +0.5 to add the offset back
 
         // fetch the two linear interpolations
-        T tex0 = details::tex1D<T>(tex, h0);
-        T tex1 = details::tex1D<T>(tex, h1);
+        const T tex0 = details::tex1D<T>(tex, h0);
+        const T tex1 = details::tex1D<T>(tex, h1);
 
         // weight along the x-direction
         return g0 * tex0 + g1 * tex1;
@@ -596,7 +576,7 @@ namespace noa::cuda::geometry::details::bspline {
     NOA_DEVICE T tex1DAccurate(cudaTextureObject_t tex, float x) {
         x -= 0.5f;
         float idx = noa::math::floor(x);
-        float f = x - idx;
+        const float f = x - idx;
         idx += 0.5f;
 
         float w0, w1, w2, w3;
@@ -620,8 +600,8 @@ namespace noa::cuda::geometry::details::bspline {
 
         T v[4];
         #pragma unroll
-        for (int i = 0; i < 4; ++i) {
-            float i_y = index[1] + static_cast<float>(i - 1);
+        for (int32_t i = 0; i < 4; ++i) {
+            const float i_y = index[1] + static_cast<float>(i - 1);
             v[i] = details::tex2D<T>(tex, index[0] - 1.f, i_y) * w0 +
                    details::tex2D<T>(tex, index[0], i_y) * w1 +
                    details::tex2D<T>(tex, index[0] + 1.f, i_y) * w2 +
@@ -645,11 +625,11 @@ namespace noa::cuda::geometry::details::bspline {
         T v[4];
         T tmp[4];
         #pragma unroll
-        for (int j = 0; j < 4; ++j) {
-            float i_z = index[2] + static_cast<float>(j - 1);
+        for (int32_t j = 0; j < 4; ++j) {
+            const float i_z = index[2] + static_cast<float>(j - 1);
             #pragma unroll
-            for (int i = 0; i < 4; ++i) {
-                float i_y = index[1] + static_cast<float>(i - 1);
+            for (int32_t i = 0; i < 4; ++i) {
+                const float i_y = index[1] + static_cast<float>(i - 1);
                 tmp[i] = details::tex3D<T>(tex, index[0] - 1.f, i_y, i_z) * w0[0] +
                          details::tex3D<T>(tex, index[0], i_y, i_z) * w1[0] +
                          details::tex3D<T>(tex, index[0] + 1.f, i_y, i_z) * w2[0] +

@@ -15,38 +15,39 @@
 
 namespace noa::cuda::util::details {
     struct ReduceUnaryConfig {
-        static constexpr uint ELEMENTS_PER_THREAD = 8;
-        static constexpr uint BLOCK_SIZE = 512;
-        static constexpr uint BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
-        static constexpr uint MAX_GRID_SIZE = 4096;
+        static constexpr uint32_t ELEMENTS_PER_THREAD = 8;
+        static constexpr uint32_t BLOCK_SIZE = 512;
+        static constexpr uint32_t BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
+        static constexpr uint32_t MAX_GRID_SIZE = 4096;
     };
 
     // Grid.X is the number of blocks, at most MAX_GRID_SIZE.
     // Grid.Y is the number of batches. If the input was fully reduced to one element, there's only one batch.
     // The output should have the size of the grid, at minimum.
-    template<typename value_t, typename reduce_value_t, typename transform_op_t, typename reduce_op_t, int VEC_SIZE>
+    template<typename value_t, typename reduce_value_t,
+             typename transform_op_t, typename reduce_op_t, int VEC_SIZE>
     __global__ __launch_bounds__(ReduceUnaryConfig::BLOCK_SIZE)
     void reduceUnaryLarge1D_(
-            const value_t* __restrict__ input, uint2_t input_strides /* BW */, uint elements_per_batch,
+            AccessorRestrict<const value_t, 2, uint32_t> input, uint32_t elements_per_batch,
             transform_op_t transform_op, reduce_op_t reduce_op, reduce_value_t init,
-            reduce_value_t* __restrict__ tmp_output, uint tmp_output_stride) {
-        constexpr uint EPT = ReduceUnaryConfig::ELEMENTS_PER_THREAD;
-        constexpr uint BLOCK_SIZE = ReduceUnaryConfig::BLOCK_SIZE;
-        constexpr uint BLOCK_WORK_SIZE = ReduceUnaryConfig::BLOCK_WORK_SIZE;
+            reduce_value_t* __restrict__ tmp_output, uint32_t tmp_output_stride) {
+        constexpr uint32_t EPT = ReduceUnaryConfig::ELEMENTS_PER_THREAD;
+        constexpr uint32_t BLOCK_SIZE = ReduceUnaryConfig::BLOCK_SIZE;
+        constexpr uint32_t BLOCK_WORK_SIZE = ReduceUnaryConfig::BLOCK_WORK_SIZE;
 
         // Each block reduces chunks of BLOCK_WORK_SIZE elements at a time.
         // Batches are kept independent of each other.
-        const uint tid = threadIdx.x;
-        const uint base = blockIdx.x * BLOCK_WORK_SIZE;
-        const uint batch = blockIdx.y;
-        input += batch * input_strides[0];
+        const uint32_t tid = threadIdx.x;
+        const uint32_t base = blockIdx.x * BLOCK_WORK_SIZE;
+        const uint32_t batch = blockIdx.y;
+        const auto input_ = input[batch];
 
         // Initial reduction to bring the input to BLOCK_SIZE * gridDim.x elements.
         reduce_value_t reduced = init;
-        for (uint cid = base; cid < elements_per_batch; cid += BLOCK_WORK_SIZE * gridDim.x) {
-            const uint remaining = elements_per_batch - cid;
+        for (uint32_t cid = base; cid < elements_per_batch; cid += BLOCK_WORK_SIZE * gridDim.x) {
+            const uint32_t remaining = elements_per_batch - cid;
             util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
-                    input + cid * input_strides[1], input_strides[1], remaining,
+                    input_.offset(cid).get(), input_.stride(0), remaining,
                     transform_op, reduce_op, &reduced, tid);
         }
 
@@ -71,36 +72,36 @@ namespace noa::cuda::util::details {
              int BLOCK_DIM_X, int VEC_SIZE>
     __global__ __launch_bounds__(ReduceUnaryConfig::BLOCK_SIZE)
     void reduceUnaryLarge4D_(
-            const value_t* __restrict__ input, uint4_t input_strides, uint4_t shape, uint rows_per_batch,
+            AccessorRestrict<const value_t, 4, uint32_t> input, uint4_t shape, uint32_t rows_per_batch,
             transform_op_t transform_op, reduce_op_t reduce_op, reduce_value_t init,
-            reduce_value_t* __restrict__ tmp_output, uint tmp_output_stride) {
-        constexpr uint EPT = ReduceUnaryConfig::ELEMENTS_PER_THREAD;
-        constexpr uint BLOCK_SIZE = ReduceUnaryConfig::BLOCK_SIZE;
-        constexpr uint BLOCK_WORK_SIZE_X = BLOCK_DIM_X * EPT;
+            reduce_value_t* __restrict__ tmp_output, uint32_t tmp_output_stride) {
+        constexpr uint32_t EPT = ReduceUnaryConfig::ELEMENTS_PER_THREAD;
+        constexpr uint32_t BLOCK_SIZE = ReduceUnaryConfig::BLOCK_SIZE;
+        constexpr uint32_t BLOCK_WORK_SIZE_X = BLOCK_DIM_X * EPT;
 
-        const uint rows_per_grid = blockDim.y * gridDim.x;
-        const uint initial_row = blockDim.y * blockIdx.x + threadIdx.y;
-        const uint batch = blockIdx.y;
-        input += batch * input_strides[0];
+        const uint32_t rows_per_grid = blockDim.y * gridDim.x;
+        const uint32_t initial_row = blockDim.y * blockIdx.x + threadIdx.y;
+        const uint32_t batch = blockIdx.y;
+        const auto input_ = input.offset(batch);
 
         // Initial reduction. Loop until all rows are consumed.
         reduce_value_t reduced = init;
-        for (uint row = initial_row; row < rows_per_batch; row += rows_per_grid) {
+        for (uint32_t row = initial_row; row < rows_per_batch; row += rows_per_grid) {
             // Retrieve the 3D block index from the linear Grid.X:
             const uint3_t index = indexing::indexes(row, shape[1], shape[2]); // row -> W,Z,Y
-            const uint offset = indexing::at(index, input_strides);
+            const auto input_row = input_[index[0]][index[1]][index[2]];
 
             // Consume the row:
-            for (uint cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
-                const uint remaining = shape[3] - cid;
+            for (uint32_t cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
+                const uint32_t remaining = shape[3] - cid;
                 util::block::reduceUnaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
-                        input + offset + cid * input_strides[3], input_strides[3], remaining,
+                        input_row.offset(cid).get(), input_row.stride(0), remaining,
                         transform_op, reduce_op, &reduced, threadIdx.x);
             }
         }
 
         // Share thread's result to the other threads.
-        const uint tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
+        const uint32_t tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
         using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
@@ -119,24 +120,24 @@ namespace noa::cuda::util::details {
              typename post0_op_t, typename post1_op_t, int VEC_SIZE>
     __global__ __launch_bounds__(ReduceUnaryConfig::BLOCK_SIZE)
     void reduceUnarySmall1D_(
-            const value_t* __restrict__ input, uint2_t input_strides /* BW */,
-            uint elements_per_batch, transform_op_t transform_op, reduce_op_t reduce_op, reduce_value_t init,
-            post_value_t* __restrict__ output0, uint output0_stride, post0_op_t post0_op,
-            post_value_t* __restrict__ output1, uint output1_stride, post1_op_t post1_op) {
-        constexpr uint EPT = ReduceUnaryConfig::ELEMENTS_PER_THREAD;
-        constexpr uint BLOCK_SIZE = ReduceUnaryConfig::BLOCK_SIZE;
-        constexpr uint BLOCK_WORK_SIZE = ReduceUnaryConfig::BLOCK_WORK_SIZE;
+            AccessorRestrict<const value_t, 2, uint32_t> input,
+            uint32_t elements_per_batch, transform_op_t transform_op, reduce_op_t reduce_op, reduce_value_t init,
+            AccessorRestrict<post_value_t, 1, uint32_t> output0, post0_op_t post0_op,
+            AccessorRestrict<post_value_t, 1, uint32_t> output1, post1_op_t post1_op) {
+        constexpr uint32_t EPT = ReduceUnaryConfig::ELEMENTS_PER_THREAD;
+        constexpr uint32_t BLOCK_SIZE = ReduceUnaryConfig::BLOCK_SIZE;
+        constexpr uint32_t BLOCK_WORK_SIZE = ReduceUnaryConfig::BLOCK_WORK_SIZE;
 
-        const uint tid = threadIdx.x;
-        const uint batch = blockIdx.x;
-        input += input_strides[0] * batch;
+        const uint32_t tid = threadIdx.x;
+        const uint32_t batch = blockIdx.x;
+        const auto input_ = input[batch];
 
         // elements -> one element per thread.
         reduce_value_t reduced = init;
-        for (uint cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
-            const uint remaining = elements_per_batch - cid;
+        for (uint32_t cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
+            const uint32_t remaining = elements_per_batch - cid;
             util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
-                    input + cid * input_strides[1], input_strides[1], remaining,
+                    input_.offset(cid).get(), input_.stride(0), remaining,
                     transform_op, reduce_op, &reduced, tid);
         }
 
@@ -153,9 +154,9 @@ namespace noa::cuda::util::details {
         if (tid == 0) {
             const post_value_t final = post0_op(final_);
             if (output0)
-                output0[batch * output0_stride] = final;
+                output0[batch] = final;
             if (output1)
-                output1[batch * output1_stride] = post1_op(final);
+                output1[batch] = post1_op(final);
         }
     }
 }
@@ -188,26 +189,28 @@ namespace noa::cuda::util {
              typename transform_op_t, typename reduce_op_t,
              typename post0_op_t, typename post1_op_t>
     void reduce(const char* name,
-                const value_t* input, uint4_t strides, uint4_t shape,
+                const value_t* input, dim4_t strides, dim4_t shape,
                 transform_op_t transform_op, reduce_op_t reduce_op, reduce_value_t init,
-                post_value_t* output0, uint output0_stride, post0_op_t post_process0,
-                post_value_t* output1, uint output1_stride, post1_op_t post_process1,
+                post_value_t* output0, uint32_t output0_stride, post0_op_t post_process0,
+                post_value_t* output1, uint32_t output1_stride, post1_op_t post_process1,
                 bool reduce_batch, bool swap_layout, cuda::Stream& stream) {
+        NOA_ASSERT(input != nullptr && output0 != nullptr && all(shape > 0));
+
         if (swap_layout) {
             if (reduce_batch) {
-                const uint4_t order = indexing::order(strides, shape);
+                const dim4_t order = indexing::order(strides, shape);
                 shape = indexing::reorder(shape, order);
                 strides = indexing::reorder(strides, order);
             } else {
-                const uint3_t order_3d = indexing::order(uint3_t(strides.get(1)), uint3_t(shape.get(1))) + 1;
-                const uint4_t order{0, order_3d[0], order_3d[1], order_3d[2]};
+                const dim3_t order_3d = indexing::order(dim3_t(strides.get(1)), dim3_t(shape.get(1))) + 1;
+                const dim4_t order{0, order_3d[0], order_3d[1], order_3d[2]};
                 shape = indexing::reorder(shape, order);
                 strides = indexing::reorder(strides, order);
             }
         }
 
-        const uint batches = reduce_batch ? 1 : shape[0];
-        const uint elements = reduce_batch ? shape.elements() : shape[1] * shape[2] * shape[3];
+        const uint32_t batches = reduce_batch ? 1 : shape[0];
+        const auto elements = safe_cast<uint32_t>(reduce_batch ? shape.elements() : shape[1] * shape[2] * shape[3]);
         const bool4_t is_contiguous = indexing::isContiguous(strides, shape);
 
         // The output pointers are allowed to not be on the stream's device,
@@ -216,7 +219,8 @@ namespace noa::cuda::util {
         post_value_t* output0_ptr = util::devicePointer(output0, stream.device());
         post_value_t* output1_ptr = output1 ? util::devicePointer(output1, stream.device()) : nullptr;
         bool output0_was_copied{false}, output1_was_copied{false};
-        uint output0_stride_{output0_stride}, output1_stride_{output1_stride};
+        auto output0_stride_ = safe_cast<uint32_t>(output0_stride);
+        auto output1_stride_ = safe_cast<uint32_t>(output1_stride);
         if (!output0_ptr) {
             output0_was_copied = true;
             output0_stride_ = 1;
@@ -236,6 +240,8 @@ namespace noa::cuda::util {
             output1_was_copied = true;
             output1_stride_ = 1;
         }
+        const AccessorRestrict<post_value_t, 1, uint32_t> output0_accessor(output0_ptr, output0_stride_);
+        const AccessorRestrict<post_value_t, 1, uint32_t> output1_accessor(output1_ptr, output1_stride_);
 
         // Small arrays (1 kernel launch):
         using namespace details;
@@ -246,88 +252,95 @@ namespace noa::cuda::util {
             // If not contiguous, don't bother and copy this (small) input to a contiguous buffer.
             if ((reduce_batch && !is_contiguous[0]) || !is_contiguous[1] || !is_contiguous[2]) {
                 buffer1 = memory::PtrDevice<value_t>(shape.elements(), stream);
-                memory::copy(buffer1.attach(const_cast<value_t*>(input)), size4_t(strides),
-                             buffer1.share(), size4_t(shape).strides(),
-                             size4_t(shape), stream);
+                memory::copy(input, strides, buffer1.get(), shape.strides(), shape, stream);
                 tmp = buffer1.get();
                 tmp_strides = {elements, 1};
             } else {
                 tmp = input;
-                tmp_strides = {strides[0], strides[3]};
+                tmp_strides = safe_cast<uint2_t>(dim2_t{strides[0], strides[3]});
             }
 
             // Try to vectorize the loads for the input.
-            uint vec_size = tmp_strides[1] == 1 ? util::maxVectorCount(tmp) : 1;
+            uint32_t vec_size = tmp_strides[1] == 1 ? util::maxVectorCount(tmp) : 1;
             if (batches > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = tmp_strides[0] % vec_size ? 1 : vec_size;
 
+            const AccessorRestrict<const value_t, 2, uint32_t> tmp_accessor(tmp, tmp_strides);
             stream.enqueue(
                     name,
                     vec_size == 4 ? reduceUnarySmall1D_<value_t, reduce_value_t, post_value_t, transform_op_t, reduce_op_t, post0_op_t, post1_op_t, 4> :
                     vec_size == 2 ? reduceUnarySmall1D_<value_t, reduce_value_t, post_value_t, transform_op_t, reduce_op_t, post0_op_t, post1_op_t, 2> :
                                     reduceUnarySmall1D_<value_t, reduce_value_t, post_value_t, transform_op_t, reduce_op_t, post0_op_t, post1_op_t, 1>,
                     {batches, ReduceUnaryConfig::BLOCK_SIZE},
-                    tmp, tmp_strides, elements, transform_op, reduce_op, init,
-                    output0_ptr, output0_stride_, post_process0, output1_ptr, output1_stride_, post_process1);
+                    tmp_accessor, elements, transform_op, reduce_op, init,
+                    output0_accessor, post_process0, output1_accessor, post_process1);
 
         } else if ((!reduce_batch || is_contiguous[0]) && is_contiguous[1] && is_contiguous[2]) {
+            const auto s_strides = safe_cast<uint2_t>(dim2_t{strides[0], strides[3]});
+
             // In this config, the input can be interpreted as a 1D array. If the innermost dimension is contiguous,
             // i.e. if all elements to reduce are contiguous, we can vectorize loads for the first kernel.
             // Here we use 1D blocks to go through each batch (if reduce_batch=true, there's only one batch).
             // Each block reduces at least BLOCK_WORK_SIZE elements. Max to MAX_GRID_SIZE blocks per batch.
-            const uint blocks_x = noa::math::min(noa::math::divideUp(elements, ReduceUnaryConfig::BLOCK_WORK_SIZE),
-                                                 ReduceUnaryConfig::MAX_GRID_SIZE);
+            const uint32_t blocks_x = noa::math::min(noa::math::divideUp(elements, ReduceUnaryConfig::BLOCK_WORK_SIZE),
+                                                     ReduceUnaryConfig::MAX_GRID_SIZE);
             const dim3 blocks(blocks_x, batches);
 
             // Try to vectorize the loads for the input.
-            uint vec_size = strides[3] == 1 ? util::maxVectorCount(input) : 1;
+            uint32_t vec_size = s_strides[1] == 1 ? util::maxVectorCount(input) : 1;
             if (batches > 1) // make sure the beginning of each batch preserves the alignment
-                vec_size = strides[0] % vec_size ? 1 : vec_size;
+                vec_size = s_strides[0] % vec_size ? 1 : vec_size;
 
             // In the output (i.e. the input of the second kernel), preserve the alignment between batches.
-            const uint pitch = noa::math::nextMultipleOf(blocks.x, 4u); // at most MAX_GRID_SIZE
+            const uint32_t pitch = noa::math::nextMultipleOf(blocks.x, 4u); // at most MAX_GRID_SIZE
             memory::PtrDevice<reduce_value_t> tmp(pitch * blocks.y, stream);
 
             // reduceUnaryLarge1D_: (batch * elements) -> (blocks.x * blocks.y) elements.
             // reduceUnarySmall1D_: (blocks.x * blocks.y) -> (blocks.y) elements.
+            const AccessorRestrict<const value_t, 2, uint32_t> input_accessor(input, s_strides);
             stream.enqueue(name,
                            vec_size == 4 ? reduceUnaryLarge1D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 4> :
                            vec_size == 2 ? reduceUnaryLarge1D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 2> :
                                            reduceUnaryLarge1D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 1>,
                            {blocks, ReduceUnaryConfig::BLOCK_SIZE},
-                           input, uint2_t{strides[0], strides[3]}, elements, transform_op, reduce_op, init, tmp.get(), pitch);
+                           input_accessor, elements, transform_op, reduce_op, init, tmp.get(), pitch);
 
             // Here the input is already transformed, so copy.
+            const AccessorRestrict<const reduce_value_t, 2, uint32_t> tmp_accessor(tmp.get(), uint2_t{pitch, 1});
             stream.enqueue(name, reduceUnarySmall1D_<reduce_value_t, reduce_value_t, post_value_t, noa::math::copy_t, reduce_op_t, post0_op_t, post1_op_t, 4>,
                            {batches, ReduceUnaryConfig::BLOCK_SIZE},
-                           tmp.get(), uint2_t{pitch, 1}, blocks.x, noa::math::copy_t{}, reduce_op, init,
-                           output0_ptr, output0_stride_, post_process0, output1_ptr, output1_stride_, post_process1);
+                           tmp_accessor, blocks.x, noa::math::copy_t{}, reduce_op, init,
+                           output0_accessor, post_process0, output1_accessor, post_process1);
 
         } else {
+            const auto s_shape = safe_cast<uint4_t>(shape);
+            const auto s_strides = safe_cast<uint4_t>(strides);
+
             // In this config, the input cannot be easily interpreted as a 1D array.
             // As such, the 3 outermost dimensions are batched in a set of rows. Each block reduces at least one row.
             // Since the reduceUnaryLarge4D_ kernel will decompose the "row index" back to a (W,Z,Y) index, the 3 outermost
-            // dimensions can be stridesd. If the innermost dimension is contiguous, blocks can use vectorize loads
+            // dimensions can be strided. If the innermost dimension is contiguous, blocks can use vectorize loads
             // to read their row(s).
 
             // If rows are large, switch to more threads per row.
-            const uint block_dim_x = shape[3] > 512 ? 256 : 64;
+            const uint32_t block_dim_x = s_shape[3] > 512 ? 256 : 64;
             const dim3 threads(block_dim_x, ReduceUnaryConfig::BLOCK_SIZE / block_dim_x);
-            const uint rows = shape[2] * shape[1] * (reduce_batch ? shape[0] : 1);
+            const auto rows = safe_cast<uint32_t>(s_shape[2] * s_shape[1] * (reduce_batch ? s_shape[0] : 1));
             const dim3 blocks(noa::math::min(noa::math::divideUp(rows, threads.y), ReduceUnaryConfig::MAX_GRID_SIZE),
                               batches);
 
             // Try to vectorize the loads within a row.
             // Check that the beginning of each row is at the same alignment. This is true for pitch2D arrays.
-            uint vec_size = strides[3] == 1 ? util::maxVectorCount(input) : 1;
-            if ((strides[2] % vec_size && shape[2] != 1) ||
-                (strides[1] % vec_size && shape[1] != 1) ||
-                (strides[0] % vec_size && shape[0] != 1))
+            uint vec_size = s_strides[3] == 1 ? util::maxVectorCount(input) : 1;
+            if ((s_strides[2] % vec_size && s_shape[2] != 1) ||
+                (s_strides[1] % vec_size && s_shape[1] != 1) ||
+                (s_strides[0] % vec_size && s_shape[0] != 1))
                 vec_size = 1; // TODO If not multiple of 4, try 2 before turning off vectorization?
 
             // In the output (i.e. the input of the second kernel), preserve the alignment between batches.
             const uint pitch = noa::math::nextMultipleOf(blocks.x, 4u); // at most MAX_GRID_SIZE
             memory::PtrDevice<reduce_value_t> tmp(pitch * blocks.y, stream);
+            const AccessorRestrict<const value_t, 4, uint32_t> input_accessor(input, s_strides);
 
             if (threads.x == 256) {
                 stream.enqueue(name,
@@ -335,26 +348,27 @@ namespace noa::cuda::util {
                                vec_size == 2 ? reduceUnaryLarge4D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 256, 2> :
                                                reduceUnaryLarge4D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 256, 1>,
                                {blocks, threads},
-                               input, strides, shape, rows, transform_op, reduce_op, init, tmp.get(), pitch);
+                               input_accessor, s_shape, rows, transform_op, reduce_op, init, tmp.get(), pitch);
             } else {
                 stream.enqueue(name,
                                vec_size == 4 ? reduceUnaryLarge4D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 64, 4> :
                                vec_size == 2 ? reduceUnaryLarge4D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 64, 2> :
                                                reduceUnaryLarge4D_<value_t, reduce_value_t, transform_op_t, reduce_op_t, 64, 1>,
                                {blocks, threads},
-                               input, strides, shape, rows, transform_op, reduce_op, init, tmp.get(), pitch);
+                               input_accessor, s_shape, rows, transform_op, reduce_op, init, tmp.get(), pitch);
             }
             // Here the input is already transformed, so copy.
+            const AccessorRestrict<const reduce_value_t, 2, uint32_t> tmp_accessor(tmp.get(), uint2_t{pitch, 1});
             stream.enqueue(name, reduceUnarySmall1D_<reduce_value_t, reduce_value_t, post_value_t, noa::math::copy_t, reduce_op_t, post0_op_t, post1_op_t, 4>,
                            {batches, ReduceUnaryConfig::BLOCK_SIZE},
-                           tmp.get(), uint2_t{pitch, 1}, blocks.x, noa::math::copy_t{}, reduce_op, init,
-                           output0_ptr, output0_stride_, post_process0, output1_ptr, output1_stride_, post_process1);
+                           tmp_accessor, blocks.x, noa::math::copy_t{}, reduce_op, init,
+                           output0_accessor, post_process0, output1_accessor, post_process1);
         }
 
         // A temporary may have been allocated for the device to store the results.
         // In this case, copy back to the original output location.
         if (!buffer0.empty()) {
-            const size4_t output_shape{1, 1, batches, 1};
+            const dim4_t output_shape{1, 1, batches, 1};
             if (output0_was_copied)
                 memory::copy(output0_ptr, output0_stride_, output0, output0_stride, output_shape, stream);
             if (output1_was_copied)
@@ -382,17 +396,18 @@ namespace noa::cuda::util {
     // input and output should stay valid until completion.
     template<bool STD, typename value_t, typename reduce_value_t>
     void reduceVar(const char* name,
-                   const value_t* input, uint4_t input_strides, uint4_t shape,
-                   reduce_value_t* output, uint output_stride,
+                   const value_t* input, dim4_t input_strides, dim4_t shape,
+                   reduce_value_t* output, dim_t output_stride,
                    int ddof, bool reduce_batch, bool swap_layout, Stream& stream) {
-        const uint batches = reduce_batch ? 1 : shape[0];
-        const uint4_t shape_ = reduce_batch ? shape : uint4_t{1, shape[1], shape[2], shape[3]};
-        const uint elements = shape_.elements();
+        const dim_t batches = reduce_batch ? 1 : shape[0];
+        const dim4_t shape_ = reduce_batch ? shape : dim4_t{1, shape[1], shape[2], shape[3]};
+        const dim_t elements = shape_.elements();
         value_t* null0{};
 
         // Get the mean:
         memory::PtrPinned<value_t> means(batches);
-        const reduce_value_t inv_count = reduce_value_t{1} / static_cast<reduce_value_t>(elements - ddof);
+        const auto divisor = static_cast<reduce_value_t>(elements) - static_cast<reduce_value_t>(ddof);
+        const auto inv_count = reduce_value_t{1} / divisor;
         auto sum_to_mean_op = [inv_count]__device__(value_t v) -> value_t { return v * inv_count; };
         util::reduce(name, input, input_strides, shape,
                      noa::math::copy_t{}, noa::math::plus_t{}, value_t{0},
@@ -408,7 +423,7 @@ namespace noa::cuda::util {
             return v * inv_count;
         };
         reduce_value_t* null1{};
-        for (size_t batch = 0; batch < batches; ++batch) {
+        for (dim_t batch = 0; batch < batches; ++batch) {
             value_t mean = means[batch];
             auto transform_op = [mean]__device__(value_t value) -> reduce_value_t {
                 if constexpr (noa::traits::is_complex_v<value_t>) {

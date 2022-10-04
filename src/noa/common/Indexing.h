@@ -207,7 +207,7 @@ namespace noa::indexing {
     /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
     /// \note Empty dimensions are contiguous by definition since their strides are not used.
     template<char ORDER = 'C', typename T>
-    NOA_FHD constexpr bool areContiguous(Int4<T> strides, Int4<T> shape) {
+    NOA_FHD constexpr bool areContiguous(const Int4<T>& strides, const Int4<T>& shape) {
         if (any(shape == 0)) // guard against empty array
             return false;
 
@@ -235,7 +235,7 @@ namespace noa::indexing {
     /// \note If one want to check whether the array is contiguous or not, while all(isContiguous(...)) is equal to
     ///       areContiguous(...), the later is preferred simply because it is clearer and slightly more efficient.
     template<char ORDER = 'C', typename T>
-    NOA_FHD constexpr auto isContiguous(Int4<T> strides, Int4<T> shape) {
+    NOA_FHD constexpr auto isContiguous(Int4<T> strides, const Int4<T>& shape) {
         if (any(shape == 0)) // guard against empty array
             return bool4_t{0, 0, 0, 0};
 
@@ -277,7 +277,7 @@ namespace noa::indexing {
     ///          If \p can_be_batched is true, the shape can describe a batch of vectors. For instance {4,1,1,5} is
     ///          describing 4 row vectors with a length of 5.
     template<typename T>
-    NOA_FHD constexpr bool isVector(Int4<T> shape, bool can_be_batched = false) {
+    NOA_FHD constexpr bool isVector(const Int4<T>& shape, bool can_be_batched = false) {
         int non_empty_dimension = 0;
         for (int i = 0; i < 4; ++i) {
             if (shape[i] == 0)
@@ -292,7 +292,7 @@ namespace noa::indexing {
     /// \details A vector has one dimension with a size >= 1 and all of the other dimensions empty (i.e. size == 1).
     ///          By this definition, the shapes {1,1,1}, {5,1,1} and {1,1,5} are all vectors.
     template<typename T>
-    NOA_FHD constexpr bool isVector(Int3<T> shape) {
+    NOA_FHD constexpr bool isVector(const Int3<T>& shape) {
         int non_empty_dimension = 0;
         for (int i = 0; i < 3; ++i) {
             if (shape[i] == 0)
@@ -305,7 +305,7 @@ namespace noa::indexing {
 
     /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_IH T effectiveShape(T shape, T strides) noexcept {
+    NOA_IH T effectiveShape(T shape, const T& strides) noexcept {
         for (size_t i = 0; i < std::decay_t<T>::COUNT; ++i)
             shape[i] = strides[i] ? shape[i] : 1;
         return shape;
@@ -318,7 +318,7 @@ namespace noa::indexing {
     /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
     /// \see indexing::reorder(...).
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_IHD auto order(T strides, T shape) {
+    NOA_IHD auto order(T strides, const T& shape) {
         using vec_t = traits::remove_ref_cv_t<T>;
         using int_t = traits::value_type_t<T>;
         constexpr size_t COUNT = vec_t::COUNT;
@@ -340,7 +340,7 @@ namespace noa::indexing {
     /// The difference with indexing::order() is that this function does not change the order of the non-empty
     /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_HD auto squeeze(T shape) {
+    NOA_HD auto squeeze(const T& shape) {
         using vec_t = std::decay_t<T>;
         constexpr auto COUNT = static_cast<int>(vec_t::COUNT);
 
@@ -369,22 +369,22 @@ namespace noa::indexing {
 
     /// Reorder (i.e. sort) \p v according to the indexes in \p order.
     template<typename T, typename U, typename = std::enable_if_t<traits::is_int4_v<T> || traits::is_float4_v<T>>>
-    NOA_FHD T reorder(T v, Int4<U> order) {
+    NOA_FHD T reorder(T v, const Int4<U>& order) {
         return {v[order[0]], v[order[1]], v[order[2]], v[order[3]]};
     }
     template<typename T, typename U, typename = std::enable_if_t<traits::is_int3_v<T> || traits::is_float3_v<T>>>
-    NOA_FHD T reorder(T v, Int3<U> order) {
+    NOA_FHD T reorder(T v, const Int3<U>& order) {
         return {v[order[0]], v[order[1]], v[order[2]]};
     }
     template<typename T, typename U, typename = std::enable_if_t<traits::is_int2_v<T> || traits::is_float2_v<T>>>
-    NOA_FHD T reorder(T v, Int2<U> order) {
+    NOA_FHD T reorder(T v, const Int2<U>& order) {
         return {v[order[0]], v[order[1]]};
     }
 
     /// (Circular) shifts \p v by a given amount.
     /// If \p shift is positive, shifts to the right, otherwise, shifts to the left.
     template<typename T>
-    NOA_FHD Int4<T> shift(Int4<T> v, int shift) {
+    NOA_FHD Int4<T> shift(const Int4<T>& v, int shift) {
         Int4 <T> out;
         const bool right = shift >= 0;
         if (shift < 0)
@@ -399,7 +399,7 @@ namespace noa::indexing {
     /// Whether \p strides describes a column-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_FHD bool isColMajor(T&& strides) {
+    NOA_FHD bool isColMajor(const T& strides) {
         constexpr size_t N = std::decay_t<T>::COUNT;
         constexpr size_t COL = N - 2;
         constexpr size_t ROW = N - 1;
@@ -410,7 +410,7 @@ namespace noa::indexing {
     /// This function effectively squeezes the shape before checking the order. Furthermore, strides of empty
     /// dimensions are ignored and are contiguous by definition.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_FHD bool isColMajor(T&& strides, T&& shape) {
+    NOA_FHD bool isColMajor(const T& strides, const T& shape) {
         int second{-1}, first{-1};
         for (int i = std::decay_t<T>::COUNT - 1; i >= 0; --i) {
             if (shape[i] > 1) {
@@ -426,7 +426,7 @@ namespace noa::indexing {
     /// Whether \p strides describes a row-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_FHD bool isRowMajor(T&& strides) {
+    NOA_FHD bool isRowMajor(const T& strides) {
         constexpr size_t N = std::decay_t<T>::COUNT;
         constexpr size_t COL = N - 2;
         constexpr size_t ROW = N - 1;
@@ -437,7 +437,7 @@ namespace noa::indexing {
     /// This function effectively squeezes the shape before checking the order. Furthermore, strides of empty
     /// dimensions are ignored and are contiguous by definition.
     template<typename T, typename = std::enable_if_t<traits::is_intX_v<T>>>
-    NOA_FHD bool isRowMajor(T&& strides, T&& shape) {
+    NOA_FHD bool isRowMajor(const T& strides, const T& shape) {
         int second{-1}, first{-1};
         for (int i = std::decay_t<T>::COUNT - 1; i >= 0; --i) {
             if (shape[i] > 1) {
@@ -470,7 +470,7 @@ namespace noa::indexing {
     /// \param output_shape         Shape of the output.
     /// \return Whether the input and output shape are compatible.
     template<typename T>
-    NOA_IH bool broadcast(Int4<T> input_shape, Int4<T>& input_strides, Int4<T> output_shape) noexcept {
+    NOA_IH bool broadcast(const Int4<T>& input_shape, Int4<T>& input_strides, const Int4<T>& output_shape) noexcept {
         for (size_t i = 0; i < 4; ++i) {
             if (input_shape[i] == 1 && output_shape[i] != 1)
                 input_strides[i] = 0; // broadcast this dimension
@@ -527,9 +527,9 @@ namespace noa::indexing {
         return lhs_start <= rhs_end && lhs_end >= rhs_start;
     }
 
-    template<typename T, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
-    constexpr bool isOverlap(const T* lhs, intX_t lhs_strides, intX_t lhs_shape,
-                             const T* rhs, intX_t rhs_strides, intX_t rhs_shape) noexcept {
+    template<typename T, typename U, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
+    constexpr bool isOverlap(const T* lhs, const intX_t& lhs_strides, const intX_t& lhs_shape,
+                             const U* rhs, const intX_t& rhs_strides, const intX_t& rhs_shape) noexcept {
         if (any(lhs_shape == 0) || any(rhs_shape == 0))
             return false;
 
@@ -540,9 +540,9 @@ namespace noa::indexing {
         return isOverlap(lhs_start, lhs_end, rhs_start, rhs_end);
     }
 
-    template<typename T, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
+    template<typename T, typename U, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
     constexpr bool isOverlap(const T* lhs, intX_t lhs_strides,
-                             const T* rhs, intX_t rhs_strides,
+                             const U* rhs, intX_t rhs_strides,
                              intX_t shape) noexcept {
         return isOverlap(lhs, lhs_strides, shape, rhs, rhs_strides, shape);
     }
@@ -604,7 +604,7 @@ namespace noa::indexing {
     /// \param strides  Strides of the array.
     /// \param shape    Shape of the array.
     template<typename T, typename U, typename = std::enable_if_t<traits::is_intX_v<U>>>
-    NOA_IHD constexpr auto indexes(T offset, U strides, U shape) noexcept {
+    NOA_IHD constexpr auto indexes(T offset, const U& strides, const U& shape) noexcept {
         NOA_ASSERT(all(shape > 0));
         using vec_t = traits::remove_ref_cv_t<U>;
         using val_t = traits::value_type_t<U>;
@@ -646,8 +646,8 @@ namespace noa::indexing {
 
     public:
         template<typename U, typename = std::enable_if_t<std::is_integral_v<U>>>
-        constexpr Reinterpret(Int4<U> a_shape, Int4<U> a_strides, T* a_ptr) noexcept
-                : shape{a_shape}, strides{a_strides}, ptr{a_ptr} {}
+        constexpr Reinterpret(const Int4<U>& a_shape, const Int4<U>& a_strides, T* a_ptr) noexcept
+                : shape(a_shape), strides(a_strides), ptr{a_ptr} {}
 
         template<typename V>
         Reinterpret<V> as() const {
@@ -743,8 +743,8 @@ namespace noa::indexing {
         constexpr Subregion() = default;
 
         template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-        constexpr Subregion(Int4<T> a_shape, Int4<T> a_strides, T a_offset = T{0}) noexcept
-                : m_shape{a_shape}, m_strides{a_strides}, m_offset{static_cast<size_t>(a_offset)} {}
+        constexpr Subregion(const Int4<T>& a_shape, const Int4<T>& a_strides, T a_offset = T{0}) noexcept
+                : m_shape(a_shape), m_strides(a_strides), m_offset{static_cast<size_t>(a_offset)} {}
 
         template<typename A,
                  typename B = indexing::full_extent_t,
