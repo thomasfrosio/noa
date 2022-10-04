@@ -14,34 +14,44 @@
 
 namespace noa::cpu::fft::details {
     template<typename T>
-    void h2f(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void h2f(AccessorRestrict<const T, 4, dim_t> input,
+             AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void h2hc(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void h2hc(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void hc2h(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void hc2h(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void hc2f(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void hc2f(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void f2h(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void f2h(AccessorRestrict<const T, 4, dim_t> input,
+             AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void f2hc(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void f2hc(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void f2fc(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void f2fc(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void fc2h(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void fc2h(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void fc2hc(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void fc2hc(AccessorRestrict<const T, 4, dim_t> input,
+               AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 
     template<typename T>
-    void fc2f(AccessorRestrict<const T, 4, dim_t> input, AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
+    void fc2f(AccessorRestrict<const T, 4, dim_t> input,
+              AccessorRestrict<T, 4, dim_t> output, dim4_t shape);
 }
 
 namespace noa::cpu::fft {

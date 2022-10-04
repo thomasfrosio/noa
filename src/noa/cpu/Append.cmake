@@ -35,7 +35,6 @@ set(NOA_CPU_HEADERS
         cpu/signal/Convolve.h
         cpu/signal/Median.h
         cpu/signal/Shape.h
-        cpu/signal/Window.h
 
         # noa::cpu::memory
         cpu/memory/Arange.h
@@ -92,10 +91,7 @@ set(NOA_CPU_SOURCES
         cpu/signal/fft/Standardize.cpp
         cpu/signal/Convolve.cpp
         cpu/signal/Median.cpp
-        cpu/signal/ShapeCylinder.cpp
-        cpu/signal/ShapeEllipse.cpp
-        cpu/signal/ShapeRectangle.cpp
-        cpu/signal/ShapeSphere.cpp
+        cpu/signal/Shape.cpp
 
         # noa::cpu::memory
         cpu/memory/Index.cpp

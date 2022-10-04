@@ -7,8 +7,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void cropH2H(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                  AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), input_shape.fft(),
-                                        output.get(), dim4_t(output.strides()), output_shape.fft()));
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
@@ -33,15 +31,13 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void cropF2F(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                  AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), input_shape,
-                                        output.get(), dim4_t(output.strides()), output_shape));
         NOA_ASSERT(all(input_shape >= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
         if (all(input_shape == output_shape))
             return cpu::memory::copy(input.get(), dim4_t(input.strides()),
                                      output.get(), dim4_t(output.strides()),
-                                     input_shape.fft());
+                                     input_shape);
 
         const dim4_t offset(input_shape - output_shape);
         const dim4_t limit((output_shape + 1) / 2);
@@ -68,8 +64,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void padH2H(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                 AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), input_shape.fft(),
-                                        output.get(), dim4_t(output.strides()), output_shape.fft()));
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
@@ -96,8 +90,6 @@ namespace noa::cpu::fft::details {
     template<typename T>
     void padF2F(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                 AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), input_shape,
-                                        output.get(), dim4_t(output.strides()), output_shape));
         NOA_ASSERT(all(input_shape <= output_shape));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 

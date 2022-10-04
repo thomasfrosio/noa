@@ -33,7 +33,7 @@ namespace noa::cpu::fft {
     }
 
     // Wrapper for FFTW flags.
-    enum Flag : uint {
+    enum Flag : uint32_t {
         // -- Planning-rigor field -- //
 
         // Instead of actual measurements of different algorithms, a simple heuristic is used to pick a
@@ -92,88 +92,49 @@ namespace noa::cpu::fft {
         using fftw_complex_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_complex, fftw_complex>;
 
     public: // R2C
-        Plan(T* input, Complex<T>* output, dim4_t shape, uint flag, dim_t max_threads)
-                : m_plan{Plan<T>::getR2C_(input, output, shape, flag, max_threads)} {}
+        Plan(T* input, Complex<T>* output, dim4_t shape, uint32_t flag, dim_t max_threads);
 
         Plan(const shared_t<T[]>& input, const shared_t<Complex<T>[]>& output,
-             dim4_t shape, uint flag, Stream& stream) {
-            const dim_t max_threads = stream.threads();
-            stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getR2C_(input.get(), output.get(), shape, flag, max_threads);
-            });
-        }
+             dim4_t shape, uint32_t flag, Stream& stream);
 
-        Plan(T* input, dim4_t input_strides, Complex<T>* output, dim4_t output_strides,
-             dim4_t shape, uint flag, dim_t max_threads)
-                : m_plan{Plan<T>::getR2C_(input, input_strides, output, output_strides, shape, flag, max_threads)} {}
+        Plan(T* input, dim4_t input_strides,
+             Complex<T>* output, dim4_t output_strides,
+             dim4_t shape, uint32_t flag, dim_t max_threads);
 
         Plan(const shared_t<T[]>& input, dim4_t input_strides,
              const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-             dim4_t shape, uint flag, Stream& stream) {
-            const dim_t max_threads = stream.threads();
-            stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getR2C_(
-                        input.get(), input_strides, output.get(), output_strides, shape, flag, max_threads);
-            });
-        }
+             dim4_t shape, uint32_t flag, Stream& stream);
 
     public: // C2R
-        Plan(Complex<T>* input, T* output, dim4_t shape, uint flag, dim_t max_threads)
-                : m_plan{Plan<T>::getC2R_(input, output, shape, flag, max_threads)} {}
+        Plan(Complex<T>* input, T* output, dim4_t shape, uint32_t flag, dim_t max_threads);
 
-        Plan(const shared_t<Complex<T>[]>& input, const shared_t<T[]>& output,
-             dim4_t shape, uint flag, Stream& stream) {
-            const dim_t max_threads = stream.threads();
-            stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2R_(input.get(), output.get(), shape, flag, max_threads);
-            });
-        }
+        Plan(const shared_t<Complex<T>[]>& input,
+             const shared_t<T[]>& output,
+             dim4_t shape, uint32_t flag, Stream& stream);
 
         Plan(Complex<T>* input, dim4_t input_strides,
              T* output, dim4_t output_strides,
-             dim4_t shape, uint flag, dim_t max_threads)
-                : m_plan{Plan<T>::getC2R_(input, input_strides, output, output_strides,
-                                          shape, flag, max_threads)} {}
+             dim4_t shape, uint32_t flag, dim_t max_threads);
 
         Plan(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
              const shared_t<T[]>& output, dim4_t output_strides,
-             dim4_t shape, uint flag, Stream& stream) {
-            const dim_t max_threads = stream.threads();
-            stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2R_(
-                        input.get(), input_strides, output.get(), output_strides, shape, flag, max_threads);
-            });
-        }
+             dim4_t shape, uint32_t flag, Stream& stream);
 
     public: // C2C
         Plan(Complex<T>* input, Complex<T>* output, dim4_t shape,
-             Sign sign, uint flag, dim_t max_threads)
-                : m_plan{Plan<T>::getC2C_(input, output, shape, sign, flag, max_threads)} {}
+             Sign sign, uint32_t flag, dim_t max_threads);
 
         Plan(const shared_t<Complex<T>[]>& input,
              const shared_t<Complex<T>[]>& output, dim4_t shape,
-             Sign sign, uint flag, Stream& stream) {
-            const dim_t max_threads = stream.threads();
-            stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2C_(input.get(), output.get(), shape, sign, flag, max_threads);
-            });
-        }
+             Sign sign, uint32_t flag, Stream& stream);
 
         Plan(Complex<T>* input, dim4_t input_strides,
              Complex<T>* output, dim4_t output_strides,
-             dim4_t shape, Sign sign, uint flag, dim_t max_threads)
-                : m_plan{Plan<T>::getC2C_(input, input_strides, output, output_strides,
-                                          shape, sign, flag, max_threads)} {}
+             dim4_t shape, Sign sign, uint32_t flag, dim_t max_threads);
 
         Plan(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
              const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-             dim4_t shape, Sign sign, uint flag, Stream& stream) {
-            const dim_t max_threads = stream.threads();
-            stream.enqueue([=]() {
-                this->m_plan = Plan<T>::getC2C_(input.get(), input_strides, output.get(), output_strides,
-                                                shape, sign, flag, max_threads);
-            });
-        }
+             dim4_t shape, Sign sign, uint32_t flag, Stream& stream);
 
     public:
         [[nodiscard]] fftw_plan_t get() const noexcept { return m_plan; }
@@ -199,18 +160,18 @@ namespace noa::cpu::fft {
         static void cache_(fftw_plan_t plan, bool clear);
         static fftw_plan_t getR2C_(T* input, dim4_t input_strides,
                                    Complex<T>* output, dim4_t output_strides,
-                                   dim4_t shape, uint flag, dim_t threads);
+                                   dim4_t shape, uint32_t flag, dim_t threads);
         static fftw_plan_t getR2C_(T* input, Complex<T>* output,
-                                   dim4_t shape, uint flag, dim_t threads);
+                                   dim4_t shape, uint32_t flag, dim_t threads);
         static fftw_plan_t getC2R_(Complex<T>* input, dim4_t input_strides,
                                    T* output, dim4_t output_strides,
-                                   dim4_t shape, uint flag, dim_t threads);
+                                   dim4_t shape, uint32_t flag, dim_t threads);
         static fftw_plan_t getC2R_(Complex<T>* input, T* output,
-                                   dim4_t shape, uint flag, dim_t threads);
+                                   dim4_t shape, uint32_t flag, dim_t threads);
         static fftw_plan_t getC2C_(Complex<T>* input, dim4_t input_strides,
                                    Complex<T>* output, dim4_t output_strides,
-                                   dim4_t shape, Sign sign, uint flag, dim_t threads);
+                                   dim4_t shape, Sign sign, uint32_t flag, dim_t threads);
         static fftw_plan_t getC2C_(Complex<T>* input, Complex<T>* output,
-                                   dim4_t shape, Sign sign, uint flag, dim_t threads);
+                                   dim4_t shape, Sign sign, uint32_t flag, dim_t threads);
     };
 }

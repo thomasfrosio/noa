@@ -10,9 +10,6 @@ namespace noa::cpu::fft::details {
     void hc2h(AccessorRestrict<const T, 4, dim_t> input,
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()),
-                                        output.get(), dim4_t(output.strides()), shape.fft()));
-
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j) {
                 for (dim_t k = 0; k < shape[2]; ++k) {
@@ -31,36 +28,29 @@ namespace noa::cpu::fft::details {
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
         if (input.get() == output.get()) {
-            if ((shape[2] != 1 && shape[2] % 2) || (shape[1] != 1 && shape[1] % 2)) {
-                NOA_THROW("In-place remapping is only available when the depth and height dimensions "
-                          "have an even number of elements, but got shape {}", shape);
-            } else {
-                // E.g. from h = [0,1,2,3,-4,-3,-2,-1] to hc = [-4,-3,-2,-1,0,1,2,3]
-                // Simple swap is OK.
-                NOA_ASSERT(all(dim4_t(input.strides()) == dim4_t(output.strides())));
+            // E.g. from h = [0,1,2,3,-4,-3,-2,-1] to hc = [-4,-3,-2,-1,0,1,2,3]
+            // Simple swap is OK.
+            NOA_ASSERT((shape[2] == 1 || !(shape[2] % 2)) && (shape[1] == 1 || !(shape[1] % 2)));
+            NOA_ASSERT(all(dim4_t(input.strides()) == dim4_t(output.strides())));
 
-                for (dim_t i = 0; i < shape[0]; ++i) {
-                    for (dim_t j = 0; j < shape[1]; ++j) {
-                        for (dim_t k = 0; k < noa::math::max(shape[2] / 2, dim_t{1}); ++k) { // if 1D, loop once
+            for (dim_t i = 0; i < shape[0]; ++i) {
+                for (dim_t j = 0; j < shape[1]; ++j) {
+                    for (dim_t k = 0; k < noa::math::max(shape[2] / 2, dim_t{1}); ++k) { // if 1D, loop once
 
-                            const dim_t base_j = math::FFTShift(j, shape[1]);
-                            const dim_t base_k = math::FFTShift(k, shape[2]);
-                            const auto i_in = output[i][j][k];
-                            const auto i_out = output[i][base_j][base_k];
+                        const dim_t base_j = math::FFTShift(j, shape[1]);
+                        const dim_t base_k = math::FFTShift(k, shape[2]);
+                        const auto i_in = output[i][j][k];
+                        const auto i_out = output[i][base_j][base_k];
 
-                            for (dim_t l = 0; l < shape[3] / 2 + 1; ++l) {
-                                T tmp = i_out[l];
-                                i_out[l] = i_in[l];
-                                i_in[l] = tmp;
-                            }
+                        for (dim_t l = 0; l < shape[3] / 2 + 1; ++l) {
+                            T tmp = i_out[l];
+                            i_out[l] = i_in[l];
+                            i_in[l] = tmp;
                         }
                     }
                 }
             }
         } else {
-            NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()),
-                                            output.get(), dim4_t(output.strides()), shape.fft()));
-
             for (dim_t i = 0; i < shape[0]; ++i) {
                 for (dim_t j = 0; j < shape[1]; ++j) {
                     for (dim_t k = 0; k < shape[2]; ++k) {
@@ -79,9 +69,6 @@ namespace noa::cpu::fft::details {
     void fc2f(AccessorRestrict<const T, 4, dim_t> input,
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()),
-                                        output.get(), dim4_t(output.strides()), shape));
-
         if (indexing::isColMajor(dim4_t(input.strides())) && indexing::isColMajor(dim4_t(output.strides()))) {
             std::swap(shape[2], shape[3]);
             std::swap(input.stride(2), input.stride(3));
@@ -106,9 +93,6 @@ namespace noa::cpu::fft::details {
     void f2fc(AccessorRestrict<const T, 4, dim_t> input,
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()),
-                                        output.get(), dim4_t(output.strides()), shape));
-
         if (indexing::isColMajor(dim4_t(input.strides())) && indexing::isColMajor(dim4_t(output.strides()))) {
             std::swap(shape[2], shape[3]);
             std::swap(input.stride(2), input.stride(3));
@@ -133,9 +117,6 @@ namespace noa::cpu::fft::details {
     void h2f(AccessorRestrict<const T, 4, dim_t> input,
              AccessorRestrict<T, 4, dim_t> output,
              dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), shape.fft(),
-                                        output.get(), dim4_t(output.strides()), shape));
-
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j) {
                 for (dim_t k = 0; k < shape[2]; ++k) {
@@ -164,8 +145,6 @@ namespace noa::cpu::fft::details {
     void f2h(AccessorRestrict<const T, 4, dim_t> input,
              AccessorRestrict<T, 4, dim_t> output,
              dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), shape,
-                                        output.get(), dim4_t(output.strides()), shape.fft()));
         cpu::memory::copy(input.get(), dim4_t(input.strides()), output.get(), dim4_t(output.strides()), shape.fft());
     }
 
@@ -173,9 +152,6 @@ namespace noa::cpu::fft::details {
     void hc2f(AccessorRestrict<const T, 4, dim_t> input,
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), shape.fft(),
-                                        output.get(), dim4_t(output.strides()), shape));
-
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t oj = 0; oj < shape[1]; ++oj) {
                 for (dim_t ok = 0; ok < shape[2]; ++ok) {
@@ -206,9 +182,6 @@ namespace noa::cpu::fft::details {
     void f2hc(AccessorRestrict<const T, 4, dim_t> input,
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), shape,
-                                        output.get(), dim4_t(output.strides()), shape.fft()));
-
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j) {
                 for (dim_t k = 0; k < shape[2]; ++k) {
@@ -226,9 +199,6 @@ namespace noa::cpu::fft::details {
     void fc2h(AccessorRestrict<const T, 4, dim_t> input,
               AccessorRestrict<T, 4, dim_t> output,
               dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()), shape,
-                                        output.get(), dim4_t(output.strides()), shape.fft()));
-
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j) {
                 for (dim_t k = 0; k < shape[2]; ++k) {
@@ -247,9 +217,6 @@ namespace noa::cpu::fft::details {
     void fc2hc(AccessorRestrict<const T, 4, dim_t> input,
                AccessorRestrict<T, 4, dim_t> output,
                dim4_t shape) {
-        NOA_ASSERT(!indexing::isOverlap(input.get(), dim4_t(input.strides()),
-                                        output.get(), dim4_t(output.strides()), shape));
-
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j) {
                 for (dim_t k = 0; k < shape[2]; ++k) {

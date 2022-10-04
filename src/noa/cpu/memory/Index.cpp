@@ -11,7 +11,6 @@ namespace {
     void extractOrNothing_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                            AccessorRestrict<T, 4, dim_t> subregions, dim4_t subregion_shape,
                            const int4_t* origins, int4_t order, dim_t threads) {
-        NOA_ASSERT(input.get() != subregions.get());
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
@@ -19,22 +18,22 @@ namespace {
         #pragma omp parallel for if(elements_per_subregion > 16384) num_threads(threads) default(none) \
         shared(input, input_shape, subregions, origins, order, i_shape, o_shape)
 
-        for (int batch = 0; batch < o_shape[0]; ++batch) {
+        for (int32_t batch = 0; batch < o_shape[0]; ++batch) {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
             // The outermost dimension of subregions is used as batch.
             // We don't use it to index the input.
-            const int ii = corner_left[0];
+            const int32_t ii = corner_left[0];
             if (ii < 0 || ii >= i_shape[0])
                 continue;
 
             const auto subregion = subregions[batch];
-            for (int oj = 0; oj < o_shape[1]; ++oj) {
-                for (int ok = 0; ok < o_shape[2]; ++ok) {
-                    for (int ol = 0; ol < o_shape[3]; ++ol) {
+            for (int32_t oj = 0; oj < o_shape[1]; ++oj) {
+                for (int32_t ok = 0; ok < o_shape[2]; ++ok) {
+                    for (int32_t ol = 0; ol < o_shape[3]; ++ol) {
 
-                        const int ij = oj + corner_left[1];
-                        const int ik = ok + corner_left[2];
-                        const int il = ol + corner_left[3];
+                        const int32_t ij = oj + corner_left[1];
+                        const int32_t ik = ok + corner_left[2];
+                        const int32_t il = ol + corner_left[3];
                         if (ij < 0 || ij >= i_shape[1] ||
                             ik < 0 || ik >= i_shape[2] ||
                             il < 0 || il >= i_shape[3])
@@ -51,7 +50,6 @@ namespace {
     void extractOrValue_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                          AccessorRestrict<T, 4, dim_t> subregions, dim4_t subregion_shape,
                          const int4_t* origins, T value, int4_t order, dim_t threads) {
-        NOA_ASSERT(input.get() != subregions.get());
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
@@ -65,20 +63,20 @@ namespace {
 
             // The outermost dimension of subregions is used as batch.
             // We don't use it to index the input.
-            const int ii = corner_left[0];
+            const int32_t ii = corner_left[0];
             if (ii < 0 || ii >= i_shape[0]) {
                 const dim4_t one_subregion{1, subregion_shape[1], subregion_shape[2], subregion_shape[3]};
                 cpu::memory::set(subregion.get(), dim4_t(subregions.strides()), one_subregion, value);
                 continue;
             }
 
-            for (int oj = 0; oj < o_shape[1]; ++oj) {
-                for (int ok = 0; ok < o_shape[2]; ++ok) {
-                    for (int ol = 0; ol < o_shape[3]; ++ol) {
+            for (int32_t oj = 0; oj < o_shape[1]; ++oj) {
+                for (int32_t ok = 0; ok < o_shape[2]; ++ok) {
+                    for (int32_t ol = 0; ol < o_shape[3]; ++ol) {
 
-                        const int ij = oj + corner_left[1];
-                        const int ik = ok + corner_left[2];
-                        const int il = ol + corner_left[3];
+                        const int32_t ij = oj + corner_left[1];
+                        const int32_t ik = ok + corner_left[2];
+                        const int32_t il = ol + corner_left[3];
                         const bool valid = ij >= 0 && ij < i_shape[1] &&
                                            ik >= 0 && ik < i_shape[2] &&
                                            il >= 0 && il < i_shape[3];
@@ -94,7 +92,6 @@ namespace {
     void extract_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
                   AccessorRestrict<T, 4, dim_t> subregions, dim4_t subregion_shape,
                   const int4_t* origins, int4_t order, dim_t threads) {
-        NOA_ASSERT(input.get() != subregions.get());
         const int4_t i_shape(input_shape);
         const int4_t o_shape(subregion_shape);
 
@@ -106,15 +103,15 @@ namespace {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
             // The outermost dimension of subregions is used as batch.
             // We don't use it to index the input.
-            const int ii = indexing::at<MODE>(corner_left[0], i_shape[0]);
+            const int32_t ii = indexing::at<MODE>(corner_left[0], i_shape[0]);
 
-            for (int oj = 0; oj < o_shape[1]; ++oj) {
-                for (int ok = 0; ok < o_shape[2]; ++ok) {
-                    for (int ol = 0; ol < o_shape[3]; ++ol) {
+            for (int32_t oj = 0; oj < o_shape[1]; ++oj) {
+                for (int32_t ok = 0; ok < o_shape[2]; ++ok) {
+                    for (int32_t ol = 0; ol < o_shape[3]; ++ol) {
 
-                        const int ij = indexing::at<MODE>(oj + corner_left[1], i_shape[1]);
-                        const int ik = indexing::at<MODE>(ok + corner_left[2], i_shape[2]);
-                        const int il = indexing::at<MODE>(ol + corner_left[3], i_shape[3]);
+                        const int32_t ij = indexing::at<MODE>(oj + corner_left[1], i_shape[1]);
+                        const int32_t ik = indexing::at<MODE>(ok + corner_left[2], i_shape[2]);
+                        const int32_t il = indexing::at<MODE>(ol + corner_left[3], i_shape[3]);
                         subregions(batch, oj, ok, ol) = input(ii, ij, ik, il);
                     }
                 }
@@ -126,7 +123,6 @@ namespace {
     void insert_(AccessorRestrict<const T, 4, dim_t> subregions, dim4_t subregion_shape,
                  AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape, const int4_t* origins,
                  int4_t order, dim_t threads) {
-        NOA_ASSERT(output.get() != subregions.get());
         const int4_t i_shape(subregion_shape);
         const int4_t o_shape(output_shape);
 
@@ -136,18 +132,18 @@ namespace {
 
         for (dim_t batch = 0; batch < subregion_shape[0]; ++batch) {
             const int4_t corner_left = indexing::reorder(origins[batch], order);
-            const int oi = corner_left[0];
+            const int32_t oi = corner_left[0];
             if (oi < 0 || oi >= o_shape[0])
                 continue;
 
             const auto subregion = subregions[batch];
-            for (int ij = 0; ij < i_shape[1]; ++ij) {
-                for (int ik = 0; ik < i_shape[2]; ++ik) {
-                    for (int il = 0; il < i_shape[3]; ++il) {
+            for (int32_t ij = 0; ij < i_shape[1]; ++ij) {
+                for (int32_t ik = 0; ik < i_shape[2]; ++ik) {
+                    for (int32_t il = 0; il < i_shape[3]; ++il) {
 
-                        const int oj = ij + corner_left[1];
-                        const int ok = ik + corner_left[2];
-                        const int ol = il + corner_left[3];
+                        const int32_t oj = ij + corner_left[1];
+                        const int32_t ok = ik + corner_left[2];
+                        const int32_t ol = il + corner_left[3];
                         if (oj < 0 || oj >= o_shape[1] ||
                             ok < 0 || ok >= o_shape[2] ||
                             ol < 0 || ol >= o_shape[3])

@@ -115,7 +115,7 @@ namespace noa::cpu::fft {
     template<typename T>
     inline void r2c(const shared_t<T[]>& input,
                     const shared_t<Complex<T>[]>& output,
-                    dim4_t shape, uint flag, Norm norm, Stream& stream) {
+                    dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             const Plan fast_plan(input.get(), output.get(), shape, flag, stream.threads());
             execute(fast_plan);
@@ -126,7 +126,7 @@ namespace noa::cpu::fft {
     template<typename T>
     inline void r2c(const shared_t<T[]>& input, dim4_t input_strides,
                     const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-                    dim4_t shape, uint flag, Norm norm, Stream& stream) {
+                    dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             const Plan fast_plan(input.get(), input_strides, output.get(), output_strides, shape, flag, stream.threads());
             execute(fast_plan);
@@ -135,12 +135,12 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    inline void r2c(const shared_t<T[]>& data, dim4_t shape, uint flag, Norm norm, Stream& stream) {
+    inline void r2c(const shared_t<T[]>& data, dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
         r2c(data, std::reinterpret_pointer_cast<Complex<T>[]>(data), shape, flag, norm, stream);
     }
 
     template<typename T>
-    inline void r2c(const shared_t<T[]>& data, dim4_t strides, dim4_t shape, uint flag, Norm norm, Stream& stream) {
+    inline void r2c(const shared_t<T[]>& data, dim4_t strides, dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
         // Since it is in-place, the pitch (in real elements) of the rows:
         //  1: is even, since complex elements take 2 real elements
         //  2: has at least 1 (if odd) or 2 (if even) extract real element
@@ -155,7 +155,7 @@ namespace noa::cpu::fft {
     template<typename T>
     inline void c2r(const shared_t<Complex<T>[]>& input,
                     const shared_t<T[]>& output,
-                    dim4_t shape, uint flag, Norm norm, Stream& stream) {
+                    dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             const Plan fast_plan(input.get(), output.get(), shape, flag, stream.threads());
             execute(fast_plan);
@@ -166,7 +166,7 @@ namespace noa::cpu::fft {
     template<typename T>
     inline void c2r(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
                     const shared_t<T[]>& output, dim4_t output_strides,
-                    dim4_t shape, uint flag, Norm norm, Stream& stream) {
+                    dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             const Plan fast_plan(input.get(), input_strides,
                                  output.get(), output_strides,
@@ -178,13 +178,13 @@ namespace noa::cpu::fft {
 
     template<typename T>
     inline void c2r(const shared_t<Complex<T>[]>& data, dim4_t shape,
-                    uint flag, Norm norm, Stream& stream) {
+                    uint32_t flag, Norm norm, Stream& stream) {
         c2r(data, std::reinterpret_pointer_cast<T[]>(data), shape, flag, norm, stream);
     }
 
     template<typename T>
     inline void c2r(const shared_t<Complex<T>[]>& data, dim4_t strides, dim4_t shape,
-                    uint flag, Norm norm, Stream& stream) {
+                    uint32_t flag, Norm norm, Stream& stream) {
         const dim4_t real_strides{strides[0] * 2, strides[1] * 2, strides[2] * 2, strides[3]};
         c2r(data, strides, std::reinterpret_pointer_cast<T[]>(data), real_strides, shape, flag, norm, stream);
     }
@@ -192,7 +192,7 @@ namespace noa::cpu::fft {
     template<typename T>
     inline void c2c(const shared_t<Complex<T>[]>& input,
                     const shared_t<Complex<T>[]>& output,
-                    dim4_t shape, Sign sign, uint flag, Norm norm, Stream& stream) {
+                    dim4_t shape, Sign sign, uint32_t flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             const Plan fast_plan(input.get(), output.get(), shape, sign, flag, stream.threads());
             execute(fast_plan);
@@ -203,7 +203,7 @@ namespace noa::cpu::fft {
     template<typename T>
     inline void c2c(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
                     const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-                    dim4_t shape, Sign sign, uint flag, Norm norm, Stream& stream) {
+                    dim4_t shape, Sign sign, uint32_t flag, Norm norm, Stream& stream) {
         stream.enqueue([=]() mutable {
             const Plan fast_plan(input.get(), input_strides, output.get(), output_strides, shape,
                                  sign, flag, stream.threads());
@@ -214,13 +214,13 @@ namespace noa::cpu::fft {
 
     template<typename T>
     inline void c2c(const shared_t<Complex<T>[]>& data, dim4_t shape,
-                    Sign sign, uint flag, Norm norm, Stream& stream) {
+                    Sign sign, uint32_t flag, Norm norm, Stream& stream) {
         c2c(data, data, shape, sign, flag, norm, stream);
     }
 
     template<typename T>
     inline void c2c(const shared_t<Complex<T>[]>& data, dim4_t strides, dim4_t shape,
-                    Sign sign, uint flag, Norm norm, Stream& stream) {
+                    Sign sign, uint32_t flag, Norm norm, Stream& stream) {
         c2c(data, strides, data, strides, shape, sign, flag, norm, stream);
     }
 }

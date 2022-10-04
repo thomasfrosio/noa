@@ -93,12 +93,9 @@ namespace noa::cpu::memory {
             return copy(input, input_strides, output, output_strides, input_shape, stream);
 
         stream.enqueue([=]() mutable {
-            NOA_ASSERT(input != output);
             const int4_t tmp = int4_t(input_shape) + border_left + border_right;
             NOA_ASSERT(all(tmp >= 1));
             dim4_t output_shape(tmp);
-            NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, input_shape,
-                                            output.get(), output_strides, output_shape));
 
             // Optimize reads/writes for output:
             const dim4_t order = indexing::order(output_strides, output_shape);
