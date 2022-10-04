@@ -33,7 +33,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Project configuration
 # ---------------------------------------------------------------------------------------
 include(cmake/util/PreventInSourceBuilds.cmake)
-include(cmake/util/ProjectOptions.cmake)
+include(cmake/ProjectOptions.cmake)
 
 # Check for CUDA support and select the GPU architecture if user didn't provide one.
 if (NOA_ENABLE_CUDA)
@@ -52,7 +52,7 @@ if (NOA_ENABLE_CUDA)
     endif ()
 endif ()
 
-include(cmake/util/ProjectToolchain.cmake)
+include(cmake/ProjectToolchain.cmake)
 
 # These interfaces sets the project base requirements.
 # Targets should not directly modify these since they're common to multiple targets.
@@ -101,4 +101,4 @@ endif ()
 # ---------------------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------------------
-include(cmake/util/ProjectExport.cmake)
+include(cmake/ProjectExport.cmake)

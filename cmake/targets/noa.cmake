@@ -157,6 +157,7 @@ target_compile_definitions(noa
         "$<$<BOOL:${FFTW3_THREADS}>:NOA_FFTW_THREADS>"
         "$<$<BOOL:${FFTW3_OPENMP}>:NOA_FFTW_THREADS>"
         "$<$<BOOL:${NOA_ENABLE_CHECKS_RELEASE}>:NOA_ENABLE_CHECKS_RELEASE>"
+        "$<$<BOOL:${NOA_CUDA_ENABLE_ASSERT}>:NOA_CUDA_ENABLE_ASSERT>"
         )
 
 # Set included directories:

@@ -20,6 +20,8 @@ if (NOA_ENABLE_CUDA)
     option(NOA_CUDA_CURAND_STATIC "Use the cuRAND static library" OFF)
     option(NOA_CUDA_CUBLAS_STATIC "Use the cuBLAS static library" OFF)
     option(NOA_CUDA_CUSOLVER_STATIC "Use the cuSOLVER static library" OFF)
+
+    option(NOA_CUDA_ENABLE_ASSERT "Enable device assertions, which can be useful for debugging but considerably increases the device link time. This only affects Debug builds" OFF)
 endif ()
 
 # =====================================================================================
@@ -74,6 +76,6 @@ option(TIFF_STATIC "Use the TIFF static library instead of the shared ones." OFF
 # Targets
 # =====================================================================================
 option(NOA_BUILD_TESTS "Build tests" ON)
-option(NOA_BUILD_BENCHMARKS "Build benchmarks" OFF)
+option(NOA_BUILD_BENCHMARKS "Build benchmarks" ON)
 #option(NOA_BUILD_DOC "Build Doxygen-Sphinx documentation" OFF)
 #option(NOA_PACKAGING "Generate packaging" OFF)
