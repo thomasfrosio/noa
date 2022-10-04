@@ -63,6 +63,8 @@ namespace noa::cpu::fft {
                const shared_t<T[]>& input, dim4_t input_strides,
                const shared_t<T[]>& output, dim4_t output_strides,
                dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input && output && all(shape > 0));
+
         switch (remap) {
             case Remap::H2H:
             case Remap::HC2HC:
@@ -116,13 +118,13 @@ namespace noa::cpu::fft {
                 });
             case Remap::HC2FC:
                 return stream.enqueue([=]() {
-                    memory::PtrHost<T> tmp{shape.elements()};
+                    memory::PtrHost<T> tmp(shape.elements());
                     details::hc2f<T>({input.get(), input_strides}, {tmp.get(), shape.strides()}, shape);
                     details::f2fc<T>({tmp.get(), shape.strides()}, {output.get(), output_strides}, shape);
                 });
             case Remap::H2FC:
                 return stream.enqueue([=]() {
-                    memory::PtrHost<T> tmp{shape.elements()};
+                    memory::PtrHost<T> tmp(shape.elements());
                     details::h2f<T>({input.get(), input_strides}, {tmp.get(), shape.strides()}, shape);
                     details::f2fc<T>({tmp.get(), shape.strides()}, {output.get(), output_strides}, shape);
                 });

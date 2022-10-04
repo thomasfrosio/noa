@@ -1,9 +1,9 @@
-#include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Resize.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 namespace {
     using namespace noa;
@@ -116,8 +116,8 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void cropH2H(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(all(input_shape >= output_shape));
-        NOA_ASSERT(input_shape[0] == output_shape[0]);
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         if (all(input_shape == output_shape))
             return memory::copy(input, input_strides, output, output_strides, input_shape.fft(), stream);
@@ -139,8 +139,8 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void cropF2F(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(all(input_shape >= output_shape));
-        NOA_ASSERT(input_shape[0] == output_shape[0]);
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         if (all(input_shape == output_shape))
             return memory::copy(input, input_strides, output, output_strides, input_shape, stream);
@@ -163,8 +163,8 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void padH2H(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(all(input_shape <= output_shape));
-        NOA_ASSERT(input_shape[0] == output_shape[0]);
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         if (all(input_shape == output_shape))
             return memory::copy(input, input_strides, output, output_strides, input_shape.fft(), stream);
@@ -188,8 +188,8 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void padF2F(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(all(input_shape <= output_shape));
-        NOA_ASSERT(input_shape[0] == output_shape[0]);
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         if (all(input_shape == output_shape))
             return memory::copy(input, input_strides, output, output_strides, input_shape, stream);

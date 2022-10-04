@@ -253,7 +253,7 @@ namespace noa::cpu::fft {
     template<typename T>
     typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, dim4_t shape,
                                                    uint32_t flag, [[maybe_unused]] dim_t threads) {
-        int3_t s_shape(shape.get(1));
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
@@ -291,7 +291,7 @@ namespace noa::cpu::fft {
                                                    Complex<T>* output, dim4_t output_strides,
                                                    dim4_t shape, uint32_t flag,
                                                    [[maybe_unused]] dim_t threads) {
-        int3_t s_shape(shape.get(1));
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
@@ -333,7 +333,7 @@ namespace noa::cpu::fft {
     typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
                                                    dim4_t shape, uint32_t flag,
                                                    [[maybe_unused]] dim_t threads) {
-        int3_t s_shape(shape.get(1));
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
@@ -369,7 +369,7 @@ namespace noa::cpu::fft {
                                                    T* output, dim4_t output_strides,
                                                    dim4_t shape, uint32_t flag,
                                                    [[maybe_unused]] dim_t threads) {
-        int3_t s_shape(shape.get(1));
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
@@ -418,7 +418,7 @@ namespace noa::cpu::fft {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
-        int3_t s_shape(shape.get(1));
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         const int32_t rank = s_shape.ndim();
         NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
         if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
@@ -459,7 +459,7 @@ namespace noa::cpu::fft {
         static_assert(Sign::FORWARD == FFTW_FORWARD);
         static_assert(Sign::BACKWARD == FFTW_BACKWARD);
 
-        int3_t s_shape(shape.get(1));
+        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
             // column major -> row major
             std::swap(s_shape[1], s_shape[2]);

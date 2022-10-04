@@ -1,7 +1,5 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
-#include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
@@ -68,6 +66,8 @@ namespace noa::cuda::fft {
                const shared_t<T[]>& input, dim4_t input_strides,
                const shared_t<T[]>& output, dim4_t output_strides,
                dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input && output && all(shape > 0));
+
         switch (remap) {
             case Remap::H2H:
             case Remap::HC2HC:

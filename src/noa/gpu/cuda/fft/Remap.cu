@@ -3,6 +3,7 @@
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Remap.h"
 #include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 namespace {
     using namespace noa;
@@ -207,6 +208,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void hc2h(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
@@ -222,6 +226,8 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2hc(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
@@ -248,6 +254,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2fc(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
             std::swap(shape[2], shape[3]);
@@ -269,6 +278,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void fc2f(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
             std::swap(shape[2], shape[3]);
@@ -290,6 +302,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2h(const shared_t<T[]>& input, dim4_t input_strides,
              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
@@ -305,6 +320,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void h2f(const shared_t<T[]>& input, dim4_t input_strides,
              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
@@ -320,6 +338,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void f2hc(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
@@ -335,6 +356,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void hc2f(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
@@ -350,6 +374,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void fc2h(const shared_t<T[]>& input, dim4_t input_strides,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
@@ -365,6 +392,9 @@ namespace noa::cuda::fft::details {
     template<typename T>
     void fc2hc(const shared_t<T[]>& input, dim4_t input_strides,
                const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
         const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));

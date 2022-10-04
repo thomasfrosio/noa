@@ -31,6 +31,9 @@ namespace noa::cpu::fft {
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
     inline void resize(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
                        const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(input_shape > 0));
+        NOA_ASSERT(input_shape[0] == output_shape[0]);
+
         if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H) {
                 stream.enqueue([=]() {
@@ -45,7 +48,7 @@ namespace noa::cpu::fft {
             } else {
                 static_assert(traits::always_false_v<T>);
             }
-        } else {
+        } else if (all(input_shape <= output_shape)) {
             if constexpr (REMAP == Remap::H2H) {
                 stream.enqueue([=]() {
                     details::padH2H<T>({input.get(), input_strides}, input_shape,
@@ -59,6 +62,8 @@ namespace noa::cpu::fft {
             } else {
                 static_assert(traits::always_false_v<T>);
             }
+        } else {
+            NOA_THROW("Cannot crop and pad at the same time");
         }
     }
 }
