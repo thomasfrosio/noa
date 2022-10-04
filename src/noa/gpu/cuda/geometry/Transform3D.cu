@@ -303,7 +303,7 @@ namespace noa::cuda::geometry {
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                      const MAT& matrices, Stream& stream) {
-        NOA_ASSERT(array && texure && all(texture_shape > 0) && all(output_shape > 0));
+        NOA_ASSERT(array && texture && all(texture_shape > 0) && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if constexpr (traits::is_floatXX_v<MAT>) {
             launchTransformTextureSingle3D_(*texture, texture_shape, texture_interp_mode, texture_border_mode,
