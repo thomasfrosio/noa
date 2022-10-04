@@ -21,7 +21,7 @@ namespace noa::fft {
     /// \note The batch dimension cannot be resized.
     /// \note The redundant dimension is the width dimension and non-redundant FFT are traversed in the rightmost order.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
-    void resize(const Array<T>& input, size4_t input_shape, const Array<T>& output, size4_t output_shape);
+    void resize(const Array<T>& input, dim4_t input_shape, const Array<T>& output, dim4_t output_shape);
 
     /// Returns a cropped or zero-padded FFT.
     /// \tparam REMAP       FFT Remap. Only H2H and F2F are currently supported.
@@ -33,7 +33,7 @@ namespace noa::fft {
     /// \note The batch dimension cannot be resized.
     /// \note The redundant dimension is the width dimension and non-redundant FFT are traversed in the rightmost order.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
-    Array<T> resize(const Array<T>& input, size4_t input_shape, size4_t output_shape);
+    Array<T> resize(const Array<T>& input, dim4_t input_shape, dim4_t output_shape);
 }
 
 #define NOA_UNIFIED_RESIZE_

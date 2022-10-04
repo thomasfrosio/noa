@@ -13,12 +13,16 @@
 
 namespace noa::fft {
     template<Remap REMAP, typename T, typename>
-    void resize(const Array<T>& input, size4_t input_shape, const Array<T>& output, size4_t output_shape) {
+    void resize(const Array<T>& input, dim4_t input_shape, const Array<T>& output, dim4_t output_shape) {
         using enum_t = std::underlying_type_t<Layout>;
         constexpr auto REMAP_ = static_cast<enum_t>(REMAP);
         constexpr bool IS_SRC_FULL = REMAP_ & Layout::SRC_FULL;
         constexpr bool IS_DST_FULL = REMAP_ & Layout::DST_FULL;
         static_assert(IS_SRC_FULL == IS_DST_FULL);
+
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, output), "Input and output arrays should not overlap");
+        NOA_CHECK(input.shape()[0] == output.shape()[0], "The batch dimension cannot be resized");
 
         NOA_CHECK(all(input.shape() == (IS_SRC_FULL ? input_shape : input_shape.fft())),
                   "Given the {} remap, the input FFT is expected to have a physical shape of {}, but got {}",
@@ -47,7 +51,7 @@ namespace noa::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    Array<T> resize(const Array<T>& input, size4_t input_shape, size4_t output_shape) {
+    Array<T> resize(const Array<T>& input, dim4_t input_shape, dim4_t output_shape) {
         using enum_t = std::underlying_type_t<Layout>;
         constexpr auto REMAP_ = static_cast<enum_t>(REMAP);
         Array<T> output(REMAP_ & Layout::DST_FULL ? output_shape : output_shape.fft(), input.options());

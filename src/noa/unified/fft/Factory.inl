@@ -10,7 +10,7 @@
 #endif
 
 namespace noa::fft {
-    size_t nextFastSize(size_t size) {
+    dim_t nextFastSize(dim_t size) {
         #ifdef NOA_ENABLE_CUDA
         return noa::cuda::fft::fastSize(size);
         #else
@@ -28,7 +28,7 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    Array<T> alias(const Array<Complex<T>>& input, size4_t shape) {
+    Array<T> alias(const Array<Complex<T>>& input, dim4_t shape) {
         NOA_CHECK(all(input.shape() == shape.fft()),
                   "Given the {} logical shape, the non-redundant input should have a shape of {}, but got {}",
                   shape, input.shape(), shape.fft());
@@ -37,21 +37,21 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    std::pair<Array<T>, Array<Complex<T>>> zeros(size4_t shape, ArrayOption option) {
+    std::pair<Array<T>, Array<Complex<T>>> zeros(dim4_t shape, ArrayOption option) {
         Array out1 = memory::zeros<Complex<T>>(shape.fft(), option);
         Array out0 = fft::alias(out1, shape);
         return {out0, out1};
     }
 
     template<typename T, typename>
-    std::pair<Array<T>, Array<Complex<T>>> ones(size4_t shape, ArrayOption option) {
+    std::pair<Array<T>, Array<Complex<T>>> ones(dim4_t shape, ArrayOption option) {
         Array out1 = memory::ones<Complex<T>>(shape.fft(), option);
         Array out0 = fft::alias(out1, shape);
         return {out0, out1};
     }
 
     template<typename T, typename>
-    std::pair<Array<T>, Array<Complex<T>>> empty(size4_t shape, ArrayOption option) {
+    std::pair<Array<T>, Array<Complex<T>>> empty(dim4_t shape, ArrayOption option) {
         Array out1 = memory::empty<Complex<T>>(shape.fft(), option);
         Array out0 = fft::alias(out1, shape);
         return {out0, out1};

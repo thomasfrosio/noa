@@ -11,11 +11,12 @@
 
 namespace noa::fft {
     template<typename T, typename>
-    void remap(Remap remap, const Array<T>& input, const Array<T>& output, size4_t shape) {
+    void remap(Remap remap, const Array<T>& input, const Array<T>& output, dim4_t shape) {
         const auto remap_ = static_cast<uint8_t>(remap);
         const bool is_src_full = remap_ & Layout::SRC_FULL;
         const bool is_dst_full = remap_ & Layout::DST_FULL;
 
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(all(input.shape() == (is_src_full ? shape : shape.fft())),
                   "Given the {} remap, the input FFT is expected to have a physical shape of {}, but got {}",
                   remap, is_src_full ? shape : shape.fft(), input.shape());
@@ -23,8 +24,9 @@ namespace noa::fft {
                   "Given the {} remap, the output FFT is expected to have a physical shape of {}, but got {}",
                   remap, is_dst_full ? shape : shape.fft(), output.shape());
 
-        NOA_CHECK(input.get() != output.get() ||
+        NOA_CHECK(!indexing::isOverlap(input, output) ||
                   (remap == fft::H2HC &&
+                   input.get() == output.get() &&
                    (shape[2] == 1 || !(shape[2] % 2)) &&
                    (shape[1] == 1 || !(shape[1] % 2))),
                   "In-place remapping is only available with {} and when the depth and height dimensions "
@@ -52,9 +54,9 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    Array<T> remap(Remap remap, const Array<T>& input, size4_t shape) {
+    Array<T> remap(Remap remap, const Array<T>& input, dim4_t shape) {
         using enum_t = std::underlying_type_t<Layout>;
-        const size4_t output_shape = static_cast<enum_t>(remap) & Layout::DST_FULL ? shape : shape.fft();
+        const dim4_t output_shape = static_cast<enum_t>(remap) & Layout::DST_FULL ? shape : shape.fft();
         Array<T> output(output_shape, input.options());
         remap(remap, input, output, shape);
         return output;

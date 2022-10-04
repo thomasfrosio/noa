@@ -12,7 +12,7 @@ namespace noa::fft {
     /// \note If \p remap is \c H2HC, \p input can be equal to \p output, iff the height and depth is even or 1.
     /// \note The redundant dimension is the width dimension and non-redundant FFT are traversed in the rightmost order.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
-    void remap(Remap remap, const Array<T>& input, const Array<T>& output, size4_t shape);
+    void remap(Remap remap, const Array<T>& input, const Array<T>& output, dim4_t shape);
 
     /// Remaps FFT(s).
     /// \tparam T           half_t, float, double, chalf_t, cfloat_t or cdouble_t.
@@ -21,7 +21,7 @@ namespace noa::fft {
     /// \param shape        BDHW logical shape.
     /// \return Remapped FFT(s).
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
-    Array<T> remap(Remap remap, const Array<T>& input, size4_t shape);
+    Array<T> remap(Remap remap, const Array<T>& input, dim4_t shape);
 }
 
 #define NOA_UNIFIED_REMAP_

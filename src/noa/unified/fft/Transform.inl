@@ -12,6 +12,7 @@
 namespace noa::fft {
     template<typename T, typename>
     void r2c(const Array<T>& input, const Array<Complex<T>>& output, Norm norm) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == input.shape().fft()),
                   "Given the real input with a shape of {}, the non-redundant shape of the complex output "
                   "should be {}, but got {}", input.shape(), input.shape().fft(), output.shape());
@@ -47,6 +48,7 @@ namespace noa::fft {
 
     template<typename T, typename>
     void c2r(const Array<Complex<T>>& input, const Array<T>& output, Norm norm) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(all(input.shape() == output.shape().fft()),
                   "Given the real output with a shape of {}, the non-redundant shape of the complex input "
                   "should be {}, but got {}", output.shape(), output.shape().fft(), input.shape());
@@ -74,7 +76,7 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    Array<T> c2r(const Array<Complex<T>>& input, size4_t shape, Norm norm) {
+    Array<T> c2r(const Array<Complex<T>>& input, dim4_t shape, Norm norm) {
         Array<T> output(shape, input.options());
         c2r(input, output, norm);
         return output;
@@ -82,6 +84,7 @@ namespace noa::fft {
 
     template<typename T, typename>
     void c2c(const Array<Complex<T>>& input, const Array<Complex<T>>& output, Sign sign, Norm norm) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(all(input.shape() == output.shape()),
                   "The input and output shape should match (no broadcasting allowed), but got input {} and output {}",
                   input.shape(), output.shape());

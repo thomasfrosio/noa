@@ -5,8 +5,6 @@
 namespace noa::fft {
     static constexpr Norm NORM_DEFAULT = NORM_FORWARD;
 
-
-
     /// Computes the forward R2C transform of (batched) 2D/3D array(s) or column/row vector(s).
     /// \tparam T           float, double.
     /// \param[in] input    Real space array.
@@ -44,7 +42,7 @@ namespace noa::fft {
     /// \return Real space array.
     /// \note For multidimensional C2R transforms, the input is not preserved.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    Array<T> c2r(const Array<Complex<T>>& input, size4_t shape, Norm norm = NORM_DEFAULT);
+    Array<T> c2r(const Array<Complex<T>>& input, dim4_t shape, Norm norm = NORM_DEFAULT);
 
     /// Computes the C2C transform.
     /// \tparam T           float, double.
