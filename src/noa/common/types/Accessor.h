@@ -94,7 +94,26 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr bool empty() const noexcept { return m_ptr == nullptr; }
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !empty(); }
 
+        template<typename I0, typename I1, typename = std::enable_if_t<std::is_integral_v<I0> && std::is_integral_v<I1>>>
+        [[nodiscard]] NOA_HD constexpr Accessor swap(I0 d0, I1 d1) const noexcept {
+            NOA_ASSERT(static_cast<index_type>(d0) < N && static_cast<index_type>(d1) < N);
+            Accessor out = *this;
+            const auto tmp = out.stride(d0); // swap
+            out.stride(d0) = out.stride(d1);
+            out.stride(d1) = tmp;
+            return out;
+        }
+
     public:
+        /// Offsets the current pointer at dimension 0 (without changing the dimensionality of the accessor)
+        /// and return a reference of that new accessor.
+        template<typename I0, typename std::enable_if_t<std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD auto offset(I0 index) const noexcept {
+            NOA_ASSERT((traits::is_uint_v<I0> || index >= I0{0}) && isSafeCast<index_type>(index));
+            using output_type = AccessorReference<T, N, index_type, TRAITS>;
+            return output_type(m_ptr + m_strides[0] * static_cast<index_type>(index), strides());
+        }
+
         /// Indexing operator, on 1D accessor. 1D -> ref
         template<typename I0, typename std::enable_if_t<N == 1 && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD T& operator[](I0 index) const noexcept {
@@ -120,7 +139,6 @@ namespace noa {
             return m_ptr[indexing::at(i0, m_strides[0])];
         }
 
-        /// Returns a reference at the beginning of the specified batch and depth indexes.
         template<typename I0, typename I1,
                 typename std::enable_if_t<(N >= 2) && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1) const noexcept {
@@ -131,7 +149,11 @@ namespace noa {
             return *tmp;
         }
 
-        /// Returns a reference at the beginning of the specified batch, depth and height indexes.
+        template<typename I0, typename std::enable_if_t<(N >= 2) && std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr T& operator()(const Int2<I0>& i01) const noexcept {
+            return (*this)(i01[0], i01[1]);
+        }
+
         template<typename I0, typename I1, typename I2,
                 typename std::enable_if_t<(N >= 3) && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
@@ -143,7 +165,11 @@ namespace noa {
             return *tmp;
         }
 
-        /// Returns a reference at the beginning of the specified batch, depth, height and width indexes.
+        template<typename I0, typename std::enable_if_t<(N >= 3) && std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr T& operator()(const Int3<I0>& i012) const noexcept {
+            return (*this)(i012[0], i012[1], i012[2]);
+        }
+
         template<typename I0, typename I1, typename I2, typename I3,
                 typename std::enable_if_t<N == 4 && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
@@ -154,6 +180,11 @@ namespace noa {
             tmp += indexing::at(i2, m_strides[2]);
             tmp += indexing::at(i3, m_strides[3]);
             return *tmp;
+        }
+
+        template<typename I0, typename std::enable_if_t<(N >= 4) && std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr T& operator()(const Int4<I0>& i0123) const noexcept {
+            return (*this)(i0123[0], i0123[1], i0123[2], i0123[3]);
         }
 
     private:
@@ -207,7 +238,19 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr bool empty() const noexcept { return m_ptr == nullptr; }
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !empty(); }
 
+        template<typename I0, typename I1, typename = std::enable_if_t<std::is_integral_v<I0> && std::is_integral_v<I1>>>
+        [[nodiscard]] NOA_HD constexpr auto swap(I0 d0, I1 d1) const noexcept {
+            using output_type = Accessor<value_type, N, index_type, TRAITS>;
+            return output_type(m_ptr, strides()).swap(d0, d1);
+        }
+
     public:
+        template<typename I0, typename std::enable_if_t<std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD auto offset(I0 index) const noexcept {
+            NOA_ASSERT((traits::is_uint_v<I0> || index >= I0{0}) && isSafeCast<index_type>(index));
+            return AccessorReference(m_ptr + m_strides[0] * static_cast<index_type>(index), strides());
+        }
+
         /// Indexing operator, on 1D accessor. 1D -> ref
         template<typename I0, typename std::enable_if_t<N == 1 && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD T& operator[](I0 index) const noexcept {
@@ -231,7 +274,6 @@ namespace noa {
             return m_ptr[indexing::at(i0, m_strides[0])];
         }
 
-        /// Returns a reference at the beginning of the specified batch and depth indexes.
         template<typename I0, typename I1,
                 typename std::enable_if_t<(N >= 2) && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1) const noexcept {
@@ -242,7 +284,11 @@ namespace noa {
             return *tmp;
         }
 
-        /// Returns a reference at the beginning of the specified batch, depth and height indexes.
+        template<typename I0, typename std::enable_if_t<(N >= 2) && std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr T& operator()(const Int2<I0>& i01) const noexcept {
+            return (*this)(i01[0], i01[1]);
+        }
+
         template<typename I0, typename I1, typename I2,
                  typename std::enable_if_t<(N >= 3) && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
@@ -254,7 +300,11 @@ namespace noa {
             return *tmp;
         }
 
-        /// Returns a reference at the beginning of the specified batch, depth, height and width indexes.
+        template<typename I0, typename std::enable_if_t<(N >= 3) && std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr T& operator()(const Int3<I0>& i012) const noexcept {
+            return (*this)(i012[0], i012[1], i012[2]);
+        }
+
         template<typename I0, typename I1, typename I2, typename I3,
                  typename std::enable_if_t<N == 4 && std::is_integral_v<I0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
@@ -272,6 +322,11 @@ namespace noa {
             tmp += indexing::at(i2, m_strides[2]);
             tmp += indexing::at(i3, m_strides[3]);
             return *tmp;
+        }
+
+        template<typename I0, typename std::enable_if_t<(N >= 4) && std::is_integral_v<I0>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr T& operator()(const Int4<I0>& i0123) const noexcept {
+            return (*this)(i0123[0], i0123[1], i0123[2], i0123[3]);
         }
 
     private:
