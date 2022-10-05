@@ -10,7 +10,7 @@ namespace noa::memory {
     /// \return             1: The elements to add/remove from the left side of the dimensions.
     ///                     2: The elements to add/remove from the right side of the dimension.
     ///                     Positive values correspond to padding, while negative values correspond to cropping.
-    inline std::pair<int4_t, int4_t> borders(size4_t input_shape, size4_t output_shape);
+    inline std::pair<int4_t, int4_t> borders(dim4_t input_shape, dim4_t output_shape);
 
     /// Resizes the input array(s) by padding and/or cropping the edges of the array.
     /// \tparam T           Any data type.

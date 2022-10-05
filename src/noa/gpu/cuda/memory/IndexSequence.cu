@@ -117,6 +117,7 @@ namespace {
         };
 
         // Compute the sequence(s).
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
         if (indexing::areContiguous(strides, shape)) {
             const uint32_t blocks = noa::math::divideUp(static_cast<uint32_t>(int_elements), BLOCK_WORK_SIZE);
             const cuda::LaunchConfig config{blocks, BLOCK_SIZE};

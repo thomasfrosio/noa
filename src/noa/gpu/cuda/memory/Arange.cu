@@ -84,6 +84,7 @@ namespace noa::cuda::memory {
         if (!elements)
             return;
 
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         const auto uint_elements = static_cast<uint32_t>(elements);
         const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
         const int32_t vec_size = noa::cuda::util::maxVectorCount(src.get());
@@ -105,6 +106,7 @@ namespace noa::cuda::memory {
         if (!shape.elements())
             return;
 
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         const bool4_t is_contiguous = indexing::isContiguous(strides, shape);
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto uint_elements = safe_cast<uint32_t>(shape.elements());

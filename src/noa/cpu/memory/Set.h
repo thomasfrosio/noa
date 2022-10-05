@@ -22,6 +22,7 @@ namespace noa::cpu::memory {
     // Sets an array to a given value.
     template<typename T>
     inline void set(T* src, dim_t elements, T value) {
+        NOA_ASSERT(src || !elements);
         set(src, src + elements, value);
     }
 
@@ -42,6 +43,7 @@ namespace noa::cpu::memory {
         if (indexing::areContiguous(strides, shape))
             return set(src, shape.elements(), value);
 
+        NOA_ASSERT(src && all(shape > 0));
         for (dim_t i = 0; i < shape[0]; ++i)
             for (dim_t j = 0; j < shape[1]; ++j)
                 for (dim_t k = 0; k < shape[2]; ++k)

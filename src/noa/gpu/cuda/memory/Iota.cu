@@ -89,6 +89,7 @@ namespace noa::cuda::memory {
         if (tile == elements)
             return arange(src, elements, T{0}, T{1}, stream);
 
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         const auto uint_elements = safe_cast<uint32_t>(elements);
         const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
         const int32_t vec_size = noa::cuda::util::maxVectorCount(src.get());
@@ -110,6 +111,8 @@ namespace noa::cuda::memory {
         if (all(tile == shape))
             return arange(src, strides, shape, T{0}, T{1}, stream);
 
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         const auto uint_shape = safe_cast<uint4_t>(shape);
         const uint32_t blocks_x = noa::math::divideUp(uint_shape[3], BLOCK_WORK_SIZE_2D.x);
         const uint32_t blocks_y = noa::math::divideUp(uint_shape[2], BLOCK_WORK_SIZE_2D.y);

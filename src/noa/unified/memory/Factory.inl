@@ -19,6 +19,8 @@
 namespace noa::memory {
     template<typename T>
     void fill(const Array<T>& output, T value) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
+
         const Device device{output.device()};
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -37,15 +39,15 @@ namespace noa::memory {
     }
 
     template<typename T>
-    Array<T> fill(size4_t shape, T value, ArrayOption option) {
+    Array<T> fill(dim4_t shape, T value, ArrayOption option) {
         using namespace ::noa::traits;
         if constexpr (is_data_v<T> || is_boolX_v<T> || is_intX_v<T> || is_floatX_v<T> || is_floatXX_v<T>) {
             if (value == T{0} && option.device().cpu() &&
                 (!Device::any(Device::GPU) || (option.allocator() == Allocator::DEFAULT ||
                                                option.allocator() == Allocator::DEFAULT_ASYNC ||
                                                option.allocator() == Allocator::PITCHED))) {
-                shared_t<T[]> ptr = cpu::memory::PtrHost<T>::calloc(shape.elements());
-                return Array<T>(ptr, shape, shape.strides(), option);
+                return Array<T>(cpu::memory::PtrHost<T>::calloc(shape.elements()),
+                                shape, shape.strides(), option);
             }
         }
         Array<T> out(shape, option);
@@ -54,17 +56,17 @@ namespace noa::memory {
     }
 
     template<typename T>
-    Array<T> zeros(size4_t shape, ArrayOption option) {
+    Array<T> zeros(dim4_t shape, ArrayOption option) {
         return fill(shape, T{0}, option);
     }
 
     template<typename T>
-    Array<T> ones(size4_t shape, ArrayOption option) {
+    Array<T> ones(dim4_t shape, ArrayOption option) {
         return fill(shape, T{1}, option);
     }
 
     template<typename T>
-    Array<T> empty(size4_t shape, ArrayOption option) {
+    Array<T> empty(dim4_t shape, ArrayOption option) {
         return Array<T>(shape, option);
     }
 
@@ -77,6 +79,8 @@ namespace noa::memory {
 namespace noa::memory {
     template<typename T>
     void arange(const Array<T>& output, T start, T step) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
+
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -95,14 +99,14 @@ namespace noa::memory {
     }
 
     template<typename T>
-    Array<T> arange(size4_t shape, T start, T step, ArrayOption option) {
+    Array<T> arange(dim4_t shape, T start, T step, ArrayOption option) {
         Array<T> out(shape, option);
         arange(out, start, step);
         return out;
     }
 
     template<typename T>
-    Array<T> arange(size_t elements, T start, T step, ArrayOption option) {
+    Array<T> arange(dim_t elements, T start, T step, ArrayOption option) {
         Array<T> out(elements, option);
         arange(out, start, step);
         return out;
@@ -112,6 +116,8 @@ namespace noa::memory {
 namespace noa::memory {
     template<typename T>
     T linspace(const Array<T>& output, T start, T stop, bool endpoint) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
+
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -132,14 +138,14 @@ namespace noa::memory {
     }
 
     template<typename T>
-    Array<T> linspace(size4_t shape, T start, T stop, bool endpoint, ArrayOption option) {
+    Array<T> linspace(dim4_t shape, T start, T stop, bool endpoint, ArrayOption option) {
         Array<T> out(shape, option);
         linspace(out, start, stop, endpoint);
         return out;
     }
 
     template<typename T>
-    Array<T> linspace(size_t elements, T start, T stop, bool endpoint, ArrayOption option) {
+    Array<T> linspace(dim_t elements, T start, T stop, bool endpoint, ArrayOption option) {
         Array<T> out(elements, option);
         linspace(out, start, stop, endpoint);
         return out;
@@ -148,7 +154,9 @@ namespace noa::memory {
 
 namespace noa::memory {
     template<typename T>
-    void iota(const Array<T>& output, size4_t tile) {
+    void iota(const Array<T>& output, dim4_t tile) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
+
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -169,16 +177,16 @@ namespace noa::memory {
     }
 
     template<typename T>
-    Array<T> iota(size4_t shape, size4_t tile, ArrayOption option) {
+    Array<T> iota(dim4_t shape, dim4_t tile, ArrayOption option) {
         Array<T> out(shape, option);
         iota(out, tile);
         return out;
     }
 
     template<typename T>
-    Array<T> iota(size_t elements, size_t tile, ArrayOption option) {
+    Array<T> iota(dim_t elements, dim_t tile, ArrayOption option) {
         Array<T> out(elements, option);
-        iota(out, size4_t{1, 1, 1, tile});
+        iota(out, dim4_t{1, 1, 1, tile});
         return out;
     }
 }

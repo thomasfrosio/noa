@@ -27,6 +27,7 @@ namespace noa::cpu::memory {
         if (any(permutation > 3) || noa::math::sum(permutation) != 6)
             NOA_THROW("Permutation {} is not valid", permutation);
 
+        NOA_ASSERT(input && output && all(input_shape > 0));
         if (input == output) {
             const dim_t idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
             switch (idx) {

@@ -16,28 +16,28 @@ namespace noa::memory {
     /// \param value    The value to assign.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> fill(size4_t shape, T value, ArrayOption option = {});
+    Array<T> fill(dim4_t shape, T value, ArrayOption option = {});
 
     /// Returns an array filled with zeros.
     /// \tparam T       Any data type.
     /// \param shape    Shape of the array.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> zeros(size4_t shape, ArrayOption option = {});
+    Array<T> zeros(dim4_t shape, ArrayOption option = {});
 
     /// Returns an array filled with ones.
     /// \tparam T       Any data type.
     /// \param shape    Shape of the array.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> ones(size4_t shape, ArrayOption option = {});
+    Array<T> ones(dim4_t shape, ArrayOption option = {});
 
     /// Returns an uninitialized array.
     /// \tparam T       Any data type.
     /// \param shape    Shape of the array.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> empty(size4_t shape, ArrayOption option = {});
+    Array<T> empty(dim4_t shape, ArrayOption option = {});
 
     /// Returns an uninitialized contiguous array with the
     /// same shape and options as \p array.
@@ -61,7 +61,7 @@ namespace noa::memory {
     /// \param step     Spacing between values.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> arange(size4_t shape, T start = T{0}, T step = T{1}, ArrayOption option = {});
+    Array<T> arange(dim4_t shape, T start = T{0}, T step = T{1}, ArrayOption option = {});
 
     /// Returns an array with evenly spaced values within a given interval, in the rightmost order.
     /// \tparam T       Any data type.
@@ -70,7 +70,7 @@ namespace noa::memory {
     /// \param step     Spacing between values.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> arange(size_t elements, T start = T{0}, T step = T{1}, ArrayOption option = {});
+    Array<T> arange(dim_t elements, T start = T{0}, T step = T{1}, ArrayOption option = {});
 }
 
 namespace noa::memory {
@@ -91,7 +91,7 @@ namespace noa::memory {
     /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> linspace(size4_t shape, T start, T stop, bool endpoint = true, ArrayOption option = {});
+    Array<T> linspace(dim4_t shape, T start, T stop, bool endpoint = true, ArrayOption option = {});
 
     /// Returns an array with evenly spaced values within a given interval, in the rightmost order.
     /// \tparam T       Any data type.
@@ -101,7 +101,7 @@ namespace noa::memory {
     /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> linspace(size_t elements, T start, T stop, bool endpoint = true, ArrayOption option = {});
+    Array<T> linspace(dim_t elements, T start, T stop, bool endpoint = true, ArrayOption option = {});
 }
 
 namespace noa::memory {
@@ -112,7 +112,7 @@ namespace noa::memory {
     ///                     If the tile is equal to the shape of \p output,
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
     template<typename T>
-    void iota(const Array<T>& output, size4_t tile);
+    void iota(const Array<T>& output, dim4_t tile);
 
     /// Returns a tiled sequence [0, elements), in the rightmost order.
     /// \tparam T       Any restricted scalar.
@@ -121,7 +121,7 @@ namespace noa::memory {
     ///                 this is equivalent to `arange` with a start of 0 and step of 1.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> iota(size4_t shape, size4_t tile, ArrayOption option = {});
+    Array<T> iota(dim4_t shape, dim4_t tile, ArrayOption option = {});
 
     /// Returns a 1D tiled sequence [0, elements).
     /// \tparam T       Any restricted scalar.
@@ -129,7 +129,7 @@ namespace noa::memory {
     ///                 this is equivalent to `arange` with a start of 0 and step of 1.
     /// \param option   Options of the created array.
     template<typename T>
-    Array<T> iota(size_t elements, size_t tile, ArrayOption option = {});
+    Array<T> iota(dim_t elements, dim_t tile, ArrayOption option = {});
 }
 
 #define NOA_UNIFIED_FACTORY_

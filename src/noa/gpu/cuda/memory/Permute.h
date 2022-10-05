@@ -48,6 +48,7 @@ namespace noa::cuda::memory {
 
         const dim_t idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];
         if (input == output) {
+            NOA_ASSERT(all(input_strides == output_strides) && all(input_shape > 0));
             switch (idx) {
                 case 123:
                     return;
@@ -61,6 +62,7 @@ namespace noa::cuda::memory {
                     NOA_THROW("The in-place permutation {} is not supported", permutation);
             }
         } else {
+            NOA_ASSERT(all(input_shape > 0));
             switch (idx) {
                 case 123:
                     return copy(input, input_strides, output, output_strides, input_shape, stream);

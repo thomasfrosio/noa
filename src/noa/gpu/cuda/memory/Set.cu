@@ -80,6 +80,7 @@ namespace noa::cuda::memory::details {
         if (!elements)
             return;
 
+        NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const uint2_t strides{0, 1};
         const auto elements_per_batch = safe_cast<uint32_t>(elements);
         const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE));
@@ -101,6 +102,7 @@ namespace noa::cuda::memory::details {
         if (!shape.elements())
             return;
 
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         // Assume rightmost order, since it should have been reordered by now.
         const bool4_t is_contiguous = indexing::isContiguous(strides, shape);
         if (is_contiguous[1] && is_contiguous[2]) {

@@ -19,7 +19,7 @@ namespace noa::memory {
     /// \note On the GPU, \p origins can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void extract(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
-                 BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
+                 BorderMode border_mode = BORDER_ZERO, T border_value = T{0});
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
     /// \tparam T               Any data type.
@@ -48,7 +48,7 @@ namespace noa::memory {
     ///       is `2x2`, but with 5 subregions it goes to `3x2` with one empty region. Subregions are saved in
     ///       \p origins in row-major order.
     template<typename T, typename = std::enable_if_t<traits::is_int2_v<T> || traits::is_int4_v<T>>>
-    inline size4_t atlasLayout(size4_t subregion_shape, T* origins);
+    inline dim4_t atlasLayout(dim4_t subregion_shape, T* origins);
 }
 
 namespace noa::memory {

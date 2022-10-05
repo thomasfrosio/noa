@@ -12,7 +12,10 @@
 namespace noa::memory {
     template<typename T, typename U>
     void cast(const Array<T>& input, const Array<U>& output, bool clamp) {
-        size4_t input_strides = input.strides();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, output), "The input and output arrays should not overlap");
+
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());

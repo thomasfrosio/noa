@@ -185,6 +185,8 @@ namespace noa::cuda::memory {
         if (all(border_left == 0) && all(border_right == 0))
             return copy(input, input_strides, output, output_strides, input_shape, stream);
 
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         const auto tmp = safe_cast<int4_t>(input_shape) + border_left + border_right;
         NOA_ASSERT(all(tmp >= 1));
         uint4_t output_shape(tmp);

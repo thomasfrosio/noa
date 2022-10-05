@@ -527,6 +527,19 @@ namespace noa::indexing {
         return lhs_start <= rhs_end && lhs_end >= rhs_start;
     }
 
+    template<typename T, typename U, typename int_t, typename = std::enable_if_t<traits::is_int_v<int_t>>>
+    constexpr bool isOverlap(const T* lhs, int_t lhs_stride, int_t lhs_size ,
+                             const U* rhs, int_t rhs_stride, int_t rhs_size) noexcept {
+        if (lhs_size == 0 || rhs_size == 0)
+            return false;
+
+        const auto lhs_start = reinterpret_cast<std::uintptr_t>(lhs);
+        const auto rhs_start = reinterpret_cast<std::uintptr_t>(rhs);
+        const auto lhs_end = reinterpret_cast<std::uintptr_t>(lhs + at(lhs_size - 1, lhs_stride));
+        const auto rhs_end = reinterpret_cast<std::uintptr_t>(rhs + at(rhs_size - 1, rhs_stride));
+        return isOverlap(lhs_start, lhs_end, rhs_start, rhs_end);
+    }
+
     template<typename T, typename U, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
     constexpr bool isOverlap(const T* lhs, const intX_t& lhs_strides, const intX_t& lhs_shape,
                              const U* rhs, const intX_t& rhs_strides, const intX_t& rhs_shape) noexcept {

@@ -9,6 +9,7 @@ namespace noa::cpu::memory {
     template<typename T, typename U>
     void cast(const shared_t<T[]>& input, const shared_t<U[]>& output,
               dim_t elements, bool clamp, Stream& stream) {
+        NOA_ASSERT(input && output);
         stream.enqueue([=]() {
             const T* input_ = input.get();
             U* output_ = output.get();
@@ -33,6 +34,7 @@ namespace noa::cpu::memory {
             indexing::areContiguous(output_strides, shape))
             return cast(input, output, shape.elements(), clamp, stream);
 
+        NOA_ASSERT(input && output && all(shape > 0));
         stream.enqueue([=]() {
             const T* input_ = input.get();
             U* output_ = output.get();

@@ -31,7 +31,7 @@ namespace {
 
     // Sets the elements within the padding to a given value.
     template<typename T>
-    void applyBorderValue_(T* output, dim4_t strides, dim4_t shape,
+    void applyBorderValue_(Accessor<T, 4, dim_t> output, dim4_t shape,
                            long4_t pad_left, long4_t pad_right, T value) {
         const long4_t int_shape(shape);
         const long4_t valid_end = int_shape - pad_right;
@@ -45,7 +45,7 @@ namespace {
                         const bool skip_k = k >= pad_left[2] && k < valid_end[2];
                         const bool skip_l = l >= pad_left[3] && l < valid_end[3];
                         if (!skip_i || !skip_j || !skip_k || !skip_l)
-                            output[indexing::at(i, j, k, l, strides)] = value;
+                            output(i, j, k, l) = value;
                     }
                 }
             }
@@ -126,10 +126,10 @@ namespace noa::cpu::memory {
             switch (border_mode) {
                 case BORDER_ZERO:
                     return applyBorderValue_(
-                            output.get(), output_strides, output_shape, pad_left, pad_right, T{0});
+                            {output.get(), output_strides}, output_shape, pad_left, pad_right, T{0});
                 case BORDER_VALUE:
                     return applyBorderValue_(
-                            output.get(), output_strides, output_shape, pad_left, pad_right, border_value);
+                            {output.get(), output_strides}, output_shape, pad_left, pad_right, border_value);
                 case BORDER_CLAMP:
                     return applyBorder_<BORDER_CLAMP, T>(
                             {input.get(), input_strides}, input_shape,

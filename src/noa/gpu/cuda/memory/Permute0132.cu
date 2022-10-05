@@ -130,6 +130,8 @@ namespace noa::cuda::memory::details {
     void permute0132(const shared_t<T[]>& input, dim4_t input_strides,
                      const shared_t<T[]>& output, dim4_t output_strides,
                      dim4_t shape, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         const auto uint_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
         const bool are_multiple_tile = all((uint_shape % TILE_DIM) == 0);
 
@@ -153,6 +155,7 @@ namespace noa::cuda::memory::details {
 namespace noa::cuda::memory::details::inplace {
     template<typename T>
     void permute0132(const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if (shape[3] != shape[2])
             NOA_THROW("For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape:{}", shape);
 

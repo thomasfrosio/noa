@@ -10,7 +10,7 @@
 #endif
 
 namespace noa::memory {
-    std::pair<int4_t, int4_t> borders(size4_t input_shape, size4_t output_shape) {
+    std::pair<int4_t, int4_t> borders(dim4_t input_shape, dim4_t output_shape) {
         return cpu::memory::borders(input_shape, output_shape);
     }
 
@@ -18,6 +18,9 @@ namespace noa::memory {
     void resize(const Array<T>& input, const Array<T>& output,
                 int4_t border_left, int4_t border_right,
                 BorderMode border_mode, T border_value) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, output), "The input and output arrays should not overlap");
+
         const Device device = output.device();
         NOA_CHECK(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
@@ -25,7 +28,6 @@ namespace noa::memory {
         NOA_CHECK(all(int4_t(output.shape()) == int4_t(input.shape()) + border_left + border_right),
                   "The output shape {} does not math the expected shape (input:{}, left:{}, right:{})",
                   output.shape(), input.shape(), border_left, border_right);
-        NOA_CHECK(input.get() != output.get(), "In-place resizing is not allowed");
 
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -53,7 +55,7 @@ namespace noa::memory {
         NOA_CHECK(all(output_shape > 0),
                   "Cannot resize [left:{}, right:{}] an array of shape {} into an array of shape {}",
                   border_left, border_right, input.shape(), output_shape);
-        Array<T> output(size4_t(output_shape), input.options());
+        Array<T> output(dim4_t(output_shape), input.options());
         resize(input, output, border_left, border_right, border_mode, border_value);
         return output;
     }

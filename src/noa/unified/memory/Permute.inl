@@ -11,11 +11,13 @@
 
 namespace noa::memory {
     template<typename T, typename>
-    void permute(const Array<T>& input, const Array<T>& output, uint4_t permutation) {
-        size4_t input_strides = input.strides();
-        size4_t input_shape = input.shape();
-        for (size_t i = 0; i < 4; ++i) {
-            const size_t d = permutation[i];
+    void permute(const Array<T>& input, const Array<T>& output, dim4_t permutation) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t input_strides = input.strides();
+        dim4_t input_shape = input.shape();
+        for (dim_t i = 0; i < 4; ++i) {
+            const dim_t d = permutation[i];
             if (input.shape()[d] == 1 && output.shape()[i] != 1) {
                 input_strides[d] = 0; // broadcast this dimension
                 input_shape[d] = output.shape()[i];

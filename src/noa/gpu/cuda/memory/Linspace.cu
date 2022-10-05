@@ -96,6 +96,7 @@ namespace noa::cuda::memory {
             return T{0};
         }
 
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         auto[count, delta, step] = linspaceStep(elements, start, stop, endpoint);
 
         const auto uint_elements = static_cast<uint32_t>(elements);
@@ -124,6 +125,7 @@ namespace noa::cuda::memory {
             return T{0};
         }
 
+        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         auto[count, delta, step] = linspaceStep(elements, start, stop, endpoint);
 
         const bool4_t is_contiguous = indexing::isContiguous(strides, shape);

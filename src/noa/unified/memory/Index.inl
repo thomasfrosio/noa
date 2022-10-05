@@ -12,14 +12,15 @@ namespace noa::memory {
     template<typename T, typename>
     void extract(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
                  BorderMode border_mode, T border_value) {
+        NOA_CHECK(!input.empty() && !subregions.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, subregions), "The input and subregion(s) arrays should not overlap");
         NOA_CHECK(subregions.device() == input.device(),
                   "The input and subregion arrays must be on the same device, but got input:{} and subregions:{}",
                   input.device(), subregions.device());
         NOA_CHECK(indexing::isVector(origins.shape()) && origins.contiguous() &&
-                  origins.shape().elements() == subregions.shape()[0],
+                  origins.elements() == subregions.shape()[0],
                   "The indexes should be a contiguous vector of {} elements but got shape {} and strides {}",
                   subregions.shape()[0], origins.shape(), origins.strides());
-        NOA_CHECK(subregions.get() != input.get(), "The subregion(s) and the output arrays should not overlap");
 
         const Device device = subregions.device();
         Stream& stream = Stream::current(device);
@@ -41,14 +42,15 @@ namespace noa::memory {
 
     template<typename T, typename>
     void insert(const Array<T>& subregions, const Array<T>& output, const Array<int4_t>& origins) {
+        NOA_CHECK(!output.empty() && !subregions.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(output, subregions), "The subregion(s) and output arrays should not overlap");
         NOA_CHECK(subregions.device() == output.device(),
                   "The output and subregion arrays must be on the same device, but got output:{} and subregions:{}",
                   output.device(), subregions.device());
         NOA_CHECK(indexing::isVector(origins.shape()) && origins.contiguous() &&
-                  origins.shape().elements() == subregions.shape()[0],
+                  origins.elements() == subregions.shape()[0],
                   "The indexes should be a contiguous vector of {} elements but got shape {} and strides {}",
                   subregions.shape()[0], origins.shape(), origins.strides());
-        NOA_CHECK(subregions.get() != output.get(), "The subregion(s) and the output arrays should not overlap");
 
         const Device device(subregions.device());
         Stream& stream = Stream::current(device);
@@ -69,7 +71,7 @@ namespace noa::memory {
     }
 
     template<typename T, typename>
-    size4_t atlasLayout(size4_t subregion_shape, T* origins) {
+    dim4_t atlasLayout(dim4_t subregion_shape, T* origins) {
         return cpu::memory::atlasLayout(subregion_shape, origins);
     }
 }
@@ -117,7 +119,7 @@ namespace noa::memory {
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
-                                        bool extract_values, bool extract_offsets) {
+                                         bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
@@ -157,7 +159,7 @@ namespace noa::memory {
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
     Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
-                                        bool extract_values, bool extract_offsets) {
+                                         bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and rhs:{}",
@@ -197,7 +199,7 @@ namespace noa::memory {
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
     Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
-                                        BinaryOp binary_op, bool extract_values, bool extract_offsets) {
+                                         BinaryOp binary_op, bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()) && all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{}, lhs:{} and rhs:{}",
@@ -250,7 +252,7 @@ namespace noa::memory {
                   "The sequence of values and offsets should be two contiguous vectors of the same size, "
                   "but got values:{} and offsets:{}", extracted.values.shape(), extracted.offsets.shape());
 
-        const size_t elements = extracted.values.shape().elements();
+        const dim_t elements = extracted.values.elements();
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {

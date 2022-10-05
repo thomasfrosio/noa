@@ -15,7 +15,7 @@ namespace noa::memory {
     /// \note On the GPU, the following permutations are fast: 0123, 0132, 0312, 0321, 0213, 0231.
     ///       Anything else calls copy(), which is much slower.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void permute(const Array<T>& input, const Array<T>& output, uint4_t permutation);
+    void permute(const Array<T>& input, const Array<T>& output, dim4_t permutation);
 }
 
 #define NOA_UNIFIED_TRANSPOSE_

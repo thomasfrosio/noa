@@ -16,6 +16,7 @@ namespace noa::cpu::memory {
     // Returns evenly spaced values within a given interval.
     template<typename T>
     T linspace(T* src, dim_t elements, T start, T stop, bool endpoint = true) {
+        NOA_ASSERT(src || !elements);
         if (elements <= 1) {
             if (elements)
                 *src = start;
@@ -37,6 +38,7 @@ namespace noa::cpu::memory {
             return linspace(src, shape.elements(), start, stop, endpoint);
 
         const dim_t elements = shape.elements();
+        NOA_ASSERT(src || !elements);
         if (elements <= 1) {
             if (elements)
                 *src = start;

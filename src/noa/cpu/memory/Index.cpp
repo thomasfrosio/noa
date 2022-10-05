@@ -164,6 +164,8 @@ namespace noa::cpu::memory {
                  const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
                  const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
                  Stream& stream) {
+        NOA_ASSERT(origins && all(input_shape > 0) && all(subregion_shape > 0) && input.get() != subregions.get());
+
         const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
             // Reorder the DHW dimensions to the rightmost order.

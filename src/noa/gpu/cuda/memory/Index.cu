@@ -152,6 +152,7 @@ namespace noa::cuda::memory {
                  const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value, Stream& stream) {
         // Reorder the DHW dimensions to the rightmost order.
         // We'll have to reorder the origins similarly later.
+        NOA_ASSERT(all(input_shape > 0) && all(subregion_shape > 0));
         const dim3_t order_3d = indexing::order(dim3_t(subregion_strides.get(1)),
                                                 dim3_t(subregion_shape.get(1))) + 1;
         const int4_t order(0, order_3d[0], order_3d[1], order_3d[2]);
@@ -160,6 +161,8 @@ namespace noa::cuda::memory {
         subregion_strides = indexing::reorder(subregion_strides, order);
         subregion_shape = indexing::reorder(subregion_shape, order);
 
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(subregions.get(), stream.device());
         const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const auto i_shape = safe_cast<int4_t>(input_shape);
         const auto o_shape = safe_cast<int2_t>(dim2_t(subregion_shape.get(2)));
@@ -214,6 +217,7 @@ namespace noa::cuda::memory {
                 const shared_t<int4_t[]>& origins, Stream& stream) {
         // Reorder the DHW dimensions to the rightmost order.
         // We'll have to reorder the origins similarly later.
+        NOA_ASSERT(all(output_shape > 0) && all(subregion_shape > 0));
         const dim3_t order_3d = indexing::order(dim3_t(subregion_strides.get(1)),
                                                 dim3_t(subregion_shape.get(1))) + 1;
         const int4_t order(0, order_3d[0], order_3d[1], order_3d[2]);
@@ -222,6 +226,8 @@ namespace noa::cuda::memory {
         subregion_strides = indexing::reorder(subregion_strides, order);
         subregion_shape = indexing::reorder(subregion_shape, order);
 
+        NOA_ASSERT_DEVICE_PTR(subregions.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const auto i_shape = safe_cast<int2_t>(dim2_t(subregion_shape.get(2)));
         const uint32_t blocks_x = math::divideUp(static_cast<uint32_t>(i_shape[1]), BLOCK_WORK_SIZE_2D.x);

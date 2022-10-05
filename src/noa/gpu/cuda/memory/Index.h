@@ -45,6 +45,7 @@ namespace noa::cuda::memory {
     // Gets the atlas layout (shape + subregion origins).
     template<typename T, typename = std::enable_if_t<traits::is_int2_v<T> || traits::is_int4_v<T>>>
     inline dim4_t atlasLayout(dim4_t subregion_shape, T* origins) {
+        NOA_ASSERT(origins);
         // This a copied from noa/cpu/memory/Index.inl
         using namespace noa::math;
         const auto col = static_cast<dim_t>(ceil(sqrt(static_cast<float>(subregion_shape[0]))));

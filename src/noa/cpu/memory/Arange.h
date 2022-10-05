@@ -8,6 +8,7 @@ namespace noa::cpu::memory {
     // Returns evenly spaced values within a given interval.
     template<typename T>
     inline void arange(T* src, dim_t elements, T start = T(0), T step = T(1)) {
+        NOA_ASSERT(src || !elements);
         T value = start;
         for (dim_t i = 0; i < elements; ++i, value += step)
             src[i] = value;
@@ -19,6 +20,7 @@ namespace noa::cpu::memory {
         if (indexing::areContiguous(strides, shape))
             return arange(src, shape.elements(), start, step);
 
+        NOA_ASSERT(src && all(shape > 0));
         T value = start;
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j)

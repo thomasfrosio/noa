@@ -11,13 +11,14 @@ namespace noa::cpu::memory {
     // The behavior is undefined if dst_first is within the range [first, last).
     template<typename T>
     inline void copy(const T* first, const T* last, T* dst_first) {
-        NOA_ASSERT(first != dst_first);
+        NOA_ASSERT(first && last && dst_first);
         std::copy(first, last, dst_first);
     }
 
     // Copies src into dst.
     template<typename T>
     inline void copy(const T* src, T* dst, dim_t elements) {
+        NOA_ASSERT(!elements || !indexing::isOverlap(src, dim_t{1}, elements, dst, dim_t{1}, elements));
         copy(src, src + elements, dst);
     }
 
@@ -46,7 +47,7 @@ namespace noa::cpu::memory {
             return copy(src, src + shape.elements(), dst);
 
         {
-            NOA_ASSERT(!indexing::isOverlap(src, src_strides, dst, dst_strides, shape));
+            NOA_ASSERT(all(shape > 0) && !indexing::isOverlap(src, src_strides, dst, dst_strides, shape));
             const AccessorReferenceRestrict<const T, 4, dim_t> input(src, src_strides.get());
             const AccessorReferenceRestrict<T, 4, dim_t> output(dst, dst_strides.get());
             for (dim_t i = 0; i < shape[0]; ++i)

@@ -12,6 +12,7 @@ namespace noa::cpu::memory {
         if (tile == elements)
             return arange(src, elements);
 
+        NOA_ASSERT(src || !elements);
         for (dim_t i = 0; i < elements; ++i, ++src)
             *src = static_cast<T>(i % tile);
     }
@@ -22,6 +23,7 @@ namespace noa::cpu::memory {
         if (all(tile == shape))
             return arange(src, strides, shape);
 
+        NOA_ASSERT(src && all(shape > 0));
         const dim4_t tile_strides = tile.strides();
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t j = 0; j < shape[1]; ++j) {
