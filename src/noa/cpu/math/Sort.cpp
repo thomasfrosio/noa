@@ -172,6 +172,8 @@ namespace {
 namespace noa::cpu::math {
     template<typename T, typename>
     void sort(const shared_t<T[]>& array, dim4_t strides, dim4_t shape, bool ascending, int dim, Stream& stream) {
+        NOA_ASSERT(array && all(shape > 0));
+
         // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
         if (dim == -1)
             dim = shape[3] > 1 ? 3 : shape[2] > 1 ? 2 : shape[1] > 1 ? 1 : 0;

@@ -232,7 +232,8 @@ namespace {
 namespace noa::cuda::math {
     template<typename T, typename>
     void sort(const shared_t<T[]>& array, dim4_t strides, dim4_t shape, bool ascending, int32_t dim, Stream& stream) {
-        NOA_ASSERT(array.get() != nullptr && all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(array.get(), stream.device());
 
         // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
         if (dim == -1)

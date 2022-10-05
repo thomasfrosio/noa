@@ -221,6 +221,7 @@ namespace {
     template<typename D, typename T, typename U>
     void randomize1D_(D, const shared_t<T[]>& output,
                       dim_t strides, dim_t elements, U x, U y, cuda::Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         const auto s_elements = safe_cast<uint32_t>(elements);
         const auto s_strides = safe_cast<uint32_t>(strides);
 
@@ -256,6 +257,8 @@ namespace {
 
     template<typename D, typename T, typename U>
     void randomize4D_(D, const shared_t<T[]>& output, dim4_t strides, dim4_t shape, U x, U y, cuda::Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         const auto order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
         shape = indexing::reorder(shape, order);

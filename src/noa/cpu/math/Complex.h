@@ -13,6 +13,7 @@ namespace noa::cpu::math {
                    const shared_t<T[]>& real, dim4_t real_strides,
                    const shared_t<T[]>& imag, dim4_t imag_strides,
                    dim4_t shape, Stream& stream) {
+        NOA_ASSERT(real.get() != imag.get() && all(shape > 0));
         stream.enqueue([=]() mutable {
             if (all(input_strides > 0)) {
                 const dim4_t order = indexing::order(input_strides, shape);

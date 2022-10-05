@@ -368,6 +368,7 @@ namespace {
 namespace noa::cpu::math {
     template<typename T, typename>
     T min(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         T output;
         const dim_t threads = stream.threads();
         stream.enqueue([=, &output](){ reduceMin_<T>(input.get(), strides, shape, &output, threads); });
@@ -377,6 +378,7 @@ namespace noa::cpu::math {
 
     template<typename T, typename>
     T max(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         T output;
         const dim_t threads = stream.threads();
         stream.enqueue([=, &output](){ reduceMax_<T>(input.get(), strides, shape, &output, threads); });
@@ -387,6 +389,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     T median(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
              bool overwrite, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         using buffer_t = typename cpu::memory::PtrHost<T>::alloc_unique_t;
 
         // Make it in rightmost order.
@@ -419,6 +422,7 @@ namespace noa::cpu::math {
 
     template<typename T, typename>
     T sum(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         T output;
         const dim_t threads = stream.threads();
         stream.enqueue([=, &output](){
@@ -436,6 +440,7 @@ namespace noa::cpu::math {
 
     template<typename T, typename U, typename>
     U var(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int ddof, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         U output;
         stream.enqueue([=, &output, &stream]() {
             T mean = sum(input, strides, shape, stream);
@@ -461,6 +466,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void min(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
              const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         const bool4_t mask = getMask_("min", input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
@@ -495,6 +501,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void max(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
              const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         const bool4_t mask = getMask_("max", input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
@@ -526,7 +533,7 @@ namespace noa::cpu::math {
         }
     }
 
-    #define NOA_INSTANTIATE_MIN_MAX_(T)                                       \
+    #define NOA_INSTANTIATE_MIN_MAX_(T)                                     \
     template T min<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
     template T max<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
     template T median<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&); \
@@ -547,6 +554,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void sum(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
              const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         const bool4_t mask = getMask_("sum", input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
@@ -584,6 +592,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void mean(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
               const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         const bool4_t mask = getMask_("mean", input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 
@@ -639,6 +648,7 @@ namespace noa::cpu::math {
     void var(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
              const shared_t<U[]>& output, dim4_t output_strides, dim4_t output_shape,
              int ddof, Stream& stream) {
+        NOA_ASSERT(input && output && all(input_shape > 0) && all(output_shape > 0));
         const bool4_t mask = getMask_("var", input_shape, output_shape);
         const bool4_t is_or_should_reduce{output_shape == 1 || mask};
 

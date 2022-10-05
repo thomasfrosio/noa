@@ -46,7 +46,7 @@ namespace noa::math {
     ///                         Can be equal to input. If empty, it is ignored.
     /// \param subtract         Whether \p input should be subtracted by the surface and saved in \p output.
     ///                         If true, the input and output should have the same shape.
-    /// \param[out] parameters  Surface parameters. One set per batch.
+    /// \param[out] parameters  Surface parameters. One set per batch. If empty, it is ignored.
     ///                         If \p order is 1: p[0] + p[1]*x + p[2]*y = 0
     ///                         If \p order is 2: p[0] + p[1]*x + p[2]*y + p[3]*x*y + p[4]*x*x + p[5]*y*y = 0
     ///                         If \p order is 3: p[0] + p[1]*x + p[2]*y + p[3]*x*y + p[4]*x*x + p[5]*y*y + ...
@@ -54,7 +54,7 @@ namespace noa::math {
     /// \note This function can allocate a lot of memory, at least (\p order + 1) times the input size.
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T>>>
     void surface(const Array<T>& input, int order,
-                 const Array<T>& output = {}, bool subtract = false,
+                 const Array<T>& output, bool subtract = false,
                  const Array<T>& parameters = {});
 }
 

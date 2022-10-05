@@ -12,6 +12,13 @@
 namespace noa::math {
     template<typename S, typename T, typename U, typename>
     void find(S searcher, const Array<T>& input, const Array<U>& offsets, bool batch, bool swap_layout) {
+        NOA_CHECK(!input.empty(), "Empty array detected");
+
+        [[maybe_unused]] const dim_t required_size = batch ? input.shape()[0] : 1; // TODO >=1 ?
+        NOA_CHECK(indexing::isVector(offsets.shape()) && offsets.contiguous() && offsets.elements() == required_size,
+                   "The output offsets should be specified as a contiguous vector of {} elements, "
+                   "but got strides:{} and shape:{}", required_size, offsets.strides(), offsets.shape());
+
         const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -32,6 +39,8 @@ namespace noa::math {
 
     template<typename offset_t, typename S, typename T, typename>
     offset_t find(S searcher, const Array<T>& input, bool swap_layout) {
+        NOA_CHECK(!input.empty(), "Empty array detected");
+
         const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {

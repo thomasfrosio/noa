@@ -26,6 +26,7 @@ namespace noa::math::details {
 namespace noa::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::uniform_t, const Array<T>& output, U min, U max) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -45,6 +46,7 @@ namespace noa::math {
 
     template<typename T, typename U, typename>
     void randomize(noa::math::normal_t, const Array<T>& output, U mean, U stddev) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -66,6 +68,7 @@ namespace noa::math {
 
     template<typename T, typename U, typename>
     void randomize(noa::math::log_normal_t, const Array<T>& output, U mean, U stddev) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -87,6 +90,7 @@ namespace noa::math {
 
     template<typename T, typename>
     void randomize(noa::math::poisson_t, const Array<T>& output, float lambda) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const Device device = output.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -107,56 +111,56 @@ namespace noa::math {
 
 namespace noa::math {
     template<typename T, typename U, typename>
-    Array<T> random(noa::math::uniform_t, size4_t shape, U min, U max, ArrayOption option) {
+    Array<T> random(noa::math::uniform_t, dim4_t shape, U min, U max, ArrayOption option) {
         Array<T> out(shape, option);
         randomize(noa::math::uniform_t{}, out, min, max);
         return out;
     }
 
     template<typename T, typename U, typename>
-    Array<T> random(noa::math::normal_t, size4_t shape, U mean, U stddev, ArrayOption option) {
+    Array<T> random(noa::math::normal_t, dim4_t shape, U mean, U stddev, ArrayOption option) {
         Array<T> out(shape, option);
         randomize(noa::math::normal_t{}, out, mean, stddev);
         return out;
     }
 
     template<typename T, typename U, typename>
-    Array<T> random(noa::math::log_normal_t, size4_t shape, U mean, U stddev, ArrayOption option) {
+    Array<T> random(noa::math::log_normal_t, dim4_t shape, U mean, U stddev, ArrayOption option) {
         Array<T> out(shape, option);
         randomize(noa::math::log_normal_t{}, out, mean, stddev);
         return out;
     }
 
     template<typename T, typename>
-    Array<T> random(noa::math::poisson_t, size4_t shape, float lambda, ArrayOption option) {
+    Array<T> random(noa::math::poisson_t, dim4_t shape, float lambda, ArrayOption option) {
         Array<T> out(shape, option);
         randomize(noa::math::poisson_t{}, out, lambda);
         return out;
     }
 
     template<typename T, typename U, typename>
-    Array<T> random(noa::math::uniform_t, size_t elements, U min, U max, ArrayOption option) {
+    Array<T> random(noa::math::uniform_t, dim_t elements, U min, U max, ArrayOption option) {
         Array<T> out(elements, option);
         randomize(noa::math::uniform_t{}, out, min, max);
         return out;
     }
 
     template<typename T, typename U, typename>
-    Array<T> random(noa::math::normal_t, size_t elements, U mean, U stddev, ArrayOption option) {
+    Array<T> random(noa::math::normal_t, dim_t elements, U mean, U stddev, ArrayOption option) {
         Array<T> out(elements, option);
         randomize(noa::math::normal_t{}, out, mean, stddev);
         return out;
     }
 
     template<typename T, typename U, typename>
-    Array<T> random(noa::math::log_normal_t, size_t elements, U mean, U stddev, ArrayOption option) {
+    Array<T> random(noa::math::log_normal_t, dim_t elements, U mean, U stddev, ArrayOption option) {
         Array<T> out(elements, option);
         randomize(noa::math::log_normal_t{}, out, mean, stddev);
         return out;
     }
 
     template<typename T, typename>
-    Array<T> random(noa::math::poisson_t, size_t elements, float lambda, ArrayOption option) {
+    Array<T> random(noa::math::poisson_t, dim_t elements, float lambda, ArrayOption option) {
         Array<T> out(elements, option);
         randomize(noa::math::poisson_t{}, out, lambda);
         return out;

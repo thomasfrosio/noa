@@ -277,6 +277,7 @@ namespace noa::cpu::math {
                const shared_t<T[]>& b, dim4_t b_strides, dim4_t b_shape,
                float cond, const shared_t<U[]>& svd,
                Stream& stream) {
+        NOA_ASSERT(a && b && all(a_shape > 0) && all(b_shape > 0));
         NOA_ASSERT(a_shape[0] == b_shape[0]);
         NOA_ASSERT(a_shape[1] == 1 && b_shape[1] == 1);
         const dim_t batches = a_shape[0];
@@ -325,6 +326,7 @@ namespace noa::cpu::math {
     void surface(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, bool subtract,
                  int order, const shared_t<T[]>& parameters, Stream& stream) {
+        NOA_ASSERT(input && all(input_shape > 0));
         if (!output && !parameters)
             return;
 
@@ -334,9 +336,11 @@ namespace noa::cpu::math {
             SurfaceFitter<GELSY, T> surface(input.get(), input_strides, input_shape, order);
             if (parameters)
                 surface.saveParameters(parameters.get());
-            if (output)
+            if (output) {
+                NOA_ASSERT(all(output_shape > 0));
                 surface.computeSurface(subtract ? input.get() : nullptr, input_strides,
                                        output.get(), output_strides, output_shape);
+            }
         });
     }
 

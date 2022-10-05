@@ -107,9 +107,10 @@ namespace noa::cuda::math {
                    const shared_t<T[]>& real, dim4_t real_strides,
                    const shared_t<T[]>& imag, dim4_t imag_strides,
                    dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != nullptr && real != nullptr && imag != nullptr && all(shape > 0));
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, real.get(), real_strides, shape));
-        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, imag.get(), imag_strides, shape));
+        NOA_ASSERT(real.get() != imag.get() && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(real.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(imag.get(), stream.device());
 
         if (all(input_strides > 0)) {
             const auto order = indexing::order(input_strides, shape);
@@ -162,9 +163,6 @@ namespace noa::cuda::math {
                  const shared_t<T[]>& imag, dim4_t imag_strides,
                  const shared_t<Complex<T>[]>& output, dim4_t output_strides,
                  dim4_t shape, Stream& stream) {
-        NOA_ASSERT(output.get() != nullptr && real != nullptr && imag != nullptr && all(shape > 0));
-        NOA_ASSERT(!indexing::isOverlap(output.get(), output_strides, real.get(), real_strides, shape));
-        NOA_ASSERT(!indexing::isOverlap(output.get(), output_strides, imag.get(), imag_strides, shape));
         util::ewise::binary<true>("memory::complex",
                                   real.get(), real_strides,
                                   imag.get(), imag_strides,

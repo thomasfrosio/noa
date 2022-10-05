@@ -12,6 +12,7 @@
 namespace noa::math {
     template<typename T, typename>
     void sort(const Array<T>& array, bool ascending, int axis) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {

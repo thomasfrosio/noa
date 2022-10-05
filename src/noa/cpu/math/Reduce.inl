@@ -12,6 +12,7 @@ namespace noa::cpu::math {
     template<typename T, typename BinaryOp>
     T reduce(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
              BinaryOp binary_op, T init, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         T output;
         stream.enqueue([=, &output]() mutable {
             const dim4_t order = indexing::order(strides, shape);

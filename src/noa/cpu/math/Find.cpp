@@ -33,6 +33,7 @@ namespace noa::cpu::math {
     template<typename S, typename T, typename U, typename>
     void find(S, const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
               const shared_t<U[]>& offsets, bool batch, bool swap_layout, Stream& stream) {
+        NOA_ASSERT(input && offsets && all(shape > 0));
         stream.enqueue([=]() mutable {
             if (swap_layout) {
                 // TODO If !batch, we can swap the batch dimension as well.
@@ -47,7 +48,6 @@ namespace noa::cpu::math {
             const op<S, T> find_op{};
 
             for (dim_t batch_ = 0; batch_ < batches; ++batch_) {
-
                 const T* input_ = input.get() + batch_ * strides[0];
                 U* offset_ = offsets.get() + batch_;
                 dim_t found_offset{};
@@ -73,6 +73,7 @@ namespace noa::cpu::math {
 
     template<typename offset_t, typename S, typename T, typename>
     offset_t find(S, const shared_t<T[]>& input, dim4_t strides, dim4_t shape, bool swap_layout, Stream& stream) {
+        NOA_ASSERT(input && all(shape > 0));
         if (swap_layout) {
             const dim4_t order = indexing::order(strides, shape);
             strides = indexing::reorder(strides, order);
@@ -106,6 +107,7 @@ namespace noa::cpu::math {
 
     template<typename offset_t, typename S, typename T, typename>
     offset_t find(S, const shared_t<T[]>& input, dim_t elements, Stream& stream) {
+        NOA_ASSERT(input);
         stream.synchronize();
         if constexpr (std::is_same_v<S, noa::math::first_min_t>) {
             T* ptr = std::min_element(input.get(), input.get() + elements);

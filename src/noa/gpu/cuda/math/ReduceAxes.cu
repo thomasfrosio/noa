@@ -101,6 +101,10 @@ namespace {
                             U* output, dim4_t output_strides, dim4_t output_shape, bool4_t mask,
                             TransformOp transform_op, ReduceOp reduce_op, U init, PostProcess post_process_op,
                             Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
+        NOA_ASSERT(all(input_shape > 0) && all(output_shape > 0));
+
         if (noa::math::sum(int4_t(mask)) > 1) {
             NOA_THROW_FUNC(name, "Reducing more than one axis at a time is only supported if the reduction results in "
                                  "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "

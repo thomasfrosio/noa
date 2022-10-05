@@ -12,12 +12,15 @@
 namespace noa::math {
     template<typename T, typename>
     void decompose(const Array<Complex<T>>& input, const Array<T>& real, const Array<T>& imag) {
-        const size4_t output_shape = real.shape();
+        NOA_CHECK(!input.empty() && !real.empty() && !imag.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(real, imag), "The output arrays should not overlap");
+
+        const dim4_t output_shape = real.shape();
         NOA_CHECK(all(output_shape == imag.shape()),
                   "The real and imaginary arrays should have the same shape, but got real:{} and imag:{}",
                   output_shape, imag.shape());
 
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output_shape);
@@ -48,7 +51,10 @@ namespace noa::math {
 
     template<typename T, typename>
     void real(const Array<Complex<T>>& input, const Array<T>& real) {
-        size4_t input_strides = input.strides();
+        NOA_CHECK(!input.empty() && !real.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(real, input), "The arrays should not overlap");
+
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, real.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), real.shape());
@@ -77,7 +83,10 @@ namespace noa::math {
 
     template<typename T, typename>
     void imag(const Array<Complex<T>>& input, const Array<T>& imag) {
-        size4_t input_strides = input.strides();
+        NOA_CHECK(!input.empty() && !imag.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(imag, input), "The arrays should not overlap");
+
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, imag.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), imag.shape());
@@ -106,13 +115,15 @@ namespace noa::math {
 
     template<typename T, typename>
     void complex(const Array<T>& real, const Array<T>& imag, const Array<Complex<T>>& output) {
-        const size4_t output_shape = output.shape();
-        size4_t real_strides = real.strides();
+        NOA_CHECK(!output.empty() && !real.empty() && !imag.empty(), "Empty array detected");
+
+        const dim4_t output_shape = output.shape();
+        dim4_t real_strides = real.strides();
         if (!indexing::broadcast(real.shape(), real_strides, output_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       real.shape(), output_shape);
         }
-        size4_t imag_strides = imag.strides();
+        dim4_t imag_strides = imag.strides();
         if (!indexing::broadcast(imag.shape(), imag_strides, output_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       imag.shape(), output_shape);

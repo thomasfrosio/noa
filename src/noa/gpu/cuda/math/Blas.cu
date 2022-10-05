@@ -103,8 +103,7 @@ namespace noa::cuda::math {
     T dot(const std::shared_ptr<T[]>& lhs, dim4_t lhs_strides, dim4_t lhs_shape,
           const std::shared_ptr<T[]>& rhs, dim4_t rhs_strides, dim4_t rhs_shape,
           Stream& stream) {
-        NOA_ASSERT(lhs.get() != nullptr && rhs.get() != nullptr &&
-                   all(lhs_shape > 0) && all(rhs_shape > 0));
+        NOA_ASSERT(all(lhs_shape > 0) && all(rhs_shape > 0));
 
         // Get vector shape:
         NOA_ASSERT(lhs_shape.ndim() == 1 && rhs_shape.ndim() == 1);
@@ -116,6 +115,9 @@ namespace noa::cuda::math {
         T output{};
         using real_t = traits::value_type_t<T>;
         if constexpr (traits::is_float_v<T>) {
+            NOA_ASSERT_DEVICE_PTR(lhs.get(), stream.device());
+            NOA_ASSERT_DEVICE_PTR(rhs.get(), stream.device());
+
             cublasHandle_t handle = cublasCachedHandle_(stream.device().id())->handle;
             CUBLAS_THROW_IF_(cublasSetStream_v2(handle, stream.id()));
             CUBLAS_THROW_IF_(cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST));
@@ -156,8 +158,7 @@ namespace noa::cuda::math {
     void dot(const std::shared_ptr<T[]>& lhs, dim4_t lhs_strides, dim4_t lhs_shape,
              const std::shared_ptr<T[]>& rhs, dim4_t rhs_strides, dim4_t rhs_shape,
              const std::shared_ptr<T[]>& output, Stream& stream) {
-        NOA_ASSERT(lhs.get() != nullptr && rhs.get() != nullptr &&
-                   all(lhs_shape > 0) && all(rhs_shape > 0));
+        NOA_ASSERT(all(lhs_shape > 0) && all(rhs_shape > 0));
         NOA_ASSERT(lhs_shape[0] == rhs_shape[0] && lhs_shape[1] == 1 && rhs_shape[1] == 1);
         const dim_t batches = lhs_shape[0];
 
@@ -201,6 +202,11 @@ namespace noa::cuda::math {
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
                 const std::shared_ptr<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                 Stream& stream) {
+        NOA_ASSERT(all(lhs_shape > 0) && all(rhs_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(lhs.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(rhs.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         // Get the shape: MxK @ KxN = MxN
         const auto m = lhs_shape[2 + lhs_transpose];
         const auto n = rhs_shape[3 - rhs_transpose];

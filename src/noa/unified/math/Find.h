@@ -20,17 +20,17 @@ namespace noa::math {
     /// \param[out] offsets     Contiguous vector where the memory offset(s) are saved.
     /// \param batch            Whether each batch in \p input should be segmented. If true, the offset of the
     ///                         result value in each batch is returned and these offsets are relative to the
-    ///                         beginning of each batch.
+    ///                         beginning of each batch. If false, a single value is returned in \p offsets.
     /// \param swap_layout      Whether the function is allowed to reorder the input for fastest search.
     ///                         If true, the search is done following the optimal strides order of \p input,
     ///                         so the first minimum value might be different if the array is e.g. column-major
     ///                         or row-major. Otherwise, the search is done in the rightmost order. Note that if
-    ///                         \p batch is true, the batch dimension is not swapped.
-    /// \note One can retrieve the multidimensional indexes from the offset using noa::indexing::indexes(...).
+    ///                         \p batch is true, the batch dimension is cannot swapped.
+    /// \note One can retrieve the multidimensional indexes from the offset using indexing::indexes(offset, input).
     /// \note If \p input is on the CPU, \p offsets should be dereferenceable by the CPU.
     ///       If it is on the GPU, it can be on any device, including the CPU.
     template<typename S, typename T, typename U, typename = std::enable_if_t<details::is_valid_find_v<S, T, U>>>
-    void find(S searcher, const Array<T>& input, const Array<U>& offsets, bool batch, bool swap_layout);
+    void find(S searcher, const Array<T>& input, const Array<U>& offsets, bool batch = true, bool swap_layout = false);
 
     /// Returns the memory offset of a particular kind of value.
     /// \tparam S               Any of {first|last}_{min|max}_t.
@@ -42,9 +42,9 @@ namespace noa::math {
     ///                         If true, the search is done following the optimal strides order of \p input,
     ///                         so the first minimum value might be different if the array is e.g. column-major
     ///                         or row-major. Otherwise, the search is done in the rightmost order.
-    template<typename offset_t = size_t, typename S, typename T,
+    template<typename offset_t = dim_t, typename S, typename T,
              typename = std::enable_if_t<details::is_valid_find_v<S, T, offset_t>>>
-    offset_t find(S searcher, const Array<T>& input, bool swap_layout);
+    offset_t find(S searcher, const Array<T>& input, bool swap_layout = false);
 }
 
 #define NOA_UNIFIED_MATH_FIND_

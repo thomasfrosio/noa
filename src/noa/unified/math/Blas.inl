@@ -12,6 +12,7 @@
 namespace noa::math {
     template<typename T, typename>
     T dot(const Array<T>& lhs, const Array<T>& rhs) {
+        NOA_CHECK(!lhs.empty() && !rhs.empty(), "Empty array detected");
         NOA_CHECK(lhs.shape().ndim() <= 2 && rhs.shape().ndim() <= 2,
                   "The inputs should be unbatched row or column vectors, but got shape lhs:{} and rhs:{}",
                   lhs.shape(), rhs.shape());
@@ -39,6 +40,7 @@ namespace noa::math {
 
     template<typename T, typename>
     void dot(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output) {
+        NOA_CHECK(!lhs.empty() && !rhs.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(indexing::isVector(lhs.shape(), true) && indexing::isVector(rhs.shape(), true) &&
                   lhs.shape()[1] == 1 && rhs.shape()[1] == 1,
                   "The input should be (batched) column or row vectors, but got lhs:{} and rhs:{}",
@@ -51,11 +53,11 @@ namespace noa::math {
                   "The output should be a contiguous vector, but got shape {} and stride {}",
                   output.shape(), output.strides());
 
-        const size_t batches = output.shape().elements();
-        size4_t lhs_stride = lhs.strides();
+        const dim_t batches = output.elements();
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape()[0], lhs_stride[0], batches))
             NOA_THROW("Cannot broadcast a size of {} into a size of {}", lhs.shape()[0], batches);
-        size4_t rhs_stride = rhs.strides();
+        dim4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape()[0], rhs_stride[0], batches))
             NOA_THROW("Cannot broadcast a size of {} into a size of {}", rhs.shape()[0], batches);
 
@@ -92,6 +94,10 @@ namespace noa::math {
     template<typename T, typename>
     void matmul(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& output,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose) {
+        NOA_CHECK(!lhs.empty() && !rhs.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(lhs, output) && !indexing::isOverlap(rhs, output),
+                  "Input and output arrays should not overlap");
+
         [[maybe_unused]] const bool is_col = indexing::isColMajor(lhs.strides());
         NOA_CHECK(is_col == indexing::isColMajor(rhs.strides()) &&
                   is_col == indexing::isColMajor(output.strides()),

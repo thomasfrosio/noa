@@ -31,6 +31,7 @@ namespace noa::cuda::math {
     template<typename T, typename>
     T median(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
              bool overwrite, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
         // Make it in rightmost order.
         const dim4_t order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);

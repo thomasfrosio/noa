@@ -12,6 +12,7 @@
 namespace noa::math {
     template<typename T, typename>
     T min(const Array<T>& array) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -27,6 +28,7 @@ namespace noa::math {
 
     template<typename T, typename>
     T max(const Array<T>& array) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -42,6 +44,7 @@ namespace noa::math {
 
     template<typename T, typename>
     T median(const Array<T>& array, bool overwrite) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -57,6 +60,7 @@ namespace noa::math {
 
     template<typename T, typename>
     T sum(const Array<T>& array) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -72,6 +76,7 @@ namespace noa::math {
 
     template<typename T, typename>
     T mean(const Array<T>& array) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -87,6 +92,7 @@ namespace noa::math {
 
     template<typename T, typename>
     auto var(const Array<T>& array, int ddof) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -102,6 +108,7 @@ namespace noa::math {
 
     template<typename T, typename>
     auto std(const Array<T>& array, int ddof) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -117,6 +124,7 @@ namespace noa::math {
 
     template<typename T, typename>
     auto statistics(const Array<T>& array, int ddof) {
+        NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
@@ -135,9 +143,10 @@ namespace noa::math {
 namespace noa::math {
     template<typename T, typename>
     void min(const Array<T>& input, const Array<T>& output) {
-        const Device device = input.device();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
+        const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(device == output.device(),
@@ -147,7 +156,7 @@ namespace noa::math {
                            output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(device == output.device() || all(size3_t(output.shape().get(1)) == 1),
+            NOA_CHECK(device == output.device() || all(dim3_t(output.shape().get(1)) == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       device, output.device());
             cuda::math::min(input.share(), input.strides(), input.shape(),
@@ -160,9 +169,10 @@ namespace noa::math {
 
     template<typename T, typename>
     void max(const Array<T>& input, const Array<T>& output) {
-        const Device device = input.device();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
+        const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(device == output.device(),
@@ -172,7 +182,7 @@ namespace noa::math {
                            output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(device == output.device() || all(size3_t(output.shape().get(1)) == 1),
+            NOA_CHECK(device == output.device() || all(dim3_t(output.shape().get(1)) == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       device, output.device());
             cuda::math::max(input.share(), input.strides(), input.shape(),
@@ -185,9 +195,10 @@ namespace noa::math {
 
     template<typename T, typename>
     void sum(const Array<T>& input, const Array<T>& output) {
-        const Device device = input.device();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
+        const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(device == output.device(),
@@ -197,7 +208,7 @@ namespace noa::math {
                            output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(device == output.device() || all(size3_t(output.shape().get(1)) == 1),
+            NOA_CHECK(device == output.device() || all(dim3_t(output.shape().get(1)) == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       device, output.device());
             cuda::math::sum(input.share(), input.strides(), input.shape(),
@@ -210,9 +221,10 @@ namespace noa::math {
 
     template<typename T, typename>
     void mean(const Array<T>& input, const Array<T>& output) {
-        const Device device = input.device();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
+        const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(device == output.device(),
@@ -222,7 +234,7 @@ namespace noa::math {
                             output.share(), output.strides(), output.shape(), stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(device == output.device() || all(size3_t(output.shape().get(1)) == 1),
+            NOA_CHECK(device == output.device() || all(dim3_t(output.shape().get(1)) == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       device, output.device());
             cuda::math::mean(input.share(), input.strides(), input.shape(),
@@ -235,9 +247,10 @@ namespace noa::math {
 
     template<typename T, typename U, typename>
     void var(const Array<T>& input, const Array<U>& output, int ddof) {
-        const Device device = input.device();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
+        const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(device == output.device(),
@@ -247,7 +260,7 @@ namespace noa::math {
                            output.share(), output.strides(), output.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(device == output.device() || all(size3_t(output.shape().get(1)) == 1),
+            NOA_CHECK(device == output.device() || all(dim3_t(output.shape().get(1)) == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       device, output.device());
             cuda::math::var(input.share(), input.strides(), input.shape(),
@@ -260,9 +273,10 @@ namespace noa::math {
 
     template<typename T, typename U, typename>
     void std(const Array<T>& input, const Array<U>& output, int ddof) {
-        const Device device = input.device();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(input.get() != output.get(), "The input and output arrays should not overlap");
 
+        const Device device = input.device();
         Stream& stream = Stream::current(device);
         if (device.cpu()) {
             NOA_CHECK(device == output.device(),
@@ -272,7 +286,7 @@ namespace noa::math {
                            output.share(), output.strides(), output.shape(), ddof, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            NOA_CHECK(device == output.device() || all(size3_t(output.shape().get(1)) == 1),
+            NOA_CHECK(device == output.device() || all(dim3_t(output.shape().get(1)) == 1),
                       "The input and output arrays must be on the same device, but got input:{} and output:{}",
                       device, output.device());
             cuda::math::std(input.share(), input.strides(), input.shape(),

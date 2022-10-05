@@ -133,6 +133,7 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim_t elements,
                    U min, U max, Stream& stream) {
+        NOA_ASSERT(output);
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
@@ -168,6 +169,7 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim_t elements,
                    U mean, U stddev, Stream& stream) {
+        NOA_ASSERT(output);
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
@@ -203,6 +205,7 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim_t elements,
                    U mean, U stddev, Stream& stream) {
+        NOA_ASSERT(output);
         if constexpr (noa::traits::is_complex_v<T>) {
             if constexpr (noa::traits::is_float_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
@@ -237,6 +240,7 @@ namespace noa::cpu::math {
 
     template<typename T, typename>
     void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim_t elements, float lambda, Stream& stream) {
+        NOA_ASSERT(output);
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
             randomize(noa::math::poisson_t{}, std::reinterpret_pointer_cast<real_t[]>(output), elements * 2,
@@ -253,6 +257,7 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U min, U max, Stream& stream) {
+        NOA_ASSERT(output && all(shape > 0));
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::uniform_t{}, output, shape.elements(), min, max, stream);
 
@@ -293,6 +298,7 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream) {
+        NOA_ASSERT(output && all(shape > 0));
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::normal_t{}, output, shape.elements(), mean, stddev, stream);
 
@@ -333,6 +339,7 @@ namespace noa::cpu::math {
     template<typename T, typename U, typename>
     void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    U mean, U stddev, Stream& stream) {
+        NOA_ASSERT(output && all(shape > 0));
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::log_normal_t{}, output, shape.elements(), mean, stddev, stream);
 
@@ -373,6 +380,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
                    float lambda, Stream& stream) {
+        NOA_ASSERT(output && all(shape > 0));
         if (indexing::areContiguous(strides, shape))
             return randomize(noa::math::poisson_t{}, output, shape.elements(), lambda, stream);
 

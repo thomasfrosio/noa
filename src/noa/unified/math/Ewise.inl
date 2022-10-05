@@ -13,7 +13,9 @@
 namespace noa::math {
     template<typename T, typename U, typename UnaryOp>
     void ewise(const Array<T>& input, const Array<U>& output, UnaryOp unary_op) {
-        size4_t input_stride = input.strides();
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t input_stride = input.strides();
         if (!indexing::broadcast(input.shape(), input_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -50,7 +52,9 @@ namespace noa::math {
 namespace noa::math {
     template<typename T, typename U, typename V, typename BinaryOp, typename>
     void ewise(const Array<T>& lhs, U rhs, const Array<V>& output, BinaryOp binary_op) {
-        size4_t lhs_stride = lhs.strides();
+        NOA_CHECK(!lhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
@@ -84,7 +88,9 @@ namespace noa::math {
 
     template<typename T, typename U, typename V, typename BinaryOp, typename>
     void ewise(T lhs, const Array<U>& rhs, const Array<V>& output, BinaryOp binary_op) {
-        size4_t rhs_stride = rhs.strides();
+        NOA_CHECK(!rhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -118,12 +124,14 @@ namespace noa::math {
 
     template<typename T, typename U, typename V, typename BinaryOp>
     void ewise(const Array<T>& lhs, const Array<U>& rhs, const Array<V>& output, BinaryOp binary_op) {
-        size4_t lhs_stride = lhs.strides();
+        NOA_CHECK(!lhs.empty() && !rhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t rhs_stride = rhs.strides();
+        dim4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -160,7 +168,9 @@ namespace noa::math {
 namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const Array<T>& lhs, U mhs, V rhs, const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.strides();
+        NOA_CHECK(!lhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
@@ -195,12 +205,14 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const Array<T>& lhs, const Array<U>& mhs, V rhs,
                const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.strides();
+        NOA_CHECK(!lhs.empty() && !mhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t mhs_stride = mhs.strides();
+        dim4_t mhs_stride = mhs.strides();
         if (!indexing::broadcast(mhs.shape(), mhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       mhs.shape(), output.shape());
@@ -235,12 +247,14 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp, typename>
     void ewise(const Array<T>& lhs, U mhs, const Array<V>& rhs,
                const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.strides();
+        NOA_CHECK(!lhs.empty() && !rhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t rhs_stride = rhs.strides();
+        dim4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());
@@ -275,17 +289,19 @@ namespace noa::math {
     template<typename T, typename U, typename V, typename W, typename TrinaryOp>
     void ewise(const Array<T>& lhs, const Array<U>& mhs, const Array<V>& rhs,
                const Array<W>& output, TrinaryOp trinary_op) {
-        size4_t lhs_stride = lhs.strides();
+        NOA_CHECK(!lhs.empty() && !mhs.empty() && !rhs.empty() && !output.empty(), "Empty array detected");
+
+        dim4_t lhs_stride = lhs.strides();
         if (!indexing::broadcast(lhs.shape(), lhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       lhs.shape(), output.shape());
         }
-        size4_t mhs_stride = mhs.strides();
+        dim4_t mhs_stride = mhs.strides();
         if (!indexing::broadcast(mhs.shape(), mhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       mhs.shape(), output.shape());
         }
-        size4_t rhs_stride = rhs.strides();
+        dim4_t rhs_stride = rhs.strides();
         if (!indexing::broadcast(rhs.shape(), rhs_stride, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       rhs.shape(), output.shape());

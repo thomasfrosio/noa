@@ -12,6 +12,7 @@ namespace noa::cpu::math {
     void ewise(const shared_t<T[]>& input, dim4_t input_strides,
                const shared_t<U[]>& output, dim4_t output_strides,
                dim4_t shape, UnaryOp unary_op, Stream& stream) {
+        NOA_ASSERT(input && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             input_strides = indexing::reorder(input_strides, order);
@@ -33,6 +34,7 @@ namespace noa::cpu::math {
     void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides, U rhs,
                const shared_t<V[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream) {
+        NOA_ASSERT(lhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             lhs_strides = indexing::reorder(lhs_strides, order);
@@ -54,6 +56,7 @@ namespace noa::cpu::math {
     void ewise(T lhs, const shared_t<U[]>& rhs, dim4_t rhs_strides,
                const shared_t<V[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream) {
+        NOA_ASSERT(rhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             rhs_strides = indexing::reorder(rhs_strides, order);
@@ -76,6 +79,7 @@ namespace noa::cpu::math {
                const shared_t<U[]>& rhs, dim4_t rhs_strides,
                const shared_t<V[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream) {
+        NOA_ASSERT(lhs && rhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             lhs_strides = indexing::reorder(lhs_strides, order);
@@ -100,6 +104,7 @@ namespace noa::cpu::math {
     void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides, U mhs, V rhs,
                const shared_t<W[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream) {
+        NOA_ASSERT(lhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             lhs_strides = indexing::reorder(lhs_strides, order);
@@ -123,6 +128,7 @@ namespace noa::cpu::math {
                const shared_t<U[]>& mhs, dim4_t mhs_strides, V rhs,
                const shared_t<W[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream) {
+        NOA_ASSERT(lhs && mhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             lhs_strides = indexing::reorder(lhs_strides, order);
@@ -149,6 +155,7 @@ namespace noa::cpu::math {
                const shared_t<V[]>& rhs, dim4_t rhs_strides,
                const shared_t<W[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream) {
+        NOA_ASSERT(lhs && rhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             lhs_strides = indexing::reorder(lhs_strides, order);
@@ -176,6 +183,7 @@ namespace noa::cpu::math {
                const shared_t<V[]>& rhs, dim4_t rhs_strides,
                const shared_t<W[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream) {
+        NOA_ASSERT(lhs && mhs && rhs && output && all(shape > 0));
         stream.enqueue([=]() mutable {
             const dim4_t order = indexing::order(output_strides, shape);
             lhs_strides = indexing::reorder(lhs_strides, order);
