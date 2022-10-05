@@ -2,6 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/signal/fft/Bandpass.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 namespace {
     using namespace noa;
@@ -165,6 +166,9 @@ namespace {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         float3_t norm(s_shape / 2 * 2 + int3_t(s_shape == 1));
@@ -216,6 +220,9 @@ namespace noa::cuda::signal::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         float3_t norm(s_shape / 2 * 2 + int3_t{s_shape == 1});

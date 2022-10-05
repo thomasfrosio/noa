@@ -11,9 +11,10 @@
 
 namespace noa::signal::fft {
     template<Remap REMAP, typename T, typename>
-    void standardize(const Array<T>& input, const Array<T>& output, size4_t shape, Norm norm) {
+    void standardize(const Array<T>& input, const Array<T>& output, dim4_t shape, Norm norm) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         constexpr bool IS_FULL = REMAP == Remap::F2F || REMAP == Remap::FC2FC;
-        const size4_t actual_shape = IS_FULL ? shape : shape.fft();
+        const dim4_t actual_shape = IS_FULL ? shape : shape.fft();
         NOA_CHECK(all(input.shape() == actual_shape) && all(output.shape() == actual_shape),
                   "The input {} and output {} {}redundant FFTs don't match the expected shape {}",
                   input.shape(), output.shape(), IS_FULL ? "" : "non-", actual_shape);

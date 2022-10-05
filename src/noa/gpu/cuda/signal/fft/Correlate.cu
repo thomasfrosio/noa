@@ -441,7 +441,8 @@ namespace noa::cuda::signal::fft {
                  const shared_t<float[]>& coordinates, float max_radius, Stream& stream) {
         const bool is_column = shape[3] == 1;
         NOA_ASSERT(strides[3 - is_column] > 0);
-        NOA_ASSERT(dim3_t(shape.get(1)).ndim() == 1);
+        NOA_ASSERT(all(shape > 0) && dim3_t(shape.get(1)).ndim() == 1);
+        NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
 
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto u_shape = safe_cast<uint4_t>(shape);
@@ -479,7 +480,8 @@ namespace noa::cuda::signal::fft {
     float xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float max_radius, Stream& stream) {
         const bool is_column = shape[3] == 1;
         NOA_ASSERT(strides[3 - is_column] > 0);
-        NOA_ASSERT(shape.ndim() == 1);
+        NOA_ASSERT(all(shape > 0) && shape.ndim() == 1);
+        NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
 
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto u_shape = safe_cast<uint4_t>(shape);
@@ -504,7 +506,8 @@ namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename T, typename>
     void xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
                  const shared_t<float2_t[]>& coordinates, float2_t max_radius, Stream& stream) {
-        NOA_ASSERT(shape[1] == 1);
+        NOA_ASSERT(all(shape > 0) && shape[1] == 1);
+        NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
 
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto u_shape = safe_cast<uint4_t>(shape);
@@ -538,7 +541,8 @@ namespace noa::cuda::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     float2_t xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float2_t max_radius, Stream& stream) {
-        NOA_ASSERT(shape.ndim() == 2);
+        NOA_ASSERT(all(shape > 0) && shape.ndim() == 2);
+        NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
 
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto u_shape = safe_cast<uint4_t>(shape);
@@ -566,6 +570,8 @@ namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename T, typename>
     void xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
                  const shared_t<float3_t[]>& coordinates, float3_t max_radius, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto u_shape = safe_cast<uint4_t>(shape);
         const auto u_strides = safe_cast<uint4_t>(strides);
@@ -596,7 +602,8 @@ namespace noa::cuda::signal::fft {
 
     template<Remap REMAP, typename T, typename>
     float3_t xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float3_t max_radius, Stream& stream) {
-        NOA_ASSERT(shape.ndim() == 3);
+        NOA_ASSERT(all(shape > 0) && shape.ndim() == 3);
+        NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
 
         constexpr bool IS_CENTERED = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::DST_CENTERED;
         const auto u_shape = safe_cast<uint4_t>(shape);

@@ -23,7 +23,7 @@ namespace noa::signal::fft {
     /// \param width        Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void lowpass(const Array<T>& input, const Array<T>& output, size4_t shape, float cutoff, float width);
+    void lowpass(const Array<T>& input, const Array<T>& output, dim4_t shape, float cutoff, float width);
 
     /// Highpass FFTs.
     /// \tparam REMAP       Remapping. One of H2H, H2HC, HC2H, HC2HC.
@@ -36,7 +36,7 @@ namespace noa::signal::fft {
     /// \param width        Width of the Hann window, in cycle/pix, usually from 0 to 0.5.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void highpass(const Array<T>& input, const Array<T>& output, size4_t shape, float cutoff, float width);
+    void highpass(const Array<T>& input, const Array<T>& output, dim4_t shape, float cutoff, float width);
 
     /// Bandpass FFTs.
     /// \tparam REMAP       Remapping. One of H2H, H2HC, HC2H, HC2HC.
@@ -52,7 +52,7 @@ namespace noa::signal::fft {
     /// \param width2       Frequency width, in cycle/pix, of the Hann window between \p cutoff2 and 0.5.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void bandpass(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void bandpass(const Array<T>& input, const Array<T>& output, dim4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2);
 }
 

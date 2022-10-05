@@ -213,7 +213,12 @@ namespace noa::cuda::signal {
                   const shared_t<U[]>& filter1, dim_t filter1_size,
                   const shared_t<U[]>& filter2, dim_t filter2_size, Stream& stream,
                   const shared_t<T[]>& tmp, dim4_t tmp_strides) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        if (tmp) {
+            NOA_ASSERT_DEVICE_PTR(tmp.get(), stream.device());
+        }
 
         const auto input_strides_ = safe_cast<uint4_t>(input_strides);
         const auto output_strides_ = safe_cast<uint4_t>(output_strides);

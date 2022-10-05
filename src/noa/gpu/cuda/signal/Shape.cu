@@ -1,6 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/common/signal/Shape.h"
 #include "noa/gpu/cuda/signal/Shape.h"
+#include "noa/gpu/cuda/util/Pointers.h"
 
 // TODO Add vectorized loads/stores?
 namespace {
@@ -46,6 +47,10 @@ namespace noa::cuda::signal {
     void sphere(const shared_t<T[]>& input, dim4_t input_strides,
                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                 float3_t center, float radius, float taper_size, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
         if (any(order_3d != dim3_t{0, 1, 2})) {
             const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
@@ -96,6 +101,10 @@ namespace noa::cuda::signal {
     void cylinder(const shared_t<T[]>& input, dim4_t input_strides,
                   const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   float3_t center, float radius, float length, float taper_size, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         const dim2_t order_2d = indexing::order(dim2_t(output_strides.get(2)), dim2_t(shape.get(2)));
         if (any(order_2d != dim2_t{0, 1})) {
             std::swap(input_strides[2], input_strides[3]);
@@ -147,6 +156,10 @@ namespace noa::cuda::signal {
     void rectangle(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    float3_t center, float3_t radius, float taper_size, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
         if (any(order_3d != dim3_t{0, 1, 2})) {
             const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
@@ -198,6 +211,10 @@ namespace noa::cuda::signal {
     void ellipse(const shared_t<T[]>& input, dim4_t input_strides,
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float3_t center, float3_t radius, float taper_size, Stream& stream) {
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+
         const size3_t order_3d = indexing::order(size3_t(output_strides.get(1)), size3_t(shape.get(1)));
         if (any(order_3d != size3_t{0, 1, 2})) {
             const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};

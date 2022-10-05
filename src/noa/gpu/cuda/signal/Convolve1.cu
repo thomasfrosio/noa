@@ -56,10 +56,12 @@ namespace {
 
 namespace noa::cuda::signal {
     template<typename T, typename U, typename>
-    void convolve1(const shared_t<T[]>& input, size4_t input_strides,
-                   const shared_t<T[]>& output, size4_t output_strides, size4_t shape,
+    void convolve1(const shared_t<T[]>& input, dim4_t input_strides,
+                   const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    const shared_t<U[]>& filter, dim_t filter_size, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         NOA_ASSERT(filter_size * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_ASSERT(filter_size % 2);
 
@@ -84,7 +86,7 @@ namespace noa::cuda::signal {
     }
 
     #define NOA_INSTANTIATE_CONV1_(T) \
-    template void convolve1<T,T,void>(const shared_t<T[]>&, size4_t, const shared_t<T[]>&, size4_t, size4_t, const shared_t<T[]>&, dim_t, Stream&)
+    template void convolve1<T,T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim_t, Stream&)
 
     NOA_INSTANTIATE_CONV1_(half_t);
     NOA_INSTANTIATE_CONV1_(float);

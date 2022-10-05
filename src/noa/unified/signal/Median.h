@@ -20,7 +20,7 @@ namespace noa::signal {
     ///                     With BORDER_REFLECT, the width should be >= than ``window_size/2 + 1``.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median1(const Array<T>& input, const Array<T>& output,
-                 size_t window_size, BorderMode border_mode = BORDER_REFLECT);
+                 dim_t window_size, BorderMode border_mode = BORDER_REFLECT);
 
     /// Computes the median filter using a 2D square window.
     /// \tparam T           (u)int32_t, (u)int64_t, half_t, float, double.
@@ -33,7 +33,7 @@ namespace noa::signal {
     ///                     With BORDER_REFLECT, the height and width should be >= than ``window_size/2 + 1``.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median2(const Array<T>& input, const Array<T>& output,
-                 size_t window_size, BorderMode border_mode = BORDER_REFLECT);
+                 dim_t window_size, BorderMode border_mode = BORDER_REFLECT);
 
     /// Computes the median filter using a 3D cubic window.
     /// \tparam T           (u)int32_t, (u)int64_t, half_t, float, double.
@@ -46,7 +46,7 @@ namespace noa::signal {
     ///                     With BORDER_REFLECT, the depth, height and width should be >= than ``window_size/2 + 1``.
     template<typename T, typename = std::enable_if_t<details::is_valid_median_v<T>>>
     void median3(const Array<T>& input, const Array<T>& output,
-                 size_t window_size, BorderMode border_mode = BORDER_REFLECT);
+                 dim_t window_size, BorderMode border_mode = BORDER_REFLECT);
 }
 
 #define NOA_UNIFIED_MEDIAN_

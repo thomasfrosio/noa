@@ -357,7 +357,9 @@ namespace noa::cuda::signal {
     void median1(const shared_t<T[]>& input, dim4_t input_strides,
                  const shared_t<T[]>& output, dim4_t output_strides,
                  dim4_t shape, BorderMode border_mode, dim_t window_size, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if (window_size <= 1)
             return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
@@ -449,7 +451,9 @@ namespace noa::cuda::signal {
     void median2(const shared_t<T[]>& input, dim4_t input_strides,
                  const shared_t<T[]>& output, dim4_t output_strides,
                  dim4_t shape, BorderMode border_mode, dim_t window_size, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if (window_size <= 1)
             return memory::copy(input, input_strides, output, output_strides, shape, stream);
 
@@ -518,7 +522,9 @@ namespace noa::cuda::signal {
     void median3(const shared_t<T[]>& input, dim4_t input_strides,
                  const shared_t<T[]>& output, dim4_t output_strides,
                  dim4_t shape, BorderMode border_mode, dim_t window_size, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if (window_size <= 1)
             return memory::copy(input, input_strides, output, output_strides, shape, stream);
 

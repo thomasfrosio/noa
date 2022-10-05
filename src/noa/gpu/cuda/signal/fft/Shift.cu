@@ -203,7 +203,9 @@ namespace noa::cuda::signal::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
-        NOA_ASSERT(shape[1] == 1);
+        NOA_ASSERT(all(shape > 0) && shape[1] == 1);
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const shared_t<float2_t[]> d_shifts = util::ensureDeviceAccess(shifts, stream, output_strides[0]);
 
@@ -234,7 +236,9 @@ namespace noa::cuda::signal::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
-        NOA_ASSERT(shape[1] == 1);
+        NOA_ASSERT(all(shape > 0) && shape[1] == 1);
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int2_t>(dim2_t(shape.get(2)));
         const dim3 blocks(math::divideUp(s_shape[1] / 2 + 1, static_cast<int32_t>(THREADS.x)),
@@ -269,6 +273,9 @@ namespace noa::cuda::signal::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const shared_t<float3_t[]> d_shifts = util::ensureDeviceAccess(shifts, stream, output_strides[0]);
 
@@ -297,6 +304,9 @@ namespace noa::cuda::signal::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
         const uint32_t blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int32_t>(THREADS.x));

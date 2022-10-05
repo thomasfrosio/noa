@@ -12,8 +12,11 @@
 namespace noa::signal {
     template<typename T, typename>
     void median1(const Array<T>& input, const Array<T>& output,
-                 size_t window_size, BorderMode border_mode) {
-        size4_t input_strides = input.strides();
+                 dim_t window_size, BorderMode border_mode) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, output), "The input and output array should not overlap");
+
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -46,8 +49,11 @@ namespace noa::signal {
 
     template<typename T, typename>
     void median2(const Array<T>& input, const Array<T>& output,
-                 size_t window_size, BorderMode border_mode) {
-        size4_t input_strides = input.strides();
+                 dim_t window_size, BorderMode border_mode) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, output), "The input and output array should not overlap");
+
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -81,16 +87,19 @@ namespace noa::signal {
 
     template<typename T, typename>
     void median3(const Array<T>& input, const Array<T>& output,
-                 size_t window_size, BorderMode border_mode) {
-        size4_t input_strides = input.strides();
+                 dim_t window_size, BorderMode border_mode) {
+        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!indexing::isOverlap(input, output), "The input and output array should not overlap");
+
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
 
-        NOA_CHECK(border_mode == BORDER_ZERO || all(size3_t(output.shape().get(1)) >= window_size / 2 + 1),
+        NOA_CHECK(border_mode == BORDER_ZERO || all(dim3_t(output.shape().get(1)) >= window_size / 2 + 1),
                   "With BORDER_REFLECT and a window of {}, the depth, height and width should be >= than {}, but got {}",
-                  window_size, window_size / 2 + 1, size3_t(output.shape().get(1)));
+                  window_size, window_size / 2 + 1, dim3_t(output.shape().get(1)));
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),

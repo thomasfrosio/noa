@@ -69,6 +69,7 @@ namespace noa::cpu::signal::fft {
     void xcorr(const shared_t<Complex<T>[]>& lhs, dim4_t lhs_strides,
                const shared_t<Complex<T>[]>& rhs, dim4_t rhs_strides,
                dim4_t shape, const shared_t<T[]>& coeffs, Stream& stream) {
+        NOA_ASSERT(lhs && rhs && all(shape > 0));
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
         stream.enqueue([=]() {
             const dim_t batches = shape[0];
@@ -92,6 +93,7 @@ namespace noa::cpu::signal::fft {
     T xcorr(const shared_t<Complex<T>[]>& lhs, dim4_t lhs_strides,
             const shared_t<Complex<T>[]>& rhs, dim4_t rhs_strides,
             dim4_t shape, Stream& stream) {
+        NOA_ASSERT(lhs && rhs && all(shape > 0));
         NOA_ASSERT(shape[0] == 1);
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
         const dim3_t input_shape(shape[1], shape[2], SRC_IS_HALF ? shape[3] : shape[3] / 2 + 1);

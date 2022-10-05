@@ -62,7 +62,9 @@ namespace noa::cuda::signal {
     void convolve2(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    const shared_t<U[]>& filter, dim2_t filter_shape, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         NOA_ASSERT(filter_shape.elements() * sizeof(T) <= MAX_FILTER_BYTES);
         NOA_ASSERT(all(filter_shape % 2 == 1));
 

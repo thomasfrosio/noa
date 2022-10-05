@@ -13,8 +13,9 @@ namespace noa::signal {
     template<typename T, typename>
     void ellipse(const Array<T>& input, const Array<T>& output,
                  float3_t center, float3_t radius, float taper_size, bool invert) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!is_empty && !indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -63,8 +64,9 @@ namespace noa::signal {
     template<typename T, typename>
     void sphere(const Array<T>& input, const Array<T>& output,
                 float3_t center, float radius, float taper_size, bool invert) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!is_empty && !indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -112,8 +114,9 @@ namespace noa::signal {
     template<typename T, typename>
     void rectangle(const Array<T>& input, const Array<T>& output,
                    float3_t center, float3_t radius, float taper_size, bool invert) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!is_empty && !indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
@@ -162,8 +165,9 @@ namespace noa::signal {
     template<typename T, typename>
     void cylinder(const Array<T>& input, const Array<T>& output,
                   float3_t center, float radius, float length, float taper_size, bool invert) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!is_empty && !indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());

@@ -143,7 +143,7 @@ namespace noa::cpu::signal {
     void convolve1(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    const shared_t<U[]>& filter, dim_t filter_size, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
         NOA_ASSERT(filter_size % 2);
         if (filter_size == 1)
             return math::ewise(input, input_strides, static_cast<T>(filter[0]),
@@ -161,7 +161,7 @@ namespace noa::cpu::signal {
     void convolve2(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    const shared_t<U[]>& filter, dim2_t filter_shape, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
         NOA_ASSERT(all((filter_shape % 2) == 1));
         if (all(filter_shape == 1))
             return math::ewise(input, input_strides, static_cast<T>(filter[0]), output, output_strides, shape,
@@ -178,7 +178,7 @@ namespace noa::cpu::signal {
     void convolve3(const shared_t<T[]>& input, dim4_t input_strides,
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    const shared_t<U[]>& filter, dim3_t filter_shape, Stream& stream) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
         NOA_ASSERT(all((filter_shape % 2) == 1));
         if (all(filter_shape == 1))
             return math::ewise(input, input_strides, static_cast<T>(filter[0]), output, output_strides, shape,
@@ -198,7 +198,7 @@ namespace noa::cpu::signal {
                   const shared_t<U[]>& filter1, dim_t filter1_size,
                   const shared_t<U[]>& filter2, dim_t filter2_size, Stream& stream,
                   const shared_t<T[]>& tmp, dim4_t tmp_strides) {
-        NOA_ASSERT(input != output);
+        NOA_ASSERT(input != output && all(shape > 0));
         const long3_t fs{filter0_size, filter1_size, filter2_size};
         const dim_t threads = stream.threads();
 
@@ -286,7 +286,7 @@ namespace noa::cpu::signal {
     void convolve(const shared_t<T[]>& input, dim4_t input_strides,
                   const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   const shared_t<U[]>& filter, dim3_t filter_shape, Stream& stream)  {
-        NOA_ASSERT(all(filter_shape >= 1));
+        NOA_ASSERT(all(filter_shape >= 1) && all(shape > 0));
         const dim_t ndim = filter_shape.ndim();
 
         // If there's a single dimension, use separable convolution kernels:

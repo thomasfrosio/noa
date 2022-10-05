@@ -13,13 +13,14 @@ namespace noa::signal::fft {
     using noa::fft::Remap;
 
     template<Remap REMAP, typename T, typename>
-    void lowpass(const Array<T>& input, const Array<T>& output, size4_t shape, float cutoff, float width) {
+    void lowpass(const Array<T>& input, const Array<T>& output, dim4_t shape, float cutoff, float width) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -51,13 +52,14 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void highpass(const Array<T>& input, const Array<T>& output, size4_t shape, float cutoff, float width) {
+    void highpass(const Array<T>& input, const Array<T>& output, dim4_t shape, float cutoff, float width) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -89,14 +91,15 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void bandpass(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void bandpass(const Array<T>& input, const Array<T>& output, dim4_t shape,
                   float cutoff1, float cutoff2, float width1, float width2) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",

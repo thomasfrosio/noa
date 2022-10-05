@@ -28,7 +28,7 @@ namespace noa::signal::fft {
     ///       If \p output is on the GPU, \p shifts can be on any device, including the CPU.
     ///       If \p output is on the CPU, \p shifts should be dereferenceable by the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  const Array<float2_t>& shifts, float cutoff = 0.5f);
 
     ///  Phase-shifts a non-redundant 2D (batched) FFT.
@@ -43,7 +43,7 @@ namespace noa::signal::fft {
     ///                     Frequencies higher than this value are not phase-shifted.
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  float2_t shift, float cutoff = 0.5f);
 
     /// Phase-shifts a non-redundant 3D (batched) FFT transform.
@@ -61,7 +61,7 @@ namespace noa::signal::fft {
     ///       If \p output is on the GPU, \p shifts can be on any device, including the CPU.
     ///       If \p output is on the CPU, \p shifts should be dereferenceable by the CPU.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  const Array<float3_t>& shifts, float cutoff = 0.5f);
 
     ///  Phase-shifts a non-redundant 3D (batched) FFT.
@@ -76,7 +76,7 @@ namespace noa::signal::fft {
     ///                     Frequencies higher than this value are not phase-shifted.
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  float3_t shift, float cutoff = 0.5f);
 }
 

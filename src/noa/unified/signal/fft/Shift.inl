@@ -13,14 +13,15 @@ namespace noa::signal::fft {
     using Remap = noa::fft::Remap;
 
     template<Remap REMAP, typename T, typename>
-    void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  const Array<float2_t>& shifts, float cutoff) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -33,7 +34,7 @@ namespace noa::signal::fft {
                       "In-place remapping is not allowed");
         }
 
-        NOA_CHECK(shifts.shape().elements() == output.shape()[0] &&
+        NOA_CHECK(shifts.elements() == output.shape()[0] &&
                   indexing::isVector(shifts.shape()) && shifts.contiguous(),
                   "The input shift(s) should be entered as a 1D contiguous vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
@@ -58,14 +59,15 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void shift2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  float2_t shift, float cutoff) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -97,14 +99,15 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  const Array<float3_t>& shifts, float cutoff) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -117,7 +120,7 @@ namespace noa::signal::fft {
                       "In-place remapping is not allowed");
         }
 
-        NOA_CHECK(shifts.shape().elements() == output.shape()[0] &&
+        NOA_CHECK(shifts.elements() == output.shape()[0] &&
                   indexing::isVector(shifts.shape()) && shifts.contiguous(),
                   "The input shift(s) should be entered as a 1D contiguous vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
@@ -142,14 +145,15 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void shift3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void shift3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                  float3_t shift, float cutoff) {
+        NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(all(output.shape() == shape.fft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
                   shape, shape.fft(), output.shape());
 
         const Device device = output.device();
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!input.empty()) {
             if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
                 NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
