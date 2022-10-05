@@ -194,7 +194,8 @@ namespace noa::cuda::util {
                 post_value_t* output0, uint32_t output0_stride, post0_op_t post_process0,
                 post_value_t* output1, uint32_t output1_stride, post1_op_t post_process1,
                 bool reduce_batch, bool swap_layout, cuda::Stream& stream) {
-        NOA_ASSERT(input != nullptr && output0 != nullptr && all(shape > 0));
+        NOA_ASSERT(output0 && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
 
         if (swap_layout) {
             if (reduce_batch) {

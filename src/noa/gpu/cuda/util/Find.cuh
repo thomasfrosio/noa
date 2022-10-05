@@ -225,6 +225,9 @@ namespace noa::cuda::util {
               const value_t* input, dim4_t strides, dim4_t shape,
               transform_op_t transform_op, find_op_t update_op, transformed_t init,
               offset_t* output_offset, bool reduce_batch, bool swap_layout, Stream& stream) {
+        NOA_ASSERT(output_offset && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+
         if (swap_layout) {
             if (reduce_batch) {
                 const dim4_t order = indexing::order(strides, shape);

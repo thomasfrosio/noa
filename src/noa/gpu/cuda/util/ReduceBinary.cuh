@@ -268,7 +268,9 @@ namespace noa::cuda::util {
                 post_value_t* output1, dim_t output1_stride, post1_op_t post_process1,
                 bool reduce_batch, cuda::Stream& stream) {
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(lhs != nullptr && rhs != nullptr && output0 != nullptr && all(shape > 0));
+        NOA_ASSERT(output0 && all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
 
         const uint32_t batches = reduce_batch ? 1 : shape[0];
         const auto elements = safe_cast<uint32_t>(reduce_batch ? shape.elements() : shape[1] * shape[2] * shape[3]);

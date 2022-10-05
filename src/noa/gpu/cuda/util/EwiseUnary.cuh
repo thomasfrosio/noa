@@ -121,7 +121,9 @@ namespace noa::cuda::util::ewise {
                Stream& stream, UnaryOp unary_op) {
         using namespace details;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(input != nullptr && output != nullptr && all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         if (swap_layout) {
             const dim4_t order = indexing::order(output_strides, shape);

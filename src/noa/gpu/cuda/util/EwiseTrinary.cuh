@@ -403,7 +403,9 @@ namespace noa::cuda::util::ewise {
         using mhs_val_t = noa::traits::remove_ref_cv_t<mhs_t>;
         using rhs_val_t = noa::traits::remove_ref_cv_t<rhs_t>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(lhs != nullptr && output != nullptr && all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         if (swap_layout) {
             const auto order = indexing::order(output_strides, shape);
@@ -493,7 +495,10 @@ namespace noa::cuda::util::ewise {
         using namespace details;
         using rhs_val_t = noa::traits::remove_ref_cv_t<rhs_t>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(lhs != nullptr && mhs != nullptr && output != nullptr && all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(mhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         if (swap_layout) {
             const auto order = indexing::order(output_strides, shape);
@@ -593,7 +598,10 @@ namespace noa::cuda::util::ewise {
         using namespace details;
         using mhs_val_t = noa::traits::remove_ref_cv_t<mhs_t>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(lhs != nullptr && rhs != nullptr && output != nullptr && all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         if (swap_layout) {
             const auto order = indexing::order(output_strides, shape);
@@ -692,7 +700,11 @@ namespace noa::cuda::util::ewise {
                  trinary_t trinary_op) {
         using namespace details;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(lhs != nullptr && mhs != nullptr && rhs != nullptr && output != nullptr && all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(mhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         if (swap_layout) {
             const auto order = indexing::order(output_strides, shape);
