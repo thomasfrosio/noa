@@ -611,25 +611,25 @@ namespace noa {
             const cudaPointerAttributes attr = cuda::util::getAttributes(ptr);
             switch (attr.type) {
                 case cudaMemoryTypeUnregistered:
-                    if (alloc == Allocator::DEFAULT ||
-                        alloc == Allocator::DEFAULT_ASYNC ||
-                        alloc == Allocator::PITCHED)
+                    if (alloc != Allocator::DEFAULT &&
+                        alloc != Allocator::DEFAULT_ASYNC &&
+                        alloc != Allocator::PITCHED)
                         NOA_THROW("The entered allocator ({}) is not compatible the CPU-only (i.e. CUDA unregistered) "
                                   "pointer of this CPU array", alloc);
                     break;
                 case cudaMemoryTypeHost:
-                    if (alloc == Allocator::PINNED)
+                    if (alloc != Allocator::PINNED)
                         NOA_THROW("The entered allocator ({}) is not compatible with the underlying pinned pointer "
                                   "of this CPU array", alloc);
                     break;
                 case cudaMemoryTypeDevice:
                     NOA_THROW("CPU array is pointing to a device pointer");
                 case cudaMemoryTypeManaged:
-                    if (alloc == Allocator::DEFAULT ||
-                        alloc == Allocator::DEFAULT_ASYNC ||
-                        alloc == Allocator::PITCHED ||
-                        alloc == Allocator::MANAGED ||
-                        alloc == Allocator::MANAGED_GLOBAL)
+                    if (alloc != Allocator::DEFAULT &&
+                        alloc != Allocator::DEFAULT_ASYNC &&
+                        alloc != Allocator::PITCHED &&
+                        alloc != Allocator::MANAGED &&
+                        alloc != Allocator::MANAGED_GLOBAL)
                         NOA_THROW("The entered allocator ({}) is not compatible with the (CUDA) managed pointer "
                                   "of this CPU array", alloc);
                     break;
@@ -643,21 +643,21 @@ namespace noa {
                 case cudaMemoryTypeUnregistered:
                     NOA_THROW("GPU array is pointing to a host pointer");
                 case cudaMemoryTypeHost:
-                    if (alloc == Allocator::PINNED)
+                    if (alloc != Allocator::PINNED)
                         NOA_THROW("The entered allocator ({}) is not compatible with the underlying pinned pointer "
                                   "of this GPU array", alloc);
                     break;
                 case cudaMemoryTypeDevice:
-                    if (attr.device == option.device().id())
+                    if (attr.device != option.device().id())
                         NOA_THROW("The device ID of this GPU array ({}) does not match the device of the underlying "
                                   "pointer ({})", option.device().id(), attr.device);
                     break;
                 case cudaMemoryTypeManaged:
-                    if (alloc == Allocator::DEFAULT ||
-                        alloc == Allocator::DEFAULT_ASYNC ||
-                        alloc == Allocator::PITCHED ||
-                        alloc == Allocator::MANAGED ||
-                        alloc == Allocator::MANAGED_GLOBAL)
+                    if (alloc != Allocator::DEFAULT &&
+                        alloc != Allocator::DEFAULT_ASYNC &&
+                        alloc != Allocator::PITCHED &&
+                        alloc != Allocator::MANAGED &&
+                        alloc != Allocator::MANAGED_GLOBAL)
                         NOA_THROW("The entered allocator ({}) is not compatible with the (CUDA) managed pointer "
                                   "of this GPU array", alloc);
                     break;
