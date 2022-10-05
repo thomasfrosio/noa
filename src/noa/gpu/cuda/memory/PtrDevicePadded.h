@@ -50,7 +50,7 @@ namespace noa::cuda::memory {
         // Allocates device memory using cudaMalloc3D.
         // Returns 1: Pointer pointing to device memory.
         //         2: Pitch of the padded layout, in number of elements.
-        static std::pair<alloc_unique_t, dim_t> alloc(dim4_t shape) {
+        static std::pair<alloc_unique_t, dim_t> alloc(dim4_t shape, Device device = Device::current()) {
             if (!shape.elements())
                 return {nullptr, 0};
 
@@ -58,6 +58,7 @@ namespace noa::cuda::memory {
             const auto s_shape = safe_cast<size4_t>(shape);
             cudaExtent extent{s_shape[3] * sizeof(T), s_shape[2] * s_shape[1], s_shape[0]};
             cudaPitchedPtr pitched_ptr{};
+            DeviceGuard guard(device);
             NOA_THROW_IF(cudaMalloc3D(&pitched_ptr, extent));
 
             // Check even in Release mode. This should never fail...
@@ -71,8 +72,8 @@ namespace noa::cuda::memory {
         }
 
         // Allocates device memory using cudaMalloc3D. The shape is DHW.
-        static std::pair<std::unique_ptr<T[], Deleter>, dim_t> alloc(dim3_t shape) {
-            return alloc(dim4_t{1, shape[0], shape[1], shape[2]});
+        static std::pair<std::unique_ptr<T[], Deleter>, dim_t> alloc(dim3_t shape, Device device = Device::current()) {
+            return alloc(dim4_t{1, shape[0], shape[1], shape[2]}, device);
         }
 
     public: // member functions
@@ -81,8 +82,8 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrDevicePadded(std::nullptr_t) {}
 
         // Allocates "padded" memory with a given BDHW shape on the current device using cudaMalloc3D().
-        explicit PtrDevicePadded(dim4_t shape) : m_shape(shape) {
-            std::tie(m_ptr, m_pitch) = alloc(shape);
+        explicit PtrDevicePadded(dim4_t shape, Device device = Device::current()) : m_shape(shape) {
+            std::tie(m_ptr, m_pitch) = alloc(shape, device);
         }
 
     public:

@@ -157,9 +157,13 @@ namespace noa::cuda::memory {
 
         } else if (src_attr.type >= 1 && dst_attr.type >= 1) {
             // Both can be accessed on the device, so do the copy on the device.
-            // 1) Managed memory has no restrictions.
-            // 2) Device memory must belong to the stream's device.
-            // 3) Pinned memory should be accessed via their device pointer.
+            // For device memory, make sure the stream's device is correct. For pinned memory,
+            // it seems that "portable-memory" is not a thing anymore since the documentation
+            // says that any pinned allocation, regardless of the cudaHostAllocPortable flag,
+            // can be accessed on any device. For managed memory, if the null stream was used
+            // for the allocation or if the cudaMemAttachGlobal flag was used, it can be on
+            // any device. As such, only enforce the device for device pointers here,
+            // and let the driver check for pinned and managed if needed.
             if ((src_attr.type == 2 && src_attr.device != stream.device().id()) ||
                 (dst_attr.type == 2 && dst_attr.device != stream.device().id()))
                 NOA_THROW("Copying strided regions, other than in the second-most dimension, "

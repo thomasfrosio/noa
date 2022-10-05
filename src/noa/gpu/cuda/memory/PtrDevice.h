@@ -62,7 +62,8 @@ namespace noa::cuda::memory {
 
     public: // static functions
         // Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
-        static alloc_unique_t alloc(dim_t elements) {
+        static alloc_unique_t alloc(dim_t elements, Device device = Device::current()) {
+            DeviceGuard guard(device);
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMalloc(&tmp, elements * sizeof(T)));
             return {static_cast<T*>(tmp), Deleter{}};
@@ -87,7 +88,8 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrDevice(std::nullptr_t) {}
 
         // Allocates some elements on the current device using cudaMalloc().
-        explicit PtrDevice(dim_t elements) : m_ptr(alloc(elements)), m_elements(elements) {}
+        explicit PtrDevice(dim_t elements, Device device = Device::current())
+                : m_ptr(alloc(elements, device)), m_elements(elements) {}
 
         // Allocates some elements using cudaMallocAsync().
         // If the stream is not empty, the deleter of the created shared object keeps a copy of the stream to
