@@ -27,6 +27,7 @@ namespace noa {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision textures are not supported by the CUDA backend");
             } else {
+                NOA_CHECK(!array.empty(), "Empty array detected");
                 NOA_CHECK(array.shape().ndim() <= 3, "CUDA textures cannot be batched");
                 NOA_CHECK(indexing::isRightmost(array.strides()) &&
                           indexing::isContiguous(array.strides(), array.shape())[1] && array.strides()[3] == 1,
@@ -35,7 +36,7 @@ namespace noa {
 
                 using namespace noa::cuda::memory;
                 const DeviceGuard guard(device_target);
-                const size3_t shape_3d(array.shape().get(1));
+                const dim3_t shape_3d(array.shape().get(1));
 
                 cuda::Texture<T> texture{};
                 texture.array = PtrArray<T>::alloc(shape_3d);
@@ -56,13 +57,13 @@ namespace noa {
     }
 
     template<typename T>
-    Texture<T>::Texture(size4_t shape, Device device_target,
+    Texture<T>::Texture(dim4_t shape, Device device_target,
                         InterpMode interp_mode, BorderMode border_mode,
                         T cvalue)
             : m_shape(shape), m_interp(interp_mode), m_border(border_mode) {
 
         if (device_target.cpu()) {
-            m_texture = cpu::Texture<T>{size4_t{}, nullptr, cvalue};
+            m_texture = cpu::Texture<T>{dim4_t{}, nullptr, cvalue};
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
@@ -74,7 +75,7 @@ namespace noa {
                 const DeviceGuard guard(device_target);
 
                 cuda::Texture<T> texture{};
-                texture.array = PtrArray<T>::alloc(size3_t(shape.get(1)));
+                texture.array = PtrArray<T>::alloc(dim3_t(shape.get(1)));
                 texture.texture = PtrTexture::alloc(texture.array.get(), interp_mode, border_mode);
                 m_texture = texture;
                 m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
@@ -100,12 +101,12 @@ namespace noa {
     }
 
     template<typename T>
-    const size4_t& Texture<T>::shape() const noexcept {
+    const dim4_t& Texture<T>::shape() const noexcept {
         return m_shape;
     }
 
     template<typename T>
-    const size4_t Texture<T>::strides() const {
+    const dim4_t Texture<T>::strides() const {
         if (device().cpu())
             return cpu().strides;
         else
@@ -231,6 +232,7 @@ namespace noa {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision textures are not supported by the CUDA backend");
             } else {
+                NOA_CHECK(!array.empty(), "Empty array detected");
                 NOA_CHECK(indexing::isRightmost(array.strides()) &&
                           indexing::isContiguous(array.strides(), array.shape())[1] && array.strides()[3] == 1,
                           "The depth and width dimension of the array should be contiguous, but got shape {} "
@@ -242,7 +244,7 @@ namespace noa {
                 Stream& stream = Stream::current(device_target);
                 cuda::memory::copy(array.share(), array.strides()[2],
                                    std::get<gpu::Texture<T>>(m_texture).array,
-                                   size3_t(m_shape.get(1)), stream.cuda());
+                                   dim3_t(m_shape.get(1)), stream.cuda());
             }
             #else
             NOA_THROW("No GPU backend detected");

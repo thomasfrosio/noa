@@ -22,7 +22,7 @@ namespace noa::cuda {
 namespace noa::cpu {
     template<typename T>
     struct Texture {
-        size4_t strides;
+        dim4_t strides;
         shared_t<T[]> ptr;
         T cvalue;
     };
@@ -45,8 +45,6 @@ namespace noa {
     class Texture {
     public:
         using value_t = T;
-        using dim_t = size_t;
-        using dim4_t = Int4<dim_t>;
         static_assert(traits::is_any_v<T, float, double, cfloat_t, cdouble_t>);
 
     public:
@@ -99,7 +97,7 @@ namespace noa {
         ///         - No computation is performed. The texture is non-empty and valid, but the underlying managed
         ///           data (i.e. the cpu::Texture) points to a null pointer. Use update() to set the texture to
         ///           a valid memory region.
-        Texture(size4_t shape, Device device_target, InterpMode interp_mode, BorderMode border_mode,
+        Texture(dim4_t shape, Device device_target, InterpMode interp_mode, BorderMode border_mode,
                 T cvalue = T{0});
 
     public: // Getters
@@ -116,10 +114,10 @@ namespace noa {
         [[nodiscard]] bool empty() const noexcept;
 
         /// Returns the BDHW shape of the array.
-        [[nodiscard]] const size4_t& shape() const noexcept;
+        [[nodiscard]] const dim4_t& shape() const noexcept;
 
         /// Returns the BDHW strides of the array.
-        [[nodiscard]] const size4_t strides() const;
+        [[nodiscard]] const dim4_t strides() const;
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
@@ -166,7 +164,7 @@ namespace noa {
 
     private:
         std::variant<std::monostate, cpu::Texture<T>, gpu::Texture<T>> m_texture;
-        size4_t m_shape;
+        dim4_t m_shape;
         ArrayOption m_options;
         InterpMode m_interp{};
         BorderMode m_border{};

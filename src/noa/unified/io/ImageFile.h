@@ -56,7 +56,7 @@ namespace noa::io {
         ///       On the other hand, io::APP and io::ATE are always considered off.
         ///       Changing any of these bits has no effect.
         /// \note TIFF files don't support modes 2 and 4.
-        void open(const path_t& filename, uint mode);
+        void open(const path_t& filename, open_mode_t mode);
 
         /// Closes the file. In writing mode and for some file format,
         /// there can be a write operation to save the buffered data.
@@ -81,11 +81,11 @@ namespace noa::io {
         [[nodiscard]] std::string info(bool brief) const noexcept;
 
         /// Gets the shape of the data.
-        [[nodiscard]] size4_t shape() const noexcept;
+        [[nodiscard]] dim4_t shape() const noexcept;
 
         /// Sets the shape of the data. In pure read mode, this is usually not allowed
         /// and is likely to throw an exception because the file cannot be modified.
-        void shape(size4_t shape);
+        void shape(dim4_t shape);
 
         /// Gets the pixel size of the data (the batch dimension does not have a pixel size).
         [[nodiscard]] float3_t pixelSize() const noexcept;
@@ -144,7 +144,7 @@ namespace noa::io {
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        void readSlice(const Array<T>& output, size_t start, bool clamp = true);
+        void readSlice(const Array<T>& output, dim_t start, bool clamp = true);
 
         /// Loads some 2D slices from the file.
         /// The file should describe a (stack of) 2D images(s), or a single volume.
@@ -155,7 +155,7 @@ namespace noa::io {
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
         template<typename T, typename I>
-        void readSlice(const View<T, I>& output, size_t start, bool clamp = true);
+        void readSlice(const View<T, I>& output, dim_t start, bool clamp = true);
 
     public: // Write
         /// Saves \p input into the file.
@@ -193,7 +193,7 @@ namespace noa::io {
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename T>
-        void writeSlice(const Array<T>& input, size_t start, bool clamp = true);
+        void writeSlice(const Array<T>& input, dim_t start, bool clamp = true);
 
         /// Saves some 2D slices into the file.
         /// The file should describe a (stack of) 2D slice(s), or a single volume.
@@ -206,7 +206,7 @@ namespace noa::io {
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename T, typename I>
-        void writeSlice(const View<T, I>& input, size_t start, bool clamp = true);
+        void writeSlice(const View<T, I>& input, dim_t start, bool clamp = true);
 
     private:
         std::unique_ptr<details::ImageFile> m_header{};

@@ -74,8 +74,8 @@ namespace noa::io {
         return m_header ? m_header->infoString(brief) : "";
     }
 
-    inline size4_t ImageFile::shape() const noexcept {
-        return m_header ? m_header->shape() : size4_t{};
+    inline dim4_t ImageFile::shape() const noexcept {
+        return m_header ? m_header->shape() : dim4_t{};
     }
 
     inline float3_t ImageFile::pixelSize() const noexcept {
@@ -90,7 +90,7 @@ namespace noa::io {
         return m_header ? m_header->stats() : stats_t{};
     }
 
-    inline void ImageFile::shape(size4_t shape) {
+    inline void ImageFile::shape(dim4_t shape) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
         m_header->shape(shape);
@@ -150,7 +150,7 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::readSlice(const Array<T>& output, size_t start, bool clamp) {
+    inline void ImageFile::readSlice(const Array<T>& output, dim_t start, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
         if (output.dereferenceable()) {
@@ -163,7 +163,7 @@ namespace noa::io {
     }
 
     template<typename T, typename I>
-    inline void ImageFile::readSlice(const View<T, I>& output, size_t start, bool clamp) {
+    inline void ImageFile::readSlice(const View<T, I>& output, dim_t start, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
         m_header->readSlice(output.get(), output.strides(), output.shape(), io::dtype<T>(), start, clamp);
@@ -189,7 +189,7 @@ namespace noa::io {
     }
 
     template<typename T>
-    inline void ImageFile::writeSlice(const Array<T>& input, size_t start, bool clamp) {
+    inline void ImageFile::writeSlice(const Array<T>& input, dim_t start, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
         if (!input.dereferenceable()) {
@@ -201,7 +201,7 @@ namespace noa::io {
     }
 
     template<typename T, typename I>
-    inline void ImageFile::writeSlice(const View<T, I>& input, size_t start, bool clamp) {
+    inline void ImageFile::writeSlice(const View<T, I>& input, dim_t start, bool clamp) {
         NOA_CHECK(isOpen(), "The file should be opened");
         NOA_ASSERT(m_header);
         m_header->writeSlice(input.get(), input.strides(), input.shape(), io::dtype<T>(), start, clamp);
@@ -215,10 +215,10 @@ namespace noa::io {
             case Format::TIFF:
                 #if NOA_ENABLE_TIFF
                 m_header = std::make_unique<TIFFFile>();
+                break;
                 #else
                 NOA_THROW("File {}: TIFF files are not supported in this build. See CMake option NOA_ENABLE_TIFF");
                 #endif
-                break;
             default:
                 NOA_THROW("File: {}. File format {} is not supported", filename, new_format);
         }
