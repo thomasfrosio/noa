@@ -121,7 +121,7 @@ namespace noa::io {
         if (output.dereferenceable()) {
             m_header->readAll(output.eval().get(), output.strides(), output.shape(), io::dtype<T>(), clamp);
         } else {
-            Array<T> tmp(this->shape());
+            Array<T> tmp(output.shape());
             m_header->readAll(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<T>(), clamp);
             tmp.to(output);
         }
@@ -156,7 +156,7 @@ namespace noa::io {
         if (output.dereferenceable()) {
             m_header->readSlice(output.eval().get(), output.strides(), output.shape(), io::dtype<T>(), start, clamp);
         } else {
-            Array<T> tmp(this->shape());
+            Array<T> tmp(output.shape());
             m_header->readSlice(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<T>(), start, clamp);
             tmp.to(output);
         }
