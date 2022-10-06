@@ -121,7 +121,7 @@ namespace noa::cuda::fft::details {
             // It may have failed because of not enough memory,
             // so clear cache and try again.
             if (i)
-                NOA_THROW("Failed to create a cuFFT plan. {}", err);
+                NOA_THROW("Failed to create a cuFFT plan. {}", toString(err));
             else
                 cache.clear();
         }
@@ -188,7 +188,7 @@ namespace noa::cuda::fft::details {
             if (err == CUFFT_SUCCESS)
                 break;
             if (i)
-                NOA_THROW("Failed to create a cuFFT plan. {}", err);
+                NOA_THROW("Failed to create a cuFFT plan. {}", toString(err));
             else
                 cache.clear();
         }
