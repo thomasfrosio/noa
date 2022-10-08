@@ -17,8 +17,8 @@ namespace noa::geometry {
                  T value, bool prefilter) {
         constexpr bool SINGLE_SCALE = traits::is_float2_v<S>;
         constexpr bool SINGLE_CENTER = traits::is_float2_v<C>;
-        using scale_t = std::conditional_t<SINGLE_SCALE, S, shared_t<traits::value_type_t<S>>>;
-        using center_t = std::conditional_t<SINGLE_CENTER, C, shared_t<traits::value_type_t<C>>>;
+        using scale_t = std::conditional_t<SINGLE_SCALE, S, shared_t<traits::value_type_t<S>[]>>;
+        using center_t = std::conditional_t<SINGLE_CENTER, C, shared_t<traits::value_type_t<C>[]>>;
         const scale_t* scaling_factors_;
         const center_t* centers_;
 
@@ -122,8 +122,8 @@ namespace noa::geometry {
                  T value, bool prefilter) {
         constexpr bool SINGLE_SCALE = traits::is_float3_v<S>;
         constexpr bool SINGLE_CENTER = traits::is_float3_v<C>;
-        using scale_t = std::conditional_t<SINGLE_SCALE, S, shared_t<traits::value_type_t<S>>>;
-        using center_t = std::conditional_t<SINGLE_CENTER, C, shared_t<traits::value_type_t<C>>>;
+        using scale_t = std::conditional_t<SINGLE_SCALE, S, shared_t<traits::value_type_t<S>[]>>;
+        using center_t = std::conditional_t<SINGLE_CENTER, C, shared_t<traits::value_type_t<C>[]>>;
         const scale_t* scaling_factors_;
         const center_t* centers_;
 
