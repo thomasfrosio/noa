@@ -31,7 +31,7 @@ namespace noa::geometry {
     }
 
     /// Returns the DHW 3x3 affine translation matrix encoding the
-    /// DHW translation \p shift, in elements.
+    /// HW translation \p shift, in elements.
     template<typename T>
     NOA_IHD constexpr Mat33<T> translate(Float2<T> shift) noexcept {
         return {1, 0, shift[0],
