@@ -58,7 +58,7 @@ namespace noa::fft {
         using enum_t = std::underlying_type_t<Layout>;
         const dim4_t output_shape = static_cast<enum_t>(remap) & Layout::DST_FULL ? shape : shape.fft();
         Array<T> output(output_shape, input.options());
-        remap(remap, input, output, shape);
+        fft::remap(remap, input, output, shape);
         return output;
     }
 }

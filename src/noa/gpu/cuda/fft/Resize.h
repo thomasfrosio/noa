@@ -3,6 +3,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/memory/Resize.h"
 
 namespace noa::cuda::fft::details {
     template<typename T>
@@ -21,7 +22,7 @@ namespace noa::cuda::fft::details {
     using namespace ::noa::fft;
     template<Remap REMAP, typename T>
     constexpr bool is_valid_remap_v =
-            (traits::is_float_v<T> || traits::is_complex_v<T>) && (REMAP == H2H || REMAP == F2F);
+            (traits::is_float_v<T> || traits::is_complex_v<T>) && (REMAP == H2H || REMAP == F2F || REMAP == HC2HC || REMAP == FC2FC);
 }
 
 namespace noa::cuda::fft {
@@ -34,7 +35,18 @@ namespace noa::cuda::fft {
         NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(input_shape > 0));
         NOA_ASSERT(input_shape[0] == output_shape[0]);
 
-        if (all(input_shape >= output_shape)) {
+        if constexpr (REMAP == Remap::HC2HC) {
+            auto[border_left, border_right] = cuda::memory::borders(input_shape.fft(), output_shape.fft());
+            border_right[3] += std::exchange(border_left[3], 0);
+            cuda::memory::resize(input, input_strides, input_shape.fft(),
+                                 border_left, border_right,
+                                 output, output_strides,
+                                 BORDER_ZERO, T{0}, stream);
+        } else if constexpr (REMAP == Remap::FC2FC) {
+            cuda::memory::resize(input, input_strides, input_shape,
+                                 output, output_strides, output_shape,
+                                 BORDER_ZERO, T{0}, stream);
+        } else if (all(input_shape >= output_shape)) {
             if constexpr (REMAP == Remap::H2H)
                 details::cropH2H<T>(input, input_strides, input_shape, output, output_strides, output_shape, stream);
             else if constexpr (REMAP == Remap::F2F)

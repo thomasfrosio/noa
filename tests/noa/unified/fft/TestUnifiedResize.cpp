@@ -1,9 +1,47 @@
 #include <noa/IO.h>
 #include <noa/FFT.h>
+#include <noa/Math.h>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
 using namespace ::noa;
+
+TEMPLATE_TEST_CASE("unified::fft::resize remap", "[noa][unified]", float, double, cfloat_t, cdouble_t) {
+    std::vector<Device> devices{Device("cpu")};
+    if (Device::any(Device::GPU))
+        devices.emplace_back("gpu");
+
+    const dim4_t input_shape = test::getRandomShapeBatched(4);
+    dim4_t output_shape = input_shape;
+
+    test::Randomizer<dim_t> randomizer(0, 20);
+    output_shape[1] += randomizer.get();
+    output_shape[2] += randomizer.get();
+    output_shape[3] += randomizer.get();
+
+    INFO(input_shape);
+    INFO(output_shape);
+
+    for (auto& device: devices) {
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
+        INFO(device);
+
+        Array a0 = math::random<TestType>(math::uniform_t{}, input_shape.fft(), -50, 50, options);
+        Array a1 = fft::resize<fft::H2H>(a0, input_shape, output_shape);
+        Array a2 = fft::remap(fft::H2HC, a1, output_shape);
+        Array a3 = fft::resize<fft::HC2HC>(a2, output_shape, input_shape);
+        Array a4 = fft::remap(fft::HC2H, a3, input_shape);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, a0, a4, 5e-3));
+
+        a0 = math::random<TestType>(math::uniform_t{}, input_shape, -50, 50, options);
+        a1 = fft::resize<fft::F2F>(a0, input_shape, output_shape);
+        a2 = fft::remap(fft::F2FC, a1, output_shape);
+        a3 = fft::resize<fft::FC2FC>(a2, output_shape, input_shape);
+        a4 = fft::remap(fft::FC2F, a3, input_shape);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, a0, a4, 5e-3));
+    }
+}
 
 TEST_CASE("unified::fft::resize, crop", "[.]") {
     using real_t = float;
