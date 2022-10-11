@@ -62,7 +62,7 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     const size4_t slices_shape{count, 1, volume_shape[2], volume_shape[3]};
     Array<cfloat_t> slices_fft(slices_shape.fft(), options);
     geometry::fft::extract3D<fft::HC2H>(volume_fft_centered.release(), volume_shape,
-                                        slices_fft, slices_shape, {}, rotations);
+                                        slices_fft, slices_shape, float22_t{}, rotations);
 
     // Post-process the slices:
     const float2_t slices_center(volume_center.get(1));
@@ -81,7 +81,7 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     volume_fft = memory::zeros<cfloat_t>(volume_shape.fft(), options);
     geometry::fft::insert3D<fft::H2H>(slices_fft, slices_shape,
                                       volume_fft, volume_shape,
-                                      {}, rotations);
+                                      float22_t{}, rotations);
     signal::fft::shift3D<fft::H2H>(volume_fft, volume_fft, volume_shape, volume_center);
 
     // Backward projection on the weights:
@@ -90,7 +90,7 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     Array<float> weights_volume_fft = memory::zeros<float>(volume_shape.fft(), options);
     geometry::fft::insert3D<fft::H2H>(weights_slices_fft.release(), slices_shape,
                                       weights_volume_fft, volume_shape,
-                                      {}, rotations);
+                                      float22_t{}, rotations);
 
     // Weighting:
     weights_volume_fft += 1e-3f;

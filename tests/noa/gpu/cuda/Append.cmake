@@ -7,6 +7,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/fft/TestCUDAResize.cpp
         noa/gpu/cuda/fft/TestCUDATransforms.cpp
 
+        noa/gpu/cuda/geometry/fft/TestCUDAProjections.cpp
         noa/gpu/cuda/geometry/fft/TestCUDATransformFFT.cpp
         noa/gpu/cuda/geometry/TestCUDARotate.cpp
         noa/gpu/cuda/geometry/TestCUDAScale.cpp

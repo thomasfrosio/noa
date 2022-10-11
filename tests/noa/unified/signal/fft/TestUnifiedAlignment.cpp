@@ -28,33 +28,32 @@ namespace {
                   m_slice_shape(slice_shape) {}
 
         void backward(const Array<cfloat_t>& slice_fft, float33_t rotation,
-                      float2_t extra_shift = {0, 0}, float3_t sampling_factor = {1, 1, 1}) {
-            const Array<float33_t> rot_(&rotation, 1);
+                      float2_t extra_shift = {0, 0}) {
             const float2_t slice_center = float2_t(m_slice_shape.get(2)) / 2;
 
             signal::fft::shift2D<fft::H2H>(slice_fft, slice_fft, m_slice_shape, -slice_center + extra_shift);
             geometry::fft::insert3D<fft::H2HC>(slice_fft, m_slice_shape,
                                                m_volume_fft, m_volume_shape,
-                                               {}, rot_, 0.5f, sampling_factor);
+                                               float22_t{}, rotation, 0.5f);
 
             geometry::fft::insert3D<fft::H2HC>(m_weights_ones_fft, m_slice_shape,
                                                m_volume_weights_fft, m_volume_shape,
-                                               {}, rot_, 0.5f, sampling_factor);
+                                               float22_t{}, rotation, 0.5f);
         }
 
         void forward(Array<cfloat_t>& slice_fft, float33_t rotation,
-                     float2_t extra_shift = {0, 0}, float3_t sampling_factor = {1, 1, 1}) {
+                     float2_t extra_shift = {0, 0}) {
             const Array<float33_t> rot_(&rotation, 1);
             const float2_t slice_center = float2_t(m_slice_shape.get(2)) / 2;
 
             geometry::fft::extract3D<fft::HC2H>(m_volume_fft, m_volume_shape,
                                                 slice_fft, m_slice_shape,
-                                                {}, rot_, 0.5f, sampling_factor);
+                                                float22_t{}, rotation, 0.5f);
             signal::fft::shift2D<fft::H2H>(slice_fft, slice_fft, m_slice_shape, slice_center + extra_shift);
 
             geometry::fft::extract3D<fft::HC2H>(m_volume_weights_fft, m_volume_shape,
                                                 m_weights_extract_fft, m_slice_shape,
-                                                {}, rot_, 0.5f, sampling_factor);
+                                                float22_t{}, rotation, 0.5f);
             math::ewise(slice_fft, m_weights_extract_fft, 1e-3f, slice_fft,
                         math::divide_epsilon_t{});
         }

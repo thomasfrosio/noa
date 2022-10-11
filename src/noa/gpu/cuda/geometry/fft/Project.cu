@@ -121,8 +121,8 @@ namespace {
         const uint32_t off_y[2] = {idx[0][1] * strides[1], idx[1][1] * strides[1]};
         const uint32_t off_x[2] = {idx[0][2] * strides[2], idx[1][2] * strides[2]};
 
-        const float rx = frequency[2] - static_cast<float>(idx[0][2]);
         const float ry = frequency[1] - static_cast<float>(idx[0][1]);
+        const float rx = frequency[2] - static_cast<float>(idx[0][2]);
 
         const T v000 = cond_z[0] && cond_y[0] && cond_x[0] ? grid[off_z[0] + off_y[0] + off_x[0]] : T{0};
         const T v001 = cond_z[0] && cond_y[0] && cond_x[1] ? grid[off_z[0] + off_y[0] + off_x[1]] : T{0};
@@ -140,29 +140,36 @@ namespace {
         return cuda::geometry::details::linear1D(tmp1, tmp2, rz);
     }
 
-    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T>
+    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T, typename S, typename R>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    fourierInsert_(const T* __restrict__ slice, uint3_t slice_strides, int2_t slice_shape, float2_t f_slice_shape,
-                   T* __restrict__ grid, uint3_t grid_strides, int3_t grid_shape, float3_t f_grid_shape,
-                   const float22_t* inv_scaling_factors, const float33_t* rotations,
-                   float cutoff_sqd, float2_t ews_diam_inv) {
+    fourierInsert_(const T* __restrict__ slice, uint3_t slice_strides, int2_t slice_shape_fft, float2_t f_slice_shape,
+                   T* __restrict__ grid, uint3_t grid_strides, int3_t grid_shape,
+                   S inv_scaling_factors, R rotations,
+                   float cutoff_sqd, float3_t f_target_shape, float2_t ews_diam_inv) {
         using real_t = traits::value_type_t<T>;
         const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
                          blockIdx.x * THREADS.x + threadIdx.x};
-        if (gid[1] >= slice_shape[0] || gid[2] >= slice_shape[1])
+        if (gid[1] >= slice_shape_fft[0] || gid[2] >= slice_shape_fft[1])
             return;
 
-        const int32_t v = getFrequency_<IS_SRC_CENTERED>(gid[1], slice_shape[0]);
+        const int32_t v = getFrequency_<IS_SRC_CENTERED>(gid[1], slice_shape_fft[0]);
         const float2_t orig_freq{v, gid[2]};
         float2_t freq_2d = orig_freq / f_slice_shape;
 
-        if (inv_scaling_factors)
-            freq_2d = inv_scaling_factors[gid[0]] * freq_2d;
+        if constexpr (std::is_pointer_v<S>) {
+            if (inv_scaling_factors)
+                freq_2d = inv_scaling_factors[gid[0]] * freq_2d;
+        } else {
+            freq_2d = inv_scaling_factors * freq_2d;
+        }
 
         const float z = math::sum(ews_diam_inv * freq_2d * freq_2d);
         float3_t freq_3d{z, freq_2d[0], freq_2d[1]};
-        freq_3d = rotations[gid[0]] * freq_3d;
+        if constexpr (std::is_pointer_v<R>)
+            freq_3d = rotations[gid[0]] * freq_3d;
+        else
+            freq_3d = rotations * freq_3d;
 
         if (math::dot(freq_3d, freq_3d) > cutoff_sqd)
             return;
@@ -173,7 +180,7 @@ namespace {
             if constexpr(traits::is_complex_v<T>)
                 conj = -1;
         }
-        freq_3d *= f_grid_shape;
+        freq_3d *= f_target_shape;
 
         T value = slice[indexing::at(gid, slice_strides)];
         if constexpr(traits::is_complex_v<T>)
@@ -184,30 +191,36 @@ namespace {
         addByGridding_<IS_DST_CENTERED>(grid, grid_strides, grid_shape, value, freq_3d);
     }
 
-    template<bool IS_DST_CENTERED, typename T, typename U>
+    template<bool IS_DST_CENTERED, typename T, typename U, typename S, typename R>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    fourierExtract_(T grid, float3_t f_grid_shape,
-                    U* __restrict__ slice, uint3_t slice_strides, int2_t slice_shape, float2_t f_slice_shape,
-                    const float22_t* inv_scaling_factors, const float33_t* rotations,
-                    float cutoff_sqd, float2_t ews_diam_inv) {
+    fourierExtract_(T grid,
+                    U* __restrict__ slice, uint3_t slice_strides, int2_t slice_shape_fft, float2_t f_slice_shape,
+                    S inv_scaling_factors, R rotations,
+                    float cutoff_sqd, float3_t f_target_shape, float2_t f_offset, float2_t ews_diam_inv) {
         using real_t = traits::value_type_t<U>;
         const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
                          blockIdx.x * THREADS.x + threadIdx.x};
-        if (gid[1] >= slice_shape[0] || gid[2] >= slice_shape[1])
+        if (gid[1] >= slice_shape_fft[0] || gid[2] >= slice_shape_fft[1])
             return;
 
         // -------------------------------- //
-        const int32_t v = getFrequency_<IS_DST_CENTERED>(gid[1], slice_shape[0]);
+        const int32_t v = getFrequency_<IS_DST_CENTERED>(gid[1], slice_shape_fft[0]);
         const float2_t orig_freq{v, gid[2]};
         float2_t freq_2d = orig_freq / f_slice_shape;
-
-        if (inv_scaling_factors)
-            freq_2d = inv_scaling_factors[gid[0]] * freq_2d;
+        if constexpr (std::is_pointer_v<S>) {
+            if (inv_scaling_factors)
+                freq_2d = inv_scaling_factors[gid[0]] * freq_2d;
+        } else {
+            freq_2d = inv_scaling_factors * freq_2d;
+        }
 
         const float z = math::sum(ews_diam_inv * freq_2d * freq_2d);
         float3_t freq_3d{z, freq_2d[0], freq_2d[1]};
-        freq_3d = rotations[gid[0]] * freq_3d;
+        if constexpr (std::is_pointer_v<R>)
+            freq_3d = rotations[gid[0]] * freq_3d;
+        else
+            freq_3d = rotations * freq_3d;
 
         if (math::dot(freq_3d, freq_3d) > cutoff_sqd) {
             slice[indexing::at(gid, slice_strides)] = U{0};
@@ -220,9 +233,9 @@ namespace {
             if constexpr(traits::is_complex_v<U>)
                 conj = -1;
         }
-        freq_3d[0] += 0.5f;
-        freq_3d[1] += 0.5f;
-        freq_3d *= f_grid_shape;
+        freq_3d *= f_target_shape; // [-0.5 <- 0 -> 0.5] to [-N//2 <- 0 -> N//2]
+        freq_3d[0] += f_offset[0]; // offset to the grid center index
+        freq_3d[1] += f_offset[1];
         // -------------------------------- //
 
         U value;
@@ -264,11 +277,27 @@ namespace {
         output(gid) = POST_CORRECTION ? input(gid) / sinc2 : input(gid) * sinc2;
     }
 
-    template<fft::Remap REMAP, typename T, typename U>
+    template<typename T>
+    using matrixOrRawConstPtr_t = std::conditional_t<
+            traits::is_floatXX_v<T>,
+            traits::remove_ref_cv_t<T>,
+            const typename traits::element_type_t<T>*>;
+
+    template<typename T>
+    auto matrixOrRawConstPtr(T v) {
+        using output_t = matrixOrRawConstPtr_t<T>;
+        if constexpr (traits::is_floatXX_v<T>) {
+            return output_t(v);
+        } else {
+            return static_cast<output_t>(v.get());
+        }
+    }
+
+    template<fft::Remap REMAP, typename T, typename U, typename S, typename R>
     void launchExtract3D_(const T* grid, dim4_t grid_strides, int3_t grid_shape,
                           U* slice, dim4_t slice_strides, dim4_t slice_shape,
-                          const float22_t* scaling_factors, const float33_t* rotations,
-                          float cutoff, float3_t sampling_factor, float2_t ews_radius, cuda::Stream& stream) {
+                          S scaling_factors, R rotations,
+                          float cutoff, dim4_t target_shape, float2_t ews_radius, cuda::Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
@@ -283,8 +312,10 @@ namespace {
         const auto slice_strides_ = safe_cast<uint3_t>(dim3_t{slice_strides[0], slice_strides[2], slice_strides[3]});
         const float2_t f_slice_shape(slice_shape_ / 2 * 2 + int2_t(slice_shape_ == 1));
 
-        float3_t f_grid_shape(grid_shape / 2 * 2 + int3_t(grid_shape == 1));
-        f_grid_shape *= sampling_factor;
+        // Use the grid shape as backup.
+        const int3_t target_shape_ = any(target_shape == 0) ? grid_shape : int3_t(target_shape.get(1));
+        const float3_t f_target_shape(target_shape_ / 2 * 2 + int3_t(target_shape_ == 1));
+        const float2_t f_offset(grid_shape[0] / 2, grid_shape[1] / 2); // grid ZY center
 
         // Launch config:
         const uint2_t tmp(slice_shape.get(2));
@@ -300,35 +331,46 @@ namespace {
 
         // Ensure transformation parameters are accessible to the GPU:
         cuda::memory::PtrDevice<float22_t> b0;
-        cuda::memory::PtrDevice<float33_t> b1;
-        using namespace cuda::util;
-        const auto* ptr0 = scaling_factors ? ensureDeviceAccess(scaling_factors, stream, b0, count) : nullptr;
-        const auto* ptr1 = ensureDeviceAccess(rotations, stream, b1, count);
+        using scaling_t = matrixOrRawConstPtr_t<S>;
+        scaling_t ptr0 = matrixOrRawConstPtr(scaling_factors);
+        if constexpr (std::is_pointer_v<scaling_t>)
+            ptr0 = scaling_factors ? cuda::util::ensureDeviceAccess(ptr0, stream, b0, count) : nullptr;
 
-        if constexpr (noa::traits::is_almost_same_v<T, cudaTextureObject_t>) {
+        cuda::memory::PtrDevice<float33_t> b1;
+        using rotation_t = matrixOrRawConstPtr_t<R>;
+        rotation_t ptr1 = matrixOrRawConstPtr(rotations);
+        if constexpr (std::is_pointer_v<rotation_t>) {
+            NOA_ASSERT(ptr1 != nullptr);
+            ptr1 = cuda::util::ensureDeviceAccess(ptr1, stream, b1, count);
+        }
+
+        if constexpr (traits::is_almost_same_v<T, cudaTextureObject_t>) {
             (void) grid_strides;
-            stream.enqueue("geometry::fft::extract3D", fourierExtract_<IS_DST_CENTERED, cudaTextureObject_t, U>, config,
-                           *grid, f_grid_shape,
-                           slice, slice_strides_, slice_shape_, f_slice_shape,
-                           ptr0, ptr1, cutoff, ews_diam_inv);
+            stream.enqueue("geometry::fft::extract3D",
+                           fourierExtract_<IS_DST_CENTERED, cudaTextureObject_t, U, scaling_t, rotation_t>, config,
+                           *grid, slice, slice_strides_, slice_shape_.fft(), f_slice_shape,
+                           ptr0, ptr1, cutoff, f_target_shape, f_offset, ews_diam_inv);
         } else {
             const auto grid_strides_ = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
-            GridNoTexture<T> grid_{grid, grid_strides_, grid_shape};
-            stream.enqueue("geometry::fft::extract3D", fourierExtract_<IS_DST_CENTERED, GridNoTexture<T>, U>, config,
-                           grid_, f_grid_shape,
-                           slice, slice_strides_, slice_shape_, f_slice_shape,
-                           ptr0, ptr1, cutoff, ews_diam_inv);
+            GridNoTexture<T> grid_{grid, grid_strides_, grid_shape.fft()};
+            stream.enqueue("geometry::fft::extract3D",
+                           fourierExtract_<IS_DST_CENTERED, GridNoTexture<T>, U, scaling_t, rotation_t>, config,
+                           grid_, slice, slice_strides_, slice_shape_.fft(), f_slice_shape,
+                           ptr0, ptr1, cutoff, f_target_shape, f_offset, ews_diam_inv);
         }
+        if constexpr (std::is_pointer_v<scaling_t>)
+            stream.attach(scaling_factors);
+        if constexpr (std::is_pointer_v<rotation_t>)
+            stream.attach(rotations);
     }
 }
 
 namespace noa::cuda::geometry::fft {
-    template<Remap REMAP, typename T, typename>
+    template<Remap REMAP, typename T, typename S, typename R, typename>
     void insert3D(const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
                   const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const shared_t<float22_t[]>& scaling_factors,
-                  const shared_t<float33_t[]>& rotations,
-                  float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
+                  const S& scaling_factors, const R& rotations,
+                  float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
         constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
@@ -336,7 +378,7 @@ namespace noa::cuda::geometry::fft {
         if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
             static_assert(traits::always_false_v<T>);
 
-        NOA_ASSERT(rotations && slice.get() != grid.get() && all(slice_shape > 0) && all(grid_shape > 0));
+        NOA_ASSERT(slice.get() != grid.get() && all(slice_shape > 0) && all(grid_shape > 0));
         NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
         NOA_ASSERT(slice_shape[1] == 1);
@@ -349,8 +391,10 @@ namespace noa::cuda::geometry::fft {
         const auto slice_strides_ = safe_cast<uint3_t>(dim3_t{slice_strides[0], slice_strides[2], slice_strides[3]});
         const auto grid_strides_ = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
         const float2_t f_slice_shape(slice_shape_ / 2 * 2 + int2_t(slice_shape_ == 1));
-        float3_t f_grid_shape(grid_shape_ / 2 * 2 + int3_t(grid_shape_ == 1));
-        f_grid_shape *= sampling_factor;
+
+        // Use the grid shape as backup.
+        const int3_t target_shape_ = any(target_shape == 0) ? grid_shape_ : int3_t(target_shape.get(1));
+        const float3_t f_target_shape(target_shape_ / 2 * 2 + int3_t(target_shape_ == 1));
 
         // Launch config:
         const uint2_t tmp(slice_shape_);
@@ -366,44 +410,56 @@ namespace noa::cuda::geometry::fft {
 
         // Ensure transformation parameters are accessible to the GPU:
         memory::PtrDevice<float22_t> b0;
-        memory::PtrDevice<float33_t> b1;
-        using namespace util;
-        const auto* ptr0 = scaling_factors ? ensureDeviceAccess(scaling_factors.get(), stream, b0, count) : nullptr;
-        const auto* ptr1 = ensureDeviceAccess(rotations.get(), stream, b1, count);
+        using scaling_t = matrixOrRawConstPtr_t<S>;
+        scaling_t ptr0 = matrixOrRawConstPtr(scaling_factors);
+        if constexpr (std::is_pointer_v<scaling_t>)
+            ptr0 = scaling_factors ? util::ensureDeviceAccess(ptr0, stream, b0, count) : nullptr;
 
-        stream.enqueue("geometry::fft::insert3D", fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, T>, config,
-                       slice.get(), slice_strides_, slice_shape_, f_slice_shape,
-                       grid.get(), grid_strides_, grid_shape_, f_grid_shape,
-                       ptr0, ptr1, cutoff, ews_diam_inv);
-        stream.attach(slice, grid, scaling_factors, rotations);
+        memory::PtrDevice<float33_t> b1;
+        using rotation_t = matrixOrRawConstPtr_t<R>;
+        rotation_t ptr1 = matrixOrRawConstPtr(rotations);
+        if constexpr (std::is_pointer_v<rotation_t>) {
+            NOA_ASSERT(ptr1 != nullptr);
+            ptr1 = util::ensureDeviceAccess(ptr1, stream, b1, count);
+        }
+
+        stream.enqueue("geometry::fft::insert3D",
+                       fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, T, scaling_t, rotation_t>, config,
+                       slice.get(), slice_strides_, slice_shape_.fft(), f_slice_shape,
+                       grid.get(), grid_strides_, grid_shape_,
+                       ptr0, ptr1, cutoff, f_target_shape, ews_diam_inv);
+        stream.attach(slice, grid);
+        if constexpr (std::is_pointer_v<scaling_t>)
+            stream.attach(scaling_factors);
+        if constexpr (std::is_pointer_v<rotation_t>)
+            stream.attach(rotations);
     }
 
-    template<Remap REMAP, typename T, typename>
+    template<Remap REMAP, typename T, typename S, typename R, typename>
     void extract3D(const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
                    const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                   const shared_t<float22_t[]>& scaling_factors,
-                   const shared_t<float33_t[]>& rotations,
-                   float cutoff, float3_t sampling_factor, float2_t ews_radius,
-                   bool no_texture, Stream& stream) {
-        NOA_ASSERT(rotations && all(slice_shape > 0) && all(grid_shape > 0));
+                   const S& scaling_factors, const R& rotations,
+                   float cutoff, dim4_t target_shape, float2_t ews_radius,
+                   bool use_texture, Stream& stream) {
+        NOA_ASSERT(all(slice_shape > 0) && all(grid_shape > 0));
         NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
         NOA_ASSERT(slice_shape[1] == 1);
         NOA_ASSERT(grid_shape[0] == 1);
         const auto int3_grid_shape = safe_cast<int3_t>(dim3_t(grid_shape.get(1)));
 
-        if (no_texture) {
+        if (!use_texture) {
             NOA_ASSERT(slice.get() != grid.get());
             NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
             launchExtract3D_<REMAP>(grid.get(), grid_strides, int3_grid_shape,
                                     slice.get(), slice_strides, slice_shape,
-                                    scaling_factors.get(), rotations.get(),
-                                    cutoff, sampling_factor, ews_radius, stream);
-            stream.attach(grid, slice, scaling_factors, rotations);
+                                    scaling_factors, rotations,
+                                    cutoff, target_shape, ews_radius, stream);
+            stream.attach(grid, slice);
         } else {
             if constexpr (traits::is_any_v<T, double, cdouble_t>) {
                 NOA_THROW("Double precision is not supported in this mode. Use no_texture=true instead");
             } else {
-                NOA_ASSERT(grid_strides[1] == 1 && indexing::isContiguous(grid_strides, grid_shape)[1]);
+                NOA_ASSERT(grid_strides[3] == 1 && indexing::isContiguous(grid_strides, grid_shape.fft())[1]);
                 memory::PtrArray<T> array(dim3_t(int3_grid_shape.fft()));
                 memory::PtrTexture texture(array.get(), INTERP_LINEAR_FAST, BORDER_ZERO);
                 memory::copy(grid, grid_strides[2], array.share(), array.shape(), stream);
@@ -411,27 +467,26 @@ namespace noa::cuda::geometry::fft {
                 const auto tex = texture.get();
                 launchExtract3D_<REMAP>(&tex, {}, int3_grid_shape,
                                         slice.get(), slice_strides, slice_shape,
-                                        scaling_factors.get(), rotations.get(),
-                                        cutoff, sampling_factor, ews_radius, stream);
-                stream.attach(array.share(), texture.share(), slice, scaling_factors, rotations);
+                                        scaling_factors, rotations,
+                                        cutoff, target_shape, ews_radius, stream);
+                stream.attach(array.share(), texture.share(), slice);
             }
         }
     }
 
-    template<Remap REMAP, typename T, typename>
+    template<Remap REMAP, typename T, typename S, typename R, typename>
     void extract3D(const shared_t<cudaArray>& array,
                    const shared_t<cudaTextureObject_t>& grid, int3_t grid_shape,
                    const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                   const shared_t<float22_t[]>& scaling_factors,
-                   const shared_t<float33_t[]>& rotations,
-                   float cutoff, float3_t sampling_factor, float2_t ews_radius, Stream& stream) {
-        NOA_ASSERT(array && grid && rotations && all(slice_shape > 0) && all(grid_shape > 0));
+                   const S& scaling_factors, const R& rotations,
+                   float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
+        NOA_ASSERT(array && grid && all(slice_shape > 0) && all(grid_shape > 0));
         NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
         launchExtract3D_<REMAP>(grid.get(), {}, grid_shape,
                                 slice.get(), slice_strides, slice_shape,
-                                scaling_factors.get(), rotations.get(),
-                                cutoff, sampling_factor, ews_radius, stream);
-        stream.attach(array, grid, slice, scaling_factors, rotations);
+                                scaling_factors, rotations,
+                                cutoff, target_shape, ews_radius, stream);
+        stream.attach(array, grid, slice);
     }
 
     template<typename T, typename>
@@ -462,41 +517,47 @@ namespace noa::cuda::geometry::fft {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_INSERT_(T, R)                                                                           \
-    template void insert3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t,  \
-                                       const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
+    #define NOA_INSTANTIATE_INSERT_(T, REMAP, S, R) \
+    template void insert3D<REMAP, T, S, R, void>(   \
+        const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const S&, const R&, float, dim4_t, float2_t, Stream&)
 
-    #define NOA_INSTANTIATE_PROJECT_(T)         \
-    NOA_INSTANTIATE_INSERT_(T, Remap::H2H);     \
-    NOA_INSTANTIATE_INSERT_(T, Remap::H2HC);    \
-    NOA_INSTANTIATE_INSERT_(T, Remap::HC2H);    \
-    NOA_INSTANTIATE_INSERT_(T, Remap::HC2HC);   \
+    #define NOA_INSTANTIATE_INSERT_ALL_REMAP(T, S, R)   \
+    NOA_INSTANTIATE_INSERT_(T, Remap::H2H, S, R);       \
+    NOA_INSTANTIATE_INSERT_(T, Remap::H2HC, S, R);      \
+    NOA_INSTANTIATE_INSERT_(T, Remap::HC2H, S, R);      \
+    NOA_INSTANTIATE_INSERT_(T, Remap::HC2HC, S, R)
+
+    #define NOA_INSTANTIATE_INSERT_ALL_(T)                                             \
+    NOA_INSTANTIATE_INSERT_ALL_REMAP(T, float22_t, float33_t);                         \
+    NOA_INSTANTIATE_INSERT_ALL_REMAP(T, shared_t<float22_t[]>, float33_t);             \
+    NOA_INSTANTIATE_INSERT_ALL_REMAP(T, float22_t, shared_t<float33_t[]>);             \
+    NOA_INSTANTIATE_INSERT_ALL_REMAP(T, shared_t<float22_t[]>, shared_t<float33_t[]>); \
     template void griddingCorrection<T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&)
 
-    NOA_INSTANTIATE_PROJECT_(float);
-    NOA_INSTANTIATE_PROJECT_(double);
-    NOA_INSTANTIATE_PROJECT_(cfloat_t);
-    NOA_INSTANTIATE_PROJECT_(cdouble_t);
+    NOA_INSTANTIATE_INSERT_ALL_(float);
+    NOA_INSTANTIATE_INSERT_ALL_(double);
+    NOA_INSTANTIATE_INSERT_ALL_(cfloat_t);
+    NOA_INSTANTIATE_INSERT_ALL_(cdouble_t);
 
-    #define NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(T, R)                                                               \
-    template void extract3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, bool, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_(T, REMAP, S, R)                                \
+    template void extract3D<REMAP, T, S, R, void>(                                  \
+        const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, \
+        const S&, const R&, float, dim4_t, float2_t, bool, Stream&);                \
+    template void extract3D<REMAP, T, S, R, void>(                                  \
+        const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, int3_t,   \
+        const shared_t<T[]>&, dim4_t, dim4_t,                                       \
+        const S&, const R&, float, dim4_t, float2_t, Stream&)
 
-    #define NOA_INSTANTIATE_EXTRACT_TEXTURE_(T, R)                                                                          \
-    template void extract3D<R, T, void>(const shared_t<cudaArray>&,                                                         \
-                                        const shared_t<cudaTextureObject_t>&, int3_t, const shared_t<T[]>&, dim4_t, dim4_t, \
-                                        const shared_t<float22_t[]>&, const shared_t<float33_t[]>&, float, float3_t, float2_t, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_ALL_REMAP(T, S, R)  \
+    NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2HC, S, R);    \
+    NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2H, S, R)
 
-    #define NOA_INSTANTIATE_EXTRACT_(T, R)      \
-    NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(T, R);  \
-    NOA_INSTANTIATE_EXTRACT_TEXTURE_(T, R)
+    #define NOA_INSTANTIATE_EXTRACT_ALL_(T)                                             \
+    NOA_INSTANTIATE_EXTRACT_ALL_REMAP(T, float22_t, float33_t);                         \
+    NOA_INSTANTIATE_EXTRACT_ALL_REMAP(T, shared_t<float22_t[]>, float33_t);             \
+    NOA_INSTANTIATE_EXTRACT_ALL_REMAP(T, float22_t, shared_t<float33_t[]>);             \
+    NOA_INSTANTIATE_EXTRACT_ALL_REMAP(T, shared_t<float22_t[]>, shared_t<float33_t[]>); \
 
-    NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2HC);
-    NOA_INSTANTIATE_EXTRACT_(float, Remap::HC2H);
-    NOA_INSTANTIATE_EXTRACT_(cfloat_t, Remap::HC2HC);
-    NOA_INSTANTIATE_EXTRACT_(cfloat_t, Remap::HC2H);
-    NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(double, Remap::HC2HC);
-    NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(double, Remap::HC2H);
-    NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(cdouble_t, Remap::HC2HC);
-    NOA_INSTANTIATE_EXTRACT_NO_TEXTURE_(cdouble_t, Remap::HC2H);
+    NOA_INSTANTIATE_EXTRACT_ALL_(float);
+    NOA_INSTANTIATE_EXTRACT_ALL_(cfloat_t);
 }

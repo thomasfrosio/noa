@@ -60,7 +60,7 @@ namespace {
         Array recons_weights_fft = memory::zeros<float>(recons_shape.fft());
         geometry::fft::insert3D<fft::H2H>(weights_fft, slices_shape,
                                           recons_weights_fft, recons_shape,
-                                          {}, tilt_angles);
+                                          float22_t{}, tilt_angles);
         saveStack_(filename, recons_weights_fft);
     }
 
@@ -91,7 +91,7 @@ namespace {
         signal::fft::shift2D<fft::H2H>(slices_fft, slices_fft, optimal_shape, -float2_t{optimal_size} / 2);
         geometry::fft::insert3D<fft::H2H>(slices_fft.release(), optimal_shape,
                                           recons_fft, recons_shape,
-                                          {}, tilt_angles);
+                                          float22_t{}, tilt_angles);
         signal::fft::shift3D<fft::H2H>(recons_fft, recons_fft, recons_shape, float3_t{recons_shape.get(1)} / 2);
 
         // Insert the weights:
@@ -100,7 +100,7 @@ namespace {
         Array recons_weights_fft = memory::zeros<float>(recons_shape.fft(), options);
         geometry::fft::insert3D<fft::H2H>(weights_fft.release(), optimal_shape,
                                           recons_weights_fft, recons_shape,
-                                          {}, tilt_angles);
+                                          float22_t{}, tilt_angles);
         // Normalize and gridding correction:
         recons_weights_fft += 1e-3f;
         recons_fft /= recons_weights_fft.release();
@@ -147,13 +147,13 @@ namespace {
         signal::fft::shift2D<fft::H2H>(slice_fft, slice_fft, optimal_shape, -float2_t{optimal_size} / 2);
         geometry::fft::insert3D<fft::H2HC>(slice_fft, optimal_shape,
                                            recons_fft, recons_shape,
-                                           {}, angle_0);
+                                           float22_t{}, angle_0);
 
         // Extract the 3 deg:
         memory::fill(slice_fft, cfloat_t{0});
         geometry::fft::extract3D<fft::HC2HC>(recons_fft.release(), recons_shape,
                                              slice_fft, optimal_shape,
-                                             {}, angle_3);
+                                             float22_t{}, angle_3);
 
 
         signal::fft::shift2D<fft::HC2HC>(slice_fft, slice_fft, optimal_shape, float2_t{optimal_size} / 2);
@@ -196,7 +196,7 @@ TEST_CASE("geometry::fft, back-projection", "[.]") {
     Array recons_weights_fft = memory::zeros<float>(shape_recons.fft());
     geometry::fft::insert3D<fft::H2HC>(weights_fft.release(), shape_batched,
                                        recons_weights_fft, shape_recons,
-                                       {}, tilt_angles);
+                                       float22_t{}, tilt_angles);
 
 //    fft::remap(fft::H2HC, recons_weights_fft, recons_weights_fft, shape);
     saveStack_(test::NOA_DATA_PATH / "tilt1" / "tilt1_reprojected_weights.mrc", recons_weights_fft);
