@@ -14,7 +14,7 @@ namespace noa::geometry {
     void shift2D(const Array<T>& input, const Array<T>& output, const S& shifts,
                  InterpMode interp_mode, BorderMode border_mode, T value, bool prefilter) {
         constexpr bool SINGLE_SHIFT = traits::is_float2_v<S>;
-        using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+        using shift_t = traits::shared_type_t<S>;
         const shift_t* shifts_;
 
         if constexpr (!SINGLE_SHIFT) {
@@ -108,7 +108,7 @@ namespace noa::geometry {
                       input.shape(), output.shape());
 
             constexpr bool SINGLE_SHIFT = traits::is_float2_v<S>;
-            using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+            using shift_t = traits::shared_type_t<S>;
             const shift_t* shifts_;
 
             if constexpr (!SINGLE_SHIFT) {
@@ -148,7 +148,7 @@ namespace noa::geometry {
     void shift3D(const Array<T>& input, const Array<T>& output, const S& shifts,
                  InterpMode interp_mode, BorderMode border_mode, T value, bool prefilter) {
         constexpr bool SINGLE_SHIFT = traits::is_float3_v<S>;
-        using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+        using shift_t = traits::shared_type_t<S>;
         const shift_t* shifts_;
 
         if constexpr (!SINGLE_SHIFT) {
@@ -238,7 +238,7 @@ namespace noa::geometry {
                       "The number of batches in the texture ({}) should be 1, got {}", input.shape()[0]);
 
             constexpr bool SINGLE_SHIFT = traits::is_float3_v<S>;
-            using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+            using shift_t = traits::shared_type_t<S>;
             const shift_t* shifts_;
 
             if constexpr (!SINGLE_SHIFT) {

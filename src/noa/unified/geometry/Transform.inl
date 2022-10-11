@@ -15,7 +15,7 @@ namespace noa::geometry {
     void transform2D(const Array<T>& input, const Array<T>& output, const M& matrices,
                      InterpMode interp_mode, BorderMode border_mode, T value, bool prefilter) {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
-        using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+        using matrix_t = traits::shared_type_t<M>;
         const matrix_t* matrices_;
 
         if constexpr (!traits::is_floatXX_v<M>) {
@@ -105,7 +105,7 @@ namespace noa::geometry {
             NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
         } else {
             constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
-            using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+            using matrix_t = traits::shared_type_t<M>;
             const matrix_t* matrices_;
 
             if constexpr (!SINGLE_MATRIX) {
@@ -152,7 +152,7 @@ namespace noa::geometry {
     void transform3D(const Array<T>& input, const Array<T>& output, const M& matrices,
                      InterpMode interp_mode, BorderMode border_mode, T value, bool prefilter) {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
-        using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+        using matrix_t = traits::shared_type_t<M>;
         const matrix_t* matrices_;
 
         if constexpr (!traits::is_floatXX_v<M>) {
@@ -242,7 +242,7 @@ namespace noa::geometry {
             NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
         } else {
             constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
-            using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+            using matrix_t = traits::shared_type_t<M>;
             const matrix_t* matrices_;
 
             if constexpr (!SINGLE_MATRIX) {

@@ -30,7 +30,7 @@ namespace noa::geometry::fft {
             input_strides[0] = 0;
 
         constexpr bool SINGLE_MATRIX = traits::is_float22_v<M>;
-        using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+        using matrix_t = traits::shared_type_t<M>;
         const matrix_t* matrices_;
         if constexpr (!SINGLE_MATRIX) {
             NOA_CHECK(matrices.elements() == output.shape()[0] &&
@@ -44,7 +44,7 @@ namespace noa::geometry::fft {
         }
 
         constexpr bool SINGLE_SHIFT = traits::is_float2_v<S>;
-        using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+        using shift_t = traits::shared_type_t<S>;
         const shift_t* shifts_;
         if constexpr (!SINGLE_SHIFT) {
             NOA_CHECK(shifts.empty() ||
@@ -142,7 +142,7 @@ namespace noa::geometry::fft {
                       "The number of batches in the texture ({}) should be 1, got {}", input.shape()[0]);
 
             constexpr bool SINGLE_MATRIX = traits::is_float22_v<M>;
-            using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+            using matrix_t = traits::shared_type_t<M>;
             const matrix_t* matrices_;
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.elements() == output.shape()[0] &&
@@ -156,7 +156,7 @@ namespace noa::geometry::fft {
             }
 
             constexpr bool SINGLE_SHIFT = traits::is_float2_v<M>;
-            using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+            using shift_t = traits::shared_type_t<S>;
             const shift_t* shifts_;
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(shifts.empty() ||
@@ -217,7 +217,7 @@ namespace noa::geometry::fft {
 
 
         constexpr bool SINGLE_MATRIX = traits::is_float33_v<M>;
-        using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+        using matrix_t = traits::shared_type_t<M>;
         const matrix_t* matrices_;
         if constexpr (!SINGLE_MATRIX) {
             NOA_CHECK(matrices.elements() == output.shape()[0] &&
@@ -231,7 +231,7 @@ namespace noa::geometry::fft {
         }
 
         constexpr bool SINGLE_SHIFT = traits::is_float3_v<M>;
-        using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+        using shift_t = traits::shared_type_t<S>;
         const shift_t* shifts_;
         if constexpr (!SINGLE_SHIFT) {
             NOA_CHECK(shifts.empty() ||
@@ -331,7 +331,7 @@ namespace noa::geometry::fft {
                       "The number of batches in the texture ({}) should be 1, got {}", input.shape()[0]);
 
             constexpr bool SINGLE_MATRIX = traits::is_float33_v<M>;
-            using matrix_t = std::conditional_t<SINGLE_MATRIX, M, shared_t<traits::value_type_t<M>[]>>;
+            using matrix_t = traits::shared_type_t<M>;
             const matrix_t* matrices_;
             if constexpr (!SINGLE_MATRIX) {
                 NOA_CHECK(matrices.elements() == output.shape()[0] &&
@@ -345,7 +345,7 @@ namespace noa::geometry::fft {
             }
 
             constexpr bool SINGLE_SHIFT = traits::is_float3_v<M>;
-            using shift_t = std::conditional_t<SINGLE_SHIFT, S, shared_t<traits::value_type_t<S>[]>>;
+            using shift_t = traits::shared_type_t<S>;
             const shift_t* shifts_;
             if constexpr (!SINGLE_SHIFT) {
                 NOA_CHECK(shifts.empty() ||

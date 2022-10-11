@@ -17,8 +17,8 @@ namespace noa::geometry {
                   T value, bool prefilter) {
         constexpr bool SINGLE_ROTATION = traits::is_float_v<R>;
         constexpr bool SINGLE_CENTER = traits::is_float2_v<C>;
-        using rotation_t = std::conditional_t<SINGLE_ROTATION, R, shared_t<traits::value_type_t<R>[]>>;
-        using center_t = std::conditional_t<SINGLE_CENTER, C, shared_t<traits::value_type_t<C>[]>>;
+        using rotation_t = traits::shared_type_t<R>;
+        using center_t = traits::shared_type_t<C>;
         const rotation_t* rotations_;
         const center_t* centers_;
 
@@ -122,8 +122,8 @@ namespace noa::geometry {
                   T value, bool prefilter) {
         constexpr bool SINGLE_ROTATION = traits::is_float33_v<R>;
         constexpr bool SINGLE_CENTER = traits::is_float3_v<C>;
-        using rotation_t = std::conditional_t<SINGLE_ROTATION, R, shared_t<traits::value_type_t<R>[]>>;
-        using center_t = std::conditional_t<SINGLE_CENTER, C, shared_t<traits::value_type_t<C>[]>>;
+        using rotation_t = traits::shared_type_t<R>;
+        using center_t = traits::shared_type_t<C>;
         const rotation_t* rotations_;
         const center_t* centers_;
 
