@@ -55,6 +55,7 @@ Development:
             function is called because there's a different template parameter...
         See: https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp
              https://github.com/eyalroz/cuda-api-wrappers/tree/master/src/cuda/nvrtc
+             https://github.com/NVIDIA/jitify
 
     -   Test CUDA LTO and unused kernels support from Toolkit 11.5.
 
@@ -64,6 +65,8 @@ Development:
 
     -   Use the CUDA driver to handle the context. That way, the library can keep track of its own context and reset it
         without affecting then entire application. This could be attached to the current Session.
+    -   Checkout https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/cuda/detail/DeviceThreadHandles.h
+        For cuFFT, cuBLAS and cuRand handles.
 
     -   Add transform operator to the math reduce functions. cuda::util::reduce showed that this is useful and often
         removes the need for a temporary array.
@@ -76,19 +79,20 @@ Development:
     -   JIT, lazy evaluation and kernel fusion.
         This is cool, is efficient and uses fewer temporaries, BUT, I much prefer the simplicity of `std::transform` or
         range-like APIs, where we define lambdas as transform operators. Also, it is much more flexible and versatile in
-        my opinion. The issue with this simpler approach: 1) it cannot be used from another language, 2) GPU is not
+        my opinion. The issue with this simpler approach: 1) it cannot easily be used from another language, 2) GPU is not
         really possible from a .cpp file.
         Lazy evaluation:
-            ArrayFire is quite good at fusing kernels, but I'm not sure if I want to go that path.
+            ArrayFire is quite good at fusing kernels, but I'm not sure if I want to follow that path.
             The implementation in arrayfire seems fine, I think Cupy is similar but CUDA only. Pytorch should be the
             same but the codebase is huge, and it's difficult to understand what is going on. Also Eigen and xtensor have
             lazy evaluation. xtensor has a series of articles on how they implemented lazy-evaluation (and kernel fusion
-            at the same time), but these are CPU only.
+            at the same time), but these are CPU only. Adding GPU support should be relatively simple though, with
+            a string conversion on the operators and something like jitify from nvidia.
             Links: https://arrayfire.com/performance-of-arrayfire-jit-code-generation/
                    https://johan-mabille.medium.com/how-we-wrote-xtensor-9365952372d9
         At the moment, the CPU backend math::ewise() can take any unary/binary/trinary element-wise transformation
         operator, which is great. However, since we cannot include and compile CUDA kernels from .cpp files OR pass host
-        lambdas to CUDA kernels, we have to limit ourselves to pre-instantiated operators, which is super annoying.
+        lambdas to CUDA kernels, we have to limit ourselves to pre-instantiated operators, which is very annoying.
         Note that the kernels are already there and can take any operators like in the CPU backend, but they have to be
         compiled by .cu files. I really hope nvc++ will solve this issue.
         One simple solution for now would be to keep using ewise() (and even add iwise()), and add a way for projects
