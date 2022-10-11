@@ -76,6 +76,7 @@ namespace noa {
         using value_type = T;
         using ptr_type = T*;
         using reference_type = T&;
+        using shared_type = std::shared_ptr<T[]>;
 
         static_assert(!std::is_const_v<T>);
         static_assert(!std::is_pointer_v<T>);

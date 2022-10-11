@@ -41,6 +41,15 @@ namespace noa::traits {
         struct ptr_type<T, std::void_t<typename T::ptr_type>> {
             using type = typename T::ptr_type; // TODO Add ptr_t
         };
+
+        template<typename T, typename = void>
+        struct shared_type {
+            using type = T;
+        };
+        template<typename T>
+        struct shared_type<T, std::void_t<typename T::shared_type>> {
+            using type = typename T::shared_type; // TODO Add ptr_t
+        };
     }
 
     template<typename T>
@@ -55,6 +64,10 @@ namespace noa::traits {
     struct ptr_type {
         using type = typename details::ptr_type<T>::type;
     };
+    template<typename T>
+    struct shared_type {
+        using type = typename details::shared_type<T>::type;
+    };
 
     /// Extracts the typedef "value_type" from T if it exists, returns T otherwise. \c remove_ref_cv_t is applied to T.
     template<typename T> using value_type_t = typename value_type<remove_ref_cv_t<T>>::type;
@@ -64,6 +77,9 @@ namespace noa::traits {
 
     /// Extracts the typedef ptr_type from T if it exists, returns T otherwise. \c remove_ref_cv_t is applied to T.
     template<typename T> using ptr_type_t = typename ptr_type<remove_ref_cv_t<T>>::type;
+
+    /// Extracts the typedef shared_type from T if it exists, returns T otherwise. \c remove_ref_cv_t is applied to T.
+    template<typename T> using shared_type_t = typename shared_type<remove_ref_cv_t<T>>::type;
 }
 
 namespace noa::traits {
