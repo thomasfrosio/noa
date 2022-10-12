@@ -60,7 +60,7 @@ namespace noa::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T, typename M, typename S,
              typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
-    void transform2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR);
 
@@ -70,7 +70,7 @@ namespace noa::geometry::fft {
     ///          coordinates should be used.
     template<Remap REMAP, typename T, typename M, typename S,
              typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
-    void transform2D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff = 0.5f);
 
@@ -110,7 +110,7 @@ namespace noa::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T, typename M, typename S,
              typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
-    void transform3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR);
 
@@ -120,7 +120,7 @@ namespace noa::geometry::fft {
     ///          coordinates should be used.
     template<Remap REMAP, typename T, typename M, typename S,
                           typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, T, M, S>>>
-    void transform3D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff = 0.5f);
 }
@@ -158,7 +158,7 @@ namespace noa::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);
 
@@ -167,7 +167,7 @@ namespace noa::geometry::fft {
     ///          However, for GPU textures, the border mode should be BORDER_ZERO and un-normalized
     ///          coordinates should be used.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform2D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff = 0.5f, bool normalize = true);
 
@@ -201,7 +201,7 @@ namespace noa::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR, bool normalize = true);
 
@@ -210,7 +210,7 @@ namespace noa::geometry::fft {
     ///          However, for GPU textures, the border mode should be BORDER_ZERO and un-normalized
     ///          coordinates should be used.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform3D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff = 0.5f, bool normalize = true);
 }

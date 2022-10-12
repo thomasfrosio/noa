@@ -13,7 +13,7 @@ namespace noa::geometry::fft {
     using Remap = noa::fft::Remap;
 
     template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -25,7 +25,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
 
@@ -118,7 +118,7 @@ namespace noa::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform2D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -198,7 +198,7 @@ namespace noa::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff, InterpMode interp_mode) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -211,7 +211,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
 
@@ -306,7 +306,7 @@ namespace noa::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform3D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -391,7 +391,7 @@ namespace noa::geometry::fft {
     using Symmetry = ::noa::geometry::Symmetry;
 
     template<Remap REMAP, typename T, typename>
-    void transform2D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -403,7 +403,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
 
@@ -442,7 +442,7 @@ namespace noa::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void transform2D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform2D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      float22_t matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, bool normalize) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -483,7 +483,7 @@ namespace noa::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void transform3D(const Array<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
@@ -496,7 +496,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(input.shape()[0] == 1 || input.shape()[0] == output.shape()[0],
                   "The number of batches in the input ({}) is not compatible with the number of "
                   "batches in the output ({})", input.shape()[0], output.shape()[0]);
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
 
@@ -536,7 +536,7 @@ namespace noa::geometry::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    void transform3D(const Texture<T>& input, const Array<T>& output, size4_t shape,
+    void transform3D(const Texture<T>& input, const Array<T>& output, dim4_t shape,
                      float33_t matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, bool normalize) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
