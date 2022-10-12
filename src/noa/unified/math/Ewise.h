@@ -13,11 +13,11 @@ namespace noa::math {
     ///       - (copy|square|nonzero|logical_not)_t(B) -> B
     ///       - (nonzero|logical_not)_t(A|B) -> bool
     ///     Floating-points:
-    ///       - (copy|square|abs|negate|one_minus|inverse|sqrt|rsqrt|exp|log|cos|sin)_t(C) -> C
+    ///       - (copy|square|abs|negate|one_minus|inverse|sqrt|rsqrt|exp|log|cos|sin|one_log|abs_one_log)_t(C) -> C
     ///       - (round|rint|ceil|floor|trunc)_t(C) -> C
     ///     Complex:
     ///       - (square|one_minus|inverse|normalize|conj)_t(D) -> D
-    ///       - (abs|abs_squared|real|imag)_t(D) -> C
+    ///       - (abs|abs_squared|abs_one_log|real|imag)_t(D) -> C
     ///     Where:
     ///         A = int16_t, int32_t, or int64_t
     ///         B = uint16_t, uint32_t, or uint64_t

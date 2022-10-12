@@ -14,10 +14,10 @@ namespace noa::cuda::math::details {
             (is_any_v<out_t, int16_t, int32_t, int64_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, abs_t, negate_t, one_minus_t, nonzero_t, logical_not_t>) ||
             (is_any_v<out_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, nonzero_t, logical_not_t>) ||
             (is_any_v<in_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<out_t, bool> && is_any_v<op_t, nonzero_t, logical_not_t>) ||
-            (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, abs_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t>) ||
+            (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, abs_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t, one_log_t, abs_one_log_t>) ||
             (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, round_t, rint_t, ceil_t, floor_t, trunc_t>) ||
             (is_complex_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, one_minus_t, square_t, inverse_t, normalize_t, conj_t>) ||
-            (is_complex_v<in_t> && std::is_same_v<out_t, value_type_t<in_t>> && is_any_v<op_t, abs_t, real_t, imag_t, abs_squared_t>);
+            (is_complex_v<in_t> && std::is_same_v<out_t, value_type_t<in_t>> && is_any_v<op_t, abs_t, real_t, imag_t, abs_squared_t, abs_one_log_t>);
 
     template<typename lhs_t, typename rhs_t, typename out_t, typename op_t>
     constexpr bool is_valid_ewise_binary_v =

@@ -133,6 +133,22 @@ namespace noa::math {
             return tmp * tmp;
         }
     };
+
+    struct abs_one_log_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& x) const {
+            using value_t = traits::value_type_t<T>;
+            return ::noa::math::log(value_t{1} + ::noa::math::abs(x));
+        }
+    };
+
+    struct one_log_t {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& x) const {
+            using value_t = traits::value_type_t<T>;
+            return ::noa::math::log(value_t{1} + x);
+        }
+    };
 }
 
 // -- Binary operators -- //

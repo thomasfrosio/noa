@@ -69,7 +69,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::rint_t);       \
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::ceil_t);       \
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::floor_t);      \
-    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::trunc_t)
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::trunc_t);      \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::one_log_t);    \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::math::abs_one_log_t)
 
     NOA_INSTANTIATE_EWISE_UNARY_FLOAT(half_t);
     NOA_INSTANTIATE_EWISE_UNARY_FLOAT(float);
@@ -84,7 +86,8 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::abs_t);        \
     NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::real_t);       \
     NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::imag_t);       \
-    NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::abs_squared_t)
+    NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::abs_squared_t);\
+    NOA_INSTANTIATE_EWISE_UNARY(C,R,::noa::math::abs_one_log_t)
 
     NOA_INSTANTIATE_EWISE_UNARY_COMPLEX(chalf_t, half_t);
     NOA_INSTANTIATE_EWISE_UNARY_COMPLEX(cfloat_t, float);
