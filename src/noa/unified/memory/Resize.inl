@@ -66,4 +66,12 @@ namespace noa::memory {
         auto[border_left, border_right] = borders(input.shape(), output.shape());
         resize(input, output, border_left, border_right, border_mode, border_value);
     }
+
+    template<typename T, typename>
+    Array<T> resize(const Array<T>& input, dim4_t output_shape,
+                    BorderMode border_mode, T border_value) {
+        Array<T> output(dim4_t(output_shape), input.options());
+        resize(input, output, border_mode, border_value);
+        return output;
+    }
 }

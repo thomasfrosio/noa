@@ -48,6 +48,16 @@ namespace noa::memory {
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
     void resize(const Array<T>& input, const Array<T>& output,
                 BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
+
+    /// Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
+    /// \tparam T                   Any data type.
+    /// \param[in] input            Input array.
+    /// \param[out] output_shape    Output shape.
+    /// \param border_mode          Border mode to use. See BorderMode for more details.
+    /// \param border_value         Border value. Only used if \p mode is BORDER_VALUE.
+    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
+    Array<T> resize(const Array<T>& input, dim4_t output_shape,
+                    BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 }
 
 #define NOA_UNIFIED_RESIZE_
