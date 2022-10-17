@@ -35,8 +35,8 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float, 
     cuda::memory::PtrDevice<real_t> lhs{elements, stream};
     cuda::memory::PtrDevice<real_t> rhs{elements, stream};
 
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, stream);
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float22_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float22_t{}, false, stream);
 
     cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
     cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
@@ -86,8 +86,8 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cuda]"
     cuda::memory::PtrDevice<real_t> lhs{elements, stream};
     cuda::memory::PtrDevice<real_t> rhs{elements, stream};
 
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, stream);
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float22_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float22_t{}, false, stream);
 
     cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
     cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
@@ -144,8 +144,8 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}()", "[noa][cuda]", float, 
     cuda::memory::PtrDevice<real_t> lhs{elements, stream};
     cuda::memory::PtrDevice<real_t> rhs{elements, stream};
 
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, stream);
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float33_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float33_t{}, false, stream);
 
     cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
     cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
@@ -197,8 +197,8 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cuda]"
     cuda::memory::PtrDevice<real_t> lhs{elements, stream};
     cuda::memory::PtrDevice<real_t> rhs{elements, stream};
 
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, stream);
-    cuda::signal::rectangle<false, real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float33_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float33_t{}, false, stream);
 
     cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
     cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};

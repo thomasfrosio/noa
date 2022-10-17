@@ -14,6 +14,9 @@ namespace noa::signal {
     template<typename out_t, bool INVERT = false, typename in_t = float>
     class Line {
     public:
+        using value_type = out_t;
+        using compute_type = in_t;
+
         constexpr NOA_IHD Line(in_t center, in_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
                 : m_center(center), m_radius(radius) {}
 
@@ -74,13 +77,29 @@ namespace noa::signal {
     template<int N, typename out_t, bool INVERT = false, typename in_t = float>
     class Sphere {
     public:
-        using in_vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using rot_t = std::conditional_t<N == 2, Mat22<in_t>, Mat33<in_t>>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD Sphere(in_vec_t center, in_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
+        constexpr NOA_IHD Sphere(vec_t center, in_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
                 : m_center(center), m_radius_sqd(radius * radius) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords, rot_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec_t coords, [[maybe_unused]] rot_t inv_transform = {}) const noexcept {
             coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords *= inv_transform * coords;
             const auto dst_sqd = math::dot(coords, coords);
 
             if (dst_sqd > m_radius_sqd)
@@ -90,7 +109,7 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
+        vec_t m_center;
         in_t m_radius_sqd;
     };
 
@@ -101,14 +120,31 @@ namespace noa::signal {
     template<int N, typename out_t, bool INVERT = false, typename in_t = float>
     class SphereSmooth {
     public:
-        using in_vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using rot_t = std::conditional_t<N == 2, Mat22<in_t>, Mat33<in_t>>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD SphereSmooth(in_vec_t center, in_t radius, in_t edge_size) noexcept
+        constexpr NOA_IHD SphereSmooth(vec_t center, in_t radius, in_t edge_size) noexcept
                 : m_center(center), m_radius(radius), m_radius_sqd(radius * radius), m_edge_size(edge_size),
                   m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords, rot_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec_t coords, [[maybe_unused]] rot_t inv_transform = {}) const noexcept {
             coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords *= inv_transform * coords;
+
             const auto dst_sqd = math::dot(coords, coords);
 
             constexpr auto PI = math::Constants<in_t>::PI;
@@ -126,7 +162,7 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
+        vec_t m_center;
         in_t m_radius;
         in_t m_radius_sqd;
         in_t m_edge_size;
@@ -142,17 +178,42 @@ namespace noa::signal {
     template<typename out_t, bool INVERT = false, typename in_t = float>
     class Cylinder {
     public:
-        using in_vec_t = Float3<in_t>;
+        using vec3_t = Float3<in_t>;
+        using vec2_t = Float2<in_t>;
+        using mat33_t = Mat33<in_t>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD Cylinder(in_vec_t center, in_t radius, in_t length, [[maybe_unused]] in_t = in_t{0}) noexcept
+        constexpr NOA_IHD Cylinder(vec3_t center, in_t radius, in_t length, [[maybe_unused]] in_t = in_t{0}) noexcept
                 : m_center(center), m_radius_sqd(radius * radius), m_length(length) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
-            const auto dst_z = math::abs(coords[0] - m_center[0]);
+        constexpr NOA_IHD Cylinder(vec3_t center, vec2_t length_radius, [[maybe_unused]] in_t = in_t{0}) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0]) {}
 
-            using vec2_t = Float2<in_t>;
+        constexpr NOA_IHD Cylinder(vec3_t center, vec3_t length_radius, [[maybe_unused]] in_t = in_t{0}) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0]) {
+            NOA_ASSERT(length_radius[1] == length_radius[2]);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec3_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec3_t coords, mat33_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec3_t coords, [[maybe_unused]] mat33_t inv_transform = {}) const noexcept {
+            coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords *= inv_transform * coords;
+
+            const auto dst_z = math::abs(coords[0]);
+
             vec2_t tmp{coords[1], coords[2]};
-            tmp -= vec2_t{m_center[1], m_center[2]};
             const in_t dst_yx_sqd = math::dot(tmp, tmp);
 
             if (dst_z > m_length || dst_yx_sqd > m_radius_sqd)
@@ -162,7 +223,7 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
+        vec3_t m_center;
         in_t m_radius_sqd;
         in_t m_length;
     };
@@ -174,23 +235,48 @@ namespace noa::signal {
     template<typename out_t, bool INVERT = false, typename in_t = float>
     class CylinderSmooth {
     public:
-        using in_vec_t = Float3<in_t>;
+        using vec3_t = Float3<in_t>;
+        using vec2_t = Float2<in_t>;
+        using mat33_t = Mat33<in_t>;
+        using compute_type = in_t;
+        using value_type = out_t;
 
-        constexpr NOA_IHD CylinderSmooth(in_vec_t center, in_t radius, in_t length, in_t edge_size) noexcept
+        constexpr NOA_IHD CylinderSmooth(vec3_t center, in_t radius, in_t length, in_t edge_size) noexcept
                 : m_center(center), m_radius(radius), m_radius_sqd(radius * radius),
                   m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)),
                   m_edge_size(edge_size), m_length(length), m_length_edge(length + edge_size) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
-            const auto dst_z = math::abs(coords[0] - m_center[0]);
+        constexpr NOA_IHD CylinderSmooth(vec3_t center, vec2_t length_radius, in_t edge_size) noexcept
+                : CylinderSmooth(center, length_radius[1], length_radius[0], edge_size) {}
 
-            using vec2_t = Float2<in_t>;
+        constexpr NOA_IHD CylinderSmooth(vec3_t center, vec3_t length_radius, in_t edge_size) noexcept
+                : CylinderSmooth(center, length_radius[1], length_radius[0], edge_size) {
+            NOA_ASSERT(length_radius[1] == length_radius[2]);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD value_type operator()(vec3_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD value_type operator()(vec3_t coords, mat33_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD value_type
+        get(vec3_t coords, [[maybe_unused]] mat33_t inv_transform = {}) const noexcept {
+            coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords *= inv_transform * coords;
+
+            const auto dst_z = math::abs(coords[0]);
+
             vec2_t tmp{coords[1], coords[2]};
-            tmp -= vec2_t{m_center[1], m_center[2]};
             const in_t dst_yx_sqd = math::dot(tmp, tmp);
 
             if (dst_z > m_length_edge || dst_yx_sqd > m_radius_edge_sqd) {
-                return static_cast<out_t>(INVERT);
+                return static_cast<value_type>(INVERT);
             } else {
                 constexpr auto PI = math::Constants<in_t>::PI;
                 in_t mask;
@@ -212,7 +298,7 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
+        vec3_t m_center;
         in_t m_radius;
         in_t m_radius_sqd;
         in_t m_radius_edge_sqd;
@@ -220,7 +306,6 @@ namespace noa::signal {
         in_t m_edge_size;
         in_t m_length;
         in_t m_length_edge;
-
     };
 }
 
@@ -232,13 +317,29 @@ namespace noa::signal {
     template<int N, typename out_t, bool INVERT = false, typename in_t = float>
     class Rectangle {
     public:
-        using in_vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using rot_t = std::conditional_t<N == 2, Mat22<in_t>, Mat33<in_t>>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD Rectangle(in_vec_t center, in_vec_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
+        constexpr NOA_IHD Rectangle(vec_t center, vec_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
                 : m_center(center), m_radius(radius) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords, rot_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec_t coords, [[maybe_unused]] rot_t inv_transform = {}) const noexcept {
             coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords *= inv_transform * coords;
             coords = math::abs(coords);
 
             if (all(coords <= m_radius))
@@ -248,8 +349,8 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
-        in_vec_t m_radius;
+        vec_t m_center;
+        vec_t m_radius;
     };
 
     /// Smooth rectangle, with a cosine-edge, defined by a center and radius.
@@ -259,13 +360,29 @@ namespace noa::signal {
     template<int N, typename out_t, bool INVERT = false, typename in_t = float>
     class RectangleSmooth {
     public:
-        using in_vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using rot_t = std::conditional_t<N == 2, Mat22<in_t>, Mat33<in_t>>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD RectangleSmooth(in_vec_t center, in_vec_t radius, in_t edge_size) noexcept
+        constexpr NOA_IHD RectangleSmooth(vec_t center, vec_t radius, in_t edge_size) noexcept
                 : m_center(center), m_radius(radius), m_radius_edge(radius + edge_size), m_edge_size(edge_size) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords, rot_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec_t coords, [[maybe_unused]] rot_t inv_transform = {}) const noexcept {
             coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords = inv_transform * coords;
             coords = math::abs(coords);
 
             constexpr auto PI = math::Constants<in_t>::PI;
@@ -275,12 +392,10 @@ namespace noa::signal {
                 return static_cast<out_t>(!INVERT);
             } else {
                 in_t mask_value{1};
-                if (m_radius[0] < coords[0] && coords[0] <= m_radius_edge[0])
-                    mask_value *= (in_t{1} + math::cos(PI * (coords[0] - m_radius[0]) / m_edge_size)) * in_t{0.5};
-                if (m_radius[1] < coords[1] && coords[1] <= m_radius_edge[1])
-                    mask_value *= (in_t{1} + math::cos(PI * (coords[1] - m_radius[1]) / m_edge_size)) * in_t{0.5};
-                if (m_radius[2] < coords[2] && coords[2] <= m_radius_edge[2])
-                    mask_value *= (in_t{1} + math::cos(PI * (coords[2] - m_radius[2]) / m_edge_size)) * in_t{0.5};
+                for (dim_t i = 0; i < N; ++i) {
+                    if (m_radius[i] < coords[i] && coords[i] <= m_radius_edge[i])
+                        mask_value *= (in_t{1} + math::cos(PI * (coords[i] - m_radius[i]) / m_edge_size)) * in_t{0.5};
+                }
                 if constexpr (INVERT)
                     return static_cast<out_t>(in_t{1} - mask_value);
                 else
@@ -289,9 +404,9 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
-        in_vec_t m_radius;
-        in_vec_t m_radius_edge;
+        vec_t m_center;
+        vec_t m_radius;
+        vec_t m_radius_edge;
         in_t m_edge_size;
     };
 }
@@ -304,13 +419,29 @@ namespace noa::signal {
     template<int N, typename out_t, bool INVERT = false, typename in_t = float>
     class Ellipse {
     public:
-        using in_vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using rot_t = std::conditional_t<N == 2, Mat22<in_t>, Mat33<in_t>>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD Ellipse(in_vec_t center, in_vec_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
+        constexpr NOA_IHD Ellipse(vec_t center, vec_t radius, [[maybe_unused]] in_t = in_t{0}) noexcept
                 : m_center(center), m_radius(radius) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords, rot_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec_t coords, [[maybe_unused]] rot_t inv_transform = {}) const noexcept {
             coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords = inv_transform * coords;
             coords /= m_radius;
             const in_t rho = math::dot(coords, coords);
 
@@ -321,8 +452,8 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
-        in_vec_t m_radius;
+        vec_t m_center;
+        vec_t m_radius;
     };
 
     /// Smooth ellipse, with a cosine-edge, defined by a center and radius.
@@ -332,13 +463,29 @@ namespace noa::signal {
     template<int N, typename out_t, bool INVERT = false, typename in_t = float>
     class EllipseSmooth {
     public:
-        using in_vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using vec_t = std::conditional_t<N == 2, Float2<in_t>, Float3<in_t>>;
+        using rot_t = std::conditional_t<N == 2, Mat22<in_t>, Mat33<in_t>>;
+        using value_type = out_t;
+        using compute_type = in_t;
 
-        constexpr NOA_IHD EllipseSmooth(in_vec_t center, in_vec_t radius, in_t edge_size) noexcept
+        constexpr NOA_IHD EllipseSmooth(vec_t center, vec_t radius, in_t edge_size) noexcept
                 : m_center(center), m_radius(radius * radius), m_edge_size(edge_size) {}
 
-        [[nodiscard]] constexpr NOA_IHD out_t operator()(in_vec_t coords) const noexcept {
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords) const noexcept {
+            return get(coords);
+        }
+
+        [[nodiscard]] constexpr NOA_IHD out_t operator()(vec_t coords, rot_t inv_transform) const noexcept {
+            return get<true>(coords, inv_transform);
+        }
+
+    private:
+        template<bool TRANSFORM = false>
+        [[nodiscard]] constexpr NOA_IHD out_t
+        get(vec_t coords, [[maybe_unused]] rot_t inv_transform = {}) const noexcept {
             coords -= m_center;
+            if constexpr (TRANSFORM)
+                coords = inv_transform * coords; // for 2D we could accept the rotation angle and add it to phi.
 
             in_t irho, erho;
             if constexpr (N == 2) {
@@ -367,9 +514,9 @@ namespace noa::signal {
 
             constexpr in_t PI = math::Constants<in_t>::PI;
             if (irho > erho + m_edge_size) {
-                return static_cast<out_t>(!INVERT);
-            } else if (irho <= erho) {
                 return static_cast<out_t>(INVERT);
+            } else if (irho <= erho) {
+                return static_cast<out_t>(!INVERT);
             } else {
                 if constexpr (INVERT)
                     return static_cast<out_t>((in_t{1} - math::cos(PI * (irho - erho) / m_edge_size)) * in_t{0.5});
@@ -379,8 +526,8 @@ namespace noa::signal {
         }
 
     private:
-        in_vec_t m_center;
-        in_vec_t m_radius;
+        vec_t m_center;
+        vec_t m_radius;
         in_t m_edge_size{};
     };
 }

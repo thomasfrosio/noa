@@ -29,7 +29,7 @@ TEST_CASE("cpu::geometry::fft::insert3D", "[.]") {
 
     for (uint i = 0; i < slices_shape[0]; ++i) {
         scaling_factors[i] = geometry::scale(float2_t{1, 1});
-        rotations[i] = geometry::euler2matrix(float3_t{0.54, 0, 0});
+        rotations[i] = geometry::euler2matrix(math::deg2rad(float3_t{176, 20, 0}), "ZYX", false);
     }
 
     const bool do_ews = false;
