@@ -381,6 +381,19 @@ namespace noa::indexing {
         return {v[order[0]], v[order[1]]};
     }
 
+    /// Reorder (i.e. sort) \p mat according to the indexes in \p order.
+    /// The columns are reordered, and then the rows. Only square matrices are currently supported.
+    template<typename mat_t, typename vec_t,
+             typename std::enable_if_t<
+                     traits::is_matXX_v<mat_t> && traits::is_intX_v<vec_t> &&
+                     mat_t::ROWS == vec_t::COUNT, bool> = true>
+    NOA_FHD mat_t reorder(const mat_t& mat, const vec_t& order) {
+        mat_t out;
+        for (size_t i = 0; i < vec_t::COUNT; ++i)
+            out[order[i]] = reorder(mat[i], order);
+        return out;
+    }
+
     /// (Circular) shifts \p v by a given amount.
     /// If \p shift is positive, shifts to the right, otherwise, shifts to the left.
     template<typename T>

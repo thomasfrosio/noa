@@ -418,3 +418,48 @@ TEMPLATE_TEST_CASE("common: indexes()", "[noa][common]", int2_t, uint2_t, int3_t
         REQUIRE(all(idx_expected == idx_result));
     }
 }
+
+TEMPLATE_TEST_CASE("common: reorder matrices", "[noa][common]", uint32_t, int32_t, int64_t, uint64_t) {
+    // When we reorder the array, if it is attached to a matrix, we need to reorder the matrix as well...
+    test::Randomizer<double> randomizer(-3, 3);
+    SECTION("2D") {
+        double22_t matrix;
+        for (dim_t i = 0; i < 2; ++i)
+            for (dim_t j = 0; j < 2; ++j)
+            matrix[i][j] = randomizer.get();
+
+        double2_t vector{randomizer.get(), randomizer.get()};
+        double2_t expected = matrix * vector;
+
+        Int2<TestType> order{1,0};
+        vector = indexing::reorder(vector, order);
+        matrix = indexing::reorder(matrix, order);
+        double2_t result = matrix * vector;
+        REQUIRE(expected[0] == result[1]);
+        REQUIRE(expected[1] == result[0]);
+    }
+
+    SECTION("3D") {
+        double33_t matrix;
+        for (dim_t i = 0; i < 3; ++i)
+            for (dim_t j = 0; j < 3; ++j)
+                matrix[i][j] = randomizer.get();
+
+        double3_t vector{randomizer.get(), randomizer.get(), randomizer.get()};
+        double3_t expected = matrix * vector;
+
+        using order_t = Int3<TestType>;
+        std::vector<order_t> orders{{0, 1, 2}, {0, 2, 1}, {2, 1, 0}, {1, 0, 2}};
+        for (const auto& order: orders) {
+            vector = indexing::reorder(vector, order);
+            matrix = indexing::reorder(matrix, order);
+            double3_t result = matrix * vector;
+            expected = indexing::reorder(expected, order);
+
+            INFO(order);
+            REQUIRE_THAT(result[0], Catch::WithinAbs(expected[0], 1e-6));
+            REQUIRE_THAT(result[1], Catch::WithinAbs(expected[1], 1e-6));
+            REQUIRE_THAT(result[2], Catch::WithinAbs(expected[2], 1e-6));
+        }
+    }
+}
