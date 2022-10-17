@@ -204,7 +204,7 @@ namespace noa::cuda::signal::fft {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(all(shape > 0) && shape[1] == 1);
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const shared_t<float2_t[]> d_shifts = util::ensureDeviceAccess(shifts, stream, output_strides[0]);
@@ -237,7 +237,7 @@ namespace noa::cuda::signal::fft {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(all(shape > 0) && shape[1] == 1);
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int2_t>(dim2_t(shape.get(2)));
@@ -274,7 +274,7 @@ namespace noa::cuda::signal::fft {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const shared_t<float3_t[]> d_shifts = util::ensureDeviceAccess(shifts, stream, output_strides[0]);
@@ -305,7 +305,7 @@ namespace noa::cuda::signal::fft {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
