@@ -368,15 +368,15 @@ namespace noa::indexing {
     }
 
     /// Reorder (i.e. sort) \p v according to the indexes in \p order.
-    template<typename T, typename U, typename = std::enable_if_t<traits::is_int4_v<T> || traits::is_float4_v<T>>>
+    template<typename T, typename U, typename std::enable_if_t<traits::is_int4_v<T> || traits::is_float4_v<T>, bool> = true>
     NOA_FHD T reorder(T v, const Int4<U>& order) {
         return {v[order[0]], v[order[1]], v[order[2]], v[order[3]]};
     }
-    template<typename T, typename U, typename = std::enable_if_t<traits::is_int3_v<T> || traits::is_float3_v<T>>>
+    template<typename T, typename U, typename std::enable_if_t<traits::is_int3_v<T> || traits::is_float3_v<T>, bool> = true>
     NOA_FHD T reorder(T v, const Int3<U>& order) {
         return {v[order[0]], v[order[1]], v[order[2]]};
     }
-    template<typename T, typename U, typename = std::enable_if_t<traits::is_int2_v<T> || traits::is_float2_v<T>>>
+    template<typename T, typename U, typename std::enable_if_t<traits::is_int2_v<T> || traits::is_float2_v<T>, bool> = true>
     NOA_FHD T reorder(T v, const Int2<U>& order) {
         return {v[order[0]], v[order[1]]};
     }
