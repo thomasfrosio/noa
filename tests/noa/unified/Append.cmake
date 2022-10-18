@@ -9,6 +9,7 @@ set(TEST_UNIFIED_SOURCES
 
         noa/unified/signal/fft/TestUnifiedAlignment.cpp
         noa/unified/signal/fft/TestUnifiedMellin.cpp
+        noa/unified/signal/fft/TestUnifiedShape.cpp
         noa/unified/signal/fft/TestUnifiedStandardize.cpp
         noa/unified/signal/TestUnifiedSignal.cpp
 
