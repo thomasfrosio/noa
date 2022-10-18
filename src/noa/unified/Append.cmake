@@ -36,6 +36,8 @@ set(NOA_UNIFIED_HEADERS
         unified/signal/fft/Bandpass.inl
         unified/signal/fft/Correlate.h
         unified/signal/fft/Correlate.inl
+        unified/signal/fft/Shape.h
+        unified/signal/fft/Shape.inl
         unified/signal/fft/Shift.h
         unified/signal/fft/Shift.inl
         unified/signal/fft/Standardize.h

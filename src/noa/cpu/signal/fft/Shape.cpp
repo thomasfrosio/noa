@@ -16,16 +16,11 @@ namespace {
                    dim_t threads) {
 
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_SRC_CENTERED = REMAP_ & fft::Layout::SRC_CENTERED;
-        constexpr bool IS_DST_CENTERED = REMAP_ & fft::Layout::DST_CENTERED;
         if constexpr (REMAP_ & fft::Layout::SRC_HALF || REMAP_ & fft::Layout::DST_HALF)
             static_assert(traits::always_false_v<void_>);
 
         auto op = [=](dim_t i, dim_t j, dim_t k, dim_t l) {
-            dim3_t index{IS_SRC_CENTERED ? j : math::FFTShift(j, shape[1]),
-                         IS_SRC_CENTERED ? k : math::FFTShift(k, shape[2]),
-                         IS_SRC_CENTERED ? l : math::FFTShift(l, shape[3])};
-
+            dim3_t index = signal::fft::details::gid2CenteredIndexes<REMAP>(dim3_t{j, k, l}, shape);
             float3_t coords{index};
             typename geom_shape_t::value_type mask;
             if constexpr (TRANSFORM)
@@ -35,11 +30,7 @@ namespace {
 
             const auto value = input ? input(i, index[0], index[1], index[2]) * mask : mask;
 
-            if constexpr (IS_SRC_CENTERED != IS_DST_CENTERED) {
-                index[0] = IS_DST_CENTERED ? j : math::FFTShift(j, shape[1]);
-                index[1] = IS_DST_CENTERED ? k : math::FFTShift(k, shape[2]);
-                index[2] = IS_DST_CENTERED ? l : math::FFTShift(l, shape[3]);
-            }
+            index = signal::fft::details::gid2OutputIndexes<REMAP>(dim3_t{j, k, l}, shape);
             output(i, index[0], index[1], index[2]) = value;
         };
         cpu::utils::iwise4D(start, end, op, threads);
@@ -77,14 +68,12 @@ namespace {
                    dim_t threads) {
 
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_SRC_CENTERED = REMAP_ & fft::Layout::SRC_CENTERED;
-        constexpr bool IS_DST_CENTERED = REMAP_ & fft::Layout::DST_CENTERED;
         if constexpr (REMAP_ & fft::Layout::SRC_HALF || REMAP_ & fft::Layout::DST_HALF)
             static_assert(traits::always_false_v<void_>);
 
+        const dim3_t shape_2d{shape[0], shape[2], shape[3]};
         auto op = [=](dim_t i, dim_t j, dim_t k) {
-            dim2_t index{IS_SRC_CENTERED ? j : math::FFTShift(j, shape[2]),
-                         IS_SRC_CENTERED ? k : math::FFTShift(k, shape[3])};
+            dim2_t index = signal::fft::details::gid2CenteredIndexes<REMAP>(dim2_t{j, k}, shape_2d);
 
             float2_t coords{index};
             typename geom_shape_t::value_type mask;
@@ -95,10 +84,7 @@ namespace {
 
             const auto value = input ? input(i, index[0], index[1]) * mask : mask;
 
-            if constexpr (IS_SRC_CENTERED != IS_DST_CENTERED) {
-                index[0] = IS_DST_CENTERED ? j : math::FFTShift(j, shape[2]);
-                index[1] = IS_DST_CENTERED ? k : math::FFTShift(k, shape[3]);
-            }
+            index = signal::fft::details::gid2OutputIndexes<REMAP>(dim2_t{j, k}, shape_2d);
             output(i, index[0], index[1]) = value;
         };
         cpu::utils::iwise3D(dim3_t{0, start[2], start[3]},

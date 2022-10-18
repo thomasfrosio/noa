@@ -531,3 +531,60 @@ namespace noa::signal {
         in_t m_edge_size{};
     };
 }
+
+// For signal/fft/shape:
+namespace noa::signal::fft::details {
+    // To compute the shape, we need centered coordinates, so FFTshift if the input isn't centered.
+    template<noa::fft::Remap REMAP, typename T>
+    NOA_FHD Int3<T> gid2CenteredIndexes(const Int3<T>& gid, const Int4<T>& shape) {
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_CENTERED = REMAP_ & noa::fft::Layout::SRC_CENTERED;
+        return {IS_SRC_CENTERED ? gid[0] : math::FFTShift(gid[0], shape[1]),
+                IS_SRC_CENTERED ? gid[1] : math::FFTShift(gid[1], shape[2]),
+                IS_SRC_CENTERED ? gid[2] : math::FFTShift(gid[2], shape[3])};
+    }
+
+    template<noa::fft::Remap REMAP, typename T>
+    NOA_FHD Int2<T> gid2CenteredIndexes(const Int2<T>& gid, const Int3<T>& shape) {
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_CENTERED = REMAP_ & noa::fft::Layout::SRC_CENTERED;
+        return {IS_SRC_CENTERED ? gid[0] : math::FFTShift(gid[0], shape[1]),
+                IS_SRC_CENTERED ? gid[1] : math::FFTShift(gid[1], shape[2])};
+    }
+
+    // For the output, we need to compare with the input. If there's no remap, then the indexes
+    // match and we can use the gid. Otherwise, FFTshift for F2FC, or iFFTshift for FC2F.
+    template<noa::fft::Remap REMAP, typename T>
+    NOA_FHD Int3<T> gid2OutputIndexes(const Int3<T>& gid, const Int4<T>& shape) {
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_CENTERED = REMAP_ & noa::fft::Layout::SRC_CENTERED;
+        constexpr bool IS_DST_CENTERED = REMAP_ & noa::fft::Layout::DST_CENTERED;
+        if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED) {
+            return gid;
+        } else if constexpr (IS_SRC_CENTERED && !IS_DST_CENTERED) { // FC2F
+            return {math::iFFTShift(gid[0], shape[1]),
+                    math::iFFTShift(gid[1], shape[2]),
+                    math::iFFTShift(gid[2], shape[3])};
+        } else { // F2FC
+            return {math::FFTShift(gid[0], shape[1]),
+                    math::FFTShift(gid[1], shape[2]),
+                    math::FFTShift(gid[2], shape[3])};
+        }
+    }
+
+    template<noa::fft::Remap REMAP, typename T>
+    NOA_FHD Int2<T> gid2OutputIndexes(const Int2<T>& gid, const Int3<T>& shape) {
+        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
+        constexpr bool IS_SRC_CENTERED = REMAP_ & noa::fft::Layout::SRC_CENTERED;
+        constexpr bool IS_DST_CENTERED = REMAP_ & noa::fft::Layout::DST_CENTERED;
+        if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED) {
+            return gid;
+        } else if constexpr (IS_SRC_CENTERED && !IS_DST_CENTERED) { // FC2F
+            return {math::iFFTShift(gid[0], shape[1]),
+                    math::iFFTShift(gid[1], shape[2])};
+        } else { // F2FC
+            return {math::FFTShift(gid[0], shape[1]),
+                    math::FFTShift(gid[1], shape[2])};
+        }
+    }
+}

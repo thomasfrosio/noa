@@ -17,8 +17,6 @@ namespace {
                    uint3_t start, uint2_t end, uint4_t shape,
                    geom_shape_t signal_shape, matrix_t inv_transform) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_SRC_CENTERED = REMAP_ & fft::Layout::SRC_CENTERED;
-        constexpr bool IS_DST_CENTERED = REMAP_ & fft::Layout::DST_CENTERED;
         if constexpr (REMAP_ & fft::Layout::SRC_HALF || REMAP_ & fft::Layout::DST_HALF)
             static_assert(traits::always_false_v<T>);
 
@@ -28,12 +26,8 @@ namespace {
         if (gid[1] >= end[0] || gid[2] >= end[1])
             return;
 
-        const uint3_t i_idx{IS_SRC_CENTERED ? gid[0] : math::FFTShift(gid[0], shape[1]),
-                            IS_SRC_CENTERED ? gid[1] : math::FFTShift(gid[1], shape[2]),
-                            IS_SRC_CENTERED ? gid[2] : math::FFTShift(gid[2], shape[3])};
-        const uint3_t o_idx{IS_DST_CENTERED ? gid[0] : math::FFTShift(gid[0], shape[1]),
-                            IS_DST_CENTERED ? gid[1] : math::FFTShift(gid[1], shape[2]),
-                            IS_DST_CENTERED ? gid[2] : math::FFTShift(gid[2], shape[3])};
+        const uint3_t i_idx = signal::fft::details::gid2CenteredIndexes<REMAP>(gid, shape);
+        const uint3_t o_idx = signal::fft::details::gid2OutputIndexes<REMAP>(gid, shape);
 
         float3_t coords{i_idx};
         typename geom_shape_t::value_type mask;
@@ -54,8 +48,6 @@ namespace {
                    uint2_t start, uint2_t end, uint3_t shape,
                    geom_shape_t signal_shape, matrix_t inv_transform) {
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_SRC_CENTERED = REMAP_ & fft::Layout::SRC_CENTERED;
-        constexpr bool IS_DST_CENTERED = REMAP_ & fft::Layout::DST_CENTERED;
         if constexpr (REMAP_ & fft::Layout::SRC_HALF || REMAP_ & fft::Layout::DST_HALF)
             static_assert(traits::always_false_v<T>);
 
@@ -64,10 +56,8 @@ namespace {
         if (gid[0] >= end[0] || gid[1] >= end[1])
             return;
 
-        const uint2_t i_idx{IS_SRC_CENTERED ? gid[0] : math::iFFTShift(gid[0], shape[1]),
-                            IS_SRC_CENTERED ? gid[1] : math::iFFTShift(gid[1], shape[2])};
-        const uint2_t o_idx{IS_DST_CENTERED ? gid[0] : math::iFFTShift(gid[0], shape[1]),
-                            IS_DST_CENTERED ? gid[1] : math::iFFTShift(gid[1], shape[2])};
+        const uint2_t i_idx = signal::fft::details::gid2CenteredIndexes<REMAP>(gid, shape);
+        const uint2_t o_idx = signal::fft::details::gid2OutputIndexes<REMAP>(gid, shape);
 
         float2_t coords{i_idx};
         typename geom_shape_t::value_type mask;
@@ -210,6 +200,7 @@ namespace noa::cuda::signal::fft {
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float3_t center, float3_t radius, float edge_size,
                  float33_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
         if (any(order_3d != dim3_t{0, 1, 2})) {
             const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
@@ -241,6 +232,7 @@ namespace noa::cuda::signal::fft {
     void ellipse(const shared_t<T[]>& input, dim4_t input_strides,
                  const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                  float2_t center, float2_t radius, float edge_size, float22_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim2_t order_2d = indexing::order(dim2_t(output_strides.get(2)), dim2_t(shape.get(2)));
         if (any(order_2d != dim2_t{0, 1})) {
             std::swap(input_strides[2], input_strides[3]);
@@ -272,6 +264,7 @@ namespace noa::cuda::signal::fft {
                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                 float3_t center, float radius, float edge_size,
                 float33_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
         if (any(order_3d != dim3_t{0, 1, 2})) {
             const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
@@ -303,6 +296,7 @@ namespace noa::cuda::signal::fft {
                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                 float2_t center, float radius, float edge_size,
                 float22_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim2_t order_2d = indexing::order(dim2_t(output_strides.get(2)), dim2_t(shape.get(2)));
         if (any(order_2d != dim2_t{0, 1})) {
             std::swap(input_strides[2], input_strides[3]);
@@ -333,6 +327,7 @@ namespace noa::cuda::signal::fft {
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    float3_t center, float3_t radius, float edge_size,
                    float33_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim3_t order_3d = indexing::order(dim3_t(output_strides.get(1)), dim3_t(shape.get(1)));
         if (any(order_3d != dim3_t{0, 1, 2})) {
             const dim4_t order{0, order_3d[0] + 1, order_3d[1] + 1, order_3d[2] + 1};
@@ -365,6 +360,7 @@ namespace noa::cuda::signal::fft {
                    const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                    float2_t center, float2_t radius, float edge_size,
                    float22_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim2_t order_2d = indexing::order(dim2_t(output_strides.get(2)), dim2_t(shape.get(2)));
         if (any(order_2d != dim2_t{0, 1})) {
             std::swap(input_strides[2], input_strides[3]);
@@ -396,6 +392,7 @@ namespace noa::cuda::signal::fft {
                   const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
                   float3_t center, float radius, float length, float edge_size,
                   float33_t inv_transform, bool invert, Stream& stream) {
+        NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         const dim2_t order_2d = indexing::order(dim2_t(output_strides.get(2)), dim2_t(shape.get(2)));
         if (any(order_2d != dim2_t{0, 1})) {
             std::swap(input_strides[2], input_strides[3]);
