@@ -8,6 +8,7 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/TestUnifiedStream.cpp
 
         noa/unified/signal/fft/TestUnifiedAlignment.cpp
+        noa/unified/signal/fft/TestUnifiedCorrelate.cpp
         noa/unified/signal/fft/TestUnifiedMellin.cpp
         noa/unified/signal/fft/TestUnifiedShape.cpp
         noa/unified/signal/fft/TestUnifiedStandardize.cpp

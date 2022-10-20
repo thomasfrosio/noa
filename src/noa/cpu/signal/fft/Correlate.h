@@ -39,31 +39,36 @@ namespace noa::cpu::signal::fft {
 
     // Find the highest peak in a cross-correlation line.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    void xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                 const shared_t<float[]>& peaks, float max_radius, Stream& stream);
+    void xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, const shared_t<float[]>& peaks,
+                 float ellipse_radius, int64_t registration_radius, Stream& stream);
 
     // Returns the coordinates of the highest peak in a cross-correlation line.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float max_radius, Stream& stream);
+    float xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
+                  float ellipse_radius, int64_t registration_radius, Stream& stream);
 
     // Find the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    void xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                 const shared_t<float2_t[]>& peaks, float2_t max_radius, Stream& stream);
+    void xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, const shared_t<float2_t[]>& peaks,
+                 float2_t ellipse_radius, long2_t registration_radius, Stream& stream);
 
     // Returns the HW coordinates of the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float2_t xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float2_t max_radius, Stream& stream);
+    float2_t xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
+                     float2_t ellipse_radius, long2_t registration_radius, Stream& stream);
 
     // Find the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    void xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                 const shared_t<float3_t[]>& peaks, float3_t max_radius, Stream& stream);
+    void xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, const shared_t<float3_t[]>& peaks,
+                 float3_t ellipse_radius, long3_t registration_radius, Stream& stream);
 
     // Returns the DHW coordinates of the highest peak in a cross-correlation map.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float3_t xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, float3_t max_radius, Stream& stream);
+    float3_t xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
+                     float3_t ellipse_radius, long3_t registration_radius, Stream& stream);
+}
 
+namespace noa::cpu::signal::fft {
     // Computes the cross-correlation coefficient(s).
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
     void xcorr(const shared_t<Complex<T>[]>& lhs, dim4_t lhs_strides,

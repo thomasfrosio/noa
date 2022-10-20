@@ -127,6 +127,7 @@ set(NOA_CUDA_SOURCES
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.cu
         gpu/cuda/signal/fft/Correlate.cu
+        gpu/cuda/signal/fft/CorrelatePeak.cu
         gpu/cuda/signal/fft/Shape.cu
         gpu/cuda/signal/fft/Shift.cu
         gpu/cuda/signal/fft/Standardize.cu

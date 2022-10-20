@@ -15,7 +15,7 @@
 
 namespace noa::cpu {
     // Stream or (asynchronous) dispatch queue.
-    // A Stream is managing a working thread, which may be different than the main thread. In this case,
+    // A Stream is managing a working thread, which may be different from the main thread. In this case,
     // enqueued functions (referred to as tasks) are executed asynchronously. The order of execution is
     // sequential (it's a queue).
     // If a task throws an exception, the stream becomes invalid and it will flush its queue. The exception

@@ -42,79 +42,95 @@ namespace noa::signal::fft {
               bool normalize = true, Norm norm = noa::fft::NORM_DEFAULT, const Array<Complex<T>>& tmp = {});
 
     /// Find the highest peak in a cross-correlation line.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately to the peak and 2 adjacent points.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T           float, double.
-    /// \param[in] xmap     1D cross-correlation map. Should be a column or row vector.
-    /// \param[out] peaks   Coordinates of the highest peak. One per batch.
-    ///                     If \p xmap is on the CPU, it should be dereferenceable by the CPU.
-    ///                     If \p xmap is on the GPU, it can be on any device, including the CPU.
-    /// \param max_radius   Maximum radiu  of the peak(s), in elements, enforced by masking \p xmap
-    ///                     in-place with a smooth edge. If negative, it is ignored.
+    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T                   float, double.
+    /// \param[in] xmap             1D cross-correlation map. Should be a column or row vector.
+    /// \param[out] peaks           Coordinates of the highest peak. One per batch.
+    ///                             If \p xmap is on the CPU, it should be dereferenceable by the CPU.
+    ///                             If \p xmap is on the GPU, it can be on any device, including the CPU.
+    /// \param ellipse_radius       Radius of the smooth elliptic mask to apply (in-place) on \p xmap.
+    ///                             This is used to restrict the peak position relative to the center of \p xmap.
+    ///                             If negative or 0, it is ignored.
+    /// \param registration_radius  Radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    void xpeak1D(const Array<T>& xmap, const Array<float>& peaks, float max_radius = -1);
+    void xpeak1D(const Array<T>& xmap, const Array<float>& peaks,
+                 float ellipse_radius = -1,
+                 int64_t registration_radius = 1);
 
     /// Returns the coordinates of the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately to the peak and 2 adjacent points.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T           float, double.
-    /// \param xmap         Unbatched 1D cross-correlation map. Should be a column or row vector.
-    /// \param max_radius   Maximum radius of the peak, in elements, enforced by masking \p xmap
-    ///                     in-place with a smooth edge. If negative, it is ignored.
+    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T                   float, double.
+    /// \param xmap                 Unbatched 1D cross-correlation map. Should be a column or row vector.
+    /// \param ellipse_radius       Radius of the smooth elliptic mask to apply (in-place) on \p xmap.
+    ///                             This is used to restrict the peak position relative to the center of \p xmap.
+    ///                             If negative or 0, it is ignored.
+    /// \param registration_radius  Radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float xpeak1D(const Array<T>& xmap, float max_radius = -1);
+    float xpeak1D(const Array<T>& xmap,
+                  float ellipse_radius = -1,
+                  int64_t registration_radius = 1);
 
     /// Find the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T           float, double.
-    /// \param[in,out] xmap 2D cross-correlation map. It can be overwritten depending on \p max_radius.
-    /// \param[out] peaks   HW coordinates of the highest peak. One per batch.
-    ///                     If \p xmap is on the CPU, it should be dereferenceable by the CPU.
-    ///                     If \p xmap is on the GPU, it can be on any device, including the CPU.
-    /// \param max_radius   Maximum radius of the peak(s), in elements, enforced by masking \p xmap
-    ///                     in-place with a smooth ellipse. If negative, it is ignored.
+    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T                   float, double.
+    /// \param[in,out] xmap         2D cross-correlation map. It can be overwritten depending on \p max_radius.
+    /// \param[out] peaks           HW coordinates of the highest peak. One per batch.
+    ///                             If \p xmap is on the CPU, it should be dereferenceable by the CPU.
+    ///                             If \p xmap is on the GPU, it can be on any device, including the CPU.
+    /// \param ellipse_radius       HW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
+    ///                             This is used to restrict the peak position relative to the center of \p xmap.
+    ///                             If negative or 0, it is ignored.
+    /// \param registration_radius  HW radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    void xpeak2D(const Array<T>& xmap, const Array<float2_t>& peaks, float2_t max_radius = float2_t{-1});
+    void xpeak2D(const Array<T>& xmap, const Array<float2_t>& peaks,
+                 float2_t ellipse_radius = float2_t{-1},
+                 long2_t registration_radius = long2_t{1});
 
     /// Returns the HW coordinates of the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T           float, double.
-    /// \param xmap         Unbatched 2D cross-correlation map.
-    /// \param max_radius   Maximum radius of the peak(s), in elements, enforced by masking \p xmap
-    ///                     in-place with a smooth ellipse. If negative, it is ignored.
+    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T                   float, double.
+    /// \param xmap                 Unbatched 2D cross-correlation map.
+    /// \param ellipse_radius       HW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
+    ///                             This is used to restrict the peak position relative to the center of \p xmap.
+    ///                             If negative or 0, it is ignored.
+    /// \param registration_radius  HW radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float2_t xpeak2D(const Array<T>& xmap, float2_t max_radius = float2_t{-1});
+    float2_t xpeak2D(const Array<T>& xmap,
+                     float2_t ellipse_radius = float2_t{-1},
+                     long2_t registration_radius = long2_t{1});
 
     /// Find the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T           float, double.
-    /// \param[in] xmap     3D cross-correlation map.
-    /// \param[out] peak    DHW coordinates of the highest peak. One per batch.
-    ///                     If \p xmap is on the CPU, it should be dereferenceable by the CPU.
-    ///                     If \p xmap is on the GPU, it can be on any device, including the CPU.
-    /// \param max_radius   Maximum radius of the peak(s), in elements, enforced by masking \p xmap
-    ///                     in-place with a smooth ellipse. If negative, it is ignored.
+    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T                   float, double.
+    /// \param[in] xmap             3D cross-correlation map.
+    /// \param[out] peak            DHW coordinates of the highest peak. One per batch.
+    ///                             If \p xmap is on the CPU, it should be dereferenceable by the CPU.
+    ///                             If \p xmap is on the GPU, it can be on any device, including the CPU.
+    /// \param ellipse_radius       DHW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
+    ///                             This is used to restrict the peak position relative to the center of \p xmap.
+    ///                             If negative or 0, it is ignored.
+    /// \param registration_radius  DHW radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    void xpeak3D(const Array<T>& xmap, const Array<float3_t>& peak, float3_t max_radius = float3_t{-1});
+    void xpeak3D(const Array<T>& xmap, const Array<float3_t>& peak,
+                 float3_t ellipse_radius = float3_t{-1},
+                 long3_t registration_radius = long3_t{1});
 
     /// Returns the DHW coordinates of the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
     ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam T           float, double.
-    /// \param xmap         Unbatched 3D cross-correlation map.
-    /// \param max_radius   Maximum radius of the peak(s), in elements, enforced by masking \p xmap
-    ///                     in-place with a smooth ellipse. If negative, it is ignored.
+    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam T                   float, double.
+    /// \param xmap                 Unbatched 3D cross-correlation map.
+    /// \param ellipse_radius       DHW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
+    ///                             This is used to restrict the peak position relative to the center of \p xmap.
+    ///                             If negative or 0, it is ignored.
+    /// \param registration_radius  DHW radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float3_t xpeak3D(const Array<T>& xmap, float3_t max_radius = float3_t{-1});
+    float3_t xpeak3D(const Array<T>& xmap,
+                     float3_t ellipse_radius = float3_t{-1},
+                     long3_t registration_radius = long3_t{1});
 
     /// Computes the cross-correlation coefficient(s).
     /// \tparam REMAP       Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.

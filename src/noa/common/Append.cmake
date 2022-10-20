@@ -15,6 +15,7 @@ set(NOA_COMMON_HEADERS
         common/math/Comparison.h
         common/math/Constant.h
         common/math/Generic.h
+        common/math/LeastSquare.h
 
         common/utils/Any.h
         common/utils/Irange.h

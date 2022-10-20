@@ -15,10 +15,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float, 
     size4_t shape = test::getRandomShape(2);
     shape[2] += 200;
     shape[3] += 200;
-    const size4_t stride = shape.strides();
+    const size4_t strides = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t strides_fft = shape_fft.strides();
 
     const bool normalize = GENERATE(true, false);
     const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
@@ -31,25 +31,25 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}()", "[noa][cuda]", float, 
     float2_t shift0{randomizer.get(), randomizer.get()};
     rhs_center += shift0;
 
-    cuda::Stream stream{cuda::Stream::DEFAULT};
-    cuda::memory::PtrDevice<real_t> lhs{elements, stream};
-    cuda::memory::PtrDevice<real_t> rhs{elements, stream};
+    cuda::Stream stream(cuda::Stream::DEFAULT);
+    cuda::memory::PtrDevice<real_t> lhs(elements, stream);
+    cuda::memory::PtrDevice<real_t> rhs(elements, stream);
 
-    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float22_t{}, false, stream);
-    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float22_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper, float22_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper, float22_t{}, false, stream);
 
-    cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
-    cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
+    cuda::memory::PtrDevice<complex_t> lhs_fft(shape.fft().elements(), stream);
+    cuda::memory::PtrDevice<complex_t> rhs_fft(shape.fft().elements(), stream);
 
-    cuda::fft::r2c(lhs.share(), stride, lhs_fft.share(), stride_fft, shape, norm_mode, stream);
-    cuda::fft::r2c(rhs.share(), stride, rhs_fft.share(), stride_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(lhs.share(), strides, lhs_fft.share(), strides_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(rhs.share(), strides, rhs_fft.share(), strides_fft, shape, norm_mode, stream);
 
-    cuda::signal::fft::xmap<fft::H2F>(lhs_fft.share(), stride_fft,
-                                      rhs_fft.share(), stride_fft,
-                                      rhs.share(), stride,
+    cuda::signal::fft::xmap<fft::H2F>(lhs_fft.share(), strides_fft,
+                                      rhs_fft.share(), strides_fft,
+                                      rhs.share(), strides,
                                       shape, normalize, norm_mode, stream);
 
-    float2_t shift1 = cuda::signal::fft::xpeak2D<fft::F2F>(rhs.share(), stride, shape, {}, stream);
+    float2_t shift1 = cuda::signal::fft::xpeak2D<fft::F2F>(rhs.share(), strides, shape, {}, {1, 1}, stream);
     shift1 -= lhs_center;
 
     INFO(shift0);
@@ -66,10 +66,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cuda]"
     size4_t shape = test::getRandomShapeBatched(2);
     shape[2] += 200;
     shape[3] += 200;
-    const size4_t stride = shape.strides();
+    const size4_t strides = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t strides_fft = shape_fft.strides();
 
     const bool normalize = false;
     const fft::Norm norm_mode = fft::NORM_FORWARD;
@@ -82,26 +82,26 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cuda]"
     float2_t shift0{randomizer.get(), randomizer.get()};
     rhs_center += shift0;
 
-    cuda::Stream stream{cuda::Stream::DEFAULT};
-    cuda::memory::PtrDevice<real_t> lhs{elements, stream};
-    cuda::memory::PtrDevice<real_t> rhs{elements, stream};
+    cuda::Stream stream(cuda::Stream::DEFAULT);
+    cuda::memory::PtrDevice<real_t> lhs(elements, stream);
+    cuda::memory::PtrDevice<real_t> rhs(elements, stream);
 
-    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float22_t{}, false, stream);
-    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float22_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper, float22_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper, float22_t{}, false, stream);
 
-    cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
-    cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
+    cuda::memory::PtrDevice<complex_t> lhs_fft(shape.fft().elements(), stream);
+    cuda::memory::PtrDevice<complex_t> rhs_fft(shape.fft().elements(), stream);
 
-    cuda::fft::r2c(lhs.share(), stride, lhs_fft.share(), stride_fft, shape, norm_mode, stream);
-    cuda::fft::r2c(rhs.share(), stride, rhs_fft.share(), stride_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(lhs.share(), strides, lhs_fft.share(), strides_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(rhs.share(), strides, rhs_fft.share(), strides_fft, shape, norm_mode, stream);
 
-    cuda::signal::fft::xmap<fft::H2FC>(lhs_fft.share(), stride_fft,
-                                       rhs_fft.share(), stride_fft,
-                                       rhs.share(), stride,
+    cuda::signal::fft::xmap<fft::H2FC>(lhs_fft.share(), strides_fft,
+                                       rhs_fft.share(), strides_fft,
+                                       rhs.share(), strides,
                                        shape, normalize, norm_mode, stream);
 
     cpu::memory::PtrHost<float2_t> shift1{shape[0]};
-    cuda::signal::fft::xpeak2D<fft::FC2FC>(rhs.share(), stride, shape, shift1.share(), {}, stream);
+    cuda::signal::fft::xpeak2D<fft::FC2FC>(rhs.share(), strides, shape, shift1.share(), {}, {1, 1}, stream);
     stream.synchronize();
 
     for (size_t i = 0 ; i < shape[0]; ++i) {
@@ -124,10 +124,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}()", "[noa][cuda]", float, 
     shape[1] += 100;
     shape[2] += 100;
     shape[3] += 100;
-    const size4_t stride = shape.strides();
+    const size4_t strides = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t strides_fft = shape_fft.strides();
 
     const bool normalize = GENERATE(true, false);
     const fft::Norm norm_mode = GENERATE(fft::NORM_FORWARD, fft::NORM_BACKWARD, fft::NORM_ORTHO);
@@ -140,25 +140,25 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}()", "[noa][cuda]", float, 
     float3_t shift0{randomizer.get(), randomizer.get(), randomizer.get()};
     rhs_center += shift0;
 
-    cuda::Stream stream{cuda::Stream::DEFAULT};
-    cuda::memory::PtrDevice<real_t> lhs{elements, stream};
-    cuda::memory::PtrDevice<real_t> rhs{elements, stream};
+    cuda::Stream stream(cuda::Stream::DEFAULT);
+    cuda::memory::PtrDevice<real_t> lhs(elements, stream);
+    cuda::memory::PtrDevice<real_t> rhs(elements, stream);
 
-    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float33_t{}, false, stream);
-    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float33_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper, float33_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper, float33_t{}, false, stream);
 
-    cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
-    cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
+    cuda::memory::PtrDevice<complex_t> lhs_fft(shape.fft().elements(), stream);
+    cuda::memory::PtrDevice<complex_t> rhs_fft(shape.fft().elements(), stream);
 
-    cuda::fft::r2c(lhs.share(), stride, lhs_fft.share(), stride_fft, shape, norm_mode, stream);
-    cuda::fft::r2c(rhs.share(), stride, rhs_fft.share(), stride_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(lhs.share(), strides, lhs_fft.share(), strides_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(rhs.share(), strides, rhs_fft.share(), strides_fft, shape, norm_mode, stream);
 
-    cuda::signal::fft::xmap<fft::H2F>(lhs_fft.share(), stride_fft,
-                                      rhs_fft.share(), stride_fft,
-                                      rhs.share(), stride,
+    cuda::signal::fft::xmap<fft::H2F>(lhs_fft.share(), strides_fft,
+                                      rhs_fft.share(), strides_fft,
+                                      rhs.share(), strides,
                                       shape, normalize, norm_mode, stream);
 
-    float3_t shift1 = cuda::signal::fft::xpeak3D<fft::F2F>(rhs.share(), stride, shape, {}, stream);
+    float3_t shift1 = cuda::signal::fft::xpeak3D<fft::F2F>(rhs.share(), strides, shape, {}, {1, 1, 1}, stream);
     shift1 -= lhs_center;
 
     INFO(shift0);
@@ -177,10 +177,10 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cuda]"
     shape[1] += 100;
     shape[2] += 100;
     shape[3] += 100;
-    const size4_t stride = shape.strides();
+    const size4_t strides = shape.strides();
     const size_t elements = shape.elements();
     const size4_t shape_fft = shape.fft();
-    const size4_t stride_fft = shape_fft.strides();
+    const size4_t strides_fft = shape_fft.strides();
 
     const bool normalize = false;
     const fft::Norm norm_mode = fft::NORM_FORWARD;
@@ -193,26 +193,26 @@ TEMPLATE_TEST_CASE("cuda::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cuda]"
     float3_t shift0{randomizer.get(), randomizer.get(), randomizer.get()};
     rhs_center += shift0;
 
-    cuda::Stream stream{cuda::Stream::DEFAULT};
-    cuda::memory::PtrDevice<real_t> lhs{elements, stream};
-    cuda::memory::PtrDevice<real_t> rhs{elements, stream};
+    cuda::Stream stream(cuda::Stream::DEFAULT);
+    cuda::memory::PtrDevice<real_t> lhs(elements, stream);
+    cuda::memory::PtrDevice<real_t> rhs(elements, stream);
 
-    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), stride, shape, lhs_center, radius, taper, float33_t{}, false, stream);
-    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), stride, shape, rhs_center, radius, taper, float33_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper, float33_t{}, false, stream);
+    cuda::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper, float33_t{}, false, stream);
 
-    cuda::memory::PtrDevice<complex_t> lhs_fft{shape.fft().elements(), stream};
-    cuda::memory::PtrDevice<complex_t> rhs_fft{shape.fft().elements(), stream};
+    cuda::memory::PtrDevice<complex_t> lhs_fft(shape.fft().elements(), stream);
+    cuda::memory::PtrDevice<complex_t> rhs_fft(shape.fft().elements(), stream);
 
-    cuda::fft::r2c(lhs.share(), stride, lhs_fft.share(), stride_fft, shape, norm_mode, stream);
-    cuda::fft::r2c(rhs.share(), stride, rhs_fft.share(), stride_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(lhs.share(), strides, lhs_fft.share(), strides_fft, shape, norm_mode, stream);
+    cuda::fft::r2c(rhs.share(), strides, rhs_fft.share(), strides_fft, shape, norm_mode, stream);
 
-    cuda::signal::fft::xmap<fft::H2FC>(lhs_fft.share(), stride_fft,
-                                       rhs_fft.share(), stride_fft,
-                                       rhs.share(), stride,
+    cuda::signal::fft::xmap<fft::H2FC>(lhs_fft.share(), strides_fft,
+                                       rhs_fft.share(), strides_fft,
+                                       rhs.share(), strides,
                                        shape, normalize, norm_mode, stream);
 
     cpu::memory::PtrHost<float3_t> shift1{shape[0]};
-    cuda::signal::fft::xpeak3D<fft::FC2FC>(rhs.share(), stride, shape, shift1.share(), {}, stream);
+    cuda::signal::fft::xpeak3D<fft::FC2FC>(rhs.share(), strides, shape, shift1.share(), {}, {1, 1, 1}, stream);
     stream.synchronize();
 
     for (auto shift: shift1) {
