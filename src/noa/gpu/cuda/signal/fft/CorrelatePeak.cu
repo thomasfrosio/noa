@@ -166,7 +166,8 @@ namespace {
         } else {
             const auto [a, b, _] = math::lstsqFitQuadratic(window, window_elements);
             NOA_ASSERT(a != 0); // This can only happen if all values in output are equal.
-            vertex_offset = static_cast<float>(-b / (2 * a) - static_cast<double>(window_radius)); // TODO Clamp?
+            const auto radius_ = static_cast<double>(window_radius);
+            vertex_offset = static_cast<float>(std::clamp(-b / (2 * a) - radius_, -radius_ + 0.5, radius_ - 0.5));
         }
         if constexpr (REMAP == fft::F2F)
             peak = math::FFTShift(peak, size);
