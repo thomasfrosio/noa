@@ -101,10 +101,10 @@ namespace noa::fft {
     /// \details
     /// \e Centering:
     ///     The "non-centered" (or native) layout is used by FFT routines, with the origin (the DC) at index 0.
-    ///     The "centered" layout is often used in files, with the origin in the "middle right" (N/2).
+    ///     The "centered" layout is often used in files, with the origin in the "middle", i.e. N // 2.
     /// \e Redundancy:
     ///     It refers to non-redundant Fourier transforms of real inputs, resulting in transforms with a LOGICAL shape
-    ///     of {fast, medium, slow} complex elements and PHYSICAL shapes of {fast/2+1, medium, slow} complex elements.
+    ///     of {D,H,W} complex elements and PHYSICAL shapes of {D, H, W/2+1} complex elements.
     ///     Note that with even dimensions, the Nyquist frequency is real and the C2R routines will assume its
     ///     imaginary part is zero.
     ///

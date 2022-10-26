@@ -1,6 +1,8 @@
 #pragma once
+
 #include <tuple>
 #include <cstddef>
+
 #include "noa/common/math/Generic.h"
 
 // More details at: https://www.codeproject.com/Articles/63170/Least-Squares-Regression-for-Quadratic-Curve-Fitti
@@ -26,7 +28,7 @@ namespace noa::math {
         auto sum_ = [](double& s, double& e, double value) {
             if constexpr (ACCURATE_SUM) {
                 auto t = s + value;
-                e += noa::math::abs(s) >= noa::math::abs(value) ? (s - t) + value : (value - t) + s;
+                e += std::abs(s) >= std::abs(value) ? (s - t) + value : (value - t) + s;
                 s = t;
             } else {
                 s += value;
