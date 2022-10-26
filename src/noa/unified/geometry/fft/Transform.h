@@ -109,7 +109,7 @@ namespace noa::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename T, typename M, typename S,
-             typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
+             typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, T, M, S>>>
     void transform3D(const Array<T>& input, const Array<T>& output, dim4_t shape,
                      const M& matrices, const S& shifts,
                      float cutoff = 0.5f, InterpMode interp_mode = INTERP_LINEAR);

@@ -155,7 +155,7 @@ namespace noa::geometry::fft {
                 matrices_ = &matrices;
             }
 
-            constexpr bool SINGLE_SHIFT = traits::is_float2_v<M>;
+            constexpr bool SINGLE_SHIFT = traits::is_float2_v<S>;
             using shift_t = traits::shared_type_t<S>;
             const shift_t* shifts_;
             if constexpr (!SINGLE_SHIFT) {
@@ -203,7 +203,7 @@ namespace noa::geometry::fft {
                      float cutoff, InterpMode interp_mode) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
-                  shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
+                  shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2] &&
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
@@ -229,7 +229,7 @@ namespace noa::geometry::fft {
             matrices_ = &matrices;
         }
 
-        constexpr bool SINGLE_SHIFT = traits::is_float3_v<M>;
+        constexpr bool SINGLE_SHIFT = traits::is_float3_v<S>;
         using shift_t = traits::shared_type_t<S>;
         const shift_t* shifts_;
         if constexpr (!SINGLE_SHIFT) {
@@ -322,7 +322,7 @@ namespace noa::geometry::fft {
             NOA_THROW("Double-precision floating-points are not supported");
         } else {
             NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
-                      shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
+                      shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2] &&
                       shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                       "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                       input.shape(), output.shape(), shape);
@@ -343,7 +343,7 @@ namespace noa::geometry::fft {
                 matrices_ = &matrices;
             }
 
-            constexpr bool SINGLE_SHIFT = traits::is_float3_v<M>;
+            constexpr bool SINGLE_SHIFT = traits::is_float3_v<S>;
             using shift_t = traits::shared_type_t<S>;
             const shift_t* shifts_;
             if constexpr (!SINGLE_SHIFT) {
@@ -487,7 +487,7 @@ namespace noa::geometry::fft {
                      float cutoff, InterpMode interp_mode, bool normalize) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
-                  shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
+                  shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2] &&
                   shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                   "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                   input.shape(), output.shape(), shape);
@@ -552,7 +552,7 @@ namespace noa::geometry::fft {
             NOA_THROW("Double-precision floating-points are not supported");
         } else {
             NOA_CHECK(shape[3] / 2 + 1 == input.shape()[3] && input.shape()[3] == output.shape()[3] &&
-                      shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2],
+                      shape[2] == input.shape()[2] && input.shape()[2] == output.shape()[2] &&
                       shape[1] == input.shape()[1] && input.shape()[1] == output.shape()[1],
                       "The non-redundant input {} and/or output {} shapes don't match the logical shape {}",
                       input.shape(), output.shape(), shape);
