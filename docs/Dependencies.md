@@ -72,6 +72,7 @@ If `OpenBLAS` is used, some additional diagnostic regarding the threading model 
 during configuration. These are only for you to help select the threading model than you want. We recommend using
 the OpenBLAS libraries built with OpenMP if `NOA_CPU_OPENMP` is `ON`.
 
+
 ## `CUDA` and `CUDAToolkit` (CUDA backend)
 
 If the CUDA backend is built, the CUDA compiler `nvcc` is required. It comes with the

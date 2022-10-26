@@ -22,9 +22,9 @@ To build and install the library the easiest is probably to use the command line
 
 ```shell
 git clone https://github.com/ffyr2w/noa.git     # (1)
-cd noa && mkdir build && cd build             # (2)
-cmake -DCMAKE_INSTALL_PREFIX=../install ../noa # (4)
-cmake --build . --target install                # (5)
+cd noa && mkdir build && cd build               # (2)
+cmake -DCMAKE_INSTALL_PREFIX=../install ../noa  # (3)
+cmake --build . --target install -- -j 16       # (4)
 ```
 
 1. Clone the repository.
