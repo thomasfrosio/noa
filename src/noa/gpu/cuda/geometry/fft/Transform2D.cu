@@ -191,7 +191,7 @@ namespace noa::cuda::geometry::fft {
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(input && all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        NOA_ASSERT(indexing::isRightmost(input_strides) &&
+        NOA_ASSERT(indexing::isRightmost(dim2_t(input_strides.get(2))) &&
                    indexing::isContiguous(input_strides, shape.fft())[3]);
         NOA_ASSERT(shape[1] == 1);
 

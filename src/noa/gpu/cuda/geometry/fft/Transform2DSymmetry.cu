@@ -219,7 +219,8 @@ namespace noa::cuda::geometry::fft {
 
         NOA_ASSERT(input && all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        NOA_ASSERT(indexing::isRightmost(input_strides) && indexing::isContiguous(input_strides, shape.fft())[3]);
+        NOA_ASSERT(indexing::isRightmost(dim2_t(input_strides.get(2))) &&
+                   indexing::isContiguous(input_strides, shape.fft())[3]);
         NOA_ASSERT(shape[1] == 1);
 
         const dim3_t shape_3d{1, shape[2], shape[3] / 2 + 1};

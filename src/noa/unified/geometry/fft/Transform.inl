@@ -90,7 +90,7 @@ namespace noa::geometry::fft {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
-                NOA_CHECK(indexing::isRightmost(input_strides) && input_strides[3] == 1,
+                NOA_CHECK(indexing::isRightmost(dim2_t(input_strides.get(2))) && input_strides[3] == 1,
                           "The input should be in the rightmost order and the width dimension should be "
                           "contiguous, but got shape {} and strides {}", input.shape(), input_strides);
 
@@ -215,7 +215,6 @@ namespace noa::geometry::fft {
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
 
-
         constexpr bool SINGLE_MATRIX = traits::is_float33_v<M>;
         using matrix_t = traits::shared_type_t<M>;
         const matrix_t* matrices_;
@@ -277,7 +276,7 @@ namespace noa::geometry::fft {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
-                NOA_CHECK(indexing::isRightmost(input_strides) &&
+                NOA_CHECK(indexing::isRightmost(dim3_t(input_strides.get(1))) &&
                           indexing::isContiguous(input_strides, input.shape())[1] && input_strides[3] == 1,
                           "The input should be in the rightmost order and the depth and width dimension should be "
                           "contiguous, but got shape {} and strides {}", input.shape(), input_strides);
@@ -424,7 +423,7 @@ namespace noa::geometry::fft {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
-                NOA_CHECK(indexing::isRightmost(input_strides) && input_strides[3] == 1,
+                NOA_CHECK(indexing::isRightmost(dim2_t(input_strides.get(2))) && input_strides[3] == 1,
                           "The input should be in the rightmost order and the width dimension should be "
                           "contiguous, but got shape {} and strides {}", input.shape(), input_strides);
 
@@ -517,7 +516,7 @@ namespace noa::geometry::fft {
             if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
-                NOA_CHECK(indexing::isRightmost(input_strides) &&
+                NOA_CHECK(indexing::isRightmost(dim3_t(input_strides.get(1))) &&
                           indexing::isContiguous(input_strides, input.shape())[1] && input_strides[3] == 1,
                           "The input should be in the rightmost order and the depth and width dimension should be "
                           "contiguous, but got shape {} and strides {}", input.shape(), input_strides);

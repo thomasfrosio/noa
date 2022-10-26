@@ -14,7 +14,6 @@
 //          and close (+-1 element) to y=z=0.5, if during the rotation x becomes negative and we have to flip it, the
 //          interpolator will incorrectly weight towards 0 the output value. This is simply due to the fact that on
 //          the right side of the axis, there's no Nyquist (the axis stops and n+1 element is OOB, i.e. =0).
-//          For cryoEM images, this should be fine since values at that point are often 0.
 
 namespace {
     using namespace ::noa;
