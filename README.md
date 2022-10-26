@@ -20,5 +20,5 @@ While currently under GPLv3, it is likely to change to a more permissive licence
 - [Build & Installation](docs/Build.md)
 - [Testing](docs/Testing.md)
 - [Code Tree](docs/CodeTree.md)
-- [Random notes](docs/Random.md)
-- [TODO list](docs/TODO.txt)
+- [Random thoughts](docs/RandomThoughts.md)
+- [TODO list](docs/TODO.md)
