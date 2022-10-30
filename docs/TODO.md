@@ -42,6 +42,9 @@
   centralize most CPU and CUDA to a few index-wise functions. Then we just need to provide functors/lambdas,
   which can be shared by all the backends... I really think this is where the library should go.
 
+  For the `geometry` namespace, move the main kernels to the `common` directory as well and encapsulate textures,
+  so they have the same interface as the CPU interpolators.
+
 
 - __JIT, lazy evaluation and kernel fusion VS transform operators__.
   I much prefer the simplicity of `std::transform` or
@@ -75,10 +78,10 @@
   the new kernels... So instead of lambdas, we must use functors, which is not as good, but still quite good.
 
 
--   Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
+-  Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
 
 
--   Functions returning something by value, that currently requires to synchronize the stream: use std::future?
+-  Functions returning something by value, that currently requires to synchronize the stream: use std::future?
 
 
 - Session: Not sure what `Session` should be. It only holds the main `Logger` and the number of internal threads.
