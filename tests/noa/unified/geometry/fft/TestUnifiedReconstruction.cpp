@@ -40,7 +40,7 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     const size4_t volume_shape = file.shape();
     fmt::print("problem size: count={}, shape={}\n", count, volume_shape);
 
-    const Device device("gpu");
+    const Device device("cpu");
     const ArrayOption options(device, Allocator::DEFAULT_ASYNC);
 
     timer.start();
@@ -104,6 +104,32 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     io::save(volume, output_dir / "reconstruction.mrc");
 }
 
+TEST_CASE("unified::geometry::insert3D, test for thickness", "[.]") {
+    const path_t output_dir = test::NOA_DATA_PATH / "geometry" / "fft" / "reconstruction";
+
+    const dim4_t target_shape{1, 512, 512, 512};
+    const dim4_t grid_shape{1, 256, 512, 512};
+    const dim4_t slice_shape{2, 1, 512, 512};
+
+    Array slice = memory::ones<float>(slice_shape.fft());
+    Array weights = memory::zeros<float>(grid_shape.fft());
+
+    Array<float33_t> rotations(2);
+    rotations[0] = geometry::euler2matrix(math::deg2rad(float3_t{0, 57, 0}), "ZYX", false);
+    rotations[1] = geometry::euler2matrix(math::deg2rad(float3_t{0, 60, 0}), "ZYX", false);
+
+    noa::geometry::fft::insert3D<fft::HC2HC>(
+            slice, slice_shape,
+            weights, grid_shape,
+            float22_t{}, rotations[1], 0.5f, target_shape);
+
+    noa::geometry::fft::extract3D<fft::HC2HC>(
+            weights, grid_shape,
+            slice, slice_shape,
+            float22_t{}, rotations[0], 0.5f, target_shape);
+
+    io::save(slice, output_dir / "test_slice_thickness.mrc");
+}
 
 namespace {
     class Projector {

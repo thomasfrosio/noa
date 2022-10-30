@@ -11,18 +11,18 @@ using namespace ::noa;
 namespace {
     template<typename T>
     void CPU_memory_transpose1(benchmark::State& state) {
-        const size3_t shape{512, 512, 512};
-        const size2_t pitch{shape.x, shape.y};
+        const size4_t shape{128, 128, 128, 128};
+        const size4_t strides = shape.strides();
 
-        cpu::memory::PtrHost<T> src(elements(shape));
-        cpu::memory::PtrHost<T> dst(src.size());
+        cpu::memory::PtrHost<T> src(shape.elements());
+        cpu::memory::PtrHost<T> dst(shape.elements());
 
         test::Randomizer<T> randomizer(-5, 5);
         test::randomize(src.get(), src.elements(), randomizer);
 
-        cpu::Stream stream;
+        cpu::Stream stream(cpu::Stream::DEFAULT);
         for (auto _: state) {
-            cpu::memory::permute(src.get(), shape, shape, dst.get(), shape, {0, 2, 1}, 1, stream);
+            cpu::memory::permute(src.share(), strides, shape, dst.share(), strides, {0, 1, 2, 3}, stream);
             ::benchmark::DoNotOptimize(dst.get());
         }
     }

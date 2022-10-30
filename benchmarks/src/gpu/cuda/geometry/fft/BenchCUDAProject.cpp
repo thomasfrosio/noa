@@ -51,8 +51,8 @@ namespace {
 
             cuda::geometry::fft::insert3D<fft::HC2HC>(slice.share(), slice_strides, slice_shape,
                                                       grid.share(), grid_strides, grid_shape,
-                                                      nullptr, rotations.share(),
-                                                      cutoff, float3_t{1, 1, 1}, ews_radius, stream);
+                                                      float22_t{}, rotations.share(),
+                                                      cutoff, dim4_t{}, ews_radius, stream);
 
             end.record(stream);
             end.synchronize();
@@ -103,8 +103,8 @@ namespace {
             cuda::geometry::fft::extract3D<fft::HC2HC>(array.share(), texture.share(),
                                                        int3_t(array.shape()),
                                                        slice.share(), slice_strides, slice_shape,
-                                                       nullptr, rotations.share(),
-                                                       cutoff, float3_t{1, 1, 1}, ews_radius, stream);
+                                                       float22_t{}, rotations.share(),
+                                                       cutoff, dim4_t{}, ews_radius, stream);
 
             end.record(stream);
             end.synchronize();
@@ -151,8 +151,8 @@ namespace {
 
             cuda::geometry::fft::extract3D<fft::HC2HC>(grid.share(), grid_strides, grid_shape,
                                                        slice.share(), slice_strides, slice_shape,
-                                                       nullptr, rotations.share(),
-                                                       cutoff, float3_t{1, 1, 1}, ews_radius, true, stream);
+                                                       float22_t{}, rotations.share(),
+                                                       cutoff, dim4_t{}, ews_radius, true, stream);
 
             end.record(stream);
             end.synchronize();

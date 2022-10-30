@@ -8,9 +8,16 @@ namespace noa::traits {
         using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>;
     };
 
-    /// Removes the const/volatile and reference from T.
     template<typename T>
-    using remove_ref_cv_t = typename remove_ref_cv<T>::type;
+    struct remove_pointer_cv {
+        using type = typename std::remove_cv_t<typename std::remove_pointer_t<T>>;
+    };
+
+    /// Removes the const/volatile and reference from T.
+    template<typename T> using remove_ref_cv_t = typename remove_ref_cv<T>::type;
+
+    /// Removes the const/volatile and pointer from T.
+    template<typename T> using remove_pointer_cv_t = typename remove_pointer_cv<T>::type;
 }
 
 namespace noa::traits {
