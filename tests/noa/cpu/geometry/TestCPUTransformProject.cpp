@@ -1,13 +1,13 @@
 #include <noa/common/io/MRCFile.h>
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/geometry/Transform.h>
+#include <noa/common/geometry/Interpolator.h>
 
 #include <noa/cpu/math/Reduce.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Arange.h>
 #include <noa/cpu/memory/Set.h>
 #include <noa/cpu/geometry/Transform.h>
-#include <noa/cpu/geometry/Interpolator.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -25,9 +25,10 @@ namespace {
         const auto inv_matrix = math::inverse(fwd_matrix);
 
         // Broadcast the input if it is not batched.
-        const size3_t strides{0, input_strides[2], input_strides[3]};
-        const size3_t shape{1, input_shape[2], input_shape[3]};
-        const cpu::geometry::Interpolator3D interp(input, strides, shape, 0.f);
+        const long3_t strides{0, input_strides[2], input_strides[3]};
+        const long3_t shape{1, input_shape[2], input_shape[3]};
+        const Accessor<const float, 3, int64_t> accessor(input, strides);
+        const auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(accessor, shape, 0.f);
 
         // Check YX range in output to not go through pixels that are OOB.
 
@@ -59,7 +60,7 @@ namespace {
 
                     // Add the interpolated value at output index 0YZ
                     output[indexing::at(size4_t{0, 0, output_idx[1], output_idx[2]}, output_strides)] +=
-                            interp.get<INTERP_LINEAR, BORDER_ZERO>(input_coords);
+                            interpolator(input_coords);
                 }
             }
         }
