@@ -4,6 +4,7 @@ set(TEST_COMMON_SOURCES
         noa/common/TestCommonOS.cpp
 
         noa/common/geometry/TestCommonGeometryEuler.cpp
+        noa/common/geometry/TestCommonInterpolator.cpp
 
         noa/common/io/TestCommonIO.cpp
         noa/common/io/TestMRCFile.cpp
