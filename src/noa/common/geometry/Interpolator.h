@@ -18,21 +18,22 @@
 namespace noa::geometry {
     // Interpolates 2D data.
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
-             typename Data, typename Index = int64_t, typename Coord = float,
+             typename Data, typename Offset = int64_t, typename Coord = float,
              int ACCESSOR_NDIM = 2, AccessorTraits ACCESSOR_TRAITS = AccessorTraits::DEFAULT>
     class Interpolator2D {
     public:
-        static_assert(traits::is_any_v<Index, int32_t, int64_t>);
+        static_assert(traits::is_any_v<Offset, int32_t, int64_t, uint32_t, uint64_t>);
         static_assert(traits::is_float_or_complex_v<Data> && !std::is_const_v<Data>);
         static_assert(traits::is_float_v<Coord> && !std::is_const_v<Coord>);
         static_assert(ACCESSOR_NDIM == 2 || ACCESSOR_NDIM == 3);
 
         using data_t = Data;
-        using index_t = Index;
+        using offset_t = Offset;
+        using index_t = std::make_signed_t<offset_t>;
         using index2_t = Int2<index_t>;
         using coord_t = Coord;
         using coord2_t = Float2<coord_t>;
-        using accessor_t = Accessor<const data_t, ACCESSOR_NDIM, index_t, ACCESSOR_TRAITS>;
+        using accessor_t = Accessor<const data_t, ACCESSOR_NDIM, offset_t, ACCESSOR_TRAITS>;
 
     public:
         constexpr Interpolator2D() = default;
@@ -205,46 +206,49 @@ namespace noa::geometry {
     };
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename coord_t = float, typename cvalue_t = float,
-             typename data_t, typename index_t, int NDIM, AccessorTraits TRAITS,
-             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t>>>
-    constexpr auto interpolator2D(const Accessor<data_t, NDIM, index_t, TRAITS>& accessor,
+             typename data_t, typename offset_t, typename index_t, int NDIM, AccessorTraits TRAITS,
+             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t> &&
+                                         std::is_same_v<std::make_signed_t<offset_t>, index_t>>>
+    constexpr auto interpolator2D(const Accessor<data_t, NDIM, offset_t, TRAITS>& accessor,
                                   Int2<index_t> shape,
                                   cvalue_t cvalue = cvalue_t{0}) {
         using mutable_data_t = std::remove_cv_t<data_t>;
-        using interpolator_t = Interpolator2D<BORDER_MODE, INTERP_MODE, mutable_data_t, index_t, coord_t, NDIM, TRAITS>;
+        using interpolator_t = Interpolator2D<BORDER_MODE, INTERP_MODE, mutable_data_t, offset_t, coord_t, NDIM, TRAITS>;
         return interpolator_t(accessor, shape, cvalue);
     }
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename coord_t = float, typename cvalue_t = float,
-             typename data_t, typename index_t, int NDIM, AccessorTraits TRAITS,
-             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t>>>
-    constexpr auto interpolator2D(const AccessorReference<data_t, NDIM, index_t, TRAITS>& accessor,
+             typename data_t, typename offset_t, typename index_t, int NDIM, AccessorTraits TRAITS,
+             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t> &&
+                                         std::is_same_v<std::make_signed_t<offset_t>, index_t>>>
+    constexpr auto interpolator2D(const AccessorReference<data_t, NDIM, offset_t, TRAITS>& accessor,
                                   Int2<index_t> shape,
                                   cvalue_t cvalue = cvalue_t{0}) {
         using mutable_data_t = std::remove_cv_t<data_t>;
-        using interpolator_t = Interpolator2D<BORDER_MODE, INTERP_MODE, mutable_data_t, index_t, coord_t, NDIM, TRAITS>;
+        using interpolator_t = Interpolator2D<BORDER_MODE, INTERP_MODE, mutable_data_t, offset_t, coord_t, NDIM, TRAITS>;
         return interpolator_t({accessor.data(), accessor.strides()}, shape, cvalue);
     }
 }
 
 namespace noa::geometry {
-    // Interpolates 2D data.
+    // Interpolates 3D data.
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
-            typename Data, typename Index = int64_t, typename Coord = float,
+            typename Data, typename Offset = int64_t, typename Coord = float,
             int ACCESSOR_NDIM = 3, AccessorTraits ACCESSOR_TRAITS = AccessorTraits::DEFAULT>
     class Interpolator3D {
     public:
-        static_assert(traits::is_any_v<Index, int32_t, int64_t>);
+        static_assert(traits::is_any_v<Offset, int32_t, int64_t, uint32_t, uint64_t>);
         static_assert(traits::is_float_or_complex_v<Data> && !std::is_const_v<Data>);
         static_assert(traits::is_float_v<Coord> && !std::is_const_v<Coord>);
         static_assert(ACCESSOR_NDIM == 3 || ACCESSOR_NDIM == 4);
 
         using data_t = Data;
-        using index_t = Index;
+        using offset_t = Offset;
+        using index_t = std::make_signed_t<offset_t>;
         using index3_t = Int3<index_t>;
         using coord_t = Coord;
         using coord3_t = Float3<coord_t>;
-        using accessor_t = Accessor<const data_t, ACCESSOR_NDIM, index_t, ACCESSOR_TRAITS>;
+        using accessor_t = Accessor<const data_t, ACCESSOR_NDIM, offset_t, ACCESSOR_TRAITS>;
 
     public:
         constexpr Interpolator3D() = default;
@@ -322,7 +326,7 @@ namespace noa::geometry {
         constexpr NOA_HD data_t linear_(accessor3d_t accessor, coord3_t coordinate) const noexcept {
             static_assert(accessor3d_t::COUNT == 3);
             index3_t idx[2];
-            idx[0] = index3_t{noa::math::floor(coordinate)};
+            idx[0] = index3_t(noa::math::floor(coordinate));
             idx[1] = idx[0] + 1;
 
             data_t values[8];
@@ -452,24 +456,26 @@ namespace noa::geometry {
     };
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename coord_t = float, typename cvalue_t = float,
-             typename data_t, typename index_t, int NDIM, AccessorTraits TRAITS,
-             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t>>>
-    constexpr auto interpolator3D(const Accessor<data_t, NDIM, index_t, TRAITS>& accessor,
+             typename data_t, typename offset_t, typename index_t, int NDIM, AccessorTraits TRAITS,
+             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t> &&
+                                         std::is_same_v<std::make_signed_t<offset_t>, index_t>>>
+    constexpr auto interpolator3D(const Accessor<data_t, NDIM, offset_t, TRAITS>& accessor,
                                   Int3<index_t> shape,
                                   cvalue_t cvalue = cvalue_t{0}) {
         using mutable_data_t = std::remove_cv_t<data_t>;
-        using interpolator_t = Interpolator3D<BORDER_MODE, INTERP_MODE, mutable_data_t, index_t, coord_t, NDIM, TRAITS>;
+        using interpolator_t = Interpolator3D<BORDER_MODE, INTERP_MODE, mutable_data_t, offset_t, coord_t, NDIM, TRAITS>;
         return interpolator_t(accessor, shape, cvalue);
     }
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename coord_t = float, typename cvalue_t = float,
-             typename data_t, typename index_t, int NDIM, AccessorTraits TRAITS,
-             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t>>>
-    constexpr auto interpolator3D(const AccessorReference<data_t, NDIM, index_t, TRAITS>& accessor,
+             typename data_t, typename offset_t, typename index_t, int NDIM, AccessorTraits TRAITS,
+             typename = std::enable_if_t<traits::is_almost_same_v<data_t, cvalue_t> &&
+                                         std::is_same_v<std::make_signed_t<offset_t>, index_t>>>
+    constexpr auto interpolator3D(const AccessorReference<data_t, NDIM, offset_t, TRAITS>& accessor,
                                   Int3<index_t> shape,
                                   cvalue_t cvalue = cvalue_t{0}) {
         using mutable_data_t = std::remove_cv_t<data_t>;
-        using interpolator_t = Interpolator3D<BORDER_MODE, INTERP_MODE, mutable_data_t, index_t, coord_t, NDIM, TRAITS>;
+        using interpolator_t = Interpolator3D<BORDER_MODE, INTERP_MODE, mutable_data_t, offset_t, coord_t, NDIM, TRAITS>;
         return interpolator_t({accessor.data(), accessor.strides()}, shape, cvalue);
     }
 }
