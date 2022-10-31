@@ -1,10 +1,10 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Types.h"
 #include "noa/common/Exception.h"
+#include "noa/common/geometry/Interpolator.h"
 
 #include "noa/cpu/memory/Copy.h"
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/geometry/Interpolator.h"
 #include "noa/cpu/geometry/Prefilter.h"
 #include "noa/cpu/geometry/Symmetry.h"
 
@@ -20,15 +20,14 @@ namespace {
         const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
 
         // Ignore depth dimension.
-        const dim3_t istrides(input.stride(0), input.stride(2), input.stride(3));
+        const long3_t istrides(input.stride(0), input.stride(2), input.stride(3));
         const dim3_t ostrides(output.stride(0), output.stride(2), output.stride(3));
-        const AccessorRestrict<const T, 3, dim_t> src(input.get(), istrides.get());
-        const AccessorRestrict<T, 3, dim_t> dst(output.get(), ostrides.get());
-
-        const cpu::geometry::Interpolator2D interp(src[0], dim2_t{shape[2], shape[3]}, 0);
+        const AccessorRestrict<const T, 3, int64_t> src(input.get(), istrides);
+        const AccessorRestrict<T, 3, dim_t> dst(output.get(), ostrides);
+        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(src, long2_t{shape[2], shape[3]}, T{0});
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(src, dst, shape, center, matrices, count, scaling, interp)
+        shared(src, dst, shape, center, matrices, count, scaling, interpolator)
 
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t y = 0; y < shape[2]; ++y) {
@@ -42,7 +41,7 @@ namespace {
                         float2_t coordinates = float22_t{m[1][1], m[1][2],
                                                          m[2][1], m[2][2]} * pos;
                         coordinates += center;
-                        value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * src.stride(0));
+                        value += interpolator(coordinates, i);
                     }
                     dst(i, y, x) = value * scaling;
                 }
@@ -58,10 +57,11 @@ namespace {
         const float33_t* matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<traits::value_type_t<T>>(count + 1) : 1;
 
-        const cpu::geometry::Interpolator3D interp(input[0], dim3_t(shape.get(1)), 0);
+        const AccessorRestrict<const T, 4, int64_t> src(input.get(), input.strides());
+        auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP>(src, long3_t(shape.get(1)), T{0});
 
         #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(input, output, shape, center, matrices, count, scaling, interp)
+        shared(input, output, shape, center, matrices, count, scaling, interpolator)
 
         for (dim_t i = 0; i < shape[0]; ++i) {
             for (dim_t z = 0; z < shape[1]; ++z) {
@@ -74,7 +74,7 @@ namespace {
                         for (dim_t s = 0; s < count; ++s) {
                             float3_t coordinates = matrices[s] * pos;
                             coordinates += center;
-                            value += interp.template get<INTERP, BORDER_ZERO>(coordinates, i * input.stride(0));
+                            value += interpolator(coordinates, i);
                         }
                         output(i, z, y, x) = value * scaling;
                     }
@@ -123,13 +123,16 @@ namespace {
         if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=]() mutable {
                 dim4_t new_shape = shape;
-                if (input_strides[0] == 0)
-                    new_shape[0] = 1; // only one batch in input
-                const dim4_t strides = new_shape.strides();
-                cpu::memory::PtrHost<T> buffer{new_shape.elements()};
-                cpu::geometry::bspline::prefilter(input, input_strides, buffer.share(), strides, new_shape, stream);
+                dim4_t new_strides = new_shape.strides();
 
-                launch_<T>({buffer.get(), strides}, {output.get(), output_strides}, shape,
+                if (input_strides[0] == 0) {
+                    new_shape[0] = 1; // only one batch in input
+                    new_strides[0] = 0;
+                }
+                cpu::memory::PtrHost<T> buffer{new_shape.elements()};
+                cpu::geometry::bspline::prefilter(input, input_strides, buffer.share(), new_strides, new_shape, stream);
+
+                launch_<T>({buffer.get(), new_strides}, {output.get(), output_strides}, shape,
                            symmetry, center, interp_mode, normalize, threads);
             });
         } else {

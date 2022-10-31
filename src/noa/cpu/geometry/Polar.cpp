@@ -1,20 +1,18 @@
 #include "noa/common/geometry/Polar.h"
+#include "noa/common/geometry/Interpolator.h"
+
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/geometry/Polar.h"
 #include "noa/cpu/geometry/Prefilter.h"
-#include "noa/cpu/geometry/Interpolator.h"
 
 namespace {
     using namespace ::noa;
 
     template<typename T, InterpMode INTERP>
-    void cartesian2polar_(AccessorRestrict<const T, 3, dim_t> cartesian, dim3_t cartesian_shape,
+    void cartesian2polar_(AccessorRestrict<const T, 3, int64_t> cartesian, long2_t cartesian_shape,
                           AccessorRestrict<T, 3, dim_t> polar, dim3_t polar_shape,
                           float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                           bool log, dim_t threads) {
-        const dim_t offset = cartesian_shape[0] == 1 ? 0 : cartesian.stride(0);
-        const dim2_t shape(cartesian_shape.get(1));
-        const cpu::geometry::Interpolator2D interp(cartesian[0], shape, 0);
 
         const float2_t size{polar_shape[1] - 1, polar_shape[2] - 1}; // endpoint = true, so N-1
         const float start_angle = angle_range[0];
@@ -24,8 +22,10 @@ namespace {
                                   math::log(radius_range[1] - radius_range[0]) / size[1] :
                                   (radius_range[1] - radius_range[0]) / size[1];
 
+        const auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(cartesian, cartesian_shape, T{0});
+
         #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(polar, polar_shape, cartesian_center, log, interp, offset,       \
+        shared(polar, polar_shape, cartesian_center, log, interpolator,         \
                step_angle, step_radius, start_radius, start_angle)
 
         for (dim_t batch = 0; batch < polar_shape[0]; ++batch) {
@@ -42,22 +42,19 @@ namespace {
                     cartesian_coords *= rho;
                     cartesian_coords += cartesian_center;
 
-                    polar(batch, y, x) = interp.template get<INTERP, BORDER_ZERO>(cartesian_coords, offset * batch);
+                    polar(batch, y, x) = interpolator(cartesian_coords, batch);
                 }
             }
         }
     }
 
     template<typename T, InterpMode INTERP>
-    void polar2cartesian_(AccessorRestrict<const T, 3, dim_t> polar, dim3_t polar_shape,
+    void polar2cartesian_(AccessorRestrict<const T, 3, int64_t> polar, long2_t polar_shape,
                           AccessorRestrict<T, 3, dim_t> cartesian, dim3_t cartesian_shape,
                           float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                           bool log, dim_t threads) {
-        const dim_t offset = polar_shape[0] == 1 ? 0 : polar.stride(0);
-        const dim2_t shape(polar_shape.get(1));
-        const cpu::geometry::Interpolator2D interp(polar[0], shape, 0);
 
-        const float2_t size{polar_shape[1] - 1, polar_shape[2] - 1}; // endpoint = true, so N-1
+        const float2_t size{polar_shape[0] - 1, polar_shape[1] - 1}; // endpoint = true, so N-1
         const float start_angle = angle_range[0];
         const float start_radius = radius_range[0];
         const float step_angle = (angle_range[1] - angle_range[0]) / size[0];
@@ -65,9 +62,11 @@ namespace {
                                      math::log(radius_range[1] - radius_range[0]) / size[1] :
                                      (radius_range[1] - radius_range[0]) / size[1];
 
+        const auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(polar, polar_shape, T{0});
+
         #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(cartesian, cartesian_shape, cartesian_center, log, interp,       \
-               offset, step_angle, step_radius, start_radius, start_angle)
+        shared(cartesian, cartesian_shape, cartesian_center, log, interpolator, \
+               step_angle, step_radius, start_radius, start_angle)
 
         for (dim_t batch = 0; batch < cartesian_shape[0]; ++batch) {
             for (dim_t y = 0; y < cartesian_shape[1]; ++y) {
@@ -85,7 +84,7 @@ namespace {
                                       (rho - start_radius) / step_radius;
                     const float2_t polar_coordinate{py, px};
 
-                    cartesian(batch, y, x) = interp.template get<INTERP, BORDER_ZERO>(polar_coordinate, offset * batch);
+                    cartesian(batch, y, x) = interpolator(polar_coordinate, batch);
                 }
             }
         }
@@ -103,9 +102,15 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
-        dim3_t src_strides{cartesian_strides[0], cartesian_strides[2], cartesian_strides[3]};
+        // Broadcast the input to every output batch.
+        if (cartesian_shape[0] == 1)
+            cartesian_strides[0] = 0;
+        else if (cartesian_strides[0] == 0)
+            cartesian_shape[0] = 1;
+
+        long3_t src_strides{cartesian_strides[0], cartesian_strides[2], cartesian_strides[3]};
         const dim3_t dst_strides{polar_strides[0], polar_strides[2], polar_strides[3]};
-        const dim3_t src_shape{cartesian_shape[0], cartesian_shape[2], cartesian_shape[3]};
+        const long2_t src_shape{cartesian_shape[2], cartesian_shape[3]};
         const dim3_t dst_shape{polar_shape[0], polar_shape[2], polar_shape[3]};
 
         const dim_t threads = stream.threads();
@@ -146,15 +151,13 @@ namespace noa::cpu::geometry {
                     memory::PtrHost<T> buffer;
                     const T* src = cartesian.get();
                     if (prefilter) {
-                        if (cartesian_strides[0] == 0)
-                            cartesian_shape[0] = 1;
                         const dim4_t strides = cartesian_shape.strides();
                         buffer = memory::PtrHost<T>(cartesian_shape.elements());
                         bspline::prefilter(cartesian, cartesian_strides,
                                            buffer.share(), strides,
                                            cartesian_shape, stream);
                         src = buffer.get();
-                        src_strides = {strides[0], strides[2], strides[3]};
+                        src_strides = {src_strides[0] == 0 ? 0 : strides[0], strides[2], strides[3]};
                     }
                     cartesian2polar_<T, INTERP_CUBIC_BSPLINE>(
                             {src, src_strides}, src_shape, {polar.get(), dst_strides}, dst_shape,
@@ -176,9 +179,15 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
-        dim3_t src_strides{polar_strides[0], polar_strides[2], polar_strides[3]};
+        // Broadcast the input to every output batch.
+        if (polar_shape[0] == 1)
+            polar_strides[0] = 0;
+        else if (polar_strides[0] == 0)
+            polar_shape[0] = 1;
+
+        long3_t src_strides{polar_strides[0], polar_strides[2], polar_strides[3]};
         const dim3_t dst_strides{cartesian_strides[0], cartesian_strides[2], cartesian_strides[3]};
-        const dim3_t src_shape{polar_shape[0], polar_shape[2], polar_shape[3]};
+        const long2_t src_shape{polar_shape[2], polar_shape[3]};
         const dim3_t dst_shape{cartesian_shape[0], cartesian_shape[2], cartesian_shape[3]};
 
         const dim_t threads = stream.threads();
@@ -219,13 +228,11 @@ namespace noa::cpu::geometry {
                     memory::PtrHost<T> buffer;
                     const T* src = polar.get();
                     if (prefilter) {
-                        if (polar_strides[0] == 0)
-                            polar_shape[0] = 1;
                         const dim4_t strides = polar_shape.strides();
                         buffer = memory::PtrHost<T>(polar_shape.elements());
                         bspline::prefilter(polar, polar_strides, buffer.share(), strides, polar_shape, stream);
                         src = buffer.get();
-                        src_strides = {strides[0], strides[2], strides[3]};
+                        src_strides = {src_strides[0] == 0 ? 0 : strides[0], strides[2], strides[3]};
                     }
                     polar2cartesian_<T, INTERP_CUBIC_BSPLINE>(
                             {src, src_strides}, src_shape, {cartesian.get(), dst_strides}, dst_shape,

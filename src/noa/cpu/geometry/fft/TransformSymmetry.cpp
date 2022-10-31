@@ -1,7 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Exception.h"
-
-#include "noa/cpu/geometry/Interpolator.h"
+#include "noa/common/geometry/Interpolator.h"
 #include "noa/cpu/geometry/fft/Transform.h"
 
 namespace {
@@ -33,53 +32,55 @@ namespace {
             return noa::math::FFTShift(idx, dim);
     }
 
-    template<InterpMode INTERP, typename interp_t>
-    inline auto interpolateFFT_(float2_t frequency, float2_t f_shape, const interp_t& interp, dim_t offset) {
-        using interp_value_t = typename interp_t::mutable_value_t;
-        using interp_real_t = traits::value_type_t<interp_value_t>;
+    template<typename interpolator_t>
+    inline auto interpolateFFT_(float2_t frequency, float2_t f_shape,
+                                const interpolator_t& interpolator, int64_t batch) {
+        using data_t = typename interpolator_t::data_t;
+        using real_t = traits::value_type_t<data_t>;
 
-        [[maybe_unused]] interp_real_t conj = 1;
+        [[maybe_unused]] real_t conj = 1;
         if (frequency[1] < 0.f) {
             frequency = -frequency;
-            if constexpr (traits::is_complex_v<interp_value_t>)
+            if constexpr (traits::is_complex_v<data_t>)
                 conj = -1;
         }
         frequency[0] += 0.5f; // [0, 1]
         frequency *= f_shape; // [0, N-1]
-        interp_value_t value = interp.template get<INTERP, BORDER_ZERO>(frequency, offset);
-        if constexpr (traits::is_complex_v<interp_value_t>)
+        data_t value = interpolator(frequency, batch);
+        if constexpr (traits::is_complex_v<data_t>)
             value.imag *= conj;
         return value;
     }
 
-    template<InterpMode INTERP, typename interp_t>
-    inline auto interpolateFFT_(float3_t frequency, float3_t f_shape, const interp_t& interp, dim_t offset) {
-        using interp_value_t = typename interp_t::mutable_value_t;
-        using interp_real_t = traits::value_type_t<interp_value_t>;
+    template<typename interpolator_t>
+    inline auto interpolateFFT_(float3_t frequency, float3_t f_shape,
+                                const interpolator_t& interpolator, int64_t batch) {
+        using data_t = typename interpolator_t::data_t;
+        using real_t = traits::value_type_t<data_t>;
 
-        [[maybe_unused]] interp_real_t conj = 1;
+        [[maybe_unused]] real_t conj = 1;
         if (frequency[2] < 0.f) {
             frequency = -frequency;
-            if constexpr (traits::is_complex_v<interp_value_t>)
+            if constexpr (traits::is_complex_v<data_t>)
                 conj = -1;
         }
         frequency[0] += 0.5f; // [0, 1]
         frequency[1] += 0.5f; // [0, 1]
         frequency *= f_shape; // [0, N-1]
-        interp_value_t value = interp.template get<INTERP, BORDER_ZERO>(frequency, offset);
-        if constexpr (traits::is_complex_v<interp_value_t>)
+        data_t value = interpolator(frequency, batch);
+        if constexpr (traits::is_complex_v<data_t>)
             value.imag *= conj;
         return value;
     }
 
     // 2D, centered input.
     template<bool IS_DST_CENTERED, bool IS_IDENTITY, InterpMode INTERP, typename T>
-    void applyCenteredNormalized2D_(AccessorRestrict<const T, 3, dim_t> input,
+    void applyCenteredNormalized2D_(AccessorRestrict<const T, 3, int64_t> input,
                                     AccessorRestrict<T, 3, dim_t> output,
                                     dim3_t shape, [[maybe_unused]] float22_t matrix,
                                     const geometry::Symmetry& symmetry, float2_t shift, float cutoff,
                                     bool normalize, dim_t threads) {
-        const dim_t batches = shape[0];
+        const auto batches = static_cast<int64_t>(shape[0]);
         const long2_t l_shape(shape.get(1));
         const float2_t f_shape(l_shape / 2 * 2 + long2_t(l_shape == 1));
 
@@ -95,13 +96,13 @@ namespace {
         using real_t = traits::value_type_t<T>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(count + 1) : 1;
 
-        const cpu::geometry::Interpolator2D interp(input[0], dim2_t(shape.get(1)).fft(), T(0));
+        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(input, long2_t(shape.get(1)).fft(), T{0});
 
         #pragma omp parallel for default(none) num_threads(threads) collapse(3) \
         shared(input, output, matrix, shift, cutoff, batches, l_shape, f_shape, \
-               interp, apply_shift, count, sym_matrices, scaling)
+               interpolator, apply_shift, count, sym_matrices, scaling)
 
-        for (dim_t i = 0; i < batches; ++i) {
+        for (int64_t i = 0; i < batches; ++i) {
             for (int64_t y = 0; y < l_shape[0]; ++y) {
                 for (int64_t x = 0; x < l_shape[1] / 2 + 1; ++x) {
 
@@ -119,13 +120,13 @@ namespace {
                         value = input(i, iy, x);
                     } else {
                         freq = matrix * freq;
-                        value = interpolateFFT_<INTERP>(freq, f_shape, interp, i * input.stride(0));
+                        value = interpolateFFT_(freq, f_shape, interpolator, i);
                     }
                     for (dim_t s = 0; s < count; ++s) {
                         const float33_t& m = sym_matrices[s];
                         const float22_t sym_matrix{m[1][1], m[1][2],
                                                    m[2][1], m[2][2]};
-                        value += interpolateFFT_<INTERP>(sym_matrix * freq, f_shape, interp, i * input.stride(0));
+                        value += interpolateFFT_(sym_matrix * freq, f_shape, interpolator, i);
                     }
 
                     if constexpr (traits::is_complex_v<T>)
@@ -140,12 +141,12 @@ namespace {
 
     // 3D, centered input.
     template<bool IS_DST_CENTERED, bool IS_IDENTITY, InterpMode INTERP, typename T>
-    void applyCenteredNormalized3D_(AccessorRestrict<const T, 4, dim_t> input,
+    void applyCenteredNormalized3D_(AccessorRestrict<const T, 4, int64_t> input,
                                     AccessorRestrict<T, 4, dim_t> output,
                                     dim4_t shape, [[maybe_unused]] float33_t matrix,
                                     const geometry::Symmetry& symmetry, [[maybe_unused]] float3_t shift,
                                     float cutoff, bool normalize, dim_t threads) {
-        const dim_t batches = shape[0];
+        const auto batches = static_cast<int64_t>(shape[0]);
         const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape / 2 * 2 + long3_t(l_shape == 1));
 
@@ -161,13 +162,13 @@ namespace {
         using real_t = traits::value_type_t<T>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(count + 1) : 1;
 
-        const cpu::geometry::Interpolator3D interp(input[0], dim3_t(shape.get(1)).fft(), T(0));
+        auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP>(input, long3_t(shape.get(1)).fft(), T{0});
 
         #pragma omp parallel for default(none) num_threads(threads) collapse(4)     \
         shared(input, output, matrix, shift, cutoff, batches, l_shape, f_shape,     \
-               interp, apply_shift, count, matrices, scaling)
+               interpolator, apply_shift, count, matrices, scaling)
 
-        for (dim_t i = 0; i < batches; ++i) {
+        for (int64_t i = 0; i < batches; ++i) {
             for (int64_t z = 0; z < l_shape[0]; ++z) {
                 for (int64_t y = 0; y < l_shape[1]; ++y) {
                     for (int64_t x = 0; x < l_shape[2] / 2 + 1; ++x) {
@@ -189,10 +190,10 @@ namespace {
                             value = input(i, iz, iy, x);
                         } else {
                             freq = matrix * freq;
-                            value = interpolateFFT_<INTERP>(freq, f_shape, interp, i * input.stride(0));
+                            value = interpolateFFT_(freq, f_shape, interpolator, i);
                         }
                         for (dim_t s = 0; s < count; ++s)
-                            value += interpolateFFT_<INTERP>(matrices[s] * freq, f_shape, interp, i * input.stride(0));
+                            value += interpolateFFT_(matrices[s] * freq, f_shape, interpolator, i);
 
                         if constexpr (traits::is_complex_v<T>)
                             if (apply_shift)
@@ -236,7 +237,7 @@ namespace noa::cpu::geometry::fft {
         const dim_t threads = stream.threads();
         const bool is_identity = matrix == float22_t{};
 
-        const dim3_t i_strides{input_strides[0], input_strides[2], input_strides[3]};
+        const long3_t i_strides{input_strides[0], input_strides[2], input_strides[3]};
         const dim3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
         const dim3_t shape_2d{shape[0], shape[2], shape[3]};
 

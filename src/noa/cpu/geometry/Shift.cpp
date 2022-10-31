@@ -1,8 +1,8 @@
 #include "noa/common/Exception.h"
 #include "noa/common/Types.h"
+#include "noa/common/geometry/Interpolator.h"
 
 #include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/geometry/Interpolator.h"
 #include "noa/cpu/geometry/Prefilter.h"
 #include "noa/cpu/geometry/Shift.h"
 
@@ -10,107 +10,69 @@
 namespace {
     using namespace ::noa;
 
-    // 2D
-    template<InterpMode INTERP, BorderMode BORDER, typename T>
-    void shift_(AccessorRestrict<const T, 3, dim_t> input, dim3_t input_shape,
+    template<InterpMode INTERP, BorderMode BORDER, typename T, typename shift_t>
+    void shift_(AccessorRestrict<const T, 3, int64_t> input, long2_t input_shape,
                 AccessorRestrict<T, 3, dim_t> output, dim3_t output_shape,
-                const float2_t* shifts, T value, dim_t threads) {
-        // Broadcast the input if it is not batched.
-        const dim_t offset = input_shape[0] == 1 ? 0 : input.stride(0);
-        const dim2_t shape(input_shape.get(1));
-        const cpu::geometry::Interpolator2D interp(input[0], shape, value);
+                shift_t shifts, T value, dim_t threads) {
+        auto interpolator = geometry::interpolator2D<BORDER, INTERP>(input, input_shape, value);
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(output, output_shape, shifts, offset, interp)
+        shared(output, output_shape, shifts, interpolator)
 
         for (dim_t i = 0; i < output_shape[0]; ++i) {
             for (dim_t y = 0; y < output_shape[1]; ++y) {
                 for (dim_t x = 0; x < output_shape[2]; ++x) {
-                    float2_t coordinates{y, x};
-                    coordinates -= shifts[i]; // take the inverse transformation
-                    output(i, y, x) = interp.template get<INTERP, BORDER>(coordinates, i * offset);
-                }
-            }
-        }
-    }
 
-    template<InterpMode INTERP, BorderMode BORDER, typename T>
-    void shift_(AccessorRestrict<const T, 3, dim_t> input, dim3_t input_shape,
-                AccessorRestrict<T, 3, dim_t> output, dim3_t output_shape,
-                float2_t shift, T value, dim_t threads) {
-        // Broadcast the input if it is not batched.
-        const dim_t offset = input_shape[0] == 1 ? 0 : input.stride(0);
-        const dim2_t shape(input_shape.get(1));
-        const cpu::geometry::Interpolator2D interp(input[0], shape, value);
-
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads) \
-        shared(output, output_shape, shift, offset, interp)
-
-        for (dim_t i = 0; i < output_shape[0]; ++i) {
-            for (dim_t y = 0; y < output_shape[1]; ++y) {
-                for (dim_t x = 0; x < output_shape[2]; ++x) {
-                    float2_t coordinates{y, x};
-                    coordinates -= shift; // take the inverse transformation
-                    output(i, y, x) = interp.template get<INTERP, BORDER>(coordinates, i * offset);
-                }
-            }
-        }
-    }
-
-    // 3D
-    template<InterpMode INTERP, BorderMode BORDER, typename T>
-    void shift_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
-                AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape,
-                const float3_t* shifts, T value, dim_t threads) {
-        // Broadcast the input if it is not batched.
-        const dim_t offset = input_shape[0] == 1 ? 0 : input.stride(0);
-        const dim3_t shape(input_shape.get(1));
-        const cpu::geometry::Interpolator3D interp(input[0], shape, value);
-
-        #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(output, output_shape, shifts, offset, interp)
-
-        for (dim_t i = 0; i < output_shape[0]; ++i) {
-            for (dim_t z = 0; z < output_shape[1]; ++z) {
-                for (dim_t y = 0; y < output_shape[2]; ++y) {
-                    for (dim_t x = 0; x < output_shape[3]; ++x) {
-                        float3_t coordinates{z, y, x};
+                    if constexpr (std::is_same_v<shift_t, const float2_t*>) {
+                        float2_t coordinates{y, x};
                         coordinates -= shifts[i]; // take the inverse transformation
-                        output(i, z, y, x) = interp.template get<INTERP, BORDER>(coordinates, i * offset);
+                        output(i, y, x) = interpolator(coordinates, i);
+                    } else if constexpr (std::is_same_v<shift_t, float2_t>) {
+                        float2_t coordinates{y, x};
+                        coordinates -= shifts; // take the inverse transformation
+                        output(i, y, x) = interpolator(coordinates, i);
+                    } else {
+                        static_assert(traits::always_false_v<T>);
                     }
                 }
             }
         }
     }
 
-    template<InterpMode INTERP, BorderMode BORDER, typename T>
-    void shift_(AccessorRestrict<const T, 4, dim_t> input, dim4_t input_shape,
+    template<InterpMode INTERP, BorderMode BORDER, typename T, typename shift_t>
+    void shift_(AccessorRestrict<const T, 4, int64_t> input, long3_t input_shape,
                 AccessorRestrict<T, 4, dim_t> output, dim4_t output_shape,
-                float3_t shift, T value, dim_t threads) {
-        // Broadcast the input if it is not batched.
-        const dim_t offset = input_shape[0] == 1 ? 0 : input.stride(0);
-        const dim3_t shape(input_shape.get(1));
-        const cpu::geometry::Interpolator3D interp(input[0], shape, value);
+                shift_t shifts, T value, dim_t threads) {
+        auto interpolator = geometry::interpolator3D<BORDER, INTERP>(input, input_shape, value);
 
         #pragma omp parallel for collapse(4) default(none) num_threads(threads) \
-        shared(output, output_shape, shift, offset, interp)
+        shared(output, output_shape, shifts, interpolator)
 
         for (dim_t i = 0; i < output_shape[0]; ++i) {
             for (dim_t z = 0; z < output_shape[1]; ++z) {
                 for (dim_t y = 0; y < output_shape[2]; ++y) {
                     for (dim_t x = 0; x < output_shape[3]; ++x) {
-                        float3_t coordinates{z, y, x};
-                        coordinates -= shift; // take the inverse transformation
-                        output(i, z, y, x) = interp.template get<INTERP, BORDER>(coordinates, i * offset);
+
+                        if constexpr (std::is_same_v<shift_t, const float3_t*>) {
+                            float3_t coordinates{z, y, x};
+                            coordinates -= shifts[i]; // take the inverse transformation
+                            output(i, z, y, x) = interpolator(coordinates, i);
+                        } else if constexpr (std::is_same_v<shift_t, float3_t>) {
+                            float3_t coordinates{z, y, x};
+                            coordinates -= shifts; // take the inverse transformation
+                            output(i, z, y, x) = interpolator(coordinates, i);
+                        } else {
+                            static_assert(traits::always_false_v<T>);
+                        }
                     }
                 }
             }
         }
     }
 
-    template<InterpMode INTERP, int N, typename value_t, typename dimN_t, typename shift_t>
-    void launch_(const AccessorRestrict<const value_t, N, dim_t>& input, dimN_t input_shape,
-                 const AccessorRestrict<value_t, N, dim_t>& output, dimN_t output_shape,
+    template<InterpMode INTERP, int N, typename value_t, typename ishape_t, typename oshape_t, typename shift_t>
+    void launch_(const AccessorRestrict<const value_t, N, int64_t>& input, ishape_t input_shape,
+                 const AccessorRestrict<value_t, N, dim_t>& output, oshape_t output_shape,
                  shift_t shifts, value_t value, BorderMode border_mode, dim_t threads) {
         switch (border_mode) {
             case BORDER_ZERO:
@@ -137,14 +99,14 @@ namespace {
                 return shift_<INTERP, BORDER_REFLECT>(
                         input, input_shape, output, output_shape,
                         shifts, value, threads);
-            default:
+            case BORDER_NOTHING:
                 NOA_THROW_FUNC("shift(2|3)D", "The border/addressing mode {} is not supported", border_mode);
         }
     }
 
-    template<int N, typename value_t, typename dimN_t, typename shift_t>
-    void launch_(const AccessorRestrict<const value_t, N, dim_t>& input, dimN_t input_shape,
-                 const AccessorRestrict<value_t, N, dim_t>& output, dimN_t output_shape,
+    template<int N, typename value_t, typename ishape_t, typename oshape_t, typename shift_t>
+    void launch_(const AccessorRestrict<const value_t, N, int64_t>& input, ishape_t input_shape,
+                 const AccessorRestrict<value_t, N, dim_t>& output, oshape_t output_shape,
                  shift_t shifts, value_t value, InterpMode interp_mode, BorderMode border_mode, dim_t threads) {
         switch (interp_mode) {
             case INTERP_NEAREST:
@@ -170,8 +132,18 @@ namespace {
                 return launch_<INTERP_CUBIC_BSPLINE>(
                         input, input_shape, output, output_shape,
                         shifts, value, border_mode, threads);
-            default:
-                NOA_THROW_FUNC("shift(2|3)D", "The interpolation/filter mode {} is not supported", interp_mode);
+        }
+    }
+
+    template<typename T>
+    auto shiftOrRawConstPtr(const T& v) {
+        if constexpr (traits::is_floatX_v<T>) {
+            return T(v);
+        } else {
+            NOA_ASSERT(v != nullptr);
+            using clean_t = traits::remove_ref_cv_t<T>;
+            using raw_const_ptr_t = const typename clean_t::element_type*;
+            return static_cast<raw_const_ptr_t>(v.get());
         }
     }
 }
@@ -187,45 +159,34 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(dim3_t(input_shape.get(1)).ndim() <= 2);
         NOA_ASSERT(dim3_t(output_shape.get(1)).ndim() <= 2);
 
+        // Broadcast the input to every output batch.
+        if (input_shape[0] == 1)
+            input_strides[0] = 0;
+        else if (input_strides[0] == 0)
+            input_shape[0] = 1;
+
         const dim3_t istrides_2d{input_strides[0], input_strides[2], input_strides[3]};
         const dim3_t ostrides_2d{output_strides[0], output_strides[2], output_strides[3]};
-        const dim3_t ishape_2d{input_shape[0], input_shape[2], input_shape[3]};
+        const long2_t ishape_2d{input_shape[2], input_shape[3]};
         const dim3_t oshape_2d{output_shape[0], output_shape[2], output_shape[3]};
         const dim_t threads = stream.threads();
 
         if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=]() mutable {
-                dim4_t shape = input_shape;
-                if (input_strides[0] == 0)
-                    shape[0] = 1; // there's actually only one input
-                const dim4_t strides = shape.strides();
-                memory::PtrHost<T> buffer(shape.elements());
-                bspline::prefilter(input, input_strides, buffer.share(), strides, shape, stream);
+                dim4_t buffer_strides = input_shape.strides();
+                memory::PtrHost<T> buffer(input_shape.elements());
+                bspline::prefilter(input, input_strides, buffer.share(), buffer_strides, input_shape, stream);
 
-                const dim3_t buffer_strides{strides[0], strides[2], strides[3]};
-                if constexpr (traits::is_float2_v<S>) {
-                    launch_<3>({buffer.get(), buffer_strides}, ishape_2d,
-                               {output.get(), ostrides_2d}, oshape_2d,
-                               shifts, value, interp_mode, border_mode, threads);
-                } else {
-                    NOA_ASSERT(shifts);
-                    launch_<3>({buffer.get(), buffer_strides}, ishape_2d,
-                               {output.get(), ostrides_2d}, oshape_2d,
-                               shifts.get(), value, interp_mode, border_mode, threads);
-                }
+                const long3_t strides_2d{input_shape[0] == 1 ? 0 : buffer_strides[0], buffer_strides[2], buffer_strides[3]};
+                launch_<3>({buffer.get(), strides_2d}, ishape_2d,
+                           {output.get(), ostrides_2d}, oshape_2d,
+                           shiftOrRawConstPtr(shifts), value, interp_mode, border_mode, threads);
             });
         } else {
             stream.enqueue([=]() {
-                if constexpr (traits::is_float2_v<S>) {
-                    launch_<3>({input.get(), istrides_2d}, ishape_2d,
-                               {output.get(), ostrides_2d}, oshape_2d,
-                               shifts, value, interp_mode, border_mode, threads);
-                } else {
-                    NOA_ASSERT(shifts);
-                    launch_<3>({input.get(), istrides_2d}, ishape_2d,
-                               {output.get(), ostrides_2d}, oshape_2d,
-                               shifts.get(), value, interp_mode, border_mode, threads);
-                }
+                launch_<3>({input.get(), istrides_2d}, ishape_2d,
+                           {output.get(), ostrides_2d}, oshape_2d,
+                           shiftOrRawConstPtr(shifts), value, interp_mode, border_mode, threads);
             });
         }
     }
@@ -238,39 +199,31 @@ namespace noa::cpu::geometry {
         NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
 
+        // Broadcast the input to every output batch.
+        if (input_shape[0] == 1)
+            input_strides[0] = 0;
+        else if (input_strides[0] == 0)
+            input_shape[0] = 1;
+        const long3_t ishape_3d(input_shape.get(1));
+
         const dim_t threads = stream.threads();
         if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             stream.enqueue([=]() mutable {
-                dim4_t shape = input_shape;
-                if (input_strides[0] == 0)
-                    shape[0] = 1; // there's actually only one input
-                const dim4_t strides = shape.strides();
-                memory::PtrHost<T> buffer(shape.elements());
-                bspline::prefilter(input, input_strides, buffer.share(), strides, shape, stream);
+                dim4_t strides = input_shape.strides();
+                if (input_shape[0] == 1)
+                    strides[0] = 0;
+                memory::PtrHost<T> buffer(input_shape.elements());
+                bspline::prefilter(input, input_strides, buffer.share(), strides, input_shape, stream);
 
-                if constexpr (traits::is_float3_v<S>) {
-                    launch_<4>({buffer.get(), strides}, input_shape,
-                               {output.get(), output_strides}, output_shape,
-                               shifts, value, interp_mode, border_mode, threads);
-                } else {
-                    NOA_ASSERT(shifts);
-                    launch_<4>({buffer.get(), strides}, input_shape,
-                               {output.get(), output_strides}, output_shape,
-                               shifts.get(), value, interp_mode, border_mode, threads);
-                }
+                launch_<4>({buffer.get(), strides}, ishape_3d,
+                           {output.get(), output_strides}, output_shape,
+                           shiftOrRawConstPtr(shifts), value, interp_mode, border_mode, threads);
             });
         } else {
             stream.enqueue([=]() {
-                if constexpr (traits::is_float3_v<S>) {
-                    launch_<4>({input.get(), input_strides}, input_shape,
-                               {output.get(), output_strides}, output_shape,
-                               shifts, value, interp_mode, border_mode, threads);
-                } else {
-                    NOA_ASSERT(shifts);
-                    launch_<4>({input.get(), input_strides}, input_shape,
-                               {output.get(), output_strides}, output_shape,
-                               shifts.get(), value, interp_mode, border_mode, threads);
-                }
+                launch_<4>({input.get(), input_strides}, ishape_3d,
+                           {output.get(), output_strides}, output_shape,
+                           shiftOrRawConstPtr(shifts), value, interp_mode, border_mode, threads);
             });
         }
     }

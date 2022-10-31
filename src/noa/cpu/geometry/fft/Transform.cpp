@@ -1,7 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Exception.h"
-
-#include "noa/cpu/geometry/Interpolator.h"
+#include "noa/common/geometry/Interpolator.h"
 #include "noa/cpu/geometry/fft/Transform.h"
 
 // Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
@@ -38,14 +37,11 @@ namespace {
 
     // 2D, centered input.
     template<bool IS_DST_CENTERED, InterpMode INTERP, typename T>
-    void transformCenteredNormalized2D_(AccessorRestrict<const T, 3, dim_t> input,
+    void transformCenteredNormalized2D_(AccessorRestrict<const T, 3, int64_t> input,
                                         AccessorRestrict<T, 3, dim_t> output, dim3_t shape,
                                         const float22_t* matrices, dim_t matrices_stride,
                                         const float2_t* shifts, dim_t shifts_stride,
                                         float cutoff, dim_t threads) {
-        const dim_t offset = input.stride(0);
-        const cpu::geometry::Interpolator2D interp(input[0], dim2_t(shape.get(1)).fft(), 0);
-
         const dim_t batches = shape[0];
         const long2_t l_shape(shape.get(1));
         const float2_t f_shape(l_shape / 2 * 2 + long2_t(l_shape == 1)); // if odd, n-1
@@ -55,9 +51,11 @@ namespace {
         cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
+        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(input, long2_t(shape.get(1)).fft(), T{0});
+
         #pragma omp parallel for default(none) num_threads(threads) collapse(3)     \
         shared(output, matrices, matrices_stride, shifts, shifts_stride, cutoff,    \
-               batches, l_shape, f_shape, interp, offset, pre_shift)
+               batches, l_shape, f_shape, interpolator, pre_shift)
 
         for (dim_t i = 0; i < batches; ++i) {
             for (int64_t y = 0; y < l_shape[0]; ++y) {
@@ -81,7 +79,7 @@ namespace {
 
                     coordinates[0] += 0.5f; // [0, 1]
                     coordinates *= f_shape; // [0, N-1]
-                    T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                    T value = interpolator(coordinates, i);
                     if constexpr (traits::is_complex_v<T>) {
                         value.imag *= conj;
                         if (shifts)
@@ -95,14 +93,11 @@ namespace {
 
     // 3D, centered input.
     template<bool IS_DST_CENTERED, InterpMode INTERP, typename T>
-    void transformCenteredNormalized3D_(AccessorRestrict<const T, 4, dim_t> input,
+    void transformCenteredNormalized3D_(AccessorRestrict<const T, 4, int64_t> input,
                                         AccessorRestrict<T, 4, dim_t> output, dim4_t shape,
                                         const float33_t* matrices, dim_t matrices_stride,
                                         const float3_t* shifts, dim_t shifts_stride,
                                         float cutoff, dim_t threads) {
-        const dim_t offset = input.stride(0);
-        const cpu::geometry::Interpolator3D interp(input[0], dim3_t(shape.get(1)).fft(), T(0));
-
         const dim_t batches = shape[0];
         const long3_t l_shape(shape.get(1));
         const float3_t f_shape(l_shape / 2 * 2 + long3_t(l_shape == 1)); // if odd, n-1
@@ -112,9 +107,11 @@ namespace {
         cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
+        auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP>(input, long3_t(shape.get(1)).fft(), T{0});
+
         #pragma omp parallel for default(none) num_threads(threads) collapse(4)     \
         shared(output, matrices, matrices_stride, shifts, shifts_stride, cutoff,    \
-               batches, l_shape, f_shape, interp, offset, pre_shift)
+               batches, l_shape, f_shape, interpolator, pre_shift)
 
         for (dim_t i = 0; i < batches; ++i) {
             for (int64_t z = 0; z < l_shape[0]; ++z) {
@@ -142,7 +139,7 @@ namespace {
                         coordinates[0] += 0.5f;
                         coordinates[1] += 0.5f;
                         coordinates *= f_shape;
-                        T value = interp.template get<INTERP, BORDER_ZERO>(coordinates, i * offset);
+                        T value = interpolator(coordinates, i);
                         if constexpr (traits::is_complex_v<T>) {
                             value.imag *= conj;
                             if (shifts)
@@ -180,7 +177,7 @@ namespace noa::cpu::geometry::fft {
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
         const dim_t threads = stream.threads();
 
-        const dim3_t i_strides{input_strides[0], input_strides[2], input_strides[3]};
+        const long3_t i_strides{input_strides[0], input_strides[2], input_strides[3]};
         const dim3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
         const dim3_t shape_2d{shape[0], shape[2], shape[3]};
 

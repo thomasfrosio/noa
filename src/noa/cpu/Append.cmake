@@ -59,9 +59,6 @@ set(NOA_CPU_HEADERS
         cpu/geometry/fft/Project.h
         cpu/geometry/fft/Symmetry.h
         cpu/geometry/fft/Transform.h
-        cpu/geometry/Interpolate.h
-        cpu/geometry/Interpolator.h
-        cpu/geometry/Interpolator.inl
         cpu/geometry/Polar.h
         cpu/geometry/Prefilter.h
         cpu/geometry/Rotate.h

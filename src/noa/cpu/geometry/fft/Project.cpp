@@ -1,6 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Types.h"
-#include "noa/cpu/geometry/Interpolator.h"
+#include "noa/common/geometry/Interpolator.h"
 #include "noa/cpu/geometry/fft/Project.h"
 
 namespace {
@@ -100,10 +100,10 @@ namespace {
     // Interpolates the value at a given frequency, in cycle per pixel.
     template<typename interpolator_t>
     inline auto interpolateSliceValue_(float2_t frequency, float2_t slice_shape, float center_y,
-                                       const interpolator_t& interp, size_t slice_offset) {
-        using value_t = typename interpolator_t::mutable_value_t;
-        using real_t = traits::value_type_t<value_t>;
-        constexpr bool IS_COMPLEX = traits::is_complex_v<value_t>;
+                                       const interpolator_t& interpolator, int64_t batch) {
+        using data_t = typename interpolator_t::data_t;
+        using real_t = traits::value_type_t<data_t>;
+        constexpr bool IS_COMPLEX = traits::is_complex_v<data_t>;
 
         // From the normalized frequency to the multidimensional index.
         [[maybe_unused]] real_t conj = 1;
@@ -115,7 +115,7 @@ namespace {
         frequency *= slice_shape;
         frequency[0] += center_y;
 
-        value_t value = interp.template get<INTERP_LINEAR, BORDER_ZERO>(frequency, slice_offset);
+        data_t value = interpolator(frequency, batch);
         if constexpr (IS_COMPLEX)
             value.imag *= conj;
         return value;
@@ -124,10 +124,10 @@ namespace {
     // Interpolates the value at a given frequency, in cycle per pixel.
     template<typename interpolator_t>
     inline auto interpolateGridValue_(float3_t frequency, float3_t target_shape, float2_t grid_center_zy,
-                                      const interpolator_t& interp) {
-        using value_t = typename interpolator_t::mutable_value_t;
-        using real_t = traits::value_type_t<value_t>;
-        constexpr bool IS_COMPLEX = traits::is_complex_v<value_t>;
+                                      const interpolator_t& interpolator) {
+        using data_t = typename interpolator_t::data_t;
+        using real_t = traits::value_type_t<data_t>;
+        constexpr bool IS_COMPLEX = traits::is_complex_v<data_t>;
 
         [[maybe_unused]] real_t conj = 1;
         if (frequency[2] < 0) {
@@ -139,7 +139,7 @@ namespace {
         frequency[0] += grid_center_zy[0];
         frequency[1] += grid_center_zy[1];
 
-        value_t value = interp.template get<INTERP_LINEAR, BORDER_ZERO>(frequency);
+        data_t value = interpolator(frequency);
         if constexpr(IS_COMPLEX)
             value.imag *= conj;
         return value;
@@ -217,7 +217,7 @@ namespace {
         // https://www.desmos.com/calculator/ulcxogyr72
         freq_z = math::abs(freq_z) / freq_z_radius;
         if constexpr (i == 1) {
-            return cpu::geometry::linear1D<float>(1, 0, freq_z);
+            return geometry::interpolate::lerp1D<float>(1, 0, freq_z);
         } else if constexpr (i == 2) {
             constexpr float PI = math::Constants<float>::PI;
             return math::sinc(PI * freq_z);
@@ -298,13 +298,13 @@ namespace {
     // In practice, it allows to give an explicit "thickness" to the central slices.
     // One limitation is that it requires the slices to be centered.
     template<bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE, typename T, typename S, typename R>
-    void fourierInsertThick_(AccessorRestrict<const T, 3, dim_t> slice, long3_t slice_shape,
+    void fourierInsertThick_(AccessorRestrict<const T, 3, int64_t> slice, long3_t slice_shape,
                              AccessorRestrict<T, 3, dim_t> grid, long3_t grid_shape,
                              S fwd_scaling_matrices, R inv_rotation_matrices,
                              float cutoff, long4_t target_shape, float2_t ews_radius,
                              float slice_z_radius, dim_t threads) {
         using real_t = traits::value_type_t<T>;
-        const auto count = static_cast<size_t>(slice_shape[0]);
+        const auto count = slice_shape[0];
         const auto l_shape = long2_t(slice_shape.get(1));
         const auto f_slice_shape = float2_t(l_shape / 2 * 2 + long2_t(l_shape == 1));
         const auto l_offset = slice_shape[1] / 2; // slice Y center
@@ -321,12 +321,11 @@ namespace {
         cutoff = math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        cpu::geometry::Interpolator2D interp(slice[0], dim2_t(l_shape.fft()), T{0});
-        const dim_t count_offset = slice.stride(0);
+        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(slice, l_shape.fft(), T{0});
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads)     \
-        shared(grid, grid_shape, cutoff, slice_z_radius, f_offset, interp,          \
-               count, count_offset, ews_diam_inv, f_slice_shape, f_target_shape,    \
+        shared(grid, grid_shape, cutoff, slice_z_radius, f_offset, interpolator,    \
+               count, ews_diam_inv, f_slice_shape, f_target_shape,                  \
                fwd_scaling_matrices, inv_rotation_matrices)
 
         for (int64_t z = 0; z < grid_shape[0]; ++z) {
@@ -339,14 +338,14 @@ namespace {
                     if (math::dot(orig_freq, orig_freq) > cutoff)
                         continue;
 
-                    for (size_t i = 0; i < count; ++i) {
+                    for (int64_t i = 0; i < count; ++i) {
                         auto [freq_z, freq_2d] = transformGridToSlice_<APPLY_EWS, APPLY_SCALE>(
                                 orig_freq, fwd_scaling_matrices, inv_rotation_matrices, i, ews_diam_inv);
 
                         // If voxel is not affected by the slice, skip.
                         T value{0};
                         if (freq_z <= slice_z_radius && freq_z >= -slice_z_radius) {
-                            value = interpolateSliceValue_(freq_2d, f_slice_shape, f_offset, interp, i * count_offset);
+                            value = interpolateSliceValue_(freq_2d, f_slice_shape, f_offset, interpolator, i);
                             const auto weight = sliceZWeight(freq_z, slice_z_radius);
                             value *= static_cast<real_t>(weight);
                         }
@@ -362,7 +361,7 @@ namespace {
     // The exact same transformation as fourierInsert_ is applied here, but instead of inserting the transformed
     // slice(s) into the grid, the transformed slice(s) is extracted from the grid.
     template<bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE, typename T, typename S, typename R>
-    void fourierExtract_(AccessorRestrict<const T, 3, dim_t> grid, long3_t grid_shape,
+    void fourierExtract_(AccessorRestrict<const T, 3, int64_t> grid, long3_t grid_shape,
                          AccessorRestrict<T, 3, dim_t> slice, long3_t slice_shape,
                          S inv_scaling_matrices, R fwd_rotation_matrices,
                          float cutoff, long4_t target_shape, float2_t ews_radius, dim_t threads) {
@@ -381,11 +380,11 @@ namespace {
         cutoff = math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        const cpu::geometry::Interpolator3D interp(grid, dim3_t(grid_shape).fft(), T{0});
+        auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(grid, grid_shape.fft(), T{0});
 
         #pragma omp parallel for collapse(3) default(none) num_threads(threads)                     \
         shared(slice, slice_shape, grid, grid_shape, inv_scaling_matrices, fwd_rotation_matrices,   \
-               cutoff, ews_diam_inv, f_slice_shape, f_target_shape, f_offset, interp)
+               cutoff, ews_diam_inv, f_slice_shape, f_target_shape, f_offset, interpolator)
 
         for (int64_t i = 0; i < slice_shape[0]; ++i) {
             for (int64_t y = 0; y < slice_shape[1]; ++y) {
@@ -400,7 +399,7 @@ namespace {
                     // Interpolate grid values at slice location.
                     slice(i, y, u) = math::dot(freq_3d, freq_3d) > cutoff ?
                                      T{0} :
-                                     interpolateGridValue_(freq_3d, f_target_shape, f_offset, interp);
+                                     interpolateGridValue_(freq_3d, f_target_shape, f_offset, interpolator);
                 }
             }
         }
@@ -408,11 +407,11 @@ namespace {
 
     template<bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE,
              typename T, typename S0, typename S1, typename R0, typename R1>
-    void fourierInsertExtract_(AccessorRestrict<const T, 3, dim_t> input_slices, long3_t input_shape,
+    void fourierInsertExtract_(AccessorRestrict<const T, 3, int64_t> input_slices, long3_t input_shape,
                                AccessorRestrict<T, 3, dim_t> output_slices, long3_t output_shape,
                                const S0& insert_fwd_scaling_matrices, const R0& insert_inv_rotation_matrices,
                                const S1& extract_inv_scaling_matrices, const R1& extract_fwd_rotation_matrices,
-                               float cutoff, float2_t ews_radius, float slice_z_radius, dim_t) {
+                               float cutoff, float2_t ews_radius, float slice_z_radius, dim_t threads) {
 
         using real_t = traits::value_type_t<T>;
         const auto l_output_shape = long2_t(output_shape.get(1));
@@ -421,8 +420,7 @@ namespace {
         const auto f_input_shape = float2_t(l_input_shape / 2 * 2 + long2_t(l_input_shape == 1));
         const auto l_input_offset = l_input_shape[1] / 2; // slice Y center
         const auto f_input_offset = static_cast<float>(l_input_offset);
-        const auto input_count = static_cast<size_t>(input_shape[0]);
-        const auto input_count_offset = input_slices.stride(0);
+        const auto input_count = input_shape[0];
 
         // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
         // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
@@ -431,7 +429,13 @@ namespace {
         cutoff = math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        const cpu::geometry::Interpolator2D interp(input_slices[0], dim2_t(l_input_shape.fft()), T{0});
+        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
+                input_slices, l_input_shape.fft(), T{0});
+
+        #pragma omp parallel for collapse(3) default(none) num_threads(threads)                         \
+        shared(output_slices, output_shape, extract_inv_scaling_matrices, extract_fwd_rotation_matrices,\
+               insert_fwd_scaling_matrices, insert_inv_rotation_matrices, f_output_shape, ews_diam_inv, \
+               cutoff, input_count, slice_z_radius, f_input_shape, f_input_offset, interpolator)
 
         for (int64_t oi = 0; oi < output_shape[0]; ++oi) {
             for (int64_t y = 0; y < output_shape[1]; ++y) {
@@ -449,15 +453,14 @@ namespace {
                     }
 
                     // Then, insert the input slices.
-                    for (size_t ii = 0; ii < input_count; ++ii) {
+                    for (int64_t ii = 0; ii < input_count; ++ii) {
                         auto [freq_z, freq_2d_] = transformGridToSlice_<APPLY_EWS, APPLY_SCALE>(
                                 freq_3d, insert_fwd_scaling_matrices, insert_inv_rotation_matrices, ii, ews_diam_inv);
 
                         // If voxel is not affected by the slice, skip.
                         T value{0};
                         if (freq_z <= slice_z_radius && freq_z >= -slice_z_radius) {
-                            value = interpolateSliceValue_(freq_2d, f_input_shape, f_input_offset,interp,
-                                                           ii * input_count_offset);
+                            value = interpolateSliceValue_(freq_2d, f_input_shape, f_input_offset, interpolator, ii);
                             const auto weight = sliceZWeight(freq_z, slice_z_radius);
                             value *= static_cast<real_t>(weight);
                         }
@@ -504,11 +507,11 @@ namespace {
     }
 
     template<typename T>
-    auto matrixOrRawConstPtr(T v) {
-        using clean_t = traits::remove_ref_cv_t<T>;
+    auto matrixOrRawConstPtr(const T& v) {
         if constexpr (traits::is_floatXX_v<T>) {
-            return clean_t(v);
+            return T(v);
         } else {
+            using clean_t = traits::remove_ref_cv_t<T>;
             using raw_const_ptr_t = const typename clean_t::element_type*;
             return static_cast<raw_const_ptr_t>(v.get());
         }
