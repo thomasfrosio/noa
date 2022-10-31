@@ -731,6 +731,19 @@ namespace noa::math {
     }
 
     template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float4<T> round(Float4<T> v) noexcept {
+        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+        if constexpr (std::is_same_v<T, half_t>) {
+            auto* tmp = reinterpret_cast<__half2*>(&v);
+            tmp[0] = h2rint(tmp[0]); // h2rint is rounding to nearest
+            tmp[1] = h2rint(tmp[1]);
+            return v;
+        }
+        #endif
+        return Float4<T>(round(v[0]), round(v[1]), round(v[2]), round(v[3]));
+    }
+
+    template<typename T>
     [[nodiscard]] NOA_FHD constexpr Float4<T> rint(Float4<T> v) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, half_t>) {

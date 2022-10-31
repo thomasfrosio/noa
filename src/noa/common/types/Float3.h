@@ -462,6 +462,11 @@ namespace noa::math {
     }
 
     template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float3<T> round(Float3<T> v) noexcept {
+        return Float3<T>(round(v[0]), round(v[1]), round(v[2]));
+    }
+
+    template<typename T>
     [[nodiscard]] NOA_FHD constexpr Float3<T> rint(Float3<T> v) noexcept {
         return Float3<T>(rint(v[0]), rint(v[1]), rint(v[2]));
     }

@@ -677,6 +677,18 @@ namespace noa::math {
     }
 
     template<typename T>
+    [[nodiscard]] NOA_FHD constexpr Float2<T> round(Float2<T> v) noexcept {
+        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+        if constexpr (std::is_same_v<T, half_t>) {
+            auto* tmp = reinterpret_cast<__half2*>(&v);
+            *tmp = h2rint(*tmp); // h2rint is to the nearest integer
+            return v;
+        }
+        #endif
+        return Float2<T>(round(v[0]), round(v[1]));
+    }
+
+    template<typename T>
     [[nodiscard]] NOA_FHD constexpr Float2<T> rint(Float2<T> v) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, half_t>) {
