@@ -46,16 +46,16 @@ namespace noa::geometry {
             if constexpr (INTERP_MODE == INTERP_NEAREST) {
                 return nearest_(m_data, coordinate);
             } else if constexpr (INTERP_MODE == INTERP_LINEAR ||
-                               INTERP_MODE == INTERP_LINEAR_FAST ||
-                               INTERP_MODE == INTERP_COSINE ||
-                               INTERP_MODE == INTERP_COSINE_FAST) {
+                                 INTERP_MODE == INTERP_LINEAR_FAST ||
+                                 INTERP_MODE == INTERP_COSINE ||
+                                 INTERP_MODE == INTERP_COSINE_FAST) {
                 return linear_(m_data, coordinate);
             } else if constexpr (INTERP_MODE == INTERP_CUBIC ||
-                               INTERP_MODE == INTERP_CUBIC_BSPLINE ||
-                               INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
+                                 INTERP_MODE == INTERP_CUBIC_BSPLINE ||
+                                 INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
                 return cubic_(m_data, coordinate);
             } else {
-                static_assert(traits::always_false_v<data_t>);
+                static_assert(traits::always_false_v < data_t > );
             }
         }
 
@@ -335,31 +335,25 @@ namespace noa::geometry {
                 const bool cond_y[2] = {idx[0][1] >= 0 && idx[0][1] < m_shape[1], idx[1][1] >= 0 && idx[1][1] < m_shape[1]};
                 const bool cond_x[2] = {idx[0][2] >= 0 && idx[0][2] < m_shape[2], idx[1][2] >= 0 && idx[1][2] < m_shape[2]};
 
-                data_t cval;
-                if constexpr (BORDER_MODE == BORDER_ZERO)
-                    cval = data_t{0};
-                else
-                    cval = m_cvalue;
-                const index_t off_z[2] = {idx[0][0] * accessor.stride(0), idx[1][0] * accessor.stride(0)};
-                const index_t off_y[2] = {idx[0][1] * accessor.stride(1), idx[1][1] * accessor.stride(1)};
-                const index_t off_x[2] = {idx[0][2] * accessor.stride(2), idx[1][2] * accessor.stride(2)};
-                values[0] = cond_z[0] && cond_y[0] && cond_x[0] ? accessor.get()[off_z[0] + off_y[0] + off_x[0]] : cval; // v000
-                values[1] = cond_z[0] && cond_y[0] && cond_x[1] ? accessor.get()[off_z[0] + off_y[0] + off_x[1]] : cval; // v001
-                values[2] = cond_z[0] && cond_y[1] && cond_x[0] ? accessor.get()[off_z[0] + off_y[1] + off_x[0]] : cval; // v010
-                values[3] = cond_z[0] && cond_y[1] && cond_x[1] ? accessor.get()[off_z[0] + off_y[1] + off_x[1]] : cval; // v011
-                values[4] = cond_z[1] && cond_y[0] && cond_x[0] ? accessor.get()[off_z[1] + off_y[0] + off_x[0]] : cval; // v100
-                values[5] = cond_z[1] && cond_y[0] && cond_x[1] ? accessor.get()[off_z[1] + off_y[0] + off_x[1]] : cval; // v101
-                values[6] = cond_z[1] && cond_y[1] && cond_x[0] ? accessor.get()[off_z[1] + off_y[1] + off_x[0]] : cval; // v110
-                values[7] = cond_z[1] && cond_y[1] && cond_x[1] ? accessor.get()[off_z[1] + off_y[1] + off_x[1]] : cval; // v111
+                // TODO Might be more efficient to do two 2D interpolations and a final 1D...
+                const data_t cval = BORDER_MODE == BORDER_ZERO ? data_t{0} : m_cvalue;
+                values[0] = cond_z[0] && cond_y[0] && cond_x[0] ? accessor(idx[0][0], idx[0][1], idx[0][2]) : cval; // v000
+                values[1] = cond_z[0] && cond_y[0] && cond_x[1] ? accessor(idx[0][0], idx[0][1], idx[1][2]) : cval; // v001
+                values[2] = cond_z[0] && cond_y[1] && cond_x[0] ? accessor(idx[0][0], idx[1][1], idx[0][2]) : cval; // v010
+                values[3] = cond_z[0] && cond_y[1] && cond_x[1] ? accessor(idx[0][0], idx[1][1], idx[1][2]) : cval; // v011
+                values[4] = cond_z[1] && cond_y[0] && cond_x[0] ? accessor(idx[1][0], idx[0][1], idx[0][2]) : cval; // v100
+                values[5] = cond_z[1] && cond_y[0] && cond_x[1] ? accessor(idx[1][0], idx[0][1], idx[1][2]) : cval; // v101
+                values[6] = cond_z[1] && cond_y[1] && cond_x[0] ? accessor(idx[1][0], idx[1][1], idx[0][2]) : cval; // v110
+                values[7] = cond_z[1] && cond_y[1] && cond_x[1] ? accessor(idx[1][0], idx[1][1], idx[1][2]) : cval; // v111
 
             } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
                                  BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
-                const index_t tmp[6] = {indexing::at<BORDER_MODE>(idx[0][2], m_shape[2]),
-                                        indexing::at<BORDER_MODE>(idx[1][2], m_shape[2]),
-                                        indexing::at<BORDER_MODE>(idx[0][1], m_shape[1]),
-                                        indexing::at<BORDER_MODE>(idx[1][1], m_shape[1]),
-                                        indexing::at<BORDER_MODE>(idx[0][0], m_shape[0]),
-                                        indexing::at<BORDER_MODE>(idx[1][0], m_shape[0])};
+                const offset_t tmp[6] = {static_cast<offset_t>(indexing::at<BORDER_MODE>(idx[0][2], m_shape[2])),
+                                         static_cast<offset_t>(indexing::at<BORDER_MODE>(idx[1][2], m_shape[2])),
+                                         static_cast<offset_t>(indexing::at<BORDER_MODE>(idx[0][1], m_shape[1])),
+                                         static_cast<offset_t>(indexing::at<BORDER_MODE>(idx[1][1], m_shape[1])),
+                                         static_cast<offset_t>(indexing::at<BORDER_MODE>(idx[0][0], m_shape[0])),
+                                         static_cast<offset_t>(indexing::at<BORDER_MODE>(idx[1][0], m_shape[0]))};
                 values[0] = accessor(tmp[4], tmp[2], tmp[0]); // v000
                 values[1] = accessor(tmp[4], tmp[2], tmp[1]); // v001
                 values[2] = accessor(tmp[4], tmp[3], tmp[0]); // v010

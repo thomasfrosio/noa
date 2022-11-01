@@ -11,7 +11,7 @@ namespace noa::geometry::interpolate::details {
     template<typename data_t, typename coord_t>
     using enable_if_valid_interp_t = std::enable_if_t<details::is_valid_interp_v<data_t, coord_t>>;
 
-    template<typename coord_t, typename data_t, typename = std::enable_if_t<traits::are_float_v<data_t, coord_t>>>
+    template<typename coord_t, typename data_t>
     constexpr NOA_IHD void bsplineWeights(coord_t ratio, data_t* w0, data_t* w1, data_t* w2, data_t* w3) {
         constexpr coord_t ONE_SIXTH = static_cast<coord_t>(1) / static_cast<coord_t>(6);
         constexpr coord_t TWO_THIRD = static_cast<coord_t>(2) / static_cast<coord_t>(3);
