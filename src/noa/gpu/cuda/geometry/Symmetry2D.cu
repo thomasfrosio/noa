@@ -6,7 +6,7 @@
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 
-#include "noa/gpu/cuda/geometry/Interpolate.h"
+#include "noa/gpu/cuda/geometry/Interpolator.h"
 #include "noa/gpu/cuda/geometry/Prefilter.h"
 #include "noa/gpu/cuda/geometry/Symmetry.h"
 
@@ -14,9 +14,9 @@ namespace {
     using namespace ::noa;
     constexpr dim3 THREADS(16, 16);
 
-    template<typename T, InterpMode INTERP>
+    template<typename T, typename interpolator_t>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    symmetrize2D_(cudaTextureObject_t texture, Accessor<T, 3, uint32_t> output, uint2_t shape,
+    symmetrize2D_(interpolator_t interpolator, Accessor<T, 3, uint32_t> output, uint2_t shape,
                   const float33_t* symmetry_matrices, uint32_t symmetry_count, float2_t center, float scaling) {
         const uint3_t gid{blockIdx.z,
                           blockIdx.y * THREADS.y + threadIdx.y,
@@ -25,14 +25,14 @@ namespace {
             return;
 
         float2_t coordinates{gid[1], gid[2]};
-        T value = cuda::geometry::tex2D<T, INTERP>(texture, coordinates + 0.5f);
+        T value = interpolator(coordinates);
         coordinates -= center;
         for (uint32_t i = 0; i < symmetry_count; ++i) {
             const float33_t& m = symmetry_matrices[i];
             float22_t sym_matrix{m[1][1], m[1][2],
                                  m[2][1], m[2][2]};
-            float2_t i_coordinates(sym_matrix * coordinates);
-            value += cuda::geometry::tex2D<T, INTERP>(texture, i_coordinates + center + 0.5f);
+            float2_t i_coordinates = sym_matrix * coordinates;
+            value += interpolator(i_coordinates + center);
         }
 
         output(gid) = value * scaling;
@@ -44,12 +44,11 @@ namespace {
                              T* output, dim4_t output_strides, dim4_t output_shape,
                              const geometry::Symmetry& symmetry, float2_t center, bool normalize,
                              cuda::Stream& stream) {
-        NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
-
         // TODO Move symmetry matrices to constant memory?
         const dim_t count = symmetry.count();
         const float33_t* symmetry_matrices = symmetry.get();
-        cuda::memory::PtrDevice<float33_t> d_matrices(count, stream);
+        using unique_ptr = cuda::memory::PtrDevice<float33_t>::alloc_unique_t;
+        unique_ptr d_matrices = cuda::memory::PtrDevice<float33_t>::alloc(count, stream);
         cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
         const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
 
@@ -62,40 +61,62 @@ namespace {
         const Accessor<T, 3, uint32_t> output_accessor(output, o_strides);
 
         switch (texture_interp_mode) {
-            case INTERP_NEAREST:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_NEAREST>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_LINEAR:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_LINEAR>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_COSINE:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_COSINE>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_CUBIC:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_CUBIC>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_CUBIC_BSPLINE:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_CUBIC_BSPLINE>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_LINEAR_FAST:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_LINEAR_FAST>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_COSINE_FAST:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_COSINE_FAST>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            case INTERP_CUBIC_BSPLINE_FAST:
-                return stream.enqueue("geometry::symmetrize2D", symmetrize2D_<T, INTERP_CUBIC_BSPLINE_FAST>,
-                                      config, texture, output_accessor, o_shape,
-                                      d_matrices.get(), count, center, scaling);
-            default:
-                NOA_THROW("{} is not supported", texture_interp_mode);
+            case INTERP_NEAREST: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_LINEAR: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_COSINE: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_CUBIC: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_CUBIC_BSPLINE: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_LINEAR_FAST: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_COSINE_FAST: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
+            case INTERP_CUBIC_BSPLINE_FAST: {
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, T>;
+                return stream.enqueue(
+                        "geometry::symmetrize2D", symmetrize2D_<T, interpolator_t>, config,
+                        interpolator_t(texture), output_accessor, o_shape,
+                        d_matrices.get(), count, center, scaling);
+            }
         }
     }
 }
@@ -116,7 +137,7 @@ namespace noa::cuda::geometry {
             return;
         }
 
-        dim4_t input_shape(shape);
+        dim4_t input_shape = shape;
         if (input_strides[0] == 0)
             input_shape[0] = 1;
 

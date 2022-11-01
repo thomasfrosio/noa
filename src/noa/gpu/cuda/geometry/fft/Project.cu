@@ -1,3 +1,4 @@
+#include "noa/common/geometry/Interpolator.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
@@ -5,7 +6,7 @@
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 #include "noa/gpu/cuda/util/Atomic.cuh"
 #include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/geometry/Interpolate.h"
+#include "noa/gpu/cuda/geometry/Interpolator.h"
 #include "noa/gpu/cuda/geometry/fft/Project.h"
 
 // This implementation is almost identical to the CPU backend's.
@@ -128,16 +129,16 @@ namespace {
         const T v001 = cond_z[0] && cond_y[0] && cond_x[1] ? grid[off_z[0] + off_y[0] + off_x[1]] : T{0};
         const T v010 = cond_z[0] && cond_y[1] && cond_x[0] ? grid[off_z[0] + off_y[1] + off_x[0]] : T{0};
         const T v011 = cond_z[0] && cond_y[1] && cond_x[1] ? grid[off_z[0] + off_y[1] + off_x[1]] : T{0};
-        T tmp1 = cuda::geometry::details::linear2D(v000, v001, v010, v011, rx, ry);
+        T tmp1 = geometry::interpolate::lerp2D(v000, v001, v010, v011, rx, ry);
 
         const T v100 = cond_z[1] && cond_y[0] && cond_x[0] ? grid[off_z[1] + off_y[0] + off_x[0]] : T{0};
         const T v101 = cond_z[1] && cond_y[0] && cond_x[1] ? grid[off_z[1] + off_y[0] + off_x[1]] : T{0};
         const T v110 = cond_z[1] && cond_y[1] && cond_x[0] ? grid[off_z[1] + off_y[1] + off_x[0]] : T{0};
         const T v111 = cond_z[1] && cond_y[1] && cond_x[1] ? grid[off_z[1] + off_y[1] + off_x[1]] : T{0};
-        T tmp2 = cuda::geometry::details::linear2D(v100, v101, v110, v111, rx, ry);
+        T tmp2 = geometry::interpolate::lerp2D(v100, v101, v110, v111, rx, ry);
 
         const float rz = frequency[0] - static_cast<float>(idx[0][0]);
-        return cuda::geometry::details::linear1D(tmp1, tmp2, rz);
+        return geometry::interpolate::lerp1D(tmp1, tmp2, rz);
     }
 
     template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, typename T, typename S, typename R>
@@ -191,13 +192,13 @@ namespace {
         addByGridding_<IS_DST_CENTERED>(grid, grid_strides, grid_shape, value, freq_3d);
     }
 
-    template<bool IS_DST_CENTERED, typename T, typename U, typename S, typename R>
+    template<bool IS_DST_CENTERED, typename data_t, typename interpolator_t, typename scale_t, typename rotate_t>
     __global__ void __launch_bounds__(THREADS.x * THREADS.y)
-    fourierExtract_(T grid,
-                    U* __restrict__ slice, uint3_t slice_strides, int2_t slice_shape_fft, float2_t f_slice_shape,
-                    S inv_scaling_factors, R rotations,
+    fourierExtract_(interpolator_t grid,
+                    data_t* __restrict__ slice, uint3_t slice_strides, int2_t slice_shape_fft, float2_t f_slice_shape,
+                    scale_t inv_scaling_factors, rotate_t rotations,
                     float cutoff_sqd, float3_t f_target_shape, float2_t f_offset, float2_t ews_diam_inv) {
-        using real_t = traits::value_type_t<U>;
+        using real_t = traits::value_type_t<data_t>;
         const int3_t gid{blockIdx.z,
                          blockIdx.y * THREADS.y + threadIdx.y,
                          blockIdx.x * THREADS.x + threadIdx.x};
@@ -208,7 +209,7 @@ namespace {
         const int32_t v = getFrequency_<IS_DST_CENTERED>(gid[1], slice_shape_fft[0]);
         const float2_t orig_freq{v, gid[2]};
         float2_t freq_2d = orig_freq / f_slice_shape;
-        if constexpr (std::is_pointer_v<S>) {
+        if constexpr (std::is_pointer_v<scale_t>) {
             if (inv_scaling_factors)
                 freq_2d = inv_scaling_factors[gid[0]] * freq_2d;
         } else {
@@ -217,20 +218,20 @@ namespace {
 
         const float z = math::sum(ews_diam_inv * freq_2d * freq_2d);
         float3_t freq_3d{z, freq_2d[0], freq_2d[1]};
-        if constexpr (std::is_pointer_v<R>)
+        if constexpr (std::is_pointer_v<rotate_t>)
             freq_3d = rotations[gid[0]] * freq_3d;
         else
             freq_3d = rotations * freq_3d;
 
         if (math::dot(freq_3d, freq_3d) > cutoff_sqd) {
-            slice[indexing::at(gid, slice_strides)] = U{0};
+            slice[indexing::at(gid, slice_strides)] = data_t{0};
             return;
         }
 
         real_t conj = 1;
         if (freq_3d[2] < 0) {
             freq_3d = -freq_3d;
-            if constexpr(traits::is_complex_v<U>)
+            if constexpr(traits::is_complex_v<data_t>)
                 conj = -1;
         }
         freq_3d *= f_target_shape; // [-0.5 <- 0 -> 0.5] to [-N//2 <- 0 -> N//2]
@@ -238,13 +239,8 @@ namespace {
         freq_3d[1] += f_offset[1];
         // -------------------------------- //
 
-        U value;
-        if constexpr (std::is_same_v<T, cudaTextureObject_t>)
-            value = cuda::geometry::tex3D<U, INTERP_LINEAR>(grid, freq_3d + 0.5f);
-        else
-            value = linear3D_(grid.ptr, grid.strides, grid.shape, freq_3d);
-
-        if constexpr(traits::is_complex_v<U>)
+        data_t value = grid(freq_3d);
+        if constexpr(traits::is_complex_v<data_t>)
             value.imag *= conj;
         else
             (void) conj;
@@ -293,10 +289,10 @@ namespace {
         }
     }
 
-    template<fft::Remap REMAP, typename T, typename U, typename S, typename R>
-    void launchExtract3D_(const T* grid, dim4_t grid_strides, int3_t grid_shape,
-                          U* slice, dim4_t slice_strides, dim4_t slice_shape,
-                          S scaling_factors, R rotations,
+    template<fft::Remap REMAP, typename data_t, typename interpolator_t, typename scale_t, typename rotate_t>
+    void launchExtract3D_(interpolator_t grid, int3_t grid_shape,
+                          data_t* slice, dim4_t slice_strides, dim4_t slice_shape,
+                          scale_t scaling_factors, rotate_t rotations,
                           float cutoff, dim4_t target_shape, float2_t ews_radius, cuda::Stream& stream) {
         using Layout = ::noa::fft::Layout;
         constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -304,7 +300,7 @@ namespace {
         if constexpr (REMAP_ & Layout::SRC_NON_CENTERED ||
                       REMAP_ & Layout::SRC_FULL ||
                       REMAP_ & Layout::DST_FULL)
-            static_assert(traits::always_false_v<T>);
+            static_assert(traits::always_false_v<data_t>);
 
         // Dimensions:
         const dim_t count = slice_shape[0];
@@ -331,37 +327,23 @@ namespace {
 
         // Ensure transformation parameters are accessible to the GPU:
         cuda::memory::PtrDevice<float22_t> b0;
-        using scaling_t = matrixOrRawConstPtr_t<S>;
+        using scaling_t = matrixOrRawConstPtr_t<scale_t>;
         scaling_t ptr0 = matrixOrRawConstPtr(scaling_factors);
         if constexpr (std::is_pointer_v<scaling_t>)
             ptr0 = scaling_factors ? cuda::util::ensureDeviceAccess(ptr0, stream, b0, count) : nullptr;
 
         cuda::memory::PtrDevice<float33_t> b1;
-        using rotation_t = matrixOrRawConstPtr_t<R>;
+        using rotation_t = matrixOrRawConstPtr_t<rotate_t>;
         rotation_t ptr1 = matrixOrRawConstPtr(rotations);
         if constexpr (std::is_pointer_v<rotation_t>) {
             NOA_ASSERT(ptr1 != nullptr);
             ptr1 = cuda::util::ensureDeviceAccess(ptr1, stream, b1, count);
         }
 
-        if constexpr (traits::is_almost_same_v<T, cudaTextureObject_t>) {
-            (void) grid_strides;
-            stream.enqueue("geometry::fft::extract3D",
-                           fourierExtract_<IS_DST_CENTERED, cudaTextureObject_t, U, scaling_t, rotation_t>, config,
-                           *grid, slice, slice_strides_, slice_shape_.fft(), f_slice_shape,
-                           ptr0, ptr1, cutoff, f_target_shape, f_offset, ews_diam_inv);
-        } else {
-            const auto grid_strides_ = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
-            GridNoTexture<T> grid_{grid, grid_strides_, grid_shape.fft()};
-            stream.enqueue("geometry::fft::extract3D",
-                           fourierExtract_<IS_DST_CENTERED, GridNoTexture<T>, U, scaling_t, rotation_t>, config,
-                           grid_, slice, slice_strides_, slice_shape_.fft(), f_slice_shape,
-                           ptr0, ptr1, cutoff, f_target_shape, f_offset, ews_diam_inv);
-        }
-        if constexpr (std::is_pointer_v<scaling_t>)
-            stream.attach(scaling_factors);
-        if constexpr (std::is_pointer_v<rotation_t>)
-            stream.attach(rotations);
+        stream.enqueue("geometry::fft::extract3D",
+                       fourierExtract_<IS_DST_CENTERED, data_t, interpolator_t, scaling_t, rotation_t>, config,
+                       grid, slice, slice_strides_, slice_shape_.fft(), f_slice_shape,
+                       ptr0, ptr1, cutoff, f_target_shape, f_offset, ews_diam_inv);
     }
 }
 
@@ -450,7 +432,13 @@ namespace noa::cuda::geometry::fft {
         if (!use_texture) {
             NOA_ASSERT(slice.get() != grid.get());
             NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
-            launchExtract3D_<REMAP>(grid.get(), grid_strides, int3_grid_shape,
+
+            const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
+            const Accessor<const T, 3, uint32_t> grid_accessor(grid.get(), grid_strides_3d);
+            const auto interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(
+                    grid_accessor, int3_grid_shape.fft(), T{0});
+
+            launchExtract3D_<REMAP>(interpolator, int3_grid_shape,
                                     slice.get(), slice_strides, slice_shape,
                                     scaling_factors, rotations,
                                     cutoff, target_shape, ews_radius, stream);
@@ -460,12 +448,13 @@ namespace noa::cuda::geometry::fft {
                 NOA_THROW("Double precision is not supported in this mode. Use no_texture=true instead");
             } else {
                 NOA_ASSERT(grid_strides[3] == 1 && indexing::isContiguous(grid_strides, grid_shape.fft())[1]);
-                memory::PtrArray<T> array(dim3_t(int3_grid_shape.fft()));
-                memory::PtrTexture texture(array.get(), INTERP_LINEAR_FAST, BORDER_ZERO);
-                memory::copy(grid, grid_strides[2], array.share(), array.shape(), stream);
 
-                const auto tex = texture.get();
-                launchExtract3D_<REMAP>(&tex, {}, int3_grid_shape,
+                memory::PtrArray<T> array(dim3_t(int3_grid_shape.fft()));
+                memory::PtrTexture texture(array.get(), INTERP_LINEAR, BORDER_ZERO);
+                memory::copy(grid, grid_strides[2], array.share(), array.shape(), stream);
+                const noa::cuda::geometry::Interpolator3D<INTERP_LINEAR, T> interpolator(texture.get());
+
+                launchExtract3D_<REMAP>(interpolator, int3_grid_shape,
                                         slice.get(), slice_strides, slice_shape,
                                         scaling_factors, rotations,
                                         cutoff, target_shape, ews_radius, stream);
@@ -482,7 +471,9 @@ namespace noa::cuda::geometry::fft {
                    float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
         NOA_ASSERT(array && grid && all(slice_shape > 0) && all(grid_shape > 0));
         NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
-        launchExtract3D_<REMAP>(grid.get(), {}, grid_shape,
+
+        const noa::cuda::geometry::Interpolator3D<INTERP_LINEAR, T> interpolator(*grid); // FIXME
+        launchExtract3D_<REMAP>(interpolator, grid_shape,
                                 slice.get(), slice_strides, slice_shape,
                                 scaling_factors, rotations,
                                 cutoff, target_shape, ews_radius, stream);

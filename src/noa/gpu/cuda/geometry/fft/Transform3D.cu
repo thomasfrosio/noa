@@ -5,7 +5,7 @@
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
-#include "noa/gpu/cuda/geometry/Interpolate.h"
+#include "noa/gpu/cuda/geometry/Interpolator.h"
 #include "noa/gpu/cuda/geometry/fft/Transform.h"
 
 namespace {
@@ -13,28 +13,27 @@ namespace {
     constexpr dim3 THREADS(32, 8);
 
     template<bool IS_DST_CENTERED>
-    __forceinline__ __device__ int32_t getFrequency_(int32_t idx, int32_t dim) {
+    __forceinline__ __device__ int32_t index2frequency_(int32_t idx, int32_t dim) {
         if constexpr(IS_DST_CENTERED)
             return idx - dim / 2;
         else
             return idx < (dim + 1) / 2 ? idx : idx - dim;
-        return 0;
     }
 
-    __forceinline__ __device__ cfloat_t getPhaseShift_(float3_t shift, float3_t freq) {
+    __forceinline__ __device__ cfloat_t phaseShift_(float3_t shift, float3_t freq) {
         const float factor = -math::dot(shift, freq);
         cfloat_t phase_shift;
         math::sincos(factor, &phase_shift.imag, &phase_shift.real);
         return phase_shift;
     }
 
-    template<bool IS_DST_CENTERED, bool APPLY_SHIFT, InterpMode INTERP,
-             typename T, typename MAT, typename VEC>
+    template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
+             typename data_t, typename interpolator_t, typename matrix_t, typename shift_t>
     __global__ __launch_bounds__(THREADS.x * THREADS.y)
-    void transform3D_(cudaTextureObject_t tex, Accessor<T, 4, uint32_t> output,
+    void transform3D_(interpolator_t interpolator, Accessor<data_t, 4, uint32_t> output,
                       int3_t shape, float3_t norm_shape,
-                      MAT matrices, // const float33_t* or float33_t
-                      [[maybe_unused]] VEC shifts, // const float3_t* or float3_t
+                      matrix_t matrices, // const float33_t* or float33_t
+                      shift_t shifts, // const float3_t* or float3_t
                       float cutoff_sqd, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
@@ -45,8 +44,8 @@ namespace {
         if (gid[2] >= shape[1] || gid[3] >= shape[2] / 2 + 1)
             return;
 
-        const int32_t w = getFrequency_<IS_DST_CENTERED>(gid[1], shape[0]);
-        const int32_t v = getFrequency_<IS_DST_CENTERED>(gid[2], shape[1]);
+        const int32_t w = index2frequency_<IS_DST_CENTERED>(gid[1], shape[0]);
+        const int32_t v = index2frequency_<IS_DST_CENTERED>(gid[2], shape[1]);
         float3_t freq{w, v, gid[3]};
         freq /= norm_shape; // [-0.5, 0.5]
         if (math::dot(freq, freq) > cutoff_sqd) {
@@ -54,34 +53,34 @@ namespace {
             return;
         }
 
-        if constexpr (std::is_pointer_v<MAT>)
+        if constexpr (std::is_pointer_v<matrix_t>)
             freq = matrices[gid[0]] * freq;
         else
             freq = matrices * freq;
 
-        using real_t = traits::value_type_t<T>;
-        [[maybe_unused]] real_t conj = 1;
+        using real_t = traits::value_type_t<data_t>;
+        real_t conj = 1;
         if (freq[2] < 0.f) {
             freq = -freq;
-            if constexpr (traits::is_complex_v<T>)
+            if constexpr (traits::is_complex_v<data_t>)
                 conj = -1;
         }
 
         freq[0] += 0.5f;
         freq[1] += 0.5f;
         freq *= norm_shape;
-        T value = cuda::geometry::tex3D<T, INTERP>(tex, freq + 0.5f);
-        if constexpr (traits::is_complex_v<T>)
+        data_t value = interpolator(freq);
+        if constexpr (traits::is_complex_v<data_t>)
             value.imag *= conj;
         else
             (void) conj;
 
-        if constexpr (traits::is_complex_v<T> && APPLY_SHIFT) {
-            if constexpr (std::is_pointer_v<VEC>) {
+        if constexpr (traits::is_complex_v<data_t> && APPLY_SHIFT) {
+            if constexpr (std::is_pointer_v<shift_t>) {
                 const float3_t shift = shifts[gid[0]] * math::Constants<float>::PI2 / float3_t(shape);
-                value *= getPhaseShift_(shift, float3_t{w, v, gid[3]});
+                value *= phaseShift_(shift, float3_t{w, v, gid[3]});
             } else {
-                value *= getPhaseShift_(shifts, float3_t{w, v, gid[3]});
+                value *= phaseShift_(shifts, float3_t{w, v, gid[3]});
             }
         } else {
             (void) shifts;
@@ -103,10 +102,10 @@ namespace {
     }
 
     template<bool IS_DST_CENTERED, bool APPLY_SHIFT,
-            typename T, typename MAT, typename VEC>
+             typename data_t, typename matrix_t, typename shift_t>
     void launch_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                 T* output, dim4_t output_strides, dim4_t output_shape,
-                 MAT matrices, VEC shifts,
+                 data_t* output, dim4_t output_strides, dim4_t output_shape,
+                 matrix_t matrices, shift_t shifts,
                  float cutoff, cuda::Stream& stream) {
         const auto s_shape = safe_cast<int3_t>(dim3_t(output_shape.get(1)));
         const auto o_strides = safe_cast<uint4_t>(output_strides);
@@ -115,60 +114,68 @@ namespace {
         cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
         cutoff *= cutoff;
 
-        if constexpr (!std::is_pointer_v<VEC>)
+        if constexpr (!std::is_pointer_v<shift_t>)
             shifts *= math::Constants<float>::PI2 / float3_t(s_shape);
 
         const uint32_t blocks_x = math::divideUp(s_shape[2] / 2 + 1, static_cast<int>(THREADS.x));
         const uint32_t blocks_y = math::divideUp(s_shape[1], static_cast<int>(THREADS.y));
         const dim3 blocks(blocks_x * blocks_y, output_shape[1], output_shape[0]);
         const cuda::LaunchConfig config{blocks, THREADS};
-        const Accessor<T, 4, uint32_t> output_accessor(output, o_strides);
+        const Accessor<data_t, 4, uint32_t> output_accessor(output, o_strides);
 
-        NOA_ASSERT(!cuda::memory::PtrTexture::hasNormalizedCoordinates(texture));
         switch (texture_interp_mode) {
-            case INTERP_NEAREST:
+            case INTERP_NEAREST: {
+                using interpolator_t = cuda::geometry::Interpolator3D<INTERP_NEAREST, data_t>;
                 return stream.enqueue(
                         "geometry::fft::transform3D",
-                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_NEAREST, T, MAT, VEC>, config,
-                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
-            case INTERP_LINEAR:
+                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, data_t, interpolator_t, matrix_t, shift_t>, config,
+                        interpolator_t(texture), output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
+            }
+            case INTERP_LINEAR: {
+                using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, data_t>;
                 return stream.enqueue(
                         "geometry::fft::transform3D",
-                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_LINEAR, T, MAT, VEC>, config,
-                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
-            case INTERP_COSINE:
+                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, data_t, interpolator_t, matrix_t, shift_t>, config,
+                        interpolator_t(texture), output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
+            }
+            case INTERP_COSINE: {
+                using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE, data_t>;
                 return stream.enqueue(
                         "geometry::fft::transform3D",
-                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_COSINE, T, MAT, VEC>, config,
-                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
-            case INTERP_LINEAR_FAST:
+                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, data_t, interpolator_t, matrix_t, shift_t>, config,
+                        interpolator_t(texture), output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
+            }
+            case INTERP_LINEAR_FAST: {
+                using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t>;
                 return stream.enqueue(
                         "geometry::fft::transform3D",
-                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_LINEAR_FAST, T, MAT, VEC>, config,
-                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
-            case INTERP_COSINE_FAST:
+                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, data_t, interpolator_t, matrix_t, shift_t>, config,
+                        interpolator_t(texture), output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
+            }
+            case INTERP_COSINE_FAST: {
+                using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE_FAST, data_t>;
                 return stream.enqueue(
                         "geometry::fft::transform3D",
-                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, INTERP_COSINE_FAST, T, MAT, VEC>, config,
-                        texture, output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
+                        transform3D_<IS_DST_CENTERED, APPLY_SHIFT, data_t, interpolator_t, matrix_t, shift_t>, config,
+                        interpolator_t(texture), output_accessor, s_shape, f_shape, matrices, shifts, cutoff, blocks_x);
+            }
             default:
                 NOA_THROW_FUNC("transform3D", "{} is not supported", texture_interp_mode);
         }
     }
 
-    template<fft::Remap REMAP, typename T, typename M, typename S>
+    template<fft::Remap REMAP, typename data_t, typename matrix_t, typename shift_t>
     void launchTexture3D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                          T* output, dim4_t output_strides, dim4_t shape,
-                          M matrices, S shifts, float cutoff,
+                          data_t* output, dim4_t output_strides, dim4_t shape,
+                          matrix_t matrices, shift_t shifts, float cutoff,
                           cuda::Stream& stream) {
         constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
 
         bool do_shift;
-        if constexpr (!traits::is_floatX_v<S>) {
+        if constexpr (!traits::is_floatX_v<shift_t>)
             do_shift = shifts != nullptr;
-        } else {
+        else
             do_shift = any(shifts != 0.f);
-        }
 
         if (do_shift) {
             launch_<IS_DST_CENTERED, true>(
@@ -197,10 +204,10 @@ namespace noa::cuda::geometry::fft {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
         using matrix_t = std::conditional_t<SINGLE_MATRIX, float33_t, const float33_t*>;
         matrix_t matrices_;
-        cuda::memory::PtrDevice<float33_t> m_buffer;
+        memory::PtrDevice<float33_t> m_buffer;
         if constexpr (!SINGLE_MATRIX) {
             NOA_ASSERT(matrices);
-            matrices_ = cuda::util::ensureDeviceAccess(matrices.get(), stream, m_buffer, shape[0]);
+            matrices_ = util::ensureDeviceAccess(matrices.get(), stream, m_buffer, shape[0]);
         } else {
             matrices_ = matrices;
         }
@@ -208,9 +215,9 @@ namespace noa::cuda::geometry::fft {
         constexpr bool SINGLE_SHIFT = traits::is_floatX_v<S>;
         using shift_t = std::conditional_t<SINGLE_SHIFT, float3_t, const float3_t*>;
         shift_t shifts_;
-        cuda::memory::PtrDevice<float3_t> s_buffer;
+        memory::PtrDevice<float3_t> s_buffer;
         if constexpr (!SINGLE_SHIFT)
-            shifts_ = shifts.get() ? cuda::util::ensureDeviceAccess(shifts.get(), stream, s_buffer, shape[0]) : nullptr;
+            shifts_ = shifts.get() ? util::ensureDeviceAccess(shifts.get(), stream, s_buffer, shape[0]) : nullptr;
         else
             shifts_ = shifts;
 
@@ -228,7 +235,7 @@ namespace noa::cuda::geometry::fft {
             o_shape = {1, shape[1], shape[2], shape[3]};
         }
         for (dim_t i = 0; i < iter; ++i) {
-            cuda::memory::copy(input.get() + i * input_strides[0], input_strides[2], array.get(), shape_3d, stream);
+            memory::copy(input.get() + i * input_strides[0], input_strides[2], array.get(), shape_3d, stream);
             launchTexture3D_<REMAP>(texture.get(), interp_mode, output.get() + i * output_strides[0], output_strides,
                                     o_shape, matrices_, shifts_, cutoff, stream);
 
@@ -255,10 +262,10 @@ namespace noa::cuda::geometry::fft {
         constexpr bool SINGLE_MATRIX = traits::is_floatXX_v<M>;
         using matrix_t = std::conditional_t<SINGLE_MATRIX, float33_t, const float33_t*>;
         matrix_t matrices_;
-        cuda::memory::PtrDevice<float33_t> m_buffer;
+        memory::PtrDevice<float33_t> m_buffer;
         if constexpr (!SINGLE_MATRIX) {
             NOA_ASSERT(matrices);
-            matrices_ = cuda::util::ensureDeviceAccess(matrices.get(), stream, m_buffer, output_shape[0]);
+            matrices_ = util::ensureDeviceAccess(matrices.get(), stream, m_buffer, output_shape[0]);
         } else {
             matrices_ = matrices;
         }
@@ -266,10 +273,10 @@ namespace noa::cuda::geometry::fft {
         constexpr bool SINGLE_SHIFT = traits::is_floatX_v<S>;
         using shift_t = std::conditional_t<SINGLE_SHIFT, float3_t, const float3_t*>;
         shift_t shifts_;
-        cuda::memory::PtrDevice<float3_t> s_buffer;
+        memory::PtrDevice<float3_t> s_buffer;
         if constexpr (!SINGLE_SHIFT) {
             shifts_ = shifts.get() ?
-                      cuda::util::ensureDeviceAccess(shifts.get(), stream, s_buffer, output_shape[0]) :
+                      util::ensureDeviceAccess(shifts.get(), stream, s_buffer, output_shape[0]) :
                       nullptr;
         } else {
             shifts_ = shifts;

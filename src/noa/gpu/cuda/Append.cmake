@@ -75,6 +75,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/geometry/fft/Symmetry.h
         gpu/cuda/geometry/fft/Transform.h
         gpu/cuda/geometry/Interpolate.h
+        gpu/cuda/geometry/Interpolator.h
         gpu/cuda/geometry/Polar.h
         gpu/cuda/geometry/Prefilter.h
         gpu/cuda/geometry/Rotate.h

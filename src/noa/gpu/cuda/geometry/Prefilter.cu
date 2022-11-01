@@ -2,7 +2,6 @@
 
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/geometry/Interpolate.h"
 #include "noa/gpu/cuda/util/Pointers.h"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
