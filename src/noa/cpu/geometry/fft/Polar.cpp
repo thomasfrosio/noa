@@ -122,12 +122,6 @@ namespace noa::cpu::geometry::fft {
                             frequency_range, angle_range, log, threads);
                 });
             case INTERP_CUBIC:
-                return stream.enqueue([=]() {
-                    cartesian2polar_<T, INTERP_CUBIC>(
-                            {cartesian.get(), src_strides}, src_shape,
-                            {polar.get(), dst_strides}, dst_shape,
-                            frequency_range, angle_range, log, threads);
-                });
             case INTERP_CUBIC_BSPLINE_FAST:
             case INTERP_CUBIC_BSPLINE:
                 NOA_THROW("{} is not supported", interp);
