@@ -46,6 +46,14 @@
   so they have the same interface as the CPU interpolators.
 
 
+- Move the backend tests to the unified API. While the backend are mostly well tested, the API isn't. Instead, use
+  the unified API for the tests to test both the main API and the backend at the same time.
+
+
+- Add easy way to create F-major arrays. Atm this is a bit annoying. Also, extend the dimension swapping to the
+  `geometry` namespace. The `fft` namespace should be the only place where F-major arrays are not allowed.
+
+
 - __JIT, lazy evaluation and kernel fusion VS transform operators__.
   I much prefer the simplicity of `std::transform` or
   range-like APIs, where we define __lambdas as transform operators__. It is much more flexible, versatile, cleaner, 
