@@ -117,7 +117,7 @@ namespace noa::math {
         NOA_CHECK(!input.empty(), "Empty array detected");
         const Device device = input.device();
 
-        if (output) {
+        if (!output.empty()) {
             NOA_CHECK(!subtract || all(input.shape() == output.shape()),
                       "The surface is about to be subtracted to the input. In this case, the input and output arrays "
                       "should have the same shape. Got input:{} and output:{}",
@@ -127,7 +127,7 @@ namespace noa::math {
                       device, output.device());
         }
 
-        if (parameters) {
+        if (!parameters.empty()) {
             const dim_t batches = input.shape()[0];
             const dim_t expected_parameters_size = (order == 3 ? 10 : static_cast<dim_t>(order * 3)) * batches;
             NOA_CHECK(parameters.device() == device,

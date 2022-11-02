@@ -34,7 +34,8 @@ namespace noa::math {
     ///       In any case, the innermost dimension should be contiguous and the second-most dimension can either be
     ///       contiguous or padded.
     /// \note This function is currently not supported on the GPU.
-    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_lstsq_t<T, U>>>
+    template<typename T, typename U = traits::value_type_t<T>,
+             typename = std::enable_if_t<details::is_valid_lstsq_t<T, U>>>
     void lstsq(const Array<T>& a, const Array<T>& b, const Array<T>& x,
                float cond = 0, const Array<U>& svd = {});
 
