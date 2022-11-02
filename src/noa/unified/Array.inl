@@ -169,7 +169,8 @@ namespace noa {
     [[nodiscard]] NOA_HD constexpr T& Array<T>::operator()(I0 i0) const noexcept {
         NOA_ASSERT(dereferenceable() &&
                    static_cast<dim_t>(i0) < m_shape[0]);
-        return View<T, dim_t>::accessor_reference_type(m_ptr, m_strides.get())(i0);
+        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        return accessor_t(get(), m_strides.get())(i0);
     }
 
     template<typename T>
@@ -178,7 +179,8 @@ namespace noa {
         NOA_ASSERT(dereferenceable() &&
                    static_cast<dim_t>(i0) < m_shape[0] &&
                    static_cast<dim_t>(i1) < m_shape[1]);
-        return View<T, dim_t>::accessor_reference_type(m_ptr, m_strides.get())(i0, i1);
+        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        return accessor_t(get(), m_strides.get())(i0, i1);
     }
 
     template<typename T>
@@ -188,7 +190,8 @@ namespace noa {
                    static_cast<dim_t>(i0) < m_shape[0] &&
                    static_cast<dim_t>(i1) < m_shape[1] &&
                    static_cast<dim_t>(i2) < m_shape[2]);
-        return View<T, dim_t>::accessor_reference_type(m_ptr, m_strides.get())(i0, i1, i2);
+        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        return accessor_t(get(), m_strides.get())(i0, i1, i2);
     }
 
     template<typename T>
@@ -199,7 +202,8 @@ namespace noa {
                    static_cast<dim_t>(i1) < m_shape[1] &&
                    static_cast<dim_t>(i2) < m_shape[2] &&
                    static_cast<dim_t>(i3) < m_shape[3]);
-        return View<T, dim_t>::accessor_reference_type(m_ptr, m_strides.get())(i0, i1, i2, i3);
+        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        return accessor_t(get(), m_strides.get())(i0, i1, i2, i3);
     }
 
     template<typename T>
