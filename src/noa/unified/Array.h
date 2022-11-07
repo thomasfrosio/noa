@@ -74,7 +74,7 @@ namespace noa {
     class Array {
     public: // typedefs
         using value_type = T;
-        using ptr_type = T*;
+        using pointer_type = T*;
         using reference_type = T&;
         using shared_type = std::shared_ptr<T[]>;
 

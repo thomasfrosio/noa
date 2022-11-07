@@ -61,6 +61,12 @@ namespace noa::cuda::memory {
             return tex_desc;
         }
 
+        static cudaArray* array(cudaTextureObject_t texture) {
+            const auto array_resource = resource(texture);
+            NOA_CHECK(array_resource.resType == cudaResourceTypeArray, "The texture is not bound to a CUDA array");
+            return array_resource.res.array.array;
+        }
+
         // Whether texture is using normalized coordinates.
         static bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
             return description(texture).normalizedCoords;
@@ -94,6 +100,15 @@ namespace noa::cuda::memory {
                 default:
                     NOA_THROW("{} is not supported", interp);
             }
+
+            // Ensure BorderMode and InterpMode are compatible
+            // with cudaTextureAddressMode and cudaTextureFilterMode.
+            static_assert(BORDER_PERIODIC == static_cast<int>(cudaAddressModeWrap));
+            static_assert(BORDER_CLAMP == static_cast<int>(cudaAddressModeClamp));
+            static_assert(BORDER_MIRROR == static_cast<int>(cudaAddressModeMirror));
+            static_assert(BORDER_ZERO == static_cast<int>(cudaAddressModeBorder));
+            static_assert(INTERP_NEAREST == static_cast<int>(cudaFilterModePoint));
+            static_assert(INTERP_LINEAR == static_cast<int>(cudaFilterModeLinear));
 
             // BorderMode is compatible with cudaTextureAddressMode
             if (border == BORDER_PERIODIC || border == BORDER_MIRROR) {
@@ -293,7 +308,7 @@ namespace noa::cuda::memory {
         // Returns a reference of the shared object.
         [[nodiscard]] constexpr const std::shared_ptr<cudaTextureObject_t>& share() const noexcept { return m_texture; }
 
-        // Whether or not the object manages a texture.
+        // Whether the object manages a texture.
         [[nodiscard]] bool empty() const noexcept { return m_texture == nullptr; }
         [[nodiscard]] explicit operator bool() const noexcept { return !empty(); }
 

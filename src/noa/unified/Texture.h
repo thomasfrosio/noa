@@ -40,12 +40,12 @@ namespace noa {
     ///          it allocates and initializes a proper GPU texture. These are usually hidden from the unified API
     ///          and handled by the GPU backend, but if multiple calls with the same input or even the same input
     ///          type and shape, it is more efficient to reuse the texture than to recreate it every time.
-    /// \tparam T float, double, cfloat_t or cdouble_t.
-    template<typename T>
+    /// \tparam value_t float, double, cfloat_t or cdouble_t.
+    template<typename value_t>
     class Texture {
     public:
-        using value_t = T;
-        static_assert(traits::is_any_v<T, float, double, cfloat_t, cdouble_t>);
+        using value_type = value_t;
+        static_assert(traits::is_any_v<value_type, float, double, cfloat_t, cdouble_t>);
 
     public:
         /// Creates an empty texture.
@@ -58,25 +58,28 @@ namespace noa {
         /// \param border_mode      Border mode.
         /// \param cvalue           Constant value to use for out-of-bounds coordinates.
         ///                         Only used if \p border_mode is BORDER_VALUE.
-        /// \param prefilter        Whether or not the input \p array should be prefiltered first.
+        /// \param layered          Whether the GPU texture should be a 2D layered texture.
+        ///                         The number of layers is equal to the batch dimension of \p array.
+        ///                         This is ignored for CPU textures, since they are always considered layered.
+        /// \param prefilter        Whether the input \p array should be prefiltered first.
         ///                         If true and if \p interp_mode is INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST,
         ///                         the input is prefiltered in-place.
         ///
-        /// \note If \p device_target is a GPU:
-        ///         - Double precision is not supported.
+        /// \note If \p device_target is a GPU, a CUDA array is allocated with the same type and shape as \p array,
+        ///       a texture is attached to the new array's memory and the new CUDA array is initialized with
+        ///       the values from \p array. Limitations:\n
+        ///         - Double precision is not supported.\n
         ///         - \p array should be in the rightmost order and its depth and width dimensions should be contiguous.
-        ///         - \p array can be on any device, including the CPU.
-        ///         - \p array cannot be batched.
-        ///         - \p border_mode should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+        ///           In other words, \p array should be contiguous or have a "pitch" as defined in CUDA.\n
+        ///         - \p array can be on any device, including the CPU.\n
+        ///         - If \p layered is false or if \p array is a 3D array, \p array cannot be batched.\n
+        ///         - \p border_mode should be BORDER_{ZERO|CLAMP|PERIODIC|MIRROR}.\n
         ///         - INTERP_{NEAREST|LINEAR_FAST} are the only modes supporting BORDER_{MIRROR|PERIODIC}.
-        ///         - A CUDA array is allocated with the same type and shape as \p array, a texture is attached to
-        ///           the new array's memory and the new CUDA array is initialized with the values from \p array.
-        ///       If \p device_target is a CPU:
-        ///         - \p array should be on the CPU.
-        ///         - No computation is performed (other the the optional pre-filtering)
-        ///           and the texture simply points to \p array.
-        Texture(const Array<T>& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
-                T cvalue = T{0}, bool prefilter = true);
+        /// \note If \p device_target is a CPU, no computation is performed (other the the optional pre-filtering)
+        ///       and the texture simply points to \p array. Limitations:\n
+        ///         - \p array should be on the CPU.\n
+        Texture(const Array<value_type>& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
+                value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true);
 
         /// Creates a texture.
         /// \param shape            BDHW shape of the new texture.
@@ -85,20 +88,23 @@ namespace noa {
         /// \param border_mode      Border mode.
         /// \param cvalue           Constant value to use for out-of-bounds coordinates.
         ///                         Only used if \p border_mode is BORDER_VALUE.
+        /// \param layered          Whether the GPU texture should be a 2D layered texture.
+        ///                         The number of layers is equal to the batch dimension of \p array.
+        ///                         This is ignored for CPU textures, since they are always considered layered.
         ///
-        /// \note If \p device_target is a GPU:
-        ///         - Double precision is not supported.
-        ///         - \p shape cannot be batched.
-        ///         - \p border_mode should be BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
+        /// \note If \p device_target is a GPU, a CUDA array is allocated of \p T type and \p shape,
+        ///       a texture is attached to the new array's memory. The new CUDA array is left
+        ///       uninitialized (see update()). Limitations:\n
+        ///         - Double precision is not supported.\n
+        ///         - If \p layered is false or if \p shape describes a 3D array, \p shape cannot be batched.\n
+        ///         - \p border_mode should be BORDER_{ZERO|CLAMP|PERIODIC|MIRROR}.\n
         ///         - INTERP_{NEAREST|LINEAR_FAST} are the only modes supporting BORDER_{MIRROR|PERIODIC}.
-        ///         - A CUDA array is allocated of \p T type and \p shape, a texture is attached to the new array's
-        ///           memory. The new CUDA array is left uninitialized (see update()).
-        ///       If \p device_target is a CPU:
-        ///         - No computation is performed. The texture is non-empty and valid, but the underlying managed
-        ///           data (i.e. the cpu::Texture) points to a null pointer. Use update() to set the texture to
-        ///           a valid memory region.
+        ///
+        /// \note If \p device_target is a CPU, no computation is performed. The texture is non-empty and valid,
+        ///       but the underlying managed data (i.e. the cpu::Texture) points to a null pointer. Use update()
+        ///       to set the texture to a valid memory region.
         Texture(dim4_t shape, Device device_target, InterpMode interp_mode, BorderMode border_mode,
-                T cvalue = T{0});
+                value_type cvalue = value_type{0}, bool layered = false);
 
     public: // Getters
         /// Returns the options used to create the array.
@@ -125,21 +131,22 @@ namespace noa {
 
         /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] cpu::Texture<T>& cpu();
-        [[nodiscard]] const cpu::Texture<T>& cpu() const;
+        [[nodiscard]] cpu::Texture<value_type>& cpu();
+        [[nodiscard]] const cpu::Texture<value_type>& cpu() const;
 
         /// Gets the underlying texture, assuming it is a GPU texture (i.e. device is GPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] gpu::Texture<T>& gpu();
-        [[nodiscard]] const gpu::Texture<T>& gpu() const;
+        [[nodiscard]] gpu::Texture<value_type>& gpu();
+        [[nodiscard]] const gpu::Texture<value_type>& gpu() const;
 
         /// Gets the underlying texture, assuming it is a CUDA texture (i.e. device is a CUDA-capable GPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] cuda::Texture<T>& cuda();
-        [[nodiscard]] const cuda::Texture<T>& cuda() const;
+        [[nodiscard]] cuda::Texture<value_type>& cuda();
+        [[nodiscard]] const cuda::Texture<value_type>& cuda() const;
 
         [[nodiscard]] InterpMode interp() const noexcept;
         [[nodiscard]] BorderMode border() const noexcept;
+        [[nodiscard]] bool layered() const;
 
     public:
         /// Releases the array. *this is left empty.
@@ -149,21 +156,20 @@ namespace noa {
         /// Updates the texture values with \p array.
         /// \param[in,out] array    Array to copy into the texture.
         /// \param prefilter        Whether the input \p array should be prefiltered first.
-        ///                         If true and if the texture uses INTERP_CUBIC_BSPLINE or INTERP_CUBIC_BSPLINE_FAST,
+        ///                         If true and if the texture uses INTERP_CUBIC_BSPLINE(_FAST),
         ///                         the input is prefiltered in-place.
-        /// \note \p array should have the same shape as the texture.
-        ///       Also, with GPU textures:
+        /// \note With GPU textures, \p array should have the same shape as the texture and
+        ///       a deep copy is performed from \p array to the managed texture data.
+        ///       Limitations:
         ///         - \p array should be in the rightmost order and its depth and width dimensions should be contiguous.
-        ///         - \p array can be on any device, including the CPU.
-        ///         - A deep copy is performed from \p array to the managed texture data.
-        ///       With CPU textures:
-        ///         - \p array should be on the CPU.
-        ///         - No computation is performed (other the the optional pre-filtering)
-        ///           and the texture simply points to \p array.
-        void update(const Array<T>& array, bool prefilter = true);
+        ///           In other words, \p array should be contiguous or have a "pitch" as defined in CUDA.\n
+        ///         - \p array can be on any device, including the CPU.\n
+        /// \note With CPU textures, no computation is performed (other than the optional pre-filtering)
+        ///       and the texture pointer is simply updated to point to \p array, which should be a CPU array.
+        void update(const Array<value_type>& array, bool prefilter = true);
 
     private:
-        std::variant<std::monostate, cpu::Texture<T>, gpu::Texture<T>> m_texture;
+        std::variant<std::monostate, cpu::Texture<value_type>, gpu::Texture<value_type>> m_texture;
         dim4_t m_shape;
         ArrayOption m_options;
         InterpMode m_interp{};

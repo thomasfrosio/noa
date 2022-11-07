@@ -3,10 +3,10 @@
 #endif
 
 namespace noa {
-    template<typename T>
-    Texture<T>::Texture(const Array<T>& array, Device device_target,
-                        InterpMode interp_mode, BorderMode border_mode,
-                        T cvalue, bool prefilter)
+    template<typename value_t>
+    Texture<value_t>::Texture(const Array<value_t>& array, Device device_target,
+                              InterpMode interp_mode, BorderMode border_mode,
+                              value_t cvalue, bool layered, bool prefilter)
             : m_shape(array.shape()), m_interp(interp_mode), m_border(border_mode) {
 
         if (prefilter &&
@@ -19,33 +19,30 @@ namespace noa {
             NOA_CHECK(array.device() == device_target,
                       "CPU textures can only be constructed/updated from CPU arrays, but got array device {}",
                       array.device());
-            m_texture = cpu::Texture<T>{array.strides(), array.share(), cvalue};
+            m_texture = cpu::Texture<value_t>{array.strides(), array.share(), cvalue};
             m_options = array.options();
 
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
+            if constexpr (sizeof(traits::value_type_t<value_t>) >= 8) {
                 NOA_THROW("Double-precision textures are not supported by the CUDA backend");
             } else {
                 NOA_CHECK(!array.empty(), "Empty array detected");
-                NOA_CHECK(array.shape().ndim() <= 3, "CUDA textures cannot be batched");
-                NOA_CHECK(indexing::isRightmost(array.strides()) &&
-                          indexing::isContiguous(array.strides(), array.shape())[1] && array.strides()[3] == 1,
-                          "The depth and width dimension of the array should be contiguous, but got shape {} "
-                          "and strides {}", array.shape(), array.strides());
 
                 using namespace noa::cuda::memory;
                 const DeviceGuard guard(device_target);
-                const dim3_t shape_3d(array.shape().get(1));
 
-                cuda::Texture<T> texture{};
-                texture.array = PtrArray<T>::alloc(shape_3d);
-                texture.texture = PtrTexture::alloc(texture.array.get(), interp_mode, border_mode);
+                cuda::Texture<value_t> texture{
+                        PtrArray<value_t>::alloc(array.shape(), layered ? cudaArrayLayered : cudaArrayDefault),
+                        PtrTexture::alloc(texture.array.get(), interp_mode, border_mode),
+                        layered
+                };
 
                 Stream& stream = Stream::current(device_target);
                 if (device_target != array.device())
                     array.eval();
-                cuda::memory::copy(array.share(), array.strides()[2], texture.array, shape_3d, stream.cuda());
+                cuda::memory::copy(array.share(), array.strides(), array.shape(),
+                                   texture.array, array.shape(), stream.cuda());
 
                 m_texture = texture;
                 m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
@@ -56,27 +53,28 @@ namespace noa {
         }
     }
 
-    template<typename T>
-    Texture<T>::Texture(dim4_t shape, Device device_target,
-                        InterpMode interp_mode, BorderMode border_mode,
-                        T cvalue)
+    template<typename value_t>
+    Texture<value_t>::Texture(dim4_t shape, Device device_target,
+                              InterpMode interp_mode, BorderMode border_mode,
+                              value_t cvalue, bool layered)
             : m_shape(shape), m_interp(interp_mode), m_border(border_mode) {
 
         if (device_target.cpu()) {
-            m_texture = cpu::Texture<T>{dim4_t{}, nullptr, cvalue};
+            m_texture = cpu::Texture<value_t>{dim4_t{}, nullptr, cvalue};
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
+            if constexpr (sizeof(traits::value_type_t<value_t>) >= 8) {
                 NOA_THROW("Double-precision textures are not supported by the CUDA backend");
             } else {
-                NOA_CHECK(shape.ndim() <= 3, "CUDA textures cannot be batched");
 
                 using namespace noa::cuda::memory;
                 const DeviceGuard guard(device_target);
 
-                cuda::Texture<T> texture{};
-                texture.array = PtrArray<T>::alloc(dim3_t(shape.get(1)));
-                texture.texture = PtrTexture::alloc(texture.array.get(), interp_mode, border_mode);
+                cuda::Texture<value_t> texture{
+                        PtrArray<value_t>::alloc(shape, layered ? cudaArrayLayered : cudaArrayDefault),
+                        PtrTexture::alloc(texture.array.get(), interp_mode, border_mode),
+                        layered
+                };
                 m_texture = texture;
                 m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
             }
@@ -86,131 +84,128 @@ namespace noa {
         }
     }
 
-    template<typename T>
-    constexpr ArrayOption Texture<T>::options() const noexcept { return m_options; }
+    template<typename value_t>
+    constexpr ArrayOption Texture<value_t>::options() const noexcept { return m_options; }
 
-    template<typename T>
-    constexpr Device Texture<T>::device() const noexcept { return m_options.device(); }
+    template<typename value_t>
+    constexpr Device Texture<value_t>::device() const noexcept { return m_options.device(); }
 
-    template<typename T>
-    constexpr Allocator Texture<T>::allocator() const noexcept { return m_options.allocator(); }
+    template<typename value_t>
+    constexpr Allocator Texture<value_t>::allocator() const noexcept { return m_options.allocator(); }
 
-    template<typename T>
-    bool Texture<T>::empty() const noexcept {
+    template<typename value_t>
+    bool Texture<value_t>::empty() const noexcept {
         return std::holds_alternative<std::monostate>(m_texture);
     }
 
-    template<typename T>
-    const dim4_t& Texture<T>::shape() const noexcept {
+    template<typename value_t>
+    const dim4_t& Texture<value_t>::shape() const noexcept {
         return m_shape;
     }
 
-    template<typename T>
-    const dim4_t Texture<T>::strides() const {
+    template<typename value_t>
+    const dim4_t Texture<value_t>::strides() const {
         if (device().cpu())
             return cpu().strides;
         else
             return m_shape.strides<'C'>();
     }
 
-    template<typename T>
+    template<typename value_t>
     template<char ORDER>
-    bool Texture<T>::contiguous() const noexcept {
+    bool Texture<value_t>::contiguous() const noexcept {
         if (device().cpu())
             return indexing::areContiguous<ORDER>(cpu().strides, m_shape);
         else
             return ORDER == 'C' || ORDER == 'c';
     }
 
-    template<typename T>
-    cpu::Texture<T>& Texture<T>::cpu() {
-        if (!device().cpu())
-            NOA_THROW("Trying to retrieve at CPU texture from a GPU texture");
-
-        auto* ptr = std::get_if<cpu::Texture<T>>(&m_texture);
+    template<typename value_t>
+    cpu::Texture<value_t>& Texture<value_t>::cpu() {
+        auto* ptr = std::get_if<cpu::Texture<value_t>>(&m_texture);
         if (!ptr)
-            NOA_THROW("Texture is not initialized");
+            NOA_THROW("Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
         return *ptr;
     }
 
-    template<typename T>
-    const cpu::Texture<T>& Texture<T>::cpu() const {
-        if (!device().cpu())
-            NOA_THROW("Trying to retrieve at CPU texture from a GPU texture");
-
-        auto* ptr = std::get_if<cpu::Texture<T>>(&m_texture);
+    template<typename value_t>
+    const cpu::Texture<value_t>& Texture<value_t>::cpu() const {
+        auto* ptr = std::get_if<cpu::Texture<value_t>>(&m_texture);
         if (!ptr)
-            NOA_THROW("Texture is not initialized");
+            NOA_THROW("Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
         return *ptr;
     }
 
-    template<typename T>
-    gpu::Texture<T>& Texture<T>::gpu() {
+    template<typename value_t>
+    gpu::Texture<value_t>& Texture<value_t>::gpu() {
         #ifdef NOA_ENABLE_CUDA
-        return cuda();
+        return this->cuda();
         #else
         NOA_THROW("No GPU backend detected");
         #endif
     }
 
-    template<typename T>
-    const gpu::Texture<T>& Texture<T>::gpu() const {
+    template<typename value_t>
+    const gpu::Texture<value_t>& Texture<value_t>::gpu() const {
         #ifdef NOA_ENABLE_CUDA
-        return cuda();
+        return this->cuda();
         #else
         NOA_THROW("No GPU backend detected");
         #endif
     }
 
-    template<typename T>
-    cuda::Texture<T>& Texture<T>::cuda() {
-        if (!device().gpu())
-            NOA_THROW("Trying to retrieve at CUDA texture from a CPU texture");
-
+    template<typename value_t>
+    cuda::Texture<value_t>& Texture<value_t>::cuda() {
         #ifdef NOA_ENABLE_CUDA
-        auto* ptr = std::get_if<cuda::Texture<T>>(&m_texture);
+        auto* ptr = std::get_if<cuda::Texture<value_t>>(&m_texture);
         if (!ptr)
-            NOA_THROW("Texture is not initialized");
+            NOA_THROW("Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
         return *ptr;
         #else
         NOA_THROW("No GPU backend detected");
         #endif
     }
 
-    template<typename T>
-    const cuda::Texture<T>& Texture<T>::cuda() const {
-        if (!device().gpu())
-            NOA_THROW("Trying to retrieve at CUDA texture from a CPU texture");
-
+    template<typename value_t>
+    const cuda::Texture<value_t>& Texture<value_t>::cuda() const {
         #ifdef NOA_ENABLE_CUDA
-        auto* ptr = std::get_if<cuda::Texture<T>>(&m_texture);
+        auto* ptr = std::get_if<cuda::Texture<value_t>>(&m_texture);
         if (!ptr)
-            NOA_THROW("Texture is not initialized");
+            NOA_THROW("Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
         return *ptr;
         #else
         NOA_THROW("No GPU backend detected");
         #endif
     }
 
-    template<typename T>
-    InterpMode Texture<T>::interp() const noexcept {
+    template<typename value_t>
+    InterpMode Texture<value_t>::interp() const noexcept {
         return m_interp;
     }
 
-    template<typename T>
-    BorderMode Texture<T>::border() const noexcept {
+    template<typename value_t>
+    BorderMode Texture<value_t>::border() const noexcept {
         return m_border;
     }
 
-    template<typename T>
-    Texture<T> Texture<T>::release() noexcept {
-        return std::exchange(*this, Texture<T>{});
+    template<typename value_t>
+    bool Texture<value_t>::layered() const {
+        if (device().cpu())
+            return true;
+        else
+            return this->cuda().layered;
     }
 
-    template<typename T>
-    void Texture<T>::update(const Array<T>& array, bool prefilter) {
+    template<typename value_t>
+    Texture<value_t> Texture<value_t>::release() noexcept {
+        return std::exchange(*this, Texture<value_t>{});
+    }
+
+    template<typename value_t>
+    void Texture<value_t>::update(const Array<value_t>& array, bool prefilter) {
         NOA_CHECK(!empty(), "Trying to update an empty texture is not allowed. Create the texture first.");
-        NOA_CHECK(all(array.shape() == m_shape),
+        NOA_CHECK(!array.empty(), "Empty array detected");
+        NOA_CHECK(all(array.shape() == m_shape), // TODO Broadcast?
                   "The input array should have the same shape as the texture {}, but got {}", m_shape, array.shape());
 
         if (prefilter &&
@@ -224,27 +219,24 @@ namespace noa {
             NOA_CHECK(array.device() == device_target,
                       "CPU textures can only be constructed/updated from CPU arrays, but got array device {}",
                       array.device());
-            m_texture = cpu::Texture<T>{array.strides(), array.share()};
+            cpu::Texture<value_t>& cpu_texture = this->cpu();
+            cpu_texture.strides = array.strides();
+            cpu_texture.ptr = array.share();
             m_options = array.options();
 
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<T>) >= 8) {
+            if constexpr (sizeof(traits::value_type_t<value_t>) >= 8) {
                 NOA_THROW("Double-precision textures are not supported by the CUDA backend");
             } else {
-                NOA_CHECK(!array.empty(), "Empty array detected");
-                NOA_CHECK(indexing::isRightmost(array.strides()) &&
-                          indexing::isContiguous(array.strides(), array.shape())[1] && array.strides()[3] == 1,
-                          "The depth and width dimension of the array should be contiguous, but got shape {} "
-                          "and strides {}", array.shape(), array.strides());
-
                 if (device_target != array.device())
                     array.eval();
 
                 Stream& stream = Stream::current(device_target);
-                cuda::memory::copy(array.share(), array.strides()[2],
-                                   std::get<gpu::Texture<T>>(m_texture).array,
-                                   dim3_t(m_shape.get(1)), stream.cuda());
+                cuda::memory::copy(
+                        array.share(), array.strides(),
+                        this->cuda().array,
+                        m_shape, stream.cuda());
             }
             #else
             NOA_THROW("No GPU backend detected");

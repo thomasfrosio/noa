@@ -15,7 +15,7 @@ namespace {
     constexpr dim3 BLOCK_SIZE_2D(32, BLOCK_SIZE / 32);
     constexpr dim3 ELEMENTS_PER_THREAD_2D(1, 4);
     constexpr dim3 BLOCK_WORK_SIZE_2D(BLOCK_SIZE_2D.x * ELEMENTS_PER_THREAD_2D.x,
-    BLOCK_SIZE_2D.y * ELEMENTS_PER_THREAD_2D.y);
+                                      BLOCK_SIZE_2D.y * ELEMENTS_PER_THREAD_2D.y);
 
     template<typename T, int32_t VEC_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE)
