@@ -131,6 +131,14 @@ namespace noa {
         return v[0] && v[1];
     }
 
+    [[nodiscard]] NOA_FHD constexpr bool any(bool v) noexcept {
+        return v;
+    }
+
+    [[nodiscard]] NOA_FHD constexpr bool all(bool v) noexcept {
+        return v;
+    }
+
     using bool2_t = Bool2;
 
     [[nodiscard]] NOA_IH constexpr std::array<bool, 2> toArray(Bool2 v) noexcept {

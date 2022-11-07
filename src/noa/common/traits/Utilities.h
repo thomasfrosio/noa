@@ -25,8 +25,8 @@ namespace noa::traits {
         template<typename T, typename = void> struct index_type { using type = T; };
         template<typename T> struct index_type<T, std::void_t<typename T::index_type>> { using type = typename T::index_type; };
 
-        template<typename T, typename = void> struct ptr_type { using type = T; };
-        template<typename T> struct ptr_type<T, std::void_t<typename T::ptr_type>> { using type = typename T::ptr_type; };
+        template<typename T, typename = void> struct pointer_type { using type = T; };
+        template<typename T> struct pointer_type<T, std::void_t<typename T::pointer_type>> { using type = typename T::pointer_type; };
 
         template<typename T, typename = void> struct shared_type { using type = T; };
         template<typename T> struct shared_type<T, std::void_t<typename T::shared_type>> { using type = typename T::shared_type; };
@@ -35,13 +35,13 @@ namespace noa::traits {
     template<typename T> struct value_type { using type = typename details::value_type<T>::type; };
     template<typename T> struct element_type { using type = typename details::element_type<T>::type; };
     template<typename T> struct index_type { using type = typename details::index_type<T>::type; };
-    template<typename T> struct ptr_type { using type = typename details::ptr_type<T>::type; };
+    template<typename T> struct pointer_type { using type = typename details::pointer_type<T>::type; };
     template<typename T> struct shared_type { using type = typename details::shared_type<T>::type; };
 
     template<typename T> using value_type_t = typename value_type<remove_ref_cv_t<T>>::type;
     template<typename T> using element_type_t = typename element_type<remove_ref_cv_t<T>>::type;
     template<typename T> using index_type_t = typename index_type<remove_ref_cv_t<T>>::type;
-    template<typename T> using ptr_type_t = typename ptr_type<remove_ref_cv_t<T>>::type;
+    template<typename T> using pointer_type_t = typename pointer_type<remove_ref_cv_t<T>>::type;
     template<typename T> using shared_type_t = typename shared_type<remove_ref_cv_t<T>>::type;
 }
 

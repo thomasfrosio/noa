@@ -27,7 +27,7 @@ namespace noa {
         using accessor_type = Accessor<T, 4, I>;
         using accessor_reference_type = AccessorReference<T, 4, I>;
 
-        using ptr_type = typename accessor_type::ptr_type;
+        using pointer_type = typename accessor_type::pointer_type;
         using value_type = typename accessor_type::value_type;
         using index_type = typename accessor_type::index_type;
         using index4_type = Int4<index_type>;
@@ -60,8 +60,8 @@ namespace noa {
 
     public: // Getters
         /// Returns the pointer to the data.
-        [[nodiscard]] NOA_HD constexpr ptr_type get() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HD constexpr ptr_type data() const noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_ptr; }
 
         /// Returns the BDHW shape of the array.
         [[nodiscard]] NOA_HD constexpr index4_type& shape() noexcept { return m_shape; }

@@ -59,6 +59,8 @@ namespace noa {
     using path_t = fs::path;
     using byte_t = std::byte;
 
+    struct empty_t {};
+
     using dim_t = size_t;
     using dim2_t = size2_t;
     using dim3_t = size3_t;
