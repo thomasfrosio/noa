@@ -59,8 +59,8 @@ namespace {
         const float start_radius = radius_range[0];
         const float step_angle = (angle_range[1] - angle_range[0]) / size[0];
         const float step_radius = log ?
-                                     math::log(radius_range[1] - radius_range[0]) / size[1] :
-                                     (radius_range[1] - radius_range[0]) / size[1];
+                                  math::log(radius_range[1] - radius_range[0]) / size[1] :
+                                  (radius_range[1] - radius_range[0]) / size[1];
 
         const auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(polar, polar_shape, T{0});
 

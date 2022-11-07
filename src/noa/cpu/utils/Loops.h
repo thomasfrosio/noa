@@ -17,119 +17,119 @@
 namespace noa::cpu::utils::details {
     constexpr int64_t IWISE_PARALLEL_THRESHOLD = 1'048'576; // 1024x1024
 
-    template<bool PARALLEL, typename dimension_t, typename operator_t>
-    void iwise4D(const Int4<dimension_t>& start,
-                 const Int4<dimension_t>& end,
+    template<bool PARALLEL, typename index_t, typename operator_t>
+    void iwise4D(const Int4<index_t>& start,
+                 const Int4<index_t>& end,
                  operator_t&& op,
                  int64_t threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(4) num_threads(threads) shared(start, end, op)
-            for (dimension_t i = start[0]; i < end[0]; ++i)
-                for (dimension_t j = start[1]; j < end[1]; ++j)
-                    for (dimension_t k = start[2]; k < end[2]; ++k)
-                        for (dimension_t l = start[3]; l < end[3]; ++l)
+            for (index_t i = start[0]; i < end[0]; ++i)
+                for (index_t j = start[1]; j < end[1]; ++j)
+                    for (index_t k = start[2]; k < end[2]; ++k)
+                        for (index_t l = start[3]; l < end[3]; ++l)
                             op(i, j, k, l);
         } else {
             (void) threads;
-            for (dimension_t i = start[0]; i < end[0]; ++i)
-                for (dimension_t j = start[1]; j < end[1]; ++j)
-                    for (dimension_t k = start[2]; k < end[2]; ++k)
-                        for (dimension_t l = start[3]; l < end[3]; ++l)
+            for (index_t i = start[0]; i < end[0]; ++i)
+                for (index_t j = start[1]; j < end[1]; ++j)
+                    for (index_t k = start[2]; k < end[2]; ++k)
+                        for (index_t l = start[3]; l < end[3]; ++l)
                             op(i, j, k, l);
         }
     }
 
-    template<bool PARALLEL, typename dimension_t, typename operator_t>
-    void iwise4D(const Int4<dimension_t>& shape,
+    template<bool PARALLEL, typename index_t, typename operator_t>
+    void iwise4D(const Int4<index_t>& shape,
                  operator_t&& op,
                  int64_t threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(4) num_threads(threads) shared(shape, op)
-            for (dimension_t i = 0; i < shape[0]; ++i)
-                for (dimension_t j = 0; j < shape[1]; ++j)
-                    for (dimension_t k = 0; k < shape[2]; ++k)
-                        for (dimension_t l = 0; l < shape[3]; ++l)
+            for (index_t i = 0; i < shape[0]; ++i)
+                for (index_t j = 0; j < shape[1]; ++j)
+                    for (index_t k = 0; k < shape[2]; ++k)
+                        for (index_t l = 0; l < shape[3]; ++l)
                             op(i, j, k, l);
         } else {
             (void) threads;
-            for (dimension_t i = 0; i < shape[0]; ++i)
-                for (dimension_t j = 0; j < shape[1]; ++j)
-                    for (dimension_t k = 0; k < shape[2]; ++k)
-                        for (dimension_t l = 0; l < shape[3]; ++l)
+            for (index_t i = 0; i < shape[0]; ++i)
+                for (index_t j = 0; j < shape[1]; ++j)
+                    for (index_t k = 0; k < shape[2]; ++k)
+                        for (index_t l = 0; l < shape[3]; ++l)
                             op(i, j, k, l);
         }
     }
 
-    template<bool PARALLEL, typename dimension_t, typename operator_t>
-    void iwise3D(const Int3<dimension_t>& start,
-                 const Int3<dimension_t>& end,
+    template<bool PARALLEL, typename index_t, typename operator_t>
+    void iwise3D(const Int3<index_t>& start,
+                 const Int3<index_t>& end,
                  operator_t&& op,
                  int64_t threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(3) num_threads(threads) shared(start, end, op)
-            for (dimension_t i = start[0]; i < end[0]; ++i)
-                for (dimension_t j = start[1]; j < end[1]; ++j)
-                    for (dimension_t k = start[2]; k < end[2]; ++k)
+            for (index_t i = start[0]; i < end[0]; ++i)
+                for (index_t j = start[1]; j < end[1]; ++j)
+                    for (index_t k = start[2]; k < end[2]; ++k)
                         op(i, j, k);
         } else {
             (void) threads;
-            for (dimension_t i = start[0]; i < end[0]; ++i)
-                for (dimension_t j = start[1]; j < end[1]; ++j)
-                    for (dimension_t k = start[2]; k < end[2]; ++k)
+            for (index_t i = start[0]; i < end[0]; ++i)
+                for (index_t j = start[1]; j < end[1]; ++j)
+                    for (index_t k = start[2]; k < end[2]; ++k)
                         op(i, j, k);
         }
     }
 
-    template<bool PARALLEL, typename dimension_t, typename operator_t>
-    void iwise3D(const Int3<dimension_t>& shape,
+    template<bool PARALLEL, typename index_t, typename operator_t>
+    void iwise3D(const Int3<index_t>& shape,
                  operator_t&& op,
                  int64_t threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(3) num_threads(threads) shared(shape, op)
-            for (dimension_t i = 0; i < shape[0]; ++i)
-                for (dimension_t j = 0; j < shape[1]; ++j)
-                    for (dimension_t k = 0; k < shape[2]; ++k)
+            for (index_t i = 0; i < shape[0]; ++i)
+                for (index_t j = 0; j < shape[1]; ++j)
+                    for (index_t k = 0; k < shape[2]; ++k)
                         op(i, j, k);
         } else {
             (void) threads;
-            for (dimension_t i = 0; i < shape[0]; ++i)
-                for (dimension_t j = 0; j < shape[1]; ++j)
-                    for (dimension_t k = 0; k < shape[2]; ++k)
+            for (index_t i = 0; i < shape[0]; ++i)
+                for (index_t j = 0; j < shape[1]; ++j)
+                    for (index_t k = 0; k < shape[2]; ++k)
                         op(i, j, k);
         }
     }
 
-    template<bool PARALLEL, typename dimension_t, typename operator_t>
-    void iwise2D(const Int2<dimension_t>& start,
-                 const Int2<dimension_t>& end,
+    template<bool PARALLEL, typename index_t, typename operator_t>
+    void iwise2D(const Int2<index_t>& start,
+                 const Int2<index_t>& end,
                  operator_t&& op,
                  int64_t threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(2) num_threads(threads) shared(start, end, op)
-            for (dimension_t i = start[0]; i < end[0]; ++i)
-                for (dimension_t j = start[1]; j < end[1]; ++j)
+            for (index_t i = start[0]; i < end[0]; ++i)
+                for (index_t j = start[1]; j < end[1]; ++j)
                     op(i, j);
         } else {
             (void) threads;
-            for (dimension_t i = start[0]; i < end[0]; ++i)
-                for (dimension_t j = start[1]; j < end[1]; ++j)
+            for (index_t i = start[0]; i < end[0]; ++i)
+                for (index_t j = start[1]; j < end[1]; ++j)
                     op(i, j);
         }
     }
 
-    template<bool PARALLEL, typename dimension_t, typename operator_t>
-    void iwise2D(const Int2<dimension_t>& shape,
+    template<bool PARALLEL, typename index_t, typename operator_t>
+    void iwise2D(const Int2<index_t>& shape,
                  operator_t&& op,
                  int64_t threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(2) num_threads(threads) shared(shape, op)
-            for (dimension_t i = 0; i < shape[0]; ++i)
-                for (dimension_t j = 0; j < shape[1]; ++j)
+            for (index_t i = 0; i < shape[0]; ++i)
+                for (index_t j = 0; j < shape[1]; ++j)
                     op(i, j);
         } else {
             (void) threads;
-            for (dimension_t i = 0; i < shape[0]; ++i)
-                for (dimension_t j = 0; j < shape[1]; ++j)
+            for (index_t i = 0; i < shape[0]; ++i)
+                for (index_t j = 0; j < shape[1]; ++j)
                     op(i, j);
         }
     }
@@ -142,10 +142,10 @@ namespace noa::cpu::utils {
     // should ensure there's no data race. Furthermore, in the multithreading case, the operator is copied to every
     // thread, which can add a big performance cost if the operator has expensive copies.
 
-    template<typename dimension_t, typename operator_t, typename int_t = int64_t,
+    template<typename index_t, typename operator_t, typename int_t = int64_t,
              typename = std::enable_if_t<std::is_integral_v<int_t>>>
-    void iwise4D(const Int4<dimension_t>& start,
-                 const Int4<dimension_t>& end,
+    void iwise4D(const Int4<index_t>& start,
+                 const Int4<index_t>& end,
                  operator_t&& op,
                  int_t threads = int_t{1}) {
         const int64_t elements = (long4_t(end) - long4_t(start)).elements();
@@ -156,9 +156,9 @@ namespace noa::cpu::utils {
             details::iwise4D<true>(start, end, std::forward<operator_t>(op), threads_);
     }
 
-    template<typename dimension_t, typename operator_t, typename int_t = int64_t,
+    template<typename index_t, typename operator_t, typename int_t = int64_t,
              typename = std::enable_if_t<std::is_integral_v<int_t>>>
-    void iwise4D(const Int4<dimension_t>& shape,
+    void iwise4D(const Int4<index_t>& shape,
                  operator_t&& op,
                  int_t threads = int_t{1}) {
         const int64_t elements = long4_t(shape).elements();
@@ -169,10 +169,10 @@ namespace noa::cpu::utils {
             details::iwise4D<true>(shape, std::forward<operator_t>(op), threads_);
     }
 
-    template<typename dimension_t, typename operator_t, typename int_t = int64_t,
+    template<typename index_t, typename operator_t, typename int_t = int64_t,
              typename = std::enable_if_t<std::is_integral_v<int_t>>>
-    void iwise3D(const Int3<dimension_t>& start,
-                 const Int3<dimension_t>& end,
+    void iwise3D(const Int3<index_t>& start,
+                 const Int3<index_t>& end,
                  operator_t&& op,
                  int_t threads = int_t{1}) {
         const int64_t elements = (long3_t(end) - long3_t(start)).elements();
@@ -183,23 +183,23 @@ namespace noa::cpu::utils {
             details::iwise3D<true>(start, end, std::forward<operator_t>(op), threads_);
     }
 
-    template<typename dimension_t, typename operator_t, typename int_t = int64_t,
+    template<typename index_t, typename operator_t, typename int_t = int64_t,
              typename = std::enable_if_t<std::is_integral_v<int_t>>>
-    void iwise3D(const Int3<dimension_t>& shape,
+    void iwise3D(const Int3<index_t>& shape,
                  operator_t&& op,
                  int_t threads = int_t{1}) {
         const int64_t elements = long3_t(shape).elements();
         const int64_t threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<int64_t>(threads);
         if (threads_ <= 1)
-            details::iwise3D<false>(shape, std::forward<operator_t>(op), threads);
+            details::iwise3D<false>(shape, std::forward<operator_t>(op), threads_);
         else
-            details::iwise3D<true>(shape, std::forward<operator_t>(op), threads);
+            details::iwise3D<true>(shape, std::forward<operator_t>(op), threads_);
     }
 
-    template<typename dimension_t, typename operator_t, typename int_t = int64_t,
+    template<typename index_t, typename operator_t, typename int_t = int64_t,
              typename = std::enable_if_t<std::is_integral_v<int_t>>>
-    void iwise2D(const Int2<dimension_t>& start,
-                 const Int2<dimension_t>& end,
+    void iwise2D(const Int2<index_t>& start,
+                 const Int2<index_t>& end,
                  operator_t&& op,
                  int_t threads = int_t{1}) {
         const int64_t elements = (long2_t(end) - long2_t(start)).elements();
@@ -210,9 +210,9 @@ namespace noa::cpu::utils {
             details::iwise2D<true>(start, end, std::forward<operator_t>(op), threads_);
     }
 
-    template<typename dimension_t, typename operator_t, typename int_t = int64_t,
+    template<typename index_t, typename operator_t, typename int_t = int64_t,
              typename = std::enable_if_t<std::is_integral_v<int_t>>>
-    void iwise2D(const Int2<dimension_t>& shape,
+    void iwise2D(const Int2<index_t>& shape,
                  operator_t&& op,
                  int_t threads = int_t{1}) {
         const int64_t elements = long2_t(shape).elements();

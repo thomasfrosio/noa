@@ -48,8 +48,8 @@ namespace noa::cuda::util::ewise::details {
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::ptr_type;
-            using optr_t = typename decltype(output)::ptr_type;
+            using lptr_t = typename decltype(lhs)::pointer_type;
+            using optr_t = typename decltype(output)::pointer_type;
             lptr_t lhs_ptr = lhs_.get() + base;
             optr_t out_ptr = out_.get() + base;
 
@@ -129,9 +129,9 @@ namespace noa::cuda::util::ewise::details {
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && mhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::ptr_type;
-            using mptr_t = typename decltype(mhs)::ptr_type;
-            using optr_t = typename decltype(out)::ptr_type;
+            using lptr_t = typename decltype(lhs)::pointer_type;
+            using mptr_t = typename decltype(mhs)::pointer_type;
+            using optr_t = typename decltype(out)::pointer_type;
             lptr_t lhs_ptr = lhs_.get() + base;
             mptr_t mhs_ptr = mhs_.get() + base;
             optr_t out_ptr = out_.get() + base;
@@ -216,9 +216,9 @@ namespace noa::cuda::util::ewise::details {
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && rhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::ptr_type;
-            using rptr_t = typename decltype(rhs)::ptr_type;
-            using optr_t = typename decltype(out)::ptr_type;
+            using lptr_t = typename decltype(lhs)::pointer_type;
+            using rptr_t = typename decltype(rhs)::pointer_type;
+            using optr_t = typename decltype(out)::pointer_type;
             lptr_t lhs_ptr = lhs_.get() + base;
             rptr_t rhs_ptr = rhs_.get() + base;
             optr_t out_ptr = out_.get() + base;
@@ -305,10 +305,10 @@ namespace noa::cuda::util::ewise::details {
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && mhs_.stride(0) == 1 &&
                        rhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::ptr_type;
-            using mptr_t = typename decltype(mhs)::ptr_type;
-            using rptr_t = typename decltype(rhs)::ptr_type;
-            using optr_t = typename decltype(out)::ptr_type;
+            using lptr_t = typename decltype(lhs)::pointer_type;
+            using mptr_t = typename decltype(mhs)::pointer_type;
+            using rptr_t = typename decltype(rhs)::pointer_type;
+            using optr_t = typename decltype(out)::pointer_type;
             lptr_t lhs_ptr = lhs_.get() + base;
             mptr_t mhs_ptr = mhs_.get() + base;
             rptr_t rhs_ptr = rhs_.get() + base;

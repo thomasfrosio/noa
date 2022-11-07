@@ -45,8 +45,8 @@ namespace noa::cuda::util::ewise::details {
             }
         } else { // assume contiguous
             NOA_ASSERT(input_.stride(0) == 1 && output_.stride(0) == 1);
-            using iptr_t = typename decltype(input)::ptr_type;
-            using optr_t = typename decltype(output)::ptr_type;
+            using iptr_t = typename decltype(input)::pointer_type;
+            using optr_t = typename decltype(output)::pointer_type;
             iptr_t input_ptr = input_.get() + base;
             optr_t output_ptr = output_.get() + base;
 
