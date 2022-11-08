@@ -18,6 +18,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/util/EwiseTrinary.cuh
         gpu/cuda/util/EwiseUnary.cuh
         gpu/cuda/util/Find.cuh
+        gpu/cuda/util/Iwise.cuh
         gpu/cuda/util/Pointers.h
         gpu/cuda/util/ReduceUnary.cuh
         gpu/cuda/util/ReduceBinary.cuh
@@ -72,16 +73,13 @@ set(NOA_CUDA_HEADERS
         # noa::cuda::geometry
         gpu/cuda/geometry/fft/Polar.h
         gpu/cuda/geometry/fft/Project.h
-        gpu/cuda/geometry/fft/Symmetry.h
         gpu/cuda/geometry/fft/Transform.h
-        gpu/cuda/geometry/Interpolate.h
         gpu/cuda/geometry/Interpolator.h
         gpu/cuda/geometry/Polar.h
         gpu/cuda/geometry/Prefilter.h
         gpu/cuda/geometry/Rotate.h
         gpu/cuda/geometry/Scale.h
         gpu/cuda/geometry/Shift.h
-        gpu/cuda/geometry/Symmetry.h
         gpu/cuda/geometry/Transform.h
 
         )
@@ -142,19 +140,11 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/geometry/fft/Polar.cu
         gpu/cuda/geometry/fft/Project.cu
         gpu/cuda/geometry/fft/Transform2D.cu
-        gpu/cuda/geometry/fft/Transform2DSymmetry.cu
         gpu/cuda/geometry/fft/Transform3D.cu
-        gpu/cuda/geometry/fft/Transform3DSymmetry.cu
         gpu/cuda/geometry/Polar.cu
         gpu/cuda/geometry/Prefilter.cu
-        gpu/cuda/geometry/Shift2D.cu
-        gpu/cuda/geometry/Shift3D.cu
-        gpu/cuda/geometry/Symmetry2D.cu
-        gpu/cuda/geometry/Symmetry3D.cu
         gpu/cuda/geometry/Transform2D.cu
         gpu/cuda/geometry/Transform3D.cu
-        gpu/cuda/geometry/TransformSymmetry2D.cu
-        gpu/cuda/geometry/TransformSymmetry3D.cu
 
         )
 

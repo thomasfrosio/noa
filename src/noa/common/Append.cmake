@@ -23,7 +23,10 @@ set(NOA_COMMON_HEADERS
         common/utils/Sort.h
         common/utils/Timer.h
 
-        common/geometry/Euler.cpp
+        common/geometry/details/FourierProjections.h
+        common/geometry/details/LinearTransformations2D.h
+        common/geometry/details/LinearTransformations3D.h
+        common/geometry/details/PolarTransformations.h
         common/geometry/Euler.h
         common/geometry/Interpolate.h
         common/geometry/Interpolator.h
@@ -85,6 +88,7 @@ set(NOA_COMMON_SOURCES
         common/Logger.cpp
         common/Session.cpp
 
+        common/geometry/Euler.cpp
         common/geometry/Symmetry.cpp
 
         common/io/IO.cpp

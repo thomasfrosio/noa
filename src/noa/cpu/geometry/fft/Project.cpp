@@ -1,843 +1,300 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Interpolator.h"
+#include "noa/common/geometry/details/FourierProjections.h"
 #include "noa/cpu/geometry/fft/Project.h"
+#include "noa/cpu/utils/Loops.h"
 
 namespace {
     using namespace ::noa;
 
-    // The input frequency should be in-bound, i.e. -size/2 <= frequency <= (size-1)/2
-    template<bool IS_CENTERED>
-    inline int64_t frequency2index_(int64_t frequency, int64_t size) {
-        if constexpr (IS_CENTERED) {
-            return frequency + size / 2;
-        } else {
-            return frequency < 0 ? frequency + size : frequency;
-        }
-    }
-
-    template<bool IS_CENTERED>
-    inline int64_t index2frequency_(int64_t index, int64_t size) {
-        if constexpr (IS_CENTERED)
-            return index - size / 2;
-        else
-            return index < (size + 1) / 2 ? index : index - size;
-    }
-
     template<typename T>
-    inline void atomicAdd_(T& grid, T value) {
-        if constexpr (traits::is_complex_v<T>) {
-            #pragma omp atomic
-            grid[0] += value[0];
-            #pragma omp atomic
-            grid[1] += value[1];
-        } else {
-            #pragma omp atomic
-            grid += value;
-        }
-    }
-
-    // The gridding kernel is a tri-linear pulse. The total weight within the 2x2x2 cube is 1.
-    inline void setGriddingWeights_(long3_t base0, float3_t freq, float o_weights[2][2][2]) {
-        // So if the coordinate is centered in the bottom left corner of the cube (base0),
-        // i.e. its decimal is 0, the corresponding fraction for this element should be 1.
-        float3_t fraction[2];
-        fraction[1] = freq - float3_t(base0);
-        fraction[0] = 1.f - fraction[1];
-        for (dim_t w = 0; w < 2; ++w)
-            for (dim_t v = 0; v < 2; ++v)
-                for (dim_t u = 0; u < 2; ++u)
-                    o_weights[w][v][u] = fraction[w][0] * fraction[v][1] * fraction[u][2];
-    }
-
-    // Spread the value within a 2x2x2 centered on a particular frequency using linear interpolation.
-    // "frequency" is the frequency, in samples, centered on DC, with negative frequencies on the left.
-    template<bool IS_DST_CENTERED, typename T>
-    void addByGridding_(const AccessorRestrict<T, 3, dim_t>& grid, long3_t grid_shape, T data, float3_t frequency) {
-        using real_t = traits::value_type_t<T>;
-        const auto base0 = long3_t(math::floor(frequency));
-
-        float kernel[2][2][2]; // 2x2x2 tri-linear weights
-        setGriddingWeights_(base0, frequency, kernel);
-
-        for (int64_t w = 0; w < 2; ++w) {
-            for (int64_t v = 0; v < 2; ++v) {
-                for (int64_t u = 0; u < 2; ++u) {
-                    const int64_t idx_w = frequency2index_<IS_DST_CENTERED>(base0[0] + w, grid_shape[0]);
-                    const int64_t idx_v = frequency2index_<IS_DST_CENTERED>(base0[1] + v, grid_shape[1]);
-                    const int64_t idx_u = base0[2] + u;
-
-                    if (idx_w >= 0 && idx_w < grid_shape[0] &&
-                        idx_v >= 0 && idx_v < grid_shape[1] &&
-                        idx_u >= 0 && idx_u < grid_shape[2]) {
-                        const auto fraction = static_cast<real_t>(kernel[w][v][u]);
-                        atomicAdd_(grid(idx_w, idx_v, idx_u), data * fraction);
-                    }
-                }
-            }
-        }
-
-        // The gridding doesn't preserve the hermitian symmetry, so enforce it on the redundant X==0 ZY plane.
-        // So if a side of this plane was modified, add the conjugate at (x=0, -y, -z) with the same fraction.
-        if (base0[2] == 0) {
-            if constexpr (traits::is_complex_v<T>)
-                data.imag = -data.imag;
-            for (int64_t w = 0; w < 2; ++w) {
-                for (int64_t v = 0; v < 2; ++v) {
-                    const int64_t idx_w = frequency2index_<IS_DST_CENTERED>(-(base0[0] + w), grid_shape[0]);
-                    const int64_t idx_v = frequency2index_<IS_DST_CENTERED>(-(base0[1] + v), grid_shape[1]);
-
-                    if (idx_w >= 0 && idx_w < grid_shape[0] &&
-                        idx_v >= 0 && idx_v < grid_shape[1]) {
-                        const auto fraction = static_cast<real_t>(kernel[w][v][0]);
-                        atomicAdd_(grid(idx_w, idx_v), data * fraction);
-                    }
-                }
-            }
-        }
-    }
-
-    // Interpolates the value at a given frequency, in cycle per pixel.
-    template<typename interpolator_t>
-    inline auto interpolateSliceValue_(float2_t frequency, float2_t slice_shape, float center_y,
-                                       const interpolator_t& interpolator, int64_t batch) {
-        using data_t = typename interpolator_t::data_t;
-        using real_t = traits::value_type_t<data_t>;
-        constexpr bool IS_COMPLEX = traits::is_complex_v<data_t>;
-
-        // From the normalized frequency to the multidimensional index.
-        [[maybe_unused]] real_t conj = 1;
-        if (frequency[1] < 0) {
-            frequency = -frequency;
-            if constexpr (IS_COMPLEX)
-                conj = -1;
-        }
-        frequency *= slice_shape;
-        frequency[0] += center_y;
-
-        data_t value = interpolator(frequency, batch);
-        if constexpr (IS_COMPLEX)
-            value.imag *= conj;
-        return value;
-    }
-
-    // Interpolates the value at a given frequency, in cycle per pixel.
-    template<typename interpolator_t>
-    inline auto interpolateGridValue_(float3_t frequency, float3_t target_shape, float2_t grid_center_zy,
-                                      const interpolator_t& interpolator) {
-        using data_t = typename interpolator_t::data_t;
-        using real_t = traits::value_type_t<data_t>;
-        constexpr bool IS_COMPLEX = traits::is_complex_v<data_t>;
-
-        [[maybe_unused]] real_t conj = 1;
-        if (frequency[2] < 0) {
-            frequency = -frequency;
-            if constexpr(IS_COMPLEX)
-                conj = -1;
-        }
-        frequency *= target_shape;
-        frequency[0] += grid_center_zy[0];
-        frequency[1] += grid_center_zy[1];
-
-        data_t value = interpolator(frequency);
-        if constexpr(IS_COMPLEX)
-            value.imag *= conj;
-        return value;
-    }
-
-    // Transforms a 2D normalized frequency representing the slice to a 3D normalized frequency representing the grid.
-    // This is a forward transformation of the frequency, but because it is in Fourier-space, the real-space scaling
-    // is inverted.
-    template<bool APPLY_EWS, bool APPLY_SCALE, typename scale_t, typename rotate_t, typename index_t>
-    constexpr inline float3_t
-    transformSliceToGrid_(float2_t frequency,
-                          const scale_t& inv_scaling_matrices,
-                          const rotate_t& fwd_rotation_matrices,
-                          [[maybe_unused]] index_t index,
-                          [[maybe_unused]] float2_t inv_ews_diameter) {
-        if constexpr (APPLY_SCALE) {
-            // If we apply the EWS curvature, the scaling factors should be corrected before applying the curvature,
-            // and therefore before applying the rotation. That way, we use the correct frequencies to compute the
-            // EWS, e.g. resulting in a spherical EWS even under anisotropic magnification.
-            if constexpr (std::is_pointer_v<scale_t>) {
-                frequency = inv_scaling_matrices[index] * frequency;
-            } else {
-                frequency = inv_scaling_matrices * frequency;
-            }
-        }
-
-        // We use the Small Angle Approximation to compute the EWS curvature, so the frequency (u,v) is unchanged.
-        // TODO Look at the cisTEM implementation to remove this approximation? RELION shows that even
-        //      for low voltages and large boxes, it is probably not worth it though.
-        const float3_t freq_3d{APPLY_EWS ? math::sum(inv_ews_diameter * frequency * frequency) : 0,
-                               frequency[0],
-                               frequency[1]};
-
-        if constexpr (std::is_pointer_v<rotate_t>)
-            return fwd_rotation_matrices[index] * freq_3d;
-        else
-            return fwd_rotation_matrices * freq_3d;
-    }
-
-    // Same as above, but in the other direction.
-    template<bool APPLY_EWS, bool APPLY_SCALE, typename scale_t, typename rotate_t, typename index_t>
-    inline Pair<float, float2_t>
-    transformGridToSlice_(float3_t frequency,
-                          const scale_t& fwd_scaling_matrices,
-                          const rotate_t& inv_rotation_matrices,
-                          [[maybe_unused]] index_t index,
-                          [[maybe_unused]] float2_t inv_ews_diameter) {
-        if constexpr (std::is_pointer_v<rotate_t>)
-            frequency = inv_rotation_matrices[index] * frequency;
-        else
-            frequency = inv_rotation_matrices * frequency;
-
-        float2_t freq_2d{frequency[1], frequency[2]};
-        float freq_z = frequency[0];
-        if constexpr (APPLY_EWS)
-            freq_z -= math::sum(inv_ews_diameter * freq_2d * freq_2d);
-
-        if constexpr (APPLY_SCALE) {
-            // Same reason as for the forward transformation. Here the grid is correct, so rotate the EWS,
-            // then compute the curvature and only then we can scale the slice.
-            if constexpr (std::is_pointer_v<scale_t>) {
-                freq_2d = fwd_scaling_matrices[index] * freq_2d;
-            } else {
-                freq_2d = fwd_scaling_matrices * freq_2d;
-            }
-        }
-        return {freq_z, freq_2d};
-    }
-
-    // Z weighting for slice thickness.
-    // The total weight along a Z slab of a slice is not normalized to 1,
-    // because the projected data is supposed to be normalized by the project weights.
-    template<int i = 2>
-    float sliceZWeight(float freq_z, float freq_z_radius) {
-        // https://www.desmos.com/calculator/ulcxogyr72
-        freq_z = math::abs(freq_z) / freq_z_radius;
-        if constexpr (i == 1) {
-            return geometry::interpolate::lerp1D<float>(1, 0, freq_z);
-        } else if constexpr (i == 2) {
-            constexpr float PI = math::Constants<float>::PI;
-            return math::sinc(PI * freq_z);
-        } else if constexpr (i == 3) {
-            constexpr float PI_HALF = math::Constants<float>::PI / 2;
-            return math::cos(PI_HALF * freq_z);
-        }
-    }
-}
-
-namespace {
-    // Direct Fourier insertion, using data-driven interpolation:
-    // It is important to call this function twice, one for the data and one for the weights.
-    // The data should not be interpreted before normalizing with the weights.
-    template<bool IS_SRC_CENTERED, bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE,
-             typename T, typename S, typename R>
-    void fourierInsert_(AccessorRestrict<const T, 3, dim_t> slice, long3_t slice_shape,
-                        AccessorRestrict<T, 3, dim_t> grid, long3_t grid_shape,
-                        S inv_scaling_matrices, R fwd_rotation_matrices,
-                        float cutoff, long4_t target_shape, float2_t ews_radius, dim_t threads) {
-        using real_t = traits::value_type_t<T>;
-        const auto l_slice_shape = long2_t(slice_shape.get(1));
-        const auto f_slice_shape = float2_t(l_slice_shape / 2 * 2 + long2_t(l_slice_shape == 1));
-
-        // Use the grid shape as backup.
-        const auto l_target_shape = any(target_shape == 0) ? grid_shape : long3_t(target_shape.get(1));
-        const auto f_target_shape = float3_t(l_target_shape / 2 * 2 + long3_t(l_target_shape == 1));
-
-        // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
-        // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-        const float2_t ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : float2_t{};
-
-        cutoff = math::clamp(cutoff, 0.f, 0.5f);
-        cutoff *= cutoff;
-
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)                     \
-        shared(slice, slice_shape, grid, grid_shape, inv_scaling_matrices, fwd_rotation_matrices,   \
-               cutoff, ews_diam_inv, f_slice_shape, f_target_shape)
-
-        for (int64_t i = 0; i < slice_shape[0]; ++i) {
-            for (int64_t y = 0; y < slice_shape[1]; ++y) {
-                for (int64_t u = 0; u < slice_shape[2] / 2 + 1; ++u) { // x == u
-
-                    // We compute the forward transformation and use normalized frequencies.
-                    // The oversampling is implicitly handled when scaling back to the target shape.
-                    const int64_t v = index2frequency_<IS_SRC_CENTERED>(y, slice_shape[1]);
-                    const float2_t freq_2d = float2_t{v, u} / f_slice_shape;
-                    float3_t freq_3d = transformSliceToGrid_<APPLY_EWS, APPLY_SCALE>(
-                            freq_2d, inv_scaling_matrices, fwd_rotation_matrices, i, ews_diam_inv);
-
-                    // The frequency rate won't change from that point, so check for the cutoff.
-                    if (math::dot(freq_3d, freq_3d) > cutoff)
-                        continue;
-
-                    // Handle the non-redundancy in x.
-                    [[maybe_unused]] real_t conj = 1;
-                    if (freq_3d[2] < 0) {
-                        freq_3d = -freq_3d;
-                        if constexpr(traits::is_complex_v<T>)
-                            conj = -1;
-                    }
-
-                    // Scale back to the target shape.
-                    freq_3d *= f_target_shape;
-
-                    // At this point, we know we are going to use the slice value.
-                    T value = slice(i, y, u);
-                    if constexpr(traits::is_complex_v<T>)
-                        value.imag *= conj;
-
-                    addByGridding_<IS_DST_CENTERED>(grid, grid_shape, value, freq_3d);
-                }
-            }
-        }
-    }
-
-    // Direct Fourier insertion, but this time looping through the grid:
-    // In practice, it allows to give an explicit "thickness" to the central slices.
-    // One limitation is that it requires the slices to be centered.
-    template<bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE, typename T, typename S, typename R>
-    void fourierInsertThick_(AccessorRestrict<const T, 3, int64_t> slice, long3_t slice_shape,
-                             AccessorRestrict<T, 3, dim_t> grid, long3_t grid_shape,
-                             S fwd_scaling_matrices, R inv_rotation_matrices,
-                             float cutoff, long4_t target_shape, float2_t ews_radius,
-                             float slice_z_radius, dim_t threads) {
-        using real_t = traits::value_type_t<T>;
-        const auto count = slice_shape[0];
-        const auto l_shape = long2_t(slice_shape.get(1));
-        const auto f_slice_shape = float2_t(l_shape / 2 * 2 + long2_t(l_shape == 1));
-        const auto l_offset = slice_shape[1] / 2; // slice Y center
-        const auto f_offset = static_cast<float>(l_offset);
-
-        // Use the grid shape as backup.
-        const auto l_target_shape = any(target_shape == 0) ? grid_shape : long3_t(target_shape.get(1));
-        const auto f_target_shape = float3_t(l_target_shape / 2 * 2 + long3_t(l_target_shape == 1));
-
-        // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
-        // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-        const float2_t ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : float2_t{};
-
-        cutoff = math::clamp(cutoff, 0.f, 0.5f);
-        cutoff *= cutoff;
-
-        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(slice, l_shape.fft(), T{0});
-
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)     \
-        shared(grid, grid_shape, cutoff, slice_z_radius, f_offset, interpolator,    \
-               count, ews_diam_inv, f_slice_shape, f_target_shape,                  \
-               fwd_scaling_matrices, inv_rotation_matrices)
-
-        for (int64_t z = 0; z < grid_shape[0]; ++z) {
-            for (int64_t y = 0; y < grid_shape[1]; ++y) {
-                for (int64_t u = 0; u < grid_shape[2] / 2 + 1; ++u) {
-
-                    const int64_t w = index2frequency_<IS_DST_CENTERED>(z, grid_shape[0]);
-                    const int64_t v = index2frequency_<IS_DST_CENTERED>(y, grid_shape[1]);
-                    const auto orig_freq = float3_t{w, v, u} / f_target_shape;
-                    if (math::dot(orig_freq, orig_freq) > cutoff)
-                        continue;
-
-                    for (int64_t i = 0; i < count; ++i) {
-                        auto [freq_z, freq_2d] = transformGridToSlice_<APPLY_EWS, APPLY_SCALE>(
-                                orig_freq, fwd_scaling_matrices, inv_rotation_matrices, i, ews_diam_inv);
-
-                        // If voxel is not affected by the slice, skip.
-                        T value{0};
-                        if (freq_z <= slice_z_radius && freq_z >= -slice_z_radius) {
-                            value = interpolateSliceValue_(freq_2d, f_slice_shape, f_offset, interpolator, i);
-                            const auto weight = sliceZWeight(freq_z, slice_z_radius);
-                            value *= static_cast<real_t>(weight);
-                        }
-
-                        // The transformation preserves the hermitian symmetry, so there's nothing else to do.
-                        grid(z, y, u) += value;
-                    }
-                }
-            }
-        }
-    }
-
-    // The exact same transformation as fourierInsert_ is applied here, but instead of inserting the transformed
-    // slice(s) into the grid, the transformed slice(s) is extracted from the grid.
-    template<bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE, typename T, typename S, typename R>
-    void fourierExtract_(AccessorRestrict<const T, 3, int64_t> grid, long3_t grid_shape,
-                         AccessorRestrict<T, 3, dim_t> slice, long3_t slice_shape,
-                         S inv_scaling_matrices, R fwd_rotation_matrices,
-                         float cutoff, long4_t target_shape, float2_t ews_radius, dim_t threads) {
-        const auto l_shape = long2_t(slice_shape.get(1));
-        const auto f_slice_shape = float2_t(l_shape / 2 * 2 + long2_t(l_shape == 1));
-
-        // Use the grid shape as backup.
-        const auto target_shape_ = any(target_shape == 0) ? grid_shape : long3_t(target_shape.get(1));
-        const auto f_target_shape = float3_t(target_shape_ / 2 * 2 + long3_t(target_shape_ == 1));
-        const auto f_offset = float2_t(grid_shape[0] / 2, grid_shape[1] / 2); // grid ZY center
-
-        // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
-        // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-        const float2_t ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : float2_t{};
-
-        cutoff = math::clamp(cutoff, 0.f, 0.5f);
-        cutoff *= cutoff;
-
-        auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(grid, grid_shape.fft(), T{0});
-
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)                     \
-        shared(slice, slice_shape, grid, grid_shape, inv_scaling_matrices, fwd_rotation_matrices,   \
-               cutoff, ews_diam_inv, f_slice_shape, f_target_shape, f_offset, interpolator)
-
-        for (int64_t i = 0; i < slice_shape[0]; ++i) {
-            for (int64_t y = 0; y < slice_shape[1]; ++y) {
-                for (int64_t u = 0; u < slice_shape[2] / 2 + 1; ++u) { // x == u
-
-                    // Transform slice into the grid.
-                    const int64_t v = index2frequency_<IS_DST_CENTERED>(y, slice_shape[1]);
-                    const float2_t freq_2d = float2_t{v, u} / f_slice_shape;
-                    const float3_t freq_3d = transformSliceToGrid_<APPLY_EWS, APPLY_SCALE>(
-                            freq_2d, inv_scaling_matrices, fwd_rotation_matrices, i, ews_diam_inv);
-
-                    // Interpolate grid values at slice location.
-                    slice(i, y, u) = math::dot(freq_3d, freq_3d) > cutoff ?
-                                     T{0} :
-                                     interpolateGridValue_(freq_3d, f_target_shape, f_offset, interpolator);
-                }
-            }
-        }
-    }
-
-    template<bool IS_DST_CENTERED, bool APPLY_EWS, bool APPLY_SCALE,
-             typename T, typename S0, typename S1, typename R0, typename R1>
-    void fourierInsertExtract_(AccessorRestrict<const T, 3, int64_t> input_slices, long3_t input_shape,
-                               AccessorRestrict<T, 3, dim_t> output_slices, long3_t output_shape,
-                               const S0& insert_fwd_scaling_matrices, const R0& insert_inv_rotation_matrices,
-                               const S1& extract_inv_scaling_matrices, const R1& extract_fwd_rotation_matrices,
-                               float cutoff, float2_t ews_radius, float slice_z_radius, dim_t threads) {
-
-        using real_t = traits::value_type_t<T>;
-        const auto l_output_shape = long2_t(output_shape.get(1));
-        const auto f_output_shape = float2_t(l_output_shape / 2 * 2 + long2_t(l_output_shape == 1));
-        const auto l_input_shape = long2_t(input_shape.get(1));
-        const auto f_input_shape = float2_t(l_input_shape / 2 * 2 + long2_t(l_input_shape == 1));
-        const auto l_input_offset = l_input_shape[1] / 2; // slice Y center
-        const auto f_input_offset = static_cast<float>(l_input_offset);
-        const auto input_count = input_shape[0];
-
-        // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
-        // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-        const float2_t ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : float2_t{};
-
-        cutoff = math::clamp(cutoff, 0.f, 0.5f);
-        cutoff *= cutoff;
-
-        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
-                input_slices, l_input_shape.fft(), T{0});
-
-        #pragma omp parallel for collapse(3) default(none) num_threads(threads)                         \
-        shared(output_slices, output_shape, extract_inv_scaling_matrices, extract_fwd_rotation_matrices,\
-               insert_fwd_scaling_matrices, insert_inv_rotation_matrices, f_output_shape, ews_diam_inv, \
-               cutoff, input_count, slice_z_radius, f_input_shape, f_input_offset, interpolator)
-
-        for (int64_t oi = 0; oi < output_shape[0]; ++oi) {
-            for (int64_t y = 0; y < output_shape[1]; ++y) {
-                for (int64_t u = 0; u < output_shape[2] / 2 + 1; ++u) { // x == u
-
-                    // First, compute the 3D frequency of the current slice i to extract.
-                    const int64_t v = index2frequency_<IS_DST_CENTERED>(y, output_shape[1]);
-                    float2_t freq_2d = float2_t{v, u} / f_output_shape;
-                    float3_t freq_3d = transformSliceToGrid_<APPLY_EWS, true>(
-                            freq_2d, extract_inv_scaling_matrices, extract_fwd_rotation_matrices, oi, ews_diam_inv);
-
-                    if (math::dot(freq_3d, freq_3d) > cutoff) {
-                        output_slices(oi, y, u) = T{0};
-                        continue;
-                    }
-
-                    // Then, insert the input slices.
-                    for (int64_t ii = 0; ii < input_count; ++ii) {
-                        auto [freq_z, freq_2d_] = transformGridToSlice_<APPLY_EWS, APPLY_SCALE>(
-                                freq_3d, insert_fwd_scaling_matrices, insert_inv_rotation_matrices, ii, ews_diam_inv);
-
-                        // If voxel is not affected by the slice, skip.
-                        T value{0};
-                        if (freq_z <= slice_z_radius && freq_z >= -slice_z_radius) {
-                            value = interpolateSliceValue_(freq_2d, f_input_shape, f_input_offset, interpolator, ii);
-                            const auto weight = sliceZWeight(freq_z, slice_z_radius);
-                            value *= static_cast<real_t>(weight);
-                        }
-
-                        // The transformation preserves the hermitian symmetry, so there's nothing else to do.
-                        output_slices(oi, y, u) += value;
-                    }
-                }
-            }
-        }
-    }
-
-    template<bool POST_CORRECTION, typename T>
-    void correctGriddingSinc2_(Accessor<const T, 4, dim_t> input,
-                               Accessor<T, 4, dim_t> output,
-                               dim4_t shape, dim_t threads) {
-        constexpr float PI = math::Constants<float>::PI;
-        const long3_t l_shape(shape.get(1));
-        const float3_t f_shape(l_shape);
-        const float3_t half(f_shape / 2 * float3_t(l_shape != 1)); // if size == 1, half should be 0
-
-        #pragma omp parallel for collapse(4) num_threads(threads) default(none) \
-        shared(input, output, shape, f_shape, half)
-
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-
-                        float3_t dist{j, k, l};
-                        dist -= half;
-                        dist /= f_shape;
-
-                        const float radius = math::sqrt(math::dot(dist, dist));
-                        const float sinc = math::sinc(PI * radius);
-                        const T sinc2 = static_cast<T>(sinc * sinc); // > 0.05
-
-                        const T value = input(i, j, k, l);
-                        output(i, j, k, l) = POST_CORRECTION ? value / sinc2 : value * sinc2;
-                    }
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    auto matrixOrRawConstPtr(const T& v) {
+    auto matrixOrRawConstPtr_(const T& v) {
         if constexpr (traits::is_floatXX_v<T>) {
             return T(v);
         } else {
             using clean_t = traits::remove_ref_cv_t<T>;
-            using raw_const_ptr_t = const typename clean_t::element_type*;
+            using raw_const_ptr_t = const traits::element_type_t<clean_t>*;
             return static_cast<raw_const_ptr_t>(v.get());
         }
     }
 
-    template<typename matrix_wrapper_t, typename matrix_value_t>
-    auto inverseMatrices_(matrix_wrapper_t matrices, size_t count,
+    template<typename matrix_wrapper_t, typename matrix_value_t, typename int_t>
+    auto inverseMatrices_(matrix_wrapper_t matrices, int_t count,
                           std::unique_ptr<matrix_value_t[]>& buffer) {
         if constexpr (traits::is_floatXX_v<matrix_wrapper_t>) {
             return math::inverse(matrices);
         } else {
-            buffer = std::make_unique<matrix_value_t[]>(count);
-            for (size_t i = 0; i < count; ++i)
+            if (!matrices)
+                count = 0;
+            const auto u_count = static_cast<size_t>(count);
+            buffer = std::make_unique<matrix_value_t[]>(u_count);
+            for (size_t i = 0; i < u_count; ++i)
                 buffer[i] = math::inverse(matrices[i]);
-            return buffer.get();
+            return matrixOrRawConstPtr_(buffer);
         }
     }
 }
 
 namespace noa::cpu::geometry::fft {
-    template<Remap REMAP, typename T, typename S, typename R, typename>
-    void insert3D(const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                  const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const S& inv_scaling_matrices, const R& fwd_rotation_matrices,
+    template<Remap REMAP, typename data_t, typename scale_t, typename rotate_t, typename>
+    void insert3D(const shared_t<data_t[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<data_t[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const scale_t& inv_scaling_matrices, const rotate_t& fwd_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
 
-        using Layout = ::noa::fft::Layout;
-        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
-        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        if constexpr (REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
-            static_assert(traits::always_false_v<T>);
-
-        NOA_ASSERT(slice && grid && slice.get() != grid.get() &&
-                   all(slice_shape > 0) && all(grid_shape > 0));
-        NOA_ASSERT(slice_shape[1] == 1);
-        NOA_ASSERT(grid_shape[0] == 1);
-
-        const long3_t slice_shape_{slice_shape[0], slice_shape[2], slice_shape[3]};
-        const long3_t grid_shape_{grid_shape[1], grid_shape[2], grid_shape[3]};
-        const dim3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
-        const dim3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
-
+        const dim3_t slice_strides_3d{slice_strides[0], slice_strides[2], slice_strides[3]};
+        const dim3_t grid_strides_3d{grid_strides[1], grid_strides[2], grid_strides[3]};
         const dim_t threads = stream.threads();
+
         stream.enqueue([=]() {
-            const auto inv_scaling_matrices_ = matrixOrRawConstPtr(inv_scaling_matrices);
-            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr(fwd_rotation_matrices);
-            const auto target_shape_ = static_cast<long4_t>(target_shape);
+            const auto slice_accessor = AccessorRestrict<const data_t, 3, dim_t>(slice.get(), slice_strides_3d);
+            const auto grid_accessor = AccessorRestrict<data_t, 3, dim_t>(grid.get(), grid_strides_3d);
+            const auto iwise_shape = long3_t{slice_shape[0], slice_shape[2], slice_shape[3]}.fft();
+
+            const auto inv_scaling_matrices_ = matrixOrRawConstPtr_(inv_scaling_matrices);
+            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_(fwd_rotation_matrices);
 
             const auto apply_ews = any(ews_radius != 0);
-            bool apply_scale;
-            if constexpr (traits::is_float22_v<S>)
-                apply_scale = float22_t{} == inv_scaling_matrices;
-            else
-                apply_scale = inv_scaling_matrices_ != nullptr;
+            const bool apply_scale = inv_scaling_matrices != scale_t{};
 
+            using namespace noa::geometry::fft::details;
             if (apply_ews && apply_scale) {
-                fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, true, true, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
+                const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
+                        slice_accessor, slice_shape, grid_accessor, grid_shape,
                         inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                        cutoff, target_shape, ews_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_ews) {
-                fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, true, false, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
+                        slice_accessor, slice_shape, grid_accessor, grid_shape,
+                        empty_t{}, fwd_rotation_matrices_,
+                        cutoff, target_shape, ews_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_scale) {
-                fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, false, true, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
+                const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
+                        slice_accessor, slice_shape, grid_accessor, grid_shape,
                         inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                        cutoff, target_shape, empty_t{});
+                utils::iwise3D(iwise_shape, functor, threads);
             } else {
-                fourierInsert_<IS_SRC_CENTERED, IS_DST_CENTERED, false, false, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
+                        slice_accessor, slice_shape, grid_accessor, grid_shape,
+                        empty_t{}, fwd_rotation_matrices_,
+                        cutoff, target_shape, empty_t{});
+                utils::iwise3D(iwise_shape, functor, threads);
             }
         });
     }
 
-    template<Remap REMAP, typename T, typename S, typename R, typename>
-    void insert3D(const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                  const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const S& inv_scaling_matrices, const R& fwd_rotation_matrices,
+    template<Remap REMAP, typename data_t, typename scale_t, typename rotate_t, typename>
+    void insert3D(const shared_t<data_t[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<data_t[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const scale_t& inv_scaling_matrices, const rotate_t& fwd_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius,
                   float slice_z_radius, Stream& stream) {
 
-        using Layout = ::noa::fft::Layout;
-        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        if constexpr (REMAP_ & Layout::SRC_NON_CENTERED || REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
-            static_assert(traits::always_false_v<T>);
-
-        NOA_ASSERT(slice && grid && slice.get() != grid.get() &&
-                   all(slice_shape > 0) && all(grid_shape > 0));
-        NOA_ASSERT(slice_shape[1] == 1);
-        NOA_ASSERT(grid_shape[0] == 1);
-
-        const size_t slice_count = slice_shape[0];
-        const long3_t slice_shape_{slice_shape[0], slice_shape[2], slice_shape[3]};
-        const long3_t grid_shape_{grid_shape[1], grid_shape[2], grid_shape[3]};
-        const dim3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
-        const dim3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
-        const auto target_shape_ = static_cast<long4_t>(target_shape);
-
+        const auto slice_shape_2d = safe_cast<long2_t>(dim2_t{slice_shape.get(2)});
+        const dim3_t slice_strides_3d{slice_strides[0], slice_strides[2], slice_strides[3]};
+        const dim3_t grid_strides_3d{grid_strides[1], grid_strides[2], grid_strides[3]};
+        const dim_t slice_count = slice_shape[0];
         const dim_t threads = stream.threads();
+
         stream.enqueue([=]() {
+            const auto slice_accessor = AccessorRestrict<const data_t, 3, dim_t>(slice.get(), slice_strides_3d);
+            const auto grid_accessor = AccessorRestrict<data_t, 3, dim_t>(grid.get(), grid_strides_3d);
+            const auto iwise_shape = long3_t{grid_shape.get(1)}.fft();
+            const auto slice_interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
+                    slice_accessor, slice_shape_2d.fft(), data_t{0});
+
             const auto apply_ews = any(ews_radius != 0);
-            bool apply_scale;
-            if constexpr (traits::is_float22_v<S>)
-                apply_scale = float22_t{} == inv_scaling_matrices;
-            else
-                apply_scale = inv_scaling_matrices != nullptr;
+            const bool apply_scale = inv_scaling_matrices != scale_t{};
 
-            constexpr bool SINGLE_SCALING = traits::is_float22_v<S>;
             std::unique_ptr<float22_t[]> fwd_scaling_matrices_buffer;
-            using scaling_t = std::conditional_t<SINGLE_SCALING, float22_t, const float22_t*>;
-            const scaling_t fwd_scaling_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr(inv_scaling_matrices), slice_count, fwd_scaling_matrices_buffer);
-
-            constexpr bool SINGLE_ROTATION = traits::is_float33_v<R>;
             std::unique_ptr<float33_t[]> inv_rotation_matrices_buffer;
-            using rotation_t = std::conditional_t<SINGLE_ROTATION, float33_t, const float33_t*>;
-            const rotation_t inv_rotation_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr(fwd_rotation_matrices), slice_count, inv_rotation_matrices_buffer);
+            const auto fwd_scaling_matrices = inverseMatrices_(
+                    matrixOrRawConstPtr_(inv_scaling_matrices), slice_count, fwd_scaling_matrices_buffer);
+            const auto inv_rotation_matrices = inverseMatrices_(
+                    matrixOrRawConstPtr_(fwd_rotation_matrices), slice_count, inv_rotation_matrices_buffer);
 
+            using namespace noa::geometry::fft::details;
             if (apply_ews && apply_scale) {
-                fourierInsertThick_<IS_DST_CENTERED, true, true, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
+                const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
+                        slice_interpolator, slice_shape, grid_accessor, grid_shape,
                         fwd_scaling_matrices, inv_rotation_matrices,
-                        cutoff, target_shape_, ews_radius, slice_z_radius, threads);
+                        cutoff, target_shape, ews_radius, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_ews) {
-                fourierInsertThick_<IS_DST_CENTERED, true, false, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        fwd_scaling_matrices, inv_rotation_matrices,
-                        cutoff, target_shape_, ews_radius, slice_z_radius, threads);
+                const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
+                        slice_interpolator, slice_shape, grid_accessor, grid_shape,
+                        empty_t{}, inv_rotation_matrices,
+                        cutoff, target_shape, ews_radius, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_scale) {
-                fourierInsertThick_<IS_DST_CENTERED, false, true, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
+                const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
+                        slice_interpolator, slice_shape, grid_accessor, grid_shape,
                         fwd_scaling_matrices, inv_rotation_matrices,
-                        cutoff, target_shape_, ews_radius, slice_z_radius, threads);
+                        cutoff, target_shape, empty_t{}, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else {
-                fourierInsertThick_<IS_DST_CENTERED, false, false, T>(
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        fwd_scaling_matrices, inv_rotation_matrices,
-                        cutoff, target_shape_, ews_radius, slice_z_radius, threads);
+                const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
+                        slice_interpolator, slice_shape, grid_accessor, grid_shape,
+                        empty_t{}, inv_rotation_matrices,
+                        cutoff, target_shape, empty_t{}, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             }
         });
     }
 
-    template<Remap REMAP, typename T, typename S, typename R, typename>
-    void extract3D(const shared_t<T[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                   const shared_t<T[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                   const S& inv_scaling_matrices, const R& fwd_rotation_matrices,
+    template<Remap REMAP, typename data_t, typename scale_t, typename rotate_t, typename>
+    void extract3D(const shared_t<data_t[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                   const shared_t<data_t[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                   const scale_t& inv_scaling_matrices, const rotate_t& fwd_rotation_matrices,
                    float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
 
-        using Layout = ::noa::fft::Layout;
-        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        if constexpr (REMAP_ & Layout::SRC_NON_CENTERED ||
-                      REMAP_ & Layout::SRC_FULL ||
-                      REMAP_ & Layout::DST_FULL)
-            static_assert(traits::always_false_v<T>);
-
-        NOA_ASSERT(slice && grid && slice.get() != grid.get() &&
-                   all(slice_shape > 0) && all(grid_shape > 0));
-        NOA_ASSERT(slice_shape[1] == 1);
-        NOA_ASSERT(grid_shape[0] == 1);
-
-        const long3_t slice_shape_{slice_shape[0], slice_shape[2], slice_shape[3]};
-        const long3_t grid_shape_{grid_shape[1], grid_shape[2], grid_shape[3]};
-        const dim3_t slice_strides_{slice_strides[0], slice_strides[2], slice_strides[3]};
-        const dim3_t grid_strides_{grid_strides[1], grid_strides[2], grid_strides[3]};
-
+        const long3_t slice_shape_3d{slice_shape[0], slice_shape[2], slice_shape[3]};
+        const dim3_t slice_strides_3d{slice_strides[0], slice_strides[2], slice_strides[3]};
+        const long3_t grid_shape_3d{grid_shape[1], grid_shape[2], grid_shape[3]};
+        const dim3_t grid_strides_3d{grid_strides[1], grid_strides[2], grid_strides[3]};
         const dim_t threads = stream.threads();
+
         stream.enqueue([=]() {
-            const auto inv_scaling_matrices_ = matrixOrRawConstPtr(inv_scaling_matrices);
-            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr(fwd_rotation_matrices);
-            const auto target_shape_ = static_cast<long4_t>(target_shape);
+            const auto slice_accessor = AccessorRestrict<data_t, 3, dim_t>(slice.get(), slice_strides_3d);
+            const auto grid_accessor = AccessorRestrict<const data_t, 3, dim_t>(grid.get(), grid_strides_3d);
+            const auto iwise_shape = slice_shape_3d.fft();
+            const auto grid_interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(
+                    grid_accessor, grid_shape_3d.fft(), data_t{0});
+
+            const auto inv_scaling_matrices_ = matrixOrRawConstPtr_(inv_scaling_matrices);
+            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_(fwd_rotation_matrices);
 
             const auto apply_ews = any(ews_radius != 0);
-            bool apply_scale;
-            if constexpr (traits::is_float22_v<S>)
-                apply_scale = float22_t{} == inv_scaling_matrices;
-            else
-                apply_scale = inv_scaling_matrices_ != nullptr;
+            const bool apply_scale = inv_scaling_matrices != scale_t{};
 
+            using namespace noa::geometry::fft::details;
             if (apply_ews && apply_scale) {
-                fourierExtract_<IS_DST_CENTERED, true, true, T>(
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        {slice.get(), slice_strides_}, slice_shape_,
+                const auto functor = fourierExtraction<REMAP, int64_t>(
+                        grid_interpolator, grid_shape, slice_accessor, slice_shape,
                         inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                        cutoff, target_shape, ews_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_ews) {
-                fourierExtract_<IS_DST_CENTERED, true, false, T>(
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                const auto functor = fourierExtraction<REMAP, int64_t>(
+                        grid_interpolator, grid_shape, slice_accessor, slice_shape,
+                        empty_t{}, fwd_rotation_matrices_,
+                        cutoff, target_shape, ews_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_scale) {
-                fourierExtract_<IS_DST_CENTERED, false, true, T>(
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        {slice.get(), slice_strides_}, slice_shape_,
+                const auto functor = fourierExtraction<REMAP, int64_t>(
+                        grid_interpolator, grid_shape, slice_accessor, slice_shape,
                         inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                        cutoff, target_shape, empty_t{});
+                utils::iwise3D(iwise_shape, functor, threads);
             } else {
-                fourierExtract_<IS_DST_CENTERED, false, false, T>(
-                        {grid.get(), grid_strides_}, grid_shape_,
-                        {slice.get(), slice_strides_}, slice_shape_,
-                        inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape_, ews_radius, threads);
+                const auto functor = fourierExtraction<REMAP, int64_t>(
+                        grid_interpolator, grid_shape, slice_accessor, slice_shape,
+                        empty_t{}, fwd_rotation_matrices_,
+                        cutoff, target_shape, empty_t{});
+                utils::iwise3D(iwise_shape, functor, threads);
             }
         });
     }
 
-    template<Remap REMAP, typename T, typename S0, typename S1, typename R0, typename R1, typename>
-    void extract3D(const shared_t<T[]>& input_slices, dim4_t input_slices_strides, dim4_t input_slices_shape,
-                   const shared_t<T[]>& output_slices, dim4_t output_slices_strides, dim4_t output_slices_shape,
-                   const S0& insert_inv_scaling_matrices, const R0& insert_fwd_rotation_matrices,
-                   const S1& extract_inv_scaling_matrices, const R1& extract_fwd_rotation_matrices,
+    template<Remap REMAP, typename data_t, typename scale0_t, typename scale1_t, typename rotate0_t, typename rotate1_t, typename>
+    void extract3D(const shared_t<data_t[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
+                   const shared_t<data_t[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
+                   const scale0_t& insert_inv_scaling_matrices, const rotate0_t& insert_fwd_rotation_matrices,
+                   const scale1_t& extract_inv_scaling_matrices, const rotate1_t& extract_fwd_rotation_matrices,
                    float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
 
-        using Layout = ::noa::fft::Layout;
-        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        if constexpr (REMAP_ & Layout::SRC_NON_CENTERED || REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
-            static_assert(traits::always_false_v<T>);
-
-        NOA_ASSERT(input_slices && output_slices && input_slices.get() != output_slices.get() &&
-                   all(input_slices_shape > 0) && all(output_slices_shape > 0));
-        NOA_ASSERT(input_slices_shape[1] == 1 && output_slices_shape[1] == 1);
-
-        const size_t insert_slice_count = input_slices_shape[0];
-        const long3_t input_slice_shape_{input_slices_shape[0], input_slices_shape[2], input_slices_shape[3]};
-        const long3_t output_slice_shape_{output_slices_shape[0], output_slices_shape[2], output_slices_shape[3]};
-        const dim3_t input_slices_strides_{input_slices_strides[0], input_slices_strides[2], input_slices_strides[3]};
-        const dim3_t output_slices_strides_{output_slices_strides[0], output_slices_strides[2], output_slices_strides[3]};
+        const dim3_t input_slice_strides_2d{input_slice_strides[0], input_slice_strides[2], input_slice_strides[3]};
+        const dim3_t output_slice_strides_2d{output_slice_strides[0], output_slice_strides[2], output_slice_strides[3]};
+        const auto iwise_shape = safe_cast<long3_t>(dim3_t(output_slice_shape.get(1))).fft();
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() {
+            const auto input_slice_accessor = AccessorRestrict<const data_t, 3, dim_t>(input_slice.get(), input_slice_strides_2d);
+            const auto output_slice_accessor = AccessorRestrict<data_t, 3, dim_t>(output_slice.get(), output_slice_strides_2d);
+            const auto input_slice_interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
+                    input_slice_accessor, safe_cast<long2_t>(dim2_t(input_slice_shape.get(2))).fft(), data_t{0});
+
             const auto apply_ews = any(ews_radius != 0);
-            bool apply_scale;
-            if constexpr (traits::is_float22_v<S0>)
-                apply_scale = float22_t{} == insert_inv_scaling_matrices;
-            else
-                apply_scale = insert_inv_scaling_matrices != nullptr;
+            const bool apply_scale = insert_inv_scaling_matrices != scale0_t{};
 
             // The transformation for the insertion needs to be inverted.
-            constexpr bool SINGLE_SCALING = traits::is_float22_v<S0>;
             std::unique_ptr<float22_t[]> insert_fwd_scaling_matrices_buffer;
-            using scaling_t = std::conditional_t<SINGLE_SCALING, float22_t, const float22_t*>;
-            const scaling_t insert_fwd_scaling_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr(insert_inv_scaling_matrices),
-                    insert_slice_count, insert_fwd_scaling_matrices_buffer);
-
-            constexpr bool SINGLE_ROTATION = traits::is_float33_v<R0>;
             std::unique_ptr<float33_t[]> insert_inv_rotation_matrices_buffer;
-            using rotation_t = std::conditional_t<SINGLE_ROTATION, float33_t, const float33_t*>;
-            const rotation_t insert_inv_rotation_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr(insert_fwd_rotation_matrices),
-                    insert_slice_count, insert_inv_rotation_matrices_buffer);
+            const auto insert_fwd_scaling_matrices = inverseMatrices_(
+                    matrixOrRawConstPtr_(insert_inv_scaling_matrices),
+                    input_slice_shape[0], insert_fwd_scaling_matrices_buffer);
+            const auto insert_inv_rotation_matrices = inverseMatrices_(
+                    matrixOrRawConstPtr_(insert_fwd_rotation_matrices),
+                    input_slice_shape[0], insert_inv_rotation_matrices_buffer);
 
-            auto extract_inv_scaling_matrices_ = matrixOrRawConstPtr(extract_inv_scaling_matrices);
-            auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtr(extract_fwd_rotation_matrices);
+            const auto extract_inv_scaling_matrices_ = matrixOrRawConstPtr_(extract_inv_scaling_matrices);
+            const auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtr_(extract_fwd_rotation_matrices);
 
+            using namespace noa::geometry::fft::details;
             if (apply_ews && apply_scale) {
-                fourierInsertExtract_<IS_DST_CENTERED, true, true, T>(
-                        {input_slices.get(), input_slices_strides_}, input_slice_shape_,
-                        {output_slices.get(), output_slices_strides_}, output_slice_shape_,
+                const auto functor = fourierInsertExtraction<REMAP, int64_t>(
+                        input_slice_interpolator, input_slice_shape,
+                        output_slice_accessor, output_slice_shape,
                         insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                        cutoff, ews_radius, slice_z_radius, threads);
+                        cutoff, ews_radius, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_ews) {
-                fourierInsertExtract_<IS_DST_CENTERED, true, false, T>(
-                        {input_slices.get(), input_slices_strides_}, input_slice_shape_,
-                        {output_slices.get(), output_slices_strides_}, output_slice_shape_,
-                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                const auto functor = fourierInsertExtraction<REMAP, int64_t>(
+                        input_slice_interpolator, input_slice_shape,
+                        output_slice_accessor, output_slice_shape,
+                        empty_t{}, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                        cutoff, ews_radius, slice_z_radius, threads);
+                        cutoff, ews_radius, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else if (apply_scale) {
-                fourierInsertExtract_<IS_DST_CENTERED, false, true, T>(
-                        {input_slices.get(), input_slices_strides_}, input_slice_shape_,
-                        {output_slices.get(), output_slices_strides_}, output_slice_shape_,
+                const auto functor = fourierInsertExtraction<REMAP, int64_t>(
+                        input_slice_interpolator, input_slice_shape,
+                        output_slice_accessor, output_slice_shape,
                         insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                        cutoff, ews_radius, slice_z_radius, threads);
+                        cutoff, empty_t{}, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             } else {
-                fourierInsertExtract_<IS_DST_CENTERED, false, false, T>(
-                        {input_slices.get(), input_slices_strides_}, input_slice_shape_,
-                        {output_slices.get(), output_slices_strides_}, output_slice_shape_,
-                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                const auto functor = fourierInsertExtraction<REMAP, int64_t>(
+                        input_slice_interpolator, input_slice_shape,
+                        output_slice_accessor, output_slice_shape,
+                        empty_t{}, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                        cutoff, ews_radius, slice_z_radius, threads);
+                        cutoff, empty_t{}, slice_z_radius);
+                utils::iwise3D(iwise_shape, functor, threads);
             }
         });
     }
 
-    template<typename T, typename>
-    void griddingCorrection(const shared_t<T[]>& input, dim4_t input_strides,
-                            const shared_t<T[]>& output, dim4_t output_strides,
+    template<typename data_t, typename>
+    void griddingCorrection(const shared_t<data_t[]>& input, dim4_t input_strides,
+                            const shared_t<data_t[]>& output, dim4_t output_strides,
                             dim4_t shape, bool post_correction, Stream& stream) {
         NOA_ASSERT(input && input && all(shape > 0));
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() {
+            const auto input_accessor = Accessor<const data_t, 4, dim_t>(input.get(), input_strides);
+            const auto output_accessor = Accessor<data_t, 4, dim_t>(output.get(), output_strides);
+
             if (post_correction) {
-                correctGriddingSinc2_<true, T>(
-                        {input.get(), input_strides},
-                        {output.get(), output_strides},
-                        shape, threads);
+                const auto functor = noa::geometry::fft::details::griddingCorrection<true>(
+                        input_accessor, output_accessor, shape);
+                utils::iwise4D(shape, functor, threads);
             } else {
-                correctGriddingSinc2_<false, T>(
-                        {input.get(), input_strides},
-                        {output.get(), output_strides},
-                        shape, threads);
+                const auto functor = noa::geometry::fft::details::griddingCorrection<false>(
+                        input_accessor, output_accessor, shape);
+                utils::iwise4D(shape, functor, threads);
             }
         });
     }
+    template void griddingCorrection<float, void>(const shared_t<float[]>&, dim4_t, const shared_t<float[]>&, dim4_t, dim4_t, bool, Stream&);
+    template void griddingCorrection<double, void>(const shared_t<double[]>&, dim4_t, const shared_t<double[]>&, dim4_t, dim4_t, bool, Stream&);
 
     #define NOA_INSTANTIATE_INSERT_(T, REMAP, S, R) \
     template void insert3D<REMAP, T, S, R, void>(   \
@@ -887,7 +344,6 @@ namespace noa::cpu::geometry::fft {
     NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, float22_t, shared_t<float33_t[]>);             \
     NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, shared_t<float22_t[]>, shared_t<float33_t[]>); \
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(T);                                        \
-    template void griddingCorrection<T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&)
 
     NOA_INSTANTIATE_PROJECT_ALL_(float);
     NOA_INSTANTIATE_PROJECT_ALL_(double);

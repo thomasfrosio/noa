@@ -2,18 +2,17 @@
 
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Interpolate.h"
+#include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 
-// TODO Add layered textures
-
 namespace noa::cuda::geometry::details {
-    struct Empty {};
-
-    template<InterpMode INTERP_MODE, bool NORMALIZED>
+    template<typename data_t, InterpMode INTERP_MODE, bool NORMALIZED, bool LAYERED>
     constexpr void validateTexture(cudaTextureObject_t texture) {
-        // TODO Add checks for the resource as well.
-        const cudaTextureDesc description = cuda::memory::PtrTexture::description(texture);
+        cudaArray* array = cuda::memory::PtrTexture::array(texture);
+        const bool is_layered = cuda::memory::PtrArray<data_t>::isLayered(array);
+        NOA_CHECK(is_layered == LAYERED, "The input texture is not layered, but a layered interpolator was created");
 
+        const cudaTextureDesc description = cuda::memory::PtrTexture::description(texture);
         if constexpr (INTERP_MODE == INTERP_NEAREST ||
                       INTERP_MODE == INTERP_LINEAR ||
                       INTERP_MODE == INTERP_COSINE ||
@@ -28,16 +27,14 @@ namespace noa::cuda::geometry::details {
                       "The input texture is not using linear lookups, which is required for {}", INTERP_MODE);
         }
 
-        if constexpr (INTERP_MODE == INTERP_NEAREST || INTERP_MODE == INTERP_LINEAR_FAST) {
-            NOA_CHECK(NORMALIZED == description.normalizedCoords,
-                      "The input texture is not using normalized, which doesn't match the interpolator type");
-        }
+        NOA_CHECK(NORMALIZED == description.normalizedCoords,
+                  "The input texture is not using normalized, which doesn't match the interpolator type");
     }
 }
 
 namespace noa::cuda::geometry {
     template<InterpMode INTERP_MODE, typename Data,
-             bool NORMALIZED = false, typename Coord = float>
+             bool NORMALIZED = false, bool LAYERED = false, typename Coord = float>
     class Interpolator2D {
     public:
         static_assert(traits::is_any_v<Data, float, cfloat_t> && !std::is_const_v<Data>);
@@ -49,7 +46,7 @@ namespace noa::cuda::geometry {
         using real2_t = Float2<real_t>;
         using coord_t = Coord;
         using coord2_t = Float2<coord_t>;
-        using f_shape_t = std::conditional_t<NORMALIZED, coord2_t, details::Empty>;
+        using f_shape_t = std::conditional_t<NORMALIZED, coord2_t, empty_t>;
 
     public:
         constexpr Interpolator2D() = default;
@@ -57,32 +54,57 @@ namespace noa::cuda::geometry {
         template<typename void_t = void, typename = std::enable_if_t<!NORMALIZED && std::is_same_v<void_t, void>>>
         constexpr explicit Interpolator2D(cudaTextureObject_t texture)
                 : m_texture(texture) {
-            details::validateTexture<INTERP_MODE, NORMALIZED>(m_texture);
+            details::validateTexture<data_t, INTERP_MODE, NORMALIZED, LAYERED>(m_texture);
         }
 
         template<typename void_t = void, typename = std::enable_if_t<NORMALIZED && std::is_same_v<void_t, void>>>
         constexpr Interpolator2D(cudaTextureObject_t texture, f_shape_t shape)
                 : m_texture(texture), m_shape(shape) {
-            details::validateTexture<INTERP_MODE, NORMALIZED>(m_texture);
+            details::validateTexture<data_t, INTERP_MODE, NORMALIZED, LAYERED>(m_texture);
         }
 
+        template<typename void_t = void, typename = std::enable_if_t<!LAYERED && std::is_void_v<void_t>>>
         constexpr NOA_HD data_t operator()(coord2_t coordinate) const noexcept {
             if constexpr (INTERP_MODE == INTERP_NEAREST) {
-                return nearest_(coordinate);
+                return nearest_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_LINEAR) {
-                return linearAccurate_(coordinate);
+                return linearAccurate_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_COSINE) {
-                return cosineAccurate_(coordinate);
+                return cosineAccurate_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_CUBIC) {
-                return cubicAccurate_(coordinate);
+                return cubicAccurate_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_CUBIC_BSPLINE) {
-                return cubicBSplineAccurate_(coordinate);
+                return cubicBSplineAccurate_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_LINEAR_FAST) {
-                return linearFast_(coordinate);
+                return linearFast_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_COSINE_FAST) {
-                return cosineFast_(coordinate);
+                return cosineFast_(coordinate, 0);
             } else if constexpr (INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
-                return cubicBSplineFast_(coordinate);
+                return cubicBSplineFast_(coordinate, 0);
+            } else {
+                static_assert(traits::always_false_v<data_t>);
+            }
+            return data_t{};
+        }
+
+        template<typename index_t, typename = std::enable_if_t<LAYERED && traits::is_int_v<index_t>>>
+        constexpr NOA_HD data_t operator()(coord2_t coordinate, index_t layer) const noexcept {
+            if constexpr (INTERP_MODE == INTERP_NEAREST) {
+                return nearest_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_LINEAR) {
+                return linearAccurate_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_COSINE) {
+                return cosineAccurate_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_CUBIC) {
+                return cubicAccurate_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_CUBIC_BSPLINE) {
+                return cubicBSplineAccurate_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_LINEAR_FAST) {
+                return linearFast_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_COSINE_FAST) {
+                return cosineFast_(coordinate, static_cast<int32_t>(layer));
+            } else if constexpr (INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
+                return cubicBSplineFast_(coordinate, static_cast<int32_t>(layer));
             } else {
                 static_assert(traits::always_false_v<data_t>);
             }
@@ -90,37 +112,49 @@ namespace noa::cuda::geometry {
         }
 
     private:
-        NOA_FD data_t fetch2D_(coord_t x, coord_t y) const noexcept {
+        NOA_FD data_t fetch2D_(coord_t x, coord_t y, int32_t layer) const noexcept {
             #ifdef __CUDACC__
             if constexpr (std::is_same_v<data_t, float>) {
-                return ::tex2D<float>(m_texture, static_cast<float>(x), static_cast<float>(y));
+                if constexpr (LAYERED) {
+                    return ::tex2DLayered<float>(m_texture, static_cast<float>(x), static_cast<float>(y), layer);
+                } else {
+                    (void) layer;
+                    return ::tex2D<float>(m_texture, static_cast<float>(x), static_cast<float>(y));
+                }
             } else if constexpr (std::is_same_v<data_t, cfloat_t>) {
-                auto tmp = ::tex2D<float2>(m_texture, static_cast<float>(x), static_cast<float>(y));
-                return {tmp.x, tmp.y};
+                if constexpr (LAYERED) {
+                    auto tmp = ::tex2DLayered<float2>(m_texture, static_cast<float>(x), static_cast<float>(y), layer);
+                    return {tmp.x, tmp.y};
+                } else {
+                    (void) layer;
+                    auto tmp = ::tex2D<float2>(m_texture, static_cast<float>(x), static_cast<float>(y));
+                    return {tmp.x, tmp.y};
+                }
             } else {
                 static_assert(traits::always_false_v<data_t>);
             }
             #else
             (void) x;
             (void) y;
+            (void) index;
             return {};
             #endif
         }
 
-        constexpr NOA_HD data_t nearest_(coord2_t coordinate) const noexcept {
+        constexpr NOA_HD data_t nearest_(coord2_t coordinate, int32_t layer) const noexcept {
             coordinate += coord_t{0.5};
             if constexpr (NORMALIZED)
                 coordinate /= m_shape;
-            return fetch2D_(coordinate[1], coordinate[0]);
+            return fetch2D_(coordinate[1], coordinate[0], layer);
         }
 
-        constexpr NOA_HD data_t linearFast_(coord2_t coordinate) const noexcept {
-            return nearest_(coordinate);
+        constexpr NOA_HD data_t linearFast_(coord2_t coordinate, int32_t layer) const noexcept {
+            return nearest_(coordinate, layer);
         }
 
         // Slow but precise 2D linear interpolation using
         // 4 nearest neighbour lookups and unnormalized coordinates.
-        constexpr NOA_HD data_t linearAccurate_(coord2_t coordinate) const noexcept {
+        constexpr NOA_HD data_t linearAccurate_(coord2_t coordinate, int32_t layer) const noexcept {
             static_assert(!NORMALIZED);
             coord2_t index = ::noa::math::floor(coordinate);
             coord2_t fraction = coordinate - index;
@@ -131,19 +165,19 @@ namespace noa::cuda::geometry {
                 fraction = (coord_t{1} - ::noa::math::cos(fraction * PI)) / coord_t{2};
             }
 
-            const data_t t00 = fetch2D_(index[1], index[0]);
-            const data_t t01 = fetch2D_(index[1] + 1, index[0]);
+            const data_t t00 = fetch2D_(index[1], index[0], layer);
+            const data_t t01 = fetch2D_(index[1] + 1, index[0], layer);
             const data_t v0 = ::noa::geometry::interpolate::lerp1D(t00, t01, fraction[1]);
 
-            const data_t t10 = fetch2D_(index[1], index[0] + 1);
-            const data_t t11 = fetch2D_(index[1] + 1, index[0] + 1);
+            const data_t t10 = fetch2D_(index[1], index[0] + 1, layer);
+            const data_t t11 = fetch2D_(index[1] + 1, index[0] + 1, layer);
             const data_t v1 = ::noa::geometry::interpolate::lerp1D(t10, t11, fraction[1]);
 
             return ::noa::geometry::interpolate::lerp1D(v0, v1, fraction[0]);
         }
 
         // Fast 2D cosine interpolation using 1 linear lookup and unnormalized coordinates.
-        constexpr NOA_HD data_t cosineFast_(coord2_t coordinate) const noexcept {
+        constexpr NOA_HD data_t cosineFast_(coord2_t coordinate, int32_t layer) const noexcept {
             static_assert(!NORMALIZED);
             coord2_t index = ::noa::math::floor(coordinate);
             coord2_t fraction = coordinate - index;
@@ -152,18 +186,18 @@ namespace noa::cuda::geometry {
             fraction = (coord_t{1} - ::noa::math::cos(fraction * PI)) / coord_t{2};
 
             index += fraction + coord_t{0.5};
-            return fetch2D_(index[1], index[0]);
+            return fetch2D_(index[1], index[0], layer);
         }
 
         // Slow but precise 2D cosine interpolation using
         // 4 nearest neighbour lookups and unnormalized coordinates.
-        constexpr NOA_HD data_t cosineAccurate_(coord2_t coordinate) const noexcept {
-            return linearAccurate_(coordinate);
+        constexpr NOA_HD data_t cosineAccurate_(coord2_t coordinate, int32_t layer) const noexcept {
+            return linearAccurate_(coordinate, layer);
         }
 
         // Slow but precise 2D cubic interpolation using
         // 16 nearest neighbour lookups and unnormalized coordinates.
-        constexpr NOA_HD data_t cubicAccurate_(coord2_t coordinate) const noexcept {
+        constexpr NOA_HD data_t cubicAccurate_(coord2_t coordinate, int32_t layer) const noexcept {
             static_assert(!NORMALIZED);
             coord2_t index = ::noa::math::floor(coordinate);
             coord2_t fraction = coordinate - index;
@@ -173,10 +207,10 @@ namespace noa::cuda::geometry {
             #pragma unroll
             for (int32_t i = 0; i < 4; ++i) {
                 const coord_t index_y = index[0] + static_cast<coord_t>(i - 1);
-                const data_t t0 = fetch2D_(index[1] - 1, index_y);
-                const data_t t1 = fetch2D_(index[1] + 0, index_y);
-                const data_t t2 = fetch2D_(index[1] + 1, index_y);
-                const data_t t3 = fetch2D_(index[1] + 2, index_y);
+                const data_t t0 = fetch2D_(index[1] - 1, index_y, layer);
+                const data_t t1 = fetch2D_(index[1] + 0, index_y, layer);
+                const data_t t2 = fetch2D_(index[1] + 1, index_y, layer);
+                const data_t t3 = fetch2D_(index[1] + 2, index_y, layer);
                 v[i] = ::noa::geometry::interpolate::cubic1D(t0, t1, t2, t3, fraction[1]);
             }
             return ::noa::geometry::interpolate::cubic1D(v[0], v[1], v[2], v[3], fraction[0]);
@@ -184,7 +218,7 @@ namespace noa::cuda::geometry {
 
         // 2D bicubic interpolated texture lookup, using unnormalized coordinates.
         // Fast implementation, using 4 linear lookups.
-        constexpr NOA_HD data_t cubicBSplineFast_(coord2_t coordinate) const noexcept {
+        constexpr NOA_HD data_t cubicBSplineFast_(coord2_t coordinate, int32_t layer) const noexcept {
             static_assert(!NORMALIZED);
             coord2_t index = ::noa::math::floor(coordinate);
             coord2_t fraction = coordinate - index;
@@ -198,10 +232,10 @@ namespace noa::cuda::geometry {
             const real2_t h1 = w3 / g1 + real_t{1.5} + real2_t(index);
 
             // Fetch the four linear interpolations.
-            const data_t v00 = fetch2D_(h0[1], h0[0]);
-            const data_t v10 = fetch2D_(h1[1], h0[0]);
-            const data_t v01 = fetch2D_(h0[1], h1[0]);
-            const data_t v11 = fetch2D_(h1[1], h1[0]);
+            const data_t v00 = fetch2D_(h0[1], h0[0], layer);
+            const data_t v10 = fetch2D_(h1[1], h0[0], layer);
+            const data_t v01 = fetch2D_(h0[1], h1[0], layer);
+            const data_t v11 = fetch2D_(h1[1], h1[0], layer);
 
             // Weight along the y-direction.
             const data_t v0 = g0[0] * v00 + g1[0] * v01;
@@ -213,7 +247,7 @@ namespace noa::cuda::geometry {
 
         // Slow but precise 2D cubic B-spline interpolation using
         // 16 nearest neighbour lookups and unnormalized coordinates.
-        constexpr NOA_HD data_t cubicBSplineAccurate_(coord2_t coordinate) const noexcept {
+        constexpr NOA_HD data_t cubicBSplineAccurate_(coord2_t coordinate, int32_t layer) const noexcept {
             static_assert(!NORMALIZED);
             coord2_t index = ::noa::math::floor(coordinate);
             coord2_t fraction = coordinate - index;
@@ -226,10 +260,10 @@ namespace noa::cuda::geometry {
             #pragma unroll
             for (int32_t i = 0; i < 4; ++i) {
                 const coord_t index_y = index[0] + static_cast<coord_t>(i - 1);
-                v[i] = fetch2D_(index[1] - 1, index_y) * w0 +
-                       fetch2D_(index[1] + 0, index_y) * w1 +
-                       fetch2D_(index[1] + 1, index_y) * w2 +
-                       fetch2D_(index[1] + 2, index_y) * w3;
+                v[i] = fetch2D_(index[1] - 1, index_y, layer) * w0 +
+                       fetch2D_(index[1] + 0, index_y, layer) * w1 +
+                       fetch2D_(index[1] + 1, index_y, layer) * w2 +
+                       fetch2D_(index[1] + 2, index_y, layer) * w3;
             }
 
             ::noa::geometry::interpolate::details::bsplineWeights(fraction[0], &w0, &w1, &w2, &w3);
@@ -258,7 +292,7 @@ namespace noa::cuda::geometry {
         using real3_t = Float3<real_t>;
         using coord2_t = Float2<coord_t>;
         using coord3_t = Float3<coord_t>;
-        using f_shape_t = std::conditional_t<NORMALIZED, coord3_t, details::Empty>;
+        using f_shape_t = std::conditional_t<NORMALIZED, coord3_t, empty_t>;
 
     public:
         constexpr Interpolator3D() = default;
@@ -266,13 +300,13 @@ namespace noa::cuda::geometry {
         template<typename void_t = void, typename = std::enable_if_t<!NORMALIZED && std::is_same_v<void_t, void>>>
         constexpr explicit Interpolator3D(cudaTextureObject_t texture)
                 : m_texture(texture) {
-            details::validateTexture<INTERP_MODE, NORMALIZED>(m_texture);
+            details::validateTexture<data_t, INTERP_MODE, NORMALIZED, false>(m_texture);
         }
 
         template<typename void_t = void, typename = std::enable_if_t<NORMALIZED && std::is_same_v<void_t, void>>>
         constexpr Interpolator3D(cudaTextureObject_t texture, f_shape_t shape)
                 : m_texture(texture), m_shape(shape) {
-            details::validateTexture<INTERP_MODE, NORMALIZED>(m_texture);
+            details::validateTexture<data_t, INTERP_MODE, NORMALIZED, false>(m_texture);
         }
 
         constexpr NOA_HD data_t operator()(coord3_t coordinate) const noexcept {
