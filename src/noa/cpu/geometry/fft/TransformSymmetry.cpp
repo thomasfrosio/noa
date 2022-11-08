@@ -35,7 +35,7 @@ namespace {
     template<typename interpolator_t>
     inline auto interpolateFFT_(float2_t frequency, float2_t f_shape,
                                 const interpolator_t& interpolator, int64_t batch) {
-        using data_t = typename interpolator_t::data_t;
+        using data_t = typename interpolator_t::data_type;
         using real_t = traits::value_type_t<data_t>;
 
         [[maybe_unused]] real_t conj = 1;
@@ -55,7 +55,7 @@ namespace {
     template<typename interpolator_t>
     inline auto interpolateFFT_(float3_t frequency, float3_t f_shape,
                                 const interpolator_t& interpolator, int64_t batch) {
-        using data_t = typename interpolator_t::data_t;
+        using data_t = typename interpolator_t::data_type;
         using real_t = traits::value_type_t<data_t>;
 
         [[maybe_unused]] real_t conj = 1;

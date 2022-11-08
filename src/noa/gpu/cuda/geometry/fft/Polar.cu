@@ -1,5 +1,5 @@
 #include "noa/common/Assert.h"
-#include "noa/common/geometry/details/PolarTransformations.h"
+#include "noa/common/geometry/details/PolarTransformFourier.h"
 
 #include "noa/gpu/cuda/geometry/fft/Polar.h"
 #include "noa/gpu/cuda/geometry/Interpolator.h"
@@ -26,35 +26,35 @@ namespace {
         switch (cartesian_interp) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::cartesian2polar<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::fft::details::cartesian2polar<uint32_t>(
                         interpolator_t(cartesian), cartesian_shape, polar_accessor, polar_shape,
                         frequency_range, angle_range, log);
                 cuda::utils::iwise3D("geometry::fft::cartesian2polar", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::cartesian2polar<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::fft::details::cartesian2polar<uint32_t>(
                         interpolator_t(cartesian), cartesian_shape, polar_accessor, polar_shape,
                         frequency_range, angle_range, log);
                 cuda::utils::iwise3D("geometry::fft::cartesian2polar", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::cartesian2polar<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::fft::details::cartesian2polar<uint32_t>(
                         interpolator_t(cartesian), cartesian_shape, polar_accessor, polar_shape,
                         frequency_range, angle_range, log);
                 cuda::utils::iwise3D("geometry::fft::cartesian2polar", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::cartesian2polar<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::fft::details::cartesian2polar<uint32_t>(
                         interpolator_t(cartesian), cartesian_shape, polar_accessor, polar_shape,
                         frequency_range, angle_range, log);
                 cuda::utils::iwise3D("geometry::fft::cartesian2polar", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::cartesian2polar<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::fft::details::cartesian2polar<uint32_t>(
                         interpolator_t(cartesian), cartesian_shape, polar_accessor, polar_shape,
                         frequency_range, angle_range, log);
                 cuda::utils::iwise3D("geometry::fft::cartesian2polar", iwise_shape, kernel, stream);

@@ -24,9 +24,12 @@ set(NOA_COMMON_HEADERS
         common/utils/Timer.h
 
         common/geometry/details/FourierProjections.h
-        common/geometry/details/LinearTransformations2D.h
-        common/geometry/details/LinearTransformations3D.h
-        common/geometry/details/PolarTransformations.h
+        common/geometry/details/LinearTransform2D.h
+        common/geometry/details/LinearTransform2DFourier.h
+        common/geometry/details/LinearTransform3D.h
+        common/geometry/details/LinearTransform3DFourier.h
+        common/geometry/details/PolarTransform.h
+        common/geometry/details/PolarTransformFourier.h
         common/geometry/Euler.h
         common/geometry/Interpolate.h
         common/geometry/Interpolator.h

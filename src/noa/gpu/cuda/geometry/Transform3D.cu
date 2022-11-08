@@ -1,6 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/geometry/details/LinearTransformations3D.h"
+#include "noa/common/geometry/details/LinearTransform3D.h"
 
 #include "noa/gpu/cuda/utils/Pointers.h"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
@@ -37,12 +37,12 @@ namespace {
 
             if (texture_interp_mode == INTERP_NEAREST) {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_NEAREST, data_t, true>;
-                const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                         interpolator_t(texture, i_shape), output_accessor, matrices);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
             } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t, true>;
-                const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                         interpolator_t(texture, i_shape), output_accessor, matrices);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
             } else {
@@ -52,49 +52,49 @@ namespace {
             switch (texture_interp_mode) {
                 case INTERP_NEAREST: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_NEAREST, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_LINEAR: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_COSINE: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC_BSPLINE: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC_BSPLINE, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_LINEAR_FAST: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_COSINE_FAST: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE_FAST, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC_BSPLINE_FAST: {
                     using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC_BSPLINE_FAST, data_t>;
-                    const auto kernel = noa::geometry::details::transform3D<false, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform3D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
                 }
@@ -123,7 +123,7 @@ namespace {
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_NEAREST, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -131,7 +131,7 @@ namespace {
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -139,7 +139,7 @@ namespace {
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -147,7 +147,7 @@ namespace {
             }
             case INTERP_CUBIC: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -155,7 +155,7 @@ namespace {
             }
             case INTERP_CUBIC_BSPLINE: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC_BSPLINE, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -163,7 +163,7 @@ namespace {
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -171,7 +171,7 @@ namespace {
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE_FAST, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -179,7 +179,7 @@ namespace {
             }
             case INTERP_CUBIC_BSPLINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC_BSPLINE_FAST, data_t>;
-                const auto kernel = noa::geometry::details::transformSymmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 cuda::utils::iwise4D("geometry::transform3D", iwise_shape, kernel, stream);
@@ -207,56 +207,56 @@ namespace {
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_NEAREST, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC_BSPLINE, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE_FAST, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_CUBIC_BSPLINE_FAST, data_t>;
-                const auto kernel = noa::geometry::details::symmetry3D<false, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry3D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise4D("geometry::symmetry3D", iwise_shape, kernel, stream);

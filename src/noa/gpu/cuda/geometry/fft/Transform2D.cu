@@ -1,5 +1,5 @@
 #include "noa/common/Assert.h"
-#include "noa/common/geometry/details/LinearTransformations2D.h"
+#include "noa/common/geometry/details/LinearTransform2DFourier.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/utils/Pointers.h"
@@ -44,31 +44,31 @@ namespace {
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
@@ -118,35 +118,35 @@ namespace {
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, LAYERED, int32_t>(
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);

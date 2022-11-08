@@ -1,6 +1,6 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
-#include "noa/common/geometry/details/LinearTransformations2D.h"
+#include "noa/common/geometry/details/LinearTransform2D.h"
 
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/Pointers.h"
@@ -41,12 +41,12 @@ namespace {
 
             if (texture_interp_mode == INTERP_NEAREST) {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, true, LAYERED>;
-                const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                         interpolator_t(texture, i_shape), output_accessor, matrices);
                 cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, true, LAYERED>;
-                const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                         interpolator_t(texture, i_shape), output_accessor, matrices);
                 cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             } else {
@@ -57,49 +57,49 @@ namespace {
             switch (texture_interp_mode) {
                 case INTERP_NEAREST: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_LINEAR: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_COSINE: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC_BSPLINE: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_LINEAR_FAST: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_COSINE_FAST: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC_BSPLINE_FAST: {
                     using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, data_t, false, LAYERED>;
-                    const auto kernel = noa::geometry::details::transform2D<LAYERED, uint32_t>(
+                    const auto kernel = noa::geometry::details::transform2D<uint32_t>(
                             interpolator_t(texture), output_accessor, matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
@@ -127,56 +127,56 @@ namespace {
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::transformSymmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, shift, matrix, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
@@ -204,56 +204,56 @@ namespace {
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, data_t, false, LAYERED>;
-                const auto kernel = noa::geometry::details::symmetry2D<LAYERED, int32_t>(
+                const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
                         d_matrices.get(), count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
