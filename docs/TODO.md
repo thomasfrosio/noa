@@ -59,11 +59,10 @@
   range-like APIs, where we define __lambdas as transform operators__. It is much more flexible, versatile, cleaner, 
   and it is where the C++ STL is going anyway (including NVIDIA). The issue with this simpler approach though: 1) it 
   cannot easily be used from another language, 2) CUDA is not really possible from a .cpp file, although it looks like 
-  this is likely to change in the coming years with Executors or even nv++.
+  this is likely to change in the coming years with Executors or even nvc++.
 
-
-- __Lazy evaluation and template expressions ala xtensor__.
-  Again, I don't want to go down that path but:
+  __Lazy evaluation and template expressions ala xtensor__.
+  Again, I don't want to go down that path but FYI:
   `ArrayFire` is quite good at fusing kernels, the implementation seems relatively clean. I think `Cupy` is similar 
   but CUDA only. `Pytorch` should be the same but the codebase is huge, and it's difficult to understand what is going on.
   Also `Eigen` and `xtensor` have lazy evaluation. `xtensor` has a series of articles on how they implemented
@@ -84,6 +83,9 @@
   add a "proclaim_ewise" traits that can be "appended" by the user and accepted by the API. That way, we keep the
   user code device-agnostic (they can use NOA_HD-like macro) and they need to have an extra .cu file to compile
   the new kernels... So instead of lambdas, we must use functors, which is not as good, but still quite good.
+  Another solution is to wrap the C++ compiler the way kokkos does with their nvcc_wrapper and treat EVERY
+  USER TU as CUDA files. I'm not sure if I like that, but that's a "simple" trick and it just works (assuming
+  user code doesn't break nvcc/nvc++). At least, this could be a build option, like `NOA_ENABLE_CUDA_IN_CPP`...
 
 
 -  Remove Ptr* for tmps and use shared_ptr and Ptr*::alloc() instead.
@@ -135,7 +137,8 @@
 - __Future framework__. Add Vulkan backend or modern approach like `SYCL`. Ideally, for most operations, we would
   like to relly on the compiler to generate device specific code, which seems to be exactly what `SYCL` does. 
   Vulkan also seems a good option unified GPU support, but that's another backend and Apple-Vulkan is sketchy...
-  If Vulkan, GLSL for shading language and then glslangValidator or glslc to compile to SPIR-V?
+  If Vulkan, GLSL for shading language and then glslangValidator or glslc to compile to SPIR-V? `romc/hip` from AMD
+  seems relatively easy to add using their hipify tool from CUDA code.
   __HOWEVER__, in the future it seems that the `C++ Standard Parallelism` could simplify everything, especially with
   Senders/Receivers and Executions context policies, but it is targeted to C++26 so...
   [std::execution](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2300r5.html).
