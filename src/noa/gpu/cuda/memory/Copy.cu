@@ -1,6 +1,6 @@
 #include "noa/common/Functors.h"
 #include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/util/EwiseUnary.cuh"
+#include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::memory::details {
     template<typename T, typename>
@@ -8,10 +8,11 @@ namespace noa::cuda::memory::details {
               T* dst, dim4_t dst_strides,
               dim4_t shape, Stream& stream) {
         // This function is called from noa::cuda::memory::copy(), which already has reordered to C-major.
-        util::ewise::unary<true>("memory::copy",
-                                 src, src_strides,
-                                 dst, dst_strides,
-                                 shape, false, stream, noa::math::copy_t{});
+        utils::ewise::unary<true>(
+                "memory::copy",
+                src, src_strides,
+                dst, dst_strides,
+                shape, false, stream, noa::math::copy_t{});
     }
 
     #define NOA_INSTANTIATE_COPY_(T) \

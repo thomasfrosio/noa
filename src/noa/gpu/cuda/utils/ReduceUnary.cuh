@@ -6,14 +6,14 @@
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
 
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 // These reduction kernels are adapted from different sources, but the main logic come from:
 //  - https://github.com/NVIDIA/cuda-samples/tree/master/Samples/reduction
 //  - https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
 
-namespace noa::cuda::util::details {
+namespace noa::cuda::utils::details {
     struct ReduceUnaryConfig {
         static constexpr uint32_t ELEMENTS_PER_THREAD = 8;
         static constexpr uint32_t BLOCK_SIZE = 512;
@@ -46,21 +46,21 @@ namespace noa::cuda::util::details {
         reduce_value_t reduced = init;
         for (uint32_t cid = base; cid < elements_per_batch; cid += BLOCK_WORK_SIZE * gridDim.x) {
             const uint32_t remaining = elements_per_batch - cid;
-            util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     input_.offset(cid).get(), input_.stride(0), remaining,
                     transform_op, reduce_op, &reduced, tid);
         }
 
         // Share thread's result to the other threads.
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total.
-        const reduce_value_t final = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        const reduce_value_t final = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
         if (tid == 0)
             tmp_output[batch * tmp_output_stride + blockIdx.x] = final;
     }
@@ -94,7 +94,7 @@ namespace noa::cuda::util::details {
             // Consume the row:
             for (uint32_t cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
                 const uint32_t remaining = shape[3] - cid;
-                util::block::reduceUnaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
+                utils::block::reduceUnaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
                         input_row.offset(cid).get(), input_row.stride(0), remaining,
                         transform_op, reduce_op, &reduced, threadIdx.x);
             }
@@ -102,15 +102,15 @@ namespace noa::cuda::util::details {
 
         // Share thread's result to the other threads.
         const uint32_t tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total
-        const reduce_value_t final = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        const reduce_value_t final = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
         if (tid == 0)
             tmp_output[batch * tmp_output_stride + blockIdx.x] = final;
     }
@@ -136,19 +136,19 @@ namespace noa::cuda::util::details {
         reduce_value_t reduced = init;
         for (uint32_t cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
             const uint32_t remaining = elements_per_batch - cid;
-            util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     input_.offset(cid).get(), input_.stride(0), remaining,
                     transform_op, reduce_op, &reduced, tid);
         }
 
         // one element per thread -> one element per block.
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
-        const reduce_value_t final_ = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        utils::block::synchronize();
+        const reduce_value_t final_ = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
 
         // Save final element.
         if (tid == 0) {
@@ -161,7 +161,7 @@ namespace noa::cuda::util::details {
     }
 }
 
-namespace noa::cuda::util {
+namespace noa::cuda::utils {
     // Reduce the three or four innermost dimensions of input to one element.
     // name:            Name of the function. Used for logging if a kernel launch fails.
     // input:           On the device. Input array to reduce.
@@ -217,8 +217,8 @@ namespace noa::cuda::util {
         // The output pointers are allowed to not be on the stream's device,
         // so make sure device memory is allocated for the output.
         memory::PtrDevice<post_value_t> buffer0;
-        post_value_t* output0_ptr = util::devicePointer(output0, stream.device());
-        post_value_t* output1_ptr = output1 ? util::devicePointer(output1, stream.device()) : nullptr;
+        post_value_t* output0_ptr = utils::devicePointer(output0, stream.device());
+        post_value_t* output1_ptr = output1 ? utils::devicePointer(output1, stream.device()) : nullptr;
         bool output0_was_copied{false}, output1_was_copied{false};
         auto output0_stride_ = safe_cast<uint32_t>(output0_stride);
         auto output1_stride_ = safe_cast<uint32_t>(output1_stride);
@@ -262,7 +262,7 @@ namespace noa::cuda::util {
             }
 
             // Try to vectorize the loads for the input.
-            uint32_t vec_size = tmp_strides[1] == 1 ? util::maxVectorCount(tmp) : 1;
+            uint32_t vec_size = tmp_strides[1] == 1 ? utils::maxVectorCount(tmp) : 1;
             if (batches > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = tmp_strides[0] % vec_size ? 1 : vec_size;
 
@@ -288,7 +288,7 @@ namespace noa::cuda::util {
             const dim3 blocks(blocks_x, batches);
 
             // Try to vectorize the loads for the input.
-            uint32_t vec_size = s_strides[1] == 1 ? util::maxVectorCount(input) : 1;
+            uint32_t vec_size = s_strides[1] == 1 ? utils::maxVectorCount(input) : 1;
             if (batches > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = s_strides[0] % vec_size ? 1 : vec_size;
 
@@ -332,7 +332,7 @@ namespace noa::cuda::util {
 
             // Try to vectorize the loads within a row.
             // Check that the beginning of each row is at the same alignment. This is true for pitch2D arrays.
-            uint vec_size = s_strides[3] == 1 ? util::maxVectorCount(input) : 1;
+            uint vec_size = s_strides[3] == 1 ? utils::maxVectorCount(input) : 1;
             if ((s_strides[2] % vec_size && s_shape[2] != 1) ||
                 (s_strides[1] % vec_size && s_shape[1] != 1) ||
                 (s_strides[0] % vec_size && s_shape[0] != 1))
@@ -410,12 +410,12 @@ namespace noa::cuda::util {
         const auto divisor = static_cast<reduce_value_t>(elements) - static_cast<reduce_value_t>(ddof);
         const auto inv_count = reduce_value_t{1} / divisor;
         auto sum_to_mean_op = [inv_count]__device__(value_t v) -> value_t { return v * inv_count; };
-        util::reduce(name, input, input_strides, shape,
-                     noa::math::copy_t{}, noa::math::plus_t{}, value_t{0},
-                     means.get(), 1, sum_to_mean_op, null0, 0, noa::math::copy_t{}, reduce_batch, swap_layout, stream);
+        utils::reduce(name, input, input_strides, shape,
+                      noa::math::copy_t{}, noa::math::plus_t{}, value_t{0},
+                      means.get(), 1, sum_to_mean_op, null0, 0, noa::math::copy_t{}, reduce_batch, swap_layout, stream);
 
         // Get the variance:
-        // util::reduce cannot batch this operation because the mean has to be embedded in the transform_op
+        // utils::reduce cannot batch this operation because the mean has to be embedded in the transform_op
         // which is fixed for every batch, whereas the mean is per-batch.
         stream.synchronize();
         auto dist2_to_var = [inv_count]__device__(reduce_value_t v) -> reduce_value_t {
@@ -436,10 +436,10 @@ namespace noa::cuda::util {
                 }
                 return reduce_value_t{}; // unreachable
             };
-            util::reduce(name, input + input_strides[0] * batch, input_strides, shape_,
-                         transform_op, noa::math::plus_t{}, reduce_value_t{0},
-                         output + output_stride * batch, 1, dist2_to_var,
-                         null1, 0, noa::math::copy_t{}, true, swap_layout, stream);
+            utils::reduce(name, input + input_strides[0] * batch, input_strides, shape_,
+                          transform_op, noa::math::plus_t{}, reduce_value_t{0},
+                          output + output_stride * batch, 1, dist2_to_var,
+                          null1, 0, noa::math::copy_t{}, true, swap_layout, stream);
         }
     }
 }

@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Resize.h"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace noa;

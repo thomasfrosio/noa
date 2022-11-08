@@ -1,9 +1,9 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/math/Complex.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/EwiseBinary.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -57,7 +57,7 @@ namespace {
                 T ireal[ELEMENTS_PER_THREAD];
                 T iimag[ELEMENTS_PER_THREAD];
 
-                using namespace ::noa::cuda::util;
+                using namespace ::noa::cuda::utils;
                 block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(complex_.get(), args, threadIdx.x);
                 #pragma unroll
                 for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
@@ -126,9 +126,9 @@ namespace noa::cuda::math {
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto elements = safe_cast<uint32_t>(shape.elements());
             const uint32_t blocks = noa::math::divideUp(elements, BLOCK_WORK_SIZE);
-            const int32_t vec_size = is_contiguous[3] ? std::min({util::maxVectorCount(real.get()),
-                                                                  util::maxVectorCount(imag.get()),
-                                                                  util::maxVectorCount(input.get())}) : 1;
+            const int32_t vec_size = is_contiguous[3] ? std::min({utils::maxVectorCount(real.get()),
+                                                                  utils::maxVectorCount(imag.get()),
+                                                                  utils::maxVectorCount(input.get())}) : 1;
 
             const AccessorRestrict<const Complex<T>, 1, uint32_t> input_accessor(input.get(), input_strides[3]);
             const AccessorRestrict<T, 1, uint32_t> real_accessor(real.get(), real_strides[3]);
@@ -163,11 +163,12 @@ namespace noa::cuda::math {
                  const shared_t<T[]>& imag, dim4_t imag_strides,
                  const shared_t<Complex<T>[]>& output, dim4_t output_strides,
                  dim4_t shape, Stream& stream) {
-        util::ewise::binary<true>("memory::complex",
-                                  real.get(), real_strides,
-                                  imag.get(), imag_strides,
-                                  output.get(), output_strides,
-                                  shape, true, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
+        utils::ewise::binary<true>(
+                "memory::complex",
+                real.get(), real_strides,
+                imag.get(), imag_strides,
+                output.get(), output_strides,
+                shape, true, stream, []__device__(T r, T i) { return Complex<T>{r, i}; });
         stream.attach(real, imag, output);
     }
 

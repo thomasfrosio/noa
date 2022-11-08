@@ -4,7 +4,7 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/signal/Median.h"
 #include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 // The current implementations only supports small squared windows. This allows to:
 //  1)  Load the windows for all threads in a block in shared memory. This is useful because windows overlap.
@@ -77,7 +77,7 @@ namespace {
         constexpr int32_t HALO = PADDING / 2;
 
         // The shared memory is the shape of the block + the padding in the first dimension.
-        using uninit_t = util::traits::uninitialized_type_t<T>;
+        using uninit_t = utils::traits::uninitialized_type_t<T>;
         constexpr int2_t SHARED_SIZE(BLOCK_SIZE.y, BLOCK_SIZE.x + PADDING);
         __shared__ uninit_t buffer[math::prod(SHARED_SIZE)];
         T* shared_mem = reinterpret_cast<T*>(buffer);
@@ -99,7 +99,7 @@ namespace {
                                                       shared_mem + tid[0] * SHARED_SIZE[1] + lx,
                                                       shape[1], gx - HALO);
             }
-            util::block::synchronize();
+            utils::block::synchronize();
 
             // Only continue if not out of bound.
             if (gid[3] < shape[1]) {
@@ -182,7 +182,7 @@ namespace {
         constexpr int32_t HALO = PADDING / 2;
 
         // The shared memory is the shape of the block + the padding the first and second dimension.
-        using uninit_t = util::traits::uninitialized_type_t<T>;
+        using uninit_t = utils::traits::uninitialized_type_t<T>;
         constexpr int2_t SHARED_SIZE(BLOCK_SIZE.y + PADDING, BLOCK_SIZE.x + PADDING);
         __shared__ uninit_t buffer[math::prod(SHARED_SIZE)];
         T* shared_mem = reinterpret_cast<T*>(buffer);
@@ -203,7 +203,7 @@ namespace {
                                                       shared_mem + ly * SHARED_SIZE[1] + lx,
                                                       shape[0], gy - HALO,
                                                       shape[1], gx - HALO);
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Only continue if not out of bound. gid.z cannot be out of bound.
         if (gid[2] < shape[0] && gid[3] < shape[1]) {
@@ -294,7 +294,7 @@ namespace {
 
         // The shared memory is the shape of the block + the padding all 3 dimensions.
         // For the largest supported window (5), this goes up to 20*20*5=2205 elements.
-        using uninit_t = util::traits::uninitialized_type_t<T>;
+        using uninit_t = utils::traits::uninitialized_type_t<T>;
         constexpr int3_t SHARED_SIZE(WINDOW_SIZE, BLOCK_SIZE.y + PADDING, BLOCK_SIZE.x + PADDING);
         __shared__ uninit_t buffer[math::prod(SHARED_SIZE)];
         T* shared_mem = reinterpret_cast<T*>(buffer);
@@ -317,7 +317,7 @@ namespace {
                             input_,
                             shared_mem + (lz * SHARED_SIZE[1] + ly) * SHARED_SIZE[2] + lx,
                             shape[0], gz - HALO, shape[1], gy - HALO, shape[2], gx - HALO);
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Only continue if not out of bound. gid.z cannot be out of bound.
         if (gid[2] < shape[1] && gid[3] < shape[2]) {

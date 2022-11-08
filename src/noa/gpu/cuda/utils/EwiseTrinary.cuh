@@ -2,11 +2,11 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Traits.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Traits.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
-namespace noa::cuda::util::ewise::details {
+namespace noa::cuda::utils::ewise::details {
     struct TrinaryConfig {
         static constexpr uint32_t ELEMENTS_PER_THREAD = 4;
         static constexpr uint32_t BLOCK_SIZE = 128;
@@ -372,7 +372,7 @@ namespace noa::cuda::util::ewise::details {
     }
 }
 
-namespace noa::cuda::util::ewise {
+namespace noa::cuda::utils::ewise {
     // Apply a trinary operator, element-wise.
     // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
     // name:            Name of the function. Used for logging if kernel launch fails.

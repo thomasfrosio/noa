@@ -1,9 +1,9 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/util/Traits.h"
+#include "noa/gpu/cuda/utils/Traits.h"
 #include "noa/gpu/cuda/memory/Permute.h"
 
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 namespace {
     using namespace ::noa;
@@ -20,7 +20,7 @@ namespace {
     void permute0312_(AccessorRestrict<const T, 4, uint32_t> input,
                       AccessorRestrict<T, 4, uint32_t> output_swapped,
                       uint2_t shape /* YX */ , uint32_t blocks_x) {
-        using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
+        using uninit_t = cuda::utils::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[TILE_DIM][TILE_DIM + 1];
         T(& tile)[TILE_DIM][TILE_DIM + 1] = *reinterpret_cast<T(*)[TILE_DIM][TILE_DIM + 1]>(&buffer);
 
@@ -39,7 +39,7 @@ namespace {
                 tile[tid[0] + repeat][tid[1]] = input_(gy, old_gid[1]);
         }
 
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Write permuted tile to global memory.
         const uint2_t new_gid = offset.flip() + tid;

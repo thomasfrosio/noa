@@ -2,7 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/signal/Convolve.h"
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 namespace {
     using namespace ::noa;
@@ -28,7 +28,7 @@ namespace {
 
         const auto input_row = input[gid[0]][gid[1]][gid[2]];
 
-        T* shared = util::block::dynamicSharedResource<T>();
+        T* shared = utils::block::dynamicSharedResource<T>();
         if (gid[2] < shape[0]) {
             const int32_t PADDING = filter_size - 1;
             const int32_t HALO = PADDING / 2;
@@ -40,7 +40,7 @@ namespace {
                 const int32_t idx = gx - HALO;
                 shared[lx] = (idx >= 0 && idx < shape[1]) ? input_row[idx] : T{0};
             }
-            util::block::synchronize();
+            utils::block::synchronize();
 
             if (gid[3] < shape[1]) {
                 // Weighted sum.

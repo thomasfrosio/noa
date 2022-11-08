@@ -4,7 +4,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 
 // TODO Add nvrtc to support any type.
@@ -138,8 +138,8 @@ namespace noa::cuda::memory {
         static_assert(cudaMemoryTypeHost == 1);
         static_assert(cudaMemoryTypeDevice == 2);
         static_assert(cudaMemoryTypeManaged == 3);
-        const cudaPointerAttributes src_attr = cuda::util::getAttributes(src);
-        const cudaPointerAttributes dst_attr = cuda::util::getAttributes(dst);
+        const cudaPointerAttributes src_attr = cuda::utils::getAttributes(src);
+        const cudaPointerAttributes dst_attr = cuda::utils::getAttributes(dst);
 
         if (src_attr.type == 2 && dst_attr.type == 2) {
             // Both regions are on the same device, we can therefore launch our copy kernel.

@@ -79,7 +79,7 @@
   Note that the kernels are already there and can take any operators like in the CPU backend, but they have to be
   compiled by .cu files. I really hope nvc++ will solve this issue.
   One simple solution for now would be to keep using `ewise()` (and even add `iwise()`), and add a way for projects
-  to add and compile other operators, which should be relatively easy since we have the util/Ewise###.cuh headers.
+  to add and compile other operators, which should be relatively easy since we have the utils/Ewise###.cuh headers.
   We can explicitly instantiate for these new device functors and link against it. On the library side, we have to
   add a "proclaim_ewise" traits that can be "appended" by the user and accepted by the API. That way, we keep the
   user code device-agnostic (they can use NOA_HD-like macro) and they need to have an extra .cu file to compile

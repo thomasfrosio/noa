@@ -5,9 +5,9 @@
 #include "noa/gpu/cuda/signal/fft/Correlate.h"
 #include "noa/gpu/cuda/signal/fft/Shift.h"
 
-#include "noa/gpu/cuda/util/EwiseBinary.cuh"
-#include "noa/gpu/cuda/util/ReduceUnary.cuh"
-#include "noa/gpu/cuda/util/ReduceBinary.cuh"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
+#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/ReduceBinary.cuh"
 
 namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename T, typename U>
@@ -22,7 +22,7 @@ namespace noa::cuda::signal::fft {
         NOA_ASSERT(all(buffer_strides > 0));
 
         if (normalize) {
-            cuda::util::ewise::binary(
+            cuda::utils::ewise::binary(
                     "signal::fft::xmap",
                     lhs.get(), lhs_strides, rhs.get(), rhs_strides,
                     buffer.get(), buffer_strides,
@@ -84,13 +84,13 @@ namespace noa::cuda::signal::fft::details {
         auto denominator_rhs = buffer.get() + batches * 2;
 
         T* null{};
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::xcorr", lhs.get(), lhs_stride, shape_fft,
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 denominator_lhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
                 false, true, stream);
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::xcorr", rhs.get(), rhs_stride, shape_fft,
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 denominator_rhs, 1, noa::math::copy_t{},
@@ -98,7 +98,7 @@ namespace noa::cuda::signal::fft::details {
                 false, true, stream);
 
         auto combine_op = []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * r); };
-        cuda::util::reduce<false>(
+        cuda::utils::reduce<false>(
                 "signal::fft::xcorr",
                 lhs.get(), lhs_stride, rhs.get(), rhs_stride, shape_fft,
                 noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, T{0},
@@ -120,13 +120,13 @@ namespace noa::cuda::signal::fft::details {
 
         T numerator{}, denominator_lhs{}, denominator_rhs{};
         T* null{};
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::xcorr", lhs.get(), lhs_stride, shape_fft,
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 &denominator_lhs, 1, noa::math::copy_t{},
                 null, 0, noa::math::copy_t{},
                 true, true, stream);
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::xcorr", rhs.get(), rhs_stride, shape_fft,
                 noa::math::abs_squared_t{}, noa::math::plus_t{}, T{0},
                 &denominator_rhs, 1, noa::math::copy_t{},
@@ -134,7 +134,7 @@ namespace noa::cuda::signal::fft::details {
                 true, true, stream);
 
         auto combine_op = []__device__(Complex<T> l, Complex<T> r) { return noa::math::real(l * r); };
-        cuda::util::reduce<false>(
+        cuda::utils::reduce<false>(
                 "signal::fft::xcorr",
                 lhs.get(), lhs_stride, rhs.get(), rhs_stride, shape_fft,
                 noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, T{0},

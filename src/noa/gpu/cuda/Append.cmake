@@ -12,19 +12,19 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/Types.h
 
         # noa::cuda::util
-        gpu/cuda/util/Atomic.cuh
-        gpu/cuda/util/Block.cuh
-        gpu/cuda/util/EwiseBinary.cuh
-        gpu/cuda/util/EwiseTrinary.cuh
-        gpu/cuda/util/EwiseUnary.cuh
-        gpu/cuda/util/Find.cuh
-        gpu/cuda/util/Iwise.cuh
-        gpu/cuda/util/Pointers.h
-        gpu/cuda/util/ReduceUnary.cuh
-        gpu/cuda/util/ReduceBinary.cuh
-        gpu/cuda/util/Traits.h
-        gpu/cuda/util/Version.h
-        gpu/cuda/util/Warp.cuh
+        gpu/cuda/utils/Atomic.cuh
+        gpu/cuda/utils/Block.cuh
+        gpu/cuda/utils/EwiseBinary.cuh
+        gpu/cuda/utils/EwiseTrinary.cuh
+        gpu/cuda/utils/EwiseUnary.cuh
+        gpu/cuda/utils/Find.cuh
+        gpu/cuda/utils/Iwise.cuh
+        gpu/cuda/utils/Pointers.h
+        gpu/cuda/utils/ReduceUnary.cuh
+        gpu/cuda/utils/ReduceBinary.cuh
+        gpu/cuda/utils/Traits.h
+        gpu/cuda/utils/Version.h
+        gpu/cuda/utils/Warp.cuh
 
         # noa::cuda::memory
         gpu/cuda/memory/Arange.h

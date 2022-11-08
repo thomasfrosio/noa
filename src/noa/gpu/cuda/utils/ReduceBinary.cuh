@@ -6,13 +6,13 @@
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
 
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 // These reduction kernels are similar to ReduceUnary.cuh,
 // except that they take two inputs, combine them and then reduce.
 
-namespace noa::cuda::util::details {
+namespace noa::cuda::utils::details {
     struct ReduceBinaryConfig {
         static constexpr uint32_t ELEMENTS_PER_THREAD = 8;
         static constexpr uint32_t BLOCK_SIZE = 512;
@@ -47,22 +47,22 @@ namespace noa::cuda::util::details {
         reduce_value_t reduced = init;
         for (uint32_t cid = base; cid < elements_per_batch; cid += BLOCK_WORK_SIZE * gridDim.x) {
             const uint32_t remaining = elements_per_batch - cid;
-            util::block::reduceBinaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::reduceBinaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     lhs_.offset(cid).get(), lhs_.stride(0),
                     rhs_.offset(cid).get(), lhs_.stride(0), remaining,
                     transform_op_lhs, transform_op_rhs, combine_op, reduce_op, &reduced, tid);
         }
 
         // Share thread's result to the other threads.
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total.
-        const reduce_value_t final = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        const reduce_value_t final = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
         if (tid == 0)
             tmp_output[batch * tmp_output_stride + blockIdx.x] = final;
     }
@@ -99,7 +99,7 @@ namespace noa::cuda::util::details {
             // Consume the row:
             for (uint32_t cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
                 const uint32_t remaining = shape[3] - cid;
-                util::block::reduceBinaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
+                utils::block::reduceBinaryGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
                         lhs_row.offset(cid).get(), lhs_row.stride(0),
                         rhs_row.offset(cid).get(), rhs_row.stride(0), remaining,
                         transform_op_lhs, transform_op_rhs, combine_op, reduce_op, &reduced, threadIdx.x);
@@ -108,15 +108,15 @@ namespace noa::cuda::util::details {
 
         // Share thread's result to the other threads.
         const uint32_t tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total
-        const reduce_value_t final = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        const reduce_value_t final = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
         if (tid == 0)
             tmp_output[batch * tmp_output_stride + blockIdx.x] = final;
     }
@@ -141,19 +141,19 @@ namespace noa::cuda::util::details {
         reduce_value_t reduced = init;
         for (uint32_t cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
             const uint32_t remaining = elements_per_batch - cid;
-            util::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::reduceUnaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     tmp_output + cid, 1, remaining,
                     noa::math::copy_t{}, reduce_op, &reduced, tid);
         }
 
         // one element per thread -> one element per block.
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
-        const reduce_value_t final_ = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        utils::block::synchronize();
+        const reduce_value_t final_ = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
 
         // Save final element.
         if (tid == 0) {
@@ -191,20 +191,20 @@ namespace noa::cuda::util::details {
         reduce_value_t reduced = init;
         for (uint32_t cid = 0; cid < elements_per_batch; cid += BLOCK_WORK_SIZE) {
             const uint32_t remaining = elements_per_batch - cid;
-            util::block::reduceBinaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::reduceBinaryGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     lhs_.offset(cid).get(), lhs_.stride(0),
                     rhs_.offset(cid).get(), rhs_.stride(0), remaining,
                     transform_op_lhs, transform_op_rhs, combine_op, reduce_op, &reduced, tid);
         }
 
         // one element per thread -> one element per block.
-        using uninitialized_t = util::traits::uninitialized_type_t<reduce_value_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<reduce_value_t>;
         __shared__ uninitialized_t s_data_[BLOCK_SIZE];
         auto* s_data = reinterpret_cast<reduce_value_t*>(s_data_);
 
         s_data[tid] = reduced;
-        util::block::synchronize();
-        const reduce_value_t final_ = util::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
+        utils::block::synchronize();
+        const reduce_value_t final_ = utils::block::reduceShared1D<BLOCK_SIZE>(s_data, tid, reduce_op);
 
         // Save final element.
         if (tid == 0) {
@@ -227,7 +227,7 @@ namespace noa::cuda::util::details {
     }
 }
 
-namespace noa::cuda::util {
+namespace noa::cuda::utils {
     // Reduce the three or four innermost dimensions of lhs and rhs.
     // Reads element-wise lhs and rhs, transform and combine them, and then reduce.
     // RESTRICT:            Whether lhs and rhs can be accessed using the __restrict__ attribute.
@@ -281,8 +281,8 @@ namespace noa::cuda::util {
         // The output pointers are allowed to not be on the stream's device,
         // so make sure device memory is allocated for the output.
         memory::PtrDevice<post_value_t> buffer0;
-        post_value_t* output0_ptr = util::devicePointer(output0, stream.device());
-        post_value_t* output1_ptr = output1 ? util::devicePointer(output1, stream.device()) : nullptr;
+        post_value_t* output0_ptr = utils::devicePointer(output0, stream.device());
+        post_value_t* output1_ptr = output1 ? utils::devicePointer(output1, stream.device()) : nullptr;
         bool output0_was_copied{false}, output1_was_copied{false};
         auto output0_stride_ = safe_cast<uint32_t>(output0_stride);
         auto output1_stride_ = safe_cast<uint32_t>(output1_stride);

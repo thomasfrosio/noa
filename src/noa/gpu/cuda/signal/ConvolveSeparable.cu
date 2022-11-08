@@ -4,8 +4,8 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/signal/Convolve.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -37,7 +37,7 @@ namespace {
         const int32_t shared_len = static_cast<int32_t>(BLOCK_SIZE.x) + padding;
 
         // Filter along x.
-        T* shared = util::block::dynamicSharedResource<T>();
+        T* shared = utils::block::dynamicSharedResource<T>();
         if (gid[2] < shape[0]) {
             shared += tid[0] * shared_len; // focus on current row
 
@@ -46,7 +46,7 @@ namespace {
                 const int32_t i_x = gx - halo;
                 shared[lx] = i_x >= 0 && i_x < shape[1] ? input_[i_x] : T{0};
             }
-            util::block::synchronize();
+            utils::block::synchronize();
 
             if (gid[3] < shape[1]) {
                 // Weighted sum.
@@ -79,13 +79,13 @@ namespace {
         const int32_t shared_len_y = static_cast<int32_t>(BLOCK_SIZE.y) + padding;
 
         // Filter along y.
-        T* shared = util::block::dynamicSharedResource<T>();
+        T* shared = utils::block::dynamicSharedResource<T>();
         if (gid[3] < shape[1]) {
             for (int32_t ly = tid[0], gy = gid[2]; ly < shared_len_y; ly += BLOCK_SIZE.y, gy += BLOCK_SIZE.y) {
                 const int32_t i_y = gy - halo;
                 shared[ly * BLOCK_SIZE.x + tid[1]] = i_y >= 0 && i_y < shape[0] ? input_(i_y, gid[3]) : T{0};
             }
-            util::block::synchronize();
+            utils::block::synchronize();
 
             if (gid[2] < shape[0]) {
                 const T* window = reinterpret_cast<T*>(cfilter);
@@ -102,7 +102,7 @@ namespace {
     void convolveSeparableZ_(AccessorRestrict<const T, 4, uint32_t> input,
                              AccessorRestrict<T, 4, uint32_t> output,
                              uint2_t shape /* ZX */, int32_t filter_size, uint32_t blocks_x) {
-        T* shared = util::block::dynamicSharedResource<T>();
+        T* shared = utils::block::dynamicSharedResource<T>();
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         const int2_t tid{threadIdx.y, threadIdx.x};
@@ -122,7 +122,7 @@ namespace {
                 const int32_t i_z = gz - halo;
                 shared[lz * BLOCK_SIZE.x + tid[1]] = i_z >= 0 && i_z < shape[0] ? input_(i_z, gid[2], gid[3]) : T{0};
             }
-            util::block::synchronize();
+            utils::block::synchronize();
 
             // Weighted sum.
             if (gid[1] < shape[0]) {
@@ -292,7 +292,7 @@ namespace noa::cuda::signal {
             if (all(filter_shape == 1)) {
                 // Make sure the (single) value is dereferenceable.
                 U filter_value;
-                U* filter_ = util::hostPointer(filter.get());
+                U* filter_ = utils::hostPointer(filter.get());
                 if (filter_) {
                     filter_value = filter_[0];
                 } else {

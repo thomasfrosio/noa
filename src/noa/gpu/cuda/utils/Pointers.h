@@ -5,9 +5,9 @@
 #include "noa/gpu/cuda/Device.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/util/Traits.h"
+#include "noa/gpu/cuda/utils/Traits.h"
 
-namespace noa::cuda::util {
+namespace noa::cuda::utils {
     // Returns the pointer attributes of ptr.
     NOA_IH cudaPointerAttributes getAttributes(const void* ptr) {
         cudaPointerAttributes attr{};
@@ -30,7 +30,7 @@ namespace noa::cuda::util {
             return ptr;
         return nullptr; // unreachable
     }
-    #define NOA_ASSERT_DEVICE_PTR(ptr, device) NOA_ASSERT(::noa::cuda::util::devicePointer(ptr, device) != nullptr)
+    #define NOA_ASSERT_DEVICE_PTR(ptr, device) NOA_ASSERT(::noa::cuda::utils::devicePointer(ptr, device) != nullptr)
 
     // If ptr can be accessed by the host, returns ptr. Otherwise, returns nullptr.
     template<typename T>

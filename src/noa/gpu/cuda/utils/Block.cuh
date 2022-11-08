@@ -2,12 +2,12 @@
 
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/util/Traits.h"
-#include "noa/gpu/cuda/util/Warp.cuh"
+#include "noa/gpu/cuda/utils/Traits.h"
+#include "noa/gpu/cuda/utils/Warp.cuh"
 
 // TODO CUDA's cub seems to have some load and store functions. Surely some of them can be use here.
 
-namespace noa::cuda::util::block {
+namespace noa::cuda::utils::block {
     // Synchronizes the block.
     NOA_FD void synchronize() {
         __syncthreads();
@@ -92,7 +92,7 @@ namespace noa::cuda::util::block {
         }
         T value;
         if (tid < 32)
-            value = util::warp::reduce(s_data[tid], reduce_op);
+            value = utils::warp::reduce(s_data[tid], reduce_op);
         return value;
     }
 
@@ -123,7 +123,7 @@ namespace noa::cuda::util::block {
         }
         pair_t reduced;
         if (tid < 32)
-            reduced = util::warp::find(s_values[tid], s_offsets[tid], find_op);
+            reduced = utils::warp::find(s_values[tid], s_offsets[tid], find_op);
         return reduced;
     }
 
@@ -161,7 +161,7 @@ namespace noa::cuda::util::block {
                 }
             } else {
                 value_t args[ELEMENTS_PER_THREAD];
-                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
+                utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const auto transformed = transform_op(args[i]);
@@ -223,8 +223,8 @@ namespace noa::cuda::util::block {
             } else {
                 lhs_value_t lhs_args[ELEMENTS_PER_THREAD];
                 rhs_value_t rhs_args[ELEMENTS_PER_THREAD];
-                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(lhs, lhs_args, tidx);
-                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(rhs, rhs_args, tidx);
+                utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(lhs, lhs_args, tidx);
+                utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(rhs, rhs_args, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const auto combined = combine_op(lhs_transform_op(lhs_args[i]), rhs_transform_op(rhs_args[i]));
@@ -267,7 +267,7 @@ namespace noa::cuda::util::block {
                 }
             } else {
                 value_t args[ELEMENTS_PER_THREAD];
-                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
+                utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const uint offset = gidx + (tidx + (i / VEC_SIZE) * BLOCK_SIZE) * VEC_SIZE + i % VEC_SIZE;
@@ -315,8 +315,8 @@ namespace noa::cuda::util::block {
             } else {
                 value_t args[ELEMENTS_PER_THREAD];
                 offset_t offs[ELEMENTS_PER_THREAD];
-                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, args, tidx);
-                util::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offs, tidx);
+                utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, args, tidx);
+                utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offs, tidx);
                 #pragma unroll
                 for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])),

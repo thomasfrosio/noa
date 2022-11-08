@@ -1,8 +1,8 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -45,7 +45,7 @@ namespace {
                 #pragma unroll
                 for (uint32_t i = 0; i < ELEMENTS_PER_THREAD; ++i)
                     values[i] = value;
-                cuda::util::block::vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, src, threadIdx.x);
+                cuda::utils::block::vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, src, threadIdx.x);
             }
         }
     }
@@ -84,7 +84,7 @@ namespace noa::cuda::memory::details {
         const uint2_t strides{0, 1};
         const auto elements_per_batch = safe_cast<uint32_t>(elements);
         const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE));
-        const int32_t vec_size = noa::cuda::util::maxVectorCount(src);
+        const int32_t vec_size = noa::cuda::utils::maxVectorCount(src);
         if (vec_size == 4) {
             stream.enqueue("memory::set", set1D_<T, 4>,
                            {blocks, BLOCK_SIZE}, src, strides, elements_per_batch, value);
@@ -112,7 +112,7 @@ namespace noa::cuda::memory::details {
             const dim3 blocks(noa::math::divideUp(elements_per_batch, BLOCK_WORK_SIZE),
                               is_contiguous[0] ? 1 : shape[0]);
 
-            uint32_t vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src.get()) : 1;
+            uint32_t vec_size = is_contiguous[3] ? noa::cuda::utils::maxVectorCount(src.get()) : 1;
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = uint_strides[0] % vec_size ? 1 : vec_size;
 

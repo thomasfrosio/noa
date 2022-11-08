@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/math/Find.h"
-#include "noa/gpu/cuda/util/Find.cuh"
+#include "noa/gpu/cuda/utils/Find.cuh"
 
 namespace {
     using namespace ::noa;
@@ -55,17 +55,17 @@ namespace noa::cuda::math {
     void find(S, const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
               const shared_t<U[]>& offsets, bool batch, bool swap_layout, Stream& stream) {
         if constexpr (std::is_same_v<S, noa::math::first_min_t>) {
-            util::find("math::find(first_min_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindFirstMin<T, U>{}, noa::math::Limits<T>::max(), offsets.get(), !batch, swap_layout, stream);
+            utils::find("math::find(first_min_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindFirstMin<T, U>{}, noa::math::Limits<T>::max(), offsets.get(), !batch, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::first_max_t>) {
-            util::find("math::find(first_max_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindFirstMax<T, U>{}, noa::math::Limits<T>::lowest(), offsets.get(), !batch, swap_layout, stream);
+            utils::find("math::find(first_max_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindFirstMax<T, U>{}, noa::math::Limits<T>::lowest(), offsets.get(), !batch, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_min_t>) {
-            util::find("math::find(last_min_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindLastMin<T, U>{}, noa::math::Limits<T>::max(), offsets.get(), !batch, swap_layout, stream);
+            utils::find("math::find(last_min_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindLastMin<T, U>{}, noa::math::Limits<T>::max(), offsets.get(), !batch, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_max_t>) {
-            util::find("math::find(last_max_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindLastMax<T, U>{}, noa::math::Limits<T>::lowest(), offsets.get(), !batch, swap_layout, stream);
+            utils::find("math::find(last_max_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindLastMax<T, U>{}, noa::math::Limits<T>::lowest(), offsets.get(), !batch, swap_layout, stream);
         }
         stream.attach(input, offsets);
     }
@@ -74,17 +74,17 @@ namespace noa::cuda::math {
     offset_t find(S, const shared_t<T[]>& input, dim4_t strides, dim4_t shape, bool swap_layout, Stream& stream) {
         offset_t offset;
         if constexpr (std::is_same_v<S, noa::math::first_min_t>) {
-            util::find("math::find(first_min_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindFirstMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, true, swap_layout, stream);
+            utils::find("math::find(first_min_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindFirstMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, true, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::first_max_t>) {
-            util::find("math::find(first_max_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindFirstMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, true, swap_layout, stream);
+            utils::find("math::find(first_max_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindFirstMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, true, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_min_t>) {
-            util::find("math::find(last_min_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindLastMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, true, swap_layout, stream);
+            utils::find("math::find(last_min_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindLastMin<T, offset_t>{}, noa::math::Limits<T>::max(), &offset, true, swap_layout, stream);
         } else if constexpr (std::is_same_v<S, noa::math::last_max_t>) {
-            util::find("math::find(last_max_t)", input.get(), strides, shape, noa::math::copy_t{},
-                       FindLastMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, true, swap_layout, stream);
+            utils::find("math::find(last_max_t)", input.get(), strides, shape, noa::math::copy_t{},
+                        FindLastMax<T, offset_t>{}, noa::math::Limits<T>::lowest(), &offset, true, swap_layout, stream);
         }
         stream.synchronize();
         return offset;

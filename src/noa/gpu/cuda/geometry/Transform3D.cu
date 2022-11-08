@@ -2,8 +2,8 @@
 #include "noa/common/Math.h"
 #include "noa/common/geometry/details/LinearTransformations3D.h"
 
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Iwise.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
@@ -30,7 +30,7 @@ namespace {
         using value_t = std::remove_cv_t<std::remove_pointer_t<matrix_t>>;
         cuda::memory::PtrDevice<value_t> buffer;
         if constexpr (std::is_pointer_v<matrix_t>)
-            matrices = cuda::util::ensureDeviceAccess(matrices, stream, buffer, output_shape[0]);
+            matrices = cuda::utils::ensureDeviceAccess(matrices, stream, buffer, output_shape[0]);
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
             const float3_t i_shape(texture_shape.get(1));

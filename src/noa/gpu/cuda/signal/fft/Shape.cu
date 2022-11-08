@@ -1,7 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/common/signal/Shape.h"
 #include "noa/gpu/cuda/signal/fft/Shape.h"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 // TODO Add vectorized loads/stores?
 namespace {
@@ -76,7 +76,7 @@ namespace {
                    const float3_t& center, const radius_t& radius, float edge_size,
                    float33_t inv_transform, bool invert, cuda::Stream& stream) {
         NOA_ASSERT(all(shape > 0) && ((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output));
-        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::utils::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         int3_t start{0};
@@ -136,7 +136,7 @@ namespace {
                    const float2_t& center, const radius_t& radius, float edge_size,
                    float22_t inv_transform, bool invert, cuda::Stream& stream) {
         NOA_ASSERT(all(shape > 0) && ((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output));
-        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::utils::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         int2_t start{0};

@@ -2,7 +2,7 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/Set.h"
 #include "noa/gpu/cuda/signal/fft/Standardize.h"
-#include "noa/gpu/cuda/util/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace {
     using namespace ::noa;
@@ -26,7 +26,7 @@ namespace {
 
         T factor;
         T* null{};
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::standardize",
                 input.get(), input_strides, shape,
                 math::abs_squared_t{}, math::plus_t{}, T{0},
@@ -61,7 +61,7 @@ namespace {
         auto subregion = original(ellipsis_t{}, slice_t{1, original.shape()[3] - even});
         T factor0;
         T* null{};
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::standardize",
                 input.get() + subregion.offset(), subregion.strides(), subregion.shape(),
                 math::abs_squared_t{}, math::plus_t{}, T{0},
@@ -70,7 +70,7 @@ namespace {
         // Reduce common column/plane containing the DC:
         subregion = original(ellipsis_t{}, 0);
         T factor1;
-        cuda::util::reduce(
+        cuda::utils::reduce(
                 "signal::fft::standardize",
                 input.get() + subregion.offset(), subregion.strides(), subregion.shape(),
                 math::abs_squared_t{}, math::plus_t{}, T{0},
@@ -82,7 +82,7 @@ namespace {
         if (even) {
             // Reduce common column/plane containing the real Nyquist:
             subregion = original(ellipsis_t{}, -1);
-            cuda::util::reduce(
+            cuda::utils::reduce(
                     "signal::fft::standardize",
                     input.get() + subregion.offset(), subregion.strides(), subregion.shape(),
                     math::abs_squared_t{}, math::plus_t{}, T{0},

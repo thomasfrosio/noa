@@ -17,7 +17,7 @@ include(CMakePackageConfigHelpers)
 # As such, the configuration file should find the packages that closest match the dependencies
 # we used during building. This is where package manager shines...
 configure_package_config_file(
-        ${PROJECT_SOURCE_DIR}/cmake/util/noaConfig.cmake.in
+        ${PROJECT_SOURCE_DIR}/cmake/utils/noaConfig.cmake.in
         ${NOA_GENERATED_DIR}/noaConfig.cmake
         INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa)
 

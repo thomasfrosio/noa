@@ -5,8 +5,8 @@
 #include "noa/gpu/cuda/math/Reduce.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace {
     using namespace ::noa;
@@ -37,16 +37,16 @@ namespace {
             reduced += input_row[tidx]; // TODO Save input values to shared memory?
 
         // Each row in shared memory is reduced to one value.
-        T* s_data = util::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
+        T* s_data = utils::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
         s_data[tid] = reduced;
-        util::block::synchronize();
-        T mean = util::block::reduceShared1D<BLOCK_DIM_X>(
+        utils::block::synchronize();
+        T mean = utils::block::reduceShared1D<BLOCK_DIM_X>(
                 s_data + BLOCK_DIM_X * threadIdx.y, gid[3], noa::math::plus_t{});
 
         // Share the mean of the row to all threads within that row:
         if (gid[3] == 0)
             s_data[threadIdx.y] = mean * inv_count;
-        util::block::synchronize();
+        utils::block::synchronize();
         mean = s_data[threadIdx.y]; // bank-conflict...
 
         // Now get the variance:
@@ -63,8 +63,8 @@ namespace {
         }
         U* s_data_real = reinterpret_cast<U*>(s_data);
         s_data_real[tid] = reduced_dist2;
-        util::block::synchronize();
-        U var = util::block::reduceShared1D<BLOCK_DIM_X>(
+        utils::block::synchronize();
+        U var = utils::block::reduceShared1D<BLOCK_DIM_X>(
                 s_data_real + BLOCK_DIM_X * threadIdx.y, gid[3], noa::math::plus_t{});
         if (gid[3] == 0 && is_valid_row) {
             var *= inv_count;
@@ -97,16 +97,16 @@ namespace {
         for (uint32_t tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) // compute entire row
             reduced_sum += input[tidy * input_strides[2]]; // TODO Save input values to shared memory?
 
-        T* s_data = util::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
+        T* s_data = utils::block::dynamicSharedResource<T>(); // BLOCK_SIZE elements.
         T* s_data_tid = s_data + tid;
         *s_data_tid = reduced_sum;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         #pragma unroll
         for (uint32_t SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
                 *s_data_tid += s_data_tid[BLOCK_SIZE_2D.x * SIZE / 2];
-            util::block::synchronize();
+            utils::block::synchronize();
         }
         T mean = s_data[threadIdx.x];
         mean *= inv_count;
@@ -126,13 +126,13 @@ namespace {
         U* s_data_real = reinterpret_cast<U*>(s_data);
         U* s_data_real_tid = s_data_real + tid;
         *s_data_real_tid = reduced_dist2;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         #pragma unroll
         for (uint32_t SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
                 *s_data_real_tid += s_data_real_tid[BLOCK_SIZE_2D.x * SIZE / 2];
-            util::block::synchronize();
+            utils::block::synchronize();
         }
 
         if (gid[2] == 0 && is_valid_column) {
@@ -243,8 +243,8 @@ namespace noa::cuda::math {
                 memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            util::reduceVar<false>(name, input.get(), input_strides, input_shape,
-                                   output.get(), output_strides[0], ddof, is_or_should_reduce[0], true, stream);
+            utils::reduceVar<false>(name, input.get(), input_strides, input_shape,
+                                    output.get(), output_strides[0], ddof, is_or_should_reduce[0], true, stream);
             stream.attach(input, output);
         } else {
             reduceVarianceAxis_<false>(name,
@@ -271,8 +271,8 @@ namespace noa::cuda::math {
                 memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            util::reduceVar<true>(name, input.get(), input_strides, input_shape,
-                                  output.get(), output_strides[0], ddof, is_or_should_reduce[0], true, stream);
+            utils::reduceVar<true>(name, input.get(), input_strides, input_shape,
+                                   output.get(), output_strides[0], ddof, is_or_should_reduce[0], true, stream);
             stream.attach(input, output);
         } else {
             reduceVarianceAxis_<true>(name,

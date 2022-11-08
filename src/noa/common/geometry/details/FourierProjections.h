@@ -32,7 +32,7 @@ namespace noa::geometry::fft::details {
                            index_t idx_w, index_t idx_v, index_t idx_u,
                            data_t value) {
         #if defined(__CUDA_ARCH__)
-        ::noa::cuda::util::atomic::add(grid.offsetPointer(grid.get(), idx_w, idx_v, idx_u), value);
+        ::noa::cuda::utils::atomic::add(grid.offsetPointer(grid.get(), idx_w, idx_v, idx_u), value);
         #else
         data_t& grid_value = grid(idx_w, idx_v, idx_u);
         if constexpr (traits::is_complex_v<data_t>) {

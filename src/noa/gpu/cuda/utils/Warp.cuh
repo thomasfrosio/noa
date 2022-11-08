@@ -6,12 +6,12 @@
 #include "noa/common/Functors.h"
 #include "noa/gpu/cuda/Types.h"
 
-namespace noa::cuda::util::warp::details {
+namespace noa::cuda::utils::warp::details {
     template<typename T>
     constexpr bool is_valid_suffle_v = noa::traits::is_data_v<T> || noa::traits::is_any_v<T, half, half2>;
 }
 
-namespace noa::cuda::util::warp {
+namespace noa::cuda::utils::warp {
     using namespace noa;
 
     template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>

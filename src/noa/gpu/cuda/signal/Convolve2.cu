@@ -2,7 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/signal/Convolve.h"
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 namespace {
     using namespace ::noa;
@@ -31,7 +31,7 @@ namespace {
         const int2_t PADDING(filter_size - 1);
         const int2_t HALO(PADDING / 2);
         const int2_t SHARED_LEN(OFFSET + PADDING);
-        T* shared = util::block::dynamicSharedResource<T>();
+        T* shared = utils::block::dynamicSharedResource<T>();
 
         // Load to shared memory. Loop to take into account padding.
         for (int32_t ly = tid[0], gy = gid[2]; ly < SHARED_LEN[0]; ly += OFFSET, gy += OFFSET) {
@@ -43,7 +43,7 @@ namespace {
                 shared[ly * SHARED_LEN[1] + lx] = is_in_y && is_in_x ? input_(i_y, i_x) : T{0};
             }
         }
-        util::block::synchronize();
+        utils::block::synchronize();
 
         if (gid[2] < shape[0] && gid[3] < shape[1]) {
             // Weighted sum.

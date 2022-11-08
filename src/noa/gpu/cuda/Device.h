@@ -12,7 +12,7 @@
 
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/util/Version.h"
+#include "noa/gpu/cuda/utils/Version.h"
 
 namespace noa::cuda {
     struct DeviceMemory { size_t free; size_t total; }; // bytes

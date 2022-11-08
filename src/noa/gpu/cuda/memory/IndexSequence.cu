@@ -8,10 +8,10 @@
 #include "noa/gpu/cuda/memory/Index.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/EwiseUnary.cuh"
-#include "noa/gpu/cuda/util/EwiseBinary.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/EwiseUnary.cuh"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 
 namespace {
     using namespace ::noa;
@@ -168,7 +168,7 @@ namespace {
             } else {
                 I offsets_[ELEMENTS_PER_THREAD];
                 T values[ELEMENTS_PER_THREAD];
-                using namespace noa::cuda::util::block;
+                using namespace noa::cuda::utils::block;
                 vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offsets_, threadIdx.x);
                 #pragma unroll
                 for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i)
@@ -208,7 +208,7 @@ namespace {
             } else {
                 T values[ELEMENTS_PER_THREAD];
                 I indexes[ELEMENTS_PER_THREAD];
-                using namespace noa::cuda::util::block;
+                using namespace noa::cuda::utils::block;
                 vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(sequence_values, values, threadIdx.x);
                 vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(sequence_offsets, indexes, threadIdx.x);
                 #pragma unroll
@@ -237,12 +237,14 @@ namespace noa::cuda::memory {
         const dim4_t contiguous_strides = shape.strides();
         const dim_t elements = shape.elements();
         PtrDevice<uint32_t> map(elements, stream);
-        util::ewise::unary<true>("memory::extract",
-                                 lhs.get(), lhs_strides,
-                                 map.get(), contiguous_strides,
-                                 shape, false, stream, unary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
-                                               map.get(), extract_values, extract_offsets, stream);
+        utils::ewise::unary<true>(
+                "memory::extract",
+                lhs.get(), lhs_strides,
+                map.get(), contiguous_strides,
+                shape, false, stream, unary_op);
+        auto out = extract_<value_t, offset_t>(
+                input.get(), input_strides, shape, elements,
+                map.get(), extract_values, extract_offsets, stream);
         stream.attach(input, lhs);
         return out;
     }
@@ -280,12 +282,14 @@ namespace noa::cuda::memory {
         const dim4_t contiguous_strides = shape.strides();
         const dim_t elements = shape.elements();
         PtrDevice<uint32_t> map(elements, stream);
-        util::ewise::binary<true>("memory::extract",
-                                  lhs.get(), lhs_strides, rhs,
-                                  map.get(), contiguous_strides,
-                                  shape, false, stream, binary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
-                                               map.get(), extract_values, extract_offsets, stream);
+        utils::ewise::binary<true>(
+                "memory::extract",
+                lhs.get(), lhs_strides, rhs,
+                map.get(), contiguous_strides,
+                shape, false, stream, binary_op);
+        auto out = extract_<value_t, offset_t>(
+                input.get(), input_strides, shape, elements,
+                map.get(), extract_values, extract_offsets, stream);
         stream.attach(lhs);
         return out;
     }
@@ -306,12 +310,14 @@ namespace noa::cuda::memory {
         const dim4_t contiguous_strides = shape.strides();
         const dim_t elements = shape.elements();
         PtrDevice<uint32_t> map(elements, stream);
-        util::ewise::binary<true>("memory::extract",
-                                  lhs, rhs.get(), rhs_strides,
-                                  map.get(), contiguous_strides,
-                                  shape, false, stream, binary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
-                                               map.get(), extract_values, extract_offsets, stream);
+        utils::ewise::binary<true>(
+                "memory::extract",
+                lhs, rhs.get(), rhs_strides,
+                map.get(), contiguous_strides,
+                shape, false, stream, binary_op);
+        auto out = extract_<value_t, offset_t>(
+                input.get(), input_strides, shape, elements,
+                map.get(), extract_values, extract_offsets, stream);
         stream.attach(rhs);
         return out;
     }
@@ -334,13 +340,15 @@ namespace noa::cuda::memory {
         const dim4_t contiguous_strides = shape.strides();
         const dim_t elements = shape.elements();
         PtrDevice<uint32_t> map(elements, stream);
-        util::ewise::binary<true>("memory::extract",
-                                  lhs.get(), lhs_strides,
-                                  rhs.get(), rhs_strides,
-                                  map.get(), contiguous_strides,
-                                  shape, false, stream, binary_op);
-        auto out = extract_<value_t, offset_t>(input.get(), input_strides, shape, elements,
-                                               map.get(), extract_values, extract_offsets, stream);
+        utils::ewise::binary<true>(
+                "memory::extract",
+                lhs.get(), lhs_strides,
+                rhs.get(), rhs_strides,
+                map.get(), contiguous_strides,
+                shape, false, stream, binary_op);
+        auto out = extract_<value_t, offset_t>(
+                input.get(), input_strides, shape, elements,
+                map.get(), extract_values, extract_offsets, stream);
         stream.attach(lhs, rhs);
         return out;
     }
@@ -375,8 +383,8 @@ namespace noa::cuda::memory {
     void extract(const shared_t<T[]>& input, const shared_t<U[]>& offsets,
                  const shared_t<V[]>& output, dim_t elements, Stream& stream) {
         const uint32_t blocks = noa::math::divideUp(safe_cast<uint32_t>(elements), BLOCK_WORK_SIZE);
-        const int32_t vec_size = std::min(util::maxVectorCount(output.get()),
-                                          util::maxVectorCount(offsets.get()));
+        const int32_t vec_size = std::min(utils::maxVectorCount(output.get()),
+                                          utils::maxVectorCount(offsets.get()));
         if (vec_size == 4) {
             stream.enqueue("memory::extract", extract_<T, U, 4>, {blocks, BLOCK_SIZE},
                            input.get(), output.get(), offsets.get(), elements);
@@ -393,8 +401,8 @@ namespace noa::cuda::memory {
     template<typename value_t, typename offset_t, typename T, typename>
     void insert(const Extracted<value_t, offset_t>& extracted, const shared_t<T[]>& output, Stream& stream) {
         const uint32_t blocks = noa::math::divideUp(static_cast<uint>(extracted.count), BLOCK_WORK_SIZE);
-        const int32_t vec_size = std::min(util::maxVectorCount(extracted.values.get()),
-                                          util::maxVectorCount(extracted.offsets.get()));
+        const int32_t vec_size = std::min(utils::maxVectorCount(extracted.values.get()),
+                                          utils::maxVectorCount(extracted.offsets.get()));
         if (vec_size == 4) {
             stream.enqueue("memory::insert", insert_<value_t, offset_t, 4>, {blocks, BLOCK_SIZE},
                            extracted.values.get(), extracted.offsets.get(), extracted.count, output.get());

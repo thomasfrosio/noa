@@ -1,6 +1,6 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/util/Traits.h"
+#include "noa/gpu/cuda/utils/Traits.h"
 #include "noa/gpu/cuda/memory/Permute.h"
 
 namespace {
@@ -42,7 +42,7 @@ namespace {
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void permute0213_inplace_(Accessor<T, 4, uint32_t> output, uint2_t shape, uint32_t blocks_x) {
-        using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
+        using uninit_t = cuda::utils::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[BLOCK_SIZE.y][BLOCK_SIZE.x];
         T(& tile)[BLOCK_SIZE.y][BLOCK_SIZE.x] = *reinterpret_cast<T(*)[BLOCK_SIZE.y][BLOCK_SIZE.x]>(&buffer);
 

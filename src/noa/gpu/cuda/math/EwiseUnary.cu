@@ -1,15 +1,16 @@
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/util/EwiseUnary.cuh"
+#include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename UnaryOp, typename>
     void ewise(const shared_t<T[]>& input, dim4_t input_strides,
                const shared_t<U[]>& output, dim4_t output_strides,
                dim4_t shape, UnaryOp unary_op, Stream& stream) {
-        cuda::util::ewise::unary("math::ewise", input.get(), input_strides,
-                                 output.get(), output_strides,
-                                 shape, true, stream, unary_op);
+        cuda::utils::ewise::unary(
+                "math::ewise", input.get(), input_strides,
+                output.get(), output_strides,
+                shape, true, stream, unary_op);
         stream.attach(input, output);
     }
 

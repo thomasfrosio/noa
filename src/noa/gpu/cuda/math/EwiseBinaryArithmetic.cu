@@ -1,6 +1,6 @@
 #include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/util/EwiseBinary.cuh"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename V, typename BinaryOp,
@@ -8,10 +8,11 @@ namespace noa::cuda::math {
     void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides, U rhs,
                const shared_t<V[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream) {
-        cuda::util::ewise::binary("math::ewise",
-                                  lhs.get(), lhs_strides, rhs,
-                                  output.get(), output_strides,
-                                  shape, true, stream, binary_op);
+        cuda::utils::ewise::binary(
+                "math::ewise",
+                lhs.get(), lhs_strides, rhs,
+                output.get(), output_strides,
+                shape, true, stream, binary_op);
         stream.attach(lhs, output);
     }
 
@@ -20,10 +21,11 @@ namespace noa::cuda::math {
     void ewise(T lhs, const shared_t<U[]>& rhs, dim4_t rhs_strides,
                const shared_t<V[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream) {
-        cuda::util::ewise::binary("math::ewise",
-                                  lhs, rhs.get(), rhs_strides,
-                                  output.get(), output_strides,
-                                  shape, true, stream, binary_op);
+        cuda::utils::ewise::binary(
+                "math::ewise",
+                lhs, rhs.get(), rhs_strides,
+                output.get(), output_strides,
+                shape, true, stream, binary_op);
         stream.attach(rhs, output);
     }
 
@@ -32,11 +34,12 @@ namespace noa::cuda::math {
                const shared_t<U[]>& rhs, dim4_t rhs_strides,
                const shared_t<V[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream) {
-        cuda::util::ewise::binary("math::ewise",
-                                  lhs.get(), lhs_strides,
-                                  rhs.get(), rhs_strides,
-                                  output.get(), output_strides,
-                                  shape, true, stream, binary_op);
+        cuda::utils::ewise::binary(
+                "math::ewise",
+                lhs.get(), lhs_strides,
+                rhs.get(), rhs_strides,
+                output.get(), output_strides,
+                shape, true, stream, binary_op);
         stream.attach(lhs, rhs, output);
     }
 

@@ -2,8 +2,8 @@
 #include "noa/common/geometry/details/LinearTransformations3D.h"
 
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Iwise.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
@@ -26,7 +26,7 @@ namespace {
         } else {
             if (IS_OPTIONAL && wrapper.get() == nullptr)
                 return output_t{};
-            return output_t(cuda::util::ensureDeviceAccess(wrapper.get(), stream, buffer, count));
+            return output_t(cuda::utils::ensureDeviceAccess(wrapper.get(), stream, buffer, count));
         }
     }
 

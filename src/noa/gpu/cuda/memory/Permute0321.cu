@@ -1,9 +1,9 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/util/Traits.h"
+#include "noa/gpu/cuda/utils/Traits.h"
 #include "noa/gpu/cuda/memory/Permute.h"
 
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 namespace {
     using namespace ::noa;
@@ -20,7 +20,7 @@ namespace {
     void permute0321_(AccessorRestrict<const T, 4, uint32_t> input_swapped,
                       AccessorRestrict<T, 4, uint32_t> output_swapped,
                       uint2_t shape /* ZX */, uint32_t blocks_x) {
-        using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
+        using uninit_t = cuda::utils::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[TILE_DIM][TILE_DIM + 1];
         T(& tile)[TILE_DIM][TILE_DIM + 1] = *reinterpret_cast<T(*)[TILE_DIM][TILE_DIM + 1]>(&buffer);
 
@@ -40,7 +40,7 @@ namespace {
                 tile[tid[0] + repeat][tid[1]] = input_swapped_(gz, old_gid[1]);
         }
 
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Write permuted tile to global memory.
         const uint2_t new_gid = offset.flip() + tid; // ZX.flip() -> XZ -> Z'X'
@@ -55,7 +55,7 @@ namespace {
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
     void permute0321_inplace_(Accessor<T, 4, uint32_t> output_swapped, uint32_t shape, uint32_t blocks_x) {
-        using uninit_t = cuda::util::traits::uninitialized_type_t<T>;
+        using uninit_t = cuda::utils::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer_src[TILE_DIM][TILE_DIM + 1];
         __shared__ uninit_t buffer_dst[TILE_DIM][TILE_DIM + 1];
         T(& tile_src)[TILE_DIM][TILE_DIM + 1] = *reinterpret_cast<T(*)[TILE_DIM][TILE_DIM + 1]>(&buffer_src);
@@ -83,7 +83,7 @@ namespace {
                     tile_dst[tid[0] + repeat][tid[1]] = output_swapped_(dz, dst_gid[1]);
             }
 
-            util::block::synchronize();
+            utils::block::synchronize();
 
             // Write permuted tiles to global memory.
             for (uint32_t repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
@@ -106,7 +106,7 @@ namespace {
                     tile_src[tid[0] + repeat][tid[1]] = output_swapped_(gz, gid[1]);
             }
 
-            util::block::synchronize();
+            utils::block::synchronize();
 
             // Write permuted tile to global memory.
             for (uint32_t repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {

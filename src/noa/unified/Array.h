@@ -20,7 +20,7 @@
 #include "noa/gpu/cuda/memory/PtrManaged.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
 #include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
 #endif
 
 #include "noa/unified/Allocator.h"

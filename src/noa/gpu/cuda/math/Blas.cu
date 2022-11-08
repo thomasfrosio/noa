@@ -1,7 +1,7 @@
 #include <cublas_v2.h>
 
 #include "noa/gpu/cuda/math/Blas.h"
-#include "noa/gpu/cuda/util/ReduceBinary.cuh"
+#include "noa/gpu/cuda/utils/ReduceBinary.cuh"
 
 // Add cublasStatus_t support for NOA_THROW_IF
 namespace {
@@ -145,7 +145,7 @@ namespace noa::cuda::math {
             CUBLAS_THROW_IF_(err);
         } else {
             T* null{};
-            cuda::util::reduce<false>( // sum(lhs * rhs)
+            cuda::utils::reduce<false>( // sum(lhs * rhs)
                     "dot", lhs.get(), dim4_t(lhs_s), rhs.get(), dim4_t(rhs_s), dim4_t{1, 1, 1, lhs_n},
                     noa::math::copy_t{}, noa::math::copy_t{}, noa::math::multiply_t{}, noa::math::plus_t{}, T{0},
                     &output, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, true, stream);
@@ -169,10 +169,10 @@ namespace noa::cuda::math {
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
-        // While we could use cublas dot function, cuda::util::reduce is batched, works with any type and
+        // While we could use cublas dot function, cuda::utils::reduce is batched, works with any type and
         // is as performant as cublas (although cublas is still expected to be more robust to different platforms).
         T* null{};
-        cuda::util::reduce<false>("dot", // sum(lhs * rhs)
+        cuda::utils::reduce<false>("dot", // sum(lhs * rhs)
                 lhs.get(), dim4_t{lhs_strides[0], lhs_strides[0], lhs_strides[0], lhs_s},
                 rhs.get(), dim4_t{rhs_strides[0], rhs_strides[0], rhs_strides[0], rhs_s}, dim4_t{batches, 1, 1, lhs_n},
                 noa::math::copy_t{}, noa::math::copy_t{}, noa::math::multiply_t{}, noa::math::plus_t{}, T{0},

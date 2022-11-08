@@ -3,7 +3,7 @@
 #include <cuda_fp16.h>
 #include "noa/gpu/cuda/Types.h"
 
-namespace noa::cuda::util::traits {
+namespace noa::cuda::utils::traits {
     template<typename T>
     struct private_uninitialized_type { using type = T; };
     template<>
@@ -28,7 +28,7 @@ namespace noa::cuda::util::traits {
     using uninitialized_type_t = typename uninitialized_type<T>::type;
 }
 
-namespace noa::cuda::util::traits {
+namespace noa::cuda::utils::traits {
     // Aligned vector that generates vectorized load/store in CUDA.
     template<typename T, size_t VEC_SIZE>
     struct alignas(sizeof(T) * VEC_SIZE) aligned_vector_t {

@@ -2,8 +2,8 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/fft/Remap.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace noa;
@@ -52,7 +52,7 @@ namespace {
         const auto input_row = output[batch][iz][iy];
         const auto output_row = output[batch][gid[0]][gid[1]];
 
-        T* shared = cuda::util::block::dynamicSharedResource<T>();
+        T* shared = cuda::utils::block::dynamicSharedResource<T>();
         int32_t count = 0;
         for (uint32_t x = threadIdx.x; x < shape_fft[2]; x += blockDim.x, ++count) {
             shared[x - count * blockDim.x] = output_row[x];

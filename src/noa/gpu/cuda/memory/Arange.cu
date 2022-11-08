@@ -1,8 +1,8 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Arange.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -47,7 +47,7 @@ namespace {
                     const uint32_t gid = base + i + ELEMENTS_PER_THREAD * threadIdx.x;
                     values[i] = start + static_cast<T>(gid) * step;
                 }
-                cuda::util::block::vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, src, threadIdx.x);
+                cuda::utils::block::vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, src, threadIdx.x);
             }
         }
     }
@@ -87,7 +87,7 @@ namespace noa::cuda::memory {
         NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
         const auto uint_elements = static_cast<uint32_t>(elements);
         const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-        const int32_t vec_size = noa::cuda::util::maxVectorCount(src.get());
+        const int32_t vec_size = noa::cuda::utils::maxVectorCount(src.get());
         if (vec_size == 4) {
             stream.enqueue("memory::arange", arange1D_<T, 4>,
                            {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, step);
@@ -111,7 +111,7 @@ namespace noa::cuda::memory {
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto uint_elements = safe_cast<uint32_t>(shape.elements());
             const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-            const uint32_t vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src.get()) : 1;
+            const uint32_t vec_size = is_contiguous[3] ? noa::cuda::utils::maxVectorCount(src.get()) : 1;
 
             if (vec_size == 4) {
                 stream.enqueue("memory::arange", arange1D_<T, 4>,

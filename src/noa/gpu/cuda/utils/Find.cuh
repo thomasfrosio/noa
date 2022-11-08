@@ -1,15 +1,15 @@
 #pragma once
 
 #include "noa/common/Math.h"
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Traits.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Traits.h"
 
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrManaged.h"
 
-namespace noa::cuda::util::details {
+namespace noa::cuda::utils::details {
     struct FindConfig {
         static constexpr uint32_t ELEMENTS_PER_THREAD = 8;
         static constexpr uint32_t BLOCK_SIZE = 512;
@@ -42,22 +42,22 @@ namespace noa::cuda::util::details {
         // Initial reduction to bring the input to BLOCK_SIZE * gridDim.x elements.
         Pair<transformed_t, offset_t> best{init, 0};
         for (uint32_t gid = base; gid < elements_per_batch; gid += BLOCK_WORK_SIZE * gridDim.x) {
-            util::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     input, gid, tid, strides[1], elements_per_batch, transform_op, find_op, &best);
         }
 
         // Share thread's result to the other threads.
-        using uninitialized_t = util::traits::uninitialized_type_t<transformed_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<transformed_t>;
         __shared__ uninitialized_t s_values_[BLOCK_SIZE];
         __shared__ offset_t s_indexes[BLOCK_SIZE];
         auto* s_values = reinterpret_cast<transformed_t*>(s_values_);
 
         s_values[tid] = best.first;
         s_indexes[tid] = best.second;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total
-        best = util::block::findShared1D<BLOCK_SIZE>(s_values, s_indexes, tid, find_op);
+        best = utils::block::findShared1D<BLOCK_SIZE>(s_values, s_indexes, tid, find_op);
         if (tid == 0) {
             const uint32_t offset = batch * tmp_output_pitch + blockIdx.x;
             tmp_output_value[offset] = best.first;
@@ -95,7 +95,7 @@ namespace noa::cuda::util::details {
             // Consume the row:
             for (uint32_t cid = 0; cid < shape[3]; cid += BLOCK_WORK_SIZE_X) {
                 const uint32_t gid = offset + cid;
-                util::block::findGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
+                utils::block::findGlobal1D<BLOCK_DIM_X, EPT, VEC_SIZE>(
                         input, gid, threadIdx.x, input_strides[3], gid + shape[3],
                         transform_op, find_op, &best);
             }
@@ -103,17 +103,17 @@ namespace noa::cuda::util::details {
 
         // Share thread's result to the other threads.
         const uint32_t tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
-        using uninitialized_t = util::traits::uninitialized_type_t<transformed_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<transformed_t>;
         __shared__ uninitialized_t s_values_[BLOCK_SIZE];
         __shared__ offset_t s_offsets[BLOCK_SIZE];
         auto* s_values = reinterpret_cast<transformed_t*>(s_values_);
 
         s_values[tid] = best.first;
         s_offsets[tid] = best.second;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total
-        best = util::block::findShared1D<BLOCK_SIZE>(s_values, s_offsets, tid, find_op);
+        best = utils::block::findShared1D<BLOCK_SIZE>(s_values, s_offsets, tid, find_op);
         if (tid == 0) {
             const uint32_t offset = batch * tmp_output_pitch + blockIdx.x;
             tmp_output_value[offset] = best.first;
@@ -140,23 +140,23 @@ namespace noa::cuda::util::details {
         // elements -> one element per thread.
         Pair<transformed_t, offset_t> best{init, 0};
         for (uint32_t gid = 0; gid < elements_per_batch; gid += BLOCK_WORK_SIZE) {
-            util::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     tmp_output_value, tmp_output_offset, gid, tid, elements_per_batch,
                     noa::math::copy_t{}, find_op, &best);
         }
 
         // one element per thread -> one element per block.
-        using uninitialized_t = util::traits::uninitialized_type_t<transformed_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<transformed_t>;
         __shared__ uninitialized_t s_values_[BLOCK_SIZE];
         __shared__ offset_t s_offsets[BLOCK_SIZE];
         auto* s_values = reinterpret_cast<transformed_t*>(s_values_);
 
         s_values[tid] = best.first;
         s_offsets[tid] = best.second;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total
-        best = util::block::findShared1D<BLOCK_SIZE>(s_values, s_offsets, tid, find_op);
+        best = utils::block::findShared1D<BLOCK_SIZE>(s_values, s_offsets, tid, find_op);
         if (tid == 0)
             output_offset[batch] = best.second;
     }
@@ -178,28 +178,28 @@ namespace noa::cuda::util::details {
         // elements -> one element per thread.
         Pair<transformed_t, offset_t> best{init, 0};
         for (uint32_t gid = 0; gid < elements_per_batch; gid += BLOCK_WORK_SIZE) {
-            util::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
+            utils::block::findGlobal1D<BLOCK_SIZE, EPT, VEC_SIZE>(
                     input, gid, tid, input_strides[1], elements_per_batch, transform_op, update_op, &best);
         }
 
         // one element per thread -> one element per block.
-        using uninitialized_t = util::traits::uninitialized_type_t<transformed_t>;
+        using uninitialized_t = utils::traits::uninitialized_type_t<transformed_t>;
         __shared__ uninitialized_t s_values_[BLOCK_SIZE];
         __shared__ offset_t s_offsets[BLOCK_SIZE];
         auto* s_values = reinterpret_cast<transformed_t*>(s_values_);
 
         s_values[tid] = best.first;
         s_offsets[tid] = best.second;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element, i.e. gridDim.x elements in total
-        best = util::block::findShared1D<BLOCK_SIZE>(s_values, s_offsets, tid, update_op);
+        best = utils::block::findShared1D<BLOCK_SIZE>(s_values, s_offsets, tid, update_op);
         if (tid == 0)
             output_index[batch] = best.second;
     }
 }
 
-namespace noa::cuda::util {
+namespace noa::cuda::utils {
     // Finds the memory offset of the best element according to an update operator.
     // name:            Name of the function. Used for logging if a kernel launch fails.
     // input:           On the device. Input array to search.
@@ -248,7 +248,7 @@ namespace noa::cuda::util {
         // The output pointer is allowed to not be on the stream's device,
         // so make sure device memory is allocated for the output.
         memory::PtrDevice<offset_t> buffer;
-        offset_t* output_ptr = util::devicePointer(output_offset, stream.device());
+        offset_t* output_ptr = utils::devicePointer(output_offset, stream.device());
         if (!output_ptr) {
             buffer = memory::PtrDevice<offset_t>(batches, stream);
             output_ptr = buffer.get();
@@ -261,7 +261,7 @@ namespace noa::cuda::util {
             const auto tmp_strides = safe_cast<uint2_t>(dim2_t{strides[0], strides[3]});
 
             // Try to vectorize the loads for the input.
-            uint32_t vec_size = tmp_strides[1] == 1 ? util::maxVectorCount(input) : 1;
+            uint32_t vec_size = tmp_strides[1] == 1 ? utils::maxVectorCount(input) : 1;
             if (batches > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = tmp_strides[0] % vec_size ? 1 : vec_size;
 
@@ -284,7 +284,7 @@ namespace noa::cuda::util {
             const auto strides_ = safe_cast<uint2_t>(dim2_t{strides[0], strides[3]});
 
             // Try to vectorize the loads for the input.
-            uint32_t vec_size = strides_[1] == 1 ? util::maxVectorCount(input) : 1;
+            uint32_t vec_size = strides_[1] == 1 ? utils::maxVectorCount(input) : 1;
             if (batches > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = strides_[0] % vec_size ? 1 : vec_size;
 
@@ -325,7 +325,7 @@ namespace noa::cuda::util {
 
             // Try to vectorize the loads within a row.
             // Check that the beginning of each row is at the same alignment. This is true for pitch2D arrays.
-            uint32_t vec_size = s_strides[3] == 1 ? util::maxVectorCount(input) : 1;
+            uint32_t vec_size = s_strides[3] == 1 ? utils::maxVectorCount(input) : 1;
             if ((s_strides[2] % vec_size && s_shape[2] == 1) ||
                 (s_strides[1] % vec_size && s_shape[1] == 1) ||
                 (s_strides[0] % vec_size && s_shape[0] == 1))

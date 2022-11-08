@@ -1,17 +1,18 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/math/Reduce.h"
 #include "noa/gpu/cuda/math/Sort.h"
-#include "noa/gpu/cuda/util/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace noa::cuda::math {
     template<typename T, typename>
     T min(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
         T output{};
         T* null{};
-        util::reduce("math::min",
-                     input.get(), strides, shape,
-                     noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                     &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
+        utils::reduce(
+                "math::min",
+                input.get(), strides, shape,
+                noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
+                &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
         stream.synchronize();
         return output;
     }
@@ -20,10 +21,11 @@ namespace noa::cuda::math {
     T max(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
         T output{};
         T* null{};
-        util::reduce("math::max",
-                     input.get(), strides, shape,
-                     noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                     &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
+        utils::reduce(
+                "math::max",
+                input.get(), strides, shape,
+                noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
+                &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
         stream.synchronize();
         return output;
     }
@@ -68,10 +70,11 @@ namespace noa::cuda::math {
     T sum(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
         T output{};
         T* null{};
-        util::reduce("math::sum",
-                     input.get(), strides, shape,
-                     noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                     &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
+        utils::reduce(
+                "math::sum",
+                input.get(), strides, shape,
+                noa::math::copy_t{}, noa::math::plus_t{}, T(0),
+                &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
         stream.synchronize();
         return output;
     }
@@ -83,10 +86,11 @@ namespace noa::cuda::math {
         T* null{};
         const auto inv_count = static_cast<real_t>(shape.elements());
         auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v / inv_count; };
-        util::reduce("math::mean",
-                     input.get(), strides, shape,
-                     noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                     &output, 1, sum_to_mean_op, null, 0, noa::math::copy_t{}, true, true, stream);
+        utils::reduce(
+                "math::mean",
+                input.get(), strides, shape,
+                noa::math::copy_t{}, noa::math::plus_t{}, T(0),
+                &output, 1, sum_to_mean_op, null, 0, noa::math::copy_t{}, true, true, stream);
         stream.synchronize();
         return output;
     }
@@ -94,8 +98,9 @@ namespace noa::cuda::math {
     template<typename T, typename U, typename>
     U var(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int32_t ddof, Stream& stream) {
         U output;
-        util::reduceVar<false>("math::var", input.get(), strides, shape, &output, 1,
-                               ddof, true, true, stream);
+        utils::reduceVar<false>(
+                "math::var", input.get(), strides, shape, &output, 1,
+                ddof, true, true, stream);
         stream.synchronize();
         return output;
     }
@@ -103,8 +108,9 @@ namespace noa::cuda::math {
     template<typename T, typename U, typename>
     U std(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int32_t ddof, Stream& stream) {
         U output;
-        util::reduceVar<true>("math::std", input.get(), strides, shape, &output, 1,
-                              ddof, true, true, stream);
+        utils::reduceVar<true>(
+                "math::std", input.get(), strides, shape, &output, 1,
+                ddof, true, true, stream);
         stream.synchronize();
         return output;
     }
@@ -116,11 +122,12 @@ namespace noa::cuda::math {
         T output_sum, output_mean;
         const U inv_count = U(1) / static_cast<U>(shape.elements());
         auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
-        util::reduce("math::statistics",
-                     input.get(), strides, shape,
-                     noa::math::copy_t{}, noa::math::plus_t{}, T{0},
-                     &output_sum, 1, noa::math::copy_t{}, &output_mean, 0, sum_to_mean_op,
-                     true, true, stream);
+        utils::reduce(
+                "math::statistics",
+                input.get(), strides, shape,
+                noa::math::copy_t{}, noa::math::plus_t{}, T{0},
+                &output_sum, 1, noa::math::copy_t{}, &output_mean, 0, sum_to_mean_op,
+                true, true, stream);
 
         stream.synchronize();
         T mean = output_sum / static_cast<U>(shape.elements() - ddof);
@@ -140,11 +147,12 @@ namespace noa::cuda::math {
         auto var_to_std = []__device__(U v) -> U { return noa::math::sqrt(v); };
 
         U output_var, output_std;
-        util::reduce("math::statistics",
-                     input.get(), strides, shape,
-                     transform_op, noa::math::plus_t{}, U{0},
-                     &output_var, 1, dist2_to_var, &output_std, 0, var_to_std,
-                     true, true, stream);
+        utils::reduce(
+                "math::statistics",
+                input.get(), strides, shape,
+                transform_op, noa::math::plus_t{}, U{0},
+                &output_var, 1, dist2_to_var, &output_std, 0, var_to_std,
+                true, true, stream);
         stream.synchronize();
         return {output_sum, output_mean, output_var, output_std};
     }

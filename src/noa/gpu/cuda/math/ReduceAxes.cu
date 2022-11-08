@@ -3,8 +3,8 @@
 
 #include "noa/gpu/cuda/math/Reduce.h"
 #include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace {
     using namespace ::noa;
@@ -32,19 +32,19 @@ namespace {
         U reduced = init;
         for (uint32_t cid = 0; cid < shape[1] && is_valid_row; cid += BLOCK_DIM_X * ELEMENTS_PER_THREAD) {
             const uint32_t remaining = shape[1] - cid;
-            util::block::reduceUnaryGlobal1D<BLOCK_DIM_X, ELEMENTS_PER_THREAD, VEC_SIZE>(
+            utils::block::reduceUnaryGlobal1D<BLOCK_DIM_X, ELEMENTS_PER_THREAD, VEC_SIZE>(
                     input_row.offset(cid).get(), input_row.stride(0), remaining,
                     transform_op, reduce_op, &reduced, threadIdx.x);
         }
 
         // Share the threads' initial reduction with the rest of the block.
         const uint32_t tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
-        U* s_data = util::block::dynamicSharedResource<U>(); // BLOCK_SIZE elements.
+        U* s_data = utils::block::dynamicSharedResource<U>(); // BLOCK_SIZE elements.
         s_data[tid] = reduced;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce shared data to one element.
-        U final = util::block::reduceShared1D<BLOCK_DIM_X>(s_data + BLOCK_DIM_X * threadIdx.y, gid[3], reduce_op);
+        U final = utils::block::reduceShared1D<BLOCK_DIM_X>(s_data + BLOCK_DIM_X * threadIdx.y, gid[3], reduce_op);
         if (gid[3] == 0 && is_valid_row)
             output(gid[0], gid[1], gid[2]) = post_process_op(final);
     }
@@ -77,17 +77,17 @@ namespace {
 
         // Share the threads' initial reduction with the rest of the block.
         const uint32_t tid = gid[2] * blockDim.x + threadIdx.x;
-        U* s_data = util::block::dynamicSharedResource<U>(); // BLOCK_SIZE elements.
+        U* s_data = utils::block::dynamicSharedResource<U>(); // BLOCK_SIZE elements.
         U* s_data_tid = s_data + tid;
         *s_data_tid = reduced;
-        util::block::synchronize();
+        utils::block::synchronize();
 
         // Reduce along Y:
         #pragma unroll
         for (uint32_t SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
                 *s_data_tid = reduce_op(*s_data_tid, s_data_tid[BLOCK_SIZE_2D.x * SIZE / 2]);
-            util::block::synchronize();
+            utils::block::synchronize();
         }
 
         if (gid[2] == 0 && is_valid_column)
@@ -124,7 +124,7 @@ namespace {
 
             // Try to vectorize the loads within a row.
             // Check that the beginning of each row is at the same alignment. This is true for pitch2D arrays.
-            uint32_t vec_size = input_strides_[3] == 1 ? util::maxVectorCount(input) : 1;
+            uint32_t vec_size = input_strides_[3] == 1 ? utils::maxVectorCount(input) : 1;
             if ((input_strides_[2] % vec_size && input_shape_[2] > 1) ||
                 (input_strides_[1] % vec_size && input_shape_[1] > 1) ||
                 (input_strides_[0] % vec_size && input_shape_[0] > 1))
@@ -204,10 +204,10 @@ namespace noa::cuda::math {
 
         if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             T* null{};
-            util::reduce(name, input.get(), input_strides, input_shape,
-                         noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                         output.get(), output_strides[0], noa::math::copy_t{},
-                         null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
+            utils::reduce(name, input.get(), input_strides, input_shape,
+                          noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
+                          output.get(), output_strides[0], noa::math::copy_t{},
+                          null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
         } else {
             reduceAxis_(name,
                         input.get(), input_strides, input_shape,
@@ -230,10 +230,10 @@ namespace noa::cuda::math {
 
         if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             T* null{};
-            util::reduce(name, input.get(), input_strides, input_shape,
-                         noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                         output.get(), output_strides[0], noa::math::copy_t{},
-                         null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
+            utils::reduce(name, input.get(), input_strides, input_shape,
+                          noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
+                          output.get(), output_strides[0], noa::math::copy_t{},
+                          null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
         } else {
             reduceAxis_(name,
                         input.get(), input_strides, input_shape,
@@ -256,10 +256,10 @@ namespace noa::cuda::math {
 
         if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             T* null{};
-            util::reduce(name, input.get(), input_strides, input_shape,
-                         noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                         output.get(), output_strides[0], noa::math::copy_t{},
-                         null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
+            utils::reduce(name, input.get(), input_strides, input_shape,
+                          noa::math::copy_t{}, noa::math::plus_t{}, T(0),
+                          output.get(), output_strides[0], noa::math::copy_t{},
+                          null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
         } else {
             reduceAxis_(name,
                         input.get(), input_strides, input_shape,
@@ -288,10 +288,10 @@ namespace noa::cuda::math {
             auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
 
             T* null{};
-            util::reduce(name, input.get(), input_strides, input_shape,
-                         noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                         output.get(), output_strides[0], sum_to_mean_op,
-                         null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
+            utils::reduce(name, input.get(), input_strides, input_shape,
+                          noa::math::copy_t{}, noa::math::plus_t{}, T(0),
+                          output.get(), output_strides[0], sum_to_mean_op,
+                          null, 0, noa::math::copy_t{}, is_or_should_reduce[0], true, stream);
         } else {
             const real_t inv_count = real_t(1) / static_cast<real_t>(noa::math::sum(input_shape * size4_t{mask}));
             auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };

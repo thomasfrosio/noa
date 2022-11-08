@@ -233,7 +233,7 @@ namespace noa::cuda::utils {
         NOA_ASSERT(all(end >= 0) && all(end > start));
         const auto shape = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto [config, blocks_x] = details::iwise4DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(end.get(2));
@@ -250,7 +250,7 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto[config, blocks_x] = details::iwise4DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(shape.get(2));
@@ -270,7 +270,7 @@ namespace noa::cuda::utils {
         NOA_ASSERT(all(end >= 0) && all(end > start));
         const auto shape = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise3DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(end.get(1));
@@ -287,7 +287,7 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise3DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(shape.get(1));
@@ -307,7 +307,7 @@ namespace noa::cuda::utils {
         NOA_ASSERT(all(end >= 0) && all(end > start));
         const auto shape = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise2DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             stream.enqueue(name,
@@ -323,7 +323,7 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise2DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             stream.enqueue(name,
@@ -342,7 +342,7 @@ namespace noa::cuda::utils {
         NOA_ASSERT(all(end >= 0) && all(end > start));
         const auto size = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise1DStaticLaunchConfig<config_t>(size, bytes_shared_memory);
             stream.enqueue(name,
@@ -358,7 +358,7 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
-            static_assert(traits::always_false_v<index_t>, "TODO");
+            static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise1DStaticLaunchConfig<config_t>(size, bytes_shared_memory);
             stream.enqueue(name,

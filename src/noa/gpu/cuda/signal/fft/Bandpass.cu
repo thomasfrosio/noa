@@ -2,7 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/fft/Exception.h"
 #include "noa/gpu/cuda/signal/fft/Bandpass.h"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace noa;
@@ -167,7 +167,7 @@ namespace {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::utils::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
@@ -221,7 +221,7 @@ namespace noa::cuda::signal::fft {
             static_assert(traits::always_false_v<T>);
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
         NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::util::devicePointer(input.get(), stream.device()) != nullptr);
+        NOA_ASSERT(input.get() == nullptr || ::noa::cuda::utils::devicePointer(input.get(), stream.device()) != nullptr);
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         const auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));

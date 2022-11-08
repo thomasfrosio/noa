@@ -3,7 +3,7 @@
 #include "noa/common/Definitions.h"
 #include "noa/gpu/cuda/Types.h"
 
-namespace noa::cuda::util::atomic {
+namespace noa::cuda::utils::atomic {
     NOA_FD int add(int* address, int val) {
         return ::atomicAdd(address, val);
     }

@@ -5,9 +5,9 @@
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
-#include "noa/gpu/cuda/util/Atomic.cuh"
-#include "noa/gpu/cuda/util/Iwise.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Atomic.cuh"
+#include "noa/gpu/cuda/utils/Iwise.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 #include "noa/gpu/cuda/geometry/Interpolator.h"
 #include "noa/gpu/cuda/geometry/fft/Project.h"
 
@@ -44,7 +44,7 @@ namespace {
             return output_t(matrices);
         } else {
             NOA_ASSERT(!ASSERT_VALID_PTR || matrices.get() != nullptr);
-            return output_t(cuda::util::ensureDeviceAccess(matrices.get(), stream, buffer, count));
+            return output_t(cuda::utils::ensureDeviceAccess(matrices.get(), stream, buffer, count));
         }
     }
 
@@ -54,7 +54,7 @@ namespace {
         if constexpr (traits::is_floatXX_v<matrix_wrapper_t>) {
             return math::inverse(matrices);
         } else {
-            NOA_ASSERT(count == 0 || cuda::util::hostPointer(matrices) != nullptr);
+            NOA_ASSERT(count == 0 || cuda::utils::hostPointer(matrices) != nullptr);
             buffer = cuda::memory::PtrPinned<matrix_value_t>(count);
             for (size_t i = 0; i < count; ++i)
                 buffer[i] = math::inverse(matrices[i]);

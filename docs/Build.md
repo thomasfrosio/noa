@@ -11,7 +11,7 @@ TODO Add package managers, e.g. conan, vkpg.
 command line or using a tool like [cmake-gui](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html).
 Options should be prefixed with `-D` when entered on the command line.
 
-Here is the [list](../cmake/util/ProjectOptions.cmake) of the project-specific options available.
+Here is the [list](../cmake/utils/ProjectOptions.cmake) of the project-specific options available.
 Note that the following CMake cache variables are often useful:
 - `CMAKE_BUILD_TYPE`: The build type. Default: `Release`.
 - `CMAKE_INSTALL_PREFIX`: Directory where the library will be installed.

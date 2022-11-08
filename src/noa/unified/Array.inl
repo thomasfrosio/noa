@@ -314,7 +314,7 @@ namespace noa {
                 //       and not the current device.
                 // NOTE: With "stream-attached" managed memory, it is up to the user to know what
                 //       stream was used to perform the allocation.
-                const cudaPointerAttributes attr = cuda::util::getAttributes(m_ptr.get());
+                const cudaPointerAttributes attr = cuda::utils::getAttributes(m_ptr.get());
                 gpu = Device(Device::GPU, attr.device, true);
                 NOA_ASSERT((alloc == Allocator::PINNED && attr.type == cudaMemoryTypeHost) ||
                            (alloc == Allocator::MANAGED && attr.type == cudaMemoryTypeManaged));
@@ -612,7 +612,7 @@ namespace noa {
             if (!Device::any(Device::GPU))
                 return; // Everything is allocated using PtrHost
             #ifdef NOA_ENABLE_CUDA
-            const cudaPointerAttributes attr = cuda::util::getAttributes(ptr);
+            const cudaPointerAttributes attr = cuda::utils::getAttributes(ptr);
             switch (attr.type) {
                 case cudaMemoryTypeUnregistered:
                     if (alloc != Allocator::DEFAULT &&
@@ -642,7 +642,7 @@ namespace noa {
 
         } else if (option.device().gpu()) {
             #ifdef NOA_ENABLE_CUDA
-            const cudaPointerAttributes attr = cuda::util::getAttributes(ptr);
+            const cudaPointerAttributes attr = cuda::utils::getAttributes(ptr);
             switch (attr.type) {
                 case cudaMemoryTypeUnregistered:
                     NOA_THROW("GPU array is pointing to a host pointer");

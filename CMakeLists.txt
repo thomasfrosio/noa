@@ -32,7 +32,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # ---------------------------------------------------------------------------------------
 # Project configuration
 # ---------------------------------------------------------------------------------------
-include(cmake/util/PreventInSourceBuilds.cmake)
+include(cmake/utils/PreventInSourceBuilds.cmake)
 include(cmake/ProjectOptions.cmake)
 
 # Check for CUDA support and select the GPU architecture if user didn't provide one.
@@ -43,7 +43,7 @@ if (NOA_ENABLE_CUDA)
         enable_language(CUDA)
 
         if (NOA_CUDA_FIND_ARCHITECTURE)
-            include(${PROJECT_SOURCE_DIR}/cmake/util/CUDASelectArch.cmake)
+            include(${PROJECT_SOURCE_DIR}/cmake/utils/CUDASelectArch.cmake)
             set(CMAKE_CUDA_ARCHITECTURES ${CUDASelectArch_RESULTS})
         endif ()
 
@@ -62,7 +62,7 @@ target_compile_features(prj_common_option INTERFACE cxx_std_17)
 target_compile_options(prj_common_option INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
 
 # Add the warnings to the compiler(s).
-include(cmake/util/CompilerWarnings.cmake)
+include(cmake/utils/CompilerWarnings.cmake)
 set_cxx_compiler_warnings(prj_compiler_warnings)
 set_cuda_compiler_warnings(prj_compiler_warnings)
 

@@ -1,6 +1,6 @@
 #include "noa/gpu/cuda/memory/Cast.h"
 #include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/util/EwiseUnary.cuh"
+#include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::memory {
     template<typename T, typename U, typename V>
@@ -11,7 +11,7 @@ namespace noa::cuda::memory {
         } else {
             const dim4_t shape{1, 1, 1, elements};
             const dim4_t strides = shape.strides();
-            ::noa::cuda::util::ewise::unary<true>(
+            ::noa::cuda::utils::ewise::unary<true>(
                     "memory::cast", input.get(), strides, output.get(), strides, shape, true, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
             stream.attach(input, output);
@@ -25,7 +25,7 @@ namespace noa::cuda::memory {
         if constexpr (std::is_same_v<T, U>) {
             copy(input, input_strides, output, output_strides, shape, stream);
         } else {
-            ::noa::cuda::util::ewise::unary<true>(
+            ::noa::cuda::utils::ewise::unary<true>(
                     "memory::cast", input.get(), input_strides, output.get(), output_strides, shape, true, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
             stream.attach(input, output);

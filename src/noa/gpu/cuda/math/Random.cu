@@ -4,8 +4,8 @@
 
 #include "noa/gpu/cuda/math/Random.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -59,7 +59,7 @@ namespace {
                     T values[EPT];
                     for (auto& value: values)
                         value = distribution(local_state);
-                    cuda::util::block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(values, ptr, threadIdx.x);
+                    cuda::utils::block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(values, ptr, threadIdx.x);
                 }
             }
         }
@@ -205,7 +205,7 @@ namespace {
     template<typename T, typename F>
     void launch1D_(cuda::LaunchConfig config, state_t* state, T* output, uint32_t strides, uint32_t elements,
                    F distribution, cuda::Stream& stream) {
-        const int32_t vec_size = strides == 1 ? noa::cuda::util::maxVectorCount(output) : 1;
+        const int32_t vec_size = strides == 1 ? noa::cuda::utils::maxVectorCount(output) : 1;
         if (vec_size == 4) {
             stream.enqueue("math::randomize", randomize1D_<T, F, 4>, config,
                            state, distribution, output, strides, elements);

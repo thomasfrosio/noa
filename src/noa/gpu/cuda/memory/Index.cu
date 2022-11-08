@@ -5,7 +5,7 @@
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/memory/Index.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace noa;
@@ -163,7 +163,7 @@ namespace noa::cuda::memory {
 
         NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(subregions.get(), stream.device());
-        const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
+        const shared_t<int4_t[]> d_origins = utils::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const auto i_shape = safe_cast<int4_t>(input_shape);
         const auto o_shape = safe_cast<int2_t>(dim2_t(subregion_shape.get(2)));
 
@@ -228,7 +228,7 @@ namespace noa::cuda::memory {
 
         NOA_ASSERT_DEVICE_PTR(subregions.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        const shared_t<int4_t[]> d_origins = util::ensureDeviceAccess(origins, stream, subregion_shape[0]);
+        const shared_t<int4_t[]> d_origins = utils::ensureDeviceAccess(origins, stream, subregion_shape[0]);
         const auto i_shape = safe_cast<int2_t>(dim2_t(subregion_shape.get(2)));
         const uint32_t blocks_x = math::divideUp(static_cast<uint32_t>(i_shape[1]), BLOCK_WORK_SIZE_2D.x);
         const uint32_t blocks_y = math::divideUp(static_cast<uint32_t>(i_shape[0]), BLOCK_WORK_SIZE_2D.y);

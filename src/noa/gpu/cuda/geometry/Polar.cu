@@ -7,8 +7,8 @@
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
-#include "noa/gpu/cuda/util/Pointers.h"
-#include "noa/gpu/cuda/util/Iwise.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Iwise.cuh"
 
 namespace {
     using namespace ::noa;

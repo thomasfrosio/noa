@@ -169,7 +169,7 @@ target_include_directories(noa
         )
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/util/Version.h.in"
+        "${PROJECT_SOURCE_DIR}/cmake/utils/Version.h.in"
         "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
         @ONLY)
 

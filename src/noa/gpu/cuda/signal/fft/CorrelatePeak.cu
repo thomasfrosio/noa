@@ -11,10 +11,10 @@
 #include "noa/gpu/cuda/signal/fft/Shape.h"
 #include "noa/gpu/cuda/signal/fft/Shift.h"
 
-#include "noa/gpu/cuda/util/EwiseBinary.cuh"
-#include "noa/gpu/cuda/util/ReduceUnary.cuh"
-#include "noa/gpu/cuda/util/ReduceBinary.cuh"
-#include "noa/gpu/cuda/util/Warp.cuh"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
+#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/ReduceBinary.cuh"
+#include "noa/gpu/cuda/utils/Warp.cuh"
 
 namespace {
     using namespace ::noa;
@@ -88,7 +88,7 @@ namespace {
     __global__ void copy1DWindowParabola_(const T* __restrict__ input, uint2_t strides, int32_t size,
                                           const uint32_t* __restrict__ peaks,
                                           T* __restrict__ output_window, int32_t window_radius) {
-        using namespace cuda::util;
+        using namespace cuda::utils;
         const uint32_t batch = blockIdx.x;
         const auto tidx = static_cast<int32_t>(threadIdx.x);
         input += strides[0] * batch;
@@ -100,7 +100,7 @@ namespace {
     __global__ void copy2DWindowParabola_(const T* __restrict__ input, uint3_t strides, int2_t shape,
                                           const uint32_t* __restrict__ max_value_offsets,
                                           T* __restrict__ output_window, int2_t window_radius) {
-        using namespace cuda::util;
+        using namespace cuda::utils;
         const uint32_t batch = blockIdx.x;
         const auto tidx = static_cast<int32_t>(threadIdx.x);
         input += strides[0] * batch;
@@ -119,7 +119,7 @@ namespace {
     __global__ void copy3DWindowParabola_(const T* __restrict__ input, uint4_t strides, int3_t shape,
                                           const uint32_t* __restrict__ max_value_offsets,
                                           T* __restrict__ output_window, int3_t window_radius) {
-        using namespace cuda::util;
+        using namespace cuda::utils;
         const uint32_t batch = blockIdx.x;
         const auto tidx = static_cast<int32_t>(threadIdx.x);
         input += strides[0] * batch;
@@ -244,7 +244,7 @@ namespace noa::cuda::signal::fft {
                        max_offset.get(), window.get(), registration_radius);
 
         // Optional buffer on the host if the output peaks are on the device...
-        float* peaks_ptr = util::hostPointer(peaks.get());
+        float* peaks_ptr = utils::hostPointer(peaks.get());
         shared_t<float[]> buffer;
         if (!peaks_ptr) { // on the device
             buffer = memory::PtrPinned<float>::alloc(u_shape_1d[0]);
@@ -309,7 +309,7 @@ namespace noa::cuda::signal::fft {
                        max_offset.get(), window.get(), i_radius);
 
         // Optional buffer on the host if the output peaks are on the device...
-        float2_t* peaks_ptr = util::hostPointer(peaks.get());
+        float2_t* peaks_ptr = utils::hostPointer(peaks.get());
         shared_t<float2_t[]> buffer;
         if (!peaks_ptr) { // on the device
             buffer = memory::PtrPinned<float2_t>::alloc(shape[0]);
@@ -377,7 +377,7 @@ namespace noa::cuda::signal::fft {
                        max_offset.get(), window.get(), i_radius);
 
         // Optional buffer on the host if the output peaks are on the device...
-        float3_t* peaks_ptr = util::hostPointer(peaks.get());
+        float3_t* peaks_ptr = utils::hostPointer(peaks.get());
         shared_t<float3_t[]> buffer;
         if (!peaks_ptr) { // on the device
             buffer = memory::PtrPinned<float3_t>::alloc(shape[0]);

@@ -2,7 +2,7 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/signal/Convolve.h"
-#include "noa/gpu/cuda/util/Block.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 namespace {
     using namespace ::noa;
@@ -32,7 +32,7 @@ namespace {
 
         const auto input_ = input[gid[0]];
 
-        using uninit_t = util::traits::uninitialized_type_t<T>;
+        using uninit_t = utils::traits::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[math::prod(SHARED_LEN)];
         T* shared = reinterpret_cast<T*>(buffer);
 
@@ -52,7 +52,7 @@ namespace {
                 }
             }
         }
-        util::block::synchronize();
+        utils::block::synchronize();
 
         if (gid[2] < shape[1] && gid[3] < shape[2]) {
             // Weighted sum.
@@ -87,7 +87,7 @@ namespace {
         const auto input_ = input[gid[0]];
 
         // Load shared memory. Loop to take into account padding.
-        T* shared = util::block::dynamicSharedResource<T>();
+        T* shared = utils::block::dynamicSharedResource<T>();
         for (int32_t lz = 0, gz = gid[1]; lz < shared_len[0]; ++lz, ++gz) {
             const int32_t i_z = gz - halo[0];
             const int32_t tmp_z = lz * shared_len[1] * shared_len[2];
@@ -103,7 +103,7 @@ namespace {
                 }
             }
         }
-        util::block::synchronize();
+        utils::block::synchronize();
 
         if (gid[2] < shape[1] && gid[3] < shape[2]) {
             // Weighted sum.

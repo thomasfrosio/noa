@@ -2,8 +2,8 @@
 #include "noa/common/Math.h"
 #include "noa/gpu/cuda/memory/Linspace.h"
 #include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/util/Block.cuh"
-#include "noa/gpu/cuda/util/Pointers.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 
 namespace {
     using namespace ::noa;
@@ -53,7 +53,8 @@ namespace {
                     values[i] = endpoint && gid == elements - 1 ?
                                 stop : start + static_cast<T>(gid) * step;
                 }
-                cuda::util::block::vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, src, threadIdx.x);
+                cuda::utils::block::vectorizedStore<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(
+                        values, src, threadIdx.x);
             }
         }
     }
@@ -101,7 +102,7 @@ namespace noa::cuda::memory {
 
         const auto uint_elements = static_cast<uint32_t>(elements);
         const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-        const int32_t vec_size = noa::cuda::util::maxVectorCount(src.get());
+        const int32_t vec_size = noa::cuda::utils::maxVectorCount(src.get());
         if (vec_size == 4) {
             stream.enqueue("memory::linspace", linspace1D_<T, 4>,
                            {blocks, BLOCK_SIZE}, src.get(), 1, uint_elements, start, stop, step, endpoint);
@@ -132,7 +133,7 @@ namespace noa::cuda::memory {
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             const auto uint_elements = safe_cast<uint>(elements);
             const dim3 blocks(noa::math::divideUp(uint_elements, BLOCK_WORK_SIZE));
-            const uint32_t vec_size = is_contiguous[3] ? noa::cuda::util::maxVectorCount(src.get()) : 1;
+            const uint32_t vec_size = is_contiguous[3] ? noa::cuda::utils::maxVectorCount(src.get()) : 1;
 
             if (vec_size == 4) {
                 stream.enqueue("memory::linspace", linspace1D_<T, 4>,
