@@ -283,7 +283,7 @@ namespace {
             else if (input_shape[0] == 1)
                 input_strides[0] = 0;
 
-            // If the input is not batched, then we need to ensure that the processing loop will compute
+            // If the input is batched, then we need to ensure that the processing loop will compute
             // one batch at a time, for both the input and the output. Otherwise, the processing loop
             // should run once, processing all output batches at the same time using the unique input batch.
             if (input_shape[0] > 1)
@@ -456,7 +456,7 @@ namespace noa::cuda::geometry {
             memory::copy(buffer_ptr + i * buffer_strides[0], buffer_strides, array.get(), array.shape(), stream);
             launchSymmetrize3D_(
                     texture.get(), interp_mode,
-                    output.get() + i * output_strides[0], output_strides, shape,
+                    output.get() + i * output_strides[0], output_strides, array.shape(),
                     symmetry, center, normalize, stream);
         }
         stream.attach(input, output, symmetry.share(), array.share(), texture.share());

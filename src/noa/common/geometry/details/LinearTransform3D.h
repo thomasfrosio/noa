@@ -69,7 +69,7 @@ namespace noa::geometry::details {
                 : m_input(input), m_output(output), m_matrix(matrix), m_shift(shift),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
-            NOA_ASSERT(symmetry_matrices != nullptr);
+            NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
         }
 
         NOA_IHD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
@@ -127,19 +127,19 @@ namespace noa::geometry::details {
                 : m_input(input), m_output(output),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
-            NOA_ASSERT(symmetry_matrices != nullptr);
+            NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
         }
 
         NOA_IHD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
             float3_t coordinates{z, y, x};
             data_type value = m_input(coordinates, batch);
             coordinates -= m_center;
-            for (index_type ii = 0; ii < m_symmetry_count; ++ii) {
-                const float3_t i_coordinates = m_symmetry_matrices[ii] * coordinates;
+            for (index_type i = 0; i < m_symmetry_count; ++i) {
+                const float3_t i_coordinates = m_symmetry_matrices[i] * coordinates;
                 value += m_input(i_coordinates + m_center, batch);
             }
 
-            m_output(batch, y, x) = value * m_scaling;
+            m_output(batch, z, y, x) = value * m_scaling;
         }
 
     private:

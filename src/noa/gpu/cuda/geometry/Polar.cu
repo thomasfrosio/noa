@@ -182,7 +182,7 @@ namespace {
             else if (input_shape[0] == 1)
                 input_strides[0] = 0;
 
-            // If the input is not batched, then we need to ensure that the processing loop will compute
+            // If the input is batched, then we need to ensure that the processing loop will compute
             // one batch at a time, for both the input and the output. Otherwise, the processing loop
             // should run once, processing all output batches at the same time using the unique input batch.
             if (input_shape[0] > 1)

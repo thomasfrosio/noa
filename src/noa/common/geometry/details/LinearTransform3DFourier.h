@@ -179,6 +179,7 @@ namespace noa::geometry::fft::details {
                 NOA_ASSERT(shift != nullptr);
             }
             NOA_ASSERT(shape[1] == 1);
+            NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
 
             const auto i_shape = safe_cast<index3_type>(dim3_t(shape.get(1)));
             m_size_zy = {i_shape[0], i_shape[1]};

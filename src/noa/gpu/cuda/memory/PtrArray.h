@@ -55,7 +55,7 @@ namespace noa::cuda::memory {
             // 1D layered:  B11W  -> D0W
             NOA_CHECK(all(shape > 0) && shape[is_layered] == 1,
                       "The input shape cannot be converted to a CUDA array extent. "
-                      "Dimensions with a size of 0 are not allowed, and the {} should be 1",
+                      "Dimensions with a size of 0 are not allowed, and the {} should be 1. Shape: {}",
                       is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
 
             const auto u_shape = safe_cast<size4_t>(shape);

@@ -81,7 +81,7 @@ namespace noa::geometry::details {
                 : m_input(input), m_output(output), m_matrix(matrix), m_shift(shift),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
-            NOA_ASSERT(symmetry_matrices != nullptr);
+            NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
@@ -142,7 +142,7 @@ namespace noa::geometry::details {
                 : m_input(input), m_output(output),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
-            NOA_ASSERT(symmetry_matrices != nullptr);
+            NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
