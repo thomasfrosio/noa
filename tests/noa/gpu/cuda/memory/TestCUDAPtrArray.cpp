@@ -11,7 +11,7 @@ using namespace ::noa;
 TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uint32_t, float, cfloat_t) {
     test::Randomizer<size_t> randomizer_small(1, 64);
     uint ndim = GENERATE(1U, 2U, 3U);
-    const size3_t shape = size3_t{test::getRandomShape(ndim).get() + 1};
+    const size4_t shape = test::getRandomShape(ndim);
     const size_t elements = shape.elements();
 
     // test allocation and free
@@ -23,14 +23,12 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uin
             REQUIRE(ptr2);
             REQUIRE(ptr2.get());
             REQUIRE_FALSE(ptr2.empty());
-            REQUIRE(ptr2.elements() == elements);
             REQUIRE(all(ptr2.shape() == shape));
             ptr1 = std::move(ptr2);
         }
         REQUIRE(ptr1);
         REQUIRE(ptr1.get());
         REQUIRE_FALSE(ptr1.empty());
-        REQUIRE(ptr1.elements() == elements);
     }
 
     AND_THEN("empty states") {

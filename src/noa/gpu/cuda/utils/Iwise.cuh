@@ -40,7 +40,7 @@ namespace noa::cuda::utils::details {
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
         Int4<index_t> gid{blockIdx.z,
                           blockIdx.y,
-                          config_t::BLOCK_WORK_SIZE_X * index[0] + threadIdx.y,
+                          config_t::BLOCK_WORK_SIZE_Y * index[0] + threadIdx.y,
                           config_t::BLOCK_WORK_SIZE_X * index[1] + threadIdx.x};
         if constexpr (!std::is_empty_v<index4_or_empty_t>)
             gid += start;
@@ -55,25 +55,6 @@ namespace noa::cuda::utils::details {
                     functor(gid[0], gid[1], ik, il);
             }
         }
-    }
-
-    template<typename functor_t, typename index_t, typename index4_or_empty_t>
-    __global__ void __launch_bounds__(IwiseDynamicConfig::MAX_BLOCK_SIZE)
-    iwise4DDynamic(functor_t functor,
-                   index4_or_empty_t start,
-                   Int2<index_t> end_yx,
-                   uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        Int4<index_t> gid{blockIdx.z,
-                          blockIdx.y,
-                          blockDim.y * index[0] + threadIdx.y,
-                          blockDim.x * index[1] + threadIdx.x};
-        if constexpr (!std::is_empty_v<index4_or_empty_t>)
-            gid += start;
-        if (gid[2] >= end_yx[0] || gid[3] >= end_yx[1])
-            return;
-
-        functor(gid[0], gid[1], gid[2], gid[3]);
     }
 
     template<typename config_t, typename index_t>
@@ -95,7 +76,7 @@ namespace noa::cuda::utils::details {
     __global__ void __launch_bounds__(config_t::BLOCK_SIZE_X * config_t::BLOCK_SIZE_Y)
     iwise3DStatic(functor_t functor, index3_or_empty_t start, Int2<index_t> end_yx) {
         Int3<index_t> gid{blockIdx.z,
-                          config_t::BLOCK_WORK_SIZE_X * blockIdx.y + threadIdx.y,
+                          config_t::BLOCK_WORK_SIZE_Y * blockIdx.y + threadIdx.y,
                           config_t::BLOCK_WORK_SIZE_X * blockIdx.x + threadIdx.x};
         if constexpr (!std::is_empty_v<index3_or_empty_t>)
             gid += start;
@@ -112,20 +93,6 @@ namespace noa::cuda::utils::details {
         }
     }
 
-    template<typename functor_t, typename index_t, typename index3_or_empty_t>
-    __global__ void
-    iwise3DDynamic(functor_t functor, index3_or_empty_t start, Int2<index_t> end_yx) {
-        Int3<index_t> gid{blockIdx.z,
-                          blockDim.y * blockIdx.y + threadIdx.y,
-                          blockDim.x * blockIdx.x + threadIdx.x};
-        if constexpr (!std::is_empty_v<index3_or_empty_t>)
-            gid += start;
-        if (gid[1] >= end_yx[0] || gid[2] >= end_yx[1])
-            return;
-
-        functor(gid[0], gid[1], gid[2]);
-    }
-
     template<typename config_t, typename index_t>
     LaunchConfig iwise3DStaticLaunchConfig(Int3<index_t> shape, size_t bytes_shared_memory) {
         const auto iwise_shape = safe_cast<uint3_t>(shape);
@@ -140,7 +107,7 @@ namespace noa::cuda::utils::details {
     template<typename functor_t, typename index_t, typename index2_or_empty_t, typename config_t>
     __global__ void __launch_bounds__(config_t::BLOCK_SIZE_X * config_t::BLOCK_SIZE_Y)
     iwise2DStatic(functor_t functor, index2_or_empty_t start, Int2<index_t> end) {
-        Int2<index_t> gid{config_t::BLOCK_WORK_SIZE_X * blockIdx.y + threadIdx.y,
+        Int2<index_t> gid{config_t::BLOCK_WORK_SIZE_Y * blockIdx.y + threadIdx.y,
                           config_t::BLOCK_WORK_SIZE_X * blockIdx.x + threadIdx.x};
         if constexpr (!std::is_empty_v<index2_or_empty_t>)
             gid += start;
@@ -155,19 +122,6 @@ namespace noa::cuda::utils::details {
                     functor(ik, il);
             }
         }
-    }
-
-    template<typename functor_t, typename index_t, typename index2_or_empty_t>
-    __global__ void
-    iwise2DDynamic(functor_t functor, index2_or_empty_t start, Int2<index_t> end) {
-        Int2<index_t> gid{blockDim.y * blockIdx.y + threadIdx.y,
-                          blockDim.x * blockIdx.x + threadIdx.x};
-        if constexpr (!std::is_empty_v<index2_or_empty_t>)
-            gid += start;
-        if (gid[0] >= end[0] || gid[1] >= end[1])
-            return;
-
-        functor(gid[0], gid[1]);
     }
 
     template<typename config_t, typename index_t>
@@ -195,18 +149,6 @@ namespace noa::cuda::utils::details {
         }
     }
 
-    template<typename functor_t, typename index_t, typename index_or_empty_t>
-    __global__ void
-    iwise1DDynamic(functor_t functor, index_or_empty_t start, index_t end) {
-        auto gid = static_cast<index_t>(blockDim.x * blockIdx.x + threadIdx.x);
-        if constexpr (!std::is_empty_v<index_or_empty_t>)
-            gid += start;
-        if (gid >= end)
-            return;
-
-        functor(gid);
-    }
-
     template<typename config_t, typename index_t>
     LaunchConfig iwise1DStaticLaunchConfig(index_t size, size_t bytes_shared_memory) {
         static_assert(config_t::BLOCK_SIZE_Y == 1, "1D index-wise doesn't support 2D blocks");
@@ -231,6 +173,7 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         NOA_ASSERT(all(end >= 0) && all(end > start));
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         const auto shape = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
@@ -238,7 +181,7 @@ namespace noa::cuda::utils {
             const auto [config, blocks_x] = details::iwise4DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(end.get(2));
             stream.enqueue(name,
-                           details::iwise4DStatic<functor_t, index_t, Int4<index_t>, config_t>,
+                           details::iwise4DStatic<functor_value_t, index_t, Int4<index_t>, config_t>,
                            config, std::forward<functor_t>(functor), start, end_2d, blocks_x);
         }
     }
@@ -249,13 +192,14 @@ namespace noa::cuda::utils {
                  functor_t&& functor,
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto[config, blocks_x] = details::iwise4DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(shape.get(2));
             stream.enqueue(name,
-                           details::iwise4DStatic<functor_t, index_t, empty_t, config_t>,
+                           details::iwise4DStatic<functor_value_t, index_t, empty_t, config_t>,
                            config, std::forward<functor_t>(functor), empty_t{}, end_2d, blocks_x);
         }
     }
@@ -268,6 +212,7 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         NOA_ASSERT(all(end >= 0) && all(end > start));
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         const auto shape = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
@@ -275,7 +220,7 @@ namespace noa::cuda::utils {
             const auto config = details::iwise3DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(end.get(1));
             stream.enqueue(name,
-                           details::iwise3DStatic<functor_t, index_t, Int3<index_t>, config_t>,
+                           details::iwise3DStatic<functor_value_t, index_t, Int3<index_t>, config_t>,
                            config, std::forward<functor_t>(functor), start, end_2d);
         }
     }
@@ -286,13 +231,14 @@ namespace noa::cuda::utils {
                  functor_t&& functor,
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise3DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             const Int2<index_t> end_2d(shape.get(1));
             stream.enqueue(name,
-                           details::iwise3DStatic<functor_t, index_t, empty_t, config_t>,
+                           details::iwise3DStatic<functor_value_t, index_t, empty_t, config_t>,
                            config, std::forward<functor_t>(functor), empty_t{}, end_2d);
         }
     }
@@ -305,13 +251,14 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         NOA_ASSERT(all(end >= 0) && all(end > start));
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         const auto shape = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise2DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             stream.enqueue(name,
-                           details::iwise2DStatic<functor_t, index_t, Int2<index_t>, config_t>,
+                           details::iwise2DStatic<functor_value_t, index_t, Int2<index_t>, config_t>,
                            config, std::forward<functor_t>(functor), start, end);
         }
     }
@@ -322,12 +269,13 @@ namespace noa::cuda::utils {
                  functor_t&& functor,
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise2DStaticLaunchConfig<config_t>(shape, bytes_shared_memory);
             stream.enqueue(name,
-                           details::iwise2DStatic<functor_t, index_t, empty_t, config_t>,
+                           details::iwise2DStatic<functor_value_t, index_t, empty_t, config_t>,
                            config, std::forward<functor_t>(functor), empty_t{}, shape);
         }
     }
@@ -340,13 +288,14 @@ namespace noa::cuda::utils {
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
         NOA_ASSERT(all(end >= 0) && all(end > start));
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         const auto size = end - start;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise1DStaticLaunchConfig<config_t>(size, bytes_shared_memory);
             stream.enqueue(name,
-                           details::iwise1DStatic<functor_t, index_t, index_t, config_t>,
+                           details::iwise1DStatic<functor_value_t, index_t, index_t, config_t>,
                            config, std::forward<functor_t>(functor), start, end);
         }
     }
@@ -357,12 +306,13 @@ namespace noa::cuda::utils {
                  functor_t&& functor,
                  Stream& stream,
                  size_t bytes_shared_memory = 0) {
+        using functor_value_t = noa::traits::remove_ref_cv_t<functor_t>;
         if constexpr (std::is_same_v<config_t, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<index_t>, "TODO");
         } else {
             const auto config = details::iwise1DStaticLaunchConfig<config_t>(size, bytes_shared_memory);
             stream.enqueue(name,
-                           details::iwise1DStatic<functor_t, index_t, empty_t, config_t>,
+                           details::iwise1DStatic<functor_value_t, index_t, empty_t, config_t>,
                            config, std::forward<functor_t>(functor), empty_t{}, size);
         }
     }

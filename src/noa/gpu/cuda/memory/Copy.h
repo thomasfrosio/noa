@@ -26,21 +26,21 @@ namespace noa::cuda::memory::details {
     }
 
     template<typename T>
-    inline cudaMemcpy3DParms toParams(const cudaArray* src, T* dst, dim_t dst_pitch, cudaExtent extent) {
+    inline cudaMemcpy3DParms toParams(const cudaArray* src, T* dst, dim_t dst_pitch, dim3_t shape) {
         cudaMemcpy3DParms params{};
         params.srcArray = const_cast<cudaArray*>(src);
-        params.dstPtr = {dst, dst_pitch * sizeof(T), extent.width, extent.height};
-        params.extent = extent;
+        params.dstPtr = {dst, dst_pitch * sizeof(T), shape[2], shape[1]};
+        params.extent = {shape[2], shape[1], shape[0]};
         params.kind = cudaMemcpyDefault;
         return params;
     }
 
     template<typename T>
-    inline cudaMemcpy3DParms toParams(const T* src, dim_t src_pitch, cudaArray* dst, cudaExtent extent) {
+    inline cudaMemcpy3DParms toParams(const T* src, dim_t src_pitch, cudaArray* dst, dim3_t shape) {
         cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src), src_pitch * sizeof(T), extent.width, extent.height};
+        params.srcPtr = {const_cast<T*>(src), src_pitch * sizeof(T), shape[2], shape[1]};
         params.dstArray = dst;
-        params.extent = extent;
+        params.extent = {shape[2], shape[1], shape[0]};
         params.kind = cudaMemcpyDefault;
         return params;
     }
@@ -221,41 +221,41 @@ namespace noa::cuda::memory {
 // -- CUDA arrays -- //
 namespace noa::cuda::memory {
     template<typename T>
-    inline void copy(const T* src, dim_t src_pitch, cudaArray* dst, cudaExtent extent) {
-        cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, extent);
+    inline void copy(const T* src, dim_t src_pitch, cudaArray* dst, dim3_t shape) {
+        cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
     template<typename T>
-    inline void copy(const T* src, dim_t src_pitch, cudaArray* dst, cudaExtent extent, Stream& stream) {
-        cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, extent);
+    inline void copy(const T* src, dim_t src_pitch, cudaArray* dst, dim3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = details::toParams(src, src_pitch, dst, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
     template<typename T>
-    inline void copy(const cudaArray* src, T* dst, dim_t dst_pitch, cudaExtent extent) {
-        cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, extent);
+    inline void copy(const cudaArray* src, T* dst, dim_t dst_pitch, dim3_t shape) {
+        cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3D(&params));
     }
 
     template<typename T>
-    inline void copy(const cudaArray* src, T* dst, dim_t dst_pitch, cudaExtent extent, Stream& stream) {
-        cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, extent);
+    inline void copy(const cudaArray* src, T* dst, dim_t dst_pitch, dim3_t shape, Stream& stream) {
+        cudaMemcpy3DParms params = details::toParams(src, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
     template<typename T>
     inline void copy(const shared_t<T[]>& src, dim_t src_pitch,
-                     const shared_t<cudaArray>& dst, cudaExtent extent, Stream& stream) {
-        copy(src.get(), src_pitch, dst.get(), extent, stream);
+                     const shared_t<cudaArray>& dst, dim3_t shape, Stream& stream) {
+        copy(src.get(), src_pitch, dst.get(), shape, stream);
         stream.attach(src, dst);
     }
 
     template<typename T>
     inline void copy(const shared_t<cudaArray>& src,
                      const shared_t<T[]>& dst, dim_t dst_pitch,
-                     cudaExtent extent, Stream& stream) {
-        copy(src.get(), dst.get(), dst_pitch, extent, stream);
+                     dim3_t shape, Stream& stream) {
+        copy(src.get(), dst.get(), dst_pitch, shape, stream);
         stream.attach(src, dst);
     }
 
@@ -273,27 +273,69 @@ namespace noa::cuda::memory {
         NOA_CHECK(expected_extent.depth == actual_extent.depth &&
                   expected_extent.height == actual_extent.height &&
                   expected_extent.width == actual_extent.width,
-                  "The input shape is not compatible with the actual CUDA array shape");
+                  "The input shape is not compatible with the output CUDA array shape");
+
+        // cudaExtent for CUDA array has empty dimensions equal to 0.
+        // However, for cudaMemcpy3D, dimensions equal to 0 are invalid.
+        dim3_t shape_3d{expected_extent.depth, expected_extent.height, expected_extent.width};
+        shape_3d += dim3_t(shape_3d == 0);
 
         const bool is_column = shape[2] >= 1 && shape[3] == 1;
         const dim3_t src_strides_3d{src_strides[!is_layered], src_strides[2 + is_column], src_strides[3 - is_column]};
         const bool is_rightmost = indexing::isRightmost(src_strides_3d);
-        const bool has_valid_pitch = src_strides_3d[1] >= expected_extent.width;
+        const bool has_valid_pitch = src_strides_3d[1] >= shape_3d[2];
         const bool is_contiguous_2 = src_strides_3d[2] == 1;
-        const bool is_contiguous_0 = (expected_extent.height == 0) || // 1D array
-                                     src_strides_3d[0] == src_strides_3d[1] * expected_extent.height;
+        const bool is_contiguous_0 = src_strides_3d[0] == src_strides_3d[1] * shape_3d[1];
         NOA_CHECK(is_rightmost && has_valid_pitch && is_contiguous_0 && is_contiguous_2,
                   "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, "
                   "and its {} and width dimension should be contiguous, but got shape {} and strides {}",
                   is_layered ? "batch" : "depth", shape, src_strides);
 
-        copy(src, src_strides[2], dst, expected_extent, stream);
+        copy(src, src_strides[2], dst, shape_3d, stream);
     }
 
     template<typename T>
-    void copy(const shared_t<T[]>& src, dim4_t src_strides, dim4_t src_shape,
-              const shared_t<cudaArray>& dst, dim3_t dst_shape, Stream& stream) {
-        copy(src.get(), src_strides, src_shape, dst.get(), dst_shape, stream);
+    void copy(const shared_t<T[]>& src, dim4_t src_strides,
+              const shared_t<cudaArray>& dst, dim4_t shape, Stream& stream) {
+        copy(src.get(), src_strides, dst.get(), shape, stream);
+        stream.attach(src, dst);
+    }
+
+    template<typename T>
+    void copy(cudaArray* src, T* dst, dim4_t dst_strides, dim4_t shape, Stream& stream) {
+        const auto[desc_, actual_extent, flags] = PtrArray<T>::info(src);
+        const bool is_layered = flags & cudaArrayLayered;
+        const cudaExtent expected_extent = PtrArray<T>::shape2extent(shape, is_layered);
+
+        NOA_CHECK(expected_extent.depth == actual_extent.depth &&
+                  expected_extent.height == actual_extent.height &&
+                  expected_extent.width == actual_extent.width,
+                  "The output shape is not compatible with the input CUDA array shape");
+
+        // cudaExtent for CUDA array has empty dimensions equal to 0.
+        // However, for cudaMemcpy3D, dimensions equal to 0 are invalid.
+        dim3_t shape_3d{expected_extent.depth, expected_extent.height, expected_extent.width};
+        shape_3d += dim3_t(shape_3d == 0);
+
+        const bool is_column = shape[2] >= 1 && shape[3] == 1;
+        const dim3_t dst_strides_3d{dst_strides[!is_layered], dst_strides[2 + is_column], dst_strides[3 - is_column]};
+        const bool is_rightmost = indexing::isRightmost(dst_strides_3d);
+        const bool has_valid_pitch = dst_strides_3d[1] >= shape_3d[2];
+        const bool is_contiguous_2 = dst_strides_3d[2] == 1;
+        const bool is_contiguous_0 = dst_strides_3d[0] == dst_strides_3d[1] * shape_3d[1];
+        NOA_CHECK(is_rightmost && has_valid_pitch && is_contiguous_0 && is_contiguous_2,
+                  "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, "
+                  "and its {} and width dimension should be contiguous, but got shape {} and strides {}",
+                  is_layered ? "batch" : "depth", shape, dst_strides);
+
+        copy(src, dst, dst_strides[2], shape_3d, stream);
+    }
+
+    template<typename T>
+    void copy(const shared_t<cudaArray>& src,
+              const shared_t<T[]>& dst, dim4_t dst_strides,
+              dim4_t shape, Stream& stream) {
+        copy(src.get(), dst.get(), dst_strides, shape, stream);
         stream.attach(src, dst);
     }
 }

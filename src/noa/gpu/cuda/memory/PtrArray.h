@@ -23,8 +23,8 @@
 
 // Add specialization for our complex types.
 // Used for CUDA arrays and textures.
-template<> cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>() { return cudaCreateChannelDesc<float2>(); }
-template<> cudaChannelFormatDesc cudaCreateChannelDesc<noa::chalf_t>() { return cudaCreateChannelDesc<half2>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>() { return cudaCreateChannelDesc<float2>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::chalf_t>() { return cudaCreateChannelDesc<half2>(); }
 
 namespace noa::cuda::memory {
     // A ND CUDA array of integers (excluding (u)int64_t), float or cfloat_t.
@@ -61,7 +61,7 @@ namespace noa::cuda::memory {
             const auto u_shape = safe_cast<size4_t>(shape);
             dim3_t shape_3d{u_shape[!is_layered], u_shape[2], u_shape[3]};
             shape_3d -= dim3_t(shape_3d == 1); // set empty dimensions to 0
-            return {shape_3d[0], shape_3d[1], shape_3d[2]};
+            return {shape_3d[2], shape_3d[1], shape_3d[0]};
         }
 
         static dim4_t extent2shape(cudaExtent extent, bool is_layered) noexcept {

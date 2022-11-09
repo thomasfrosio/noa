@@ -19,8 +19,8 @@ TEST_CASE("common::geometry, Interpolator", "[.]") {
     geometry::interpolator3D<BORDER_MIRROR, INTERP_NEAREST>(accessor1, shape0, 0.f)({});
 
     const int2_t shape1;
-    Accessor<float, 3, uint32_t> accessor2;
-    geometry::interpolator2D<BORDER_MIRROR, INTERP_CUBIC_BSPLINE>(accessor2, shape1, 0.f)({}, 0);
+    Accessor<const float, 3, uint32_t> accessor2;
+    geometry::interpolator2D<BORDER_MIRROR, INTERP_CUBIC_BSPLINE>(accessor2, shape1, 0.f)({});
     geometry::interpolator2D<BORDER_MIRROR, INTERP_CUBIC>(accessor2, shape1, 0.f)({}, 0);
     geometry::interpolator2D<BORDER_MIRROR, INTERP_NEAREST>(accessor2, shape1, 0.f)({}, 0);
 

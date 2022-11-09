@@ -118,20 +118,21 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
     test::Randomizer<size_t> randomizer(2, 255);
     const uint ndim = GENERATE(1U, 2U, 3U);
     const size4_t shape = test::getRandomShape(ndim);
-    const size4_t stride = shape.strides();
+    const size4_t strides = shape.strides();
     const size3_t shape_3d{shape.get() + 1};
     const size_t pitch = shape[3];
     const size_t elements = shape.elements();
     cuda::Stream stream;
 
     AND_THEN("host > CUDA array > host") {
+        INFO(shape);
         cpu::memory::PtrHost<TestType> host_in(elements);
         cpu::memory::PtrHost<TestType> host_out(elements);
-        cuda::memory::PtrArray<TestType> array(shape_3d);
+        cuda::memory::PtrArray<TestType> array(shape);
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
-        cuda::memory::copy(host_in.share(), pitch, array.share(), shape_3d, stream);
-        cuda::memory::copy(array.share(), host_out.share(), pitch, shape_3d, stream);
+        cuda::memory::copy(host_in.share(), strides, array.share(), array.shape(), stream);
+        cuda::memory::copy(array.share(), host_out.share(), strides, array.shape(), stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
@@ -141,13 +142,13 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
         cpu::memory::PtrHost<TestType> host_in(elements);
         cpu::memory::PtrHost<TestType> host_out(elements);
         cuda::memory::PtrDevice<TestType> device(elements);
-        cuda::memory::PtrArray<TestType> array(shape_3d);
+        cuda::memory::PtrArray<TestType> array(shape);
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
         cuda::memory::copy(host_in.share(), device.share(), elements, stream);
-        cuda::memory::copy(device.share(), pitch, array.share(), shape_3d, stream);
+        cuda::memory::copy(device.share(), strides, array.share(), shape, stream);
         REQUIRE(cudaMemsetAsync(device.get(), 0, elements * sizeof(TestType), stream.get()) == cudaSuccess);
-        cuda::memory::copy(array.share(), device.share(), pitch, shape_3d, stream);
+        cuda::memory::copy(array.share(), device.share(), strides, shape, stream);
         cuda::memory::copy(device.share(), host_out.share(), elements, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
@@ -157,11 +158,11 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
     AND_THEN("host > pinned > CUDA array > pinned > host") {
         cuda::memory::PtrPinned<TestType> host_in(elements);
         cuda::memory::PtrPinned<TestType> host_out(elements);
-        cuda::memory::PtrArray<TestType> array(shape_3d);
+        cuda::memory::PtrArray<TestType> array(shape);
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
-        cuda::memory::copy(host_in.share(), pitch, array.share(), shape_3d, stream);
-        cuda::memory::copy(array.share(), host_out.share(), pitch, shape_3d, stream);
+        cuda::memory::copy(host_in.share(), strides, array.share(), shape, stream);
+        cuda::memory::copy(array.share(), host_out.share(), strides, shape, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), host_out.elements());
         REQUIRE(diff == TestType{0});
@@ -171,16 +172,16 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
         cuda::memory::PtrPinned<TestType> host_in(elements);
         cuda::memory::PtrPinned<TestType> host_out(elements);
         cuda::memory::PtrDevicePadded<TestType> device_padded(shape);
-        cuda::memory::PtrArray<TestType> array(shape_3d);
+        cuda::memory::PtrArray<TestType> array(shape);
         const size_t total_bytes = device_padded.pitches().elements() * sizeof(TestType);
 
         test::randomize(host_in.get(), elements, randomizer);
         test::memset(host_out.get(), elements, 0);
-        cuda::memory::copy(host_in.share(), stride, device_padded.share(), device_padded.strides(), shape, stream);
-        cuda::memory::copy(device_padded.share(), device_padded.pitches()[2], array.share(), shape_3d, stream);
+        cuda::memory::copy(host_in.share(), strides, device_padded.share(), device_padded.strides(), shape, stream);
+        cuda::memory::copy(device_padded.share(), device_padded.strides(), array.share(), shape, stream);
         REQUIRE(cudaMemsetAsync(device_padded.get(), 0, total_bytes, stream.get()) == cudaSuccess);
-        cuda::memory::copy(array.share(), device_padded.share(), device_padded.pitches()[2], shape_3d, stream);
-        cuda::memory::copy(device_padded.share(), device_padded.strides(), host_out.share(), stride, shape, stream);
+        cuda::memory::copy(array.share(), device_padded.share(), device_padded.strides(), shape, stream);
+        cuda::memory::copy(device_padded.share(), device_padded.strides(), host_out.share(), strides, shape, stream);
         stream.synchronize();
         TestType diff = test::getDifference(host_in.get(), host_out.get(), elements);
         REQUIRE(diff == TestType{0});
