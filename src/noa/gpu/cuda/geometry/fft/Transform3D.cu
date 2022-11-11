@@ -43,31 +43,31 @@ namespace {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_NEAREST, data_t>;
                 const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, data_t>;
                 const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE, data_t>;
                 const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t>;
                 const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE_FAST, data_t>;
                 const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             default:
                 NOA_THROW_FUNC("transform3D", "{} is not supported", texture_interp_mode);
@@ -117,35 +117,35 @@ namespace {
                 const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, data_t>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE, data_t>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, data_t>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
                 using interpolator_t = cuda::geometry::Interpolator3D<INTERP_COSINE_FAST, data_t>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
+                return cuda::utils::iwise4D("geometry::fft::transform3D", iwise_shape, kernel, stream);
             }
             default:
                 NOA_THROW_FUNC("transform3D", "{} is not supported", texture_interp_mode);

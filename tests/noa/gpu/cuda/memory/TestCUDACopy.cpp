@@ -120,7 +120,6 @@ TEMPLATE_TEST_CASE("cuda::memory::copy() - CUDA arrays", "[noa][cuda][memory]",
     const size4_t shape = test::getRandomShape(ndim);
     const size4_t strides = shape.strides();
     const size3_t shape_3d{shape.get() + 1};
-    const size_t pitch = shape[3];
     const size_t elements = shape.elements();
     cuda::Stream stream;
 

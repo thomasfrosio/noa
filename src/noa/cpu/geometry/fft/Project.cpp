@@ -19,16 +19,16 @@ namespace {
         }
     }
 
-    template<typename matrix_wrapper_t, typename matrix_value_t, typename int_t>
-    auto inverseMatrices_(matrix_wrapper_t matrices, int_t count,
-                          std::unique_ptr<matrix_value_t[]>& buffer) {
-        if constexpr (traits::is_floatXX_v<matrix_wrapper_t>) {
+    template<typename MatrixWrapper, typename MatrixValue, typename Int>
+    auto inverseMatrices_(MatrixWrapper matrices, Int count,
+                          std::unique_ptr<MatrixValue[]>& buffer) {
+        if constexpr (traits::is_floatXX_v<MatrixWrapper>) {
             return math::inverse(matrices);
         } else {
             if (!matrices)
                 count = 0;
             const auto u_count = static_cast<size_t>(count);
-            buffer = std::make_unique<matrix_value_t[]>(u_count);
+            buffer = std::make_unique<MatrixValue[]>(u_count);
             for (size_t i = 0; i < u_count; ++i)
                 buffer[i] = math::inverse(matrices[i]);
             return matrixOrRawConstPtr_(buffer);
@@ -37,10 +37,10 @@ namespace {
 }
 
 namespace noa::cpu::geometry::fft {
-    template<Remap REMAP, typename data_t, typename scale_t, typename rotate_t, typename>
-    void insert3D(const shared_t<data_t[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                  const shared_t<data_t[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const scale_t& inv_scaling_matrices, const rotate_t& fwd_rotation_matrices,
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
+    void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
 
         const dim3_t slice_strides_3d{slice_strides[0], slice_strides[2], slice_strides[3]};
@@ -48,15 +48,15 @@ namespace noa::cpu::geometry::fft {
         const dim_t threads = stream.threads();
 
         stream.enqueue([=]() {
-            const auto slice_accessor = AccessorRestrict<const data_t, 3, dim_t>(slice.get(), slice_strides_3d);
-            const auto grid_accessor = AccessorRestrict<data_t, 3, dim_t>(grid.get(), grid_strides_3d);
+            const auto slice_accessor = AccessorRestrict<const Value, 3, dim_t>(slice.get(), slice_strides_3d);
+            const auto grid_accessor = AccessorRestrict<Value, 3, dim_t>(grid.get(), grid_strides_3d);
             const auto iwise_shape = long3_t{slice_shape[0], slice_shape[2], slice_shape[3]}.fft();
 
             const auto inv_scaling_matrices_ = matrixOrRawConstPtr_(inv_scaling_matrices);
             const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_(fwd_rotation_matrices);
 
             const auto apply_ews = any(ews_radius != 0);
-            const bool apply_scale = inv_scaling_matrices != scale_t{};
+            const bool apply_scale = inv_scaling_matrices != Scale{};
 
             using namespace noa::geometry::fft::details;
             if (apply_ews && apply_scale) {
@@ -87,10 +87,10 @@ namespace noa::cpu::geometry::fft {
         });
     }
 
-    template<Remap REMAP, typename data_t, typename scale_t, typename rotate_t, typename>
-    void insert3D(const shared_t<data_t[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                  const shared_t<data_t[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const scale_t& inv_scaling_matrices, const rotate_t& fwd_rotation_matrices,
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
+    void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius,
                   float slice_z_radius, Stream& stream) {
 
@@ -101,14 +101,14 @@ namespace noa::cpu::geometry::fft {
         const dim_t threads = stream.threads();
 
         stream.enqueue([=]() {
-            const auto slice_accessor = AccessorRestrict<const data_t, 3, dim_t>(slice.get(), slice_strides_3d);
-            const auto grid_accessor = AccessorRestrict<data_t, 3, dim_t>(grid.get(), grid_strides_3d);
+            const auto slice_accessor = AccessorRestrict<const Value, 3, dim_t>(slice.get(), slice_strides_3d);
+            const auto grid_accessor = AccessorRestrict<Value, 3, dim_t>(grid.get(), grid_strides_3d);
             const auto iwise_shape = long3_t{grid_shape.get(1)}.fft();
             const auto slice_interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
-                    slice_accessor, slice_shape_2d.fft(), data_t{0});
+                    slice_accessor, slice_shape_2d.fft(), Value{0});
 
             const auto apply_ews = any(ews_radius != 0);
-            const bool apply_scale = inv_scaling_matrices != scale_t{};
+            const bool apply_scale = inv_scaling_matrices != Scale{};
 
             std::unique_ptr<float22_t[]> fwd_scaling_matrices_buffer;
             std::unique_ptr<float33_t[]> inv_rotation_matrices_buffer;
@@ -146,10 +146,10 @@ namespace noa::cpu::geometry::fft {
         });
     }
 
-    template<Remap REMAP, typename data_t, typename scale_t, typename rotate_t, typename>
-    void extract3D(const shared_t<data_t[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                   const shared_t<data_t[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                   const scale_t& inv_scaling_matrices, const rotate_t& fwd_rotation_matrices,
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
+    void extract3D(const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                   const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                   const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
                    float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
 
         const long3_t slice_shape_3d{slice_shape[0], slice_shape[2], slice_shape[3]};
@@ -159,17 +159,17 @@ namespace noa::cpu::geometry::fft {
         const dim_t threads = stream.threads();
 
         stream.enqueue([=]() {
-            const auto slice_accessor = AccessorRestrict<data_t, 3, dim_t>(slice.get(), slice_strides_3d);
-            const auto grid_accessor = AccessorRestrict<const data_t, 3, dim_t>(grid.get(), grid_strides_3d);
+            const auto slice_accessor = AccessorRestrict<Value, 3, dim_t>(slice.get(), slice_strides_3d);
+            const auto grid_accessor = AccessorRestrict<const Value, 3, dim_t>(grid.get(), grid_strides_3d);
             const auto iwise_shape = slice_shape_3d.fft();
             const auto grid_interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(
-                    grid_accessor, grid_shape_3d.fft(), data_t{0});
+                    grid_accessor, grid_shape_3d.fft(), Value{0});
 
             const auto inv_scaling_matrices_ = matrixOrRawConstPtr_(inv_scaling_matrices);
             const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_(fwd_rotation_matrices);
 
             const auto apply_ews = any(ews_radius != 0);
-            const bool apply_scale = inv_scaling_matrices != scale_t{};
+            const bool apply_scale = inv_scaling_matrices != Scale{};
 
             using namespace noa::geometry::fft::details;
             if (apply_ews && apply_scale) {
@@ -200,11 +200,11 @@ namespace noa::cpu::geometry::fft {
         });
     }
 
-    template<Remap REMAP, typename data_t, typename scale0_t, typename scale1_t, typename rotate0_t, typename rotate1_t, typename>
-    void extract3D(const shared_t<data_t[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
-                   const shared_t<data_t[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                   const scale0_t& insert_inv_scaling_matrices, const rotate0_t& insert_fwd_rotation_matrices,
-                   const scale1_t& extract_inv_scaling_matrices, const rotate1_t& extract_fwd_rotation_matrices,
+    template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1, typename>
+    void extract3D(const shared_t<Value[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
+                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
+                   const Scale0& insert_inv_scaling_matrices, const Rotate0& insert_fwd_rotation_matrices,
+                   const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
                    float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
 
         const dim3_t input_slice_strides_2d{input_slice_strides[0], input_slice_strides[2], input_slice_strides[3]};
@@ -213,13 +213,13 @@ namespace noa::cpu::geometry::fft {
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() {
-            const auto input_slice_accessor = AccessorRestrict<const data_t, 3, dim_t>(input_slice.get(), input_slice_strides_2d);
-            const auto output_slice_accessor = AccessorRestrict<data_t, 3, dim_t>(output_slice.get(), output_slice_strides_2d);
+            const auto input_slice_accessor = AccessorRestrict<const Value, 3, dim_t>(input_slice.get(), input_slice_strides_2d);
+            const auto output_slice_accessor = AccessorRestrict<Value, 3, dim_t>(output_slice.get(), output_slice_strides_2d);
             const auto input_slice_interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
-                    input_slice_accessor, safe_cast<long2_t>(dim2_t(input_slice_shape.get(2))).fft(), data_t{0});
+                    input_slice_accessor, safe_cast<long2_t>(dim2_t(input_slice_shape.get(2))).fft(), Value{0});
 
             const auto apply_ews = any(ews_radius != 0);
-            const bool apply_scale = insert_inv_scaling_matrices != scale0_t{};
+            const bool apply_scale = insert_inv_scaling_matrices != Scale0{};
 
             // The transformation for the insertion needs to be inverted.
             std::unique_ptr<float22_t[]> insert_fwd_scaling_matrices_buffer;
@@ -271,16 +271,16 @@ namespace noa::cpu::geometry::fft {
         });
     }
 
-    template<typename data_t, typename>
-    void griddingCorrection(const shared_t<data_t[]>& input, dim4_t input_strides,
-                            const shared_t<data_t[]>& output, dim4_t output_strides,
+    template<typename Value, typename>
+    void griddingCorrection(const shared_t<Value[]>& input, dim4_t input_strides,
+                            const shared_t<Value[]>& output, dim4_t output_strides,
                             dim4_t shape, bool post_correction, Stream& stream) {
         NOA_ASSERT(input && input && all(shape > 0));
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() {
-            const auto input_accessor = Accessor<const data_t, 4, dim_t>(input.get(), input_strides);
-            const auto output_accessor = Accessor<data_t, 4, dim_t>(output.get(), output_strides);
+            const auto input_accessor = Accessor<const Value, 4, dim_t>(input.get(), input_strides);
+            const auto output_accessor = Accessor<Value, 4, dim_t>(output.get(), output_strides);
 
             if (post_correction) {
                 const auto functor = noa::geometry::fft::details::griddingCorrection<true>(

@@ -60,7 +60,6 @@ namespace noa::geometry::fft::details {
             } else if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                 NOA_ASSERT(shift != nullptr);
             }
-            NOA_ASSERT(shape[1] == 1);
 
             m_shape = safe_cast<index3_type>(dim3_t(shape.get(1)));
             m_f_shape = float3_t(m_shape / 2 * 2 + int3_t(m_shape == 1)); // if odd, n-1
@@ -178,7 +177,6 @@ namespace noa::geometry::fft::details {
             } else if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                 NOA_ASSERT(shift != nullptr);
             }
-            NOA_ASSERT(shape[1] == 1);
             NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
 
             const auto i_shape = safe_cast<index3_type>(dim3_t(shape.get(1)));

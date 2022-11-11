@@ -93,6 +93,8 @@ namespace noa {
 ///   NOA_ENABLE_CHECKS_RELEASE. Since they add a "throw" statement, they cannot be used in "device" code and is best
 ///   to not use them in performance critical scopes (e.g. hot loop).
 #define NOA_CHECK(cond, ...) if (!(cond)) NOA_THROW(__VA_ARGS__)
+#define NOA_CHECK_FUNC(func, cond, ...) if (!(cond)) NOA_THROW_FUNC(func, __VA_ARGS__)
 #else
 #define NOA_CHECK(cond, ...)
+#define NOA_CHECK_FUNC(func, cond, ...)
 #endif

@@ -36,11 +36,11 @@ namespace {
         }
     }
 
-    template<bool ASSERT_VALID_PTR, typename matrix_wrapper_t, typename matrix_value_t>
-    auto matrixOrRawConstPtrOnDevice_(matrix_wrapper_t matrices, size_t count,
-                                      cuda::memory::PtrDevice<matrix_value_t>& buffer, cuda::Stream& stream) {
-        using output_t = matrixOrRawConstPtr_t<matrix_wrapper_t>;
-        if constexpr (traits::is_floatXX_v<matrix_wrapper_t>) {
+    template<bool ASSERT_VALID_PTR, typename MatrixWrapper, typename MatrixValue>
+    auto matrixOrRawConstPtrOnDevice_(MatrixWrapper matrices, size_t count,
+                                      cuda::memory::PtrDevice<MatrixValue>& buffer, cuda::Stream& stream) {
+        using output_t = matrixOrRawConstPtr_t<MatrixWrapper>;
+        if constexpr (traits::is_floatXX_v<MatrixWrapper>) {
             return output_t(matrices);
         } else {
             NOA_ASSERT(!ASSERT_VALID_PTR || matrices.get() != nullptr);
@@ -48,36 +48,36 @@ namespace {
         }
     }
 
-    template<typename matrix_wrapper_t, typename matrix_value_t>
-    auto inverseMatrices_(matrix_wrapper_t matrices, size_t count,
-                          cuda::memory::PtrPinned<matrix_value_t>& buffer) {
-        if constexpr (traits::is_floatXX_v<matrix_wrapper_t>) {
+    template<typename MatrixWrapper, typename MatrixValue>
+    auto inverseMatrices_(MatrixWrapper matrices, size_t count,
+                          cuda::memory::PtrPinned<MatrixValue>& buffer) {
+        if constexpr (traits::is_floatXX_v<MatrixWrapper>) {
             return math::inverse(matrices);
         } else {
             NOA_ASSERT(count == 0 || cuda::utils::hostPointer(matrices) != nullptr);
-            buffer = cuda::memory::PtrPinned<matrix_value_t>(count);
+            buffer = cuda::memory::PtrPinned<MatrixValue>(count);
             for (size_t i = 0; i < count; ++i)
                 buffer[i] = math::inverse(matrices[i]);
-            using output_t = const matrix_value_t*;
+            using output_t = const MatrixValue*;
             return output_t(buffer.get());
         }
     }
 
-    template<fft::Remap REMAP, typename interpolator_t, typename data_t, typename scale_t, typename rotate_t>
-    void insert3D_(interpolator_t slice_interpolator, dim4_t slice_shape,
-                   data_t* grid, dim4_t grid_strides, dim4_t grid_shape,
-                   const scale_t& inv_scaling_matrices,
-                   const rotate_t& fwd_rotation_matrices,
+    template<fft::Remap REMAP, typename Interpolator, typename Value, typename Scale, typename Rotate>
+    void insert3D_(Interpolator slice_interpolator, dim4_t slice_shape,
+                   Value* grid, dim4_t grid_strides, dim4_t grid_shape,
+                   const Scale& inv_scaling_matrices,
+                   const Rotate& fwd_rotation_matrices,
                    float cutoff, dim4_t target_shape, float2_t ews_radius,
                    float slice_z_radius, cuda::Stream& stream) {
 
         const auto slice_count = static_cast<size_t>(slice_shape[0]);
         const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t{grid_strides[1], grid_strides[2], grid_strides[3]});
-        const auto grid_accessor = AccessorRestrict<data_t, 3, uint32_t>(grid, grid_strides_3d);
+        const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid, grid_strides_3d);
         const auto iwise_shape = safe_cast<int3_t>(dim3_t{grid_shape.get(1)}).fft();
 
         const auto apply_ews = any(ews_radius != 0);
-        const bool apply_scale = inv_scaling_matrices != scale_t{};
+        const bool apply_scale = inv_scaling_matrices != Scale{};
 
         cuda::memory::PtrPinned<float22_t> fwd_scaling_matrices_buffer;
         cuda::memory::PtrPinned<float33_t> inv_rotation_matrices_buffer;
@@ -87,7 +87,7 @@ namespace {
                 matrixOrRawConstPtr_<true>(fwd_rotation_matrices), slice_count, inv_rotation_matrices_buffer);
 
         using namespace noa::geometry::fft::details;
-        if (apply_ews && apply_scale) {
+        if (apply_ews && apply_scale) { // TODO Benchmark to see if it's worth it
             const auto functor = fourierInsertionExplicitThickness<REMAP, int32_t>(
                     slice_interpolator, slice_shape, grid_accessor, grid_shape,
                     fwd_scaling_matrices, inv_rotation_matrices,
@@ -113,27 +113,28 @@ namespace {
             cuda::utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
         }
 
-        if constexpr (!traits::is_floatXX_v<scale_t>)
-            stream.attach(inv_scaling_matrices, fwd_scaling_matrices_buffer.share());
-        if constexpr (!traits::is_floatXX_v<rotate_t>)
+        if constexpr (!traits::is_floatXX_v<Scale>)
+            if (inv_scaling_matrices)
+                stream.attach(inv_scaling_matrices, fwd_scaling_matrices_buffer.share());
+        if constexpr (!traits::is_floatXX_v<Rotate>)
             stream.attach(fwd_rotation_matrices, inv_rotation_matrices_buffer.share());
     }
 
 
-    template<fft::Remap REMAP, typename data_t, typename interpolator_t, typename scale_t, typename rotate_t>
-    void extract3D_(interpolator_t grid, dim4_t grid_shape,
-                    data_t* slice, dim4_t slice_strides, dim4_t slice_shape,
-                    const scale_t& inv_scaling_matrices,
-                    const rotate_t& fwd_rotation_matrices,
+    template<fft::Remap REMAP, typename Value, typename Interpolator, typename Scale, typename Rotate>
+    void extract3D_(Interpolator grid, dim4_t grid_shape,
+                    Value* slice, dim4_t slice_strides, dim4_t slice_shape,
+                    const Scale& inv_scaling_matrices,
+                    const Rotate& fwd_rotation_matrices,
                     float cutoff, dim4_t target_shape, float2_t ews_radius, cuda::Stream& stream) {
 
         const auto slice_count = static_cast<size_t>(slice_shape[0]);
         const auto iwise_shape = safe_cast<int3_t>(dim3_t{slice_shape[0], slice_shape[2], slice_shape[3]}).fft();
         const auto slice_strides_3d = safe_cast<uint3_t>(dim3_t{slice_strides[0], slice_strides[2], slice_strides[3]});
-        const auto slice_accessor = AccessorRestrict<data_t, 3, uint32_t>(slice, slice_strides_3d);
+        const auto slice_accessor = AccessorRestrict<Value, 3, uint32_t>(slice, slice_strides_3d);
 
         const auto apply_ews = any(ews_radius != 0);
-        const bool apply_scale = inv_scaling_matrices != scale_t{};
+        const bool apply_scale = inv_scaling_matrices != Scale{};
 
         // Ensure transformation parameters are accessible to the GPU:
         cuda::memory::PtrDevice<float22_t> inv_scaling_matrices_buffer;
@@ -144,7 +145,7 @@ namespace {
                 fwd_rotation_matrices, slice_count, fwd_rotation_matrices_buffer, stream);
 
         using namespace noa::geometry::fft::details;
-        if (apply_ews && apply_scale) {
+        if (apply_ews && apply_scale) { // TODO Benchmark to see if it's worth it
             const auto functor = fourierExtraction<REMAP, int32_t>(
                     grid, grid_shape, slice_accessor, slice_shape,
                     inv_scaling_matrices_, fwd_rotation_matrices_,
@@ -169,31 +170,30 @@ namespace {
                     cutoff, target_shape, empty_t{});
             cuda::utils::iwise3D("geometry::fft::extract3D", iwise_shape, functor, stream);
         }
-
-        if constexpr (!traits::is_floatXX_v<scale_t>)
-            stream.attach(inv_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<rotate_t>)
+        if constexpr (!traits::is_floatXX_v<Scale>)
+            if (inv_scaling_matrices)
+                stream.attach(inv_scaling_matrices);
+        if constexpr (!traits::is_floatXX_v<Rotate>)
             stream.attach(fwd_rotation_matrices);
     }
 
-
-    template<fft::Remap REMAP, typename interpolator_t, typename data_t,
-             typename scale0_t, typename scale1_t, typename rotate0_t, typename rotate1_t>
-    void extract3D_(interpolator_t input_slice_interpolator, dim4_t input_slice_shape,
-                    data_t* output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                    const scale0_t& insert_inv_scaling_matrices, const rotate0_t& insert_fwd_rotation_matrices,
-                    const scale1_t& extract_inv_scaling_matrices, const rotate1_t& extract_fwd_rotation_matrices,
+    template<fft::Remap REMAP, typename Interpolator, typename Value,
+             typename Scale0, typename Scale1, typename Rotate0, typename Rotate1>
+    void extract3D_(Interpolator input_slice_interpolator, dim4_t input_slice_shape,
+                    Value* output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
+                    const Scale0& insert_inv_scaling_matrices, const Rotate0& insert_fwd_rotation_matrices,
+                    const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
                     float cutoff, float2_t ews_radius, float slice_z_radius, cuda::Stream& stream) {
 
         const auto output_slice_strides_2d = safe_cast<uint3_t>(
                 dim3_t{output_slice_strides[0], output_slice_strides[2], output_slice_strides[3]});
-        const auto output_slice_accessor = AccessorRestrict<data_t, 3, uint32_t>(
+        const auto output_slice_accessor = AccessorRestrict<Value, 3, uint32_t>(
                 output_slice, output_slice_strides_2d);
         const auto iwise_shape = safe_cast<int3_t>(
                 dim3_t{output_slice_shape[0], output_slice_shape[2], output_slice_shape[3]}).fft();
 
         const auto apply_ews = any(ews_radius != 0);
-        const bool apply_scale = insert_inv_scaling_matrices != scale0_t{};
+        const bool apply_scale = insert_inv_scaling_matrices != Scale0{};
 
         // The transformation for the insertion needs to be inverted.
         cuda::memory::PtrPinned<float22_t> insert_fwd_scaling_matrices_buffer;
@@ -205,11 +205,18 @@ namespace {
                 matrixOrRawConstPtr_<true>(insert_fwd_rotation_matrices),
                 input_slice_shape[0], insert_inv_rotation_matrices_buffer);
 
-        const auto extract_inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(extract_inv_scaling_matrices);
-        const auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(extract_fwd_rotation_matrices);
+        // Ensure transformation parameters are accessible to the GPU:
+        cuda::memory::PtrDevice<float22_t> extract_inv_scaling_matrices_buffer;
+        cuda::memory::PtrDevice<float33_t> extract_fwd_rotation_matrices_buffer;
+        const auto extract_inv_scaling_matrices_ = matrixOrRawConstPtrOnDevice_<false>(
+                extract_inv_scaling_matrices, output_slice_shape[0],
+                extract_inv_scaling_matrices_buffer, stream);
+        const auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtrOnDevice_<true>(
+                extract_fwd_rotation_matrices, output_slice_shape[0],
+                extract_fwd_rotation_matrices_buffer, stream);
 
         using namespace noa::geometry::fft::details;
-        if (apply_ews && apply_scale) {
+        if (apply_ews && apply_scale) { // TODO Benchmark to see if it's worth it
             const auto functor = fourierInsertExtraction<REMAP, int32_t>(
                     input_slice_interpolator, input_slice_shape,
                     output_slice_accessor, output_slice_shape,
@@ -242,6 +249,17 @@ namespace {
                     cutoff, empty_t{}, slice_z_radius);
             cuda::utils::iwise3D("geometry::fft::extract3D", iwise_shape, functor, stream);
         }
+
+        if constexpr (!traits::is_floatXX_v<Scale0>)
+            if (insert_inv_scaling_matrices)
+                stream.attach(insert_inv_scaling_matrices, insert_fwd_scaling_matrices_buffer.share());
+        if constexpr (!traits::is_floatXX_v<Rotate0>)
+            stream.attach(insert_fwd_rotation_matrices, insert_inv_rotation_matrices_buffer.share());
+        if constexpr (!traits::is_floatXX_v<Scale1>)
+            if (extract_inv_scaling_matrices)
+                stream.attach(extract_inv_scaling_matrices);
+        if constexpr (!traits::is_floatXX_v<Rotate1>)
+            stream.attach(extract_fwd_rotation_matrices);
     }
 }
 
@@ -273,7 +291,7 @@ namespace noa::cuda::geometry::fft {
                 fwd_rotation_matrices, iwise_shape[0], fwd_rotation_matrices_buffer, stream);
 
         using namespace noa::geometry::fft::details;
-        if (apply_ews && apply_scale) {
+        if (apply_ews && apply_scale) { // TODO Benchmark to see if it's worth it
             const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
                     slice_accessor, slice_shape, grid_accessor, grid_shape,
                     inv_scaling_matrices_, fwd_rotation_matrices_,
