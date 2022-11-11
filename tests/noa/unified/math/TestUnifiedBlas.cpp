@@ -52,6 +52,7 @@ TEST_CASE("unified::math::lstsq - scipy example()", "[noa][unified]") {
     // where ``x`` is a vector with length 2 that holds the parameters
     // ``a`` and ``b``.
     math::lstsq(a, b, x);
+    x.eval();
 
     REQUIRE_THAT(x[0], Catch::WithinAbs(0.20925829, 1e-7));
     REQUIRE_THAT(x[1], Catch::WithinAbs(0.12013861, 1e-7));

@@ -41,8 +41,7 @@ namespace noa {
                 Stream& stream = Stream::current(device_target);
                 if (device_target != array.device())
                     array.eval();
-                cuda::memory::copy(array.share(), array.strides(), array.shape(),
-                                   texture.array, array.shape(), stream.cuda());
+                cuda::memory::copy(array.share(), array.strides(), texture.array, array.shape(), stream.cuda());
 
                 m_texture = texture;
                 m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};

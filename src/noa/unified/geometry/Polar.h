@@ -1,10 +1,11 @@
 #pragma once
 
 #include "noa/unified/Array.h"
+#include "noa/unified/Texture.h"
 
 namespace noa::geometry {
     /// Transforms 2D array(s) from cartesian to (log-)polar coordinates.
-    /// \tparam T               float, double, cfloat_t or cdouble_t.
+    /// \tparam Value           float, double, cfloat_t or cdouble_t.
     /// \param[in] cartesian    Input 2D cartesian array to interpolate onto the new coordinate system.
     /// \param[out] polar       Transformed 2D array on the (log-)polar grid.
     ///                         The width dimension is the radius rho, from and to \p radius_range.
@@ -27,8 +28,8 @@ namespace noa::geometry {
     ///         - If pre-filtering is not required, \p cartesian can be on the CPU.
     ///           Otherwise, should be on the same device as \p polar.\n
     ///         - In-place transformation is always allowed.\n
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void cartesian2polar(const Array<T>& cartesian, const Array<T>& polar,
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
+    void cartesian2polar(const Array<Value>& cartesian, const Array<Value>& polar,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log = false, InterpMode interp = INTERP_LINEAR, bool prefilter = true);
 
@@ -36,13 +37,13 @@ namespace noa::geometry {
     /// \details This functions has the same features and limitations as the overload taking arrays.
     ///          However, for GPU textures, 1) the border mode should be BORDER_ZERO and un-normalized coordinates
     ///          should be used.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void cartesian2polar(const Texture<T>& cartesian, const Array<T>& polar,
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
+    void cartesian2polar(const Texture<Value>& cartesian, const Array<Value>& polar,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log = false);
 
     /// Transforms 2D array(s) from (log-)polar to cartesian coordinates.
-    /// \tparam T               float, double, cfloat_t or cdouble_t.
+    /// \tparam Value           float, double, cfloat_t or cdouble_t.
     /// \param[in] polar        Input 2D polar array to interpolate onto the new coordinate system.
     ///                         The width is the radius rho, from and to \p radius_range.
     ///                         The height is the angle phi, from and to \p angle_range.
@@ -65,8 +66,8 @@ namespace noa::geometry {
     ///         - If pre-filtering is not required, \p polar can be on the CPU.
     ///           Otherwise, should be on the same device as \p cartesian.\n
     ///         - In-place transformation is always allowed.\n
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void polar2cartesian(const Array<T>& polar, const Array<T>& cartesian,
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
+    void polar2cartesian(const Array<Value>& polar, const Array<Value>& cartesian,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log = false, InterpMode interp = INTERP_LINEAR, bool prefilter = true);
 
@@ -74,12 +75,8 @@ namespace noa::geometry {
     /// \details This functions has the same features and limitations as the overload taking arrays.
     ///          However, for GPU textures, 1) the border mode should be BORDER_ZERO and un-normalized coordinates
     ///          should be used.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double, cfloat_t, cdouble_t>>>
-    void polar2cartesian(const Texture<T>& polar, const Array<T>& cartesian,
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
+    void polar2cartesian(const Texture<Value>& polar, const Array<Value>& cartesian,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log = false);
 }
-
-#define NOA_UNIFIED_POLAR_
-#include "noa/unified/geometry/Polar.inl"
-#undef NOA_UNIFIED_POLAR_

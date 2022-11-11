@@ -273,7 +273,9 @@ TEST_CASE("unified::signal::fft, Find shifts with fwd projection", "[.]") {
 
     Array output = memory::like(tilt_series);
     for (size_t i = 0; i < slice_count; ++i)
-        geometry::shift2D(tilt_series.subregion(index_order[i]), output.subregion(index_order[i]), shifts[i]);
+        geometry::transform2D(tilt_series.subregion(index_order[i]),
+                              output.subregion(index_order[i]),
+                              geometry::translate(shifts[i]));
     io::save(output, g_output_dir / "shift_aligned.mrc");
 }
 

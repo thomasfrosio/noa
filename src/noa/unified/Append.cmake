@@ -49,27 +49,12 @@ set(NOA_UNIFIED_HEADERS
 
         # noa::geometry
         unified/geometry/fft/Polar.h
-        unified/geometry/fft/Polar.inl
         unified/geometry/fft/Project.h
-        unified/geometry/fft/Project.inl
-        unified/geometry/fft/Symmetry.h
-        unified/geometry/fft/Symmetry.inl
         unified/geometry/fft/Transform.h
-        unified/geometry/fft/Transform.inl
         unified/geometry/Polar.h
-        unified/geometry/Polar.inl
         unified/geometry/Prefilter.h
         unified/geometry/Prefilter.inl
-        unified/geometry/Rotate.h
-        unified/geometry/Rotate.inl
-        unified/geometry/Scale.h
-        unified/geometry/Scale.inl
-        unified/geometry/Shift.h
-        unified/geometry/Shift.inl
-        unified/geometry/Symmetry.h
-        unified/geometry/Symmetry.inl
         unified/geometry/Transform.h
-        unified/geometry/Transform.inl
 
         # noa::memory
         unified/memory/Cast.h
@@ -106,6 +91,14 @@ set(NOA_UNIFIED_HEADERS
 set(NOA_UNIFIED_SOURCES
         unified/Device.cpp
         unified/Stream.cpp
+
+        # noa::geometry
+        unified/geometry/Polar.cpp
+        unified/geometry/Transform.cpp
+        unified/geometry/fft/Polar.cpp
+        unified/geometry/fft/Project.cpp
+        unified/geometry/fft/Transform.cpp
+
         )
 
 set(NOA_HEADERS ${NOA_HEADERS} ${NOA_UNIFIED_HEADERS})

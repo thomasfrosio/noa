@@ -10,11 +10,11 @@
 #endif
 
 namespace noa::geometry::bspline {
-    template<typename T, typename>
-    void prefilter(const Array<T>& input, const Array<T>& output) {
+    template<typename Value, typename>
+    void prefilter(const Array<Value>& input, const Array<Value>& output) {
         NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
 
-        size4_t input_strides = input.strides();
+        dim4_t input_strides = input.strides();
         if (!indexing::broadcast(input.shape(), input_strides, output.shape())) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());

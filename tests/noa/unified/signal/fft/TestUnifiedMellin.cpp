@@ -20,6 +20,11 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
     const float2_t center{shape[2] / 2, shape[3] / 2};
     const float2_t radius{128, 128};
     const float rotation = math::deg2rad(45.f);
+    const float33_t rotation_matrix = math::inverse(
+            geometry::translate(center) *
+            float33_t(geometry::rotate(rotation)) *
+            geometry::translate(-center)
+    );
 
     constexpr float PI = math::Constants<float>::PI;
     const float2_t frequency_range{0, 0.5};
@@ -41,7 +46,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
         // Generate the input images:
         Array<float> lhs{shape, options}, rhs{shape, options};
         signal::rectangle(Array<float>{}, lhs, center, radius, 10);
-        geometry::rotate2D(lhs, rhs, rotation, center);
+        geometry::transform2D(lhs, rhs, rotation_matrix);
 
         // Compute the non-redundant centered FFT:
         Array<cfloat_t> lhs_fft{shape.fft(), options}, rhs_fft{shape.fft(), options};
