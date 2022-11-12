@@ -3,7 +3,7 @@
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/geometry/Scale.h>
+#include <noa/gpu/cuda/geometry/Transform.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -17,6 +17,10 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto scale = param["scale"].as<float2_t>();
     const auto center = param["center"].as<float2_t>();
+    const float33_t scaling_matrix =
+            geometry::translate(center) *
+            float33_t(geometry::scale(1.f / scale)) *
+            geometry::translate(-center);
 
     io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -36,9 +40,9 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
-        const size_t elements = shape.elements();
+        const dim4_t shape = file.shape();
+        const dim4_t strides = shape.strides();
+        const dim_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -50,11 +54,11 @@ TEST_CASE("cuda::geometry::scale2D()", "[assets][noa][cuda][geometry]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
-        cuda::geometry::scale2D(d_input.share(), d_input.strides(), shape,
-                                d_input.share(), d_input.strides(), shape,
-                                scale, center, interp, border, true, stream);
-        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
+        cuda::memory::copy(input.share(), strides, d_input.share(), d_input.strides(), shape, stream);
+        cuda::geometry::transform2D(d_input.share(), d_input.strides(), shape,
+                                    d_input.share(), d_input.strides(), shape,
+                                    scaling_matrix, interp, border, true, stream);
+        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), strides, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {
@@ -72,6 +76,10 @@ TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto scale = param["scale"].as<float3_t>();
     const auto center = param["center"].as<float3_t>();
+    const float44_t scaling_matrix =
+            geometry::translate(center) *
+            float44_t(geometry::scale(1.f / scale)) *
+            geometry::translate(-center);
 
     io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -90,9 +98,9 @@ TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
 
         // Get input.
         file.open(input_filename, io::READ);
-        const size4_t shape = file.shape();
-        const size4_t stride = shape.strides();
-        const size_t elements = shape.elements();
+        const dim4_t shape = file.shape();
+        const dim4_t strides = shape.strides();
+        const dim_t elements = shape.elements();
         cpu::memory::PtrHost<float> input(elements);
         file.readAll(input.get());
 
@@ -104,11 +112,11 @@ TEST_CASE("cuda::geometry::scale3D()", "[assets][noa][cuda][geometry]") {
         cuda::Stream stream;
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
-        cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
-        cuda::geometry::scale3D(d_input.share(), d_input.strides(), shape,
-                                d_input.share(), d_input.strides(), shape,
-                                scale, center, interp, border, true, stream);
-        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
+        cuda::memory::copy(input.share(), strides, d_input.share(), d_input.strides(), shape, stream);
+        cuda::geometry::transform3D(d_input.share(), d_input.strides(), shape,
+                                    d_input.share(), d_input.strides(), shape,
+                                    scaling_matrix, interp, border, true, stream);
+        cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), strides, shape, stream);
         stream.synchronize();
 
         if (interp != INTERP_NEAREST) {

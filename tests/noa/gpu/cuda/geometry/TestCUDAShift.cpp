@@ -3,7 +3,7 @@
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/geometry/Shift.h>
+#include <noa/gpu/cuda/geometry/Transform.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -16,6 +16,7 @@ TEST_CASE("cuda::geometry::translate2D()", "[assets][noa][cuda][geometry]") {
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift2D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto shift = param["shift"].as<float2_t>();
+    const auto shift_matrix = geometry::translate(-shift);
 
     io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -50,9 +51,9 @@ TEST_CASE("cuda::geometry::translate2D()", "[assets][noa][cuda][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
-        cuda::geometry::shift2D(d_input.share(), d_input.strides(), shape,
-                                d_input.share(), d_input.strides(), shape,
-                                shift, interp, border, true, stream);
+        cuda::geometry::transform2D(d_input.share(), d_input.strides(), shape,
+                                    d_input.share(), d_input.strides(), shape,
+                                    shift_matrix, interp, border, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 
@@ -70,6 +71,7 @@ TEST_CASE("cuda::geometry::translate3D()", "[assets][noa][cuda][geometry]") {
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["shift3D"];
     const auto input_filename = path_base / param["input"].as<path_t>();
     const auto shift = param["shift"].as<float3_t>();
+    const auto shift_matrix = geometry::translate(-shift);
 
     io::MRCFile file;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -103,9 +105,9 @@ TEST_CASE("cuda::geometry::translate3D()", "[assets][noa][cuda][geometry]") {
         cpu::memory::PtrHost<float> output(elements);
         cuda::memory::PtrDevicePadded<float> d_input(shape);
         cuda::memory::copy(input.share(), stride, d_input.share(), d_input.strides(), shape, stream);
-        cuda::geometry::shift3D(d_input.share(), d_input.strides(), shape,
-                                d_input.share(), d_input.strides(), shape,
-                                shift, interp, border, true, stream);
+        cuda::geometry::transform3D(d_input.share(), d_input.strides(), shape,
+                                    d_input.share(), d_input.strides(), shape,
+                                    shift_matrix, interp, border, true, stream);
         cuda::memory::copy(d_input.share(), d_input.strides(), output.share(), stride, shape, stream);
         stream.synchronize();
 

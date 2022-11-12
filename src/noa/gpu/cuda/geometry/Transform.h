@@ -1,7 +1,9 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
+#include "noa/common/geometry/Euler.h"
 #include "noa/common/geometry/Symmetry.h"
+#include "noa/common/geometry/Transform.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Stream.h"
 
