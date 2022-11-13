@@ -1,7 +1,6 @@
 #include "noa/unified/geometry/Transform.h"
 
 #include "noa/cpu/geometry/Transform.h"
-#include "noa/cpu/geometry/Symmetry.h"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/geometry/Transform.h"
 #endif

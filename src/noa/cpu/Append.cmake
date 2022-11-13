@@ -61,10 +61,6 @@ set(NOA_CPU_HEADERS
         cpu/geometry/fft/Transform.h
         cpu/geometry/Polar.h
         cpu/geometry/Prefilter.h
-        cpu/geometry/Rotate.h
-        cpu/geometry/Scale.h
-        cpu/geometry/Shift.h
-        cpu/geometry/Symmetry.h
         cpu/geometry/Transform.h
 
         )
@@ -108,10 +104,7 @@ set(NOA_CPU_SOURCES
         cpu/geometry/fft/TransformSymmetry.cpp
         cpu/geometry/Polar.cpp
         cpu/geometry/Prefilter.cpp
-        cpu/geometry/Shift.cpp
-        cpu/geometry/Symmetry.cpp
         cpu/geometry/Transform.cpp
-        cpu/geometry/TransformSymmetry.cpp
 
         )
 

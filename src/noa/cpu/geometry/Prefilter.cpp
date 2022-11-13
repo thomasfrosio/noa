@@ -191,34 +191,39 @@ namespace {
 }
 
 namespace noa::cpu::geometry::bspline {
-    template<typename T, typename>
-    void prefilter(const shared_t<T[]>& input, dim4_t input_strides,
-                   const shared_t<T[]>& output, dim4_t output_strides,
-                   dim4_t shape, Stream& stream) {
+    template<typename Value, typename>
+    void prefilter(const Value* input, dim4_t input_strides,
+                   Value* output, dim4_t output_strides,
+                   dim4_t shape, dim_t threads) {
         NOA_ASSERT(input && output && all(shape > 0));
 
         const dim_t ndim = dim3_t(shape.get(1)).ndim();
         if (ndim == 3) {
-            stream.enqueue([=]() {
-                prefilter3D_(input.get(), input_strides, output.get(), output_strides, shape, stream.threads());
-            });
+            prefilter3D_(input, input_strides, output, output_strides, shape, threads);
         } else if (ndim == 2) {
-            stream.enqueue([=]() {
-                prefilter2D_(input.get(), dim3_t{input_strides[0], input_strides[2], input_strides[3]},
-                             output.get(), dim3_t{output_strides[0], output_strides[2], output_strides[3]},
-                             dim3_t{shape[0], shape[2], shape[3]}, stream.threads());
-            });
+            prefilter2D_(input, dim3_t{input_strides[0], input_strides[2], input_strides[3]},
+                         output, dim3_t{output_strides[0], output_strides[2], output_strides[3]},
+                         dim3_t{shape[0], shape[2], shape[3]}, threads);
         } else {
-            stream.enqueue([=]() {
-                const bool is_column = shape[3] == 1;
-                prefilter1D_(input.get(), dim2_t{input_strides[0], input_strides[3 - is_column]},
-                             output.get(), dim2_t{output_strides[0], output_strides[3 - is_column]},
-                             dim2_t{shape[0], shape[3 - is_column]});
-            });
+            const bool is_column = shape[3] == 1;
+            prefilter1D_(input, dim2_t{input_strides[0], input_strides[3 - is_column]},
+                         output, dim2_t{output_strides[0], output_strides[3 - is_column]},
+                         dim2_t{shape[0], shape[3 - is_column]});
         }
     }
 
-    #define NOA_INSTANTIATE_PREFILTER_(T) \
+    template<typename Value, typename>
+    void prefilter(const shared_t<Value[]>& input, dim4_t input_strides,
+                   const shared_t<Value[]>& output, dim4_t output_strides,
+                   dim4_t shape, Stream& stream) {
+        const dim_t threads = stream.threads();
+        stream.enqueue([=]() {
+            prefilter(input.get(), input_strides, output.get(), output_strides, shape, threads);
+        });
+    }
+
+    #define NOA_INSTANTIATE_PREFILTER_(T)                                           \
+    template void prefilter<T,void>(const T*, dim4_t, T*, dim4_t, dim4_t, dim_t);   \
     template void prefilter<T,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
