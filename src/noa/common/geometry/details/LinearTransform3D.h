@@ -60,13 +60,14 @@ namespace noa::geometry::details {
         using index_type = Index;
         using offset_type = Offset;
         using accessor_type = AccessorRestrict<data_type, 4, offset_type>;
+        using real_type = traits::value_type_t<data_type>;
 
     public:
         TransformSymmetry3D(interpolator_type input, accessor_type output,
                             float3_t shift, float33_t matrix, float3_t center,
                             const float33_t* symmetry_matrices, index_type symmetry_count,
-                            float scaling) noexcept
-                : m_input(input), m_output(output), m_matrix(matrix), m_shift(shift),
+                            real_type scaling) noexcept
+                : m_input(input), m_output(output), m_matrix(matrix), m_center_shift(center + shift),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
             NOA_ASSERT(symmetry_matrices != nullptr || symmetry_count == 0);
@@ -76,10 +77,10 @@ namespace noa::geometry::details {
             float3_t coordinates{z, y, x};
             coordinates -= m_center;
             coordinates = m_matrix * coordinates;
-            data_type value = m_input(coordinates + m_center + m_shift, batch);
+            data_type value = m_input(coordinates + m_center_shift, batch);
             for (index_type i = 0; i < m_symmetry_count; ++i) {
                 const float3_t i_coordinates = m_symmetry_matrices[i] * coordinates;
-                value += m_input(i_coordinates + m_center + m_shift, batch);
+                value += m_input(i_coordinates + m_center_shift, batch);
             }
 
             m_output(batch, z, y, x) = value * m_scaling;
@@ -89,19 +90,20 @@ namespace noa::geometry::details {
         interpolator_type m_input;
         accessor_type m_output;
         float33_t m_matrix;
-        float3_t m_shift;
+        float3_t m_center_shift;
         float3_t m_center;
 
         const float33_t* m_symmetry_matrices;
         index_type m_symmetry_count;
-        float m_scaling;
+        real_type m_scaling;
     };
 
-    template<typename Index, typename Data, typename Interpolator, typename Offset>
+    template<typename Index, typename Data, typename Interpolator, typename Offset,
+             typename Real = traits::value_type_t<Data>>
     auto transformSymmetry3D(Interpolator input, const AccessorRestrict<Data, 4, Offset>& output,
                              float3_t shift, float33_t matrix, float3_t center,
                              const float33_t* symmetry_matrices, Index symmetry_count,
-                             float scaling) noexcept {
+                             Real scaling) noexcept {
         return TransformSymmetry3D<Index, Data, Interpolator, Offset>(
                 input, output, shift, matrix, center, symmetry_matrices, symmetry_count, scaling);
     }
@@ -119,11 +121,12 @@ namespace noa::geometry::details {
         using index_type = Index;
         using offset_type = Offset;
         using accessor_type = AccessorRestrict<data_type, 4, offset_type>;
+        using real_type = traits::value_type_t<data_type>;
 
     public:
         Symmetry3D(interpolator_type input, accessor_type output,
                    float3_t center, const float33_t* symmetry_matrices,
-                   index_type symmetry_count, float scaling) noexcept
+                   index_type symmetry_count, real_type scaling) noexcept
                 : m_input(input), m_output(output),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
@@ -149,13 +152,14 @@ namespace noa::geometry::details {
 
         const float33_t* m_symmetry_matrices;
         index_type m_symmetry_count;
-        float m_scaling;
+        real_type m_scaling;
     };
 
-    template<typename Index, typename Data, typename Interpolator, typename Offset>
+    template<typename Index, typename Data, typename Interpolator, typename Offset,
+             typename Real = traits::value_type_t<Data>>
     auto symmetry3D(Interpolator input, const AccessorRestrict<Data, 4, Offset>& output,
                     float3_t center, const float33_t* symmetry_matrices, Index symmetry_count,
-                    float scaling) noexcept {
+                    Real scaling) noexcept {
         return Symmetry3D<Index, Data, Interpolator, Offset>(
                 input, output, center, symmetry_matrices, symmetry_count, scaling);
     }

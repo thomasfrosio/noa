@@ -34,13 +34,17 @@ namespace noa::geometry {
         using index_type = std::make_signed_t<offset_type>;
         using index2_type = Int2<index_type>;
         using coord2_type = Float2<coord_type>;
+        using data_or_empty_type = std::conditional_t<BORDER_MODE == BORDER_VALUE, data_type, empty_t>;
         using accessor_type = Accessor<const data_type, ACCESSOR_NDIM, offset_type, ACCESSOR_TRAITS>;
 
     public:
         constexpr Interpolator2D() = default;
 
         constexpr NOA_HD Interpolator2D(accessor_type data, index2_type shape, data_type cvalue = data_type{0}) noexcept
-                : m_data(data), m_shape(shape), m_cvalue(cvalue) {}
+                : m_data(data), m_shape(shape) {
+            if constexpr (!std::is_empty_v<data_or_empty_type>)
+                m_cvalue = cvalue;
+        }
 
         // 2D interpolation on a given batch.
         // The batch is ignored if the accessor is 2D, effectively broadcasting the batch dimension.
@@ -204,11 +208,12 @@ namespace noa::geometry {
     private:
         accessor_type m_data{};
         index2_type m_shape{};
-        data_type m_cvalue{};
+        data_or_empty_type m_cvalue{}; // TODO empty if BORDER_ZERO
     };
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float, typename CValue = float,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
              typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+             typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
     constexpr auto interpolator2D(const Accessor<Data, NDIM, Offset, TRAITS>& accessor,
@@ -219,8 +224,9 @@ namespace noa::geometry {
         return interpolator_t(accessor, shape, cvalue);
     }
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float, typename CValue = float,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
              typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+             typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
     constexpr auto interpolator2D(const AccessorReference<Data, NDIM, Offset, TRAITS>& accessor,
@@ -251,13 +257,17 @@ namespace noa::geometry {
         using index_type = std::make_signed_t<offset_type>;
         using index3_type = Int3<index_type>;
         using coord3_type = Float3<coord_type>;
+        using data_or_empty_type = std::conditional_t<BORDER_MODE == BORDER_VALUE, data_type, empty_t>;
         using accessor_type = Accessor<const data_type, ACCESSOR_NDIM, offset_type, ACCESSOR_TRAITS>;
 
     public:
         constexpr Interpolator3D() = default;
 
         constexpr NOA_HD Interpolator3D(accessor_type data, index3_type shape, data_type cvalue = data_type{0}) noexcept
-                : m_data(data), m_shape(shape), m_cvalue(cvalue) {}
+                : m_data(data), m_shape(shape) {
+            if constexpr (!std::is_empty_v<data_or_empty_type>)
+                m_cvalue = cvalue;
+        }
 
         // 3D interpolation on a given batch.
         // The batch is ignored if the accessor is 3D, effectively broadcasting the batch dimension.
@@ -340,7 +350,11 @@ namespace noa::geometry {
                 const bool cond_x[2] = {idx[0][2] >= 0 && idx[0][2] < m_shape[2], idx[1][2] >= 0 && idx[1][2] < m_shape[2]};
 
                 // TODO Might be more efficient to do two 2D interpolations and a final 1D...
-                const data_type cval = BORDER_MODE == BORDER_ZERO ? data_type{0} : m_cvalue;
+                data_type cval;
+                if constexpr (BORDER_MODE == BORDER_ZERO)
+                    cval = data_type{0};
+                else
+                    cval = m_cvalue;
                 values[0] = cond_z[0] && cond_y[0] && cond_x[0] ? accessor(idx[0][0], idx[0][1], idx[0][2]) : cval; // v000
                 values[1] = cond_z[0] && cond_y[0] && cond_x[1] ? accessor(idx[0][0], idx[0][1], idx[1][2]) : cval; // v001
                 values[2] = cond_z[0] && cond_y[1] && cond_x[0] ? accessor(idx[0][0], idx[1][1], idx[0][2]) : cval; // v010
@@ -450,11 +464,12 @@ namespace noa::geometry {
     private:
         accessor_type m_data{};
         index3_type m_shape{};
-        data_type m_cvalue{};
+        data_or_empty_type m_cvalue{};
     };
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float, typename CValue = float,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
              typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+             typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
     constexpr auto interpolator3D(const Accessor<Data, NDIM, Offset, TRAITS>& accessor,
@@ -465,8 +480,9 @@ namespace noa::geometry {
         return interpolator_t(accessor, shape, cvalue);
     }
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float, typename CValue = float,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
              typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+             typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
     constexpr auto interpolator3D(const AccessorReference<Data, NDIM, Offset, TRAITS>& accessor,
