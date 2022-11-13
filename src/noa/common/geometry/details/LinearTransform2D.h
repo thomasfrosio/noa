@@ -141,7 +141,7 @@ namespace noa::geometry::details {
     public:
         Symmetry2D(interpolator_type input, accessor_type output,
                    float2_t center, const float33_t* symmetry_matrices,
-                   int32_t symmetry_count, real_type scaling) noexcept
+                   index_type symmetry_count, real_type scaling) noexcept
                 : m_input(input), m_output(output),
                   m_center(center), m_symmetry_matrices(symmetry_matrices),
                   m_symmetry_count(symmetry_count), m_scaling(scaling) {
@@ -149,8 +149,8 @@ namespace noa::geometry::details {
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
+            data_type value = m_input.at(batch, y, x); // skip interpolator if possible
             float2_t coordinates{y, x};
-            data_type value = m_input(coordinates, batch);
             coordinates -= m_center;
             for (index_type ii = 0; ii < m_symmetry_count; ++ii) {
                 const float33_t& m = m_symmetry_matrices[ii];
@@ -176,7 +176,7 @@ namespace noa::geometry::details {
     template<typename Index, typename Data, typename Interpolator, typename Offset,
              typename Real = traits::value_type_t<Data>>
     auto symmetry2D(Interpolator input, const AccessorRestrict<Data, 3, Offset>& output,
-                    float2_t center, const float33_t* symmetry_matrices, int32_t symmetry_count,
+                    float2_t center, const float33_t* symmetry_matrices, Index symmetry_count,
                     Real scaling) noexcept {
         return Symmetry2D<Index, Data, Interpolator, Offset>(
                 input, output, center, symmetry_matrices, symmetry_count, scaling);

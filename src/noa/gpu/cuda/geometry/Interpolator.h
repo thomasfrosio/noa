@@ -109,6 +109,16 @@ namespace noa::cuda::geometry {
             return data_type{};
         }
 
+        template<typename Int = int32_t, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        constexpr NOA_FHD data_type at(Int batch, Int y, Int x) const noexcept {
+            return (*this)(coord2_type{y, x}, batch);
+        }
+
+        template<typename Int = int32_t, typename = std::enable_if_t<!LAYERED && traits::is_int_v<Int>>>
+        constexpr NOA_FHD data_type at(Int y, Int x) const noexcept {
+            return (*this)(coord2_type{y, x});
+        }
+
     private:
         NOA_FD data_type fetch2D_(coord_type x, coord_type y, int32_t layer) const noexcept {
             #ifdef __CUDACC__
@@ -329,6 +339,16 @@ namespace noa::cuda::geometry {
                 static_assert(traits::always_false_v<data_type>);
             }
             return data_type{};
+        }
+
+        template<typename Int = int32_t, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        constexpr NOA_FHD data_type at(Int, Int z, Int y, Int x) const noexcept {
+            return (*this)(coord3_type{z, y, x});
+        }
+
+        template<typename Int = int32_t, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        constexpr NOA_FHD data_type at(Int z, Int y, Int x) const noexcept {
+            return (*this)(coord3_type{z, y, x});
         }
 
     private:

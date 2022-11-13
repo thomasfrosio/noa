@@ -134,8 +134,8 @@ namespace noa::geometry::details {
         }
 
         NOA_IHD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
+            data_type value = m_input.at(batch, z, y, x); // skip interpolation if possible
             float3_t coordinates{z, y, x};
-            data_type value = m_input(coordinates, batch);
             coordinates -= m_center;
             for (index_type i = 0; i < m_symmetry_count; ++i) {
                 const float3_t i_coordinates = m_symmetry_matrices[i] * coordinates;

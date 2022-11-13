@@ -83,6 +83,16 @@ namespace noa::geometry {
             }
         }
 
+        template<typename Void = void, typename = std::enable_if_t<ACCESSOR_NDIM == 3 && std::is_void_v<Void>>>
+        constexpr NOA_FHD data_type at(index_type batch, index_type y, index_type x) const noexcept {
+            return m_data(batch, y, x);
+        }
+
+        template<typename Void = void, typename = std::enable_if_t<ACCESSOR_NDIM == 2 && std::is_void_v<Void>>>
+        constexpr NOA_FHD data_type at(index_type y, index_type x) const noexcept {
+            return m_data(y, x);
+        }
+
     private:
         template<typename Accessor2D>
         constexpr NOA_HD data_type nearest_(Accessor2D accessor, coord2_type coordinate) const noexcept {
@@ -304,6 +314,16 @@ namespace noa::geometry {
                     static_assert(traits::always_false_v<data_type>);
                 }
             }
+        }
+
+        template<typename Void = void, typename = std::enable_if_t<ACCESSOR_NDIM == 4 && std::is_void_v<Void>>>
+        constexpr NOA_FHD data_type at(index_type batch, index_type z, index_type y, index_type x) const noexcept {
+            return m_data(batch, z, y, x);
+        }
+
+        template<typename Void = void, typename = std::enable_if_t<ACCESSOR_NDIM == 3 && std::is_void_v<Void>>>
+        constexpr NOA_FHD data_type at(index_type z, index_type y, index_type x) const noexcept {
+            return m_data(z, y, x);
         }
 
     private:
