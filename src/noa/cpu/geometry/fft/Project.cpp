@@ -3,7 +3,7 @@
 #include "noa/common/geometry/Interpolator.h"
 #include "noa/common/geometry/details/FourierProjections.h"
 #include "noa/cpu/geometry/fft/Project.h"
-#include "noa/cpu/utils/Loops.h"
+#include "noa/cpu/utils/Iwise.h"
 
 namespace {
     using namespace ::noa;

@@ -5,7 +5,7 @@
 #include "noa/common/geometry/details/LinearTransform3DFourier.h"
 
 #include "noa/cpu/geometry/fft/Transform.h"
-#include "noa/cpu/utils/Loops.h"
+#include "noa/cpu/utils/Iwise.h"
 
 namespace {
     using namespace ::noa;

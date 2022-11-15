@@ -9,7 +9,7 @@
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/geometry/Transform.h"
 #include "noa/cpu/geometry/Prefilter.h"
-#include "noa/cpu/utils/Loops.h"
+#include "noa/cpu/utils/Iwise.h"
 
 namespace {
     using namespace ::noa;

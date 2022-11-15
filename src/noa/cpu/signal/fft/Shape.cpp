@@ -1,7 +1,7 @@
 #include "noa/common/Math.h"
 #include "noa/common/signal/Shape.h"
 #include "noa/cpu/signal/fft/Shape.h"
-#include "noa/cpu/utils/Loops.h"
+#include "noa/cpu/utils/Iwise.h"
 
 namespace {
     using namespace noa;

@@ -10,7 +10,7 @@ set(NOA_CPU_HEADERS
         cpu/Stream.h
 
         # noa::cpu::utils
-        cpu/utils/Loops.h
+        cpu/utils/Iwise.h
 
         # noa::cpu::fft
         cpu/fft/Plan.h

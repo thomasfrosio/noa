@@ -2,7 +2,7 @@
 #include "noa/common/geometry/details/PolarTransformFourier.h"
 
 #include "noa/cpu/geometry/fft/Polar.h"
-#include "noa/cpu/utils/Loops.h"
+#include "noa/cpu/utils/Iwise.h"
 
 namespace noa::cpu::geometry::fft {
     template<Remap, typename Value, typename>

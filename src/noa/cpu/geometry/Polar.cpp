@@ -5,7 +5,7 @@
 #include "noa/cpu/memory/PtrHost.h"
 #include "noa/cpu/geometry/Polar.h"
 #include "noa/cpu/geometry/Prefilter.h"
-#include "noa/cpu/utils/Loops.h"
+#include "noa/cpu/utils/Iwise.h"
 
 namespace noa::cpu::geometry {
     template<typename Value, typename>
