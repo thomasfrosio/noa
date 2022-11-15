@@ -218,7 +218,7 @@ namespace noa::geometry {
     private:
         accessor_type m_data{};
         index2_type m_shape{};
-        data_or_empty_type m_cvalue{}; // TODO empty if BORDER_ZERO
+        data_or_empty_type m_cvalue{};
     };
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,

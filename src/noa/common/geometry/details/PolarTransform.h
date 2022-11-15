@@ -35,13 +35,13 @@ namespace noa::geometry::details {
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
             const float2_t polar_coordinate{y, x};
-            const float angle_rad = polar_coordinate[0] * m_step_angle + m_start_angle;
-            const float radius = m_log ?
-                                 math::exp(polar_coordinate[1] * m_step_radius) - 1 + m_start_radius :
-                                 (polar_coordinate[1] * m_step_radius) + m_start_radius;
+            const float phi = polar_coordinate[0] * m_step_angle + m_start_angle;
+            const float rho = m_log ?
+                              math::exp(polar_coordinate[1] * m_step_radius) - 1 + m_start_radius :
+                              (polar_coordinate[1] * m_step_radius) + m_start_radius;
 
-            float2_t cartesian_coordinate{math::sin(angle_rad), math::cos(angle_rad)};
-            cartesian_coordinate *= radius;
+            float2_t cartesian_coordinate{math::sin(phi), math::cos(phi)};
+            cartesian_coordinate *= rho;
             cartesian_coordinate += m_center;
 
             m_polar(batch, y, x) = m_cartesian(cartesian_coordinate, batch);

@@ -1,25 +1,18 @@
 #pragma once
+
 #include "noa/common/Types.h"
+#include "noa/common/geometry/details/Utilities.h"
 
-namespace noa::geometry::fft::details {
-    using Remap = ::noa::fft::Remap;
+// Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
+//       One other solution could have been to use an affine transform encoding the appropriate scaling to effectively
+//       normalize the frequencies. Both options are fine and probably equivalent performance-wise.
 
-    template<bool IS_CENTERED, typename Index>
-    [[nodiscard]] NOA_FHD Index index2frequency(Index index, Index size) {
-        if constexpr (IS_CENTERED)
-            return index - size / 2;
-        else
-            return index < (size + 1) / 2 ? index : index - size;
-        return Index{}; // unreachable
-    }
-
-    [[nodiscard]] NOA_FHD cfloat_t phaseShift(float2_t shift, float2_t freq) {
-        const float factor = -math::dot(shift, freq);
-        cfloat_t phase_shift;
-        noa::math::sincos(factor, &phase_shift.imag, &phase_shift.real);
-        return phase_shift;
-    }
-}
+// FIXME    For even sizes, there's an asymmetry due to the fact that there's only one Nyquist. After fftshift,
+//          this extra frequency is on the left side of the axis. However, since we work with non-redundant
+//          transforms, there's a slight error that can be introduced. For the elements close (+-1 element) to x=0
+//          and close (+-1 element) to y=z=0.5, if during the rotation x becomes negative and we have to flip it, the
+//          interpolator will incorrectly weight towards 0 the output value. This is simply due to the fact that on
+//          the right side of the axis, there's no Nyquist (the axis stops and n+1 element is OOB, i.e. =0).
 
 namespace noa::geometry::fft::details {
     // Linear transformations for 2D non-redundant centered FFTs:
@@ -41,7 +34,7 @@ namespace noa::geometry::fft::details {
         static_assert(traits::is_any_v<Matrix, float22_t, const float22_t*>);
         static_assert(traits::is_any_v<Data, float, double, cfloat_t, cdouble_t>);
         static_assert(traits::is_any_v<ShiftOrEmpty, empty_t, float2_t, const float2_t*>);
-        static_assert(traits::is_int_v<Index>);
+        static_assert(traits::is_sint_v<Index>);
 
         using data_type = Data;
         using matrix_type = Matrix;
@@ -49,6 +42,7 @@ namespace noa::geometry::fft::details {
         using index_type = Index;
         using offset_type = Offset;
         using shift_or_empty_type = ShiftOrEmpty;
+        using preshift_or_empty_type = std::conditional_t<std::is_pointer_v<shift_or_empty_type>, float2_t, empty_t>;
 
         using real_type = traits::value_type_t<data_type>;
         using index2_type = Int2<index_type>;
@@ -68,18 +62,20 @@ namespace noa::geometry::fft::details {
             NOA_ASSERT(shape[1] == 1);
 
             m_shape = safe_cast<index2_type>(dim2_t(shape.get(2)));
-            m_f_shape = float2_t(m_shape / 2 * 2 + int2_t(m_shape == 1)); // if odd, n-1
+            m_f_shape = float2_t(m_shape / 2 * 2 + index2_type(m_shape == 1)); // if odd, n-1
 
             m_cutoff_sqd = noa::math::clamp(cutoff, 0.f, 0.5f);
             m_cutoff_sqd *= m_cutoff_sqd;
 
             if constexpr (traits::is_float2_v<shift_or_empty_type>)
                 m_shift *= math::Constants<float>::PI2 / float2_t(m_shape);
+            else if constexpr (traits::is_float2_v<preshift_or_empty_type>)
+                m_preshift = math::Constants<float>::PI2 / float2_t(m_shape);
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept { // x == u
             // Compute the frequency corresponding to the gid and inverse transform.
-            const int32_t v = index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
+            const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
             float2_t freq{v, x};
             freq /= m_f_shape; // [-0.5, 0.5]
             if (math::dot(freq, freq) > m_cutoff_sqd) {
@@ -112,10 +108,10 @@ namespace noa::geometry::fft::details {
             // Phase shift the interpolated value.
             if constexpr (traits::is_complex_v<data_type> && !std::is_empty_v<shift_or_empty_type>) {
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
-                    const float2_t shift = m_shift[batch] * math::Constants<float>::PI2 / float2_t(m_shape);
-                    value *= phaseShift(shift, float2_t{v, x});
+                    const float2_t shift = m_shift[batch] * m_preshift;
+                    value *= phaseShift<data_type>(shift, float2_t{v, x});
                 } else {
-                    value *= phaseShift(m_shift, float2_t{v, x});
+                    value *= phaseShift<data_type>(m_shift, float2_t{v, x});
                 }
             }
 
@@ -127,6 +123,7 @@ namespace noa::geometry::fft::details {
         accessor_type m_output;
         matrix_type m_matrix;
         shift_or_empty_type m_shift;
+        preshift_or_empty_type m_preshift;
         index2_type m_shape;
         float2_t m_f_shape;
         float m_cutoff_sqd;
@@ -157,7 +154,7 @@ namespace noa::geometry::fft::details {
         static_assert(traits::is_any_v<Data, float, double, cfloat_t, cdouble_t>);
         static_assert(traits::is_any_v<MatrixOrEmpty, empty_t, float22_t>);
         static_assert(traits::is_any_v<ShiftOrEmpty, empty_t, float2_t>);
-        static_assert(traits::is_int_v<Index>);
+        static_assert(traits::is_sint_v<Index>);
 
         using data_type = Data;
         using matrix_or_empty_type = MatrixOrEmpty;
@@ -173,7 +170,7 @@ namespace noa::geometry::fft::details {
     public:
         TransformSymmetry2D(interpolator_type input, accessor_type output, dim4_t shape,
                             matrix_or_empty_type matrix, const float33_t* symmetry_matrices,
-                            index_type symmetry_count, float scaling,
+                            index_type symmetry_count, real_type scaling,
                             shift_or_empty_type shift, float cutoff) noexcept
                 : m_input(input), m_output(output),
                   m_matrix(matrix), m_shift(shift),
@@ -191,7 +188,7 @@ namespace noa::geometry::fft::details {
 
             const auto i_shape = safe_cast<index2_type>(dim2_t(shape.get(2)));
             m_size_y = i_shape[0];
-            m_f_shape = float2_t(i_shape / 2 * 2 + int2_t(i_shape == 1)); // if odd, n-1
+            m_f_shape = float2_t(i_shape / 2 * 2 + index2_type(i_shape == 1)); // if odd, n-1
 
             m_cutoff_sqd = noa::math::clamp(cutoff, 0.f, 0.5f);
             m_cutoff_sqd *= m_cutoff_sqd;
@@ -201,7 +198,7 @@ namespace noa::geometry::fft::details {
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept { // x == u
-            const int32_t v = index2frequency<IS_DST_CENTERED>(y, m_size_y);
+            const index_type v = index2frequency<IS_DST_CENTERED>(y, m_size_y);
             float2_t freq{v, x};
             freq /= m_f_shape; // [-0.5, 0.5]
             if (math::dot(freq, freq) > m_cutoff_sqd) {
@@ -209,10 +206,15 @@ namespace noa::geometry::fft::details {
                 return;
             }
 
-            if constexpr (!std::is_empty_v<matrix_or_empty_type>)
+            data_type value;
+            if constexpr (!std::is_empty_v<matrix_or_empty_type>) {
                 freq = m_matrix * freq;
+                value = interpolateFFT_(freq, batch);
+            } else {
+                const index_type iy = output2inputIndex_(y);
+                value = m_input.at(batch, iy, x); // bypass interpolation when possible
+            }
 
-            data_type value = interpolateFFT_(freq, batch);
             for (index_type i = 0; i < m_symmetry_count; ++i) {
                 const float33_t& m = m_symmetry_matrices[i];
                 const float22_t sym_matrix{m[1][1], m[1][2],
@@ -223,29 +225,39 @@ namespace noa::geometry::fft::details {
 
             value *= m_scaling;
             if constexpr (traits::is_complex_v<data_type> && !std::is_empty_v<shift_or_empty_type>)
-                value *= phaseShift(m_shift, float2_t{v, x});
+                value *= phaseShift<data_type>(m_shift, float2_t{v, x});
 
             m_output(batch, y, x) = value;
         }
 
     private:
         // Interpolates the (complex) value at the normalized frequency "freq".
-        NOA_IHD data_type interpolateFFT_(float2_t freq, index_type batch) const noexcept{
+        NOA_IHD data_type interpolateFFT_(float2_t frequency, index_type batch) const noexcept {
             real_type conj = 1;
-            if (freq[1] < 0.f) {
-                freq = -freq;
+            if (frequency[1] < 0.f) {
+                frequency = -frequency;
                 if constexpr (traits::is_complex_v<data_type>)
                     conj = -1;
             }
 
-            freq[0] += 0.5f;
-            freq *= m_f_shape;
-            data_type value = m_input(freq, batch);
+            frequency[0] += 0.5f;
+            frequency *= m_f_shape;
+            data_type value = m_input(frequency, batch);
             if constexpr (traits::is_complex_v<data_type>)
                 value.imag *= conj;
             else
                 (void) conj;
             return value;
+        }
+
+        NOA_FHD index_type output2inputIndex_(index_type y) const noexcept {
+            if constexpr (IS_DST_CENTERED) {
+                return y; // output is centered, so do nothing
+            } else {
+                // The output is center and the output isn't.
+                // FIXME
+                return noa::math::FFTShift(y, m_size_y);
+            }
         }
 
     private:
@@ -258,15 +270,16 @@ namespace noa::geometry::fft::details {
         index_type m_size_y;
         float2_t m_f_shape;
         float m_cutoff_sqd;
-        float m_scaling;
+        real_type m_scaling;
     };
 
     template<Remap REMAP, typename Index, typename Data, typename MatrixOrEmpty,
-             typename ShiftOrEmpty, typename Interpolator, typename Offset>
+             typename ShiftOrEmpty, typename Interpolator, typename Offset,
+             typename Real = traits::value_type_t<Data>>
     auto transformSymmetry2D(const Interpolator& input,
                              const AccessorRestrict<Data, 3, Offset>& output,
                              dim4_t shape, MatrixOrEmpty matrix,
-                             const float33_t* symmetry_matrices, Index symmetry_count, float scaling,
+                             const float33_t* symmetry_matrices, Index symmetry_count, Real scaling,
                              ShiftOrEmpty shift, float cutoff) noexcept {
         return TransformSymmetry2D<
                 REMAP, Index, Data, MatrixOrEmpty, ShiftOrEmpty, Interpolator, Offset>(

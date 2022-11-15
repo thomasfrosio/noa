@@ -27,33 +27,33 @@ namespace noa::geometry::details {
         using accessor_type = AccessorRestrict<data_type, 3, offset_type>;
 
     public:
-        Transform2D(interpolator_type input, accessor_type output, matrix_type matrix) noexcept
-                : m_input(input), m_output(output), m_matrix(matrix) {
+        Transform2D(interpolator_type input, accessor_type output, matrix_type inv_matrix) noexcept
+                : m_input(input), m_output(output), m_inv_matrix(inv_matrix) {
             if constexpr (std::is_pointer_v<Matrix>) {
-                NOA_ASSERT(matrix != nullptr);
+                NOA_ASSERT(inv_matrix != nullptr);
             }
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
             const float3_t coordinates{y, x, 1.f};
             if constexpr (traits::is_any_v<matrix_type, const float23_t*, const float33_t*>) {
-                m_output(batch, y, x) = m_input(float23_t(m_matrix[batch]) * coordinates, batch);
+                m_output(batch, y, x) = m_input(float23_t(m_inv_matrix[batch]) * coordinates, batch);
             } else if constexpr (std::is_same_v<matrix_type, float23_t>) {
-                m_output(batch, y, x) = m_input(m_matrix * coordinates, batch);
+                m_output(batch, y, x) = m_input(m_inv_matrix * coordinates, batch);
             }
         }
 
     private:
         interpolator_type m_input;
         accessor_type m_output;
-        matrix_type m_matrix;
+        matrix_type m_inv_matrix;
     };
 
     template<typename Index, typename Data, typename Matrix, typename Interpolator, typename Offset>
     auto transform2D(const Interpolator& input,
                      const AccessorRestrict<Data, 3, Offset>& output,
-                     Matrix matrix) noexcept {
-        return Transform2D<Index, Data, Matrix, Interpolator, Offset>(input, output, matrix);
+                     Matrix inv_matrix) noexcept {
+        return Transform2D<Index, Data, Matrix, Interpolator, Offset>(input, output, inv_matrix);
     }
 }
 

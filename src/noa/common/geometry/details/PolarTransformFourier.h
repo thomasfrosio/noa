@@ -13,6 +13,7 @@ namespace noa::geometry::fft::details {
         using interpolator_type = Interpolator;
         using index_type = Index;
         using offset_type = Offset;
+        using real_type = traits::value_type_t<data_type>;
         using accessor_type = AccessorRestrict<data_type , 3, offset_type>;
 
     public:
@@ -21,9 +22,10 @@ namespace noa::geometry::fft::details {
                         float2_t frequency_range, float2_t angle_range, bool log)
                 : m_cartesian(cartesian), m_polar(polar), m_log(log) {
 
+            NOA_ASSERT(polar_shape[2] > 1 && polar_shape[3] > 1);
             NOA_ASSERT(polar_shape[1] == 1 && cartesian_shape[1] == 1);
             NOA_ASSERT(frequency_range[1] - frequency_range[0] >= 0);
-            const auto polar_shape_2d = safe_cast<long2_t>(dim2_t(polar_shape.get(2)));
+            const auto polar_shape_2d = dim2_t(polar_shape.get(2));
             const auto f_polar_shape_2d = float2_t(polar_shape_2d - 1);
             m_start_angle = angle_range[0];
             m_step_angle = (angle_range[1] - angle_range[0]) / f_polar_shape_2d[0];
@@ -43,8 +45,8 @@ namespace noa::geometry::fft::details {
             }
         }
 
-        NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
-            const float2_t polar_coordinate{y, x};
+        NOA_IHD void operator()(index_type batch, index_type phi, index_type rho) const noexcept {
+            const float2_t polar_coordinate{phi, rho};
             const float angle_rad = polar_coordinate[0] * m_step_angle + m_start_angle;
             float magnitude_y, magnitude_x;
             if (m_log) {
@@ -57,7 +59,7 @@ namespace noa::geometry::fft::details {
 
             float2_t cartesian_coordinates{magnitude_y * math::sin(angle_rad),
                                            magnitude_x * math::cos(angle_rad)};
-            float conj = 1;
+            real_type conj = 1;
             if (cartesian_coordinates[1] < 0) {
                 cartesian_coordinates = -cartesian_coordinates;
                 if constexpr (traits::is_complex_v<data_type>)
@@ -71,7 +73,7 @@ namespace noa::geometry::fft::details {
             if constexpr (traits::is_complex_v<data_type>)
                 value.imag *= conj;
 
-            m_polar(batch, y, x) = value;
+            m_polar(batch, phi, rho) = value;
         }
 
     private:

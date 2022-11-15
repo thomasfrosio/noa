@@ -30,6 +30,7 @@ set(NOA_COMMON_HEADERS
         common/geometry/details/LinearTransform3DFourier.h
         common/geometry/details/PolarTransform.h
         common/geometry/details/PolarTransformFourier.h
+        common/geometry/details/Utilities.h
         common/geometry/Euler.h
         common/geometry/Interpolate.h
         common/geometry/Interpolator.h

@@ -1,30 +1,14 @@
+#pragma once
+
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Interpolate.h"
+#include "noa/common/geometry/details/Utilities.h"
 
 // Implementation for backward and forward projections using Fourier insertion and extraction.
 // Can be called from the CPU (serial/OpenMP) or CUDA backend.
 
 namespace noa::geometry::fft::details {
     using Remap = ::noa::fft::Remap;
-
-    // The input frequency should be in-bound, i.e. -size/2 <= frequency <= (size-1)/2
-    template<bool IS_CENTERED, typename SInt>
-    [[nodiscard]] NOA_FHD SInt frequency2index(SInt frequency, SInt size) {
-        if constexpr (IS_CENTERED)
-            return frequency + size / 2;
-        else
-            return frequency < 0 ? frequency + size : frequency;
-        return SInt{}; // unreachable
-    }
-
-    template<bool IS_CENTERED, typename SInt>
-    [[nodiscard]] NOA_FHD SInt index2frequency(SInt index, SInt size) {
-        if constexpr (IS_CENTERED)
-            return index - size / 2;
-        else
-            return index < (size + 1) / 2 ? index : index - size;
-        return SInt{}; // unreachable
-    }
 
     // TODO Move atomic to separate common header!
     template<typename GridAccessor, typename Int, typename Data>
