@@ -1,6 +1,6 @@
 #include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/geometry/Scale.h>
+#include <noa/cpu/geometry/Transform.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -15,6 +15,10 @@ TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
     const auto border_value = param["border_value"].as<float>();
     const auto scale = param["scale"].as<float2_t>();
     const auto center = param["center"].as<float2_t>();
+    const auto matrix =
+            geometry::translate(center) *
+            float33_t(geometry::scale(1 / scale)) *
+            geometry::translate(-center);
 
     io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
@@ -40,8 +44,8 @@ TEST_CASE("cpu::geometry::scale2D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::scale2D(input.share(), stride, shape, output.share(), stride, shape,
-                               scale, center, interp, border, border_value, true, stream);
+        cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                   matrix, interp, border, border_value, true, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));
@@ -59,6 +63,10 @@ TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
     const auto border_value = param["border_value"].as<float>();
     const auto scale = param["scale"].as<float3_t>();
     const auto center = param["center"].as<float3_t>();
+    const auto matrix =
+            geometry::translate(center) *
+            float44_t(geometry::scale(1 / scale)) *
+            geometry::translate(-center);
 
     io::MRCFile file;
     cpu::Stream stream(cpu::Stream::DEFAULT);
@@ -84,8 +92,8 @@ TEST_CASE("cpu::geometry::scale3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::scale3D(input.share(), stride, shape, output.share(), stride, shape,
-                               scale, center, interp, border, border_value, true, stream);
+        cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                   matrix, interp, border, border_value, true, stream);
 
         if (interp == INTERP_LINEAR) {
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), output.get(), elements, 1e-4f));

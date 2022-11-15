@@ -1,6 +1,6 @@
 #include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/geometry/Shift.h>
+#include <noa/cpu/geometry/Transform.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -39,8 +39,8 @@ TEST_CASE("cpu::geometry::shift2D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::shift2D(input.share(), stride, shape, output.share(), stride, shape,
-                               shift, interp, border, border_value, true, stream);
+        cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                   geometry::translate(-shift), interp, border, border_value, true, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
@@ -84,8 +84,8 @@ TEST_CASE("cpu::geometry::shift3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::shift3D(input.share(), stride, shape, output.share(), stride, shape,
-                               shift, interp, border, border_value, true, stream);
+        cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                   geometry::translate(-shift), interp, border, border_value, true, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {

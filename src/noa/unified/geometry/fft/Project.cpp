@@ -5,8 +5,6 @@
 #include "noa/gpu/cuda/geometry/fft/Project.h"
 #endif
 
-
-
 namespace {
     using namespace ::noa;
 
@@ -23,27 +21,27 @@ namespace {
     // Keep track of the devices to sync and sync them ONCE.
     // Technically we sync the current stream of these devices.
     struct DevicesToSync {
-        std::array<Device, 5> vector{};
-        dim_t count{};
+        std::array<Device, 5> devices{};
+        dim_t count{0};
 
         // Add to the list of devices to sync
         void add(Device device) noexcept {
             NOA_ASSERT(count < 5);
-            vector[count++] = device;
+            devices[count++] = device;
         }
 
         // Sync the streams. Make sure you don't sync the same stream twice.
         void sync() const {
-            auto is_last_one = [&](dim_t index) {
+            auto is_last_one = [this](dim_t index) {
                 // If there's the same device later, just skip this one.
-                for (dim_t i = index + 1; i < count; ++i)
-                    if (vector[index] == vector[i])
+                for (dim_t i = index + 1; i < this->count; ++i)
+                    if (this->devices[index] == this->devices[i])
                         return false;
                 return true;
             };
             for (dim_t i = 0; i < count; ++i)
                 if (is_last_one(i))
-                    Stream::current(vector[i]).synchronize();
+                    Stream::current(devices[i]).synchronize();
         }
     };
 

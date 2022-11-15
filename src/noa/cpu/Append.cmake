@@ -57,7 +57,6 @@ set(NOA_CPU_HEADERS
         # noa::cpu::geometry
         cpu/geometry/fft/Polar.h
         cpu/geometry/fft/Project.h
-        cpu/geometry/fft/Symmetry.h
         cpu/geometry/fft/Transform.h
         cpu/geometry/Polar.h
         cpu/geometry/Prefilter.h
@@ -101,7 +100,6 @@ set(NOA_CPU_SOURCES
         cpu/geometry/fft/Polar.cpp
         cpu/geometry/fft/Project.cpp
         cpu/geometry/fft/Transform.cpp
-        cpu/geometry/fft/TransformSymmetry.cpp
         cpu/geometry/Polar.cpp
         cpu/geometry/Prefilter.cpp
         cpu/geometry/Transform.cpp

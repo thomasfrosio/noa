@@ -1,6 +1,6 @@
 #include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/geometry/Rotate.h>
+#include <noa/cpu/geometry/Transform.h>
 
 #include "Assets.h"
 #include "Helpers.h"
@@ -15,6 +15,10 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
     const auto border_value = param["border_value"].as<float>();
     const auto rotate = math::deg2rad(param["rotate"].as<float>());
     const auto center = param["center"].as<float2_t>();
+    const auto matrix =
+            geometry::translate(center) *
+            float33_t(geometry::rotate(-rotate)) *
+            geometry::translate(-center);
 
     io::MRCFile file;
     cpu::Stream stream;
@@ -40,8 +44,8 @@ TEST_CASE("cpu::geometry::rotate2D() -- vs scipy", "[assets][noa][cpu][geometry]
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::rotate2D(input.share(), stride, shape, output.share(), stride, shape,
-                                rotate, center, interp, border, border_value, true, stream);
+        cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                                   matrix, interp, border, border_value, true, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {
@@ -61,8 +65,11 @@ TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
     const auto border_value = param["border_value"].as<float>();
     const auto euler = math::deg2rad(param["euler"].as<float3_t>());
     const auto center = param["center"].as<float3_t>();
+    const auto matrix =
+            geometry::translate(center) *
+            float44_t(geometry::euler2matrix(euler).transpose()) *
+            geometry::translate(-center);
 
-    const float33_t matrix(geometry::euler2matrix(euler).transpose());
     io::MRCFile file;
     cpu::Stream stream;
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -87,8 +94,8 @@ TEST_CASE("cpu::geometry::rotate3D()", "[assets][noa][cpu][geometry]") {
         file.readAll(expected.get());
 
         cpu::memory::PtrHost<float> output(elements);
-        cpu::geometry::rotate3D(input.share(), stride, shape, output.share(), stride, shape,
-                                matrix, center, interp, border, border_value, true, stream);
+        cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                                   matrix, interp, border, border_value, true, stream);
         stream.synchronize();
 
         if (interp == INTERP_LINEAR) {

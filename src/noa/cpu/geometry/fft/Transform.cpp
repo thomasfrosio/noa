@@ -1,277 +1,338 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Exception.h"
 #include "noa/common/geometry/Interpolator.h"
+#include "noa/common/geometry/details/LinearTransform2DFourier.h"
+#include "noa/common/geometry/details/LinearTransform3DFourier.h"
+
 #include "noa/cpu/geometry/fft/Transform.h"
-
-// Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
-//       One other solution could have been to use an affine transform encoding the appropriate scaling to effectively
-//       normalize the frequencies. Both options are fine and probably equivalent performance-wise.
-
-// FIXME    For even sizes, there's an asymmetry due to the fact that there's only one Nyquist. After fftshift,
-//          this extra frequency is on the left side of the axis. However, since we work with non-redundant
-//          transforms, there's a slight error that can be introduced. For the elements close (+-1 element) to x=0
-//          and close (+-1 element) to y=z=0.5, if during the rotation x becomes negative and we have to flip it, the
-//          interpolator will incorrectly weight towards 0 the output value. This is simply due to the fact that on
-//          the right side of the axis, there's no Nyquist (the axis stops and n+1 element is OOB, i.e. =0).
+#include "noa/cpu/utils/Loops.h"
 
 namespace {
     using namespace ::noa;
 
-    template<bool IS_DST_CENTERED>
-    inline int64_t getFrequency_(int64_t idx, int64_t dim) {
-        if constexpr(IS_DST_CENTERED)
-            return idx - dim / 2;
+    template<typename MatrixOrShift>
+    auto matrixOrShiftOrRawConstPtr(const MatrixOrShift& wrapper) {
+        using clean_t = traits::remove_ref_cv_t<MatrixOrShift>;
+        if constexpr (traits::is_floatXX_v<MatrixOrShift> || traits::is_floatX_v<MatrixOrShift>) {
+            return clean_t(wrapper);
+        } else {
+            NOA_ASSERT(wrapper != nullptr);
+            using raw_const_ptr_t = const typename clean_t::element_type*;
+            return static_cast<raw_const_ptr_t>(wrapper.get());
+        }
+    }
+
+    template<fft::Remap REMAP, typename Value, typename Matrix, typename ShiftOrEmpty>
+    void linearTransform_(const AccessorRestrict<const Value, 3, int64_t>& input,
+                          const AccessorRestrict<Value, 3, int64_t>& output, dim4_t shape,
+                          Matrix matrices, ShiftOrEmpty shift, float cutoff,
+                          InterpMode interp_mode, dim_t threads) {
+        NOA_ASSERT(shape[1] == 1);
+        const auto input_shape_2d = long2_t(shape.get(2)).fft();
+        const auto iwise_shape = safe_cast<long3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
+
+        switch (interp_mode) {
+            case INTERP_NEAREST: {
+                const auto interpolator =
+                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_2d);
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int64_t>(
+                        interpolator, output, shape, matrices, shift, cutoff);
+                return cpu::utils::iwise3D(iwise_shape, kernel, threads);
+            }
+            case INTERP_LINEAR_FAST:
+            case INTERP_LINEAR: {
+                const auto interpolator =
+                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_2d);
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int64_t>(
+                        interpolator, output, shape, matrices, shift, cutoff);
+                return cpu::utils::iwise3D(iwise_shape, kernel, threads);
+            }
+            case INTERP_COSINE_FAST:
+            case INTERP_COSINE: {
+                const auto interpolator =
+                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_2d);
+                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int64_t>(
+                        interpolator, output, shape, matrices, shift, cutoff);
+                return cpu::utils::iwise3D(iwise_shape, kernel, threads);
+            }
+            default:
+                NOA_THROW_FUNC("transform2D", "{} is not supported", interp_mode);
+        }
+    }
+
+    template<fft::Remap REMAP, typename Value, typename Matrix, typename ShiftOrEmpty>
+    void linearTransform_(const AccessorRestrict<const Value, 4, int64_t>& input,
+                          const AccessorRestrict<Value, 4, int64_t>& output, dim4_t shape,
+                          Matrix matrices, ShiftOrEmpty shift, float cutoff,
+                          InterpMode interp_mode, dim_t threads) {
+        const auto input_shape_3d = long3_t(shape.get(1)).fft();
+        const auto iwise_shape = safe_cast<long4_t>(shape).fft();
+
+        switch (interp_mode) {
+            case INTERP_NEAREST: {
+                const auto interpolator =
+                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_3d);
+                const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int64_t>(
+                        interpolator, output, shape, matrices, shift, cutoff);
+                return cpu::utils::iwise4D(iwise_shape, kernel, threads);
+            }
+            case INTERP_LINEAR_FAST:
+            case INTERP_LINEAR: {
+                const auto interpolator =
+                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_3d);
+                const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int64_t>(
+                        interpolator, output, shape, matrices, shift, cutoff);
+                return cpu::utils::iwise4D(iwise_shape, kernel, threads);
+            }
+            case INTERP_COSINE_FAST:
+            case INTERP_COSINE: {
+                const auto interpolator =
+                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_3d);
+                const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int64_t>(
+                        interpolator, output, shape, matrices, shift, cutoff);
+                return cpu::utils::iwise4D(iwise_shape, kernel, threads);
+            }
+            default:
+                NOA_THROW_FUNC("transform3D", "{} is not supported", interp_mode);
+        }
+    }
+
+    template<fft::Remap REMAP, int32_t NDIM, typename Value, typename Matrix, typename Shift>
+    void launchLinearTransform_(const AccessorRestrict<const Value, NDIM + 1, int64_t>& input,
+                                const AccessorRestrict<Value, NDIM + 1, int64_t>& output, dim4_t shape,
+                                Matrix matrices, Shift shift, float cutoff,
+                                InterpMode interp_mode, dim_t threads) {
+        const bool do_shift = noa::any(shift != Shift{});
+        if (do_shift)
+            linearTransform_<REMAP>(input, output, shape, matrices, shift, cutoff, interp_mode, threads);
         else
-            return idx < (dim + 1) / 2 ? idx : idx - dim;
+            linearTransform_<REMAP>(input, output, shape, matrices, empty_t{}, cutoff, interp_mode, threads);
     }
 
-    template<typename C, typename T>
-    inline C getPhaseShift_(T shift, T freq) {
-        static_assert(traits::is_float2_v<T> || traits::is_float3_v<T>);
-        using real_t = traits::value_type_t<C>;
-        const auto factor = static_cast<real_t>(-math::dot(shift, freq));
-        C phase_shift;
-        math::sincos(factor, &phase_shift.imag, &phase_shift.real);
-        return phase_shift;
-    }
+    template<fft::Remap REMAP, typename Value, typename MatrixOrEmpty, typename ShiftOrEmpty>
+    void linearTransformSymmetry_(const AccessorRestrict<const Value, 3, int64_t>& input,
+                                  const AccessorRestrict<Value, 3, int64_t>& output, dim4_t shape,
+                                  MatrixOrEmpty matrix, const geometry::Symmetry& symmetry,
+                                  ShiftOrEmpty shift, float cutoff, bool normalize,
+                                  InterpMode interp_mode, dim_t threads) {
+        NOA_ASSERT(shape[1] == 1);
+        const auto input_shape_2d = long2_t(shape.get(2)).fft();
+        const auto iwise_shape = safe_cast<long3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
 
-    // 2D, centered input.
-    template<bool IS_DST_CENTERED, InterpMode INTERP, typename T>
-    void transformCenteredNormalized2D_(AccessorRestrict<const T, 3, int64_t> input,
-                                        AccessorRestrict<T, 3, dim_t> output, dim3_t shape,
-                                        const float22_t* matrices, dim_t matrices_stride,
-                                        const float2_t* shifts, dim_t shifts_stride,
-                                        float cutoff, dim_t threads) {
-        const dim_t batches = shape[0];
-        const long2_t l_shape(shape.get(1));
-        const float2_t f_shape(l_shape / 2 * 2 + long2_t(l_shape == 1)); // if odd, n-1
+        const auto symmetry_count = static_cast<int64_t>(symmetry.count());
+        const float33_t* symmetry_matrices = symmetry.get();
+        using real_t = traits::value_type_t<Value>;
+        const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
-        [[maybe_unused]] const float2_t pre_shift = math::Constants<float>::PI2 / float2_t(l_shape);
-
-        cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
-        cutoff *= cutoff;
-
-        auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(input, long2_t(shape.get(1)).fft(), T{0});
-
-        #pragma omp parallel for default(none) num_threads(threads) collapse(3)     \
-        shared(output, matrices, matrices_stride, shifts, shifts_stride, cutoff,    \
-               batches, l_shape, f_shape, interpolator, pre_shift)
-
-        for (dim_t i = 0; i < batches; ++i) {
-            for (int64_t y = 0; y < l_shape[0]; ++y) {
-                for (int64_t x = 0; x < l_shape[1] / 2 + 1; ++x) {
-
-                    const float2_t freq{getFrequency_<IS_DST_CENTERED>(y, l_shape[0]), x};
-                    float2_t coordinates = freq / f_shape; // [-0.5, 0.5]
-                    if (math::dot(coordinates, coordinates) > cutoff) {
-                        output(i, y, x) = 0;
-                        continue;
-                    }
-
-                    coordinates = matrices[matrices_stride * i] * coordinates;
-                    using real_t = traits::value_type_t<T>;
-                    [[maybe_unused]] real_t conj = 1;
-                    if (coordinates[1] < 0.f) {
-                        coordinates = -coordinates;
-                        if constexpr (traits::is_complex_v<T>)
-                            conj = -1;
-                    }
-
-                    coordinates[0] += 0.5f; // [0, 1]
-                    coordinates *= f_shape; // [0, N-1]
-                    T value = interpolator(coordinates, i);
-                    if constexpr (traits::is_complex_v<T>) {
-                        value.imag *= conj;
-                        if (shifts)
-                            value *= getPhaseShift_<T>(shifts[shifts_stride * i] * pre_shift, freq);
-                    }
-                    output(i, y, x) = value;
-                }
+        switch (interp_mode) {
+            case INTERP_NEAREST: {
+                const auto interpolator =
+                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_2d);
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP>(
+                        interpolator, output, shape, matrix, symmetry_matrices, symmetry_count, scaling, shift, cutoff);
+                return cpu::utils::iwise3D(iwise_shape, kernel, threads);
             }
+            case INTERP_LINEAR_FAST:
+            case INTERP_LINEAR: {
+                const auto interpolator =
+                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_2d);
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP>(
+                        interpolator, output, shape, matrix, symmetry_matrices, symmetry_count, scaling, shift, cutoff);
+                return cpu::utils::iwise3D(iwise_shape, kernel, threads);
+            }
+            case INTERP_COSINE_FAST:
+            case INTERP_COSINE: {
+                const auto interpolator =
+                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_2d);
+                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP>(
+                        interpolator, output, shape, matrix, symmetry_matrices, symmetry_count, scaling, shift, cutoff);
+                return cpu::utils::iwise3D(iwise_shape, kernel, threads);
+            }
+            default:
+                NOA_THROW_FUNC("transform2D", "{} is not supported", interp_mode);
         }
     }
 
-    // 3D, centered input.
-    template<bool IS_DST_CENTERED, InterpMode INTERP, typename T>
-    void transformCenteredNormalized3D_(AccessorRestrict<const T, 4, int64_t> input,
-                                        AccessorRestrict<T, 4, dim_t> output, dim4_t shape,
-                                        const float33_t* matrices, dim_t matrices_stride,
-                                        const float3_t* shifts, dim_t shifts_stride,
-                                        float cutoff, dim_t threads) {
-        const dim_t batches = shape[0];
-        const long3_t l_shape(shape.get(1));
-        const float3_t f_shape(l_shape / 2 * 2 + long3_t(l_shape == 1)); // if odd, n-1
+    template<fft::Remap REMAP, typename Value, typename MatrixOrEmpty, typename ShiftOrEmpty>
+    void linearTransformSymmetry_(const AccessorRestrict<const Value, 4, int64_t>& input,
+                                  const AccessorRestrict<Value, 4, int64_t>& output, dim4_t shape,
+                                  MatrixOrEmpty matrix, const geometry::Symmetry& symmetry,
+                                  ShiftOrEmpty shift, float cutoff, bool normalize,
+                                  InterpMode interp_mode, dim_t threads) {
+        NOA_ASSERT(shape[1] == 1);
+        const auto input_shape_3d = long3_t(shape.get(1)).fft();
+        const auto iwise_shape = safe_cast<long4_t>(shape).fft();
 
-        [[maybe_unused]] const float3_t pre_shift = math::Constants<float>::PI2 / float3_t(l_shape);
+        const auto symmetry_count = static_cast<int64_t>(symmetry.count());
+        const float33_t* symmetry_matrices = symmetry.get();
+        using real_t = traits::value_type_t<Value>;
+        const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
-        cutoff = noa::math::clamp(cutoff, 0.f, 0.5f);
-        cutoff *= cutoff;
-
-        auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP>(input, long3_t(shape.get(1)).fft(), T{0});
-
-        #pragma omp parallel for default(none) num_threads(threads) collapse(4)     \
-        shared(output, matrices, matrices_stride, shifts, shifts_stride, cutoff,    \
-               batches, l_shape, f_shape, interpolator, pre_shift)
-
-        for (dim_t i = 0; i < batches; ++i) {
-            for (int64_t z = 0; z < l_shape[0]; ++z) {
-                for (int64_t y = 0; y < l_shape[1]; ++y) {
-                    for (int64_t x = 0; x < l_shape[2] / 2 + 1; ++x) {
-
-                        const float3_t freq{getFrequency_<IS_DST_CENTERED>(z, l_shape[0]),
-                                            getFrequency_<IS_DST_CENTERED>(y, l_shape[1]),
-                                            x};
-                        float3_t coordinates = freq / f_shape;
-                        if (math::dot(coordinates, coordinates) > cutoff) {
-                            output(i, z, y, x) = 0;
-                            continue;
-                        }
-
-                        coordinates = matrices[matrices_stride * i] * coordinates;
-                        using real_t = traits::value_type_t<T>;
-                        [[maybe_unused]] real_t conj = 1;
-                        if (coordinates[2] < 0.f) {
-                            coordinates = -coordinates;
-                            if constexpr (traits::is_complex_v<T>)
-                                conj = -1;
-                        }
-
-                        coordinates[0] += 0.5f;
-                        coordinates[1] += 0.5f;
-                        coordinates *= f_shape;
-                        T value = interpolator(coordinates, i);
-                        if constexpr (traits::is_complex_v<T>) {
-                            value.imag *= conj;
-                            if (shifts)
-                                value *= getPhaseShift_<T>(shifts[shifts_stride * i] * pre_shift, freq);
-                        }
-                        output(i, z, y, x) = value;
-                    }
-                }
+        switch (interp_mode) {
+            case INTERP_NEAREST: {
+                const auto interpolator =
+                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_3d);
+                const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP>(
+                        interpolator, output, shape, matrix, symmetry_matrices, symmetry_count, scaling, shift, cutoff);
+                return cpu::utils::iwise4D(iwise_shape, kernel, threads);
             }
+            case INTERP_LINEAR_FAST:
+            case INTERP_LINEAR: {
+                const auto interpolator =
+                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_3d);
+                const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP>(
+                        interpolator, output, shape, matrix, symmetry_matrices, symmetry_count, scaling, shift, cutoff);
+                return cpu::utils::iwise4D(iwise_shape, kernel, threads);
+            }
+            case INTERP_COSINE_FAST:
+            case INTERP_COSINE: {
+                const auto interpolator =
+                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_3d);
+                const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP>(
+                        interpolator, output, shape, matrix, symmetry_matrices, symmetry_count, scaling, shift, cutoff);
+                return cpu::utils::iwise4D(iwise_shape, kernel, threads);
+            }
+            default:
+                NOA_THROW_FUNC("transform3D", "{} is not supported", interp_mode);
         }
     }
 
-    // input FFTs should be centered. The only flexibility is whether the output is centered or not.
-    template<fft::Remap REMAP, typename T = void>
-    constexpr bool parseRemap_() noexcept {
-        using Layout = ::noa::fft::Layout;
-        constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
-        constexpr bool IS_SRC_CENTERED = REMAP_ & Layout::SRC_CENTERED;
-        constexpr bool IS_DST_CENTERED = REMAP_ & Layout::DST_CENTERED;
-        if constexpr (!IS_SRC_CENTERED || REMAP_ & Layout::SRC_FULL || REMAP_ & Layout::DST_FULL)
-            static_assert(traits::always_false_v<T>);
+    template<fft::Remap REMAP, int32_t NDIM, typename Value, typename Matrix, typename Shift>
+    void launchLinearTransformSymmetry_(const AccessorRestrict<const Value, NDIM + 1, int64_t>& input,
+                                        const AccessorRestrict<Value, NDIM + 1, int64_t>& output, dim4_t shape,
+                                        Matrix matrix, const geometry::Symmetry& symmetry, Shift shift,
+                                        float cutoff, bool normalize, InterpMode interp_mode, dim_t threads) {
+        const bool apply_shift = noa::any(shift != Shift{});
+        const bool apply_matrix = matrix != Matrix{};
 
-        return IS_DST_CENTERED;
+        if (apply_shift && apply_matrix) {
+            linearTransformSymmetry_<REMAP>(
+                    input, output, shape,
+                    matrix, symmetry, shift, cutoff,
+                    normalize, interp_mode, threads);
+        } else if (apply_shift) {
+            linearTransformSymmetry_<REMAP>(
+                    input, output, shape,
+                    empty_t{}, symmetry, shift, cutoff,
+                    normalize, interp_mode, threads);
+        } else if (apply_matrix) {
+            linearTransformSymmetry_<REMAP>(
+                    input, output, shape,
+                    matrix, symmetry, empty_t{}, cutoff,
+                    normalize, interp_mode, threads);
+        } else {
+            linearTransformSymmetry_<REMAP>(
+                    input, output, shape,
+                    empty_t{}, symmetry, empty_t{}, cutoff,
+                    normalize, interp_mode, threads);
+        }
     }
 }
 
 namespace noa::cpu::geometry::fft {
-    template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform2D(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     const M& matrices, const S& shifts,
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
 
-        constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
-        const dim_t threads = stream.threads();
+        const auto threads = stream.threads();
+        const auto input_strides_2d = safe_cast<long3_t>(dim3_t{input_strides[0], input_strides[2], input_strides[3]});
+        const auto output_strides_2d = safe_cast<long3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]});
 
-        const long3_t i_strides{input_strides[0], input_strides[2], input_strides[3]};
-        const dim3_t o_strides{output_strides[0], output_strides[2], output_strides[3]};
-        const dim3_t shape_2d{shape[0], shape[2], shape[3]};
-
-        const float22_t* matrices_;
-        const float2_t* shifts_;
-        constexpr dim_t MATRICES_STRIDE = !traits::is_floatXX_v<M>;
-        constexpr dim_t SHIFTS_STRIDE = !traits::is_floatX_v<S>;
-        if constexpr (MATRICES_STRIDE) {
-            NOA_ASSERT(matrices);
-            matrices_ = matrices.get();
-        } else {
-            matrices_ = &matrices;
-        }
-        if constexpr (SHIFTS_STRIDE)
-            shifts_ = shifts.get();
-        else
-            shifts_ = all(shifts == 0) ? nullptr : &shifts;
-
-        switch (interp_mode) {
-            case INTERP_NEAREST:
-                return stream.enqueue([=]() {
-                    transformCenteredNormalized2D_<IS_DST_CENTERED, INTERP_NEAREST, T>(
-                            {input.get(), i_strides}, {output.get(), o_strides}, shape_2d,
-                            matrices_, MATRICES_STRIDE, shifts_, SHIFTS_STRIDE, cutoff, threads);
-                });
-            case INTERP_LINEAR:
-            case INTERP_LINEAR_FAST:
-                return stream.enqueue([=]() {
-                    transformCenteredNormalized2D_<IS_DST_CENTERED, INTERP_LINEAR, T>(
-                            {input.get(), i_strides}, {output.get(), o_strides}, shape_2d,
-                            matrices_, MATRICES_STRIDE, shifts_, SHIFTS_STRIDE, cutoff, threads);
-                });
-            case INTERP_COSINE:
-            case INTERP_COSINE_FAST:
-                return stream.enqueue([=]() {
-                    transformCenteredNormalized2D_<IS_DST_CENTERED, INTERP_COSINE, T>(
-                            {input.get(), i_strides}, {output.get(), o_strides}, shape_2d,
-                            matrices_, MATRICES_STRIDE, shifts_, SHIFTS_STRIDE, cutoff, threads);
-                });
-            default:
-                NOA_THROW("{} is not supported", interp_mode);
-        }
+        stream.enqueue([=]() {
+            const AccessorRestrict<const Value, 3, int64_t> input_accessor(input.get(), input_strides_2d);
+            const AccessorRestrict<Value, 3, int64_t> output_accessor(output.get(), output_strides_2d);
+            launchLinearTransform_<REMAP, 2>(
+                    input_accessor, output_accessor, shape,
+                    matrixOrShiftOrRawConstPtr(matrices), matrixOrShiftOrRawConstPtr(shifts),
+                    cutoff, interp_mode, threads);
+        });
     }
 
-    template<Remap REMAP, typename T, typename M, typename S, typename>
-    void transform3D(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     const M& matrices, const S& shifts,
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
+    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
 
-        constexpr bool IS_DST_CENTERED = parseRemap_<REMAP>();
-        const dim_t threads = stream.threads();
+        const auto threads = stream.threads();
+        const auto input_strides_3d = safe_cast<long4_t>(input_strides);
+        const auto output_strides_3d = safe_cast<long4_t>(output_strides);
 
-        const float33_t* matrices_;
-        const float3_t* shifts_;
-        constexpr dim_t MATRICES_STRIDE = !traits::is_floatXX_v<M>;
-        constexpr dim_t SHIFTS_STRIDE = !traits::is_floatX_v<S>;
-        if constexpr (MATRICES_STRIDE) {
-            NOA_ASSERT(matrices);
-            matrices_ = matrices.get();
-        } else {
-            matrices_ = &matrices;
-        }
-        if constexpr (SHIFTS_STRIDE)
-            shifts_ = shifts.get();
-        else
-            shifts_ = all(shifts == 0) ? nullptr : &shifts;
-
-        switch (interp_mode) {
-            case INTERP_NEAREST:
-                return stream.enqueue([=]() {
-                    transformCenteredNormalized3D_<IS_DST_CENTERED, INTERP_NEAREST, T>(
-                            {input.get(), input_strides}, {output.get(), output_strides}, shape,
-                            matrices_, MATRICES_STRIDE, shifts_, SHIFTS_STRIDE, cutoff, threads);
-                });
-            case INTERP_LINEAR:
-            case INTERP_LINEAR_FAST:
-                return stream.enqueue([=]() {
-                    transformCenteredNormalized3D_<IS_DST_CENTERED, INTERP_LINEAR, T>(
-                            {input.get(), input_strides}, {output.get(), output_strides}, shape,
-                            matrices_, MATRICES_STRIDE, shifts_, SHIFTS_STRIDE, cutoff, threads);
-                });
-            case INTERP_COSINE:
-            case INTERP_COSINE_FAST:
-                return stream.enqueue([=]() {
-                    transformCenteredNormalized3D_<IS_DST_CENTERED, INTERP_COSINE, T>(
-                            {input.get(), input_strides}, {output.get(), output_strides}, shape,
-                            matrices_, MATRICES_STRIDE, shifts_, SHIFTS_STRIDE, cutoff, threads);
-                });
-            default:
-                NOA_THROW("{} is not supported", interp_mode);
-        }
+        stream.enqueue([=]() {
+            const AccessorRestrict<const Value, 4, int64_t> input_accessor(input.get(), input_strides_3d);
+            const AccessorRestrict<Value, 4, int64_t> output_accessor(output.get(), output_strides_3d);
+            launchLinearTransform_<REMAP, 3>(
+                    input_accessor, output_accessor, shape,
+                    matrixOrShiftOrRawConstPtr(matrices), matrixOrShiftOrRawConstPtr(shifts),
+                    cutoff, interp_mode, threads);
+        });
     }
+
+    template<Remap REMAP, typename Value, typename>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
+
+        if (!symmetry.count()) {
+            return transform2D<REMAP>(
+                    input, input_strides, output, output_strides,
+                    shape, matrix, shift, cutoff, interp_mode, stream);
+        }
+
+        const auto threads = stream.threads();
+        const auto input_strides_2d = safe_cast<long3_t>(dim3_t{input_strides[0], input_strides[2], input_strides[3]});
+        const auto output_strides_2d = safe_cast<long3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]});
+
+        stream.enqueue([=]() {
+            const AccessorRestrict<const Value, 3, int64_t> input_accessor(input.get(), input_strides_2d);
+            const AccessorRestrict<Value, 3, int64_t> output_accessor(output.get(), output_strides_2d);
+            launchLinearTransformSymmetry_<REMAP, 2>(
+                    input_accessor, output_accessor, shape,
+                    matrix, symmetry, shift, cutoff, normalize, interp_mode, threads);
+        });
+    }
+
+    template<Remap REMAP, typename Value, typename>
+    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+        NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
+        NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
+
+        if (!symmetry.count()) {
+            return transform3D<REMAP>(
+                    input, input_strides, output, output_strides,
+                    shape, matrix, shift, cutoff, interp_mode, stream);
+        }
+
+        const auto threads = stream.threads();
+        const auto input_strides_3d = safe_cast<long4_t>(input_strides);
+        const auto output_strides_3d = safe_cast<long4_t>(output_strides);
+
+        stream.enqueue([=]() {
+            const AccessorRestrict<const Value, 4, int64_t> input_accessor(input.get(), input_strides_3d);
+            const AccessorRestrict<Value, 4, int64_t> output_accessor(output.get(), output_strides_3d);
+            launchLinearTransformSymmetry_<REMAP, 3>(
+                    input_accessor, output_accessor, shape,
+                    matrix, symmetry, shift, cutoff, normalize, interp_mode, threads);
+        });
+    }
+
+    #define NOA_INSTANTIATE_TRANSFORM_SYMMETRY(T)                                                                                                                                                   \
+    template void transform2D<Remap::HC2HC, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&l);  \
+    template void transform2D<Remap::HC2H, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&);    \
+    template void transform3D<Remap::HC2HC, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);   \
+    template void transform3D<Remap::HC2H, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&)
 
     #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S) \
     template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&); \
@@ -295,7 +356,8 @@ namespace noa::cpu::geometry::fft {
 
     #define NOA_INSTANTIATE_TRANSFORM_ALL_(T)   \
     NOA_INSTANTIATE_TRANSFORM2D_ALL_(T);        \
-    NOA_INSTANTIATE_TRANSFORM3D_ALL_(T)
+    NOA_INSTANTIATE_TRANSFORM3D_ALL_(T);        \
+    NOA_INSTANTIATE_TRANSFORM_SYMMETRY(T)
 
     NOA_INSTANTIATE_TRANSFORM_ALL_(float);
     NOA_INSTANTIATE_TRANSFORM_ALL_(double);

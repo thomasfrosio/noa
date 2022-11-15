@@ -119,13 +119,13 @@ namespace noa::cuda::geometry::fft {
 
     // Inserts 2D central slice(s) into a "virtual" 3D Fourier volume and immediately extracts 2D central slices.
     // Uses a 2D LAYERED texture, with INTERP_LINEAR or INTERP_LINEAR_FAST mode.
-    template<Remap REMAP, typename T, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
+    template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_texture_v<
-                     REMAP, T, Scale0, Scale1, Rotate0, Rotate1>>>
+                     REMAP, Value, Scale0, Scale1, Rotate0, Rotate1>>>
     void extract3D(const shared_t<cudaArray>& input_slice_array,
                    const shared_t<cudaTextureObject_t>& input_slice_texture,
                    InterpMode input_slice_interpolation_mode, dim4_t input_slice_shape,
-                   const shared_t<T[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
+                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
                    const Scale0& insert_inv_scaling_matrices, const Rotate0& insert_fwd_rotation_matrices,
                    const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
                    float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream);

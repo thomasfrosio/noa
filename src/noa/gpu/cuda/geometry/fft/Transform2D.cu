@@ -14,14 +14,14 @@
 namespace {
     using namespace ::noa;
 
-    template<bool IS_OPTIONAL, typename wrapper_t, typename value_t>
-    auto matrixOrShiftOrRawConstPtrOnDevice_(wrapper_t wrapper, size_t count,
-                                             cuda::memory::PtrDevice<value_t>& buffer,
+    template<bool IS_OPTIONAL, typename Wrapper, typename Value>
+    auto matrixOrShiftOrRawConstPtrOnDevice_(Wrapper wrapper, size_t count,
+                                             cuda::memory::PtrDevice<Value>& buffer,
                                              cuda::Stream& stream) {
-        using output_t = std::conditional_t<traits::is_floatXX_v<wrapper_t> || traits::is_floatX_v<wrapper_t>,
-                                            traits::remove_ref_cv_t<wrapper_t>,
-                                            const traits::element_type_t<wrapper_t>*>;
-        if constexpr (traits::is_floatXX_v<wrapper_t> || traits::is_floatX_v<wrapper_t>) {
+        using output_t = std::conditional_t<traits::is_floatXX_v<Wrapper> || traits::is_floatX_v<Wrapper>,
+                                            traits::remove_ref_cv_t<Wrapper>,
+                                            const traits::element_type_t<Wrapper>*>;
+        if constexpr (traits::is_floatXX_v<Wrapper> || traits::is_floatX_v<Wrapper>) {
             return output_t(wrapper);
         } else {
             if (IS_OPTIONAL && wrapper.get() == nullptr)
@@ -30,44 +30,43 @@ namespace {
         }
     }
 
-    template<fft::Remap REMAP, bool LAYERED,
-             typename data_t, typename matrix_t, typename shift_or_empty_t>
+    template<fft::Remap REMAP, bool LAYERED, typename Value, typename Matrix, typename ShiftOrEmpty>
     void linearTransform2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                 data_t* output, dim4_t output_strides, dim4_t shape,
-                 matrix_t matrix, shift_or_empty_t shift, float cutoff,
-                 cuda::Stream& stream) {
+                            Value* output, dim4_t output_strides, dim4_t shape,
+                            Matrix matrix, ShiftOrEmpty shift, float cutoff,
+                            cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
         const auto iwise_shape = safe_cast<int3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
-        const auto output_accessor = AccessorRestrict<data_t, 3, uint32_t>(
+        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
                 output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
 
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
@@ -77,12 +76,12 @@ namespace {
         }
     }
 
-    template<fft::Remap REMAP, bool LAYERED, typename data_t, typename matrix_t, typename shift_t>
+    template<fft::Remap REMAP, bool LAYERED, typename Value, typename Matrix, typename Shift>
     void launchLinearTransform2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                  data_t* output, dim4_t output_strides, dim4_t shape,
-                                  matrix_t matrix, shift_t shift, float cutoff,
+                                  Value* output, dim4_t output_strides, dim4_t shape,
+                                  Matrix matrix, Shift shift, float cutoff,
                                   cuda::Stream& stream) {
-        const bool do_shift = noa::any(shift != shift_t{});
+        const bool do_shift = noa::any(shift != Shift{});
         if (do_shift) {
             linearTransform2D_<REMAP, LAYERED>(
                     texture, texture_interp_mode,
@@ -96,11 +95,11 @@ namespace {
         }
     }
 
-    template<fft::Remap REMAP, bool LAYERED, typename data_t, typename matrix_or_empty_t, typename shift_or_empty_t>
+    template<fft::Remap REMAP, bool LAYERED, typename Value, typename MatrixOrEmpty, typename ShiftOrEmpty>
     void linearTransformSymmetry2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                    data_t* output, dim4_t output_strides, dim4_t shape,
-                                    matrix_or_empty_t matrix, const geometry::Symmetry& symmetry,
-                                    shift_or_empty_t shift, float cutoff, bool normalize,
+                                    Value* output, dim4_t output_strides, dim4_t shape,
+                                    MatrixOrEmpty matrix, const geometry::Symmetry& symmetry,
+                                    ShiftOrEmpty shift, float cutoff, bool normalize,
                                     cuda::Stream& stream) {
         // TODO Move symmetry matrices to constant memory?
         const dim_t count = symmetry.count();
@@ -112,40 +111,40 @@ namespace {
 
         NOA_ASSERT(shape[1] == 1);
         const auto iwise_shape = safe_cast<int3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
-        const auto output_accessor = AccessorRestrict<data_t, 3, uint32_t>(
+        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
                 output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
 
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
                 return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
                         interpolator_t(texture), output_accessor, shape,
                         matrix, d_matrices.get(), count, scaling, shift, cutoff);
@@ -156,9 +155,9 @@ namespace {
         }
     }
 
-    template<fft::Remap REMAP, bool LAYERED, typename data_t>
+    template<fft::Remap REMAP, bool LAYERED, typename Value>
     void launchLinearTransformSymmetry2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                          data_t* output, dim4_t output_strides, dim4_t output_shape,
+                                          Value* output, dim4_t output_strides, dim4_t output_shape,
                                           float22_t matrix, const geometry::Symmetry& symmetry, float2_t shift,
                                           float cutoff, bool normalize, cuda::Stream& stream) {
         const bool apply_shift = any(shift != 0.f);
@@ -185,10 +184,10 @@ namespace {
 }
 
 namespace noa::cuda::geometry::fft {
-    template<Remap REMAP, typename data_t, typename matrix_t, typename shift_t, typename>
-    void transform2D(const shared_t<data_t[]>& input, dim4_t input_strides,
-                     const shared_t<data_t[]>& output, dim4_t output_strides, dim4_t shape,
-                     const matrix_t& matrices, const shift_t& shifts,
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(input && all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
@@ -196,10 +195,10 @@ namespace noa::cuda::geometry::fft {
         // Ensure transformation parameters are accessible to the GPU:
         memory::PtrDevice<float22_t> matrix_buffer;
         memory::PtrDevice<float2_t> shift_buffer;
-        auto matrices_ = matrixOrShiftOrRawConstPtrOnDevice_<false>(matrices, shape[0], matrix_buffer, stream);
+        auto inv_matrices_ = matrixOrShiftOrRawConstPtrOnDevice_<false>(inv_matrices, shape[0], matrix_buffer, stream);
         auto shifts_ = matrixOrShiftOrRawConstPtrOnDevice_<true>(shifts, shape[0], shift_buffer, stream);
 
-        memory::PtrArray<data_t> array({1, 1, shape[2], shape[3] / 2 + 1});
+        memory::PtrArray<Value> array({1, 1, shape[2], shape[3] / 2 + 1});
         memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
 
         dim_t iterations;
@@ -218,70 +217,70 @@ namespace noa::cuda::geometry::fft {
             launchLinearTransform2D_<REMAP, false>(
                     texture.get(), interp_mode,
                     output.get() + i * output_strides[0], output_strides,
-                    output_shape, matrices_, shifts_, cutoff, stream);
+                    output_shape, inv_matrices_, shifts_, cutoff, stream);
 
-            if constexpr (!traits::is_float22_v<matrix_t>)
-                ++matrices_;
-            if constexpr (!traits::is_float2_v<shift_t>)
+            if constexpr (!traits::is_float22_v<Matrix>)
+                ++inv_matrices_;
+            if constexpr (!traits::is_float2_v<Shift>)
                 ++shifts_;
         }
 
         stream.attach(input, output, array.share(), texture.share());
-        if constexpr (!traits::is_float22_v<matrix_t>)
-            stream.attach(matrices);
-        if constexpr (!traits::is_float2_v<shift_t>)
+        if constexpr (!traits::is_float22_v<Matrix>)
+            stream.attach(inv_matrices);
+        if constexpr (!traits::is_float2_v<Shift>)
             stream.attach(shifts);
     }
 
-    template<Remap REMAP, typename data_t, typename matrix_t, typename shift_t, typename>
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<data_t[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const matrix_t& matrices, const shift_t& shifts, float cutoff, Stream& stream) {
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                     const Matrix& inv_matrices, const Shift& shifts, float cutoff, Stream& stream) {
         NOA_ASSERT(array && texture && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
         // Ensure transformation parameters are accessible to the GPU:
         memory::PtrDevice<float22_t> matrix_buffer;
         memory::PtrDevice<float2_t> shift_buffer;
-        auto matrices_ = matrixOrShiftOrRawConstPtrOnDevice_<false>(matrices, output_shape[0], matrix_buffer, stream);
+        auto inv_matrices_ = matrixOrShiftOrRawConstPtrOnDevice_<false>(inv_matrices, output_shape[0], matrix_buffer, stream);
         auto shifts_ = matrixOrShiftOrRawConstPtrOnDevice_<true>(shifts, output_shape[0], shift_buffer, stream);
 
-        const bool is_layered = memory::PtrArray<data_t>::isLayered(array.get());
+        const bool is_layered = memory::PtrArray<Value>::isLayered(array.get());
         NOA_ASSERT(memory::PtrTexture::array(*texture) == array.get());
 
         if (is_layered) {
             launchLinearTransform2D_<REMAP, true>(
                     *texture, texture_interp_mode,
                     output.get(), output_strides,
-                    output_shape, matrices_, shifts_, cutoff, stream);
+                    output_shape, inv_matrices_, shifts_, cutoff, stream);
         } else {
             launchLinearTransform2D_<REMAP, false>(
                     *texture, texture_interp_mode,
                     output.get(), output_strides,
-                    output_shape, matrices_, shifts_, cutoff, stream);
+                    output_shape, inv_matrices_, shifts_, cutoff, stream);
         }
 
         stream.attach(array, texture, output);
-        if constexpr (!traits::is_float22_v<matrix_t>)
-            stream.attach(matrices);
-        if constexpr (!traits::is_float2_v<shift_t>)
+        if constexpr (!traits::is_float22_v<Matrix>)
+            stream.attach(inv_matrices);
+        if constexpr (!traits::is_float2_v<Shift>)
             stream.attach(shifts);
     }
 
-    template<Remap REMAP, typename data_t, typename>
-    void transform2D(const shared_t<data_t[]>& input, dim4_t input_strides,
-                     const shared_t<data_t[]>& output, dim4_t output_strides, dim4_t shape,
-                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+    template<Remap REMAP, typename Value, typename>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         if (!symmetry.count())
             return transform2D<REMAP>(input, input_strides, output, output_strides, shape,
-                                      matrix, shift, cutoff, interp_mode, stream);
+                                      inv_matrix, shift, cutoff, interp_mode, stream);
 
         NOA_ASSERT(input && all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
 
-        memory::PtrArray<data_t> array(dim4_t{1, 1, shape[2], shape[3]}.fft());
+        memory::PtrArray<Value> array(dim4_t{1, 1, shape[2], shape[3]}.fft());
         memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
 
         dim_t iterations;
@@ -298,33 +297,33 @@ namespace noa::cuda::geometry::fft {
             launchLinearTransformSymmetry2D_<REMAP, false>(
                     texture.get(), interp_mode,
                     output.get() + i * output_strides[0], output_strides, output_shape,
-                    matrix, symmetry, shift, cutoff, normalize, stream);
+                    inv_matrix, symmetry, shift, cutoff, normalize, stream);
         }
         stream.attach(input, output, symmetry.share(), array.share(), texture.share());
     }
 
-    template<Remap REMAP, typename data_t, typename>
+    template<Remap REMAP, typename Value, typename>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<data_t[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, bool normalize, Stream& stream) {
         NOA_ASSERT(array && texture && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        const bool is_layered = memory::PtrArray<data_t>::isLayered(array.get());
+        const bool is_layered = memory::PtrArray<Value>::isLayered(array.get());
         NOA_ASSERT(memory::PtrTexture::array(*texture) == array.get());
 
         if (is_layered) {
             launchLinearTransformSymmetry2D_<REMAP, true>(
                     *texture, texture_interp_mode,
                     output.get(), output_strides,
-                    output_shape, matrix, symmetry, shift,
+                    output_shape, inv_matrix, symmetry, shift,
                     cutoff, normalize, stream);
         } else {
             launchLinearTransformSymmetry2D_<REMAP, false>(
                     *texture, texture_interp_mode,
                     output.get(), output_strides,
-                    output_shape, matrix, symmetry, shift,
+                    output_shape, inv_matrix, symmetry, shift,
                     cutoff, normalize, stream);
         }
         stream.attach(array, texture, output, symmetry.share());

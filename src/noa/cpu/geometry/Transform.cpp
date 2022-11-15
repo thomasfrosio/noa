@@ -17,36 +17,36 @@ namespace {
     template<InterpMode INTERP, typename Value, typename Matrix>
     void launchLinearTransformFinal_(const AccessorRestrict<const Value, 3, int64_t>& input, long2_t input_shape,
                                      const AccessorRestrict<Value, 3, int64_t>& output, long3_t output_shape,
-                                     Matrix matrices, Value value, BorderMode border_mode, dim_t threads) {
+                                     Matrix inv_matrices, Value value, BorderMode border_mode, dim_t threads) {
         switch (border_mode) {
             case BORDER_ZERO: {
                 const auto interpolator = geometry::interpolator2D<BORDER_ZERO, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise3D(output_shape, kernel, threads);
             }
             case BORDER_VALUE: {
                 const auto interpolator = geometry::interpolator2D<BORDER_VALUE, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise3D(output_shape, kernel, threads);
             }
             case BORDER_CLAMP: {
                 const auto interpolator = geometry::interpolator2D<BORDER_CLAMP, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise3D(output_shape, kernel, threads);
             }
             case BORDER_PERIODIC: {
                 const auto interpolator = geometry::interpolator2D<BORDER_PERIODIC, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise3D(output_shape, kernel, threads);
             }
             case BORDER_MIRROR: {
                 const auto interpolator = geometry::interpolator2D<BORDER_MIRROR, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise3D(output_shape, kernel, threads);
             }
             case BORDER_REFLECT: {
                 const auto interpolator = geometry::interpolator2D<BORDER_REFLECT, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform2D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise3D(output_shape, kernel, threads);
             }
             case BORDER_NOTHING:
@@ -57,36 +57,36 @@ namespace {
     template<InterpMode INTERP, typename Value, typename Matrix>
     void launchLinearTransformFinal_(const AccessorRestrict<const Value, 4, int64_t>& input, long3_t input_shape,
                                      const AccessorRestrict<Value, 4, int64_t>& output, long4_t output_shape,
-                                     Matrix matrices, Value value, BorderMode border_mode, dim_t threads) {
+                                     Matrix inv_matrices, Value value, BorderMode border_mode, dim_t threads) {
         switch (border_mode) {
             case BORDER_ZERO: {
                 const auto interpolator = geometry::interpolator3D<BORDER_ZERO, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise4D(output_shape, kernel, threads);
             }
             case BORDER_VALUE: {
                 const auto interpolator = geometry::interpolator3D<BORDER_VALUE, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise4D(output_shape, kernel, threads);
             }
             case BORDER_CLAMP: {
                 const auto interpolator = geometry::interpolator3D<BORDER_CLAMP, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise4D(output_shape, kernel, threads);
             }
             case BORDER_PERIODIC: {
                 const auto interpolator = geometry::interpolator3D<BORDER_PERIODIC, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise4D(output_shape, kernel, threads);
             }
             case BORDER_MIRROR: {
                 const auto interpolator = geometry::interpolator3D<BORDER_MIRROR, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise4D(output_shape, kernel, threads);
             }
             case BORDER_REFLECT: {
                 const auto interpolator = geometry::interpolator3D<BORDER_REFLECT, INTERP>(input, input_shape, value);
-                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, matrices);
+                const auto kernel = geometry::details::transform3D<int64_t>(interpolator, output, inv_matrices);
                 return cpu::utils::iwise4D(output_shape, kernel, threads);
             }
             case BORDER_NOTHING:
@@ -97,32 +97,32 @@ namespace {
     template<int32_t NDIM, typename Value, typename IShape, typename OShape, typename Matrix>
     void launchLinearTransform_(const AccessorRestrict<const Value, NDIM + 1, int64_t>& input, IShape input_shape,
                                 const AccessorRestrict<Value, NDIM + 1, int64_t>& output, OShape output_shape,
-                                Matrix matrices, Value value, InterpMode interp_mode,
+                                Matrix inv_matrices, Value value, InterpMode interp_mode,
                                 BorderMode border_mode, dim_t threads) {
         switch (interp_mode) {
             case INTERP_NEAREST:
                 return launchLinearTransformFinal_<INTERP_NEAREST>(
                         input, input_shape, output, output_shape,
-                        matrices, value, border_mode, threads);
+                        inv_matrices, value, border_mode, threads);
             case INTERP_LINEAR:
             case INTERP_LINEAR_FAST:
                 return launchLinearTransformFinal_<INTERP_LINEAR>(
                         input, input_shape, output, output_shape,
-                        matrices, value, border_mode, threads);
+                        inv_matrices, value, border_mode, threads);
             case INTERP_COSINE:
             case INTERP_COSINE_FAST:
                 return launchLinearTransformFinal_<INTERP_COSINE>(
                         input, input_shape, output, output_shape,
-                        matrices, value, border_mode, threads);
+                        inv_matrices, value, border_mode, threads);
             case INTERP_CUBIC:
                 return launchLinearTransformFinal_<INTERP_CUBIC>(
                         input, input_shape, output, output_shape,
-                        matrices, value, border_mode, threads);
+                        inv_matrices, value, border_mode, threads);
             case INTERP_CUBIC_BSPLINE:
             case INTERP_CUBIC_BSPLINE_FAST:
                 return launchLinearTransformFinal_<INTERP_CUBIC_BSPLINE>(
                         input, input_shape, output, output_shape,
-                        matrices, value, border_mode, threads);
+                        inv_matrices, value, border_mode, threads);
         }
     }
 
@@ -302,7 +302,7 @@ namespace noa::cpu::geometry {
     template<typename Value, typename Matrix, typename>
     void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
                      Value value, bool prefilter, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -334,14 +334,14 @@ namespace noa::cpu::geometry {
                 launchLinearTransform_<2>(
                         {unique_buffer.get(), buffer_strides_2d}, input_shape_2d,
                         {output.get(), output_strides_2d}, output_shape_2d,
-                        matrixOrRawConstPtr(matrices), value, interp_mode, border_mode, threads);
+                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
             });
         } else {
             stream.enqueue([=]() {
                 launchLinearTransform_<2>(
                         {input.get(), input_strides_2d}, input_shape_2d,
                         {output.get(), output_strides_2d}, output_shape_2d,
-                        matrixOrRawConstPtr(matrices), value, interp_mode, border_mode, threads);
+                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
             });
         }
     }
@@ -349,7 +349,7 @@ namespace noa::cpu::geometry {
     template<typename Value, typename Matrix, typename>
     void transform3D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& matrices, InterpMode interp_mode, BorderMode border_mode,
+                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
                      Value value, bool prefilter, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -377,14 +377,14 @@ namespace noa::cpu::geometry {
                 launchLinearTransform_<3>(
                         {unique_buffer.get(), buffer_strides}, input_shape_3d,
                         {output.get(), output_strides}, output_shape_3d,
-                        matrixOrRawConstPtr(matrices), value, interp_mode, border_mode, threads);
+                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
             });
         } else {
             stream.enqueue([=]() {
                 launchLinearTransform_<3>(
                         {input.get(), input_strides}, input_shape_3d,
                         {output.get(), output_strides}, output_shape_3d,
-                        matrixOrRawConstPtr(matrices), value, interp_mode, border_mode, threads);
+                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
             });
         }
     }
@@ -392,7 +392,7 @@ namespace noa::cpu::geometry {
     template<typename Value, typename>
     void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                     float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -440,7 +440,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_NEAREST>(
                             input_accessor, input_shape_2d);
                     const auto kernel = noa::geometry::details::transformSymmetry2D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise3D(output_shape_2d, kernel, threads);
                 }
@@ -449,7 +449,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
                             input_accessor, input_shape_2d);
                     const auto kernel = noa::geometry::details::transformSymmetry2D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise3D(output_shape_2d, kernel, threads);
                 }
@@ -458,7 +458,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE>(
                             input_accessor, input_shape_2d);
                     const auto kernel = noa::geometry::details::transformSymmetry2D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise3D(output_shape_2d, kernel, threads);
                 }
@@ -466,7 +466,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_CUBIC>(
                             input_accessor, input_shape_2d);
                     const auto kernel = noa::geometry::details::transformSymmetry2D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise3D(output_shape_2d, kernel, threads);
                 }
@@ -475,7 +475,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_CUBIC_BSPLINE>(
                             input_accessor, input_shape_2d);
                     const auto kernel = noa::geometry::details::transformSymmetry2D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise3D(output_shape_2d, kernel, threads);
                 }
@@ -486,7 +486,7 @@ namespace noa::cpu::geometry {
     template<typename Value, typename>
     void transform3D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float3_t shift, float33_t matrix, const Symmetry& symmetry, float3_t center,
+                     float3_t shift, float33_t inv_matrix, const Symmetry& symmetry, float3_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
@@ -531,7 +531,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_NEAREST>(
                             input_accessor, input_shape_3d);
                     const auto kernel = noa::geometry::details::transformSymmetry3D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise4D(output_shape_3d, kernel, threads);
                 }
@@ -540,7 +540,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(
                             input_accessor, input_shape_3d);
                     const auto kernel = noa::geometry::details::transformSymmetry3D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise4D(output_shape_3d, kernel, threads);
                 }
@@ -549,7 +549,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_COSINE>(
                             input_accessor, input_shape_3d);
                     const auto kernel = noa::geometry::details::transformSymmetry3D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise4D(output_shape_3d, kernel, threads);
                 }
@@ -557,7 +557,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_CUBIC>(
                             input_accessor, input_shape_3d);
                     const auto kernel = noa::geometry::details::transformSymmetry3D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise4D(output_shape_3d, kernel, threads);
                 }
@@ -566,7 +566,7 @@ namespace noa::cpu::geometry {
                     const auto interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_CUBIC_BSPLINE>(
                             input_accessor, input_shape_3d);
                     const auto kernel = noa::geometry::details::transformSymmetry3D(
-                            interpolator, output_accessor, shift, matrix, center,
+                            interpolator, output_accessor, shift, inv_matrix, center,
                             symmetry_matrices, symmetry_count, scaling);
                     return cpu::utils::iwise4D(output_shape_3d, kernel, threads);
                 }

@@ -8,95 +8,99 @@
 namespace noa::cuda::geometry::fft::details {
     using namespace ::noa::fft;
 
-    template<int NDIM, Remap REMAP, typename T, typename M, typename S>
+    template<int NDIM, Remap REMAP, typename Value, typename Matrix, typename Shift>
     constexpr bool is_valid_transform_v =
-            traits::is_any_v<T, float, cfloat_t> && (REMAP == HC2HC || REMAP == HC2H) &&
-            ((NDIM == 2 && traits::is_any_v<M, float22_t, shared_t<float22_t[]>> && traits::is_any_v<S, float2_t, shared_t<float2_t[]>>) ||
-             (NDIM == 3 && traits::is_any_v<M, float33_t, shared_t<float33_t[]>> && traits::is_any_v<S, float3_t, shared_t<float3_t[]>>));
+            traits::is_any_v<Value, float, cfloat_t> && (REMAP == HC2HC || REMAP == HC2H) &&
+            ((NDIM == 2 &&
+              traits::is_any_v<Matrix, float22_t, shared_t<float22_t[]>> &&
+              traits::is_any_v<Shift, float2_t, shared_t<float2_t[]>>) ||
+             (NDIM == 3 &&
+              traits::is_any_v<Matrix, float33_t, shared_t<float33_t[]>> &&
+              traits::is_any_v<Shift, float3_t, shared_t<float3_t[]>>));
 
-    template<Remap REMAP, typename T>
+    template<Remap REMAP, typename Value>
     constexpr bool is_valid_transform_sym_v =
-            traits::is_any_v<T, float, cfloat_t> && (REMAP == HC2HC || REMAP == HC2H);
+            traits::is_any_v<Value, float, cfloat_t> && (REMAP == HC2HC || REMAP == HC2H);
 }
 
 namespace noa::cuda::geometry::fft {
     using Remap = noa::fft::Remap;
 
     // Rotates/scales a non-redundant 2D (batched) FFT.
-    template<Remap REMAP, typename T, typename M, typename S,
-             typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
-    void transform2D(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     const M& matrices, const S& shifts,
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift,
+             typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, Value, Matrix, Shift>>>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream);
 
     // Rotates/scales a non-redundant 2D (batched) FFT.
     // Input texture should be bound to a CUDA array, with un-normalized coordinates.
-    template<Remap REMAP, typename T, typename M, typename S,
-             typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, T, M, S>>>
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift,
+             typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, Value, Matrix, Shift>>>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     const M& matrices, const S& shifts, float cutoff, Stream& stream);
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& inv_matrices, const Shift& shifts, float cutoff, Stream& stream);
 
     // Rotates/scales a non-redundant 3D (batched) FFT.
-    template<Remap REMAP, typename T, typename M, typename S,
-             typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, T, M, S>>>
-    void transform3D(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     const M& matrices, const S& shifts,
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift,
+             typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, Value, Matrix, Shift>>>
+    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream);
 
     // Rotates/scales a non-redundant 3D (batched) FFT.
     // Input texture should be bound to a CUDA array, with un-normalized coordinates.
-    template<Remap REMAP, typename T, typename M, typename S,
-             typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, T, M, S>>>
+    template<Remap REMAP, typename Value, typename Matrix, typename Shift,
+             typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, Value, Matrix, Shift>>>
     void transform3D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     const M& matrices, const S& shifts, float cutoff, Stream& stream);
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     const Matrix& inv_matrices, const Shift& shifts, float cutoff, Stream& stream);
 }
 
 namespace noa::cuda::geometry::fft {
     using Symmetry = ::noa::geometry::Symmetry;
 
     // Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform2D(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+    template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
     // Input texture should be bound to a CUDA array, with un-normalized coordinates.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
+    template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, bool normalize, Stream& stream);
 
     // Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void transform3D(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+    template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
+    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float33_t inv_matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     // Input texture should be bound to a CUDA array, with un-normalized coordinates.
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
+    template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform3D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, InterpMode texture_interp_mode,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
-                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
+                     float33_t inv_matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, bool normalize, Stream& stream);
 
     // Symmetrizes a non-redundant 2D (batched) FFT.
     // TODO ADD TESTS!
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void symmetrize2D(const shared_t<T[]>& input, dim4_t input_strides,
-                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
+    template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
+    void symmetrize2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
                       const Symmetry& symmetry, float2_t shift,
                       float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         transform2D<REMAP>(input, input_strides, output, output_strides, shape, float22_t{}, symmetry,
@@ -105,9 +109,9 @@ namespace noa::cuda::geometry::fft {
 
     // Symmetrizes a non-redundant 3D (batched) FFT.
     // TODO ADD TESTS!
-    template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, T>>>
-    void symmetrize3D(const shared_t<T[]>& input, dim4_t input_strides,
-                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape,
+    template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
+    void symmetrize3D(const shared_t<Value[]>& input, dim4_t input_strides,
+                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
                       const Symmetry& symmetry, float3_t shift,
                       float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         transform3D<REMAP>(input, input_strides, output, output_strides, shape, float33_t{}, symmetry,

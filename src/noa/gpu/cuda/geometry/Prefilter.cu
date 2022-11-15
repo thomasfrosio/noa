@@ -274,13 +274,13 @@ namespace {
 }
 
 namespace noa::cuda::geometry::bspline {
-    template<typename T, typename>
-    void prefilter(const shared_t<T[]>& input, dim4_t input_strides,
-                   const shared_t<T[]>& output, dim4_t output_strides,
+    template<typename Value, typename>
+    void prefilter(const Value* input, dim4_t input_strides,
+                   Value* output, dim4_t output_strides,
                    dim4_t shape, Stream& stream) {
         NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         const auto input_strides_ = safe_cast<uint4_t>(input_strides);
         const auto output_strides_ = safe_cast<uint4_t>(output_strides);
@@ -288,26 +288,25 @@ namespace noa::cuda::geometry::bspline {
 
         const dim_t ndim = dim3_t(shape.get(1)).ndim();
         if (ndim == 3) {
-            prefilter3D_<T>(input.get(), input_strides_,
-                            output.get(), output_strides_, shape_, stream);
+            prefilter3D_<Value>(
+                    input, input_strides_,
+                    output, output_strides_, shape_, stream);
         } else if (ndim == 2) {
-            prefilter2D_<T>(input.get(), uint3_t{input_strides_[0], input_strides_[2], input_strides_[3]},
-                            output.get(), uint3_t{output_strides_[0], output_strides_[2], output_strides_[3]},
-                            uint3_t{shape_[0], shape_[2], shape_[3]}, stream);
+            prefilter2D_<Value>(
+                    input, uint3_t{input_strides_[0], input_strides_[2], input_strides_[3]},
+                    output, uint3_t{output_strides_[0], output_strides_[2], output_strides_[3]},
+                    uint3_t{shape_[0], shape_[2], shape_[3]}, stream);
         } else {
             const bool is_column = shape_[3] == 1;
-            prefilter1D_<T>(input.get(), uint2_t{input_strides_[0], input_strides_[3 - is_column]},
-                            output.get(), uint2_t{output_strides_[0], output_strides_[3 - is_column]},
-                            uint2_t{shape_[0], shape_[3 - is_column]}, stream);
+            prefilter1D_<Value>(
+                    input, uint2_t{input_strides_[0], input_strides_[3 - is_column]},
+                    output, uint2_t{output_strides_[0], output_strides_[3 - is_column]},
+                    uint2_t{shape_[0], shape_[3 - is_column]}, stream);
         }
-        if (input == output)
-            stream.attach(output);
-        else
-            stream.attach(input, output);
     }
 
     #define NOA_INSTANTIATE_PREFILTER_(T) \
-    template void prefilter<T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
+    template void prefilter<T, void>(const T*, dim4_t, T*, dim4_t, dim4_t, Stream&)
 
     NOA_INSTANTIATE_PREFILTER_(float);
     NOA_INSTANTIATE_PREFILTER_(double);

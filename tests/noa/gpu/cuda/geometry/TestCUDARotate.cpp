@@ -1,7 +1,7 @@
 #include <noa/common/io/MRCFile.h>
 #include <noa/cpu/memory/PtrHost.h>
 #include <noa/cpu/memory/Set.h>
-#include <noa/cpu/geometry/Rotate.h>
+#include <noa/cpu/geometry/Transform.h>
 
 #include <noa/gpu/cuda/memory/PtrDevicePadded.h>
 #include <noa/gpu/cuda/memory/Copy.h>
@@ -109,8 +109,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- accurate modes", "[noa][cuda][
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
-    cpu::geometry::rotate2D(input.share(), stride, shape, output.share(), stride, shape,
-                            rotation, center, interp, border, value, true, cpu_stream);
+    cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                               rotation_matrix, interp, border, value, true, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
 
@@ -154,8 +154,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate2D() -- fast modes", "[noa][cuda][geom
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
-    cpu::geometry::rotate2D(input.share(), stride, shape, output.share(), stride, shape,
-                            rotation, center, interp, border, value, true, cpu_stream);
+    cpu::geometry::transform2D(input.share(), stride, shape, output.share(), stride, shape,
+                               rotation_matrix, interp, border, value, true, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
 
@@ -266,8 +266,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- accurate modes", "[noa][cuda][
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
-    cpu::geometry::rotate3D(input.share(), stride, shape, output.share(), stride, shape,
-                            matrix, center, interp, border, value, true, cpu_stream);
+    cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                               rotation_matrix, interp, border, value, true, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
 
@@ -315,8 +315,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::rotate3D() -- fast modes", "[noa][cuda][geom
     cpu::memory::PtrHost<TestType> output(elements);
     cpu::memory::PtrHost<TestType> output_cuda(elements);
     cuda::memory::copy(d_input.share(), d_input.strides(), output_cuda.share(), stride, shape, gpu_stream);
-    cpu::geometry::rotate3D(input.share(), stride, shape, output.share(), stride, shape,
-                            matrix, center, interp, border, value, true, cpu_stream);
+    cpu::geometry::transform3D(input.share(), stride, shape, output.share(), stride, shape,
+                               rotation_matrix, interp, border, value, true, cpu_stream);
     gpu_stream.synchronize();
     cpu_stream.synchronize();
 

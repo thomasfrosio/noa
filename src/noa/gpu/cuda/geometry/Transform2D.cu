@@ -16,38 +16,38 @@
 namespace {
     using namespace ::noa;
 
-    template<bool LAYERED, typename data_t, typename matrix_t>
+    template<bool LAYERED, typename Value, typename Matrix>
     void launchTransformTexture2D_(cudaTextureObject_t texture, dim4_t texture_shape,
                                    InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                                   data_t* output, dim4_t output_strides, dim4_t output_shape,
-                                   matrix_t matrices, cuda::Stream& stream) {
+                                   Value* output, dim4_t output_strides, dim4_t output_shape,
+                                   Matrix inv_matrices, cuda::Stream& stream) {
         NOA_ASSERT(output_shape[1] == 1);
         NOA_ASSERT(texture_shape[1] == 1);
         NOA_ASSERT((LAYERED && texture_shape[0] == output_shape[0]) ||
                    (!LAYERED && texture_shape[0] == 1));
 
         const auto iwise_shape = safe_cast<uint3_t>(dim3_t{output_shape[0], output_shape[2], output_shape[3]});
-        const auto output_accessor = AccessorRestrict<data_t, 3, uint32_t>(
+        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
                 output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
 
         // Copy matrices to device if not available yet.
-        using value_t = std::remove_cv_t<std::remove_pointer_t<matrix_t>>;
+        using value_t = std::remove_cv_t<std::remove_pointer_t<Matrix>>;
         cuda::memory::PtrDevice<value_t> buffer;
-        if constexpr (std::is_pointer_v<matrix_t>)
-            matrices = cuda::utils::ensureDeviceAccess(matrices, stream, buffer, output_shape[0]);
+        if constexpr (std::is_pointer_v<Matrix>)
+            inv_matrices = cuda::utils::ensureDeviceAccess(inv_matrices, stream, buffer, output_shape[0]);
 
         if (texture_border_mode == BORDER_PERIODIC || texture_border_mode == BORDER_MIRROR) {
             const float2_t i_shape(texture_shape.get(2));
 
             if (texture_interp_mode == INTERP_NEAREST) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, true, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, true, LAYERED>;
                 const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                        interpolator_t(texture, i_shape), output_accessor, matrices);
+                        interpolator_t(texture, i_shape), output_accessor, inv_matrices);
                 cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             } else if (texture_interp_mode == INTERP_LINEAR_FAST) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, true, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, true, LAYERED>;
                 const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                        interpolator_t(texture, i_shape), output_accessor, matrices);
+                        interpolator_t(texture, i_shape), output_accessor, inv_matrices);
                 cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             } else {
                 NOA_THROW("{} is not supported with {}", texture_interp_mode, texture_border_mode);
@@ -56,206 +56,204 @@ namespace {
         } else {
             switch (texture_interp_mode) {
                 case INTERP_NEAREST: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_LINEAR: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_COSINE: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC_BSPLINE: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_LINEAR_FAST: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_COSINE_FAST: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
                 case INTERP_CUBIC_BSPLINE_FAST: {
-                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, data_t, false, LAYERED>;
+                    using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, Value, false, LAYERED>;
                     const auto kernel = noa::geometry::details::transform2D<uint32_t>(
-                            interpolator_t(texture), output_accessor, matrices);
+                            interpolator_t(texture), output_accessor, inv_matrices);
                     return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
                 }
             }
         }
     }
 
-    template<bool LAYERED, typename data_t>
+    template<bool LAYERED, typename Value>
     void launchTransformSymmetryTexture2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                           data_t* output, dim4_t output_strides, dim4_t output_shape,
-                                           float2_t shift, float22_t matrix, const geometry::Symmetry& symmetry,
+                                           Value* output, dim4_t output_strides, dim4_t output_shape,
+                                           float2_t shift, float22_t inv_matrix, const geometry::Symmetry& symmetry,
                                            float2_t center, bool normalize, cuda::Stream& stream) {
         // TODO Move symmetry matrices to constant memory?
-        const dim_t count = symmetry.count();
-        const float33_t* symmetry_matrices = symmetry.get();
+        const dim_t symmetry_count = symmetry.count();
         using unique_ptr = cuda::memory::PtrDevice<float33_t>::alloc_unique_t;
-        unique_ptr d_matrices = cuda::memory::PtrDevice<float33_t>::alloc(count, stream);
-        cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
-        const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
+        unique_ptr symmetry_matrices = cuda::memory::PtrDevice<float33_t>::alloc(symmetry_count, stream);
+        cuda::memory::copy(symmetry.get(), symmetry_matrices.get(), symmetry_count, stream);
+        const float scaling = normalize ? 1 / static_cast<float>(symmetry_count + 1) : 1;
 
         const auto iwise_shape = safe_cast<uint3_t>(dim3_t{output_shape[0], output_shape[2], output_shape[3]});
-        const auto output_accessor = AccessorRestrict<data_t, 3, uint32_t>(
+        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
                 output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
 
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::transformSymmetry2D<int32_t>(
-                        interpolator_t(texture), output_accessor, shift, matrix, center,
-                        d_matrices.get(), count, scaling);
+                        interpolator_t(texture), output_accessor, shift, inv_matrix, center,
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::transform2D", iwise_shape, kernel, stream);
             }
         }
     }
 
-    template<bool LAYERED, typename data_t>
+    template<bool LAYERED, typename Value>
     void launchSymmetrize2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                             data_t* output, dim4_t output_strides, dim4_t output_shape,
+                             Value* output, dim4_t output_strides, dim4_t output_shape,
                              const geometry::Symmetry& symmetry, float2_t center, bool normalize,
                              cuda::Stream& stream) {
         // TODO Move symmetry matrices to constant memory?
-        const dim_t count = symmetry.count();
-        const float33_t* symmetry_matrices = symmetry.get();
+        const dim_t symmetry_count = symmetry.count();
         using unique_ptr = cuda::memory::PtrDevice<float33_t>::alloc_unique_t;
-        unique_ptr d_matrices = cuda::memory::PtrDevice<float33_t>::alloc(count, stream);
-        cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
-        const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
+        unique_ptr symmetry_matrices = cuda::memory::PtrDevice<float33_t>::alloc(symmetry_count, stream);
+        cuda::memory::copy(symmetry.get(), symmetry_matrices.get(), symmetry_count, stream);
+        const float scaling = normalize ? 1 / static_cast<float>(symmetry_count + 1) : 1;
 
         const auto iwise_shape = safe_cast<uint3_t>(dim3_t{output_shape[0], output_shape[2], output_shape[3]});
-        const auto output_accessor = AccessorRestrict<data_t, 3, uint32_t>(
+        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
                 output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
 
         switch (texture_interp_mode) {
             case INTERP_NEAREST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_LINEAR_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_COSINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
             case INTERP_CUBIC_BSPLINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, data_t, false, LAYERED>;
+                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_CUBIC_BSPLINE_FAST, Value, false, LAYERED>;
                 const auto kernel = noa::geometry::details::symmetry2D<int32_t>(
                         interpolator_t(texture), output_accessor, center,
-                        d_matrices.get(), count, scaling);
+                        symmetry_matrices.get(), symmetry_count, scaling);
                 return cuda::utils::iwise3D("geometry::symmetry2D", iwise_shape, kernel, stream);
             }
         }
@@ -263,9 +261,9 @@ namespace {
 
     // Updates the input and output shape to correctly broadcast the input.
     // Prefilter the input if needed.
-    template<typename T>
-    auto preprocess2D_(const shared_t<T[]>& input, dim4_t& input_strides, dim4_t& input_shape,
-                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t& output_shape,
+    template<typename Value>
+    auto preprocess2D_(const shared_t<Value[]>& input, dim4_t& input_strides, dim4_t& input_shape,
+                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t& output_shape,
                       InterpMode interp_mode, bool prefilter, cuda::Stream& stream) {
 
         // Be careful about the symmetry case, where the input and output shape are the same objects.
@@ -287,29 +285,30 @@ namespace {
                 output_shape[0] = 1;
         }
 
-        shared_t<T[]> buffer;
-        const T* buffer_ptr;
+        using unique_ptr_t = typename cuda::memory::PtrDevice<Value>::alloc_unique_t;
+        unique_ptr_t buffer;
+        Value* buffer_ptr;
         dim4_t buffer_strides;
         if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
             if (input_shape[2] != output_shape[2] || input_shape[3] != output_shape[3]) {
-                buffer = cuda::memory::PtrDevice<T>::alloc(input_shape.elements(), stream);
-                const dim4_t contiguous_strides = input_shape.strides();
-                cuda::geometry::bspline::prefilter(
-                        input, input_strides, buffer, contiguous_strides, input_shape, stream);
+                buffer = cuda::memory::PtrDevice<Value>::alloc(input_shape.elements(), stream);
                 buffer_ptr = buffer.get();
-                buffer_strides = contiguous_strides;
+                buffer_strides = input_shape.strides();
             } else {
                 // Whether input is batched or not, since we copy to the CUDA array, we can use the output as buffer.
-                cuda::geometry::bspline::prefilter(input, input_strides, output, output_strides, input_shape, stream);
                 buffer_ptr = output.get();
                 buffer_strides = output_strides;
             }
+            cuda::geometry::bspline::prefilter(
+                    input.get(), input_strides,
+                    buffer_ptr, buffer_strides,
+                    input_shape, stream);
         } else {
             buffer_ptr = input.get();
             buffer_strides = input_strides;
         }
 
-        return std::tuple<shared_t<T[]>, const T*, dim4_t>(buffer, buffer_ptr, buffer_strides);
+        return std::tuple<unique_ptr_t, const Value*, dim4_t>(std::move(buffer), buffer_ptr, buffer_strides);
     }
 
     template<typename T>
@@ -326,10 +325,10 @@ namespace {
 }
 
 namespace noa::cuda::geometry {
-    template<typename T, typename MAT, typename>
-    void transform2D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const MAT& matrices, InterpMode interp_mode, BorderMode border_mode,
+    template<typename Value, typename Matrix, typename>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
                      bool prefilter, Stream& stream) {
         NOA_ASSERT(input && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
@@ -343,7 +342,7 @@ namespace noa::cuda::geometry {
                 interp_mode, prefilter, stream);
 
         // Copy to texture and launch (per input batch):
-        cuda::memory::PtrArray<T> array({1, 1, input_shape[2], input_shape[3]});
+        cuda::memory::PtrArray<Value> array({1, 1, input_shape[2], input_shape[3]});
         cuda::memory::PtrTexture texture(array.get(), interp_mode, border_mode);
         for (dim_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_strides[0],
@@ -351,46 +350,46 @@ namespace noa::cuda::geometry {
             launchTransformTexture2D_<false>(
                     texture.get(), array.shape(), interp_mode, border_mode,
                     output.get() + i * output_strides[0], output_strides, output_shape,
-                    matrixOrRawConstPtr(matrices, i), stream);
+                    matrixOrRawConstPtr(inv_matrices, i), stream);
         }
         stream.attach(input, output, array.share(), texture.share());
-        if constexpr (!traits::is_floatXX_v<MAT>)
-            stream.attach(matrices);
+        if constexpr (!traits::is_floatXX_v<Matrix>)
+            stream.attach(inv_matrices);
     }
 
-    template<typename T, typename MAT, typename>
+    template<typename Value, typename Matrix, typename>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture, dim4_t texture_shape,
                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const MAT& matrices, Stream& stream) {
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                     const Matrix& inv_matrices, Stream& stream) {
         NOA_ASSERT(array && texture && all(texture_shape > 0) && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        const bool is_layered = memory::PtrArray<T>::isLayered(array.get());
+        const bool is_layered = memory::PtrArray<Value>::isLayered(array.get());
         NOA_ASSERT(memory::PtrTexture::array(*texture) == array.get());
 
         if (is_layered) {
             launchTransformTexture2D_<true>(
                     *texture, texture_shape, texture_interp_mode, texture_border_mode,
                     output.get(), output_strides, output_shape,
-                    matrixOrRawConstPtr(matrices, 0), stream);
+                    matrixOrRawConstPtr(inv_matrices, 0), stream);
         } else {
             launchTransformTexture2D_<false>(
                     *texture, texture_shape, texture_interp_mode, texture_border_mode,
                     output.get(), output_strides, output_shape,
-                    matrixOrRawConstPtr(matrices, 0), stream);
+                    matrixOrRawConstPtr(inv_matrices, 0), stream);
         }
 
-        if constexpr (traits::is_floatXX_v<MAT>)
+        if constexpr (traits::is_floatXX_v<Matrix>)
             stream.attach(array, texture, output);
         else
-            stream.attach(array, texture, output, matrices);
+            stream.attach(array, texture, output, inv_matrices);
     }
 
-    template<typename T, typename>
-    void transform2D(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+    template<typename Value, typename>
+    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                     float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(input && all(input_shape > 0) && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
@@ -404,7 +403,7 @@ namespace noa::cuda::geometry {
                 interp_mode, prefilter, stream);
 
         // Copy to texture and launch (per input batch):
-        cuda::memory::PtrArray<T> array({1, 1, input_shape[2], input_shape[3]});
+        cuda::memory::PtrArray<Value> array({1, 1, input_shape[2], input_shape[3]});
         cuda::memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
         for (dim_t i = 0; i < input_shape[0]; ++i) {
             cuda::memory::copy(buffer_ptr + i * buffer_strides[0],
@@ -412,23 +411,21 @@ namespace noa::cuda::geometry {
             launchTransformSymmetryTexture2D_<false>(
                     texture.get(), interp_mode,
                     output.get() + i * output_strides[0], output_strides, output_shape,
-                    shift, matrix, symmetry, center, normalize, stream);
+                    shift, inv_matrix, symmetry, center, normalize, stream);
         }
         stream.attach(input, output, symmetry.share(), array.share(), texture.share());
-        if (buffer)
-            stream.attach(buffer);
     }
 
-    template<typename T, typename>
+    template<typename Value, typename>
     void transform2D(const shared_t<cudaArray>& array,
                      const shared_t<cudaTextureObject_t>& texture,
                      InterpMode texture_interp_mode, dim4_t texture_shape,
-                     const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float2_t shift, float22_t matrix, const Symmetry& symmetry, float2_t center,
+                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                     float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
                      bool normalize, Stream& stream) {
         NOA_ASSERT(array && texture && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        const bool is_layered = memory::PtrArray<T>::isLayered(array.get());
+        const bool is_layered = memory::PtrArray<Value>::isLayered(array.get());
         NOA_ASSERT(memory::PtrTexture::array(*texture) == array.get());
 
         NOA_ASSERT(texture_shape[1] == 1);
@@ -440,19 +437,19 @@ namespace noa::cuda::geometry {
             launchTransformSymmetryTexture2D_<true>(
                     *texture, texture_interp_mode,
                     output.get(), output_strides, output_shape,
-                    shift, matrix, symmetry, center, normalize, stream);
+                    shift, inv_matrix, symmetry, center, normalize, stream);
         } else {
             launchTransformSymmetryTexture2D_<false>(
                     *texture, texture_interp_mode,
                     output.get(), output_strides, output_shape,
-                    shift, matrix, symmetry, center, normalize, stream);
+                    shift, inv_matrix, symmetry, center, normalize, stream);
         }
         stream.attach(array, texture, output, symmetry.share());
     }
 
-    template<typename T, typename>
-    void symmetrize2D(const shared_t<T[]>& input, dim4_t input_strides,
-                      const shared_t<T[]>& output, dim4_t output_strides,
+    template<typename Value, typename>
+    void symmetrize2D(const shared_t<Value[]>& input, dim4_t input_strides,
+                      const shared_t<Value[]>& output, dim4_t output_strides,
                       dim4_t shape, const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream) {
         NOA_ASSERT(all(shape > 0) && input);
@@ -471,10 +468,11 @@ namespace noa::cuda::geometry {
                 interp_mode, prefilter, stream);
 
         // Copy to texture and launch (per input batch):
-        cuda::memory::PtrArray<T> array({1, 1, shape[2], shape[3]});
+        cuda::memory::PtrArray<Value> array({1, 1, shape[2], shape[3]});
         cuda::memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
         for (dim_t i = 0; i < shape[0]; ++i) {
-            cuda::memory::copy(buffer_ptr + i * buffer_strides[0], buffer_strides, array.get(), array.shape(), stream);
+            cuda::memory::copy(buffer_ptr + i * buffer_strides[0], buffer_strides,
+                               array.get(), array.shape(), stream);
             launchSymmetrize2D_<false>(
                     texture.get(), interp_mode,
                     output.get() + i * output_strides[0], output_strides, array.shape(),
@@ -483,15 +481,15 @@ namespace noa::cuda::geometry {
         stream.attach(input, output, symmetry.share(), array.share(), texture.share());
     }
 
-    template<typename T, typename>
+    template<typename Value, typename>
     void symmetrize2D(const shared_t<cudaArray>& array,
                       const shared_t<cudaTextureObject_t>& texture,
                       InterpMode texture_interp_mode, dim4_t texture_shape,
-                      const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
+                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
                       const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream) {
         NOA_ASSERT(array && texture && all(output_shape > 0));
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        const bool is_layered = memory::PtrArray<T>::isLayered(array.get());
+        const bool is_layered = memory::PtrArray<Value>::isLayered(array.get());
         NOA_ASSERT(memory::PtrTexture::array(*texture) == array.get());
 
         NOA_ASSERT(texture_shape[1] == 1);

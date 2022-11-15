@@ -135,7 +135,7 @@ namespace noa::geometry::fft {
 
     /// Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam Value           float, double, cfloat_t, cdouble_t.
     /// \param[in] input        Non-redundant 2D FFT to transform.
     /// \param[out] output      Non-redundant transformed 2D FFT.
     /// \param shape            BDHW logical shape of \p input and \p output.
@@ -178,7 +178,7 @@ namespace noa::geometry::fft {
 
     /// Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam Value           float, double, cfloat_t, cdouble_t.
     /// \param[in] input        Non-redundant 3D FFT to transform.
     /// \param[out] output      Non-redundant transformed 3D FFT.
     /// \param shape            BDHW logical shape of \p input and \p output.
@@ -244,7 +244,7 @@ namespace noa::geometry::fft {
     /// Symmetrizes a non-redundant 3D (batched) FFT.
     /// \details This function has the same features and limitations as transform2D.
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam T               float, double, cfloat_t, cdouble_t.
+    /// \tparam Value           float, double, cfloat_t, cdouble_t.
     /// \param[in] input        Non-redundant 3D FFT to transform.
     /// \param[out] output      Non-redundant transformed 3D FFT.
     /// \param shape            Rightmost logical shape of \p input and \p output.
