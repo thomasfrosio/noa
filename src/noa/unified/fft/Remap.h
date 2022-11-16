@@ -21,7 +21,7 @@ namespace noa::fft {
     /// \param shape        BDHW logical shape.
     /// \return Remapped FFT(s).
     template<typename T, typename = std::enable_if_t<traits::is_float_v<T> || traits::is_complex_v<T>>>
-    Array<T> remap(Remap remap, const Array<T>& input, dim4_t shape);
+    [[nodiscard]] Array<T> remap(Remap remap, const Array<T>& input, dim4_t shape);
 }
 
 #define NOA_UNIFIED_REMAP_
