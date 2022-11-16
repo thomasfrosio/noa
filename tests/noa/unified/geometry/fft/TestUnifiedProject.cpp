@@ -7,7 +7,7 @@
 #include "Helpers.h"
 #include "Assets.h"
 
-TEST_CASE("unified::insert3D, by rasterisation", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::insert3D, by rasterisation", "[noa][unified]") {
     const path_t path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert3D_rasterisation"];
     constexpr bool COMPUTE_ASSETS = false;
@@ -60,7 +60,7 @@ TEST_CASE("unified::insert3D, by rasterisation", "[noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::insert3D, by rasterisation, remap", "[noa][unified]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("unified::geometry::fft::insert3D, by rasterisation, remap", "[noa][unified]", float, cfloat_t) {
     std::vector<Device> devices = {Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
@@ -109,7 +109,7 @@ TEMPLATE_TEST_CASE("unified::insert3D, by rasterisation, remap", "[noa][unified]
     }
 }
 
-TEST_CASE("unified::insert3D, by interpolation", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::insert3D, by interpolation", "[noa][unified]") {
     const path_t path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert3D_interpolation"];
     constexpr bool COMPUTE_ASSETS = false;
@@ -164,7 +164,8 @@ TEST_CASE("unified::insert3D, by interpolation", "[noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::insert3D, by interpolation using texture API and remap", "[noa][unified]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("unified::geometry::fft::insert3D, by interpolation using texture API and remap", "[noa][unified]",
+                   float, cfloat_t) {
     std::vector<Device> devices = {Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
@@ -220,7 +221,7 @@ TEMPLATE_TEST_CASE("unified::insert3D, by interpolation using texture API and re
     }
 }
 
-TEST_CASE("unified::extract3D from grid", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::extract3D from grid", "[noa][unified]") {
     const path_t path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract3D_from_grid"];
 
@@ -293,7 +294,8 @@ TEST_CASE("unified::extract3D from grid", "[noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::extract3D from grid, using texture API and remap", "[noa][unified]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("unified::geometry::fft::extract3D from grid, using texture API and remap", "[noa][unified]",
+                   float, cfloat_t) {
     std::vector<Device> devices = {Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
@@ -330,7 +332,7 @@ TEMPLATE_TEST_CASE("unified::extract3D from grid, using texture API and remap", 
     }
 }
 
-TEST_CASE("unified::extract3D from slices", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::extract3D from slices", "[noa][unified]") {
     const path_t path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract3D_from_slices"];
     constexpr bool COMPUTE_ASSETS = false;
@@ -395,7 +397,8 @@ TEST_CASE("unified::extract3D from slices", "[noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::extract3D from slices, using texture API and remap", "[noa][unified]", float, cfloat_t) {
+TEMPLATE_TEST_CASE("unified::geometry::fft::extract3D from slices, using texture API and remap", "[noa][unified]",
+                   float, cfloat_t) {
     std::vector<Device> devices = {Device("cpu")};
     if (Device::any(Device::GPU))
         devices.emplace_back("gpu");
