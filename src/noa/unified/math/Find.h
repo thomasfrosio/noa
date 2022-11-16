@@ -44,7 +44,7 @@ namespace noa::math {
     ///                         or row-major. Otherwise, the search is done in the rightmost order.
     template<typename offset_t = dim_t, typename S, typename T,
              typename = std::enable_if_t<details::is_valid_find_v<S, T, offset_t>>>
-    offset_t find(S searcher, const Array<T>& input, bool swap_layout = false);
+    [[nodiscard]] offset_t find(S searcher, const Array<T>& input, bool swap_layout = false);
 }
 
 #define NOA_UNIFIED_MATH_FIND_

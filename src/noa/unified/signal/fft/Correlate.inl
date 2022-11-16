@@ -104,7 +104,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    float xpeak1D(const Array<T>& xmap, float ellipse_radius, int64_t registration_radius) {
+    [[nodiscard]] float xpeak1D(const Array<T>& xmap, float ellipse_radius, int64_t registration_radius) {
         NOA_CHECK(!xmap.empty(), "Empty array detected");
         [[maybe_unused]] const bool is_column = xmap.shape()[3] == 1;
         NOA_CHECK(xmap.strides()[3 - is_column] > 0,
@@ -171,7 +171,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    float2_t xpeak2D(const Array<T>& xmap, float2_t ellipse_radius, long2_t registration_radius) {
+    [[nodiscard]] float2_t xpeak2D(const Array<T>& xmap, float2_t ellipse_radius, long2_t registration_radius) {
         NOA_CHECK(!xmap.empty(), "Empty array detected");
         NOA_CHECK(all(xmap.strides() > 0), "The cross-correlation map should not be broadcast");
         NOA_CHECK(xmap.shape().ndim() == 2,
@@ -233,7 +233,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    float3_t xpeak3D(const Array<T>& xmap, float3_t ellipse_radius, long3_t registration_radius) {
+    [[nodiscard]] float3_t xpeak3D(const Array<T>& xmap, float3_t ellipse_radius, long3_t registration_radius) {
         NOA_CHECK(!xmap.empty(), "Empty array detected");
         NOA_CHECK(all(xmap.strides() > 0), "The cross-correlation map should not be broadcast");
         NOA_CHECK(xmap.shape().ndim() == 3,
@@ -302,7 +302,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, dim4_t shape) {
+    [[nodiscard]] T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, dim4_t shape) {
         NOA_CHECK(!lhs.empty() && !rhs.empty(), "Empty array detected");
         NOA_CHECK(shape.ndim() <= 3, "The shape should have a batch of 1, got {}", shape[0]);
 

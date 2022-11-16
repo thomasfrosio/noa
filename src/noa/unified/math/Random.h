@@ -58,7 +58,7 @@ namespace noa::math {
     /// \param shape    Rightmost shape of the array.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    Array<T> random(noa::math::uniform_t, dim4_t shape, U min, U max, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::uniform_t, dim4_t shape, U min, U max, ArrayOption option = {});
 
     /// Randomizes an array with normal random values.
     /// \tparam T           Any data type.
@@ -66,7 +66,7 @@ namespace noa::math {
     /// \param shape        Rightmost shape of the array.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    Array<T> random(noa::math::normal_t, dim4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::normal_t, dim4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T           Any data type.
@@ -74,14 +74,14 @@ namespace noa::math {
     /// \param shape        Rightmost shape of the array.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    Array<T> random(noa::math::log_normal_t, dim4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::log_normal_t, dim4_t shape, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
 
     /// Randomizes an array with poisson random values.
     /// \tparam T       Any data type.
     /// \param shape    Rightmost shape of the array.
     /// \param lambda   Mean value of the poisson range.
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    Array<T> random(noa::math::poisson_t, dim4_t shape, float lambda, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::poisson_t, dim4_t shape, float lambda, ArrayOption option = {});
 
     /// Randomizes an array with uniform random values.
     /// \tparam T       Any data type.
@@ -89,7 +89,7 @@ namespace noa::math {
     /// \param elements Number of elements to generate.
     /// \param min, max Minimum and maximum value of the uniform range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    Array<T> random(noa::math::uniform_t, dim_t elements, U min, U max, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::uniform_t, dim_t elements, U min, U max, ArrayOption option = {});
 
     /// Randomizes an array with normal random values.
     /// \tparam T           Any data type.
@@ -97,7 +97,7 @@ namespace noa::math {
     /// \param elements     Number of elements to generate.
     /// \param mean, stddev Mean and standard-deviation of the normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    Array<T> random(noa::math::normal_t, dim_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::normal_t, dim_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
 
     /// Randomizes an array with log-normal random values.
     /// \tparam T           Any data type.
@@ -105,14 +105,14 @@ namespace noa::math {
     /// \param elements     Number of elements to generate.
     /// \param mean, stddev Mean and standard-deviation of the log-normal range.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    Array<T> random(noa::math::log_normal_t, dim_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::log_normal_t, dim_t elements, U mean = U{0}, U stddev = U{1}, ArrayOption option = {});
 
     /// Randomizes an array with poisson random values.
     /// \tparam T       Any data type.
     /// \param elements Number of elements to generate.
     /// \param lambda   Mean value of the poisson range.
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    Array<T> random(noa::math::poisson_t, dim_t elements, float lambda, ArrayOption option = {});
+    [[nodiscard]] Array<T> random(noa::math::poisson_t, dim_t elements, float lambda, ArrayOption option = {});
 }
 
 #define NOA_UNIFIED_RANDOM_

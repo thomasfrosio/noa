@@ -155,7 +155,7 @@ namespace noa::math {
 
 namespace noa::math {
     template<typename T, typename>
-    std::pair<Array<T>, Array<T>> decompose(const Array<Complex<T>>& input) {
+    [[nodiscard]] std::pair<Array<T>, Array<T>> decompose(const Array<Complex<T>>& input) {
         Array<T> real(input.shape(), input.options());
         Array<T> imag(input.shape(), input.options());
         decompose(input, real, imag);
@@ -163,21 +163,21 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    Array<T> real(const Array<Complex<T>>& input) {
+    [[nodiscard]] Array<T> real(const Array<Complex<T>>& input) {
         Array<T> output(input.shape(), input.options());
         real(input, output);
         return output;
     }
 
     template<typename T, typename>
-    Array<T> imag(const Array<Complex<T>>& input) {
+    [[nodiscard]] Array<T> imag(const Array<Complex<T>>& input) {
         Array<T> output(input.shape(), input.options());
         imag(input, output);
         return output;
     }
 
     template<typename T, typename>
-    Array<Complex<T>> complex(const Array<T>& real, const Array<T>& imag) {
+    [[nodiscard]] Array<Complex<T>> complex(const Array<T>& real, const Array<T>& imag) {
         Array<T> output(real.shape(), real.options());
         complex(real, imag, output);
         return output;

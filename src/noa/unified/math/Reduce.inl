@@ -11,7 +11,7 @@
 
 namespace noa::math {
     template<typename T, typename>
-    T min(const Array<T>& array) {
+    [[nodiscard]] T min(const Array<T>& array) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -27,7 +27,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    T max(const Array<T>& array) {
+    [[nodiscard]] T max(const Array<T>& array) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -43,7 +43,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    T median(const Array<T>& array, bool overwrite) {
+    [[nodiscard]] T median(const Array<T>& array, bool overwrite) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -59,7 +59,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    T sum(const Array<T>& array) {
+    [[nodiscard]] T sum(const Array<T>& array) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -75,7 +75,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    T mean(const Array<T>& array) {
+    [[nodiscard]] T mean(const Array<T>& array) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -91,7 +91,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    auto var(const Array<T>& array, int ddof) {
+    [[nodiscard]] auto var(const Array<T>& array, int ddof) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -107,7 +107,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    auto std(const Array<T>& array, int ddof) {
+    [[nodiscard]] auto std(const Array<T>& array, int ddof) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
@@ -123,7 +123,7 @@ namespace noa::math {
     }
 
     template<typename T, typename>
-    auto statistics(const Array<T>& array, int ddof) {
+    [[nodiscard]] auto statistics(const Array<T>& array, int ddof) {
         NOA_CHECK(!array.empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);

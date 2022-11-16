@@ -18,7 +18,7 @@ namespace noa::math {
     /// \param[in] rhs  Unbatched row or column vector.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
-    T dot(const Array<T>& lhs, const Array<T>& rhs);
+    [[nodiscard]] T dot(const Array<T>& lhs, const Array<T>& rhs);
 
     /// Computes the (batched) vector-vector dot product.
     /// \tparam T           (u)int32_t, (u)int64_t, float, double, cfloat_t and cdouble_t.

@@ -14,14 +14,14 @@ namespace noa::fft {
     /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension, e.g. {3,1,53,53}
     ///       is rounded up to {3,1,54,54}.
     template<typename T>
-    Int4<T> nextFastShape(Int4<T> shape);
+    [[nodiscard]] Int4<T> nextFastShape(Int4<T> shape);
 
     /// Returns an alias of \p input that fits the corresponding real-space array.
     /// \tparam T           float, double.
     /// \param[in] input    Non-redundant FFT(s) to alias.
     /// \param shape        BDHW logical shape of \p input.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    Array<T> alias(const Array<Complex<T>>& input, dim4_t shape);
+    [[nodiscard]] Array<T> alias(const Array<Complex<T>>& input, dim4_t shape);
 
     /// Returns a "padded" array (as real and complex) filled with zeros.
     /// \tparam T       Any data type.
@@ -30,7 +30,7 @@ namespace noa::fft {
     /// \return         The allocated array. Both the real and complex view are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to supports inplace r2c transforms.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    std::pair<Array<T>, Array<Complex<T>>> zeros(dim4_t shape, ArrayOption option = {});
+    [[nodiscard]] std::pair<Array<T>, Array<Complex<T>>> zeros(dim4_t shape, ArrayOption option = {});
 
     /// Returns a "padded" array (as real and complex) filled with ones.
     /// \tparam T       Any data type.
@@ -39,7 +39,7 @@ namespace noa::fft {
     /// \return         The allocated array. Both the real and complex view are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to supports inplace r2c transforms.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    std::pair<Array<T>, Array<Complex<T>>> ones(dim4_t shape, ArrayOption option = {});
+    [[nodiscard]] std::pair<Array<T>, Array<Complex<T>>> ones(dim4_t shape, ArrayOption option = {});
 
     /// Returns a "padded" (as real and complex) uninitialized array.
     /// \tparam T       Any data type.
@@ -48,7 +48,7 @@ namespace noa::fft {
     /// \return         The allocated array. Both the real and complex view are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to supports inplace r2c transforms.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    std::pair<Array<T>, Array<Complex<T>>> empty(dim4_t shape, ArrayOption option = {});
+    [[nodiscard]] std::pair<Array<T>, Array<Complex<T>>> empty(dim4_t shape, ArrayOption option = {});
 }
 
 #define NOA_FFT_FACTORY_

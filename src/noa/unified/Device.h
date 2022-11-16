@@ -95,7 +95,7 @@ namespace noa {
         ///          If \p type is GPU, this function returns the current GPU for the calling host thread.
         ///          If \p type is CPU, this function is not very useful since it simply returns the CPU,
         ///          as would do the default Device constructor.
-        static Device current(Type type);
+        [[nodiscard]] static Device current(Type type);
 
         /// Sets \p device as the current device for the calling thread.
         /// \details The underlying state is "thread local", thus thread-safe.
@@ -105,18 +105,18 @@ namespace noa {
 
         /// Gets the number of devices of a given type.
         /// Always returns 1 if \p type is CPU.
-        static size_t count(Type type);
+        [[nodiscard]] static size_t count(Type type);
 
         /// Whether there's any device available of this type.
         /// Always returns true if \p type is CPU.
-        static bool any(Type type);
+        [[nodiscard]] static bool any(Type type);
 
         /// Gets all devices of a given type.
         /// Always returns a single device if \p type is CPU.
-        static std::vector<Device> all(Type type);
+        [[nodiscard]] static std::vector<Device> all(Type type);
 
         /// Gets the device of this type with the most free memory.
-        static Device mostFree(Type type);
+        [[nodiscard]] static Device mostFree(Type type);
 
     private:
         static void validate_(Type type, int id);

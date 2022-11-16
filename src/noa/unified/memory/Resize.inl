@@ -10,7 +10,7 @@
 #endif
 
 namespace noa::memory {
-    std::pair<int4_t, int4_t> borders(dim4_t input_shape, dim4_t output_shape) {
+    [[nodiscard]] std::pair<int4_t, int4_t> borders(dim4_t input_shape, dim4_t output_shape) {
         return cpu::memory::borders(input_shape, output_shape);
     }
 
@@ -48,9 +48,9 @@ namespace noa::memory {
     }
 
     template<typename T, typename>
-    Array<T> resize(const Array<T>& input,
-                    int4_t border_left, int4_t border_right,
-                    BorderMode border_mode, T border_value) {
+    [[nodiscard]] Array<T> resize(const Array<T>& input,
+                                  int4_t border_left, int4_t border_right,
+                                  BorderMode border_mode, T border_value) {
         const int4_t output_shape = int4_t(input.shape()) + border_left + border_right;
         NOA_CHECK(all(output_shape > 0),
                   "Cannot resize [left:{}, right:{}] an array of shape {} into an array of shape {}",
@@ -68,8 +68,8 @@ namespace noa::memory {
     }
 
     template<typename T, typename>
-    Array<T> resize(const Array<T>& input, dim4_t output_shape,
-                    BorderMode border_mode, T border_value) {
+    [[nodiscard]] Array<T> resize(const Array<T>& input, dim4_t output_shape,
+                                  BorderMode border_mode, T border_value) {
         Array<T> output(dim4_t(output_shape), input.options());
         resize(input, output, border_mode, border_value);
         return output;

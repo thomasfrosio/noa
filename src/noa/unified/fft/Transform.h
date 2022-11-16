@@ -21,7 +21,7 @@ namespace noa::fft {
     /// \param norm         Normalization mode.
     /// \return Non-redundant non-centered FFT(s).
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    Array<Complex<T>> r2c(const Array<T>& input, Norm norm = NORM_DEFAULT);
+    [[nodiscard]] Array<Complex<T>> r2c(const Array<T>& input, Norm norm = NORM_DEFAULT);
 
     /// Computes the backward C2R transform.
     /// \tparam T               float, double.
@@ -42,7 +42,7 @@ namespace noa::fft {
     /// \return Real space array.
     /// \note For multidimensional C2R transforms, the input is not preserved.
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    Array<T> c2r(const Array<Complex<T>>& input, dim4_t shape, Norm norm = NORM_DEFAULT);
+    [[nodiscard]] Array<T> c2r(const Array<Complex<T>>& input, dim4_t shape, Norm norm = NORM_DEFAULT);
 
     /// Computes the C2C transform.
     /// \tparam T           float, double.
@@ -63,7 +63,7 @@ namespace noa::fft {
     /// \param norm         Normalization mode.
     /// \return Non-centered FFT(s).
     template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
-    Array<Complex<T>> c2c(const Array<Complex<T>>& input, Sign sign, Norm norm = NORM_DEFAULT);
+    [[nodiscard]] Array<Complex<T>> c2c(const Array<Complex<T>>& input, Sign sign, Norm norm = NORM_DEFAULT);
 }
 
 #define NOA_UNIFIED_TRANSFORM_

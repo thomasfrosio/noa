@@ -235,7 +235,7 @@ namespace noa::io {
     /// \return             BDHW C-contiguous output array containing the whole data array of the file.
     /// \note This is an utility function. For better flexibility, use ImageFile directly.
     template<typename T>
-    Array<T> load(const path_t& filename, bool clamp = false, ArrayOption option = {}) {
+    [[nodiscard]] Array<T> load(const path_t& filename, bool clamp = false, ArrayOption option = {}) {
         return ImageFile(filename, io::READ).read<T>(option, clamp);
     }
 

@@ -80,8 +80,9 @@ namespace noa::memory {
     ///         - \p unary_op is limited to math::logical_not_t.
     template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp,
             typename = std::enable_if_t<traits::is_data_v<U>>>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
-                                         bool extract_values = true, bool extract_offsets = true);
+    [[nodiscard]]  Extracted<value_t, offset_t>
+    extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
+            bool extract_values = true, bool extract_offsets = true);
 
     /// Extracts elements (and/or offsets) from the input array based on a binary bool operator.
     /// \tparam value_t         Any data type.
@@ -106,8 +107,9 @@ namespace noa::memory {
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp,
              typename = std::enable_if_t<traits::is_data_v<V>>>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
-                                         bool extract_values = true, bool extract_offsets = true);
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
+            bool extract_values = true, bool extract_offsets = true);
 
     /// Extracts elements (and/or offsets) from the input array based on a binary bool operator.
     /// \tparam value_t         Any data type.
@@ -132,8 +134,9 @@ namespace noa::memory {
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp,
              typename = std::enable_if_t<traits::is_data_v<U>>>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
-                                         bool extract_values = true, bool extract_offsets = true);
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
+            bool extract_values = true, bool extract_offsets = true);
 
     /// Extracts elements (and/or offsets) from the input array based on a binary bool operator.
     /// \tparam value_t         Any data type.
@@ -158,8 +161,9 @@ namespace noa::memory {
     ///         - \p T, \p U and \p V should be equal to \p value_t.
     ///         - \p binary_op is limited to math::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
-                                         BinaryOp binary_op, bool extract_values = true, bool extract_offsets = true);
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
+            BinaryOp binary_op, bool extract_values = true, bool extract_offsets = true);
 
     /// Inserts elements into \p output.
     /// \tparam value_t         Any data type.

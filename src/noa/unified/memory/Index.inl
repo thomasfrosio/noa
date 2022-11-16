@@ -78,8 +78,9 @@ namespace noa::memory {
 
 namespace noa::memory {
     template<typename value_t, typename offset_t, typename T, typename U, typename UnaryOp>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
-                                         bool extract_values, bool extract_offsets) {
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, const Array<U>& lhs, UnaryOp unary_op,
+            bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
@@ -118,8 +119,9 @@ namespace noa::memory {
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
-                                         bool extract_values, bool extract_offsets) {
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, const Array<U>& lhs, V rhs, BinaryOp binary_op,
+            bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and lhs:{}",
@@ -158,8 +160,9 @@ namespace noa::memory {
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp, typename>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
-                                         bool extract_values, bool extract_offsets) {
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, U lhs, const Array<V>& rhs, BinaryOp binary_op,
+            bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{} and rhs:{}",
@@ -198,8 +201,9 @@ namespace noa::memory {
     }
 
     template<typename value_t, typename offset_t, typename T, typename U, typename V, typename BinaryOp>
-    Extracted<value_t, offset_t> extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
-                                         BinaryOp binary_op, bool extract_values, bool extract_offsets) {
+    [[nodiscard]] Extracted<value_t, offset_t>
+    extract(const Array<T>& input, const Array<U>& lhs, const Array<V>& rhs,
+            BinaryOp binary_op, bool extract_values, bool extract_offsets) {
         NOA_CHECK(!extract_values || !input.empty(), "The input array should not be empty");
         NOA_CHECK(input.empty() || all(input.shape() == lhs.shape()) && all(input.shape() == rhs.shape()),
                   "The input arrays should have the same shape, but got input:{}, lhs:{} and rhs:{}",

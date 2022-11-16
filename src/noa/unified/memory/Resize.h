@@ -10,7 +10,7 @@ namespace noa::memory {
     /// \return             1: The elements to add/remove from the left side of the dimensions.
     ///                     2: The elements to add/remove from the right side of the dimension.
     ///                     Positive values correspond to padding, while negative values correspond to cropping.
-    inline std::pair<int4_t, int4_t> borders(dim4_t input_shape, dim4_t output_shape);
+    [[nodiscard]] inline std::pair<int4_t, int4_t> borders(dim4_t input_shape, dim4_t output_shape);
 
     /// Resizes the input array(s) by padding and/or cropping the edges of the array.
     /// \tparam T           Any data type.
@@ -34,9 +34,9 @@ namespace noa::memory {
     /// \param border_mode  Border mode to use. See BorderMode for more details.
     /// \param border_value Border value. Only used for padding if \p mode is BORDER_VALUE.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    Array<T> resize(const Array<T>& input,
-                    int4_t border_left, int4_t border_right,
-                    BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
+    [[nodiscard]] Array<T> resize(const Array<T>& input,
+                                  int4_t border_left, int4_t border_right,
+                                  BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 
     /// Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
     /// \tparam T           Any data type.
@@ -56,8 +56,8 @@ namespace noa::memory {
     /// \param border_mode          Border mode to use. See BorderMode for more details.
     /// \param border_value         Border value. Only used if \p mode is BORDER_VALUE.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    Array<T> resize(const Array<T>& input, dim4_t output_shape,
-                    BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
+    [[nodiscard]] Array<T> resize(const Array<T>& input, dim4_t output_shape,
+                                  BorderMode border_mode = BORDER_ZERO, T border_value = T(0));
 }
 
 #define NOA_UNIFIED_RESIZE_

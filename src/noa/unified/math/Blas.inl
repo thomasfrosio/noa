@@ -11,7 +11,7 @@
 
 namespace noa::math {
     template<typename T, typename>
-    T dot(const Array<T>& lhs, const Array<T>& rhs) {
+    [[nodiscard]] T dot(const Array<T>& lhs, const Array<T>& rhs) {
         NOA_CHECK(!lhs.empty() && !rhs.empty(), "Empty array detected");
         NOA_CHECK(lhs.shape().ndim() <= 2 && rhs.shape().ndim() <= 2,
                   "The inputs should be unbatched row or column vectors, but got shape lhs:{} and rhs:{}",

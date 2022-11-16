@@ -325,16 +325,16 @@ namespace noa {
 namespace noa::indexing {
     /// Broadcasts an array to a given shape.
     template<typename Value>
-    Array<Value> broadcast(const Array<Value>& input, size4_t shape);
+    [[nodiscard]] Array<Value> broadcast(const Array<Value>& input, size4_t shape);
 
     /// Whether \p lhs and \p rhs overlap in memory.
     template<typename Value0, typename Value1>
-    bool isOverlap(const Array<Value0>& lhs, const Array<Value1>& rhs);
+    [[nodiscard]] bool isOverlap(const Array<Value0>& lhs, const Array<Value1>& rhs);
 
     /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
     /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
     template<typename Int, typename Value, typename = std::enable_if_t<traits::is_int_v<Int>>>
-    constexpr size4_t indexes(Int offset, const Array<Value>& array);
+    [[nodiscard]] constexpr size4_t indexes(Int offset, const Array<Value>& array);
 }
 
 #define NOA_UNIFIED_ARRAY_

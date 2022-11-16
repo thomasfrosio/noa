@@ -49,7 +49,7 @@ namespace noa::fft {
     }
 
     template<Remap REMAP, typename T, typename>
-    Array<T> resize(const Array<T>& input, dim4_t input_shape, dim4_t output_shape) {
+    [[nodiscard]] Array<T> resize(const Array<T>& input, dim4_t input_shape, dim4_t output_shape) {
         using enum_t = std::underlying_type_t<Layout>;
         constexpr auto REMAP_ = static_cast<enum_t>(REMAP);
         Array<T> output(REMAP_ & Layout::DST_FULL ? output_shape : output_shape.fft(), input.options());

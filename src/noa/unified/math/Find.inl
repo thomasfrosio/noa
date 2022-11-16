@@ -38,7 +38,7 @@ namespace noa::math {
     }
 
     template<typename offset_t, typename S, typename T, typename>
-    offset_t find(S searcher, const Array<T>& input, bool swap_layout) {
+    [[nodiscard]] offset_t find(S searcher, const Array<T>& input, bool swap_layout) {
         NOA_CHECK(!input.empty(), "Empty array detected");
 
         const Device device = input.device();

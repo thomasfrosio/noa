@@ -40,7 +40,7 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    Array<Complex<T>> r2c(const Array<T>& input, Norm norm) {
+    [[nodiscard]] Array<Complex<T>> r2c(const Array<T>& input, Norm norm) {
         Array<Complex<T>> output(input.shape().fft(), input.options());
         r2c(input, output, norm);
         return output;
@@ -76,7 +76,7 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    Array<T> c2r(const Array<Complex<T>>& input, dim4_t shape, Norm norm) {
+    [[nodiscard]] Array<T> c2r(const Array<Complex<T>>& input, dim4_t shape, Norm norm) {
         Array<T> output(shape, input.options());
         c2r(input, output, norm);
         return output;
@@ -112,7 +112,7 @@ namespace noa::fft {
     }
 
     template<typename T, typename>
-    Array<Complex<T>> c2c(const Array<Complex<T>>& input, Sign sign, Norm norm) {
+    [[nodiscard]] Array<Complex<T>> c2c(const Array<Complex<T>>& input, Sign sign, Norm norm) {
         Array<Complex<T>> output(input.shape(), input.options());
         c2c(input, output, sign, norm);
         return output;

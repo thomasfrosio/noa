@@ -36,7 +36,7 @@ namespace noa::fft {
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
     /// \note The redundant dimension is the width dimension and non-redundant FFT are traversed in the rightmost order.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_resize<REMAP, T>>>
-    Array<T> resize(const Array<T>& input, dim4_t input_shape, dim4_t output_shape);
+    [[nodiscard]] Array<T> resize(const Array<T>& input, dim4_t input_shape, dim4_t output_shape);
 }
 
 #define NOA_UNIFIED_RESIZE_

@@ -66,9 +66,9 @@ namespace noa::signal::fft {
     ///                             If negative or 0, it is ignored.
     /// \param registration_radius  Radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float xpeak1D(const Array<T>& xmap,
-                  float ellipse_radius = -1,
-                  int64_t registration_radius = 1);
+    [[nodiscard]] float xpeak1D(const Array<T>& xmap,
+                                float ellipse_radius = -1,
+                                int64_t registration_radius = 1);
 
     /// Find the highest peak in a cross-correlation map.
     /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
@@ -95,9 +95,9 @@ namespace noa::signal::fft {
     ///                             If negative or 0, it is ignored.
     /// \param registration_radius  HW radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float2_t xpeak2D(const Array<T>& xmap,
-                     float2_t ellipse_radius = float2_t{-1},
-                     long2_t registration_radius = long2_t{1});
+    [[nodiscard]] float2_t xpeak2D(const Array<T>& xmap,
+                                   float2_t ellipse_radius = float2_t{-1},
+                                   long2_t registration_radius = long2_t{1});
 
     /// Find the highest peak in a cross-correlation map.
     /// \details The highest value of the map is found. Then the sub-pixel position is determined
@@ -128,9 +128,9 @@ namespace noa::signal::fft {
     ///                             If negative or 0, it is ignored.
     /// \param registration_radius  DHW radius of the window, centered on the peak, for subpixel registration.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, T>>>
-    float3_t xpeak3D(const Array<T>& xmap,
-                     float3_t ellipse_radius = float3_t{-1},
-                     long3_t registration_radius = long3_t{1});
+    [[nodiscard]] float3_t xpeak3D(const Array<T>& xmap,
+                                   float3_t ellipse_radius = float3_t{-1},
+                                   long3_t registration_radius = long3_t{1});
 
     /// Computes the cross-correlation coefficient(s).
     /// \tparam REMAP       Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.
@@ -151,7 +151,7 @@ namespace noa::signal::fft {
     /// \param[in] rhs  Right-hand side FFT.
     /// \param shape    BDHW logical shape. Should not be batched.
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, T>>>
-    T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, dim4_t shape);
+    [[nodiscard]] T xcorr(const Array<Complex<T>>& lhs, const Array<Complex<T>>& rhs, dim4_t shape);
 }
 
 #define NOA_UNIFIED_FFT_CORRELATE

@@ -518,7 +518,7 @@ namespace noa {
 
 namespace noa::indexing {
     template<typename Value>
-    Array<Value> broadcast(const Array<Value>& input, dim4_t shape) {
+    [[nodiscard]] Array<Value> broadcast(const Array<Value>& input, dim4_t shape) {
         dim4_t strides = input.strides();
         if (!broadcast(input.shape(), strides, shape))
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}", input.shape(), shape);
@@ -526,7 +526,7 @@ namespace noa::indexing {
     }
 
     template<typename Value0, typename Value1>
-    bool isOverlap(const Array<Value0>& lhs, const Array<Value1>& rhs) {
+    [[nodiscard]] bool isOverlap(const Array<Value0>& lhs, const Array<Value1>& rhs) {
         if (lhs.empty() || rhs.empty())
             return false;
 
@@ -537,7 +537,7 @@ namespace noa::indexing {
     }
 
     template<typename Int, typename Value, typename>
-    constexpr dim4_t indexes(Int offset, const Array<Value>& array) {
+    [[nodiscard]] constexpr dim4_t indexes(Int offset, const Array<Value>& array) {
         NOA_CHECK(!any(array.strides() == 0),
                   "Cannot retrieve the 4D index from a broadcast array. Got strides:{}",
                   array.strides());
