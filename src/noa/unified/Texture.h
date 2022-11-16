@@ -40,11 +40,11 @@ namespace noa {
     ///          it allocates and initializes a proper GPU texture. These are usually hidden from the unified API
     ///          and handled by the GPU backend, but if multiple calls with the same input or even the same input
     ///          type and shape, it is more efficient to reuse the texture than to recreate it every time.
-    /// \tparam value_t float, double, cfloat_t or cdouble_t.
-    template<typename value_t>
+    /// \tparam Value float, double, cfloat_t or cdouble_t.
+    template<typename Value>
     class Texture {
     public:
-        using value_type = value_t;
+        using value_type = Value;
         static_assert(traits::is_any_v<value_type, float, double, cfloat_t, cdouble_t>);
 
     public:

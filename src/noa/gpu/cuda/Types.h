@@ -25,6 +25,5 @@ namespace noa::cuda {
     struct Texture {
         std::shared_ptr<cudaArray> array{nullptr};
         std::shared_ptr<cudaTextureObject_t> texture{};
-        bool layered{}; // this could be extracted from the array
     };
 }

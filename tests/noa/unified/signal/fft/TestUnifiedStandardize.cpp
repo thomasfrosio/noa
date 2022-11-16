@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::standardize()", "[noa][unified]", floa
         fft::c2r(image_fft, image, norm);
 
         if (norm == fft::NORM_NONE)
-            image *= 1 / static_cast<real_t>(shape.elements());
+            math::ewise(image, 1 / static_cast<real_t>(shape.elements()), image, math::multiply_t{});
 
         const real_t mean = math::mean(image);
         const real_t std = math::std(image);

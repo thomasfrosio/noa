@@ -269,7 +269,7 @@ TEST_CASE("unified::signal::fft, Find shifts with fwd projection", "[.]") {
     Array tilt_series = io::load<float>(input_path);
     Array<float> means({tilt_series.shape()[0], 1, 1, 1});
     math::mean(tilt_series, means);
-    tilt_series -= means;
+    math::ewise(tilt_series, means, tilt_series, math::minus_t{});
 
     Array output = memory::like(tilt_series);
     for (size_t i = 0; i < slice_count; ++i)

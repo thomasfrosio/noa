@@ -41,9 +41,9 @@ namespace noa::geometry::fft::details {
 namespace noa::geometry::fft {
     using Remap = noa::fft::Remap;
 
-    /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using tri-linear interpolation.
+    /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using tri-linear rasterisation.
     /// \details The slices are scaled and the EWS curvature is applied. Then, they are rotated and added to the
-    ///          3D cartesian Fourier volume using tri-linear interpolation. This method, often referred to as
+    ///          3D cartesian Fourier volume using tri-linear rasterisation. This method, often referred to as
     ///          direct Fourier insertion, explicitly sets the "thickness" of the central slices as the width of
     ///          the interpolation window (referred to as gridding kernel), which in this case is 1 voxel.
     ///          In practice, a density correction (i.e. normalization) is often required after this operation.
@@ -101,7 +101,7 @@ namespace noa::geometry::fft {
                   const Array<Value>& grid, dim4_t grid_shape,
                   const Scale& inv_scaling_matrix,
                   const Rotate& fwd_rotation_matrix,
-                  float cutoff = 0.5f,
+                  float cutoff,
                   dim4_t target_shape = {},
                   float2_t ews_radius = {});
 
@@ -153,7 +153,7 @@ namespace noa::geometry::fft {
                   const Scale& inv_scaling_matrix,
                   const Rotate& fwd_rotation_matrix,
                   float slice_z_radius,
-                  float cutoff = 0.5f,
+                  float cutoff,
                   dim4_t target_shape = {},
                   float2_t ews_radius = {});
 
@@ -167,7 +167,7 @@ namespace noa::geometry::fft {
                   const Scale& inv_scaling_matrix,
                   const Rotate& fwd_rotation_matrix,
                   float slice_z_radius,
-                  float cutoff = 0.5f,
+                  float cutoff,
                   dim4_t target_shape = {},
                   float2_t ews_radius = {});
 

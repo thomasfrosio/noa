@@ -3,81 +3,19 @@
 #error "Cannot include this private header"
 #endif
 
-namespace noa::details {
-    template<typename T, typename U, typename BinaryOp, typename>
-    void arrayAssign(const Array<T>& lhs, U rhs, BinaryOp binary_op) {
-        const Device device = lhs.device();
-        Stream& stream = Stream::current(device);
-        if (device.cpu()) {
-            cpu::math::ewise(lhs.share(), lhs.strides(), rhs,
-                             lhs.share(), lhs.strides(), lhs.shape(),
-                             binary_op, stream.cpu());
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, T, BinaryOp>) {
-                cuda::math::ewise(lhs.share(), lhs.strides(), rhs,
-                                  lhs.share(), lhs.strides(), lhs.shape(),
-                                  binary_op, stream.cuda());
-            } else {
-                NOA_THROW("These types of operands are not supported by the CUDA backend. "
-                          "See noa::cuda::math::ewise(...) for more details");
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
-    }
-
-    template<typename T, typename U, typename BinaryOp>
-    void arrayAssign(const Array<T>& lhs, const Array<U>& rhs, BinaryOp binary_op) {
-        dim4_t rhs_strides = rhs.strides();
-        if (!indexing::broadcast(rhs.shape(), rhs_strides, lhs.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      rhs.shape(), lhs.shape());
-        }
-
-        const Device device = lhs.device();
-        NOA_CHECK(device == rhs.device(),
-                  "The input and output arrays must be on the same device, but got input:{} and output:{}",
-                  rhs.device(), device);
-
-        Stream& stream = Stream::current(device);
-        if (device.cpu()) {
-            cpu::math::ewise(lhs.share(), lhs.strides(),
-                             rhs.share(), rhs_strides,
-                             lhs.share(), lhs.strides(), lhs.shape(),
-                             binary_op, stream.cpu());
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::math::details::is_valid_ewise_binary_v<T, U, T, BinaryOp>) {
-                cuda::math::ewise(lhs.share(), lhs.strides(),
-                                  rhs.share(), rhs_strides,
-                                  lhs.share(), lhs.strides(), lhs.shape(),
-                                  binary_op, stream.cuda());
-            } else {
-                NOA_THROW("These types of operands are not supported by the CUDA backend. "
-                          "See noa::cuda::math::ewise(...) for more details");
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
-    }
-}
-
 namespace noa {
-    template<typename T>
-    constexpr Array<T>::Array(dim_t elements, ArrayOption option)
+    template<typename Value>
+    constexpr Array<Value>::Array(dim_t elements, ArrayOption option)
             : m_shape(dim4_t{1, 1, 1, elements}),
               m_strides(dim4_t{elements, elements, elements, 1}),
               m_options(option) { alloc_(); }
 
-    template<typename T>
-    constexpr Array<T>::Array(dim4_t shape, ArrayOption option)
+    template<typename Value>
+    constexpr Array<Value>::Array(dim4_t shape, ArrayOption option)
             : m_shape(shape), m_strides(shape.strides()), m_options(option) { alloc_(); }
 
-    template<typename T>
-    constexpr Array<T>::Array(T* data, dim_t elements, ArrayOption option)
+    template<typename Value>
+    constexpr Array<Value>::Array(pointer_type data, dim_t elements, ArrayOption option)
             : m_shape(dim4_t{1, 1, 1, elements}),
               m_strides(dim4_t{elements, elements, elements, 1}),
               m_ptr(data, [](void*) {}),
@@ -85,14 +23,14 @@ namespace noa {
         validate_(data, option);
     }
 
-    template<typename T>
-    constexpr Array<T>::Array(T* data, dim4_t shape, dim4_t strides, ArrayOption option)
+    template<typename Value>
+    constexpr Array<Value>::Array(pointer_type data, dim4_t shape, dim4_t strides, ArrayOption option)
             : m_shape(shape), m_strides(strides), m_ptr(data, [](void*) {}), m_options(option) {
         validate_(data, option);
     }
 
-    template<typename T>
-    constexpr Array<T>::Array(shared_t<T[]> data, dim_t elements, ArrayOption option)
+    template<typename Value>
+    constexpr Array<Value>::Array(shared_type data, dim_t elements, ArrayOption option)
             : m_shape(dim4_t{1, 1, 1, elements}),
               m_strides(dim4_t{elements, elements, elements, 1}),
               m_ptr(std::move(data)),
@@ -100,135 +38,136 @@ namespace noa {
         validate_(m_ptr.get(), option);
     }
 
-    template<typename T>
-    constexpr Array<T>::Array(shared_t<T[]> data, dim4_t shape, dim4_t strides, ArrayOption option)
+    template<typename Value>
+    constexpr Array<Value>::Array(shared_type data, dim4_t shape, dim4_t strides, ArrayOption option)
             : m_shape(shape), m_strides(strides), m_ptr(std::move(data)), m_options(option) {
         validate_(m_ptr.get(), option);
     }
 
-    template<typename T>
-    constexpr ArrayOption Array<T>::options() const noexcept { return m_options; }
+    template<typename Value>
+    constexpr ArrayOption Array<Value>::options() const noexcept { return m_options; }
 
-    template<typename T>
-    constexpr Device Array<T>::device() const noexcept { return m_options.device(); }
+    template<typename Value>
+    constexpr Device Array<Value>::device() const noexcept { return m_options.device(); }
 
-    template<typename T>
-    constexpr Allocator Array<T>::allocator() const noexcept { return m_options.allocator(); }
+    template<typename Value>
+    constexpr Allocator Array<Value>::allocator() const noexcept { return m_options.allocator(); }
 
-    template<typename T>
-    constexpr bool Array<T>::dereferenceable() const noexcept { return m_options.dereferenceable(); }
+    template<typename Value>
+    constexpr bool Array<Value>::dereferenceable() const noexcept { return m_options.dereferenceable(); }
 
-    template<typename T>
-    bool Array<T>::empty() const noexcept { return !m_ptr || any(m_shape == 0); }
+    template<typename Value>
+    bool Array<Value>::empty() const noexcept { return !m_ptr || any(m_shape == 0); }
 
-    template<typename T>
-    const dim4_t& Array<T>::shape() const noexcept { return m_shape; }
+    template<typename Value>
+    const dim4_t& Array<Value>::shape() const noexcept { return m_shape; }
 
-    template<typename T>
-    const dim4_t& Array<T>::strides() const noexcept { return m_strides; }
+    template<typename Value>
+    const dim4_t& Array<Value>::strides() const noexcept { return m_strides; }
 
-    template<typename T>
-    dim_t Array<T>::elements() const noexcept { return m_shape.elements(); }
+    template<typename Value>
+    dim_t Array<Value>::elements() const noexcept { return m_shape.elements(); }
 
-    template<typename T>
-    dim_t Array<T>::size() const noexcept { return elements(); }
+    template<typename Value>
+    dim_t Array<Value>::size() const noexcept { return elements(); }
 
-    template<typename T>
+    template<typename Value>
     template<char ORDER>
-    bool Array<T>::contiguous() const noexcept {
+    bool Array<Value>::contiguous() const noexcept {
         return indexing::areContiguous<ORDER>(m_strides, m_shape);
     }
 
-    template<typename T>
-    constexpr T* Array<T>::get() const noexcept { return m_ptr.get(); }
+    template<typename Value>
+    constexpr Value* Array<Value>::get() const noexcept { return m_ptr.get(); }
 
-    template<typename T>
-    constexpr T* Array<T>::data() const noexcept { return m_ptr.get(); }
+    template<typename Value>
+    constexpr Value* Array<Value>::data() const noexcept { return m_ptr.get(); }
 
-    template<typename T>
-    const Array<T>& Array<T>::eval() const {
+    template<typename Value>
+    const Array<Value>& Array<Value>::eval() const {
         Stream::current(device()).synchronize();
         return *this;
     }
 
-    template<typename T>
-    Array<T> Array<T>::release() noexcept {
-        return std::exchange(*this, Array<T>{});
+    template<typename Value>
+    Array<Value> Array<Value>::release() noexcept {
+        return std::exchange(*this, Array<Value>{});
     }
 
-    template<typename T>
-    template<typename I0, typename>
-    [[nodiscard]] NOA_HD constexpr T& Array<T>::operator[](I0 offset) const noexcept {
+    template<typename Value>
+    template<typename Int, typename>
+    [[nodiscard]] NOA_HD constexpr Value& Array<Value>::operator[](Int offset) const noexcept {
         NOA_ASSERT(!empty() && dereferenceable() &&
                    static_cast<dim_t>(offset) <= indexing::at(m_shape - 1, m_strides));
         return m_ptr.get()[offset];
     }
 
-    template<typename T>
-    template<typename I0>
-    [[nodiscard]] NOA_HD constexpr T& Array<T>::operator()(I0 i0) const noexcept {
+    template<typename Value>
+    template<typename Index0>
+    [[nodiscard]] NOA_HD constexpr Value& Array<Value>::operator()(Index0 i0) const noexcept {
         NOA_ASSERT(dereferenceable() &&
                    static_cast<dim_t>(i0) < m_shape[0]);
-        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        using accessor_t = typename View<Value, dim_t>::accessor_reference_type;
         return accessor_t(get(), m_strides.get())(i0);
     }
 
-    template<typename T>
-    template<typename I0, typename I1>
-    [[nodiscard]] NOA_HD constexpr T& Array<T>::operator()(I0 i0, I1 i1) const noexcept {
+    template<typename Value>
+    template<typename Index0, typename Index1>
+    [[nodiscard]] NOA_HD constexpr Value& Array<Value>::operator()(Index0 i0, Index1 i1) const noexcept {
         NOA_ASSERT(dereferenceable() &&
                    static_cast<dim_t>(i0) < m_shape[0] &&
                    static_cast<dim_t>(i1) < m_shape[1]);
-        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        using accessor_t = typename View<Value, dim_t>::accessor_reference_type;
         return accessor_t(get(), m_strides.get())(i0, i1);
     }
 
-    template<typename T>
-    template<typename I0, typename I1, typename I2>
-    [[nodiscard]] NOA_HD constexpr T& Array<T>::operator()(I0 i0, I1 i1, I2 i2) const noexcept {
+    template<typename Value>
+    template<typename Index0, typename Index1, typename Index2>
+    [[nodiscard]] NOA_HD constexpr Value& Array<Value>::operator()(Index0 i0, Index1 i1, Index2 i2) const noexcept {
         NOA_ASSERT(dereferenceable() &&
                    static_cast<dim_t>(i0) < m_shape[0] &&
                    static_cast<dim_t>(i1) < m_shape[1] &&
                    static_cast<dim_t>(i2) < m_shape[2]);
-        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        using accessor_t = typename View<Value, dim_t>::accessor_reference_type;
         return accessor_t(get(), m_strides.get())(i0, i1, i2);
     }
 
-    template<typename T>
-    template<typename I0, typename I1, typename I2, typename I3>
-    [[nodiscard]] NOA_HD constexpr T& Array<T>::operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
+    template<typename Value>
+    template<typename Index0, typename Index1, typename Index2, typename Index3>
+    [[nodiscard]] NOA_HD constexpr Value& Array<Value>::operator()(Index0 i0, Index1 i1, Index2 i2, Index3 i3) const noexcept {
         NOA_ASSERT(dereferenceable() &&
                    static_cast<dim_t>(i0) < m_shape[0] &&
                    static_cast<dim_t>(i1) < m_shape[1] &&
                    static_cast<dim_t>(i2) < m_shape[2] &&
                    static_cast<dim_t>(i3) < m_shape[3]);
-        using accessor_t = typename View<T, dim_t>::accessor_reference_type;
+        using accessor_t = typename View<Value, dim_t>::accessor_reference_type;
         return accessor_t(get(), m_strides.get())(i0, i1, i2, i3);
     }
 
-    template<typename T>
-    constexpr const std::shared_ptr<T[]>& Array<T>::share() const noexcept { return m_ptr; }
+    template<typename Value>
+    constexpr const std::shared_ptr<Value[]>& Array<Value>::share() const noexcept { return m_ptr; }
 
-    template<typename T>
-    template<typename T0, typename I0>
-    constexpr View<T0, I0> Array<T>::view() const noexcept {
-        return View<T, I0>(get(), Int4<I0>(m_shape), Int4<I0>(m_strides)).template as<T0>();
+    template<typename Value>
+    template<typename Value0, typename Index>
+    constexpr View<Value0, Index> Array<Value>::view() const noexcept {
+        return View<Value, Index>(get(), Int4<Index>(m_shape), Int4<Index>(m_strides)).template as<Value0>();
     }
 
-    template<typename T>
-    [[nodiscard]] constexpr auto Array<T>::accessor() const noexcept {
-        using output_t = Accessor<T, 4, dim_t, AccessorTraits::DEFAULT>;
+    template<typename Value>
+    [[nodiscard]] constexpr auto Array<Value>::accessor() const noexcept {
+        using output_t = Accessor<Value, 4, dim_t, AccessorTraits::DEFAULT>;
         return output_t(m_ptr, m_strides.get());
     }
 
-    template<typename T>
-    template<typename T0, int N, typename I0, AccessorTraits TRAITS>
-    [[nodiscard]] constexpr auto Array<T>::accessor() const noexcept {
-        return View<T, I0>(get(), Int4<I0>(m_shape), Int4<I0>(m_strides)).template accessor<T0, N, I0, TRAITS>();
+    template<typename Value>
+    template<typename Value0, int NDIM, typename Index, AccessorTraits TRAITS>
+    [[nodiscard]] constexpr auto Array<Value>::accessor() const noexcept {
+        return View<Value, Index>(get(), Int4<Index>(m_shape), Int4<Index>(m_strides))
+                .template accessor<Value0, NDIM, Index, TRAITS>();
     }
 
-    template<typename T>
-    void Array<T>::to(const Array& output) const {
+    template<typename Value>
+    void Array<Value>::to(const Array& output) const {
         NOA_CHECK(!this->empty() && !output.empty(), "Empty array detected");
         NOA_CHECK(!indexing::isOverlap(*this, output), "The input and output should not overlap");
 
@@ -269,27 +208,27 @@ namespace noa {
         }
     }
 
-    template<typename T>
-    Array<T> Array<T>::to(ArrayOption option) const {
+    template<typename Value>
+    Array<Value> Array<Value>::to(ArrayOption option) const {
         Array out(m_shape, option);
         to(out);
         return out;
     }
 
-    template<typename T>
-    Array<T> Array<T>::copy() const {
+    template<typename Value>
+    Array<Value> Array<Value>::copy() const {
         return to(m_options);
     }
 
-    template<typename T>
-    template<typename U>
-    Array<U> Array<T>::as() const {
-        const auto out = indexing::Reinterpret<T, dim_t>(m_shape, m_strides, get()).template as<U>();
-        return {std::shared_ptr<U[]>(m_ptr, out.ptr), out.shape, out.strides, options()};
+    template<typename Value>
+    template<typename Value0>
+    Array<Value0> Array<Value>::as() const {
+        const auto out = indexing::Reinterpret<Value, dim_t>(m_shape, m_strides, get()).template as<Value0>();
+        return {std::shared_ptr<Value0[]>(m_ptr, out.ptr), out.shape, out.strides, options()};
     }
 
-    template<typename T>
-    Array<T> Array<T>::as(Device::Type type) const {
+    template<typename Value>
+    Array<Value> Array<Value>::as(Device::Type type) const {
         const Allocator alloc = m_options.allocator();
         if (type == Device::CPU && device().gpu()) { // see as CPU array
             NOA_CHECK(alloc == Allocator::PINNED ||
@@ -334,29 +273,29 @@ namespace noa {
         }
     }
 
-    template<typename T>
-    Array<T> Array<T>::reshape(dim4_t shape) const {
+    template<typename Value>
+    Array<Value> Array<Value>::reshape(dim4_t shape) const {
         dim4_t new_strides;
         if (!indexing::reshape(m_shape, m_strides, shape, new_strides))
             NOA_THROW("An array of shape {} cannot be reshaped to an array of shape {}", m_shape, shape);
         return {m_ptr, shape, new_strides, options()};
     }
 
-    template<typename T>
-    Array<T> Array<T>::flat(int axis) const {
+    template<typename Value>
+    Array<Value> Array<Value>::flat(int axis) const {
         dim4_t output_shape(1);
         output_shape[axis] = m_shape.elements();
         return reshape(output_shape);
     }
 
-    template<typename T>
-    Array<T> Array<T>::permute(dim4_t permutation, bool copy) const {
+    template<typename Value>
+    Array<Value> Array<Value>::permute(dim4_t permutation, bool copy) const {
         const dim4_t permuted_shape = indexing::reorder(m_shape, permutation);
         if (!copy)
-            return Array<T>(m_ptr, permuted_shape, indexing::reorder(m_strides, permutation), m_options);
+            return Array<Value>(m_ptr, permuted_shape, indexing::reorder(m_strides, permutation), m_options);
 
-        if constexpr (noa::traits::is_data_v<T>) {
-            Array<T> out(permuted_shape, m_options);
+        if constexpr (noa::traits::is_data_v<Value>) {
+            Array<Value> out(permuted_shape, m_options);
             Stream& stream = Stream::current(device());
             if (device().cpu()) {
                 cpu::memory::permute(m_ptr, m_strides, m_shape,
@@ -373,143 +312,49 @@ namespace noa {
             }
             return out;
         } else {
-            NOA_THROW("This type ({}) is not supported by memory::permute()", string::human<T>());
+            NOA_THROW("This type ({}) is not supported by memory::permute()", string::human<Value>());
         }
     }
 
-    template<typename T>
-    Array<T>& Array<T>::operator=(std::nullptr_t) {
-        *this = Array<T>{};
+    template<typename Value>
+    Array<Value>& Array<Value>::operator=(std::nullptr_t) {
+        *this = Array<Value>{};
         return *this;
     }
 
-    template<typename T>
-    Array<T>& Array<T>::operator=(T value) {
-        Stream& stream = Stream::current(device());
-        if (device().cpu()) {
-            cpu::memory::set(m_ptr, m_strides, m_shape, value, stream.cpu());
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            cuda::memory::set(m_ptr, m_strides, m_shape, value, stream.cuda());
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
-    }
-
-    template<typename T>
-    Array<T>& Array<T>::operator+=(T value) {
-        details::arrayAssign(*this, value, math::plus_t{});
-        return *this;
-    }
-
-    template<typename T>
-    Array<T>& Array<T>::operator-=(T value) {
-        details::arrayAssign(*this, value, math::minus_t{});
-        return *this;
-    }
-
-    template<typename T>
-    Array<T>& Array<T>::operator*=(T value) {
-        details::arrayAssign(*this, value, math::multiply_t{});
-        return *this;
-    }
-
-    template<typename T>
-    Array<T>& Array<T>::operator/=(T value) {
-        details::arrayAssign(*this, value, math::divide_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U>
-    Array<T>& Array<T>::operator+=(const Array<U>& array) {
-        details::arrayAssign(*this, array, math::plus_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U>
-    Array<T>& Array<T>::operator-=(const Array<U>& array) {
-        details::arrayAssign(*this, array, math::minus_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U>
-    Array<T>& Array<T>::operator*=(const Array<U>& array) {
-        details::arrayAssign(*this, array, math::multiply_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U>
-    Array<T>& Array<T>::operator/=(const Array<U>& array) {
-        details::arrayAssign(*this, array, math::divide_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U, typename>
-    Array<T>& Array<T>::operator+=(U value) {
-        details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::plus_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U, typename>
-    Array<T>& Array<T>::operator-=(U value) {
-        details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::minus_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U, typename>
-    Array<T>& Array<T>::operator*=(U value) {
-        details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::multiply_t{});
-        return *this;
-    }
-
-    template<typename T>
-    template<typename U, typename>
-    Array<T>& Array<T>::operator/=(U value) {
-        details::arrayAssign(*this, static_cast<traits::value_type_t<T>>(value), math::divide_t{});
-        return *this;
-    }
-
-    template<typename T>
+    template<typename Value>
     template<typename A, typename B, typename C, typename D, typename>
-    constexpr Array<T> Array<T>::subregion(A&& i0, B&& i1, C&& i2, D&& i3) const {
+    constexpr Array<Value> Array<Value>::subregion(A&& i0, B&& i1, C&& i2, D&& i3) const {
         const indexing::Subregion indexer = indexing::Subregion(m_shape, m_strides)(i0, i1, i2, i3);
-        return {std::shared_ptr<T[]>(m_ptr, m_ptr.get() + indexer.offset()),
+        return {shared_type(m_ptr, m_ptr.get() + indexer.offset()),
                 indexer.shape(), indexer.strides(), m_options};
     }
 
-    template<typename T>
-    constexpr Array<T> Array<T>::subregion(indexing::ellipsis_t) const {
+    template<typename Value>
+    constexpr Array<Value> Array<Value>::subregion(indexing::ellipsis_t) const {
         return *this;
     }
 
-    template<typename T>
+    template<typename Value>
     template<typename A, typename>
-    constexpr Array<T> Array<T>::subregion(indexing::ellipsis_t, A&& i3) const {
+    constexpr Array<Value> Array<Value>::subregion(indexing::ellipsis_t, A&& i3) const {
         return subregion(indexing::full_extent_t{}, indexing::full_extent_t{}, indexing::full_extent_t{}, i3);
     }
 
-    template<typename T>
+    template<typename Value>
     template<typename A, typename B, typename>
-    constexpr Array<T> Array<T>::subregion(indexing::ellipsis_t, A&& i2, B&& i3) const {
+    constexpr Array<Value> Array<Value>::subregion(indexing::ellipsis_t, A&& i2, B&& i3) const {
         return subregion(indexing::full_extent_t{}, indexing::full_extent_t{}, i2, i3);
     }
 
-    template<typename T>
+    template<typename Value>
     template<typename A, typename B, typename C, typename>
-    constexpr Array<T> Array<T>::subregion(indexing::ellipsis_t, A&& i1, B&& i2, C&& i3) const {
+    constexpr Array<Value> Array<Value>::subregion(indexing::ellipsis_t, A&& i1, B&& i2, C&& i3) const {
         return subregion(indexing::full_extent_t{}, i1, i2, i3);
     }
 
-    template<typename T>
-    void Array<T>::alloc_() {
+    template<typename Value>
+    void Array<Value>::alloc_() {
         const dim_t elements = m_shape.elements();
         if (!elements) {
             m_shape = 0;
@@ -523,73 +368,73 @@ namespace noa {
                 break;
             case Allocator::DEFAULT:
                 if (device.cpu()) {
-                    m_ptr = cpu::memory::PtrHost<T>::alloc(elements);
+                    m_ptr = cpu::memory::PtrHost<value_type>::alloc(elements);
                 } else {
                     #ifdef NOA_ENABLE_CUDA
                     DeviceGuard guard(device);
-                    m_ptr = cuda::memory::PtrDevice<T>::alloc(elements);
+                    m_ptr = cuda::memory::PtrDevice<value_type>::alloc(elements);
                     #endif
                 }
                 break;
             case Allocator::DEFAULT_ASYNC:
                 if (device.cpu()) {
-                    m_ptr = cpu::memory::PtrHost<T>::alloc(elements);
+                    m_ptr = cpu::memory::PtrHost<value_type>::alloc(elements);
                 } else {
                     #ifdef NOA_ENABLE_CUDA
-                    m_ptr = cuda::memory::PtrDevice<T>::alloc(elements, Stream::current(device).cuda());
+                    m_ptr = cuda::memory::PtrDevice<value_type>::alloc(elements, Stream::current(device).cuda());
                     #endif
                 }
                 break;
             case Allocator::PITCHED:
                 if (device.cpu()) {
-                    m_ptr = cpu::memory::PtrHost<T>::alloc(elements);
+                    m_ptr = cpu::memory::PtrHost<value_type>::alloc(elements);
                 } else {
                     #ifdef NOA_ENABLE_CUDA
                     DeviceGuard guard(device);
                     // PtrDevicePadded requires sizeof(T) <= 16 bytes.
                     // We could remove this restriction, but for now since it is only for
                     // static vectors and matrices, just switch to classic cudaMalloc.
-                    if constexpr (noa::traits::is_data_v<T>) {
-                        auto [ptr, pitch] = cuda::memory::PtrDevicePadded<T>::alloc(m_shape);
+                    if constexpr (noa::traits::is_data_v<value_type>) {
+                        auto [ptr, pitch] = cuda::memory::PtrDevicePadded<value_type>::alloc(m_shape);
                         m_ptr = std::move(ptr);
                         m_strides = dim4_t{m_shape[0], m_shape[1], m_shape[2], pitch}.strides();
                     } else {
-                        m_ptr = cuda::memory::PtrDevice<T>::alloc(elements);
+                        m_ptr = cuda::memory::PtrDevice<value_type>::alloc(elements);
                     }
                     #endif
                 }
                 break;
             case Allocator::PINNED: {
                 if (device.cpu() && !Device::any(Device::GPU)) {
-                    m_ptr = cpu::memory::PtrHost<T>::alloc(elements);
+                    m_ptr = cpu::memory::PtrHost<value_type>::alloc(elements);
                 } else {
                     #ifdef NOA_ENABLE_CUDA
                     DeviceGuard guard(device.gpu() ? device : Device::current(Device::GPU));
-                    m_ptr = cuda::memory::PtrPinned<T>::alloc(elements);
+                    m_ptr = cuda::memory::PtrPinned<value_type>::alloc(elements);
                     #endif
                 }
                 break;
             }
             case Allocator::MANAGED: {
                 if (device.cpu() && !Device::any(Device::GPU)) {
-                    m_ptr = cpu::memory::PtrHost<T>::alloc(elements);
+                    m_ptr = cpu::memory::PtrHost<value_type>::alloc(elements);
                 } else {
                     #ifdef NOA_ENABLE_CUDA
                     const Device gpu = device.gpu() ? device : Device::current(Device::GPU);
                     const DeviceGuard guard(gpu); // could be helpful when retrieving device
                     cuda::Stream& cuda_stream = Stream::current(gpu).cuda();
-                    m_ptr = cuda::memory::PtrManaged<T>::alloc(elements, cuda_stream);
+                    m_ptr = cuda::memory::PtrManaged<value_type>::alloc(elements, cuda_stream);
                     #endif
                 }
                 break;
             }
             case Allocator::MANAGED_GLOBAL: {
                 if (device.cpu() && !Device::any(Device::GPU)) {
-                    m_ptr = cpu::memory::PtrHost<T>::alloc(elements);
+                    m_ptr = cpu::memory::PtrHost<value_type>::alloc(elements);
                 } else {
                     #ifdef NOA_ENABLE_CUDA
                     DeviceGuard guard(device.gpu() ? device : Device::current(Device::GPU));
-                    m_ptr = cuda::memory::PtrManaged<T>::alloc(elements);
+                    m_ptr = cuda::memory::PtrManaged<value_type>::alloc(elements);
                     #endif
                 }
                 break;
@@ -601,8 +446,8 @@ namespace noa {
         }
     }
 
-    template<typename T>
-    void Array<T>::validate_([[maybe_unused]] void* ptr, ArrayOption option) {
+    template<typename Value>
+    void Array<Value>::validate_([[maybe_unused]] void* ptr, ArrayOption option) {
         const Allocator alloc = option.allocator();
         NOA_CHECK(alloc != Allocator::CUDA_ARRAY,
                   "CUDA arrays are not supported by the Array class. See Texture instead");
@@ -672,16 +517,16 @@ namespace noa {
 }
 
 namespace noa::indexing {
-    template<typename T>
-    Array<T> broadcast(const Array<T>& input, dim4_t shape) {
+    template<typename Value>
+    Array<Value> broadcast(const Array<Value>& input, dim4_t shape) {
         dim4_t strides = input.strides();
         if (!broadcast(input.shape(), strides, shape))
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}", input.shape(), shape);
-        return Array<T>{input.share(), shape, strides, input.options()};
+        return Array<Value>{input.share(), shape, strides, input.options()};
     }
 
-    template<typename T, typename U>
-    bool isOverlap(const Array<T>& lhs, const Array<U>& rhs) {
+    template<typename Value0, typename Value1>
+    bool isOverlap(const Array<Value0>& lhs, const Array<Value1>& rhs) {
         if (lhs.empty() || rhs.empty())
             return false;
 
@@ -691,8 +536,8 @@ namespace noa::indexing {
                          reinterpret_cast<uintptr_t>(rhs.get() + at(rhs.shape() - 1, rhs.strides())));
     }
 
-    template<typename I, typename T, typename>
-    constexpr dim4_t indexes(I offset, const Array<T>& array) {
+    template<typename Int, typename Value, typename>
+    constexpr dim4_t indexes(Int offset, const Array<Value>& array) {
         NOA_CHECK(!any(array.strides() == 0),
                   "Cannot retrieve the 4D index from a broadcast array. Got strides:{}",
                   array.strides());
