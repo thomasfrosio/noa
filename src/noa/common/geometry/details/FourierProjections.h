@@ -288,7 +288,7 @@ namespace noa::geometry::fft::details {
             if constexpr (!std::is_empty_v<ews_or_empty_type>)
                 m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
 
-            m_cutoff = math::clamp(cutoff, 0.f, 0.5f);
+            m_cutoff = math::max(cutoff, 0.f);
             m_cutoff *= m_cutoff;
         }
 
@@ -424,7 +424,7 @@ namespace noa::geometry::fft::details {
             if constexpr (!std::is_empty_v<ews_or_empty_type>)
                 m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
 
-            m_cutoff = math::clamp(cutoff, 0.f, 0.5f);
+            m_cutoff = math::max(cutoff, 0.f);
             m_cutoff *= m_cutoff;
         }
 
@@ -556,7 +556,7 @@ namespace noa::geometry::fft::details {
             if constexpr (!std::is_empty_v<ews_or_empty_type>)
                 m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
 
-            m_cutoff = math::clamp(cutoff, 0.f, 0.5f);
+            m_cutoff = math::max(cutoff, 0.f);
             m_cutoff *= m_cutoff;
         }
 
@@ -679,7 +679,7 @@ namespace noa::geometry::fft::details {
             if constexpr (!std::is_empty_v<ews_or_empty_type>)
                 m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
 
-            m_cutoff = math::clamp(cutoff, 0.f, 0.5f);
+            m_cutoff = math::max(cutoff, 0.f);
             m_cutoff *= m_cutoff;
         }
 
