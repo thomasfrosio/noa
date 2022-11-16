@@ -28,6 +28,14 @@
 
 ## `General`
 
+- Refactor API/backend to enforce input and output being on the same device. This only concerns `geometry` and
+  `signal::fft`, so it's quite simple. For `geometry`, the matrices should be on the output device, so we can
+  remove temporaries/copies. Also, this goes with the fact that for affine transformations, we should not use textures
+  for the overloads that take an array as input. This relies on a temporary texture, which isn't great, but would also
+  allow to support all BorderMode and InterpMode, as well as double precision. To use textures, use the overloads
+  taking textures. The API provides a device-agnostic way of using textures, so that's ok IMO.
+
+
 - __Windows__. It should not be that complicated. One thing to look at is OpenMP support.
 
 
