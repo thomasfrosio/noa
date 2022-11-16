@@ -233,7 +233,7 @@ namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
     void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     const Matrix& matrices, const Shift& shifts,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
         NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
@@ -247,7 +247,7 @@ namespace noa::cpu::geometry::fft {
             const AccessorRestrict<Value, 3, int64_t> output_accessor(output.get(), output_strides_2d);
             launchLinearTransform_<REMAP, 2>(
                     input_accessor, output_accessor, shape,
-                    matrixOrShiftOrRawConstPtr(matrices), matrixOrShiftOrRawConstPtr(shifts),
+                    matrixOrShiftOrRawConstPtr(inv_matrices), matrixOrShiftOrRawConstPtr(shifts),
                     cutoff, interp_mode, threads);
         });
     }
@@ -255,7 +255,7 @@ namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
     void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     const Matrix& matrices, const Shift& shifts,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
         NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
@@ -269,7 +269,7 @@ namespace noa::cpu::geometry::fft {
             const AccessorRestrict<Value, 4, int64_t> output_accessor(output.get(), output_strides_3d);
             launchLinearTransform_<REMAP, 3>(
                     input_accessor, output_accessor, shape,
-                    matrixOrShiftOrRawConstPtr(matrices), matrixOrShiftOrRawConstPtr(shifts),
+                    matrixOrShiftOrRawConstPtr(inv_matrices), matrixOrShiftOrRawConstPtr(shifts),
                     cutoff, interp_mode, threads);
         });
     }
@@ -277,7 +277,7 @@ namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename Value, typename>
     void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
         NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
@@ -285,7 +285,7 @@ namespace noa::cpu::geometry::fft {
         if (!symmetry.count()) {
             return transform2D<REMAP>(
                     input, input_strides, output, output_strides,
-                    shape, matrix, shift, cutoff, interp_mode, stream);
+                    shape, inv_matrix, shift, cutoff, interp_mode, stream);
         }
 
         const auto threads = stream.threads();
@@ -297,14 +297,14 @@ namespace noa::cpu::geometry::fft {
             const AccessorRestrict<Value, 3, int64_t> output_accessor(output.get(), output_strides_2d);
             launchLinearTransformSymmetry_<REMAP, 2>(
                     input_accessor, output_accessor, shape,
-                    matrix, symmetry, shift, cutoff, normalize, interp_mode, threads);
+                    inv_matrix, symmetry, shift, cutoff, normalize, interp_mode, threads);
         });
     }
 
     template<Remap REMAP, typename Value, typename>
     void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     float33_t inv_matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         NOA_ASSERT(input && output && input.get() != output.get() && all(shape > 0));
         NOA_ASSERT(!indexing::isOverlap(input.get(), input_strides, output.get(), output_strides, shape.fft()));
@@ -312,7 +312,7 @@ namespace noa::cpu::geometry::fft {
         if (!symmetry.count()) {
             return transform3D<REMAP>(
                     input, input_strides, output, output_strides,
-                    shape, matrix, shift, cutoff, interp_mode, stream);
+                    shape, inv_matrix, shift, cutoff, interp_mode, stream);
         }
 
         const auto threads = stream.threads();
@@ -324,7 +324,7 @@ namespace noa::cpu::geometry::fft {
             const AccessorRestrict<Value, 4, int64_t> output_accessor(output.get(), output_strides_3d);
             launchLinearTransformSymmetry_<REMAP, 3>(
                     input_accessor, output_accessor, shape,
-                    matrix, symmetry, shift, cutoff, normalize, interp_mode, threads);
+                    inv_matrix, symmetry, shift, cutoff, normalize, interp_mode, threads);
         });
     }
 

@@ -29,7 +29,7 @@ set(TEST_UNIFIED_SOURCES
 
 #        noa/unified/geometry/fft/TestUnifiedReconstruction.cpp
 #        noa/unified/geometry/fft/TestUnifiedTransform.cpp
-#        noa/unified/geometry/fft/TestUnifiedProject.cpp
+        noa/unified/geometry/fft/TestUnifiedProject.cpp
 #        noa/unified/geometry/TestUnifiedBackproject.cpp
 #        noa/unified/geometry/TestUnifiedCosineStretch.cpp
 #        noa/unified/geometry/TestUnifiedTransform.cpp

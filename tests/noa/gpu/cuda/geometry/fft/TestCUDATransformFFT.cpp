@@ -90,8 +90,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
 
     // Prepare transformation:
     test::Randomizer<float> randomizer(-3, 3);
-    cpu::memory::PtrHost<float22_t> matrices(shape[0]);
-    cpu::memory::PtrHost<float2_t> shifts(shape[0]);
+    cuda::memory::PtrManaged<float22_t> matrices(shape[0], stream);
+    cuda::memory::PtrManaged<float2_t> shifts(shape[0], stream);
     for (size_t batch = 0; batch < shape[0]; ++batch) {
         const float2_t scale = {0.9, 1.1};
         const float rotate = randomizer.get();
@@ -108,6 +108,7 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform2D(), no remap", "[noa][cuda][
     cuda::geometry::fft::transform2D<fft::HC2HC>(
             input.share(), stride_fft, d_output_fft.share(), stride_fft, shape,
             matrices.share(), shifts.share(), cutoff, interp, stream);
+    stream.synchronize();
 
     cpu::memory::PtrHost<TestType> h_output_fft(input.elements());
     cpu::geometry::fft::transform2D<fft::HC2HC>(
@@ -191,8 +192,8 @@ TEMPLATE_TEST_CASE("cuda::geometry::fft::transform3D(), no remap", "[noa][cuda][
 
     // Prepare transformation:
     test::Randomizer<float> randomizer(-3, 3);
-    cpu::memory::PtrHost<float33_t> matrices(shape[0]);
-    cpu::memory::PtrHost<float3_t> shifts(shape[0]);
+    cuda::memory::PtrManaged<float33_t> matrices(shape[0]);
+    cuda::memory::PtrManaged<float3_t> shifts(shape[0]);
     for (size_t batch = 0; batch < shape[0]; ++batch) {
         const float3_t scale = {1.1, 1, 0.9};
         const float3_t eulers = {1.54, -2.85, -0.53};

@@ -52,7 +52,7 @@ TEST_CASE("cuda::geometry::fft::insert3D", "[.]") {
                 grid.share(), grid_stride, grid_shape,
                 slices.share(), slices_stride, slices_shape,
                 scaling_factors.share(), rotations.share(),
-                cutoff, target_shape, sign * ews_radius, false, stream);
+                cutoff, target_shape, sign * ews_radius, stream);
     }
 
     stream.synchronize();

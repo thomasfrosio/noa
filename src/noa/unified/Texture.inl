@@ -116,6 +116,12 @@ namespace noa {
     }
 
     template<typename Value>
+    const Texture<Value>& Texture<Value>::eval() const {
+        Stream::current(device()).synchronize();
+        return *this;
+    }
+
+    template<typename Value>
     cpu::Texture<Value>& Texture<Value>::cpu() {
         auto* ptr = std::get_if<cpu::Texture<value_type>>(&m_texture);
         if (!ptr)

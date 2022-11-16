@@ -60,7 +60,11 @@ namespace noa::cuda::memory {
 
             const auto u_shape = safe_cast<size4_t>(shape);
             dim3_t shape_3d{u_shape[!is_layered], u_shape[2], u_shape[3]};
-            shape_3d -= dim3_t(shape_3d == 1); // set empty dimensions to 0
+
+            // Set empty dimensions to 0. If layered, leave extent.depth to the batch value.
+            if (!is_layered)
+                shape_3d[0] -= shape_3d[0] == 1;
+            shape_3d[1] -= shape_3d[1] == 1;
             return {shape_3d[2], shape_3d[1], shape_3d[0]};
         }
 

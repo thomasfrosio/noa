@@ -1,7 +1,6 @@
 #include <cuda_runtime_api.h>
-
-#include <noa/cpu/memory/PtrHost.h>
 #include <noa/gpu/cuda/memory/PtrArray.h>
+#include <noa/gpu/cuda/memory/Copy.h>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
@@ -39,4 +38,23 @@ TEMPLATE_TEST_CASE("cuda::memory::PtrArray", "[noa][cuda][memory]", int32_t, uin
         REQUIRE_FALSE(ptr1);
         ptr1.release();
     }
+}
+
+TEMPLATE_TEST_CASE("cuda::memory::PtrArray, layered", "[noa][cuda][memory]", int32_t, uint32_t, float, cfloat_t) {
+    dim4_t shape{2, 1, 128, 128};
+
+    std::vector<TestType> vector0;
+    vector0.reserve(shape.elements());
+    for (size_t i = 0; i < vector0.size(); ++i)
+        vector0.emplace_back(static_cast<TestType>(i));
+
+    cuda::Stream stream;
+    cuda::memory::PtrArray<TestType> array(shape, cudaArrayLayered);
+    cuda::memory::copy(vector0.data(), shape.strides(), array.get(), shape, stream);
+
+    std::vector<TestType> vector1(vector0.size());
+    cuda::memory::copy(array.get(), vector0.data(), shape.strides(), shape, stream);
+    stream.synchronize();
+
+    REQUIRE(test::Matcher(test::MATCH_ABS, vector0.data(), vector1.data(), vector0.size(), 1e-7));
 }

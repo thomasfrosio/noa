@@ -31,7 +31,7 @@ namespace noa::cpu::geometry::fft {
              typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, Value, Matrix, Shift>>>
     void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     const Matrix& matrices, const Shift& shifts,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream);
 
     // Rotates/scales a non-redundant 3D (batched) FFT.
@@ -39,7 +39,7 @@ namespace noa::cpu::geometry::fft {
              typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, Value, Matrix, Shift>>>
     void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     const Matrix& matrices, const Shift& shifts,
+                     const Matrix& inv_matrices, const Shift& shifts,
                      float cutoff, InterpMode interp_mode, Stream& stream);
 }
 
@@ -52,7 +52,7 @@ namespace noa::cpu::geometry::fft {
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     float22_t matrix, const Symmetry& symmetry, float2_t shift,
+                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
@@ -61,7 +61,7 @@ namespace noa::cpu::geometry::fft {
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     float33_t matrix, const Symmetry& symmetry, float3_t shift,
+                     float33_t inv_matrix, const Symmetry& symmetry, float3_t shift,
                      float cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Symmetrizes a non-redundant 2D (batched) FFT.

@@ -2,36 +2,22 @@
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Interpolator.h"
 #include "noa/common/geometry/details/FourierProjections.h"
+
 #include "noa/cpu/geometry/fft/Project.h"
 #include "noa/cpu/utils/Iwise.h"
 
 namespace {
     using namespace ::noa;
 
-    template<typename T>
-    auto matrixOrRawConstPtr_(const T& v) {
-        if constexpr (traits::is_floatXX_v<T>) {
-            return T(v);
-        } else {
-            using clean_t = traits::remove_ref_cv_t<T>;
-            using raw_const_ptr_t = const traits::element_type_t<clean_t>*;
-            return static_cast<raw_const_ptr_t>(v.get());
-        }
-    }
-
-    template<typename MatrixWrapper, typename MatrixValue, typename Int>
-    auto inverseMatrices_(MatrixWrapper matrices, Int count,
-                          std::unique_ptr<MatrixValue[]>& buffer) {
+    template<bool ALLOW_NULL, typename MatrixWrapper>
+    auto matrixOrRawConstPtr_(const MatrixWrapper& matrix) {
         if constexpr (traits::is_floatXX_v<MatrixWrapper>) {
-            return math::inverse(matrices);
+            return MatrixWrapper(matrix);
         } else {
-            if (!matrices)
-                count = 0;
-            const auto u_count = static_cast<size_t>(count);
-            buffer = std::make_unique<MatrixValue[]>(u_count);
-            for (size_t i = 0; i < u_count; ++i)
-                buffer[i] = math::inverse(matrices[i]);
-            return matrixOrRawConstPtr_(buffer);
+            using clean_t = traits::remove_ref_cv_t<MatrixWrapper>;
+            using raw_const_ptr_t = const traits::element_type_t<clean_t>*;
+            NOA_ASSERT(ALLOW_NULL || matrix.get());
+            return static_cast<raw_const_ptr_t>(matrix.get());
         }
     }
 }
@@ -52,30 +38,18 @@ namespace noa::cpu::geometry::fft {
             const auto grid_accessor = AccessorRestrict<Value, 3, dim_t>(grid.get(), grid_strides_3d);
             const auto iwise_shape = long3_t{slice_shape[0], slice_shape[2], slice_shape[3]}.fft();
 
-            const auto inv_scaling_matrices_ = matrixOrRawConstPtr_(inv_scaling_matrices);
-            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_(fwd_rotation_matrices);
+            const auto inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(inv_scaling_matrices);
+            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(fwd_rotation_matrices);
 
             const auto apply_ews = any(ews_radius != 0);
             const bool apply_scale = inv_scaling_matrices != Scale{};
 
             using namespace noa::geometry::fft::details;
-            if (apply_ews && apply_scale) {
+            if (apply_ews || apply_scale) {
                 const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
                         slice_accessor, slice_shape, grid_accessor, grid_shape,
                         inv_scaling_matrices_, fwd_rotation_matrices_,
                         cutoff, target_shape, ews_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_ews) {
-                const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
-                        slice_accessor, slice_shape, grid_accessor, grid_shape,
-                        empty_t{}, fwd_rotation_matrices_,
-                        cutoff, target_shape, ews_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_scale) {
-                const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
-                        slice_accessor, slice_shape, grid_accessor, grid_shape,
-                        inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape, empty_t{});
                 utils::iwise3D(iwise_shape, functor, threads);
             } else {
                 const auto functor = fourierInsertionByGridding<REMAP, int64_t>(
@@ -90,14 +64,13 @@ namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
     void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
                   const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius,
                   float slice_z_radius, Stream& stream) {
 
         const auto slice_shape_2d = safe_cast<long2_t>(dim2_t{slice_shape.get(2)});
         const dim3_t slice_strides_3d{slice_strides[0], slice_strides[2], slice_strides[3]};
         const dim3_t grid_strides_3d{grid_strides[1], grid_strides[2], grid_strides[3]};
-        const dim_t slice_count = slice_shape[0];
         const dim_t threads = stream.threads();
 
         stream.enqueue([=]() {
@@ -108,38 +81,22 @@ namespace noa::cpu::geometry::fft {
                     slice_accessor, slice_shape_2d.fft(), Value{0});
 
             const auto apply_ews = any(ews_radius != 0);
-            const bool apply_scale = inv_scaling_matrices != Scale{};
+            const bool apply_scale = fwd_scaling_matrices != Scale{};
 
-            std::unique_ptr<float22_t[]> fwd_scaling_matrices_buffer;
-            std::unique_ptr<float33_t[]> inv_rotation_matrices_buffer;
-            const auto fwd_scaling_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr_(inv_scaling_matrices), slice_count, fwd_scaling_matrices_buffer);
-            const auto inv_rotation_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr_(fwd_rotation_matrices), slice_count, inv_rotation_matrices_buffer);
+            const auto fwd_scaling_matrices_ = matrixOrRawConstPtr_<false>(fwd_scaling_matrices);
+            const auto inv_rotation_matrices_ = matrixOrRawConstPtr_<true>(inv_rotation_matrices);
 
             using namespace noa::geometry::fft::details;
-            if (apply_ews && apply_scale) {
+            if (apply_ews || apply_scale) {
                 const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
                         slice_interpolator, slice_shape, grid_accessor, grid_shape,
-                        fwd_scaling_matrices, inv_rotation_matrices,
+                        fwd_scaling_matrices_, inv_rotation_matrices_,
                         cutoff, target_shape, ews_radius, slice_z_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_ews) {
-                const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
-                        slice_interpolator, slice_shape, grid_accessor, grid_shape,
-                        empty_t{}, inv_rotation_matrices,
-                        cutoff, target_shape, ews_radius, slice_z_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_scale) {
-                const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
-                        slice_interpolator, slice_shape, grid_accessor, grid_shape,
-                        fwd_scaling_matrices, inv_rotation_matrices,
-                        cutoff, target_shape, empty_t{}, slice_z_radius);
                 utils::iwise3D(iwise_shape, functor, threads);
             } else {
                 const auto functor = fourierInsertionExplicitThickness<REMAP, int64_t>(
                         slice_interpolator, slice_shape, grid_accessor, grid_shape,
-                        empty_t{}, inv_rotation_matrices,
+                        empty_t{}, inv_rotation_matrices_,
                         cutoff, target_shape, empty_t{}, slice_z_radius);
                 utils::iwise3D(iwise_shape, functor, threads);
             }
@@ -165,30 +122,18 @@ namespace noa::cpu::geometry::fft {
             const auto grid_interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(
                     grid_accessor, grid_shape_3d.fft(), Value{0});
 
-            const auto inv_scaling_matrices_ = matrixOrRawConstPtr_(inv_scaling_matrices);
-            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_(fwd_rotation_matrices);
+            const auto inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(inv_scaling_matrices);
+            const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(fwd_rotation_matrices);
 
             const auto apply_ews = any(ews_radius != 0);
             const bool apply_scale = inv_scaling_matrices != Scale{};
 
             using namespace noa::geometry::fft::details;
-            if (apply_ews && apply_scale) {
+            if (apply_ews || apply_scale) {
                 const auto functor = fourierExtraction<REMAP, int64_t>(
                         grid_interpolator, grid_shape, slice_accessor, slice_shape,
                         inv_scaling_matrices_, fwd_rotation_matrices_,
                         cutoff, target_shape, ews_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_ews) {
-                const auto functor = fourierExtraction<REMAP, int64_t>(
-                        grid_interpolator, grid_shape, slice_accessor, slice_shape,
-                        empty_t{}, fwd_rotation_matrices_,
-                        cutoff, target_shape, ews_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_scale) {
-                const auto functor = fourierExtraction<REMAP, int64_t>(
-                        grid_interpolator, grid_shape, slice_accessor, slice_shape,
-                        inv_scaling_matrices_, fwd_rotation_matrices_,
-                        cutoff, target_shape, empty_t{});
                 utils::iwise3D(iwise_shape, functor, threads);
             } else {
                 const auto functor = fourierExtraction<REMAP, int64_t>(
@@ -203,13 +148,14 @@ namespace noa::cpu::geometry::fft {
     template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1, typename>
     void extract3D(const shared_t<Value[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
                    const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                   const Scale0& insert_inv_scaling_matrices, const Rotate0& insert_fwd_rotation_matrices,
+                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
                    const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
                    float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
 
         const dim3_t input_slice_strides_2d{input_slice_strides[0], input_slice_strides[2], input_slice_strides[3]};
         const dim3_t output_slice_strides_2d{output_slice_strides[0], output_slice_strides[2], output_slice_strides[3]};
-        const auto iwise_shape = safe_cast<long3_t>(dim3_t(output_slice_shape.get(1))).fft();
+        const dim3_t output_slice_shape_2d{output_slice_shape[0], output_slice_shape[2], output_slice_shape[3]};
+        const auto iwise_shape = safe_cast<long3_t>(output_slice_shape_2d).fft();
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() {
@@ -219,51 +165,28 @@ namespace noa::cpu::geometry::fft {
                     input_slice_accessor, safe_cast<long2_t>(dim2_t(input_slice_shape.get(2))).fft(), Value{0});
 
             const auto apply_ews = any(ews_radius != 0);
-            const bool apply_scale = insert_inv_scaling_matrices != Scale0{};
+            const bool apply_scale = insert_fwd_scaling_matrices != Scale0{};
 
             // The transformation for the insertion needs to be inverted.
-            std::unique_ptr<float22_t[]> insert_fwd_scaling_matrices_buffer;
-            std::unique_ptr<float33_t[]> insert_inv_rotation_matrices_buffer;
-            const auto insert_fwd_scaling_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr_(insert_inv_scaling_matrices),
-                    input_slice_shape[0], insert_fwd_scaling_matrices_buffer);
-            const auto insert_inv_rotation_matrices = inverseMatrices_(
-                    matrixOrRawConstPtr_(insert_fwd_rotation_matrices),
-                    input_slice_shape[0], insert_inv_rotation_matrices_buffer);
-
-            const auto extract_inv_scaling_matrices_ = matrixOrRawConstPtr_(extract_inv_scaling_matrices);
-            const auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtr_(extract_fwd_rotation_matrices);
+            const auto insert_fwd_scaling_matrices_ = matrixOrRawConstPtr_<false>(insert_fwd_scaling_matrices);
+            const auto insert_inv_rotation_matrices_ = matrixOrRawConstPtr_<true>(insert_inv_rotation_matrices);
+            const auto extract_inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(extract_inv_scaling_matrices);
+            const auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(extract_fwd_rotation_matrices);
 
             using namespace noa::geometry::fft::details;
-            if (apply_ews && apply_scale) {
+            if (apply_ews || apply_scale) {
                 const auto functor = fourierInsertExtraction<REMAP, int64_t>(
                         input_slice_interpolator, input_slice_shape,
                         output_slice_accessor, output_slice_shape,
-                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                        insert_fwd_scaling_matrices_, insert_inv_rotation_matrices_,
                         extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
                         cutoff, ews_radius, slice_z_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_ews) {
-                const auto functor = fourierInsertExtraction<REMAP, int64_t>(
-                        input_slice_interpolator, input_slice_shape,
-                        output_slice_accessor, output_slice_shape,
-                        empty_t{}, insert_inv_rotation_matrices,
-                        extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                        cutoff, ews_radius, slice_z_radius);
-                utils::iwise3D(iwise_shape, functor, threads);
-            } else if (apply_scale) {
-                const auto functor = fourierInsertExtraction<REMAP, int64_t>(
-                        input_slice_interpolator, input_slice_shape,
-                        output_slice_accessor, output_slice_shape,
-                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                        extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                        cutoff, empty_t{}, slice_z_radius);
                 utils::iwise3D(iwise_shape, functor, threads);
             } else {
                 const auto functor = fourierInsertExtraction<REMAP, int64_t>(
                         input_slice_interpolator, input_slice_shape,
                         output_slice_accessor, output_slice_shape,
-                        empty_t{}, insert_inv_rotation_matrices,
+                        empty_t{}, insert_inv_rotation_matrices_,
                         extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
                         cutoff, empty_t{}, slice_z_radius);
                 utils::iwise3D(iwise_shape, functor, threads);

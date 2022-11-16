@@ -78,6 +78,11 @@ namespace noa {
         /// \note If \p device_target is a CPU, no computation is performed (other the the optional pre-filtering)
         ///       and the texture simply points to \p array. Limitations:\n
         ///         - \p array should be on the CPU.\n
+        ///
+        /// \warning For GPU textures, \p array can be on any device, effectively allowing to create a GPU texture
+        ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
+        ///          respected (by possible synchronizing the current stream of the \p array device), the caller
+        ///          should not modify the underlying values of \p array until the texture is created. See eval().
         Texture(const Array<value_type>& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
                 value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true);
 
@@ -129,6 +134,10 @@ namespace noa {
         template<char ORDER = 'C'>
         [[nodiscard]] bool contiguous() const noexcept;
 
+        /// Synchronizes the current stream of the Texture's device.
+        /// \details It guarantees safe access to the underlying data and indicates no operations are pending.
+        const Texture& eval() const;
+
         /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] cpu::Texture<value_type>& cpu();
@@ -166,6 +175,11 @@ namespace noa {
         ///         - \p array can be on any device, including the CPU.\n
         /// \note With CPU textures, no computation is performed (other than the optional pre-filtering)
         ///       and the texture pointer is simply updated to point to \p array, which should be a CPU array.
+        ///
+        /// \warning For GPU textures, \p array can be on any device, effectively allowing to update a GPU texture
+        ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
+        ///          respected (by possible synchronizing the current stream of the \p array device), the caller
+        ///          should not modify the underlying values of \p array until the texture is updated. See eval().
         void update(const Array<value_type>& array, bool prefilter = true);
 
     private:

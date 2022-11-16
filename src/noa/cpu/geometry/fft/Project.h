@@ -53,7 +53,7 @@ namespace noa::cpu::geometry::fft {
              typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
     void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
                   const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius, float slice_z_radius, Stream& stream);
 
     // Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
@@ -70,7 +70,7 @@ namespace noa::cpu::geometry::fft {
                      REMAP, Value, Scale0, Scale1, Rotate0, Rotate1>>>
     void extract3D(const shared_t<Value[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
                    const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                   const Scale0& insert_inv_scaling_matrices, const Rotate0& insert_fwd_rotation_matrices,
+                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
                    const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
                    float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream);
 

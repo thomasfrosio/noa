@@ -64,18 +64,15 @@ namespace noa::geometry::fft {
     ///                                 before the rotation. If an array is passed, it can be empty or have
     ///                                 one matrix per slice. Otherwise the same scaling matrix is applied
     ///                                 to every slice.
-    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices.
+    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices to apply to the slices.
     ///                                 If an array is passed, it should have one matrix per slice.
     ///                                 Otherwise the same rotation matrix is applied to every slice.
     /// \param cutoff                   Frequency cutoff in \p grid, in cycle/pix.
-    ///                                 Values are clamped from 0 (DC) to 0.5 (Nyquist).
     /// \param target_shape             Actual BDHW logical shape of the 3D volume.
     /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                 If negative, the negative curve is computed.
     ///                                 If {0,0}, the slices are projections.
     ///
-    /// \note If \p grid is on the GPU, \p inv_scaling_matrix and \p fwd_rotation_matrix can be on any device,
-    ///       including the CPU. If \p grid is on the CPU, they should be dereferenceable by the CPU.
     /// \note This function normalizes the slice and grid dimensions, and works with normalized frequencies,
     ///       from -0.5 to 0.5 cycle/pix. By default (empty \p target_shape or \p target_shape == \p grid_shape),
     ///       the slice frequencies are mapped into the grid frequencies. If the grid is larger than the slices,
@@ -106,14 +103,14 @@ namespace noa::geometry::fft {
                   float2_t ews_radius = {});
 
     /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using bi-linear interpolation and sinc-weighting.
-    /// \details The transformation parameters are identical to the overload above. However, this function computes
-    ///          the inverse transformation internally, effectively transforming the 3D grid onto the input slice(s).
-    ///          Briefly, for each input slice, each voxel is assigned to a transformed frequency (w,v,u) corresponding
-    ///          to the reference frame of the current slice to insert. 1) Given the frequency w, which is the distance
-    ///          of the voxel along the normal of the slice, and \p slice_z_radius, it computes a sinc-weight from
-    ///          1 (on the slice) to 0 (outside the slice). 2) Then, if the slice does contribute to the voxel,
-    ///          i.e. the sinc-weight is non-zero, a bi-linear interpolation is done using the (v,u) frequency
-    ///          component of the voxel. The interpolated value is then sinc-weighted and added to the voxel.
+    /// \details This function computes the inverse transformation compared to the overload above using rasterization,
+    ///          effectively transforming the 3D grid onto the input slice(s). Briefly, for each input slice, each
+    ///          voxel is assigned to a transformed frequency (w,v,u) corresponding to the reference frame of the
+    ///          current slice to insert. 1) Given the frequency w, which is the distance of the voxel along the
+    ///          normal of the slice, and \p slice_z_radius, it computes a sinc-weight from 1 (on the slice) to 0
+    ///          (outside the slice). 2) Then, if the slice does contribute to the voxel, i.e. the sinc-weight is
+    ///          non-zero, a bi-linear interpolation is done using the (v,u) frequency component of the voxel.
+    ///          The interpolated value is then sinc-weighted and added to the voxel.
     ///
     /// \tparam REMAP                   Remapping from the slice to the grid layout.
     ///                                 Should be HC2H or HC2HC.
@@ -124,56 +121,47 @@ namespace noa::geometry::fft {
     /// \param slice_shape              BDHW logical shape of \p slice.
     /// \param[out] grid                Non-redundant 3D grid inside which the slices are inserted.
     /// \param grid_shape               BDHW logical shape of \p grid.
-    /// \param[in] inv_scaling_matrix   2x2 HW \e inverse real-space scaling matrix to apply to the slices
+    /// \param[in] fwd_scaling_matrix   2x2 HW \e forward real-space scaling matrix to apply to the slices
     ///                                 before the rotation. If an array is passed, it can be empty or have
     ///                                 one matrix per slice. Otherwise the same scaling matrix is applied
     ///                                 to every slice.
-    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices.
+    /// \param[in] inv_rotation_matrix  3x3 DHW \e inverse rotation matrices to apply to the slices.
     ///                                 If an array is passed, it should have one matrix per slice.
     ///                                 Otherwise the same rotation matrix is applied to every slice.
     /// \param slice_z_radius           Radius along the normal of the central slices, in cycle/pix.
     ///                                 This is usually from 0.001 to 0.01.
     /// \param cutoff                   Frequency cutoff in \p grid, in cycle/pix.
-    ///                                 Values are clamped from 0 (DC) to 0.5 (Nyquist).
     /// \param target_shape             Actual BDHW logical shape of the 3D volume.
     /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                 If negative, the negative curve is computed.
     ///                                 If {0,0}, the slices are projections.
-    ///
-    /// \note \p inv_scaling_matrix and \p fwd_rotation_matrix should be dereferenceable by the CPU.
-    /// \note The classic interpolator is used for the bi-linear interpolation, which supports GPU textures.
-    ///       To be conservative on the GPU memory, the input is only loaded into a GPU textures if it is on the CPU.
-    ///       If the input slices are already on the GPU and use of GPU textures is desired, create the texture and
-    ///       use the overload below instead. Note that even with textures, this algorithm is (much) slower than the
-    ///       overload above, and the runtime greatly depends on \p grid_shape and \p slice_z_radius.
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
     void insert3D(const Array<Value>& slice, dim4_t slice_shape,
                   const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrix,
-                  const Rotate& fwd_rotation_matrix,
+                  const Scale& fwd_scaling_matrix,
+                  const Rotate& inv_rotation_matrix,
                   float slice_z_radius,
                   float cutoff,
                   dim4_t target_shape = {},
                   float2_t ews_radius = {});
 
     /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using bi-linear interpolation and sinc-weighting.
-    /// \details This function has the same features and limitations as the overload taking arrays.
-    ///          On the GPU, \p slice should be a layered textures using INTERP_LINEAR or INTERP_LINEAR_FAST.
+    /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
     void insert3D(const Texture<Value>& slice, dim4_t slice_shape,
                   const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrix,
-                  const Rotate& fwd_rotation_matrix,
+                  const Scale& fwd_scaling_matrix,
+                  const Rotate& inv_rotation_matrix,
                   float slice_z_radius,
                   float cutoff,
                   dim4_t target_shape = {},
                   float2_t ews_radius = {});
 
     /// Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
-    /// \details This is the reverse operation of insert3D. The transformation itself is identical to insert3D's,
-    ///          so the same parameters can be used here.
+    /// \details This is the reverse operation of insert3D. The transformation itself is identical to the
+    ///          transformation of insert3D using rasterization, so the same parameters can be used here.
     ///
     /// \tparam REMAP                   Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
     /// \tparam Value                   float, double, cfloat_t, cdouble_t.
@@ -186,19 +174,14 @@ namespace noa::geometry::fft {
     /// \param[in] inv_scaling_matrix   2x2 HW \e inverse real-space scaling to apply to the slices before the rotation.
     ///                                 If an array is passed, it can be empty or have one matrix per slice.
     ///                                 Otherwise the same scaling matrix is applied to every slice.
-    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices.
+    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices to apply to the slices.
     ///                                 If an array is passed, it should have one matrix per slice.
     ///                                 Otherwise the same rotation matrix is applied to every slice.
     /// \param cutoff                   Frequency cutoff in \p grid, in cycle/pix.
-    ///                                 Values are clamped from 0 (DC) to 0.5 (Nyquist).
     /// \param target_shape             Actual BDHW logical shape of the 3D volume.
     /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                 If negative, the negative curve is computed.
     ///                                 If {0,0}, the slices are projections.
-    ///
-    /// \note If \p slice is on the CPU, \p inv_scaling_matrix and \p fwd_rotation_matrix
-    ///       should be dereferenceable by the CPU. If \p slice is on the GPU, they can
-    ///       be on any device, including the CPU.
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_extract_v<REMAP, Value, Scale, Rotate>>>
     void extract3D(const Array<Value>& grid, dim4_t grid_shape,
@@ -210,8 +193,7 @@ namespace noa::geometry::fft {
                    float2_t ews_radius = {});
 
     /// Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
-    /// \details This function has the same features and limitations as the overload taking arrays.
-    ///          On the GPU, \p grid should be a 3D texture using INTERP_LINEAR or INTERP_LINEAR_FAST.
+    /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_extract_v<REMAP, Value, Scale, Rotate>>>
     void extract3D(const Texture<Value>& grid, dim4_t grid_shape,
@@ -240,11 +222,11 @@ namespace noa::geometry::fft {
     /// \param input_slice_shape                BDHW logical shape of \p input_slice.
     /// \param[out] output_slice                Non-redundant 2D extracted slice(s).
     /// \param output_slice_shape               BDHW logical shape of \p output_slice.
-    /// \param[in] input_inv_scaling_matrix     2x2 HW \e inverse real-space scaling matrix to apply to the input
+    /// \param[in] input_fwd_scaling_matrix     2x2 HW \e forward real-space scaling matrix to apply to the input
     ///                                         slices before the rotation. If an array is passed, it can be empty
     ///                                         or have one matrix per slice. Otherwise the same scaling matrix
     ///                                         is applied to every slice.
-    /// \param[in] input_fwd_rotation_matrix    3x3 DHW \e forward rotation matrices to apply to the input slices.
+    /// \param[in] input_inv_rotation_matrix    3x3 DHW \e inverse rotation matrices to apply to the input slices.
     ///                                         If an array is passed, it should have one matrix per slice.
     ///                                         Otherwise the same rotation matrix is applied to every slice.
     /// \param[in] output_inv_scaling_matrix    2x2 HW \e inverse real-space scaling matrix to apply to the output
@@ -257,38 +239,28 @@ namespace noa::geometry::fft {
     /// \param slice_z_radius                   Radius along the normal of the central slices, in cycle/pix.
     ///                                         This is usually from 0.001 to 0.01.
     /// \param cutoff                           Frequency cutoff of the virtual 3D Fourier volume, in cycle/pix.
-    ///                                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
     /// \param ews_radius                       HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                         If negative, the negative curve is computed.
     ///                                         If {0,0}, the slices are projections.
-    /// \note \p input_inv_scaling_matrix and \p input_fwd_rotation_matrix should be dereferenceable by the CPU.
-    /// \note If \p output_slice is on the CPU:
-    ///         - \p inv_scaling_matrix and \p fwd_rotation_matrix should be dereferenceable by the CPU.
-    ///       If \p output_slice is on the GPU:
-    ///         - \p input_slice should be on the same GPU or on the CPU. If it is on the CPU, it is loaded to
-    ///           temporary texture. If it is already on the GPU, it is used as is. If the use of texture is
-    ///           preferred, use the overload above.
-    ///         - \p inv_scaling_matrix and \p fwd_rotation_matrix can be on any device, including the CPU.
     template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
                      REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
     void extract3D(const Array<Value>& input_slice, dim4_t input_slice_shape,
                    const Array<Value>& output_slice, dim4_t output_slice_shape,
-                   const Scale0& input_inv_scaling_matrix, const Rotate0& input_fwd_rotation_matrix,
+                   const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
                    const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
                    float slice_z_radius,
                    float cutoff = 0.5f,
                    float2_t ews_radius = {});
 
     /// Extracts 2D Fourier slice(s) from a virtual volume filled by other slices, using linear interpolation.
-    /// \details This function has the same features and limitations as the overload taking arrays.
-    ///          On the GPU, \p input_slice should be a layered 2D texture using INTERP_LINEAR or INTERP_LINEAR_FAST.
+    /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
     template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
                     REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
     void extract3D(const Texture<Value>& input_slice, dim4_t input_slice_shape,
                    const Array<Value>& output_slice, dim4_t output_slice_shape,
-                   const Scale0& input_inv_scaling_matrix, const Rotate0& input_fwd_rotation_matrix,
+                   const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
                    const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
                    float slice_z_radius,
                    float cutoff = 0.5f,
