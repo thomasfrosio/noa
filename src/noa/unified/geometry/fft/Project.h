@@ -205,12 +205,11 @@ namespace noa::geometry::fft {
                    float2_t ews_radius = {});
 
     /// Extracts 2D Fourier slice(s) from a virtual volume filled by other slices, using linear interpolation.
-    /// \details The transformation parameters are identical to the overloads above. This function effectively
-    ///          combines the insertion and the extraction but only renders the frequencies that are going to be
-    ///          used for the extraction. This function is useful if the 3D Fourier volume, where the slices are
-    ///          inserted, is used for extracting slice(s) immediately after the insertion. It is much faster than
-    ///          calling insert3D and extract3D, uses less memory (the 3D Fourier volume is entirely skipped),
-    ///          and skips a layer of interpolation.
+    /// \details This function effectively combines the insertion by interpolation and the extraction, but only
+    ///          renders the frequencies that are going to be used for the extraction. This function is useful if
+    ///          the 3D Fourier volume, where the slices are inserted, is used for extracting slice(s) immediately
+    ///          after the insertion. It is much faster than calling insert3D and extract3D, uses less memory
+    ///          (the 3D Fourier volume is entirely skipped), and skips a layer of interpolation.
     ///
     /// \tparam REMAP                           Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
     /// \tparam Value                           float, double, cfloat_t, cdouble_t.
@@ -220,7 +219,7 @@ namespace noa::geometry::fft {
     /// \tparam Rotate1                         Array<float33_t> or float33_t.
     /// \param[in] input_slice                  Non-redundant 2D slice(s) to insert.
     /// \param input_slice_shape                BDHW logical shape of \p input_slice.
-    /// \param[out] output_slice                Non-redundant 2D extracted slice(s).
+    /// \param[out] output_slice                Non-redundant 2D extracted slice(s). See warning below.
     /// \param output_slice_shape               BDHW logical shape of \p output_slice.
     /// \param[in] input_fwd_scaling_matrix     2x2 HW \e forward real-space scaling matrix to apply to the input
     ///                                         slices before the rotation. If an array is passed, it can be empty
@@ -242,6 +241,10 @@ namespace noa::geometry::fft {
     /// \param ews_radius                       HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                         If negative, the negative curve is computed.
     ///                                         If {0,0}, the slices are projections.
+    ///
+    /// \warning This function doesn't set the \p output_slice. Instead, it adds the contribution of \p input_slice
+    ///          onto the signal already present in \p output_slice. This is different from the overload taking a
+    ///          3D grid and allows to still insert slices one at a time.
     template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
                      REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>

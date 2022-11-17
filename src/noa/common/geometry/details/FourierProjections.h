@@ -693,26 +693,26 @@ namespace noa::geometry::fft::details {
                     output_batch, m_ews_diam_inv);
 
             if (math::dot(freq_3d, freq_3d) > m_cutoff) {
-                m_output_slices(output_batch, y, u) = data_type{0};
                 return;
             }
 
             // Then, insert the input slices.
+            data_type value{0};
             for (int64_t i = 0; i < m_input_count; ++i) {
                 auto [freq_z, freq_2d_] = transformGridToSlice(
                         freq_3d, m_insert_fwd_scaling_matrices, m_insert_inv_rotation_matrices, i, m_ews_diam_inv);
 
                 // If voxel is not affected by the slice, skip.
-                data_type value{0};
+                data_type i_value{0};
                 if (freq_z <= m_slice_z_radius && freq_z >= -m_slice_z_radius) {
-                    value = interpolateSliceValue(freq_2d, m_f_input_shape, m_f_input_center_y, m_input_slices, i);
+                    i_value = interpolateSliceValue(freq_2d, m_f_input_shape, m_f_input_center_y, m_input_slices, i);
                     const auto weight = sliceZWeight(freq_z, m_slice_z_radius);
-                    value *= static_cast<real_type>(weight);
+                    i_value *= static_cast<real_type>(weight);
                 }
-
-                // The transformation preserves the hermitian symmetry, so there's nothing else to do.
-                m_output_slices(output_batch, y, u) += value;
+                value += i_value;
             }
+            // The transformation preserves the hermitian symmetry, so there's nothing else to do.
+            m_output_slices(output_batch, y, u) += value;
         }
 
     private:

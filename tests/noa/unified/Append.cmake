@@ -32,7 +32,7 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/geometry/fft/TestUnifiedProject.cpp
 #        noa/unified/geometry/TestUnifiedBackproject.cpp
 #        noa/unified/geometry/TestUnifiedCosineStretch.cpp
-#        noa/unified/geometry/TestUnifiedTransform.cpp
+        noa/unified/geometry/TestUnifiedTransform.cpp
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})

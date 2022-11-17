@@ -377,7 +377,7 @@ TEST_CASE("unified::geometry::fft::extract3D from slices", "[noa][unified]") {
                 output_fwd_rotation_matrices = output_fwd_rotation_matrices.to(device);
 
             Array input_slice_fft = memory::linspace<float>(input_slice_shape.fft(), -50, 50, true, options);
-            Array output_slice_fft = memory::empty<float>(output_slice_shape.fft(), options);
+            Array output_slice_fft = memory::zeros<float>(output_slice_shape.fft(), options);
 
             geometry::fft::extract3D<fft::HC2HC>(
                     input_slice_fft, input_slice_shape,
@@ -429,9 +429,9 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::extract3D from slices, using texture
 
         Array input_slice_fft = memory::linspace<TestType>(input_slice_shape.fft(), -50, 50, true, options);
         Texture<TestType> texture_input_slice_fft(input_slice_fft, device, INTERP_LINEAR, BORDER_ZERO, 0.f, true);
-        Array output_slice_fft0 = memory::empty<TestType>(output_slice_shape.fft(), options);
-        Array output_slice_fft1 = memory::like(output_slice_fft0);
-        Array output_slice_fft2 = memory::like(output_slice_fft0);
+        Array output_slice_fft0 = memory::zeros<TestType>(output_slice_shape.fft(), options);
+        Array output_slice_fft1 = memory::zeros<TestType>(output_slice_shape.fft(), options);
+        Array output_slice_fft2 = memory::like(output_slice_fft1);
 
         geometry::fft::extract3D<fft::HC2HC>(
                 texture_input_slice_fft, input_slice_shape,
