@@ -692,9 +692,8 @@ namespace noa::geometry::fft::details {
                     freq_2d, m_extract_inv_scaling_matrices, m_extract_fwd_rotation_matrices,
                     output_batch, m_ews_diam_inv);
 
-            if (math::dot(freq_3d, freq_3d) > m_cutoff) {
+            if (math::dot(freq_3d, freq_3d) > m_cutoff)
                 return;
-            }
 
             // Then, insert the input slices.
             data_type value{0};
