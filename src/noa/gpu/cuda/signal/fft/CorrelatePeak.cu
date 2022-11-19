@@ -292,7 +292,8 @@ namespace noa::cuda::signal::fft {
 
             const float2_t center(i_shape_2d / 2);
             const float edge_size = static_cast<float>(noa::math::max(i_shape_2d)) * 0.05f;
-            ellipse<REMAP>(xmap, strides, xmap, strides, shape, center, max_radius, edge_size, {}, false, stream);
+            ellipse<REMAP>(xmap, strides, xmap, strides, shape,
+                           center, max_radius, edge_size, float22_t{}, false, stream);
         }
 
         // Find the maximum value.
@@ -360,7 +361,8 @@ namespace noa::cuda::signal::fft {
 
             const float3_t center(i_shape_3d / 2);
             const float edge_size = static_cast<float>(noa::math::max(i_shape_3d)) * 0.05f;
-            ellipse<REMAP>(xmap, strides, xmap, strides, shape, center, max_radius, edge_size, {}, false, stream);
+            ellipse<REMAP>(xmap, strides, xmap, strides, shape,
+                           center, max_radius, edge_size, float33_t{}, false, stream);
         }
 
         // Find the maximum value.

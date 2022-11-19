@@ -31,6 +31,7 @@ namespace noa::cuda::utils {
         return nullptr; // unreachable
     }
     #define NOA_ASSERT_DEVICE_PTR(ptr, device) NOA_ASSERT(::noa::cuda::utils::devicePointer(ptr, device) != nullptr)
+    #define NOA_ASSERT_DEVICE_OR_NULL_PTR(ptr, device) NOA_ASSERT(ptr == nullptr || ::noa::cuda::utils::devicePointer(ptr, device) != nullptr)
 
     // If ptr can be accessed by the host, returns ptr. Otherwise, returns nullptr.
     template<typename T>

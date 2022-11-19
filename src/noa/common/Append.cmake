@@ -48,6 +48,7 @@ set(NOA_COMMON_HEADERS
         common/io/TextFile.inl
         common/io/TIFFFile.h
 
+        common/signal/details/Shape.h
         common/signal/Shape.h
         common/signal/Windows.h
 

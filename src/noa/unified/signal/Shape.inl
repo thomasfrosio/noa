@@ -9,11 +9,24 @@
 #include "noa/gpu/cuda/signal/Shape.h"
 #endif
 
+namespace noa::signal::details {
+    // The backends only accept the truncated affine matrices.
+    template<int32_t NDIM, typename Matrix>
+    constexpr auto squareOrTruncatedMatrix(const Matrix& matrix) noexcept {
+        if constexpr (NDIM == 2 && traits::is_float33_v<Matrix>)
+            return float23_t(matrix);
+        else if constexpr (NDIM == 3 && traits::is_float44_v<Matrix>)
+            return float34_t(matrix);
+        else
+            return matrix;
+    }
+}
+
 namespace noa::signal {
-    template<typename T, typename>
-    void ellipse(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void ellipse(const Array<Value>& input, const Array<Value>& output,
                  float3_t center, float3_t radius, float edge_size,
-                 float33_t inv_transform, bool invert) {
+                 Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
         dim4_t input_strides = input.strides();
@@ -32,23 +45,27 @@ namespace noa::signal {
             cpu::signal::ellipse(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::ellipse(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename>
-    void ellipse(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void ellipse(const Array<Value>& input, const Array<Value>& output,
                  float2_t center, float2_t radius, float edge_size,
-                 float22_t inv_transform, bool invert) {
+                 Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(output.shape()[1] == 1,
                   "This overload doesn't supports 3D arrays. Use the overload for 2D and 3D arrays");
@@ -69,23 +86,27 @@ namespace noa::signal {
             cpu::signal::ellipse(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<2>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::ellipse(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<2>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename>
-    void sphere(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void sphere(const Array<Value>& input, const Array<Value>& output,
                 float3_t center, float radius, float edge_size,
-                float33_t inv_transform, bool invert) {
+                Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
         dim4_t input_strides = input.strides();
@@ -104,23 +125,27 @@ namespace noa::signal {
             cpu::signal::sphere(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::sphere(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename>
-    void sphere(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void sphere(const Array<Value>& input, const Array<Value>& output,
                 float2_t center, float radius, float edge_size,
-                float22_t inv_transform, bool invert) {
+                Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(output.shape()[1] == 1,
                   "This overload doesn't supports 3D arrays. Use the overload for 2D and 3D arrays");
@@ -141,23 +166,27 @@ namespace noa::signal {
             cpu::signal::sphere(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<2>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::sphere(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<2>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename>
-    void rectangle(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void rectangle(const Array<Value>& input, const Array<Value>& output,
                    float3_t center, float3_t radius, float edge_size,
-                   float33_t inv_transform, bool invert) {
+                   Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
         dim4_t input_strides = input.strides();
@@ -176,23 +205,27 @@ namespace noa::signal {
             cpu::signal::rectangle(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::rectangle(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename>
-    void rectangle(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void rectangle(const Array<Value>& input, const Array<Value>& output,
                    float2_t center, float2_t radius, float edge_size,
-                   float22_t inv_transform, bool invert) {
+                   Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(output.shape()[1] == 1,
                   "This overload doesn't supports 3D arrays. Use the overload for 2D and 3D arrays");
@@ -213,23 +246,27 @@ namespace noa::signal {
             cpu::signal::rectangle(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<2>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::rectangle(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, edge_size,
+                    details::squareOrTruncatedMatrix<2>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<typename T, typename>
-    void cylinder(const Array<T>& input, const Array<T>& output,
+    template<typename Value, typename Matrix, typename>
+    void cylinder(const Array<Value>& input, const Array<Value>& output,
                   float3_t center, float radius, float length, float edge_size,
-                  float33_t inv_transform, bool invert) {
+                  Matrix inv_matrix, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         const bool is_empty = input.empty();
         dim4_t input_strides = input.strides();
@@ -248,13 +285,17 @@ namespace noa::signal {
             cpu::signal::cylinder(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, length, edge_size, inv_transform, invert, stream.cpu());
+                    center, radius, length, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::cylinder(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, length, edge_size, inv_transform, invert, stream.cuda());
+                    center, radius, length, edge_size,
+                    details::squareOrTruncatedMatrix<3>(inv_matrix),
+                    invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
