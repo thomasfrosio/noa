@@ -43,6 +43,7 @@ namespace noa {
     class Mat22 {
     public: // Type definitions
         using value_type = T;
+        using row_type = Float2<value_type>;
 
     public: // Component accesses
         static constexpr size_t ROWS = 2;

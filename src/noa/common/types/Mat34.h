@@ -34,6 +34,7 @@ namespace noa {
     class Mat34 {
     public: // Type definitions
         using value_type = T;
+        using row_type = Float4<value_type>;
 
     public: // Component accesses
         static constexpr size_t ROWS = 3;

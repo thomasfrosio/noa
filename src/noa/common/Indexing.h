@@ -358,43 +358,53 @@ namespace noa::indexing {
     }
 
     /// Reorder (i.e. sort) \p v according to the indexes in \p order.
-    template<typename T, typename U, typename std::enable_if_t<traits::is_int4_v<T> || traits::is_float4_v<T>, bool> = true>
-    NOA_FHD T reorder(T v, const Int4<U>& order) {
+    template<typename Vector, typename Int,
+             typename std::enable_if_t<traits::is_int4_v<Vector> || traits::is_float4_v<Vector>, bool> = true>
+    NOA_FHD Vector reorder(Vector v, const Int4<Int>& order) {
         return {v[order[0]], v[order[1]], v[order[2]], v[order[3]]};
     }
-    template<typename T, typename U, typename std::enable_if_t<traits::is_int3_v<T> || traits::is_float3_v<T>, bool> = true>
-    NOA_FHD T reorder(T v, const Int3<U>& order) {
+    template<typename Vector, typename Int,
+             typename std::enable_if_t<traits::is_int3_v<Vector> || traits::is_float3_v<Vector>, bool> = true>
+    NOA_FHD Vector reorder(Vector v, const Int3<Int>& order) {
         return {v[order[0]], v[order[1]], v[order[2]]};
     }
-    template<typename T, typename U, typename std::enable_if_t<traits::is_int2_v<T> || traits::is_float2_v<T>, bool> = true>
-    NOA_FHD T reorder(T v, const Int2<U>& order) {
+    template<typename Vector, typename Int,
+             typename std::enable_if_t<traits::is_int2_v<Vector> || traits::is_float2_v<Vector>, bool> = true>
+    NOA_FHD Vector reorder(Vector v, const Int2<Int>& order) {
         return {v[order[0]], v[order[1]]};
     }
 
-    /// Reorder (i.e. sort) \p mat according to the indexes in \p order.
-    /// The columns are reordered, and then the rows. Only square matrices are currently supported.
-    template<typename mat_t, typename vec_t,
+    /// Returns the reordered matrix according to the indexes in \p order.
+    /// The columns are reordered, and then the rows. This can be useful to swap the axes of a matrix.
+    /// \param[in] matrix   Square and (truncated) affine matrix to reorder.
+    /// \param[in] order    Order of indexes. Should have the same number of elements as the matrices are rows.
+    template<typename Matrix, typename Vector,
              typename std::enable_if_t<
-                     traits::is_matXX_v<mat_t> && traits::is_intX_v<vec_t> &&
-                     mat_t::ROWS == vec_t::COUNT, bool> = true>
-    NOA_FHD mat_t reorder(const mat_t& mat, const vec_t& order) {
-        mat_t out;
-        for (size_t i = 0; i < vec_t::COUNT; ++i)
-            out[order[i]] = reorder(mat[i], order);
-        return out;
+                    traits::is_matXX_v<Matrix> && traits::is_intX_v<Vector> &&
+                    Matrix::ROWS == Vector::COUNT, bool> = true>
+    NOA_FHD Matrix reorder(const Matrix& matrix, const Vector& order) {
+        Matrix reordered_matrix;
+        for (size_t row = 0; row < Matrix::ROWS; ++row) {
+            using row_t = typename Matrix::row_type;
+            row_t reordered_row;
+            for (size_t column = 0; column < Vector::COUNT; ++column)
+                reordered_row[column] = matrix[row][order[column]];
+            reordered_matrix[order[row]] = reordered_row;
+        }
+        return reordered_matrix;
     }
 
     /// (Circular) shifts \p v by a given amount.
     /// If \p shift is positive, shifts to the right, otherwise, shifts to the left.
-    template<typename T>
-    NOA_FHD Int4<T> shift(const Int4<T>& v, int shift) {
-        Int4 <T> out;
+    template<typename Int>
+    NOA_FHD Int4<Int> shift(const Int4<Int>& vector, int32_t shift) {
+        Int4<Int> out;
         const bool right = shift >= 0;
         if (shift < 0)
             shift *= -1;
-        for (int i = 0; i < 4; ++i) {
-            const int idx = (i + shift) % 4;
-            out[idx * right + (1 - right) * i] = v[i * right + (1 - right) * idx];
+        for (int32_t i = 0; i < 4; ++i) {
+            const int32_t idx = (i + shift) % 4;
+            out[idx * right + (1 - right) * i] = vector[i * right + (1 - right) * idx];
         }
         return out;
     }

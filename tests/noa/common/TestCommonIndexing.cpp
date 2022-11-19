@@ -439,6 +439,22 @@ TEMPLATE_TEST_CASE("common: reorder matrices", "[noa][common]", uint32_t, int32_
         REQUIRE(expected[1] == result[0]);
     }
 
+    SECTION("2D affine") {
+        double23_t matrix;
+        for (dim_t i = 0; i < 2; ++i)
+            for (dim_t j = 0; j < 2; ++j)
+                matrix[i][j] = randomizer.get();
+
+        double3_t vector{randomizer.get(), randomizer.get(), 1};
+        double2_t expected = matrix * vector;
+
+        vector = indexing::reorder(vector, Int3<TestType>{1, 0, 2});
+        matrix = indexing::reorder(matrix, Int2<TestType>{1, 0});
+        double2_t result = matrix * vector;
+        REQUIRE(expected[0] == result[1]);
+        REQUIRE(expected[1] == result[0]);
+    }
+
     SECTION("3D") {
         double33_t matrix;
         for (dim_t i = 0; i < 3; ++i)
