@@ -34,6 +34,19 @@ __Performance__: The library tries to find the fastest way to iterate through ar
 of the inputs and/or outputs. However, it is not always possible. In these cases, the rightmost order is always assumed.
 As such, whenever possible, it is often much simpler to use rightmost arrays.
 
+## `Broadcasting`
+
+Empty dimensions (dimensions with a size of 1) can be broadcast to any size. When broadcasting is supported, the
+library will automatically try to broadcast the input array(s) onto the output shape. If the shapes aren't compatible,
+even after broadcasting, an error is thrown. Arrays can also be explicitly broadcast using `indexing::broadcast()`.
+
+Broadcasting is implemented by setting the stride to 0, effectively saying that the same element is repeated along 
+that dimension. Broadcasting arrays used in read-only contexts is always valid but not always allowed. When 
+broadcasting isn't allowed, an error is thrown if the arrays' shapes aren't compatible. However, **broadcasting arrays
+can generate a data-race if values are written along the broadcast dimension**. This is because with a stride of 0,
+multiple indexes can now refer to the same memory location. Except when explicitly documented otherwise,
+**there are no guarantees on the order of execution in element-wise or index-wise operations**.
+
 ## `Complex numbers`
 
 The library never uses `std::complex`. Instead, it includes its own `Complex<T>` template type that can be used
