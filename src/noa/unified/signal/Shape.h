@@ -36,6 +36,7 @@ namespace noa::signal {
     /// Returns or applies an 2D elliptical mask.
     /// \tparam Value       float, double, cfloat_t, cdouble_t.
     /// \tparam Matrix      float22_t, float23_t, float33_t.
+    /// \tparam Functor     math::multiply_t, math::plus_t.
     /// \param[in] input    2D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
     /// \param center       HW center of the ellipse.
@@ -54,6 +55,7 @@ namespace noa::signal {
     /// Returns or applies a spherical mask.
     /// \tparam Value       float, double, cfloat_t, cdouble_t.
     /// \tparam Matrix      float33_t, float34_t, float44_t.
+    /// \tparam Functor     math::multiply_t, math::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
     /// \param center       DHW center of the sphere.
@@ -72,6 +74,7 @@ namespace noa::signal {
     /// Returns or applies a 2D spherical mask.
     /// \tparam Value       float, double, cfloat_t, cdouble_t.
     /// \tparam Matrix      float22_t, float23_t, float33_t.
+    /// \tparam Functor     math::multiply_t, math::plus_t.
     /// \param[in] input    2D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
     /// \param center       HW center of the sphere.
@@ -90,6 +93,7 @@ namespace noa::signal {
     /// Returns or applies a rectangular mask.
     /// \tparam Value       float, double, cfloat_t, cdouble_t.
     /// \tparam Matrix      float33_t, float34_t, float44_t.
+    /// \tparam Functor     math::multiply_t, math::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
     /// \param center       DHW center of the rectangle.
@@ -108,6 +112,7 @@ namespace noa::signal {
     /// Returns or applies a 2D rectangular mask.
     /// \tparam Value       float, double, cfloat_t, cdouble_t.
     /// \tparam Matrix      float22_t, float23_t, float33_t.
+    /// \tparam Functor     math::multiply_t, math::plus_t.
     /// \param[in] input    2D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
     /// \param center       HW center of the rectangle.
@@ -126,6 +131,7 @@ namespace noa::signal {
     /// Returns or applies a cylindrical mask.
     /// \tparam Value       float, double, cfloat_t, cdouble_t.
     /// \tparam Matrix      float33_t, float34_t, float44_t.
+    /// \tparam Functor     math::multiply_t, math::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
     /// \param center       DHW center of the cylinder, in \p T elements.
