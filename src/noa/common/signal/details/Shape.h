@@ -63,7 +63,7 @@ namespace noa::signal::fft::details {
 
     template<Remap REMAP, typename Index, typename Coord,
              typename GeomShape, typename MatrixOrEmpty,
-             typename Value,  typename Offset>
+             typename Functor, typename Value, typename Offset>
     class Shape3D {
     public:
         using Layout = ::noa::fft::Layout;
@@ -80,6 +80,7 @@ namespace noa::signal::fft::details {
         using offset_type = Offset;
         using geom_shape_type = GeomShape;
         using matrix_or_empty_type = MatrixOrEmpty;
+        using functor_type = Functor;
         using input_accessor_type = Accessor<const Value, 4, offset_type>;
         using output_accessor_type = Accessor<Value, 4, offset_type>;
         using index4_type = Int4<index_type>;
@@ -87,15 +88,17 @@ namespace noa::signal::fft::details {
         using coord3_type = Float3<coord_type>;
 
     public:
-        Shape3D(input_accessor_type input,
-                output_accessor_type output,
-                index4_type shape,
-                geom_shape_type geom_shape,
-                matrix_or_empty_type inv_matrix)
+        Shape3D(const input_accessor_type& input,
+                const output_accessor_type& output,
+                const index4_type& shape,
+                const geom_shape_type& geom_shape,
+                const matrix_or_empty_type& inv_matrix,
+                const functor_type& functor)
                 : m_input(input), m_output(output),
                   m_inv_matrix(inv_matrix),
                   m_geom_shape(geom_shape),
-                  m_shape(shape) {
+                  m_shape(shape),
+                  m_functor(functor) {
             NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         }
 
@@ -104,7 +107,7 @@ namespace noa::signal::fft::details {
             const index3_type i_idx = gid2CenteredIndexes<REMAP>(index, m_shape);
             const index3_type o_idx = gid2OutputIndexes<REMAP>(index, m_shape);
             const auto mask = m_geom_shape(coord3_type(i_idx), m_inv_matrix);
-            const auto value = m_input ? m_input(i, i_idx[0], i_idx[1], i_idx[2]) * mask : mask;
+            const auto value = m_input ? m_functor(m_input(i, i_idx[0], i_idx[1], i_idx[2]), mask) : mask;
             m_output(i, o_idx[0], o_idx[1], o_idx[2]) = value;
         }
 
@@ -114,7 +117,7 @@ namespace noa::signal::fft::details {
             const index3_type o_idx = gid2OutputIndexes<REMAP>(index, m_shape);
             const auto mask = m_geom_shape(coord3_type(i_idx), m_inv_matrix);
             for (index_type batch = 0; batch < m_shape[0]; ++batch)
-                m_output[batch](o_idx) = m_input ? m_input[batch](i_idx) * mask : mask;
+                m_output[batch](o_idx) = m_input ? m_functor(m_input[batch](i_idx), mask) : mask;
         }
 
     public:
@@ -123,25 +126,27 @@ namespace noa::signal::fft::details {
         matrix_or_empty_type m_inv_matrix;
         geom_shape_type m_geom_shape;
         index4_type m_shape;
+        functor_type m_functor;
     };
 
     template<Remap REMAP, typename Index, typename Coord = float,
-             typename GeomShape, typename MatrixOrEmpty,
-             typename Value,  typename Offset>
+             typename GeomShape, typename MatrixOrEmpty, typename Functor,
+             typename Value, typename Offset>
     auto shape3D(const Accessor<const Value, 4, Offset>& input,
                  const Accessor<Value, 4, Offset>& output,
-                 Int4<Index> shape,
-                 GeomShape geom_shape,
-                 MatrixOrEmpty inv_matrix) {
-        using output_t = Shape3D<REMAP, Index, Coord, GeomShape, MatrixOrEmpty, Value, Offset>;
-        return output_t(input, output, shape, geom_shape, inv_matrix);
+                 const Int4<Index>& shape,
+                 const GeomShape& geom_shape,
+                 const MatrixOrEmpty& inv_matrix,
+                 const Functor& functor) {
+        using output_t = Shape3D<REMAP, Index, Coord, GeomShape, MatrixOrEmpty, Functor, Value, Offset>;
+        return output_t(input, output, shape, geom_shape, inv_matrix, functor);
     }
 }
 
 namespace noa::signal::fft::details {
     template<Remap REMAP, typename Index, typename Coord,
              typename GeomShape, typename MatrixOrEmpty,
-             typename Value,  typename Offset>
+             typename Functor, typename Value, typename Offset>
     class Shape2D {
     public:
         using Layout = ::noa::fft::Layout;
@@ -158,6 +163,7 @@ namespace noa::signal::fft::details {
         using offset_type = Offset;
         using geom_shape_type = GeomShape;
         using matrix_or_empty_type = MatrixOrEmpty;
+        using functor_type = Functor;
         using input_accessor_type = Accessor<const Value, 3, offset_type>;
         using output_accessor_type = Accessor<Value, 3, offset_type>;
         using index3_type = Int3<index_type>;
@@ -165,15 +171,17 @@ namespace noa::signal::fft::details {
         using coord2_type = Float2<coord_type>;
 
     public:
-        Shape2D(input_accessor_type input,
-                output_accessor_type output,
-                index3_type shape,
-                geom_shape_type geom_shape,
-                matrix_or_empty_type inv_matrix)
+        Shape2D(const input_accessor_type& input,
+                const output_accessor_type& output,
+                const index3_type& shape,
+                const geom_shape_type& geom_shape,
+                const matrix_or_empty_type& inv_matrix,
+                const functor_type& functor)
                 : m_input(input), m_output(output),
                   m_inv_matrix(inv_matrix),
                   m_geom_shape(geom_shape),
-                  m_shape(shape) {
+                  m_shape(shape),
+                  m_functor(functor) {
             NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
         }
 
@@ -182,7 +190,7 @@ namespace noa::signal::fft::details {
             const index2_type i_idx = gid2CenteredIndexes<REMAP>(index, m_shape);
             const index2_type o_idx = gid2OutputIndexes<REMAP>(index, m_shape);
             const auto mask = m_geom_shape(coord2_type(i_idx), m_inv_matrix);
-            const auto value = m_input ? m_input(i, i_idx[0], i_idx[1]) * mask : mask;
+            const auto value = m_input ? m_functor(m_input(i, i_idx[0], i_idx[1]), mask) : mask;
             m_output(i, o_idx[0], o_idx[1]) = value;
         }
 
@@ -192,7 +200,7 @@ namespace noa::signal::fft::details {
             const index2_type o_idx = gid2OutputIndexes<REMAP>(index, m_shape);
             const auto mask = m_geom_shape(coord2_type(i_idx), m_inv_matrix);
             for (index_type batch = 0; batch < m_shape[0]; ++batch)
-                m_output[batch](o_idx) = m_input ? m_input[batch](i_idx) * mask : mask;
+                m_output[batch](o_idx) = m_input ? m_functor(m_input[batch](i_idx), mask) : mask;
         }
 
     public:
@@ -201,18 +209,20 @@ namespace noa::signal::fft::details {
         matrix_or_empty_type m_inv_matrix;
         geom_shape_type m_geom_shape;
         index3_type m_shape;
+        functor_type m_functor;
     };
 
     template<Remap REMAP, typename Index, typename Coord = float,
              typename GeomShape, typename MatrixOrEmpty,
-             typename Value,  typename Offset>
+             typename Functor, typename Value, typename Offset>
     auto shape2D(const Accessor<const Value, 3, Offset>& input,
                  const Accessor<Value, 3, Offset>& output,
-                 Int3<Index> shape,
-                 GeomShape geom_shape,
-                 MatrixOrEmpty inv_matrix) {
-        using output_t = Shape2D<REMAP, Index, Coord, GeomShape, MatrixOrEmpty, Value, Offset>;
-        return output_t(input, output, shape, geom_shape, inv_matrix);
+                 const Int3<Index>& shape,
+                 const GeomShape& geom_shape,
+                 const MatrixOrEmpty& inv_matrix,
+                 const Functor& functor) {
+        using output_t = Shape2D<REMAP, Index, Coord, GeomShape, MatrixOrEmpty, Functor, Value, Offset>;
+        return output_t(input, output, shape, geom_shape, inv_matrix, functor);
     }
 }
 

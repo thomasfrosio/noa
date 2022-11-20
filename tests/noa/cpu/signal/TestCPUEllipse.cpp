@@ -39,7 +39,8 @@ TEST_CASE("cpu::signal::ellipse(), 2D", "[assets][noa][cpu]") {
         if constexpr (GENERATE_ASSETS) {
             cpu::memory::PtrHost<float> mask(elements);
             cpu::signal::ellipse<float>(nullptr, {}, mask.share(), strides, shape,
-                                        center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                        center, radius, taper, math::inverse(fwd_transform),
+                                        math::multiply_t{}, invert, stream);
             stream.synchronize();
             file.open(filename_expected, io::WRITE);
             file.shape(shape);
@@ -63,12 +64,14 @@ TEST_CASE("cpu::signal::ellipse(), 2D", "[assets][noa][cpu]") {
 
         // Test saving the mask.
         cpu::signal::ellipse<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                    center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                    center, radius, taper, math::inverse(fwd_transform),
+                                    math::multiply_t{}, invert, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 5e-6));
 
         // Test on-the-fly, in-place.
         cpu::signal::ellipse(input_result.share(), strides, input_result.share(), strides, shape,
-                             center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                             center, radius, taper, math::inverse(fwd_transform),
+                             math::multiply_t{}, invert, stream);
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[idx] *= mask_expected[idx];
         REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 5e-6));
@@ -100,7 +103,8 @@ TEST_CASE("cpu::signal::ellipse(), 3D", "[assets][noa][cpu]") {
         if constexpr (GENERATE_ASSETS) {
             cpu::memory::PtrHost<float> mask(elements);
             cpu::signal::ellipse<float>(nullptr, {}, mask.share(), strides, shape,
-                                        center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                        center, radius, taper, math::inverse(fwd_transform),
+                                        math::multiply_t{}, invert, stream);
             stream.synchronize();
             file.open(filename_expected, io::WRITE);
             file.shape(shape);
@@ -124,12 +128,14 @@ TEST_CASE("cpu::signal::ellipse(), 3D", "[assets][noa][cpu]") {
 
         // Test saving the mask.
         cpu::signal::ellipse<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                    center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                    center, radius, taper, math::inverse(fwd_transform),
+                                    math::multiply_t{}, invert, stream);
         REQUIRE(test::Matcher(test::MATCH_ABS, mask_expected.get(), mask_result.get(), elements, 5e-6));
 
         // Test on-the-fly, in-place.
         cpu::signal::ellipse(input_result.share(), strides, input_result.share(), strides, shape,
-                             center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                             center, radius, taper, math::inverse(fwd_transform),
+                             math::multiply_t{}, invert, stream);
         for (size_t idx = 0; idx < elements; ++idx)
             input_expected[idx] *= mask_expected[idx];
         REQUIRE(test::Matcher(test::MATCH_ABS, input_result.get(), input_expected.get(), elements, 5e-6));
@@ -164,9 +170,11 @@ TEMPLATE_TEST_CASE("cpu::signal::ellipse(), 2D matches 3D", "[assets][noa][cpu]"
 
     cpu::Stream stream;
     cpu::signal::ellipse(input.share(), strides, output_2d.share(), strides, shape,
-                         center_2d, radius_2d, edge_size, math::inverse(fwd_transform_2d), invert, stream);
+                         center_2d, radius_2d, edge_size, math::inverse(fwd_transform_2d),
+                         math::multiply_t{}, invert, stream);
     cpu::signal::ellipse(input.share(), strides, output_3d.share(), strides, shape,
-                         center_3d, radius_3d, edge_size, math::inverse(fwd_transform_3d), invert, stream);
+                         center_3d, radius_3d, edge_size, math::inverse(fwd_transform_3d),
+                         math::multiply_t{}, invert, stream);
 
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_2d.get(), output_3d.get(), elements, 5e-6));

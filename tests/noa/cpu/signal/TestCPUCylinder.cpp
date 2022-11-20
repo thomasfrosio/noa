@@ -48,7 +48,8 @@ TEST_CASE("cpu::signal::cylinder(), 3D", "[assets][noa][cpu]") {
 
         // Test saving the mask.
         cpu::signal::cylinder<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                     center, radius, length, taper, math::inverse(fwd_transform), invert, stream);
+                                     center, radius, length, taper, math::inverse(fwd_transform),
+                                     math::multiply_t{}, invert, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
@@ -57,7 +58,8 @@ TEST_CASE("cpu::signal::cylinder(), 3D", "[assets][noa][cpu]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cpu::signal::cylinder(input_result.share(), strides, input_result.share(), strides, shape,
-                                  center, radius, length, taper, math::inverse(fwd_transform), true, stream);
+                                  center, radius, length, taper, math::inverse(fwd_transform),
+                                  math::multiply_t{}, true, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? mask_expected[idx] : 1 - mask_expected[idx];
 
@@ -70,7 +72,8 @@ TEST_CASE("cpu::signal::cylinder(), 3D", "[assets][noa][cpu]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cpu::signal::cylinder(input_result.share(), strides, input_result.share(), strides, shape,
-                                  center, radius, length, taper, math::inverse(fwd_transform), false, stream);
+                                  center, radius, length, taper, math::inverse(fwd_transform),
+                                  math::multiply_t{}, false, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? 1 - mask_expected[idx] : mask_expected[idx];
 

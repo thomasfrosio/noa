@@ -85,7 +85,8 @@ set(NOA_CPU_SOURCES
         cpu/signal/fft/Bandpass.cpp
         cpu/signal/fft/Correlate.cpp
         cpu/signal/fft/CorrelatePeak.cpp
-        cpu/signal/fft/Shape.cpp
+        cpu/signal/fft/Shape2D.cpp
+        cpu/signal/fft/Shape3D.cpp
         cpu/signal/fft/Shift.cpp
         cpu/signal/fft/Standardize.cpp
         cpu/signal/Convolve.cpp

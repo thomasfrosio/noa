@@ -34,13 +34,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::ellipse<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::ellipse<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -73,13 +75,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::ellipse<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::ellipse<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -110,13 +114,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::sphere<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::sphere<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -149,13 +155,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::sphere<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::sphere<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -186,13 +194,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::rectangle<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::rectangle<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -225,13 +235,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::rectangle<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::rectangle<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -262,13 +274,15 @@ namespace noa::signal::fft {
             cpu::signal::fft::cylinder<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, length, edge_size, inv_matrix, invert, stream.cpu());
+                    center, radius, length, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::cylinder<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
-                    center, radius, length, edge_size, inv_matrix, invert, stream.cuda());
+                    center, radius, length, edge_size, inv_matrix,
+                    noa::math::multiply_t{}, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

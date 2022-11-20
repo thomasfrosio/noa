@@ -24,7 +24,7 @@ TEST_CASE("cpu::geometry::cartesian2polar()", "[.]") {
     cpu::Stream stream;
     cpu::memory::PtrHost<float> cartesian{elements};
     cpu::signal::sphere<float>(nullptr, {}, cartesian.share(), stride, shape,
-                               center, radius, taper, float22_t{}, false, stream);
+                               center, radius, taper, float22_t{}, math::multiply_t{}, false, stream);
 
     stream.synchronize();
     io::MRCFile file{test::NOA_DATA_PATH / "geometry" / "test-polar-img.mrc", io::WRITE};

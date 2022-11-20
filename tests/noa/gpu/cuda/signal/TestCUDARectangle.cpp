@@ -48,7 +48,8 @@ TEST_CASE("cuda::signal::rectangle(), 2D", "[assets][noa][cuda]") {
 
         // Test saving the mask.
         cuda::signal::rectangle<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                       center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                       center, radius, taper, math::inverse(fwd_transform),
+                                       math::multiply_t{}, invert, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
@@ -57,7 +58,8 @@ TEST_CASE("cuda::signal::rectangle(), 2D", "[assets][noa][cuda]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cuda::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                    center, radius, taper, math::inverse(fwd_transform), true, stream);
+                                    center, radius, taper, math::inverse(fwd_transform),
+                                    math::multiply_t{}, true, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? mask_expected[idx] : 1 - mask_expected[idx];
 
@@ -70,7 +72,8 @@ TEST_CASE("cuda::signal::rectangle(), 2D", "[assets][noa][cuda]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cuda::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                    center, radius, taper, math::inverse(fwd_transform), false, stream);
+                                    center, radius, taper, math::inverse(fwd_transform),
+                                    math::multiply_t{}, false, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? 1 - mask_expected[idx] : mask_expected[idx];
 
@@ -115,7 +118,8 @@ TEST_CASE("cuda::signal::rectangle(), 3D", "[assets][noa][cuda]") {
 
         // Test saving the mask.
         cuda::signal::rectangle<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                       center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                       center, radius, taper, math::inverse(fwd_transform),
+                                       math::multiply_t{}, invert, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
@@ -124,7 +128,8 @@ TEST_CASE("cuda::signal::rectangle(), 3D", "[assets][noa][cuda]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cuda::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                    center, radius, taper, math::inverse(fwd_transform), true, stream);
+                                    center, radius, taper, math::inverse(fwd_transform),
+                                    math::multiply_t{}, true, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? mask_expected[idx] : 1 - mask_expected[idx];
 
@@ -137,7 +142,8 @@ TEST_CASE("cuda::signal::rectangle(), 3D", "[assets][noa][cuda]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cuda::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                    center, radius, taper, math::inverse(fwd_transform), false, stream);
+                                    center, radius, taper, math::inverse(fwd_transform),
+                                    math::multiply_t{}, false, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? 1 - mask_expected[idx] : mask_expected[idx];
 
@@ -175,9 +181,11 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle(), 2D matches 3D", "[assets][noa][cu
     const float33_t fwd_transform_3d = geometry::euler2matrix(float3_t{angle, 0, 0});
 
     cuda::signal::rectangle(input.share(), strides, output_2d.share(), strides, shape,
-                            center_2d, radius_2d, edge_size, math::inverse(fwd_transform_2d), invert, stream);
+                            center_2d, radius_2d, edge_size, math::inverse(fwd_transform_2d),
+                            math::multiply_t{}, invert, stream);
     cuda::signal::rectangle(input.share(), strides, output_3d.share(), strides, shape,
-                            center_3d, radius_3d, edge_size, math::inverse(fwd_transform_3d), invert, stream);
+                            center_3d, radius_3d, edge_size, math::inverse(fwd_transform_3d),
+                            math::multiply_t{}, invert, stream);
 
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_2d.get(), output_3d.get(), elements, 1e-5));
@@ -206,10 +214,12 @@ TEMPLATE_TEST_CASE("cuda::signal::rectangle(), vs cpu", "[assets][noa][cuda]",
     const auto fwd_transform = geometry::euler2matrix(float3_t{randomizer.get(), randomizer.get(), randomizer.get()});
 
     cpu::signal::rectangle(input.share(), strides, output_cpu.share(), strides, shape,
-                           center, radius, edge_size, math::inverse(fwd_transform), invert, cpu_stream);
+                           center, radius, edge_size, math::inverse(fwd_transform),
+                           math::multiply_t{}, invert, cpu_stream);
     cpu_stream.synchronize();
     cuda::signal::rectangle(input.share(), strides, output_cuda.share(), strides, shape,
-                            center, radius, edge_size, math::inverse(fwd_transform), invert, gpu_stream);
+                            center, radius, edge_size, math::inverse(fwd_transform),
+                            math::multiply_t{}, invert, gpu_stream);
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_cpu.get(), output_cuda.get(), elements, 1e-4));
 }

@@ -48,7 +48,8 @@ TEST_CASE("cuda::signal::cylinder(), 3D", "[assets][noa][cuda]") {
 
         // Test saving the mask.
         cuda::signal::cylinder<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                      center, radius, length, taper, math::inverse(fwd_transform), invert, stream);
+                                      center, radius, length, taper, math::inverse(fwd_transform),
+                                      math::multiply_t{}, invert, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
@@ -57,7 +58,8 @@ TEST_CASE("cuda::signal::cylinder(), 3D", "[assets][noa][cuda]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cuda::signal::cylinder(input_result.share(), strides, input_result.share(), strides, shape,
-                                   center, radius, length, taper, math::inverse(fwd_transform), true, stream);
+                                   center, radius, length, taper, math::inverse(fwd_transform),
+                                   math::multiply_t{}, true, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? mask_expected[idx] : 1 - mask_expected[idx];
 
@@ -70,7 +72,8 @@ TEST_CASE("cuda::signal::cylinder(), 3D", "[assets][noa][cuda]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cuda::signal::cylinder(input_result.share(), strides, input_result.share(), strides, shape,
-                                   center, radius, length, taper, math::inverse(fwd_transform), false, stream);
+                                   center, radius, length, taper, math::inverse(fwd_transform),
+                                   math::multiply_t{}, false, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? 1 - mask_expected[idx] : mask_expected[idx];
 
@@ -104,10 +107,12 @@ TEMPLATE_TEST_CASE("cuda::signal::cylinder(), vs cpu", "[assets][noa][cuda]",
     const auto fwd_transform = geometry::euler2matrix(float3_t{randomizer.get(), randomizer.get(), randomizer.get()});
 
     cpu::signal::cylinder(input.share(), strides, output_cpu.share(), strides, shape,
-                          center, radius, length, edge_size, math::inverse(fwd_transform), invert, cpu_stream);
+                          center, radius, length, edge_size, math::inverse(fwd_transform),
+                          math::multiply_t{}, invert, cpu_stream);
     cpu_stream.synchronize();
     cuda::signal::cylinder(input.share(), strides, output_cuda.share(), strides, shape,
-                           center, radius, length, edge_size, math::inverse(fwd_transform), invert, gpu_stream);
+                           center, radius, length, edge_size, math::inverse(fwd_transform),
+                           math::multiply_t{}, invert, gpu_stream);
     gpu_stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_cpu.get(), output_cuda.get(), elements, 1e-4));
 }

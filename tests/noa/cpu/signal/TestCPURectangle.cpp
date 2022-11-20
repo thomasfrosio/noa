@@ -46,7 +46,8 @@ TEST_CASE("cpu::signal::rectangle(), 2D", "[assets][noa][cpu]") {
 
         // Test saving the mask.
         cpu::signal::rectangle<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                      center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                      center, radius, taper, math::inverse(fwd_transform),
+                                      math::multiply_t{}, invert, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
@@ -55,7 +56,8 @@ TEST_CASE("cpu::signal::rectangle(), 2D", "[assets][noa][cpu]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cpu::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                   center, radius, taper, math::inverse(fwd_transform), true, stream);
+                                   center, radius, taper, math::inverse(fwd_transform),
+                                   math::multiply_t{}, true, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? mask_expected[idx] : 1 - mask_expected[idx];
 
@@ -68,7 +70,8 @@ TEST_CASE("cpu::signal::rectangle(), 2D", "[assets][noa][cpu]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cpu::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                   center, radius, taper, math::inverse(fwd_transform), false, stream);
+                                   center, radius, taper, math::inverse(fwd_transform),
+                                   math::multiply_t{}, false, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? 1 - mask_expected[idx] : mask_expected[idx];
 
@@ -113,7 +116,8 @@ TEST_CASE("cpu::signal::rectangle(), 3D", "[assets][noa][cpu]") {
 
         // Test saving the mask.
         cpu::signal::rectangle<float>(nullptr, {}, mask_result.share(), strides, shape,
-                                      center, radius, taper, math::inverse(fwd_transform), invert, stream);
+                                      center, radius, taper, math::inverse(fwd_transform),
+                                      math::multiply_t{}, invert, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mask_expected.get(), mask_result.get(), elements, 1e-6));
 
@@ -122,7 +126,8 @@ TEST_CASE("cpu::signal::rectangle(), 3D", "[assets][noa][cpu]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cpu::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                   center, radius, taper, math::inverse(fwd_transform), true, stream);
+                                   center, radius, taper, math::inverse(fwd_transform),
+                                   math::multiply_t{}, true, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? mask_expected[idx] : 1 - mask_expected[idx];
 
@@ -135,7 +140,8 @@ TEST_CASE("cpu::signal::rectangle(), 3D", "[assets][noa][cpu]") {
             test::copy(input_expected.get(), input_result.get(), elements);
 
             cpu::signal::rectangle(input_result.share(), strides, input_result.share(), strides, shape,
-                                   center, radius, taper, math::inverse(fwd_transform), false, stream);
+                                   center, radius, taper, math::inverse(fwd_transform),
+                                   math::multiply_t{}, false, stream);
             for (size_t idx = 0; idx < elements; ++idx)
                 input_expected[idx] *= invert ? 1 - mask_expected[idx] : mask_expected[idx];
 
@@ -173,9 +179,11 @@ TEMPLATE_TEST_CASE("cpu::signal::rectangle(), 2D matches 3D", "[assets][noa][cpu
 
     cpu::Stream stream;
     cpu::signal::rectangle(input.share(), strides, output_2d.share(), strides, shape,
-                           center_2d, radius_2d, edge_size, math::inverse(fwd_transform_2d), invert, stream);
+                           center_2d, radius_2d, edge_size, math::inverse(fwd_transform_2d),
+                           math::multiply_t{}, invert, stream);
     cpu::signal::rectangle(input.share(), strides, output_3d.share(), strides, shape,
-                           center_3d, radius_3d, edge_size, math::inverse(fwd_transform_3d), invert, stream);
+                           center_3d, radius_3d, edge_size, math::inverse(fwd_transform_3d),
+                           math::multiply_t{}, invert, stream);
 
     stream.synchronize();
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_2d.get(), output_3d.get(), elements, 1e-6));
