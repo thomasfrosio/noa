@@ -273,7 +273,7 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator!=(Mat22 m1, Mat22 m2) noexcept {
-            return all(m1[0] != m2[0]) && all(m1[1] != m2[1]);
+            return any(m1[0] != m2[0]) || any(m1[1] != m2[1]);
         }
 
     public:
