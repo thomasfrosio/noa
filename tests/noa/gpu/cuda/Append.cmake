@@ -38,11 +38,7 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/signal/fft/TestCUDAShiftFFT.cpp
         noa/gpu/cuda/signal/fft/TestCUDAStandardize.cpp
         noa/gpu/cuda/signal/TestCUDAConvolve.cpp
-        noa/gpu/cuda/signal/TestCUDACylinder.cpp
-        noa/gpu/cuda/signal/TestCUDAEllipse.cpp
         noa/gpu/cuda/signal/TestCUDAMedian.cpp
-        noa/gpu/cuda/signal/TestCUDARectangle.cpp
-        noa/gpu/cuda/signal/TestCUDASphere.cpp
 
         noa/gpu/cuda/TestCUDADevice.cpp
         noa/gpu/cuda/TestCUDAStream.cpp

@@ -13,6 +13,7 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/signal/fft/TestUnifiedShape.cpp
         noa/unified/signal/fft/TestUnifiedStandardize.cpp
         noa/unified/signal/TestUnifiedSignal.cpp
+        noa/unified/signal/TestUnifiedShape.cpp
 
         noa/unified/math/TestUnifiedBlas.cpp
         noa/unified/math/TestUnifiedEwise.cpp
