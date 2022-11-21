@@ -99,7 +99,7 @@ namespace noa::signal::fft::details {
                   m_geom_shape(geom_shape),
                   m_shape(shape),
                   m_functor(functor) {
-            NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
+            NOA_ASSERT((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || input.get() != output.get());
         }
 
         constexpr NOA_IHD void operator()(index_type i, index_type j, index_type k, index_type l) const noexcept {
@@ -182,7 +182,7 @@ namespace noa::signal::fft::details {
                   m_geom_shape(geom_shape),
                   m_shape(shape),
                   m_functor(functor) {
-            NOA_ASSERT((REMAP == fft::F2F || REMAP == fft::FC2FC) || input != output);
+            NOA_ASSERT((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || input.get() != output.get());
         }
 
         constexpr NOA_IHD void operator()(index_type i, index_type k, index_type l) const noexcept {

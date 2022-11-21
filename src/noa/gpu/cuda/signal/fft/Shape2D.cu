@@ -19,7 +19,7 @@ namespace {
 
         int2_t start{0};
         auto end = safe_cast<int2_t>(dim2_t(shape.get(2)));
-        if (invert && input.get() == output.get()) {
+        if (invert && input.get() == output.get() && inv_matrix == Matrix{}) {
             start = noa::math::clamp(int2_t(center - (radius + edge_size)), int2_t{}, int2_t(end));
             end = noa::math::clamp(int2_t(center + (radius + edge_size) + 1), int2_t{}, int2_t(end));
             if (any(end <= start))

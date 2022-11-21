@@ -42,13 +42,15 @@ namespace {
     }
 
     // Find the smallest [start, end) range for each dimension (2D or 3D).
-    template<typename Value, typename Center, typename Radius>
+    template<typename Value, typename Center, typename Radius, typename Matrix>
     std::pair<dim4_t, dim4_t>
     computeIwiseSubregion(const shared_t<Value[]>& input, const shared_t<Value[]>& output, const dim4_t& shape,
-                          const Center& center, const Radius& radius, float edge_size, bool invert) {
+                          const Center& center, const Radius& radius, float edge_size,
+                          const Matrix& inv_matrix, bool invert) {
 
         // In this case, we have to loop through the entire array.
-        if (!invert || input != output)
+        // TODO Rotate the boundary box to support matrix?
+        if (!invert || input != output || inv_matrix != Matrix{})
             return {dim4_t{0}, shape};
 
         const dim3_t start_(math::clamp(int3_t(center - (radius + edge_size)), int3_t{}, int3_t(shape.get(1))));
@@ -76,7 +78,8 @@ namespace noa::cpu::signal::fft {
             inv_matrix = indexing::reorder(inv_matrix, order_3d);
         }
 
-        const auto[start, end] = computeIwiseSubregion(input, output, shape, center, radius, edge_size, invert);
+        const auto[start, end] = computeIwiseSubregion(
+                input, output, shape, center, radius, edge_size, inv_matrix, invert);
         if (any(end <= start))
             return;
 
@@ -121,7 +124,8 @@ namespace noa::cpu::signal::fft {
             inv_matrix = indexing::reorder(inv_matrix, order_3d);
         }
 
-        const auto[start, end] = computeIwiseSubregion(input, output, shape, center, radius, edge_size, invert);
+        const auto[start, end] = computeIwiseSubregion(
+                input, output, shape, center, radius, edge_size, inv_matrix, invert);
         if (any(end <= start))
             return;
 
@@ -167,7 +171,8 @@ namespace noa::cpu::signal::fft {
             inv_matrix = indexing::reorder(inv_matrix, order_3d);
         }
 
-        const auto[start, end] = computeIwiseSubregion(input, output, shape, center, radius, edge_size, invert);
+        const auto[start, end] = computeIwiseSubregion(
+                input, output, shape, center, radius, edge_size, inv_matrix, invert);
         if (any(end <= start))
             return;
 
@@ -212,7 +217,8 @@ namespace noa::cpu::signal::fft {
         }
 
         const float3_t radius_{length, radius, radius};
-        const auto[start, end] = computeIwiseSubregion(input, output, shape, center, radius_, edge_size, invert);
+        const auto[start, end] = computeIwiseSubregion(
+                input, output, shape, center, radius_, edge_size, inv_matrix, invert);
         if (any(end <= start))
             return;
 
