@@ -81,69 +81,26 @@ namespace noa::cuda::math {
         const shared_t<V[]>&, dim4_t,                       \
         const shared_t<W[]>&, dim4_t, dim4_t, O, Stream&)
 
-    #define NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(T,W)               \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,W,::noa::math::within_t);   \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,W,::noa::math::within_equal_t)
+    #define NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(T,U,V,W)               \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::plus_t);             \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::plus_minus_t);       \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::plus_multiply_t);    \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::plus_divide_t);      \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::minus_t);            \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::minus_plus_t);       \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::minus_multiply_t);   \
+    NOA_INSTANTIATE_EWISE_TRINARY(T,U,V,W,::noa::math::minus_divide_t)
 
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(int16_t, int16_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(int32_t, int32_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(int64_t, int64_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(uint16_t, uint16_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(uint32_t, uint32_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(uint64_t, uint64_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(half_t, half_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(float, float);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(double, double);
+    #define NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC_ALL(R, C)  \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(C, R, R, C);       \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(R, C, R, C);       \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(R, R, C, C);       \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(R, C, C, C);       \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(C, R, C, C);       \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(C, C, R, C);       \
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(C, C, C, C);
 
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(int16_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(int32_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(int64_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(uint16_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(uint32_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(uint64_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(half_t, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(float, bool);
-    NOA_INSTANTIATE_EWISE_TRINARY_WITHIN(double, bool);
-
-    #define NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(T) \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::clamp_t)
-
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(int16_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(int32_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(int64_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(uint16_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(uint32_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(uint64_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(half_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(float);
-    NOA_INSTANTIATE_EWISE_TRINARY_CLAMP(double);
-
-    #define NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(T)                     \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::plus_t);             \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::plus_minus_t);       \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::plus_multiply_t);    \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::plus_divide_t);      \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::minus_t);            \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::minus_plus_t);       \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::minus_multiply_t);   \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::minus_divide_t);     \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::multiply_t);         \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::multiply_plus_t);    \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::multiply_minus_t);   \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::multiply_divide_t);  \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::divide_t);           \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::divide_plus_t);      \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::divide_minus_t);     \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::divide_multiply_t);  \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::math::divide_epsilon_t)
-
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(half_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(float);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(double);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(int16_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(int32_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(int64_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(uint16_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(uint32_t);
-    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(uint64_t);
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC_ALL(half_t, chalf_t);
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC_ALL(float, cfloat_t);
+    NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC_ALL(double, cdouble_t);
 }

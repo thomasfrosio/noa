@@ -36,6 +36,39 @@ TEMPLATE_TEST_CASE("unified::math::ewise", "[noa][unified]", int32_t, float, dou
     }
 }
 
+TEMPLATE_TEST_CASE("unified::math::ewise, trinary", "[noa][unified]", float, double, cfloat_t, cdouble_t) {
+    const dim4_t shape = test::getRandomShapeBatched(3);
+
+    std::vector<Device> devices = {Device("cpu")};
+    if (Device::any(Device::GPU))
+        devices.emplace_back("gpu");
+
+    // CPU only
+    Array cpu_lhs = math::random<TestType>(math::uniform_t{}, shape, -10, 10);
+    Array cpu_mhs = math::random<TestType>(math::uniform_t{}, shape, -10, 10);
+    Array cpu_rhs = math::random<TestType>(math::uniform_t{}, shape, -10, 10);
+    Array cpu_out = memory::like(cpu_lhs);
+    math::ewise(cpu_lhs, cpu_mhs, cpu_rhs, cpu_out,
+                [](const auto& lhs, const auto& mhs, const auto& rhs) {
+                    return lhs * mhs + rhs;
+                });
+    cpu_out.eval(); // Sync, because we are about to change the current stream
+
+    for (auto& device: devices) {
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
+        INFO(device);
+
+        Array out = memory::empty<TestType>(shape, options);
+        Array lhs = device.cpu() ? cpu_lhs : cpu_lhs.to(options);
+        Array mhs = device.cpu() ? cpu_mhs : cpu_mhs.to(options);
+        Array rhs = device.cpu() ? cpu_rhs : cpu_rhs.to(options);
+        math::ewise(lhs, mhs, rhs, out, math::multiply_plus_t{});
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, cpu_out, out, 1e-5));
+    }
+}
+
 TEMPLATE_TEST_CASE("unified::math::ewise, broadcast", "[noa][unified]", int32_t, float, double) {
     std::vector<Device> devices = {Device{"cpu"}};
     if (Device::any(Device::GPU))

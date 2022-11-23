@@ -199,7 +199,7 @@ TEMPLATE_TEST_CASE("cuda::math::ewise() - trinary operators", "[noa][cuda][math]
                 expected[batch * stride[0] + idx] = lhs[batch * stride[0] + idx] *
                                                     mhs[0] + rhs[0];
         cuda::math::ewise(lhs.share(), stride, mhs[0], rhs[0],
-                          results.share(), stride, shape, math::fma_t{}, stream);
+                          results.share(), stride, shape, math::multiply_plus_t{}, stream);
         stream.synchronize();
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.get(), results.get(), elements, epsilon));
     }

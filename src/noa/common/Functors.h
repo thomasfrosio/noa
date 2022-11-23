@@ -156,16 +156,25 @@ namespace noa::math {
     struct plus_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs + rhs; }
+
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return lhs + mhs + rhs; }
     };
 
     struct minus_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs - rhs; }
+
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return lhs - mhs - rhs; }
     };
 
     struct multiply_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * rhs; }
+
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return lhs * mhs * rhs; }
     };
 
     struct multiply_conj_t {
@@ -176,6 +185,9 @@ namespace noa::math {
     struct divide_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs / rhs; }
+
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return (lhs / mhs) / rhs; }
     };
 
     struct modulo_t {
@@ -268,18 +280,88 @@ namespace noa::math {
 
 // -- Trinary operators -- //
 namespace noa::math {
-    struct fma_t {
+    struct plus_minus_t {
         template<typename T, typename U, typename V>
-        NOA_FHD constexpr auto operator()(const T& input, const U& mul, const V& add) const {
-            return input * mul + add;
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs + mhs - rhs;
         }
     };
-    using multiply_plus_t = fma_t;
+
+    struct plus_multiply_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return (lhs + mhs) * rhs;
+        }
+    };
 
     struct plus_divide_t {
         template<typename T, typename U, typename V>
-        NOA_FHD constexpr auto operator()(const T& input, const U& add, const V& div) const {
-            return (input + add) / div;
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return (lhs + mhs) / rhs;
+        }
+    };
+
+    struct minus_plus_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs - mhs + rhs;
+        }
+    };
+
+    struct minus_multiply_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return (lhs - mhs) * rhs;
+        }
+    };
+
+    struct minus_divide_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return (lhs - mhs) / rhs;
+        }
+    };
+
+    struct multiply_plus_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs * mhs + rhs;
+        }
+    };
+    using fma_t = multiply_plus_t;
+
+    struct multiply_minus_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs * mhs - rhs;
+        }
+    };
+
+    struct multiply_divide_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return (lhs * mhs) / rhs;
+        }
+    };
+
+    struct divide_plus_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs / mhs + rhs;
+        }
+    };
+
+    struct divide_minus_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs / mhs - rhs;
+        }
+    };
+
+    struct divide_multiply_t {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs / mhs * rhs;
         }
     };
 

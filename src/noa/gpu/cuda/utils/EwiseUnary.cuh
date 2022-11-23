@@ -22,10 +22,10 @@ namespace noa::cuda::utils::ewise::details {
                                                  BLOCK_SIZE_2D.y * ELEMENTS_PER_THREAD_2D, 1};
     };
 
-    template<typename T, typename U, typename UnaryOp, int VEC_SIZE, AccessorTraits TRAITS>
+    template<typename InVal, typename OutVal, typename UnaryOp, int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(UnaryConfig::BLOCK_SIZE)
-    void unary1D_(Accessor<const T, 2, uint32_t, TRAITS> input,
-                  Accessor<U, 2, uint32_t, TRAITS> output,
+    void unary1D_(Accessor<const InVal, 2, uint32_t, TRAITS> input,
+                  Accessor<OutVal, 2, uint32_t, TRAITS> output,
                   uint32_t elements, UnaryOp unary_op) {
 
         constexpr uint32_t BLOCK_SIZE = UnaryConfig::BLOCK_SIZE;
@@ -38,10 +38,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    output_[gid] = static_cast<U>(unary_op(input_[gid]));
+                    output_[gid] = static_cast<OutVal>(unary_op(input_[gid]));
             }
         } else { // assume contiguous
             NOA_ASSERT(input_.stride(0) == 1 && output_.stride(0) == 1);
@@ -53,45 +53,45 @@ namespace noa::cuda::utils::ewise::details {
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t gid = BLOCK_SIZE * i + threadIdx.x;
                     if (gid < remaining)
-                        output_ptr[gid] = static_cast<U>(unary_op(input_ptr[gid]));
+                        output_ptr[gid] = static_cast<OutVal>(unary_op(input_ptr[gid]));
                 }
             } else { // this block has BLOCK_WORK_SIZE elements to handle, so we can use vectorized memory accesses
-                T args[EPT];
-                U results[EPT];
+                InVal args[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(input_ptr, args, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<U>(unary_op(args[i]));
+                    results[i] = static_cast<OutVal>(unary_op(args[i]));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, output_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename T, typename U, typename UnaryOp, AccessorTraits TRAITS>
+    template<typename InVal, typename OutVal, typename UnaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(UnaryConfig::BLOCK_SIZE)
-    void unary4D_(Accessor<const T, 4, uint32_t, TRAITS> input,
-                  Accessor<U, 4, uint32_t, TRAITS> output,
+    void unary4D_(Accessor<const InVal, 4, uint32_t, TRAITS> input,
+                  Accessor<OutVal, 4, uint32_t, TRAITS> output,
                   uint2_t shape, UnaryOp unary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         UnaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         UnaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          UnaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          UnaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto input_ = input[gid[0]][gid[1]];
         const auto output_ = output[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < UnaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < UnaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < UnaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < UnaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + UnaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + UnaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    output_(ik, il) = static_cast<U>(unary_op(input_(ik, il)));
+                    output_(ik, il) = static_cast<OutVal>(unary_op(input_(ik, il)));
             }
         }
     }
@@ -109,14 +109,14 @@ namespace noa::cuda::utils::ewise {
     // swap_layout:     Swap the memory layout to optimize output writes.
     //                  If false, assume rightmost order is the fastest order.
     // stream:          Stream on which to enqueue this function.
-    // unary_op:        Unary operator, such as, op(T) -> U.
-    //                  The output is explicitly cast to U.
+    // unary_op:        Unary operator, such as, op(InVal) -> OutVal.
+    //                  The output is explicitly cast to OutVal.
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure input and output stay valid until completion.
-    template<bool RESTRICT = false, typename T, typename U, typename UnaryOp>
+    template<bool RESTRICT = false, typename InVal, typename OutVal, typename UnaryOp>
     void unary(const char* name,
-               const T* input, dim4_t input_strides,
-               U* output, dim4_t output_strides,
+               const InVal* input, dim4_t input_strides,
+               OutVal* output, dim4_t output_strides,
                dim4_t shape, bool swap_layout,
                Stream& stream, UnaryOp unary_op) {
         using namespace details;
@@ -149,17 +149,17 @@ namespace noa::cuda::utils::ewise {
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = uint_input_strides[0] % vec_size || uint_output_strides[0] % vec_size ? 1 : vec_size;
 
-            const Accessor<const T, 2, uint32_t, TRAITS> input_accessor(input, uint_input_strides);
-            const Accessor<U, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const InVal, 2, uint32_t, TRAITS> input_accessor(input, uint_input_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
-                return stream.enqueue(name, unary1D_<T, U, UnaryOp, 4, TRAITS>, config,
+                return stream.enqueue(name, unary1D_<InVal, OutVal, UnaryOp, 4, TRAITS>, config,
                                       input_accessor, output_accessor, elements, unary_op);
             } else if (vec_size == 2) {
-                return stream.enqueue(name, unary1D_<T, U, UnaryOp, 2, TRAITS>, config,
+                return stream.enqueue(name, unary1D_<InVal, OutVal, UnaryOp, 2, TRAITS>, config,
                                       input_accessor, output_accessor, elements, unary_op);
             } else {
-                return stream.enqueue(name, unary1D_<T, U, UnaryOp, 1, TRAITS>, config,
+                return stream.enqueue(name, unary1D_<InVal, OutVal, UnaryOp, 1, TRAITS>, config,
                                       input_accessor, output_accessor, elements, unary_op);
             }
         } else { // multi-dimensional, non-contiguous array
@@ -169,10 +169,10 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, UnaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const T, 4, uint32_t, TRAITS> input_accessor(input, safe_cast<uint4_t>(input_strides));
-            const Accessor<U, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const InVal, 4, uint32_t, TRAITS> input_accessor(input, safe_cast<uint4_t>(input_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, unary4D_<T, U, UnaryOp, TRAITS>, config,
+            stream.enqueue(name, unary4D_<InVal, OutVal, UnaryOp, TRAITS>, config,
                            input_accessor, output_accessor, i_shape, unary_op, blocks_x);
         }
     }

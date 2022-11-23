@@ -3,9 +3,9 @@
 #include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::math {
-    template<typename T, typename U, typename UnaryOp, typename>
-    void ewise(const shared_t<T[]>& input, dim4_t input_strides,
-               const shared_t<U[]>& output, dim4_t output_strides,
+    template<typename In, typename Out, typename UnaryOp, typename>
+    void ewise(const shared_t<In[]>& input, dim4_t input_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, UnaryOp unary_op, Stream& stream) {
         cuda::utils::ewise::unary(
                 "math::ewise", input.get(), input_strides,

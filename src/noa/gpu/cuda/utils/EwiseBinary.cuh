@@ -21,14 +21,14 @@ namespace noa::cuda::utils::ewise::details {
                                                  BLOCK_SIZE_2D.y * ELEMENTS_PER_THREAD_2D, 1};
     };
 
-    template<typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t,
+    template<typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp,
              int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(BinaryConfig::BLOCK_SIZE)
-    void binaryValueLeft1D_(Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs,
-                            rhs_val_t rhs,
-                            Accessor<out_val_t, 2, uint32_t, TRAITS> output,
-                            uint32_t elements, binary_t binary_op) {
+    void binaryValueLeft1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
+                            RhsVal rhs,
+                            Accessor<OutVal, 2, uint32_t, TRAITS> output,
+                            uint32_t elements, BinaryOp binary_op) {
         constexpr uint32_t BLOCK_SIZE = BinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = BinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = BinaryConfig::ELEMENTS_PER_THREAD;
@@ -40,10 +40,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(binary_op(lhs_[gid], rhs));
+                    out_[gid] = static_cast<OutVal>(binary_op(lhs_[gid], rhs));
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && out_.stride(0) == 1);
@@ -54,31 +54,31 @@ namespace noa::cuda::utils::ewise::details {
 
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining)
-                        out_ptr[offset] = static_cast<out_val_t>(binary_op(lhs_ptr[offset], rhs));
+                        out_ptr[offset] = static_cast<OutVal>(binary_op(lhs_ptr[offset], rhs));
                 }
             } else {
-                lhs_val_t args[EPT];
-                out_val_t results[EPT];
+                LhsVal args[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, args, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(binary_op(args[i], rhs));
+                    results[i] = static_cast<OutVal>(binary_op(args[i], rhs));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t,
+    template<typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp,
              int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(BinaryConfig::BLOCK_SIZE)
-    void binaryValueRight1D_(lhs_val_t lhs,
-                             Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs,
-                             Accessor<out_val_t, 2, uint32_t, TRAITS> output,
-                             uint32_t elements, binary_t binary_op) {
+    void binaryValueRight1D_(LhsVal lhs,
+                             Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs,
+                             Accessor<OutVal, 2, uint32_t, TRAITS> output,
+                             uint32_t elements, BinaryOp binary_op) {
         constexpr uint32_t BLOCK_SIZE = BinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = BinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = BinaryConfig::ELEMENTS_PER_THREAD;
@@ -90,10 +90,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(binary_op(lhs, rhs_[gid]));
+                    out_[gid] = static_cast<OutVal>(binary_op(lhs, rhs_[gid]));
             }
         } else {
             NOA_ASSERT(rhs_.stride(0) == 1 && out_.stride(0) == 1);
@@ -104,86 +104,86 @@ namespace noa::cuda::utils::ewise::details {
 
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining)
-                        out_ptr[offset] = static_cast<out_val_t>(binary_op(lhs, rhs_ptr[offset]));
+                        out_ptr[offset] = static_cast<OutVal>(binary_op(lhs, rhs_ptr[offset]));
                 }
             } else {
-                rhs_val_t args[EPT];
-                out_val_t results[EPT];
+                RhsVal args[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(rhs_ptr, args, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(binary_op(lhs, args[i]));
+                    results[i] = static_cast<OutVal>(binary_op(lhs, args[i]));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(BinaryConfig::BLOCK_SIZE)
-    void binaryValueLeft4D_(Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs,
-                            rhs_val_t rhs,
-                            Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                            uint2_t shape, binary_t binary_op, uint32_t blocks_x) {
+    void binaryValueLeft4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
+                            RhsVal rhs,
+                            Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                            uint2_t shape, BinaryOp binary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto lhs_ = lhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + BinaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + BinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(binary_op(lhs_(ik, il), rhs));
+                    out_(ik, il) = static_cast<OutVal>(binary_op(lhs_(ik, il), rhs));
             }
         }
     }
 
-    template<typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(BinaryConfig::BLOCK_SIZE)
-    void binaryValueRight4D_(lhs_val_t lhs,
-                             Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs,
-                             Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                             uint2_t shape, binary_t binary_op, uint32_t blocks_x) {
+    void binaryValueRight4D_(LhsVal lhs,
+                             Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs,
+                             Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                             uint2_t shape, BinaryOp binary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto rhs_ = rhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + BinaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + BinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(binary_op(lhs, rhs_(ik, il)));
+                    out_(ik, il) = static_cast<OutVal>(binary_op(lhs, rhs_(ik, il)));
             }
         }
     }
 
-    template<typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t, int VEC_SIZE, AccessorTraits TRAITS>
+    template<typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp, int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(BinaryConfig::BLOCK_SIZE)
-    void binaryArray1D_(Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs,
-                        Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs,
-                        Accessor<out_val_t, 2, uint32_t, TRAITS> out,
-                        uint32_t elements, binary_t binary_op) {
+    void binaryArray1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
+                        Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs,
+                        Accessor<OutVal, 2, uint32_t, TRAITS> out,
+                        uint32_t elements, BinaryOp binary_op) {
         constexpr uint32_t BLOCK_SIZE = BinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = BinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = BinaryConfig::ELEMENTS_PER_THREAD;
@@ -196,10 +196,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(binary_op(lhs_[gid], rhs_[gid]));
+                    out_[gid] = static_cast<OutVal>(binary_op(lhs_[gid], rhs_[gid]));
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && rhs_.stride(0) == 1 && out_.stride(0) == 1);
@@ -213,50 +213,50 @@ namespace noa::cuda::utils::ewise::details {
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining)
-                        out_ptr[offset] = static_cast<out_val_t>(binary_op(lhs_ptr[offset], rhs_ptr[offset]));
+                        out_ptr[offset] = static_cast<OutVal>(binary_op(lhs_ptr[offset], rhs_ptr[offset]));
                 }
             } else {
-                lhs_val_t ilhs[EPT];
-                rhs_val_t irhs[EPT];
-                out_val_t results[EPT];
+                LhsVal ilhs[EPT];
+                RhsVal irhs[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(rhs_ptr, irhs, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(binary_op(ilhs[i], irhs[i]));
+                    results[i] = static_cast<OutVal>(binary_op(ilhs[i], irhs[i]));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(BinaryConfig::BLOCK_SIZE)
-    void binaryArray4D_(Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs,
-                        Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs,
-                        Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                        uint2_t shape, binary_t binary_op, uint32_t blocks_x) {
+    void binaryArray4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
+                        Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs,
+                        Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                        uint2_t shape, BinaryOp binary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid(blockIdx.z,
-                         blockIdx.y,
-                         BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
+        const uint4_t gid(blockIdx.z,
+                          blockIdx.y,
+                          BinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          BinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x);
         const auto lhs_ = lhs[gid[0]][gid[1]];
         const auto rhs_ = rhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
-                const int32_t ik = gid[2] + BinaryConfig::BLOCK_SIZE_2D.y * k;
-                const int32_t il = gid[3] + BinaryConfig::BLOCK_SIZE_2D.x * l;
+            for (uint32_t l = 0; l < BinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+                const uint32_t ik = gid[2] + BinaryConfig::BLOCK_SIZE_2D.y * k;
+                const uint32_t il = gid[3] + BinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(binary_op(lhs_(ik, il), rhs_(ik, il)));
+                    out_(ik, il) = static_cast<OutVal>(binary_op(lhs_(ik, il), rhs_(ik, il)));
             }
         }
     }
@@ -279,16 +279,16 @@ namespace noa::cuda::utils::ewise {
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure input and output pointers stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_val_t, typename rhs_t,
-             typename out_val_t, typename binary_t,
-             typename = std::enable_if_t<noa::traits::is_data_v<rhs_t>>>
+             typename LhsVal, typename Rhs,
+             typename OutVal, typename BinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<Rhs>>>
     void binary(const char* name,
-                const lhs_val_t* lhs, dim4_t lhs_strides, rhs_t rhs,
-                out_val_t* output, dim4_t output_strides, dim4_t shape,
+                const LhsVal* lhs, dim4_t lhs_strides, Rhs rhs,
+                OutVal* output, dim4_t output_strides, dim4_t shape,
                 bool swap_layout, Stream& stream,
-                binary_t binary_op) {
+                BinaryOp binary_op) {
         using namespace details;
-        using rhs_val_t = noa::traits::remove_ref_cv_t<rhs_t>;
+        using RhsVal = noa::traits::remove_ref_cv_t<Rhs>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
@@ -323,20 +323,20 @@ namespace noa::cuda::utils::ewise {
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = uint_lhs_strides[0] % vec_size || uint_output_strides[0] % vec_size ? 1 : vec_size;
 
-            const Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, binaryValueLeft1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 4, TRAITS>, config,
+                        name, binaryValueLeft1D_<LhsVal, RhsVal, OutVal, BinaryOp, 4, TRAITS>, config,
                         lhs_accessor, rhs, output_accessor, elements, binary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, binaryValueLeft1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 2, TRAITS>, config,
+                        name, binaryValueLeft1D_<LhsVal, RhsVal, OutVal, BinaryOp, 2, TRAITS>, config,
                         lhs_accessor, rhs, output_accessor, elements, binary_op);
             } else {
                 return stream.enqueue(
-                        name, binaryValueLeft1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 1, TRAITS>, config,
+                        name, binaryValueLeft1D_<LhsVal, RhsVal, OutVal, BinaryOp, 1, TRAITS>, config,
                         lhs_accessor, rhs, output_accessor, elements, binary_op);
             }
         } else {
@@ -346,10 +346,10 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, binaryValueLeft4D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, TRAITS>, config,
+            stream.enqueue(name, binaryValueLeft4D_<LhsVal, RhsVal, OutVal, BinaryOp, TRAITS>, config,
                            lhs_accessor, rhs, output_accessor, i_shape, binary_op, blocks_x);
         }
     }
@@ -370,16 +370,16 @@ namespace noa::cuda::utils::ewise {
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure input and output pointers stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t,
+             typename lhs_t, typename RhsVal,
+             typename OutVal, typename BinaryOp,
              typename = std::enable_if_t<noa::traits::is_data_v<lhs_t>>>
     void binary(const char* name,
-                lhs_t lhs, const rhs_val_t* rhs, dim4_t rhs_strides,
-                out_val_t* output, dim4_t output_strides,
+                lhs_t lhs, const RhsVal* rhs, dim4_t rhs_strides,
+                OutVal* output, dim4_t output_strides,
                 dim4_t shape, bool swap_layout, Stream& stream,
-                binary_t binary_op) {
+                BinaryOp binary_op) {
         using namespace details;
-        using lhs_val_t = noa::traits::remove_ref_cv_t<lhs_t>;
+        using LhsVal = noa::traits::remove_ref_cv_t<lhs_t>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
@@ -414,20 +414,20 @@ namespace noa::cuda::utils::ewise {
             if (blocks.y > 1) // make sure the beginning of each batch preserves the alignment
                 vec_size = uint_rhs_strides[0] % vec_size || uint_output_strides[0] % vec_size ? 1 : vec_size;
 
-            const Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, binaryValueRight1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 4, TRAITS>, config,
+                        name, binaryValueRight1D_<LhsVal, RhsVal, OutVal, BinaryOp, 4, TRAITS>, config,
                         lhs, rhs_accessor, output_accessor, elements, binary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, binaryValueRight1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 2, TRAITS>, config,
+                        name, binaryValueRight1D_<LhsVal, RhsVal, OutVal, BinaryOp, 2, TRAITS>, config,
                         lhs, rhs_accessor, output_accessor, elements, binary_op);
             } else {
                 return stream.enqueue(
-                        name, binaryValueRight1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 1, TRAITS>, config,
+                        name, binaryValueRight1D_<LhsVal, RhsVal, OutVal, BinaryOp, 1, TRAITS>, config,
                         lhs, rhs_accessor, output_accessor, elements, binary_op);
             }
         } else {
@@ -437,10 +437,10 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, binaryValueRight4D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, TRAITS>, config,
+            stream.enqueue(name, binaryValueRight4D_<LhsVal, RhsVal, OutVal, BinaryOp, TRAITS>, config,
                            lhs, rhs_accessor, output_accessor, i_shape, binary_op, blocks_x);
         }
     }
@@ -462,14 +462,14 @@ namespace noa::cuda::utils::ewise {
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure input and output pointers stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename binary_t>
+             typename LhsVal, typename RhsVal,
+             typename OutVal, typename BinaryOp>
     void binary(const char* name,
-                const lhs_val_t* lhs, dim4_t lhs_strides,
-                const rhs_val_t* rhs, dim4_t rhs_strides,
-                out_val_t* output, dim4_t output_strides,
+                const LhsVal* lhs, dim4_t lhs_strides,
+                const RhsVal* rhs, dim4_t rhs_strides,
+                OutVal* output, dim4_t output_strides,
                 dim4_t shape, bool swap_layout, Stream& stream,
-                binary_t binary_op) {
+                BinaryOp binary_op) {
         using namespace details;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
@@ -509,21 +509,21 @@ namespace noa::cuda::utils::ewise {
                 vec_size = is_not_multiple ? 1 : vec_size;
             }
 
-            const Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
+            const Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, binaryArray1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 4, TRAITS>, config,
+                        name, binaryArray1D_<LhsVal, RhsVal, OutVal, BinaryOp, 4, TRAITS>, config,
                         lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, binaryArray1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 2, TRAITS>, config,
+                        name, binaryArray1D_<LhsVal, RhsVal, OutVal, BinaryOp, 2, TRAITS>, config,
                         lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
             } else {
                 return stream.enqueue(
-                        name, binaryArray1D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, 1, TRAITS>, config,
+                        name, binaryArray1D_<LhsVal, RhsVal, OutVal, BinaryOp, 1, TRAITS>, config,
                         lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
             }
         } else {
@@ -533,11 +533,11 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, BinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
+            const Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, binaryArray4D_<lhs_val_t, rhs_val_t, out_val_t, binary_t, TRAITS>, config,
+            stream.enqueue(name, binaryArray4D_<LhsVal, RhsVal, OutVal, BinaryOp, TRAITS>, config,
                            lhs_accessor, rhs_accessor, output_accessor, i_shape, binary_op, blocks_x);
         }
     }

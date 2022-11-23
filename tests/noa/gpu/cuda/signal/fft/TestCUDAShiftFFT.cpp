@@ -110,6 +110,9 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
     const size_t elements = stride[0] * shape[0];
     const float3_t shift = {31.5, -15.2, -21.1};
     const float cutoff = test::Randomizer<float>(0.2, 0.5).get();
+    INFO(shape);
+    INFO(shift);
+    INFO(cutoff);
 
     // Get inputs ready:
     test::Randomizer<TestType> randomizer(-2., 2.);
@@ -128,6 +131,7 @@ TEMPLATE_TEST_CASE("cuda::transform::fft::shift(2|3)D()", "[noa][cuda][transform
 
     // Phase shift:
     const fft::Remap remap = GENERATE(fft::H2H, fft::H2HC, fft::HC2HC, fft::HC2H);
+    INFO(remap);
     if (ndim == 2) {
         const float2_t shift_2d{shift.get()};
         switch (remap) {

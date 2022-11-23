@@ -9,102 +9,125 @@ namespace noa::cuda::math::details {
     using namespace noa::math;
     using namespace noa::traits;
 
-    template<typename in_t, typename out_t, typename op_t>
+    template<typename In, typename Out, typename Op>
     constexpr bool is_valid_ewise_unary_v =
-            (is_any_v<out_t, int16_t, int32_t, int64_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, abs_t, negate_t, one_minus_t, nonzero_t, logical_not_t>) ||
-            (is_any_v<out_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, nonzero_t, logical_not_t>) ||
-            (is_any_v<in_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<out_t, bool> && is_any_v<op_t, nonzero_t, logical_not_t>) ||
-            (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, copy_t, square_t, abs_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t, one_log_t, abs_one_log_t>) ||
-            (is_float_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, round_t, rint_t, ceil_t, floor_t, trunc_t>) ||
-            (is_complex_v<out_t> && std::is_same_v<in_t, out_t> && is_any_v<op_t, one_minus_t, square_t, inverse_t, normalize_t, conj_t>) ||
-            (is_complex_v<in_t> && std::is_same_v<out_t, value_type_t<in_t>> && is_any_v<op_t, abs_t, real_t, imag_t, abs_squared_t, abs_one_log_t>);
+            (is_any_v<Out, int16_t, int32_t, int64_t> && std::is_same_v<In, Out> && is_any_v<Op, copy_t, square_t, abs_t, negate_t, one_minus_t, nonzero_t, logical_not_t>) ||
+            (is_any_v<Out, uint16_t, uint32_t, uint64_t> && std::is_same_v<In, Out> && is_any_v<Op, copy_t, square_t, nonzero_t, logical_not_t>) ||
+            (is_any_v<In, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<Out, bool> && is_any_v<Op, nonzero_t, logical_not_t>) ||
+            (is_float_v<Out> && std::is_same_v<In, Out> && is_any_v<Op, copy_t, square_t, abs_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t, one_log_t, abs_one_log_t>) ||
+            (is_float_v<Out> && std::is_same_v<In, Out> && is_any_v<Op, round_t, rint_t, ceil_t, floor_t, trunc_t>) ||
+            (is_complex_v<Out> && std::is_same_v<In, Out> && is_any_v<Op, one_minus_t, square_t, inverse_t, normalize_t, conj_t>) ||
+            (is_complex_v<In> && std::is_same_v<Out, value_type_t<In>> && is_any_v<Op, abs_t, real_t, imag_t, abs_squared_t, abs_one_log_t>);
 
-    template<typename lhs_t, typename rhs_t, typename out_t, typename op_t>
+    template<typename Lhs, typename Rhs, typename Out, typename Op>
     constexpr bool is_valid_ewise_binary_v =
-            (is_any_v<out_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && are_all_same_v<lhs_t, rhs_t, out_t> &&
-             is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, min_t, max_t,
+            (is_any_v<Out, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && are_all_same_v<Lhs, Rhs, Out> &&
+             is_any_v<Op, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, min_t, max_t,
                       equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, modulo_t, logical_and_t, logical_or_t>) ||
-            (std::is_same_v<out_t, bool> && is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<lhs_t, rhs_t> &&
-             is_any_v<op_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, modulo_t, logical_and_t, logical_or_t>) ||
-            (is_float_v<out_t> && are_all_same_v<lhs_t, rhs_t, out_t> &&
-             is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, min_t, max_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, pow_t>) ||
-            (is_float_v<lhs_t> && std::is_same_v<lhs_t, rhs_t> && std::is_same_v<out_t, bool> &&
-             is_any_v<op_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, pow_t>) ||
-            (is_complex_v<out_t> && are_all_same_v<lhs_t, rhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, multiply_conj_t>) ||
-            (is_complex_v<out_t> && std::is_same_v<lhs_t, value_type_t<out_t>> && std::is_same_v<rhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>) ||
-            (is_complex_v<out_t> && std::is_same_v<rhs_t, value_type_t<out_t>> && std::is_same_v<lhs_t, out_t> && is_any_v<op_t, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>);
+            (std::is_same_v<Out, bool> && is_any_v<Lhs, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t> && std::is_same_v<Lhs, Rhs> &&
+             is_any_v<Op, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, modulo_t, logical_and_t, logical_or_t>) ||
+            (is_float_v<Out> && are_all_same_v<Lhs, Rhs, Out> &&
+             is_any_v<Op, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, min_t, max_t, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, pow_t>) ||
+            (is_float_v<Lhs> && std::is_same_v<Lhs, Rhs> && std::is_same_v<Out, bool> &&
+             is_any_v<Op, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, pow_t>) ||
+            (is_complex_v<Out> && are_all_same_v<Lhs, Rhs, Out> && is_any_v<Op, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, multiply_conj_t>) ||
+            (is_complex_v<Out> && std::is_same_v<Lhs, value_type_t<Out>> && std::is_same_v<Rhs, Out> && is_any_v<Op, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>) ||
+            (is_complex_v<Out> && std::is_same_v<Rhs, value_type_t<Out>> && std::is_same_v<Lhs, Out> && is_any_v<Op, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t>);
 
-    template<typename lhs_t, typename mhs_t, typename rhs_t, typename out_t, typename op_t>
-    constexpr bool is_valid_ewise_trinary_v =
-            (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, within_t, within_equal_t, clamp_t, fma_t, plus_divide_t, divide_epsilon_t>) ||
-            (is_any_v<lhs_t, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<lhs_t, mhs_t, rhs_t> && std::is_same_v<out_t, bool> && is_any_v<op_t, within_t, within_equal_t, clamp_t>) ||
-            ((is_float_v<lhs_t> || is_complex_v<lhs_t>) && are_all_same_v<lhs_t, mhs_t, rhs_t, out_t> && is_any_v<op_t, fma_t, plus_divide_t, divide_epsilon_t>) ||
-            (is_complex_v<lhs_t> && std::is_same_v<lhs_t, out_t> && are_all_same_v<mhs_t, rhs_t, value_type_t<out_t>> && is_any_v<op_t, fma_t, plus_divide_t, divide_epsilon_t>);
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
+    constexpr bool is_valid_ewise_trinary_bool_v =
+            is_any_v<Lhs, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> &&
+            (are_all_same_v<Lhs, Mhs, Rhs, Out> || are_all_same_v<Lhs, Mhs, Rhs> && std::is_same_v<Out, bool>)
+            && is_any_v<Op, within_t, within_equal_t, clamp_t>;
+
+    template<typename Op>
+    constexpr bool is_valid_ewise_trinary_arithmetic_op_v =
+            is_any_v<Op,
+                     plus_t, plus_minus_t, plus_multiply_t, plus_divide_t,
+                     minus_t, minus_plus_t, minus_multiply_t, minus_divide_t,
+                     multiply_t, multiply_plus_t, multiply_minus_t, multiply_divide_t,
+                     divide_t, divide_plus_t, divide_minus_t, divide_multiply_t, divide_epsilon_t>;
+
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
+    constexpr bool is_valid_ewise_trinary_arithmetic_v =
+            is_valid_ewise_trinary_arithmetic_op_v<Op> &&
+            ((is_any_v<Lhs, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double> && are_all_same_v<Lhs, Mhs, Rhs, Out>) ||
+             (are_all_same_v<traits::value_type_t<Lhs>, traits::value_type_t<Mhs>, traits::value_type_t<Rhs>, traits::value_type_t<Out>> &&
+              (is_complex_v<Lhs> || is_complex_v<Mhs> || is_complex_v<Rhs>) && is_complex_v<Out>));
+
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
+    constexpr bool is_valid_ewise_trinary_v = is_valid_ewise_trinary_bool_v<Lhs, Mhs, Rhs, Out, Op> || is_valid_ewise_trinary_arithmetic_v<Lhs, Mhs, Rhs, Out, Op>;
 }
 
 namespace noa::cuda::math {
-    // Element-wise transformation using an unary operator()(\p T) -> \p U
-    template<typename T, typename U, typename UnaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_unary_v<T, U, UnaryOp>>>
-    void ewise(const shared_t<T[]>& input, dim4_t input_strides,
-               const shared_t<U[]>& output, dim4_t output_strides,
+    // Element-wise transformation using an unary operator()(\p In) -> \p Out
+    template<typename In, typename Out, typename UnaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_unary_v<In, Out, UnaryOp>>>
+    void ewise(const shared_t<In[]>& input, dim4_t input_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, UnaryOp unary_op, Stream& stream);
 }
 
 namespace noa::cuda::math {
-    // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
-    template<typename T, typename U, typename V, typename BinaryOp,
-             std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>, bool> = true>
-    void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides, U rhs,
-               const shared_t<V[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a binary operator()(\p Lhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp,
+             std::enable_if_t<details::is_valid_ewise_binary_v<Lhs, Rhs, Out, BinaryOp>, bool> = true>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               Rhs rhs,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream);
 
-    // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
-    template<typename T, typename U, typename V, typename BinaryOp,
-             std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>, bool> = true>
-    void ewise(T lhs, const shared_t<U[]>& rhs, dim4_t rhs_strides,
-               const shared_t<V[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a binary operator()(\p Lhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp,
+             std::enable_if_t<details::is_valid_ewise_binary_v<Lhs, Rhs, Out, BinaryOp>, bool> = true>
+    void ewise(Lhs lhs,
+               const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream);
 
-    // Element-wise transformation using a binary operator()(\p T, \p U) -> \p V
-    template<typename T, typename U, typename V, typename BinaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_binary_v<T, U, V, BinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides,
-               const shared_t<U[]>& rhs, dim4_t rhs_strides,
-               const shared_t<V[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a binary operator()(\p Lhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_binary_v<Lhs, Rhs, Out, BinaryOp>>>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, BinaryOp binary_op, Stream& stream);
 }
 
 namespace noa::cuda::math {
-    // Element-wise transformation using a trinary operator()(\p T, \p U, \p U) -> \p V
-    template<typename T, typename U, typename V, typename TrinaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, U, V, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides, U mhs, U rhs,
-               const shared_t<V[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               Mhs mhs,
+               Rhs rhs,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream);
 
-    // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
-    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides,
-               const shared_t<U[]>& mhs, dim4_t mhs_strides, V rhs,
-               const shared_t<W[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               const shared_t<Mhs[]>& mhs, dim4_t mhs_strides,
+               Rhs rhs,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream);
 
-    // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
-    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides, V mhs,
-               const shared_t<U[]>& rhs, dim4_t rhs_strides,
-               const shared_t<W[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               Mhs mhs,
+               const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream);
 
-    // Element-wise transformation using a trinary operator()(\p T, \p U, \p V) -> \p W
-    template<typename T, typename U, typename V, typename W, typename TrinaryOp,
-             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<T, U, V, W, TrinaryOp>>>
-    void ewise(const shared_t<T[]>& lhs, dim4_t lhs_strides,
-               const shared_t<U[]>& mhs, dim4_t mhs_strides,
-               const shared_t<V[]>& rhs, dim4_t rhs_strides,
-               const shared_t<W[]>& output, dim4_t output_strides,
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               const shared_t<Mhs[]>& mhs, dim4_t mhs_strides,
+               const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream);
 }

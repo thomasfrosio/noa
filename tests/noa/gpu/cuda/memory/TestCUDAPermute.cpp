@@ -75,6 +75,8 @@ TEMPLATE_TEST_CASE("cuda::memory::permute() - random shapes - contiguous layouts
                                              dim4_t{0, 2, 3, 1}};
     const uint ndim = GENERATE(2U, 3U);
     const uint number = GENERATE(0U, 1U, 2U, 3U, 4U, 5U);
+    INFO(ndim);
+    INFO(number);
     const dim4_t permutation = permutations[number];
 
     test::Randomizer<TestType> randomizer(-5., 5.);

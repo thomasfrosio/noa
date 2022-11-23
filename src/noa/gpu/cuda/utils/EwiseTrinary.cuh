@@ -21,15 +21,15 @@ namespace noa::cuda::utils::ewise::details {
                                                  BLOCK_SIZE_2D.y * ELEMENTS_PER_THREAD_2D, 1};
     };
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t,
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp,
              int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValue1D_(Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs,
-                         mhs_val_t mhs,
-                         rhs_val_t rhs,
-                         Accessor<out_val_t, 2, uint32_t, TRAITS> output,
-                         uint32_t elements, trinary_t trinary_op) {
+    void trinaryValue1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
+                         MhsVal mhs,
+                         RhsVal rhs,
+                         Accessor<OutVal, 2, uint32_t, TRAITS> output,
+                         uint32_t elements, TrinaryOp trinary_op) {
         constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
@@ -41,10 +41,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(trinary_op(lhs_[gid], mhs, rhs));
+                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs, rhs));
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && out_.stride(0) == 1);
@@ -56,60 +56,60 @@ namespace noa::cuda::utils::ewise::details {
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining)
-                    out_ptr[offset] = static_cast<out_val_t>(trinary_op(lhs_ptr[offset], mhs, rhs));
+                    out_ptr[offset] = static_cast<OutVal>(trinary_op(lhs_ptr[offset], mhs, rhs));
                 }
             } else {
-                lhs_val_t args[EPT];
-                out_val_t results[EPT];
+                LhsVal args[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, args, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(trinary_op(args[i], mhs, rhs));
+                    results[i] = static_cast<OutVal>(trinary_op(args[i], mhs, rhs));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValue4D_(Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs,
-                         mhs_val_t mhs, rhs_val_t rhs,
-                         Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                         uint2_t shape, trinary_t trinary_op, uint32_t blocks_x) {
+    void trinaryValue4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
+                         MhsVal mhs, RhsVal rhs,
+                         Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                         uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto lhs_ = lhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(trinary_op(lhs_(ik, il), mhs, rhs));
+                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs, rhs));
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t,
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp,
              int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArrayValue1D_(Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs,
-                              Accessor<const mhs_val_t, 2, uint32_t, TRAITS> mhs,
-                              rhs_val_t rhs,
-                              Accessor<out_val_t, 2, uint32_t, TRAITS> out,
-                              uint32_t elements, trinary_t trinary_op) {
+    void trinaryArrayValue1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
+                              Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs,
+                              RhsVal rhs,
+                              Accessor<OutVal, 2, uint32_t, TRAITS> out,
+                              uint32_t elements, TrinaryOp trinary_op) {
         constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
@@ -122,10 +122,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(trinary_op(lhs_[gid], mhs_[gid], rhs));
+                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs_[gid], rhs));
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && mhs_.stride(0) == 1 && out_.stride(0) == 1);
@@ -139,64 +139,64 @@ namespace noa::cuda::utils::ewise::details {
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining)
-                        out_ptr[offset] = static_cast<out_val_t>(trinary_op(lhs_ptr[offset], mhs_ptr[offset], rhs));
+                        out_ptr[offset] = static_cast<OutVal>(trinary_op(lhs_ptr[offset], mhs_ptr[offset], rhs));
                 }
             } else {
-                lhs_val_t ilhs[EPT];
-                mhs_val_t imhs[EPT];
-                out_val_t results[EPT];
+                LhsVal ilhs[EPT];
+                MhsVal imhs[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(mhs_ptr, imhs, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(trinary_op(ilhs[i], imhs[i], rhs));
+                    results[i] = static_cast<OutVal>(trinary_op(ilhs[i], imhs[i], rhs));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArrayValue4D_(Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs,
-                              Accessor<const mhs_val_t, 4, uint32_t, TRAITS> mhs,
-                              rhs_val_t rhs,
-                              Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                              uint2_t shape, trinary_t trinary_op, uint32_t blocks_x) {
+    void trinaryArrayValue4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
+                              Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs,
+                              RhsVal rhs,
+                              Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                              uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto lhs_ = lhs[gid[0]][gid[1]];
         const auto mhs_ = mhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(trinary_op(lhs_(ik, il), mhs_(ik, il), rhs));
+                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs_(ik, il), rhs));
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t,
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp,
              int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValueArray1D_(Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs,
-                              mhs_val_t mhs,
-                              Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs,
-                              Accessor<out_val_t, 2, uint32_t, TRAITS> out,
-                              uint32_t elements, trinary_t trinary_op) {
+    void trinaryValueArray1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
+                              MhsVal mhs,
+                              Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs,
+                              Accessor<OutVal, 2, uint32_t, TRAITS> out,
+                              uint32_t elements, TrinaryOp trinary_op) {
         constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
@@ -209,10 +209,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(trinary_op(lhs_[gid], mhs, rhs_[gid]));
+                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs, rhs_[gid]));
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && rhs_.stride(0) == 1 && out_.stride(0) == 1);
@@ -226,64 +226,64 @@ namespace noa::cuda::utils::ewise::details {
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining)
-                        out_ptr[offset] = static_cast<out_val_t>(trinary_op(lhs_ptr[offset], mhs, rhs_ptr[offset]));
+                        out_ptr[offset] = static_cast<OutVal>(trinary_op(lhs_ptr[offset], mhs, rhs_ptr[offset]));
                 }
             } else {
-                lhs_val_t ilhs[EPT];
-                rhs_val_t irhs[EPT];
-                out_val_t results[EPT];
+                LhsVal ilhs[EPT];
+                RhsVal irhs[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(rhs_ptr, irhs, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(trinary_op(ilhs[i], mhs, irhs[i]));
+                    results[i] = static_cast<OutVal>(trinary_op(ilhs[i], mhs, irhs[i]));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValueArray4D_(Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs,
-                              mhs_val_t mhs,
-                              Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs,
-                              Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                              uint2_t shape, trinary_t trinary_op, uint32_t blocks_x) {
+    void trinaryValueArray4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
+                              MhsVal mhs,
+                              Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs,
+                              Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                              uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto lhs_ = lhs[gid[0]][gid[1]];
         const auto rhs_ = rhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(trinary_op(lhs_(ik, il), mhs, rhs_(ik, il)));
+                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs, rhs_(ik, il)));
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t,
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp,
              int VEC_SIZE, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArray1D_(Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs,
-                         Accessor<const mhs_val_t, 2, uint32_t, TRAITS> mhs,
-                         Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs,
-                         Accessor<out_val_t, 2, uint32_t, TRAITS> out,
-                         uint32_t elements, trinary_t trinary_op) {
+    void trinaryArray1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
+                         Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs,
+                         Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs,
+                         Accessor<OutVal, 2, uint32_t, TRAITS> out,
+                         uint32_t elements, TrinaryOp trinary_op) {
         constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
         constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
         constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
@@ -297,10 +297,10 @@ namespace noa::cuda::utils::ewise::details {
 
         if constexpr (VEC_SIZE == 1) {
             #pragma unroll
-            for (int32_t i = 0; i < EPT; ++i) {
+            for (uint32_t i = 0; i < EPT; ++i) {
                 const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<out_val_t>(trinary_op(lhs_[gid], mhs_[gid], rhs_[gid]));
+                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs_[gid], rhs_[gid]));
             }
         } else {
             NOA_ASSERT(lhs_.stride(0) == 1 && mhs_.stride(0) == 1 &&
@@ -317,56 +317,56 @@ namespace noa::cuda::utils::ewise::details {
             const uint32_t remaining = elements - base;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (int32_t i = 0; i < EPT; ++i) {
+                for (uint32_t i = 0; i < EPT; ++i) {
                     const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
                     if (offset < remaining) {
-                        out_ptr[offset] = static_cast<out_val_t>(trinary_op(
+                        out_ptr[offset] = static_cast<OutVal>(trinary_op(
                                 lhs_ptr[offset], mhs_ptr[offset], rhs_ptr[offset]));
                     }
                 }
             } else {
-                lhs_val_t ilhs[EPT];
-                mhs_val_t imhs[EPT];
-                rhs_val_t irhs[EPT];
-                out_val_t results[EPT];
+                LhsVal ilhs[EPT];
+                MhsVal imhs[EPT];
+                RhsVal irhs[EPT];
+                OutVal results[EPT];
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(mhs_ptr, imhs, threadIdx.x);
                 block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(rhs_ptr, irhs, threadIdx.x);
                 #pragma unroll
                 for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<out_val_t>(trinary_op(ilhs[i], imhs[i], irhs[i]));
+                    results[i] = static_cast<OutVal>(trinary_op(ilhs[i], imhs[i], irhs[i]));
                 block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t, AccessorTraits TRAITS>
+    template<typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
     __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArray4D_(Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs,
-                         Accessor<const mhs_val_t, 4, uint32_t, TRAITS> mhs,
-                         Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs,
-                         Accessor<out_val_t, 4, uint32_t, TRAITS> out,
-                         uint2_t shape, trinary_t trinary_op, uint32_t blocks_x) {
+    void trinaryArray4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
+                         Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs,
+                         Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs,
+                         Accessor<OutVal, 4, uint32_t, TRAITS> out,
+                         uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
 
         const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const uint4_t gid{blockIdx.z,
+                          blockIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
         const auto lhs_ = lhs[gid[0]][gid[1]];
         const auto mhs_ = mhs[gid[0]][gid[1]];
         const auto rhs_ = rhs[gid[0]][gid[1]];
         const auto out_ = out[gid[0]][gid[1]];
 
         #pragma unroll
-        for (int32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (int32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
+            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
                 const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
                 const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<out_val_t>(trinary_op(lhs_(ik, il), mhs_(ik, il), rhs_(ik, il)));
+                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs_(ik, il), rhs_(ik, il)));
             }
         }
     }
@@ -386,22 +386,22 @@ namespace noa::cuda::utils::ewise {
     // swap_layout:     Swap the memory layout to optimize output writes.
     //                  If false, assume rightmost order is the fastest order.
     // stream:          Stream on which to enqueue this function.
-    // trinary_op:      Trinary operator. The output is explicitly casted to V.
+    // trinary_op:      Trinary operator. The output is explicitly cast to the output type.
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure lhs and output stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_val_t, typename mhs_t, typename rhs_t,
-             typename out_val_t, typename trinary_t,
-             typename = std::enable_if_t<noa::traits::is_data_v<mhs_t> && noa::traits::is_data_v<rhs_t>>>
+             typename LhsVal, typename Mhs, typename Rhs,
+             typename OutVal, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<Mhs> && noa::traits::is_data_v<Rhs>>>
     void trinary(const char* name,
-                 const lhs_val_t* lhs, dim4_t lhs_strides,
-                 mhs_t mhs, rhs_t rhs,
-                 out_val_t* output, dim4_t output_strides,
+                 const LhsVal* lhs, dim4_t lhs_strides,
+                 Mhs mhs, Rhs rhs,
+                 OutVal* output, dim4_t output_strides,
                  dim4_t shape, bool swap_layout, Stream& stream,
-                 trinary_t trinary_op) {
+                 TrinaryOp trinary_op) {
         using namespace details;
-        using mhs_val_t = noa::traits::remove_ref_cv_t<mhs_t>;
-        using rhs_val_t = noa::traits::remove_ref_cv_t<rhs_t>;
+        using MhsVal = noa::traits::remove_ref_cv_t<Mhs>;
+        using RhsVal = noa::traits::remove_ref_cv_t<Rhs>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
@@ -434,20 +434,20 @@ namespace noa::cuda::utils::ewise {
             if (blocks.y > 1)
                 vec_size = uint_lhs_strides[0] % vec_size || uint_output_strides[0] % vec_size ? 1 : vec_size;
 
-            const Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, trinaryValue1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 4, TRAITS>,
+                        name, trinaryValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
                         config, lhs_accessor, mhs, rhs, output_accessor, elements, trinary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, trinaryValue1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 2, TRAITS>,
+                        name, trinaryValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
                         config, lhs_accessor, mhs, rhs, output_accessor, elements, trinary_op);
             } else {
                 return stream.enqueue(
-                        name, trinaryValue1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 1, TRAITS>,
+                        name, trinaryValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
                         config, lhs_accessor, mhs, rhs, output_accessor, elements, trinary_op);
             }
         } else {
@@ -457,10 +457,10 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, trinaryValue4D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, TRAITS>,
+            stream.enqueue(name, trinaryValue4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>,
                            config, lhs_accessor, mhs, rhs, output_accessor, i_shape, trinary_op, blocks_x);
         }
     }
@@ -479,21 +479,21 @@ namespace noa::cuda::utils::ewise {
     // swap_layout:     Swap the memory layout to optimize output writes.
     //                  If false, assume rightmost order is the fastest order.
     // stream:          Stream on which to enqueue this function.
-    // trinary_op:      Trinary operator. The output is explicitly casted to V.
+    // trinary_op:      Trinary operator. The output is explicitly cast to the output type.
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure lhs, mhs and output stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_val_t, typename mhs_val_t, typename rhs_t,
-             typename out_val_t, typename trinary_t,
-             typename = std::enable_if_t<noa::traits::is_data_v<rhs_t>>>
+             typename LhsVal, typename MhsVal, typename Rhs,
+             typename OutVal, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<Rhs>>>
     void trinary(const char* name,
-                 const lhs_val_t* lhs, dim4_t lhs_strides,
-                 const mhs_val_t* mhs, dim4_t mhs_strides, rhs_t rhs,
-                 out_val_t* output, dim4_t output_strides,
+                 const LhsVal* lhs, dim4_t lhs_strides,
+                 const MhsVal* mhs, dim4_t mhs_strides, Rhs rhs,
+                 OutVal* output, dim4_t output_strides,
                  dim4_t shape, bool swap_layout, Stream& stream,
-                 trinary_t trinary_op) {
+                 TrinaryOp trinary_op) {
         using namespace details;
-        using rhs_val_t = noa::traits::remove_ref_cv_t<rhs_t>;
+        using RhsVal = noa::traits::remove_ref_cv_t<Rhs>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
@@ -535,21 +535,21 @@ namespace noa::cuda::utils::ewise {
                            uint_output_strides[0] % vec_size ? 1 : vec_size;
             }
 
-            const Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const mhs_val_t, 2, uint32_t, TRAITS> mhs_accessor(mhs, uint_mhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
+            const Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs_accessor(mhs, uint_mhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, trinaryArrayValue1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 4, TRAITS>,
+                        name, trinaryArrayValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
                         config, lhs_accessor, mhs_accessor, rhs, output_accessor, elements, trinary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, trinaryArrayValue1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 2, TRAITS>,
+                        name, trinaryArrayValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
                         config, lhs_accessor, mhs_accessor, rhs, output_accessor, elements, trinary_op);
             } else {
                 return stream.enqueue(
-                        name, trinaryArrayValue1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 1, TRAITS>,
+                        name, trinaryArrayValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
                         config, lhs_accessor, mhs_accessor, rhs, output_accessor, elements, trinary_op);
             }
         } else {
@@ -559,11 +559,11 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const mhs_val_t, 4, uint32_t, TRAITS> mhs_accessor(mhs, safe_cast<uint4_t>(mhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
+            const Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs_accessor(mhs, safe_cast<uint4_t>(mhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, trinaryArrayValue4D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, TRAITS>,
+            stream.enqueue(name, trinaryArrayValue4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>,
                            config, lhs_accessor, mhs_accessor, rhs, output_accessor, i_shape, trinary_op, blocks_x);
         }
     }
@@ -582,21 +582,21 @@ namespace noa::cuda::utils::ewise {
     // swap_layout:     Swap the memory layout to optimize output writes.
     //                  If false, assume rightmost order is the fastest order.
     // stream:          Stream on which to enqueue this function.
-    // trinary_op:      Trinary operator. The output is explicitly cast to V.
+    // trinary_op:      Trinary operator. The output is explicitly cast to the output type.
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure lhs, rhs and output stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_val_t, typename mhs_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t,
-             typename = std::enable_if_t<noa::traits::is_data_v<mhs_t>>>
+             typename LhsVal, typename Mhs, typename RhsVal,
+             typename OutVal, typename TrinaryOp,
+             typename = std::enable_if_t<noa::traits::is_data_v<Mhs>>>
     void trinary(const char* name,
-                 const lhs_val_t* lhs, dim4_t lhs_strides, mhs_t mhs,
-                 const rhs_val_t* rhs, dim4_t rhs_strides,
-                 out_val_t* output, dim4_t output_strides,
+                 const LhsVal* lhs, dim4_t lhs_strides, Mhs mhs,
+                 const RhsVal* rhs, dim4_t rhs_strides,
+                 OutVal* output, dim4_t output_strides,
                  dim4_t shape, bool swap_layout, Stream& stream,
-                 trinary_t trinary_op) {
+                 TrinaryOp trinary_op) {
         using namespace details;
-        using mhs_val_t = noa::traits::remove_ref_cv_t<mhs_t>;
+        using MhsVal = noa::traits::remove_ref_cv_t<Mhs>;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
@@ -638,21 +638,21 @@ namespace noa::cuda::utils::ewise {
                            uint_output_strides[0] % vec_size ? 1 : vec_size;
             }
 
-            const Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
+            const Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, trinaryValueArray1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 4, TRAITS>,
+                        name, trinaryValueArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
                         config, lhs_accessor, mhs, rhs_accessor, output_accessor, elements, trinary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, trinaryValueArray1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 2, TRAITS>,
+                        name, trinaryValueArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
                         config, lhs_accessor, mhs, rhs_accessor, output_accessor, elements, trinary_op);
             } else {
                 return stream.enqueue(
-                        name, trinaryValueArray1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 1, TRAITS>,
+                        name, trinaryValueArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
                         config, lhs_accessor, mhs, rhs_accessor, output_accessor, elements, trinary_op);
             }
         } else {
@@ -662,11 +662,11 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
+            const Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
-            stream.enqueue(name, trinaryValueArray4D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, TRAITS>,
+            stream.enqueue(name, trinaryValueArray4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>,
                            config, lhs_accessor, mhs, rhs_accessor, output_accessor, i_shape, trinary_op, blocks_x);
         }
     }
@@ -689,15 +689,15 @@ namespace noa::cuda::utils::ewise {
     // This function is asynchronous relative to the host and may return before completion.
     // One must make sure lhs, mhs, rhs and output stay valid until completion.
     template<bool RESTRICT = false,
-             typename lhs_val_t, typename mhs_val_t, typename rhs_val_t,
-             typename out_val_t, typename trinary_t>
+             typename LhsVal, typename MhsVal, typename RhsVal,
+             typename OutVal, typename TrinaryOp>
     void trinary(const char* name,
-                 const lhs_val_t* lhs, dim4_t lhs_strides,
-                 const mhs_val_t* mhs, dim4_t mhs_strides,
-                 const rhs_val_t* rhs, dim4_t rhs_strides,
-                 out_val_t* output, dim4_t output_strides, dim4_t shape,
+                 const LhsVal* lhs, dim4_t lhs_strides,
+                 const MhsVal* mhs, dim4_t mhs_strides,
+                 const RhsVal* rhs, dim4_t rhs_strides,
+                 OutVal* output, dim4_t output_strides, dim4_t shape,
                  bool swap_layout, Stream& stream,
-                 trinary_t trinary_op) {
+                 TrinaryOp trinary_op) {
         using namespace details;
         constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
         NOA_ASSERT(all(shape > 0));
@@ -738,22 +738,22 @@ namespace noa::cuda::utils::ewise {
                            1 : vec_size;
             }
 
-            const Accessor<const lhs_val_t, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const mhs_val_t, 2, uint32_t, TRAITS> mhs_accessor(mhs, uint_mhs_strides);
-            const Accessor<const rhs_val_t, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
-            const Accessor<out_val_t, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
+            const Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs_accessor(mhs, uint_mhs_strides);
+            const Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
+            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
 
             if (vec_size == 4) {
                 return stream.enqueue(
-                        name, trinaryArray1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 4, TRAITS>,
+                        name, trinaryArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
                         config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
             } else if (vec_size == 2) {
                 return stream.enqueue(
-                        name, trinaryArray1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 2, TRAITS>,
+                        name, trinaryArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
                         config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
             } else {
                 return stream.enqueue(
-                        name, trinaryArray1D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, 1, TRAITS>,
+                        name, trinaryArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
                         config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
             }
         } else {
@@ -763,13 +763,13 @@ namespace noa::cuda::utils::ewise {
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
             const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
 
-            const Accessor<const lhs_val_t, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const mhs_val_t, 4, uint32_t, TRAITS> mhs_accessor(mhs, safe_cast<uint4_t>(mhs_strides));
-            const Accessor<const rhs_val_t, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
-            const Accessor<out_val_t, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
+            const Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs_accessor(mhs, safe_cast<uint4_t>(mhs_strides));
+            const Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
+            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
 
             stream.enqueue(name,
-                           trinaryArray4D_<lhs_val_t, mhs_val_t, rhs_val_t, out_val_t, trinary_t, TRAITS>, config,
+                           trinaryArray4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>, config,
                            lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, i_shape, trinary_op, blocks_x);
         }
     }
