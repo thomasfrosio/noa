@@ -89,6 +89,7 @@ namespace noa::cpu::signal::fft {
     void standardize(const shared_t<T[]>& input, dim4_t input_strides,
                      const shared_t<T[]>& output, dim4_t output_strides,
                      dim4_t shape, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
             using real_t = traits::value_type_t<T>;
             const dim4_t shape_{1, shape[1], shape[2], shape[3]};
@@ -96,17 +97,20 @@ namespace noa::cpu::signal::fft {
 
             // TODO Expose the reduction kernel with a transform operator like in the CUDA backend.
             //      That way, the buffer can be removed entirely.
-            const shared_t<real_t[]> buffer = input != output && indexing::areContiguous(output_strides, shape_fft) ?
-                                              std::reinterpret_pointer_cast<real_t[]>(output) :
-                                              cpu::memory::PtrHost<real_t>::alloc(shape_fft.elements());
+            const shared_t<real_t[]> buffer =
+                    input != output && indexing::areContiguous(output_strides, shape_fft) ?
+                    std::reinterpret_pointer_cast<real_t[]>(output) :
+                    cpu::memory::PtrHost<real_t>::alloc(shape_fft.elements());
 
+            cpu::Stream internal_stream(Stream::CURRENT);
+            internal_stream.threads(threads);
             for (dim_t batch = 0; batch < shape[0]; ++batch) {
                 if constexpr (REMAP == Remap::F2F || REMAP == Remap::FC2FC) {
                     standardizeFull_<REMAP>(input, input_strides, output, output_strides,
-                                            buffer, shape_.strides(), shape_, norm, stream);
+                                            buffer, shape_.strides(), shape_, norm, internal_stream);
                 } else if constexpr (REMAP == Remap::H2H || REMAP == Remap::HC2HC) {
                     standardizeHalf_<REMAP>(input, input_strides, output, output_strides,
-                                            buffer, shape_, shape_fft, norm, stream);
+                                            buffer, shape_, shape_fft, norm, internal_stream);
                 } else {
                     static_assert(traits::always_false_v<T>);
                 }

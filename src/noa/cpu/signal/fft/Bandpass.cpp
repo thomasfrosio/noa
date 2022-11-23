@@ -191,16 +191,17 @@ namespace {
 
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
 
+        const dim_t threads = stream.threads();
         if (input) {
             stream.enqueue([=]() {
                 if (width > 1e-6f)
                     singlePassSoft_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                             {input.get(), input_strides}, {output.get(), output_strides}, shape,
-                            stream.threads(), cutoff, width);
+                            threads, cutoff, width);
                 else
                     singlePassHard_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                             {input.get(), input_strides}, {output.get(), output_strides}, shape,
-                            stream.threads(), cutoff, width);
+                            threads, cutoff, width);
             });
         } else {
             if constexpr (!traits::is_complex_v<T>) {
@@ -208,11 +209,11 @@ namespace {
                     if (width > 1e-6f)
                         singlePassSoft_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                                 {}, {output.get(), output_strides}, shape,
-                                stream.threads(), cutoff, width);
+                                threads, cutoff, width);
                     else
                         singlePassHard_<PASS, IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                                 {}, {output.get(), output_strides}, shape,
-                                stream.threads(), cutoff, width);
+                                threads, cutoff, width);
                 });
             } else {
                 NOA_THROW_FUNC("(low|high)pass", "Cannot compute a filter of complex type");
@@ -300,17 +301,18 @@ namespace noa::cpu::signal::fft {
             static_assert(traits::always_false_v<T>);
 
         NOA_ASSERT(input != output || IS_SRC_CENTERED == IS_DST_CENTERED);
+        const dim_t threads = stream.threads();
         if (input) {
             stream.enqueue([=]() {
                 if (width_1 > 1e-6f || width_2 > 1e-6f)
                     bandPassSoft_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                             {input.get(), input_strides}, {output.get(), output_strides},
-                            shape, stream.threads(),
+                            shape, threads,
                             cutoff_1, cutoff_2, width_1, width_2);
                 else
                     bandPassHard_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                             {input.get(), input_strides}, {output.get(), output_strides},
-                            shape, stream.threads(),
+                            shape, threads,
                             cutoff_1, cutoff_2, width_1, width_2);
             });
         } else {
@@ -319,12 +321,12 @@ namespace noa::cpu::signal::fft {
                     if (width_1 > 1e-6f || width_2 > 1e-6f)
                         bandPassSoft_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                                 {}, {output.get(), output_strides},
-                                shape, stream.threads(),
+                                shape, threads,
                                 cutoff_1, cutoff_2, width_1, width_2);
                     else
                         bandPassHard_<IS_SRC_CENTERED, IS_DST_CENTERED, T>(
                                 {}, {output.get(), output_strides},
-                                shape, stream.threads(),
+                                shape, threads,
                                 cutoff_1, cutoff_2, width_1, width_2);
                 });
             } else {

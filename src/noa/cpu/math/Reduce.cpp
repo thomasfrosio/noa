@@ -442,17 +442,20 @@ namespace noa::cpu::math {
     U var(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int ddof, Stream& stream) {
         NOA_ASSERT(input && all(shape > 0));
         U output;
-        stream.enqueue([=, &output, &stream]() {
-            T mean = sum(input, strides, shape, stream);
+        const dim_t threads = stream.threads();
+        stream.enqueue([=, &output]() {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+            T mean = sum(input, strides, shape, current_stream);
             using value_t = noa::traits::value_type_t<T>;
             const auto ddof_ = static_cast<dim_t>(ddof);
             const auto count = static_cast<value_t>(shape.elements() - ddof_);
             mean /= count;
 
             if constexpr (noa::traits::is_float_v<T>) {
-                reduceAccurateVariance_(input.get(), strides, shape, mean, &output, ddof, stream.threads());
+                reduceAccurateVariance_(input.get(), strides, shape, mean, &output, ddof, threads);
             } else if constexpr (noa::traits::is_complex_v<T>) {
-                reduceAccurateVarianceComplex_(input.get(), strides, shape, mean, &output, ddof, stream.threads());
+                reduceAccurateVarianceComplex_(input.get(), strides, shape, mean, &output, ddof, threads);
             } else {
                 static_assert(traits::always_false_v<T>);
             }
@@ -475,10 +478,10 @@ namespace noa::cpu::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             // Reduce the input to one value or one value per batch.
+            const dim_t threads = stream.threads();
             stream.enqueue([=](){
                 const T* iptr = input.get();
                 T* optr = output.get();
-                const dim_t threads = stream.threads();
                 const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                               input_shape[1], input_shape[2], input_shape[3]};
                 for (dim_t i = 0; i < output_shape[0]; ++i) {
@@ -510,10 +513,10 @@ namespace noa::cpu::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             // Reduce the input to one value or one value per batch.
+            const dim_t threads = stream.threads();
             stream.enqueue([=](){
                 const T* iptr = input.get();
                 T* optr = output.get();
-                const dim_t threads = stream.threads();
                 const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                               input_shape[1], input_shape[2], input_shape[3]};
                 for (dim_t i = 0; i < output_shape[0]; ++i) {
@@ -563,13 +566,16 @@ namespace noa::cpu::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             // Reduce the input to one value or one value per batch.
+            const dim_t threads = stream.threads();
             stream.enqueue([=]() mutable {
+                Stream current_stream(Stream::CURRENT);
+                current_stream.threads(threads);
                 T* optr = output.get();
                 const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                               input_shape[1], input_shape[2], input_shape[3]};
                 for (dim_t i = 0; i < output_shape[0]; ++i) {
                     const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = sum(tmp, input_strides, shape_to_reduce, stream);
+                    optr[i * output_strides[0]] = sum(tmp, input_strides, shape_to_reduce, current_stream);
                 }
             });
         } else {
@@ -601,13 +607,16 @@ namespace noa::cpu::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             // Reduce the input to one value or one value per batch.
+            const dim_t threads = stream.threads();
             stream.enqueue([=]() mutable {
+                Stream current_stream(Stream::CURRENT);
+                current_stream.threads(threads);
                 T* optr = output.get();
                 const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                               input_shape[1], input_shape[2], input_shape[3]};
                 for (dim_t i = 0; i < output_shape[0]; ++i) {
                     const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = mean(tmp, input_strides, shape_to_reduce, stream);
+                    optr[i * output_strides[0]] = mean(tmp, input_strides, shape_to_reduce, current_stream);
                 }
             });
         } else {
@@ -660,13 +669,16 @@ namespace noa::cpu::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             // Reduce the input to one value or one value per batch.
+            const dim_t threads = stream.threads();
             stream.enqueue([=]() mutable {
+                Stream current_stream(Stream::CURRENT);
+                current_stream.threads(threads);
                 U* optr = output.get();
                 const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
                                               input_shape[1], input_shape[2], input_shape[3]};
                 for (dim_t i = 0; i < output_shape[0]; ++i) {
                     const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = var(tmp, input_strides, shape_to_reduce, ddof, stream);
+                    optr[i * output_strides[0]] = var(tmp, input_strides, shape_to_reduce, ddof, current_stream);
                 }
             });
         } else {

@@ -116,10 +116,13 @@ namespace noa::cpu::fft {
     inline void r2c(const shared_t<T[]>& input,
                     const shared_t<Complex<T>[]>& output,
                     dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
             const Plan fast_plan(input.get(), output.get(), shape, flag, stream.threads());
             execute(fast_plan);
-            details::normalize<true>(output, shape.fft().strides(), shape, Sign::FORWARD, norm, stream);
+            details::normalize<true>(output, shape.fft().strides(), shape, Sign::FORWARD, norm, current_stream);
         });
     }
 
@@ -127,10 +130,13 @@ namespace noa::cpu::fft {
     inline void r2c(const shared_t<T[]>& input, dim4_t input_strides,
                     const shared_t<Complex<T>[]>& output, dim4_t output_strides,
                     dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
-            const Plan fast_plan(input.get(), input_strides, output.get(), output_strides, shape, flag, stream.threads());
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+            const Plan fast_plan(input.get(), input_strides, output.get(), output_strides, shape, flag, threads);
             execute(fast_plan);
-            details::normalize<true>(output, output_strides, shape, Sign::FORWARD, norm, stream);
+            details::normalize<true>(output, output_strides, shape, Sign::FORWARD, norm, current_stream);
         });
     }
 
@@ -156,10 +162,13 @@ namespace noa::cpu::fft {
     inline void c2r(const shared_t<Complex<T>[]>& input,
                     const shared_t<T[]>& output,
                     dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
-            const Plan fast_plan(input.get(), output.get(), shape, flag, stream.threads());
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+            const Plan fast_plan(input.get(), output.get(), shape, flag, threads);
             execute(fast_plan);
-            details::normalize<false>(output, shape.strides(), shape, Sign::BACKWARD, norm, stream);
+            details::normalize<false>(output, shape.strides(), shape, Sign::BACKWARD, norm, current_stream);
         });
     }
 
@@ -167,12 +176,15 @@ namespace noa::cpu::fft {
     inline void c2r(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
                     const shared_t<T[]>& output, dim4_t output_strides,
                     dim4_t shape, uint32_t flag, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
             const Plan fast_plan(input.get(), input_strides,
                                  output.get(), output_strides,
-                                 shape, flag, stream.threads());
+                                 shape, flag, threads);
             execute(fast_plan);
-            details::normalize<false>(output, output_strides, shape, Sign::BACKWARD, norm, stream);
+            details::normalize<false>(output, output_strides, shape, Sign::BACKWARD, norm, current_stream);
         });
     }
 
@@ -193,10 +205,13 @@ namespace noa::cpu::fft {
     inline void c2c(const shared_t<Complex<T>[]>& input,
                     const shared_t<Complex<T>[]>& output,
                     dim4_t shape, Sign sign, uint32_t flag, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
-            const Plan fast_plan(input.get(), output.get(), shape, sign, flag, stream.threads());
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+            const Plan fast_plan(input.get(), output.get(), shape, sign, flag, threads);
             execute(fast_plan);
-            details::normalize<false>(output, shape.strides(), shape, sign, norm, stream);
+            details::normalize<false>(output, shape.strides(), shape, sign, norm, current_stream);
         });
     }
 
@@ -204,11 +219,14 @@ namespace noa::cpu::fft {
     inline void c2c(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
                     const shared_t<Complex<T>[]>& output, dim4_t output_strides,
                     dim4_t shape, Sign sign, uint32_t flag, Norm norm, Stream& stream) {
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
             const Plan fast_plan(input.get(), input_strides, output.get(), output_strides, shape,
-                                 sign, flag, stream.threads());
+                                 sign, flag, threads);
             execute(fast_plan);
-            details::normalize<false>(output, output_strides, shape, sign, norm, stream);
+            details::normalize<false>(output, output_strides, shape, sign, norm, current_stream);
         });
     }
 

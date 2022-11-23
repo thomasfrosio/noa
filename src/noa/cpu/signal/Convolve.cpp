@@ -150,10 +150,11 @@ namespace noa::cpu::signal {
                                output, output_strides, shape,
                                noa::math::multiply_t{}, stream);
 
+        const dim_t threads = stream.threads();
         stream.enqueue([=](){
             convolve_<T, U, 1>({input.get(), input_strides},
                                {output.get(), output_strides}, shape,
-                               filter.get(), long3_t{1, 1, filter_size}, stream.threads());
+                               filter.get(), long3_t{1, 1, filter_size}, threads);
         });
     }
 
@@ -167,10 +168,11 @@ namespace noa::cpu::signal {
             return math::ewise(input, input_strides, static_cast<T>(filter[0]), output, output_strides, shape,
                                noa::math::multiply_t{}, stream);
 
+        const dim_t threads = stream.threads();
         stream.enqueue([=](){
             convolve_<T, U, 2>({input.get(), input_strides},
                                {output.get(), output_strides}, shape,
-                               filter.get(), long3_t{1, filter_shape[0], filter_shape[1]}, stream.threads());
+                               filter.get(), long3_t{1, filter_shape[0], filter_shape[1]}, threads);
         });
     }
 
@@ -184,10 +186,11 @@ namespace noa::cpu::signal {
             return math::ewise(input, input_strides, static_cast<T>(filter[0]), output, output_strides, shape,
                                noa::math::multiply_t{}, stream);
 
+        const dim_t threads = stream.threads();
         stream.enqueue([=](){
             convolve_<T, U, 3>({input.get(), input_strides},
                                {output.get(), output_strides}, shape,
-                               filter.get(), long3_t{filter_shape}, stream.threads());
+                               filter.get(), long3_t{filter_shape}, threads);
         });
     }
 

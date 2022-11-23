@@ -76,12 +76,12 @@ namespace noa::cpu::signal::fft {
                dim4_t shape, const shared_t<T[]>& coeffs, Stream& stream) {
         NOA_ASSERT(lhs && rhs && all(shape > 0));
         constexpr bool SRC_IS_HALF = static_cast<std::underlying_type_t<Remap>>(REMAP) & noa::fft::Layout::SRC_HALF;
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() {
             const dim_t batches = shape[0];
             const dim3_t input_shape(shape[1], shape[2], SRC_IS_HALF ? shape[3] : shape[3] / 2 + 1);
             const dim3_t lhs_strides_(lhs_strides.get(1));
             const dim3_t rhs_strides_(rhs_strides.get(1));
-            const dim_t threads = stream.threads();
 
             for (dim_t batch = 0; batch < batches; ++batch) {
                 const Complex<T>* lhs_ptr = lhs.get() + batch * lhs_strides[0];

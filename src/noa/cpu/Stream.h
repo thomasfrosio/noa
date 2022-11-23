@@ -13,184 +13,227 @@
 #include "noa/common/Definitions.h"
 #include "noa/common/types/Constants.h"
 
-namespace noa::cpu {
-    // Stream or (asynchronous) dispatch queue.
-    // A Stream is managing a working thread, which may be different from the main thread. In this case,
-    // enqueued functions (referred to as tasks) are executed asynchronously. The order of execution is
-    // sequential (it's a queue).
-    // If a task throws an exception, the stream becomes invalid and it will flush its queue. The exception
-    // will be correctly rethrown on the main thread at the next enquiry (e.g. enqueue, synchronization).
-    // Before rethrowing, the stream resets itself.
-    class Stream {
-    public:
-        enum Mode {
-            // The working thread is the calling thread and tasks execution is synchronous.
-            DEFAULT,
+namespace noa::cpu::details {
+    // Asynchronous dispatch queue. Enqueued tasks are executed in order.
+    struct AsyncDispatchQueue {
+        AsyncDispatchQueue() {
+            // Spawn the thread. It is important to have the member variable already initialized
+            // correctly before spawning the thread, so don't use the member initializer list here.
+            m_thread = std::thread(&AsyncDispatchQueue::waitingRoom_, this);
+        }
 
-            // Spawns a new thread when the stream is created and tasks execution is asynchronous.
-            ASYNC
-        };
-
-    private:
-        struct StreamImp {
-            // work
-            std::queue<std::pair<std::function<void()>, bool>> queue; // TODO std::move_only_function
-            std::thread worker;
-            std::exception_ptr exception;
-
-            // synchronization
-            std::condition_variable condition;
-            std::mutex mutex_queue;
-            dim_t threads{Session::threads()};
-            bool is_waiting{true};
-            bool stop{};
-
-            ~StreamImp() {
-                if (worker.joinable()) {
-                    stop = true;
-                    condition.notify_one();
-                    worker.join();
-                    // ignore any potential exception to keep destructor noexcept
-                }
+        ~AsyncDispatchQueue() {
+            // Send notification to despawn when all tasks are done.
+            // Writing to "stop" should be protected by the mutex.
+            {
+                std::scoped_lock lock(m_mutex);
+                m_stop = true;
+                m_condition_work.notify_one();
             }
-        };
-
-    public:
-        // Creates a stream.
-        explicit Stream(Mode mode = Mode::ASYNC) : m_imp(std::make_shared<StreamImp>()) {
-            if (mode != DEFAULT)
-                m_imp->worker = std::thread(Stream::waitingRoom_, m_imp.get());
+            m_thread.join();
+            // Ignore any potential exception to keep destructor noexcept.
+            // Because of this, it is best to synchronize the stream before calling the dtor.
         }
 
-        // Empty constructor.
-        // Creates an empty instance that is meant to be reset using one of the operator assignment.
-        // Calling empty() returns true, but any other member function call will fail. Passing an
-        // empty stream is never allowed (and will result in segfault) unless specified otherwise.
-        constexpr explicit Stream(std::nullptr_t) {}
-
-    public:
-        // Enqueues a task: f is the function to enqueue, and (optional) args are the parameters of f.
-        // Depending on the stream, this function may be asynchronous and may also return error codes
-        // from previous, asynchronous launches.
-        template<class F, class... Args>
-        void enqueue(F&& f, Args&& ... args) {
-            NOA_ASSERT(m_imp);
-            enqueue_<false>(std::forward<F>(f), std::forward<Args>(args)...);
+        template<class Functor, class... Args>
+        void enqueue(Functor&& functor, Args&&... args) {
+            auto no_arg_functor =
+                    [functor_ = std::forward<Functor>(functor),
+                     args_ = std::make_tuple(std::forward<Args>(args)...)]()
+                     mutable { std::apply(std::move(functor_), std::move(args_)); };
+            {
+                std::scoped_lock lock(m_mutex);
+                if (m_exception) {
+                    while (!m_queue.empty())
+                        m_queue.pop();
+                    std::rethrow_exception(std::exchange(m_exception, nullptr));
+                }
+                m_queue.emplace(std::move(no_arg_functor));
+                m_condition_work.notify_one();
+            }
         }
 
-        // Whether the stream is busy with some tasks.
-        // This function may also return error codes from previous, asynchronous launches.
         bool busy() {
-            NOA_ASSERT(m_imp);
-            if (m_imp->exception)
-                rethrow_();
-            return !m_imp->queue.empty() || !m_imp->is_waiting;
+            std::scoped_lock lock_worker(m_mutex);
+            if (m_exception) {
+                while (!m_queue.empty())
+                    m_queue.pop();
+                std::rethrow_exception(std::exchange(m_exception, nullptr));
+            }
+            return !m_queue.empty() || m_is_busy;
         }
 
-        // Blocks until the stream has completed all operations.
-        // This function may also return error codes from previous, asynchronous launches.
         void synchronize() {
-            NOA_ASSERT(m_imp);
-            std::promise<void> p;
-            std::future<void> fut = p.get_future();
-            enqueue_<true>([](std::promise<void>& pr) { pr.set_value(); }, std::ref(p));
-            fut.wait();
-            if (m_imp->exception)
-                rethrow_();
+            std::unique_lock lock(m_mutex);
+            m_condition_sync.wait(lock, [this] { return m_queue.empty() && !m_is_busy; });
+            if (m_exception)
+                std::rethrow_exception(std::exchange(m_exception, nullptr));
         }
 
-        // Sets the number of internal threads that enqueued functions are allowed to use.
-        // When the stream is created, this value is set to the corresponding value of the current session.
-        void threads(dim_t threads) noexcept {
-            NOA_ASSERT(m_imp);
-            m_imp->threads = threads ? threads : 1;
-        }
-
-        // Returns the number of internal threads that enqueued functions are allowed to use.
-        // When the stream is created, this value is set to the corresponding value of the current session.
-        [[nodiscard]] dim_t threads() const noexcept {
-            NOA_ASSERT(m_imp);
-            return m_imp->threads;
-        }
-
-        // Whether the stream is an empty instance.
-        [[nodiscard]] bool empty() const noexcept {
-            return m_imp == nullptr;
+        [[nodiscard]] auto threadID() const noexcept {
+            return m_thread.get_id();
         }
 
     private:
         // The working thread is launched into the "waiting room". The thread waits for a task to pop into the
         // queue or for the destructor to be called (i.e. stop=true). Once a task is added and the waiting thread
         // receives the notification, it extracts it from the queue and launches the task.
-        static void waitingRoom_(StreamImp* imp) {
+        void waitingRoom_() {
             while (true) {
                 std::function<void()> task;
-                bool sync_call;
                 {
-                    std::unique_lock<std::mutex> lock_worker(imp->mutex_queue);
-                    imp->is_waiting = true;
-                    imp->condition.wait(lock_worker, [imp] { return imp->stop || !imp->queue.empty(); });
-                    imp->is_waiting = false;
+                    std::unique_lock lock(m_mutex);
+                    if (m_queue.empty()) {
+                        m_is_busy = false;
+                        m_condition_sync.notify_one();
+                    }
+                    // If the predicate is false, we release the lock and go to sleep.
+                    // If we get notified (or spurious awakenings), we'll lock again and check the predicate.
+                    // If the predicate is true, we continue while still holding the lock.
+                    m_condition_work.wait(lock, [this] { return m_stop || !m_queue.empty(); });
 
-                    if (imp->queue.empty()) {
-                        // The predicate was true and the lock is acquired, so at this point if the queue
-                        // is empty, it is because the destructor was called, so delete the thread.
-                        NOA_ASSERT(imp->stop == true);
+                    if (m_queue.empty()) {
+                        // The predicate was true and the lock was acquired this entire time, so at this point
+                        // if the queue is empty, it is because the destructor was called, so despawn.
+                        NOA_ASSERT(m_stop == true);
                         break;
                     } else {
-                        std::tie(task, sync_call) = std::move(imp->queue.front());
-                        imp->queue.pop();
-                        if (imp->exception && !sync_call)
-                            continue; // don't even try to run the task
+                        // Retrieve task and change status to busy. This is actually important because
+                        // the queue can be empty but the task isn't done yet. busy() and synchronize()
+                        // need to wait for the status to go back to not-busy.
+                        m_is_busy = true;
+                        task = std::move(m_queue.front());
+                        m_queue.pop();
+
+                        // If there's an exception that was thrown by the previous task,
+                        // ignore the remaining tasks, which is effectively emptying the queue.
+                        if (m_exception) {
+                            continue;
+                        }
                     }
                 }
 
-                // At this point, the queue is released (new tasks can be added by enqueue)
-                // and the working thread can execute the task.
+                // At this point, the lock is released and new enquires can be made to the stream.
+                // Meanwhile, the working thread will execute the task.
                 try {
                     if (task)
                         task();
                 } catch (...) {
-                    imp->exception = std::current_exception();
+                    std::scoped_lock lock(m_mutex);
+                    m_exception = std::current_exception();
                 }
-            }
-        }
-
-        // Enqueues the task to the queue.
-        // To allow for synchronization, tasks are marked with a boolean flag: false means the task comes from the
-        // user and should not be run if an exception was caught. true means the task comes from a synchronization
-        // query and the task should be run to release the calling thread.
-        template<bool SYNC, class F, class... Args>
-        void enqueue_(F&& func, Args&& ... args) {
-            if (!m_imp->worker.joinable() || m_imp->worker.get_id() == std::this_thread::get_id()) {
-                func(std::forward<Args>(args)...);
-            } else {
-                auto no_arg_func = [f_ = std::forward<F>(func), args_ = std::make_tuple(std::forward<Args>(args)...)]()
-                        mutable { std::apply(std::move(f_), std::move(args_)); };
-                {
-                    std::scoped_lock lock(m_imp->mutex_queue);
-                    m_imp->queue.emplace(std::move(no_arg_func), SYNC);
-                }
-                m_imp->condition.notify_one();
-                // If sync, don't throw and destruct the future, otherwise worker may segfault.
-                if (!SYNC && m_imp->exception)
-                    rethrow_();
-            }
-        }
-
-        // Rethrow the caught exception and reset the stream to a valid state.
-        // Make sure the queue is emptied so the work thread is reset as well.
-        void rethrow_() {
-            if (m_imp->exception) {
-                {
-                    std::scoped_lock queue_lock(m_imp->mutex_queue);
-                    while (!m_imp->queue.empty()) m_imp->queue.pop();
-                }
-                std::rethrow_exception(std::exchange(m_imp->exception, nullptr));
             }
         }
 
     private:
-        std::shared_ptr<StreamImp> m_imp;
+        // TODO Switch to `std::move_only_function` to allow move-only objects and less overhead.
+        std::queue<std::function<void()>> m_queue;
+        std::thread m_thread;
+        std::exception_ptr m_exception;
+
+        // Synchronization to communicate back and forth with the worker.
+        // Every access to member variables are protected by a single mutex.
+        // Notifications are send while holding the lock, as explained here:
+        // https://stackoverflow.com/a/66162551
+        // We may be OK using the same condition variable, but just to be sure,
+        // use a different condition variable for synchronization and enqueueing.
+        std::condition_variable m_condition_work;
+        std::condition_variable m_condition_sync;
+        std::mutex m_mutex;
+        bool m_is_busy{false};
+        bool m_stop{false};
+    };
+}
+
+namespace noa::cpu {
+    // (A)synchronous dispatch queue.
+    class Stream {
+    public:
+        enum ThreadMode {
+            // Uses the current thread as working thread. Task-execution is synchronous. Creating a stream with
+            // this mode is trivial, doesn't require any dynamic allocation, and doesn't spawn any thread.
+            CURRENT = 0,
+            DEFAULT = 0, // deprecated
+
+            // Spawns a new thread when the stream is created. Enqueued tasks are sent to this thread.
+            // This mode is more expensive, but allows asynchronous execution of enqueued tasks.
+            // The same thread is reused throughout the lifetime of the stream and order of execution
+            // is of course guaranteed. The stream is automatically synchronized when destructed,
+            // but potential captured exceptions are ignored. To properly rethrow exceptions, it is
+            // then best to explicitly synchronize the stream before the destructor being called.
+            ASYNC = 1
+        };
+
+    public:
+        // Creates a stream.
+        explicit Stream(ThreadMode mode = ThreadMode::ASYNC) : m_omp_thread_count(Session::threads()) {
+            if (mode == ThreadMode::ASYNC)
+                m_worker = std::make_shared<details::AsyncDispatchQueue>();
+        }
+
+    public:
+        // Enqueues a task.
+        // While the current implementation relies on std::function, which requires copyable objects,
+        // perfect forwarding is guaranteed (the functor and its arguments are not copied).
+        //
+        // If the stream uses Mode::CURRENT, the functor is immediately executed by the current thread.
+        // If the stream uses Mode::ASYNC, the functor will be executed asynchronously, on the working thread.
+        // If an enqueued task throws an exception, the stream flushes its queue. The exception will be
+        // correctly rethrown on the current thread making the next enquiry (e.g. enqueue, synchronization).
+        // As such, this call may also rethrow exceptions from previous asynchronous tasks.
+        //
+        // WARNING: In Mode::ASYNC, it is NOT allowed for the functor to capture the stream. The reason is that
+        // it can create a scenario where the functor becomes the last owner of the stream, making it difficult
+        // to safely despawn the work thread. Furthermore, the only case where capturing a stream could be
+        // useful is when the functor needs to call a function taking a stream. In this case, the best solution
+        // is to create a new Mode::CURRENT stream in the functor and use this stream instead. This has no
+        // overhead and has also a clearer intent.
+        template<class Functor, class... Args>
+        constexpr void enqueue(Functor&& functor, Args&&... args) {
+            if (!m_worker) {
+                functor(std::forward<Args>(args)...);
+            } else if (m_worker->threadID() == std::this_thread::get_id()) {
+                NOA_THROW("The asynchronous stream was captured by an enqueued task, which is now trying to "
+                          "enqueue another task. This is currently not supported and it is usually better to create "
+                          "a new synchronous stream inside the original task and use this new stream instead");
+            } else {
+                m_worker->enqueue(std::forward<Functor>(functor), std::forward<Args>(args)...);
+            }
+        }
+
+        // Whether the stream is busy running tasks.
+        // This function may also throw an exception from previous asynchronous tasks.
+        bool busy() {
+            if (!m_worker)
+                return false;
+            return m_worker->busy();
+        }
+
+        // Blocks until the stream has completed all operations.
+        // This function may also throw an exception from previous asynchronous tasks.
+        void synchronize() {
+            if (!m_worker)
+                return;
+            m_worker->synchronize();
+        }
+
+        // Sets the number of internal threads that enqueued functions are allowed to use.
+        // When the stream is created, this value is set to the corresponding value of the current session.
+        void threads(dim_t threads) noexcept {
+            m_omp_thread_count = threads ? threads : 1;
+        }
+
+        // Returns the number of internal threads that enqueued functions are allowed to use.
+        // When the stream is created, this value is set to the corresponding value of the current session.
+        [[nodiscard]] dim_t threads() const noexcept {
+            return m_omp_thread_count;
+        }
+
+    private:
+        std::shared_ptr<details::AsyncDispatchQueue> m_worker;
+
+        // Number of "internal" threads that OpenMP is allowed to use.
+        // This has nothing to do with the number of workers (there's only one worker).
+        dim_t m_omp_thread_count{1};
     };
 }

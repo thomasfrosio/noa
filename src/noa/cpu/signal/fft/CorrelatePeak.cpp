@@ -165,12 +165,16 @@ namespace noa::cpu::signal::fft {
                  float ellipse_radius, int64_t registration_radius, Stream& stream) {
         NOA_ASSERT(dim3_t(shape.get(1)).ndim() == 1);
 
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+
             if (ellipse_radius > 0)
-                enforceMaxRadiusInPlace1D_<REMAP>(xmap.get(), strides, shape, ellipse_radius, stream);
+                enforceMaxRadiusInPlace1D_<REMAP>(xmap.get(), strides, shape, ellipse_radius, current_stream);
 
             memory::PtrHost<int64_t> offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
+            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, current_stream);
 
             const bool is_column = shape[3] == 1;
             NOA_ASSERT(strides[3 - is_column] > 0);
@@ -204,7 +208,11 @@ namespace noa::cpu::signal::fft {
         NOA_ASSERT(shape[1] == 1);
         NOA_ASSERT(all(registration_radius >= 1));
 
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+
             if (any(ellipse_radius > 0)) {
                 // TODO If centered, select subregion within ellipse_radius.
 
@@ -213,11 +221,11 @@ namespace noa::cpu::signal::fft {
                 const float edge_size = static_cast<float>(noa::math::max(shape_2d)) * 0.05f;
                 ellipse<REMAP>(xmap, strides, xmap, strides, shape,
                                center, ellipse_radius, edge_size,
-                               float22_t{}, noa::math::multiply_t{}, false, stream);
+                               float22_t{}, noa::math::multiply_t{}, false, current_stream);
             }
 
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
+            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, current_stream);
 
             const auto shape_2d = safe_cast<long2_t>(dim2_t(shape.get(2)));
             const auto strides_2d = safe_cast<long2_t>(dim2_t(strides.get(2)));
@@ -248,7 +256,11 @@ namespace noa::cpu::signal::fft {
                  float3_t ellipse_radius, long3_t registration_radius, Stream& stream) {
         NOA_ASSERT(all(registration_radius >= 1));
 
+        const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
+            Stream current_stream(Stream::CURRENT);
+            current_stream.threads(threads);
+
             if (any(ellipse_radius > 0)) {
                 // TODO If centered, select subregion within ellipse_radius.
 
@@ -257,11 +269,11 @@ namespace noa::cpu::signal::fft {
                 const float edge_size = static_cast<float>(noa::math::max(shape_3d)) * 0.05f;
                 ellipse<REMAP>(xmap, strides, xmap, strides, shape,
                                center, ellipse_radius, edge_size,
-                               float33_t{}, noa::math::multiply_t{}, false, stream);
+                               float33_t{}, noa::math::multiply_t{}, false, current_stream);
             }
 
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, stream);
+            math::find(noa::math::first_max_t{}, xmap, strides, shape, offsets.share(), true, true, current_stream);
 
             const auto shape_3d = safe_cast<long3_t>(dim3_t(shape.get(1)));
             const auto strides_3d = safe_cast<long3_t>(dim3_t(strides.get(1)));
