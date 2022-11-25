@@ -17,20 +17,23 @@ namespace noa::signal {
         using value_type = OCoord;
         using compute_type = ICoord;
 
-        constexpr NOA_IHD Line(compute_type center, compute_type radius, compute_type = compute_type{0}) noexcept
-                : m_center(center), m_radius(radius) {}
+        constexpr NOA_IHD Line(compute_type center,
+                               compute_type radius,
+                               value_type cvalue = value_type{1}) noexcept
+                : m_cvalue(cvalue), m_center(center), m_radius(radius) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type operator()(compute_type coord) const noexcept {
             coord -= m_center;
             const auto dst = math::abs(coord);
 
             if (dst > m_radius)
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             else
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
         }
 
     private:
+        value_type m_cvalue;
         compute_type m_center;
         compute_type m_radius;
     };
@@ -45,8 +48,9 @@ namespace noa::signal {
         using value_type = OCoord;
         using compute_type = ICoord;
 
-        constexpr NOA_IHD LineSmooth(compute_type center, compute_type radius, compute_type edge_size) noexcept
-                : m_center(center), m_radius(radius), m_edge_size(edge_size) {}
+        constexpr NOA_IHD LineSmooth(compute_type center, compute_type radius, compute_type edge_size,
+                                     value_type cvalue = value_type{1}) noexcept
+                : m_cvalue(cvalue), m_center(center), m_radius(radius), m_edge_size(edge_size) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type operator()(compute_type coord) const noexcept {
             coord -= m_center;
@@ -54,19 +58,20 @@ namespace noa::signal {
 
             constexpr auto PI = math::Constants<compute_type>::PI;
             if (dst > m_radius + m_edge_size) {
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             } else if (dst <= m_radius) {
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
             } else {
                 const auto weight = math::cos(PI * (dst - m_radius) / m_edge_size);
                 if constexpr (INVERT)
-                    return static_cast<value_type>((compute_type{1} - weight) * compute_type{0.5});
+                    return static_cast<value_type>((compute_type{1} - weight) * compute_type{0.5}) * m_cvalue;
                 else
-                    return static_cast<value_type>((compute_type{1} + weight) * compute_type{0.5});
+                    return static_cast<value_type>((compute_type{1} + weight) * compute_type{0.5}) * m_cvalue;
             }
         }
 
     private:
+        value_type m_cvalue;
         compute_type m_center;
         compute_type m_radius;
         compute_type m_edge_size;
@@ -87,8 +92,9 @@ namespace noa::signal {
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD Sphere(vector_type center, compute_type radius, compute_type = compute_type{0}) noexcept
-                : m_center(center), m_radius_sqd(radius * radius) {}
+        constexpr NOA_IHD Sphere(vector_type center, compute_type radius,
+                                 value_type cvalue = value_type{1}) noexcept
+                : m_center(center), m_radius_sqd(radius * radius), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
@@ -115,20 +121,21 @@ namespace noa::signal {
         [[nodiscard]] constexpr NOA_IHD value_type get_(vector_type coords) const noexcept {
             const auto dst_sqd = math::dot(coords, coords);
             if (dst_sqd > m_radius_sqd)
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             else
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
         }
 
     private:
         vector_type m_center;
         compute_type m_radius_sqd;
+        value_type m_cvalue;
     };
 
     /// Smooth sphere, with a cosine-edge, defined by a center and radius.
     /// \tparam INVERT  Whether the sphere should be filled with zeros instead of ones.
-    /// \tparam ICoord    Input, storage and computation type.
-    /// \tparam OCoord   Output type.
+    /// \tparam ICoord  Input, storage and computation type.
+    /// \tparam OCoord  Output type.
     template<int NDIM, typename OCoord, bool INVERT = false, typename ICoord = float>
     class SphereSmooth {
     public:
@@ -138,9 +145,10 @@ namespace noa::signal {
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD SphereSmooth(vector_type center, compute_type radius, compute_type edge_size) noexcept
+        constexpr NOA_IHD SphereSmooth(vector_type center, compute_type radius, compute_type edge_size,
+                                       value_type cvalue = value_type{1}) noexcept
                 : m_center(center), m_radius(radius), m_radius_sqd(radius * radius), m_edge_size(edge_size),
-                  m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)) {}
+                  m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
@@ -168,16 +176,16 @@ namespace noa::signal {
             constexpr auto PI = math::Constants<compute_type>::PI;
             const auto dst_sqd = math::dot(coords, coords);
             if (dst_sqd > m_radius_edge_sqd) {
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             } else if (dst_sqd <= m_radius_sqd) {
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
             } else {
                 const auto dst = math::sqrt(dst_sqd);
                 const auto weight = math::cos(PI * (dst - m_radius) / m_edge_size);
                 if constexpr (INVERT)
-                    return static_cast<value_type>((compute_type{1} - weight) * compute_type{0.5});
+                    return static_cast<value_type>((compute_type{1} - weight) * compute_type{0.5}) * m_cvalue;
                 else
-                    return static_cast<value_type>((compute_type{1} + weight) * compute_type{0.5});
+                    return static_cast<value_type>((compute_type{1} + weight) * compute_type{0.5}) * m_cvalue;
             }
         }
 
@@ -187,6 +195,7 @@ namespace noa::signal {
         compute_type m_radius_sqd;
         compute_type m_edge_size;
         compute_type m_radius_edge_sqd;
+        value_type m_cvalue;
     };
 }
 
@@ -206,16 +215,16 @@ namespace noa::signal {
         using affine_type = Mat34<compute_type>;
 
         constexpr NOA_IHD Cylinder(vector3_type center, compute_type radius, compute_type length,
-                                   compute_type = compute_type{0}) noexcept
-                : m_center(center), m_radius_sqd(radius * radius), m_length(length) {}
+                                   value_type cvalue = value_type{1}) noexcept
+                : m_center(center), m_radius_sqd(radius * radius), m_length(length), m_cvalue(cvalue) {}
 
         constexpr NOA_IHD Cylinder(vector3_type center, vector2_type length_radius,
-                                   compute_type = compute_type{0}) noexcept
-                : Cylinder(center, length_radius[1], length_radius[0]) {}
+                                   value_type cvalue = value_type{1}) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0], cvalue) {}
 
         constexpr NOA_IHD Cylinder(vector3_type center, vector3_type length_radius,
-                                   compute_type = compute_type{0}) noexcept
-                : Cylinder(center, length_radius[1], length_radius[0]) {
+                                   value_type cvalue = value_type{1}) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0], cvalue) {
             NOA_ASSERT(length_radius[1] == length_radius[2]);
         }
 
@@ -244,15 +253,16 @@ namespace noa::signal {
             const compute_type dst_yx_sqd = math::dot(tmp, tmp);
 
             if (dst_z > m_length || dst_yx_sqd > m_radius_sqd)
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             else
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
         }
 
     private:
         vector3_type m_center;
         compute_type m_radius_sqd;
         compute_type m_length;
+        value_type m_cvalue;
     };
 
     /// Smooth cylinder, with a cosine-edge, defined by a center and radius.
@@ -270,18 +280,20 @@ namespace noa::signal {
         using affine_type = Mat34<compute_type>;
 
         constexpr NOA_IHD CylinderSmooth(vector3_type center, compute_type radius,
-                                         compute_type length, compute_type edge_size) noexcept
+                                         compute_type length, compute_type edge_size,
+                                         value_type cvalue = value_type{1}) noexcept
                 : m_center(center), m_radius(radius), m_radius_sqd(radius * radius),
                   m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)),
-                  m_edge_size(edge_size), m_length(length), m_length_edge(length + edge_size) {}
+                  m_edge_size(edge_size), m_length(length), m_length_edge(length + edge_size),
+                  m_cvalue(cvalue) {}
 
         constexpr NOA_IHD CylinderSmooth(vector3_type center, vector2_type length_radius,
-                                         compute_type edge_size) noexcept
-                : CylinderSmooth(center, length_radius[1], length_radius[0], edge_size) {}
+                                         compute_type edge_size, value_type cvalue = value_type{1}) noexcept
+                : CylinderSmooth(center, length_radius[1], length_radius[0], edge_size, cvalue) {}
 
         constexpr NOA_IHD CylinderSmooth(vector3_type center, vector3_type length_radius,
-                                         compute_type edge_size) noexcept
-                : CylinderSmooth(center, length_radius[1], length_radius[0], edge_size) {
+                                         compute_type edge_size, value_type cvalue = value_type{1}) noexcept
+                : CylinderSmooth(center, length_radius[1], length_radius[0], edge_size, cvalue) {
             NOA_ASSERT(length_radius[1] == length_radius[2]);
         }
 
@@ -310,7 +322,7 @@ namespace noa::signal {
             const compute_type dst_yx_sqd = math::dot(tmp, tmp);
 
             if (dst_z > m_length_edge || dst_yx_sqd > m_radius_edge_sqd) {
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             } else {
                 constexpr auto PI = math::Constants<compute_type>::PI;
                 compute_type mask;
@@ -327,9 +339,9 @@ namespace noa::signal {
                 }
 
                 if constexpr (INVERT)
-                    return static_cast<value_type>(compute_type{1} - mask);
+                    return static_cast<value_type>(compute_type{1} - mask) * m_cvalue;
                 else
-                    return static_cast<value_type>(mask);
+                    return static_cast<value_type>(mask) * m_cvalue;
             }
         }
 
@@ -342,6 +354,7 @@ namespace noa::signal {
         compute_type m_edge_size;
         compute_type m_length;
         compute_type m_length_edge;
+        value_type m_cvalue;
     };
 }
 
@@ -359,8 +372,9 @@ namespace noa::signal {
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD Rectangle(vector_type center, vector_type radius, compute_type = compute_type{0}) noexcept
-                : m_center(center), m_radius(radius) {}
+        constexpr NOA_IHD Rectangle(vector_type center, vector_type radius,
+                                    value_type cvalue = value_type{1}) noexcept
+                : m_center(center), m_radius(radius), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
@@ -387,14 +401,15 @@ namespace noa::signal {
         [[nodiscard]] constexpr NOA_IHD value_type get_(vector_type coords) const noexcept {
             coords = math::abs(coords);
             if (all(coords <= m_radius))
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
             else
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
         }
 
     private:
         vector_type m_center;
         vector_type m_radius;
+        value_type m_cvalue;
     };
 
     /// Smooth rectangle, with a cosine-edge, defined by a center and radius.
@@ -410,8 +425,10 @@ namespace noa::signal {
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD RectangleSmooth(vector_type center, vector_type radius, compute_type edge_size) noexcept
-                : m_center(center), m_radius(radius), m_radius_edge(radius + edge_size), m_edge_size(edge_size) {}
+        constexpr NOA_IHD RectangleSmooth(vector_type center, vector_type radius, compute_type edge_size,
+                                          value_type cvalue = value_type{1}) noexcept
+                : m_center(center), m_radius(radius), m_radius_edge(radius + edge_size),
+                  m_edge_size(edge_size), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
@@ -439,9 +456,9 @@ namespace noa::signal {
             coords = math::abs(coords);
 
             if (any(m_radius_edge < coords)) {
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             } else if (all(coords <= m_radius)) {
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
             } else {
                 compute_type mask_value{1};
                 for (dim_t i = 0; i < NDIM; ++i) {
@@ -452,9 +469,9 @@ namespace noa::signal {
                     }
                 }
                 if constexpr (INVERT)
-                    return static_cast<value_type>(compute_type{1} - mask_value);
+                    return static_cast<value_type>(compute_type{1} - mask_value) * m_cvalue;
                 else
-                    return static_cast<value_type>(mask_value);
+                    return static_cast<value_type>(mask_value) * m_cvalue;
             }
         }
 
@@ -463,6 +480,7 @@ namespace noa::signal {
         vector_type m_radius;
         vector_type m_radius_edge;
         compute_type m_edge_size;
+        value_type m_cvalue;
     };
 }
 
@@ -480,8 +498,9 @@ namespace noa::signal {
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD Ellipse(vector_type center, vector_type radius, compute_type = compute_type{0}) noexcept
-                : m_center(center), m_radius(radius) {}
+        constexpr NOA_IHD Ellipse(vector_type center, vector_type radius,
+                                  value_type cvalue = value_type{1}) noexcept
+                : m_center(center), m_radius(radius), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
@@ -509,14 +528,15 @@ namespace noa::signal {
             coords /= m_radius;
             const compute_type rho = math::dot(coords, coords);
             if constexpr (INVERT)
-                return static_cast<value_type>(rho > 1);
+                return static_cast<value_type>(rho > 1) * m_cvalue;
             else
-                return static_cast<value_type>(rho <= 1);
+                return static_cast<value_type>(rho <= 1) * m_cvalue;
         }
 
     private:
         vector_type m_center;
         vector_type m_radius;
+        value_type m_cvalue;
     };
 
     /// Smooth ellipse, with a cosine-edge, defined by a center and radius.
@@ -532,8 +552,9 @@ namespace noa::signal {
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD EllipseSmooth(vector_type center, vector_type radius, compute_type edge_size) noexcept
-                : m_center(center), m_radius(radius * radius), m_edge_size(edge_size) {}
+        constexpr NOA_IHD EllipseSmooth(vector_type center, vector_type radius, compute_type edge_size,
+                                        value_type cvalue = value_type{1}) noexcept
+                : m_center(center), m_radius(radius * radius), m_edge_size(edge_size), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
@@ -585,15 +606,18 @@ namespace noa::signal {
 
             constexpr compute_type PI = math::Constants<compute_type>::PI;
             if (irho > erho + m_edge_size) {
-                return static_cast<value_type>(INVERT);
+                return static_cast<value_type>(INVERT) * m_cvalue;
             } else if (irho <= erho) {
-                return static_cast<value_type>(!INVERT);
+                return static_cast<value_type>(!INVERT) * m_cvalue;
             } else {
                 const auto distance = (irho - erho) / m_edge_size;
-                if constexpr (INVERT)
-                    return static_cast<value_type>((compute_type{1} - math::cos(PI * distance)) * compute_type{0.5});
-                else
-                    return static_cast<value_type>((compute_type{1} + math::cos(PI * distance)) * compute_type{0.5});
+                if constexpr (INVERT) {
+                    return static_cast<value_type>(
+                            (compute_type{1} - math::cos(PI * distance)) * compute_type{0.5}) * m_cvalue;
+                } else {
+                    return static_cast<value_type>(
+                            (compute_type{1} + math::cos(PI * distance)) * compute_type{0.5}) * m_cvalue;
+                }
             }
         }
 
@@ -601,5 +625,6 @@ namespace noa::signal {
         vector_type m_center;
         vector_type m_radius;
         compute_type m_edge_size{};
+        value_type m_cvalue;
     };
 }

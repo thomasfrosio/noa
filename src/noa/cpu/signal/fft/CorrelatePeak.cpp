@@ -219,9 +219,10 @@ namespace noa::cpu::signal::fft {
                 const dim2_t shape_2d(shape.get(2));
                 const float2_t center(shape_2d / 2);
                 const float edge_size = static_cast<float>(noa::math::max(shape_2d)) * 0.05f;
+                const auto cvalue =  traits::value_type_t<T>(1);
                 ellipse<REMAP>(xmap, strides, xmap, strides, shape,
                                center, ellipse_radius, edge_size,
-                               float22_t{}, noa::math::multiply_t{}, false, current_stream);
+                               float22_t{}, noa::math::multiply_t{}, cvalue, false, current_stream);
             }
 
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);
@@ -267,9 +268,10 @@ namespace noa::cpu::signal::fft {
                 const dim3_t shape_3d(shape.get(1));
                 const float3_t center(shape_3d / 2);
                 const float edge_size = static_cast<float>(noa::math::max(shape_3d)) * 0.05f;
+                const auto cvalue =  traits::value_type_t<T>(1);
                 ellipse<REMAP>(xmap, strides, xmap, strides, shape,
                                center, ellipse_radius, edge_size,
-                               float33_t{}, noa::math::multiply_t{}, false, current_stream);
+                               float33_t{}, noa::math::multiply_t{}, cvalue, false, current_stream);
             }
 
             cpu::memory::PtrHost<int64_t> offsets(shape[0]);

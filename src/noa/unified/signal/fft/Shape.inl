@@ -10,10 +10,10 @@
 #endif
 
 namespace noa::signal::fft {
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void ellipse(const Array<Value>& input, const Array<Value>& output,
                  float3_t center, float3_t radius, float edge_size,
-                 float33_t inv_matrix, bool invert) {
+                 float33_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !indexing::isOverlap(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
@@ -35,24 +35,24 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::ellipse<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void ellipse(const Array<Value>& input, const Array<Value>& output,
                  float2_t center, float2_t radius, float edge_size,
-                 float22_t inv_matrix, bool invert) {
+                 float22_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(output.shape()[1] == 1,
                   "This overload doesn't supports 3D arrays. Use the overload for 2D and 3D arrays");
@@ -76,24 +76,24 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::ellipse<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void sphere(const Array<Value>& input, const Array<Value>& output,
                 float3_t center, float radius, float edge_size,
-                float33_t inv_matrix, bool invert) {
+                float33_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !indexing::isOverlap(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
@@ -115,24 +115,24 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::sphere<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void sphere(const Array<Value>& input, const Array<Value>& output,
                 float2_t center, float radius, float edge_size,
-                float22_t inv_matrix, bool invert) {
+                float22_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(output.shape()[1] == 1,
                   "This overload doesn't supports 3D arrays. Use the overload for 2D and 3D arrays");
@@ -156,24 +156,24 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::sphere<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void rectangle(const Array<Value>& input, const Array<Value>& output,
                    float3_t center, float3_t radius, float edge_size,
-                   float33_t inv_matrix, bool invert) {
+                   float33_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !indexing::isOverlap(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
@@ -195,24 +195,24 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::rectangle<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void rectangle(const Array<Value>& input, const Array<Value>& output,
                    float2_t center, float2_t radius, float edge_size,
-                   float22_t inv_matrix, bool invert) {
+                   float22_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK(output.shape()[1] == 1,
                   "This overload doesn't supports 3D arrays. Use the overload for 2D and 3D arrays");
@@ -236,24 +236,24 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::rectangle<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    template<fft::Remap REMAP, typename Value, typename>
+    template<fft::Remap REMAP, typename Value, typename CValue, typename>
     void cylinder(const Array<Value>& input, const Array<Value>& output,
                   float3_t center, float radius, float length, float edge_size,
-                  float33_t inv_matrix, bool invert) {
+                  float33_t inv_matrix, CValue cvalue, bool invert) {
         NOA_CHECK(!output.empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !indexing::isOverlap(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
@@ -275,14 +275,14 @@ namespace noa::signal::fft {
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, length, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cpu());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::signal::fft::cylinder<REMAP>(
                     input.share(), input_strides,
                     output.share(), output.strides(), output.shape(),
                     center, radius, length, edge_size, inv_matrix,
-                    noa::math::multiply_t{}, invert, stream.cuda());
+                    noa::math::multiply_t{}, cvalue, invert, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

@@ -36,9 +36,9 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak2D}()", "[noa][cpu]", float, do
     cpu::memory::PtrHost<real_t> rhs(elements);
 
     cpu::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper,
-                                   float22_t{}, math::multiply_t{}, false, stream);
+                                   float22_t{}, math::multiply_t{}, real_t{1}, false, stream);
     cpu::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper,
-                                   float22_t{}, math::multiply_t{}, false, stream);
+                                   float22_t{}, math::multiply_t{}, real_t{1}, false, stream);
 
     cpu::memory::PtrHost<complex_t> lhs_fft(shape.fft().elements());
     cpu::memory::PtrHost<complex_t> rhs_fft(shape.fft().elements());
@@ -90,9 +90,9 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak2D}(), batched", "[noa][cpu]", 
     cpu::memory::PtrHost<real_t> rhs(elements);
 
     cpu::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper,
-                                   float22_t{}, math::multiply_t{}, false, stream);
+                                   float22_t{}, math::multiply_t{}, real_t{1}, false, stream);
     cpu::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper,
-                                   float22_t{}, math::multiply_t{}, false, stream);
+                                   float22_t{}, math::multiply_t{}, real_t{1}, false, stream);
 
     cpu::memory::PtrHost<complex_t> lhs_fft(shape.fft().elements());
     cpu::memory::PtrHost<complex_t> rhs_fft(shape.fft().elements());
@@ -150,9 +150,9 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak3D}()", "[noa][cpu]", float, do
     cpu::memory::PtrHost<real_t> rhs(elements);
 
     cpu::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper,
-                                   float33_t{}, math::multiply_t{}, false, stream);
+                                   float33_t{}, math::multiply_t{}, real_t{1}, false, stream);
     cpu::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper,
-                                   float33_t{}, math::multiply_t{}, false, stream);
+                                   float33_t{}, math::multiply_t{}, real_t{1}, false, stream);
 
     cpu::memory::PtrHost<complex_t> lhs_fft(shape.fft().elements());
     cpu::memory::PtrHost<complex_t> rhs_fft(shape.fft().elements());
@@ -206,9 +206,9 @@ TEMPLATE_TEST_CASE("cpu::signal::fft::{xmap|xpeak3D}(), batched", "[noa][cpu]", 
     cpu::memory::PtrHost<real_t> rhs(elements);
 
     cpu::signal::rectangle<real_t>(nullptr, {}, lhs.share(), strides, shape, lhs_center, radius, taper,
-                                   float33_t{}, math::multiply_t{}, false, stream);
+                                   float33_t{}, math::multiply_t{}, real_t{1}, false, stream);
     cpu::signal::rectangle<real_t>(nullptr, {}, rhs.share(), strides, shape, rhs_center, radius, taper,
-                                   float33_t{}, math::multiply_t{}, false, stream);
+                                   float33_t{}, math::multiply_t{}, real_t{1}, false, stream);
 
     cpu::memory::PtrHost<complex_t> lhs_fft(shape.fft().elements());
     cpu::memory::PtrHost<complex_t> rhs_fft(shape.fft().elements());

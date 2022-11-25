@@ -26,16 +26,18 @@ TEST_CASE("unified::signal::sphere, 2D", "[assets][noa][unified]") {
         const auto center = test["center"].as<float2_t>();
         const auto radius = test["radius"].as<float>();
         const auto taper = test["taper"].as<float>();
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::sphere({}, asset, center, radius, taper, {}, {}, invert);
+            signal::sphere({}, asset, center, radius, taper, {}, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
+            INFO(device);
             ArrayOption option(device, Allocator::MANAGED);
             Array asset = io::load<float>(filename_expected, false, option);
             if (any(asset.shape() != shape))
@@ -43,21 +45,21 @@ TEST_CASE("unified::signal::sphere, 2D", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::sphere({}, result, center, radius, taper, {}, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::sphere({}, result, center, radius, taper, {}, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::sphere(data, data, center, radius, taper, {}, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 5e-5));
+            signal::sphere(data, data, center, radius, taper, {}, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 5e-5));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::sphere(data, data, center, radius, taper, {}, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 5e-5));
+            signal::sphere(data, data, center, radius, taper, {}, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 5e-5));
         }
     }
 }
@@ -81,11 +83,12 @@ TEST_CASE("unified::signal::rectangle, 2D", "[assets][noa][unified]") {
         const auto radius = test["radius"].as<float2_t>();
         const auto taper = test["taper"].as<float>();
         const auto inv_matrix = geometry::rotate(math::deg2rad(-test["angle"].as<float>()));
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::rectangle({}, asset, center, radius, taper, inv_matrix, {}, invert);
+            signal::rectangle({}, asset, center, radius, taper, inv_matrix, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
@@ -98,21 +101,21 @@ TEST_CASE("unified::signal::rectangle, 2D", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::rectangle({}, result, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::rectangle({}, result, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 5e-5));
+            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 5e-5));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 5e-5));
+            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 5e-5));
         }
     }
 }
@@ -136,11 +139,12 @@ TEST_CASE("unified::signal::ellipse, 2D", "[assets][noa][unified]") {
         const auto radius = test["radius"].as<float2_t>();
         const auto taper = test["taper"].as<float>();
         const auto inv_matrix = geometry::rotate(math::deg2rad(-test["angle"].as<float>()));
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::ellipse({}, asset, center, radius, taper, inv_matrix, {}, invert);
+            signal::ellipse({}, asset, center, radius, taper, inv_matrix, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
@@ -153,21 +157,21 @@ TEST_CASE("unified::signal::ellipse, 2D", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::ellipse({}, result, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::ellipse({}, result, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 1e-4));
+            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 5e-4));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 1e-4));
+            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 5e-4));
         }
     }
 }
@@ -190,11 +194,12 @@ TEST_CASE("unified::signal::sphere, 3D", "[assets][noa][unified]") {
         const auto center = test["center"].as<float3_t>();
         const auto radius = test["radius"].as<float>();
         const auto taper = test["taper"].as<float>();
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::sphere({}, asset, center, radius, taper, {}, {}, invert);
+            signal::sphere({}, asset, center, radius, taper, {}, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
@@ -207,21 +212,21 @@ TEST_CASE("unified::signal::sphere, 3D", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::sphere({}, result, center, radius, taper, {}, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::sphere({}, result, center, radius, taper, {}, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::sphere(data, data, center, radius, taper, {}, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 5e-5));
+            signal::sphere(data, data, center, radius, taper, {}, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 5e-5));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::sphere(data, data, center, radius, taper, {}, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 5e-5));
+            signal::sphere(data, data, center, radius, taper, {}, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 5e-5));
         }
     }
 }
@@ -245,11 +250,12 @@ TEST_CASE("unified::signal::rectangle, 3D", "[assets][noa][unified]") {
         const auto radius = test["radius"].as<float3_t>();
         const auto taper = test["taper"].as<float>();
         const auto inv_matrix = geometry::rotateY(-math::deg2rad(test["tilt"].as<float>()));
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::rectangle({}, asset, center, radius, taper, inv_matrix, {}, invert);
+            signal::rectangle({}, asset, center, radius, taper, inv_matrix, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
@@ -262,21 +268,21 @@ TEST_CASE("unified::signal::rectangle, 3D", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::rectangle({}, result, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::rectangle({}, result, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 5e-5));
+            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 5e-5));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 5e-5));
+            signal::rectangle(data, data, center, radius, taper, inv_matrix, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 5e-5));
         }
     }
 }
@@ -300,11 +306,12 @@ TEST_CASE("unified::signal::ellipse, 3D", "[assets][noa][unified]") {
         const auto radius = test["radius"].as<float3_t>();
         const auto taper = test["taper"].as<float>();
         const auto inv_matrix = geometry::rotateY(-math::deg2rad(test["tilt"].as<float>()));
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::ellipse({}, asset, center, radius, taper, inv_matrix, {}, invert);
+            signal::ellipse({}, asset, center, radius, taper, inv_matrix, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
@@ -317,21 +324,21 @@ TEST_CASE("unified::signal::ellipse, 3D", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::ellipse({}, result, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::ellipse({}, result, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 1e-4));
+            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 1e-4));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 1e-4));
+            signal::ellipse(data, data, center, radius, taper, inv_matrix, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 1e-4));
         }
     }
 }
@@ -356,11 +363,12 @@ TEST_CASE("unified::signal::cylinder", "[assets][noa][unified]") {
         const auto length = test["length"].as<float>();
         const auto taper = test["taper"].as<float>();
         const auto inv_matrix = geometry::rotateY(math::deg2rad(-test["tilt"].as<float>()));
+        const auto cvalue = test["cvalue"].as<float>();
         const auto filename_expected = path_base / test["expected"].as<path_t>();
 
         if constexpr (COMPUTE_ASSETS) {
             Array asset = memory::empty<float>(shape);
-            signal::cylinder({}, asset, center, radius, length, taper, inv_matrix, {}, invert);
+            signal::cylinder({}, asset, center, radius, length, taper, inv_matrix, {}, cvalue, invert);
             io::save(asset, filename_expected);
             continue;
         }
@@ -374,21 +382,21 @@ TEST_CASE("unified::signal::cylinder", "[assets][noa][unified]") {
 
             // Save shape into the output.
             Array result = memory::empty<float>(shape, option);
-            signal::cylinder({}, result, center, radius, length, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, asset, 5e-5));
+            signal::cylinder({}, result, center, radius, length, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, asset, 5e-5));
 
             // Apply the shape onto the input, in-place.
             Array data = math::random<float>(math::uniform_t{}, shape, -10, 10, option);
             math::ewise(result, data, result, math::multiply_t{});
-            signal::cylinder(data, data, center, radius, length, taper, inv_matrix, {}, invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, result, data, 5e-5));
+            signal::cylinder(data, data, center, radius, length, taper, inv_matrix, {}, cvalue, invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, result, data, 5e-5));
 
             // Apply the shape onto the input, in-place, invert.
             math::randomize(math::uniform_t{}, data, -10, 10);
-            math::ewise(asset, asset, math::one_minus_t{});
+            math::ewise(cvalue, asset, asset, math::minus_t{});
             math::ewise(data, asset, asset, math::multiply_t{});
-            signal::cylinder(data, data, center, radius, length, taper, inv_matrix, {}, !invert);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, data, 5e-5));
+            signal::cylinder(data, data, center, radius, length, taper, inv_matrix, {}, cvalue, !invert);
+            REQUIRE(test::Matcher(test::MATCH_ABS, asset, data, 5e-5));
         }
     }
 }
@@ -417,9 +425,10 @@ TEMPLATE_TEST_CASE("unified::signal::sphere, 2D matches 3D", "[assets][noa][unif
         Array output_2d = memory::empty<TestType>(shape, option);
         Array output_3d = memory::empty<TestType>(shape, option);
 
-        signal::sphere(input, output_2d, center_2d, radius, edge_size, inv_transform_2d, {}, invert);
-        signal::sphere(input, output_3d, center_3d, radius, edge_size, inv_transform_3d, {}, invert);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_2d, output_3d, 1e-4));
+        const auto cvalue = traits::value_type_t<TestType>(1);
+        signal::sphere(input, output_2d, center_2d, radius, edge_size, inv_transform_2d, {}, cvalue, invert);
+        signal::sphere(input, output_3d, center_3d, radius, edge_size, inv_transform_3d, {}, cvalue, invert);
+        REQUIRE(test::Matcher(test::MATCH_ABS, output_2d, output_3d, 1e-4));
     }
 }
 
@@ -449,9 +458,10 @@ TEMPLATE_TEST_CASE("unified::signal::rectangle, 2D matches 3D", "[assets][noa][u
         Array output_2d = memory::empty<TestType>(shape, option);
         Array output_3d = memory::empty<TestType>(shape, option);
 
-        signal::rectangle(input, output_2d, center_2d, radius_2d, edge_size, inv_transform_2d, {}, invert);
-        signal::rectangle(input, output_3d, center_3d, radius_3d, edge_size, inv_transform_3d, {}, invert);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_2d, output_3d, 1e-4));
+        const auto cvalue = traits::value_type_t<TestType>(1);
+        signal::rectangle(input, output_2d, center_2d, radius_2d, edge_size, inv_transform_2d, {}, cvalue, invert);
+        signal::rectangle(input, output_3d, center_3d, radius_3d, edge_size, inv_transform_3d, {}, cvalue, invert);
+        REQUIRE(test::Matcher(test::MATCH_ABS, output_2d, output_3d, 1e-4));
     }
 }
 
@@ -480,10 +490,11 @@ TEMPLATE_TEST_CASE("unified::signal::ellipse, 2D matches 3D", "[assets][noa][uni
         Array input = math::random<TestType>(math::uniform_t{}, shape, -5, 5, option);
         Array output_2d = memory::empty<TestType>(shape, option);
         Array output_3d = memory::empty<TestType>(shape, option);
+        const auto cvalue = traits::value_type_t<TestType>(1);
 
-        signal::ellipse(input, output_2d, center_2d, radius_2d, edge_size, inv_transform_2d, {}, invert);
-        signal::ellipse(input, output_3d, center_3d, radius_3d, edge_size, inv_transform_3d, {}, invert);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_2d, output_3d, 1e-4));
+        signal::ellipse(input, output_2d, center_2d, radius_2d, edge_size, inv_transform_2d, {}, cvalue, invert);
+        signal::ellipse(input, output_3d, center_3d, radius_3d, edge_size, inv_transform_3d, {}, cvalue, invert);
+        REQUIRE(test::Matcher(test::MATCH_ABS, output_2d, output_3d, 1e-4));
     }
 }
 
@@ -507,10 +518,11 @@ TEMPLATE_TEST_CASE("unified::signal::sphere, cpu vs gpu", "[assets][noa][unified
     const auto invert = test::Randomizer<int>(0, 1).get();
     const auto angles = float3_t{randomizer.get(), randomizer.get(), randomizer.get()};
     const auto inv_transform = geometry::euler2matrix(angles).transpose();
+    const auto cvalue = traits::value_type_t<TestType>(1);
 
-    signal::sphere(input_cpu, output_cpu, center, radius, edge_size, inv_transform, {}, invert);
-    signal::sphere(input_gpu, output_gpu, center, radius, edge_size, inv_transform, {}, invert);
-    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
+    signal::sphere(input_cpu, output_cpu, center, radius, edge_size, inv_transform, {}, cvalue, invert);
+    signal::sphere(input_gpu, output_gpu, center, radius, edge_size, inv_transform, {}, cvalue, invert);
+    REQUIRE(test::Matcher(test::MATCH_ABS, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
 }
 
 TEMPLATE_TEST_CASE("unified::signal::rectangle, cpu vs gpu", "[assets][noa][unified]",
@@ -535,10 +547,11 @@ TEMPLATE_TEST_CASE("unified::signal::rectangle, cpu vs gpu", "[assets][noa][unif
     const bool invert = test::Randomizer<int>(0, 1).get();
     const auto angles = float3_t{randomizer.get(), randomizer.get(), randomizer.get()};
     const auto inv_transform = geometry::euler2matrix(angles).transpose();
+    const auto cvalue = traits::value_type_t<TestType>(1);
 
-    signal::rectangle(input_cpu, output_cpu, center, radius, edge_size, inv_transform, {}, invert);
-    signal::rectangle(input_gpu, output_gpu, center, radius, edge_size, inv_transform, {}, invert);
-    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
+    signal::rectangle(input_cpu, output_cpu, center, radius, edge_size, inv_transform, {}, cvalue, invert);
+    signal::rectangle(input_gpu, output_gpu, center, radius, edge_size, inv_transform, {}, cvalue, invert);
+    REQUIRE(test::Matcher(test::MATCH_ABS, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
 }
 
 TEMPLATE_TEST_CASE("unified::signal::ellipse, cpu vs gpu", "[assets][noa][unified]",
@@ -563,10 +576,11 @@ TEMPLATE_TEST_CASE("unified::signal::ellipse, cpu vs gpu", "[assets][noa][unifie
     const bool invert = test::Randomizer<int>(0, 1).get();
     const auto angles = float3_t{randomizer.get(), randomizer.get(), randomizer.get()};
     const auto inv_transform = geometry::euler2matrix(angles).transpose();
+    const auto cvalue = traits::value_type_t<TestType>(1);
 
-    signal::ellipse(input_cpu, output_cpu, center, radius, edge_size, inv_transform, {}, invert);
-    signal::ellipse(input_gpu, output_gpu, center, radius, edge_size, inv_transform, {}, invert);
-    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
+    signal::ellipse(input_cpu, output_cpu, center, radius, edge_size, inv_transform, {}, cvalue, invert);
+    signal::ellipse(input_gpu, output_gpu, center, radius, edge_size, inv_transform, {}, cvalue, invert);
+    REQUIRE(test::Matcher(test::MATCH_ABS, output_cpu, output_gpu.to(Device("cpu")), 5e-4));
 }
 
 TEMPLATE_TEST_CASE("unified::signal::cylinder, cpu vs gpu", "[assets][noa][unified]",
@@ -590,10 +604,11 @@ TEMPLATE_TEST_CASE("unified::signal::cylinder, cpu vs gpu", "[assets][noa][unifi
     const bool invert = test::Randomizer<int>(0, 1).get();
     const auto angles = float3_t{randomizer.get(), randomizer.get(), randomizer.get()};
     const auto inv_transform = geometry::euler2matrix(angles).transpose();
+    const auto cvalue = traits::value_type_t<TestType>(1);
 
-    signal::cylinder(input_cpu, output_cpu, center, radius, length, edge_size, inv_transform, {}, invert);
-    signal::cylinder(input_gpu, output_gpu, center, radius, length, edge_size, inv_transform, {}, invert);
-    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
+    signal::cylinder(input_cpu, output_cpu, center, radius, length, edge_size, inv_transform, {}, cvalue, invert);
+    signal::cylinder(input_gpu, output_gpu, center, radius, length, edge_size, inv_transform, {}, cvalue, invert);
+    REQUIRE(test::Matcher(test::MATCH_ABS, output_cpu, output_gpu.to(Device("cpu")), 1e-4));
 }
 
 TEMPLATE_TEST_CASE("unified::signal::ellipse, 2D affine", "[assets][noa][unified]",
@@ -623,7 +638,7 @@ TEMPLATE_TEST_CASE("unified::signal::ellipse, 2D affine", "[assets][noa][unified
 
         signal::ellipse(input, output_linear, center, radius, edge_size, inv_matrix_linear);
         signal::ellipse(input, output_affine, center, radius, edge_size, inv_matrix_affine);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_linear, output_affine, 1e-4));
+        REQUIRE(test::Matcher(test::MATCH_ABS, output_linear, output_affine, 1e-4));
     }
 }
 
@@ -654,6 +669,6 @@ TEMPLATE_TEST_CASE("unified::signal::ellipse, 3D affine", "[assets][noa][unified
 
         signal::ellipse(input, output_linear, center, radius, edge_size, inv_matrix_linear);
         signal::ellipse(input, output_affine, center, radius, edge_size, inv_matrix_affine);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_linear, output_affine, 1e-4));
+        REQUIRE(test::Matcher(test::MATCH_ABS, output_linear, output_affine, 1e-4));
     }
 }
