@@ -698,13 +698,13 @@ namespace noa::geometry::fft::details {
             // Then, insert the input slices.
             data_type value{0};
             for (int64_t i = 0; i < m_input_count; ++i) {
-                auto [freq_z, freq_2d_] = transformGridToSlice(
+                auto [freq_z, new_freq] = transformGridToSlice(
                         freq_3d, m_insert_fwd_scaling_matrices, m_insert_inv_rotation_matrices, i, m_ews_diam_inv);
 
                 // If voxel is not affected by the slice, skip.
                 data_type i_value{0};
                 if (freq_z <= m_slice_z_radius && freq_z >= -m_slice_z_radius) {
-                    i_value = interpolateSliceValue(freq_2d, m_f_input_shape, m_f_input_center_y, m_input_slices, i);
+                    i_value = interpolateSliceValue(new_freq, m_f_input_shape, m_f_input_center_y, m_input_slices, i);
                     const auto weight = sliceZWeight(freq_z, m_slice_z_radius);
                     i_value *= static_cast<real_type>(weight);
                 }

@@ -118,7 +118,7 @@ TEST_CASE("unified::geometry::fft::insert3D, by interpolation", "[noa][unified]"
     if (!COMPUTE_ASSETS && Device::any(Device::GPU))
         devices.emplace_back("gpu");
 
-    for (size_t nb = 0; nb < 1; ++nb) { // tests["tests"].size()
+    for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {
         INFO("test number = " << nb);
 
         const YAML::Node& parameters = tests["tests"][nb];

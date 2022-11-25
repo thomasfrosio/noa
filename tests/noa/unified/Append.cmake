@@ -28,7 +28,7 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/fft/TestUnifiedFFT.cpp
         noa/unified/fft/TestUnifiedResize.cpp
 
-#        noa/unified/geometry/fft/TestUnifiedReconstruction.cpp
+        noa/unified/geometry/fft/TestUnifiedReconstruction.cpp
 #        noa/unified/geometry/fft/TestUnifiedTransform.cpp
         noa/unified/geometry/fft/TestUnifiedProject.cpp
 #        noa/unified/geometry/TestUnifiedBackproject.cpp
