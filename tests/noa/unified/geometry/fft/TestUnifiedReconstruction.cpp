@@ -124,9 +124,9 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
 }
 
 namespace {
-    class Projector {
+    class ProjectorRasterize {
     public:
-        Projector(dim4_t grid_shape,
+        ProjectorRasterize(dim4_t grid_shape,
                   dim4_t slice_shape,
                   dim4_t target_shape = {},
                   ArrayOption options = {})
@@ -139,7 +139,7 @@ namespace {
                   m_target_shape(target_shape) {}
 
         void backward(const Array<cfloat_t>& slice_fft,
-                      float33_t rotation,
+                      float33_t fwd_rotation,
                       float2_t shift,
                       float22_t scaling = {},
                       float cutoff = 0.5f) const {
@@ -148,26 +148,26 @@ namespace {
             noa::geometry::fft::insert3D<fft::H2HC>(
                     slice_fft, m_slice_shape,
                     m_grid_data_fft, m_grid_shape,
-                    scaling, rotation, cutoff, m_target_shape);
+                    scaling, fwd_rotation, cutoff, m_target_shape);
             noa::geometry::fft::insert3D<fft::H2HC>(
                     m_weights_ones_fft, m_slice_shape,
                     m_grid_weights_fft, m_grid_shape,
-                    scaling, rotation, cutoff, m_target_shape);
+                    scaling, fwd_rotation, cutoff, m_target_shape);
         }
 
         void forward(Array<cfloat_t>& slice_fft,
-                     float33_t rotation,
+                     float33_t fwd_rotation,
                      float2_t shift,
                      float22_t scaling = {},
                      float cutoff = 0.5f) const {
             noa::geometry::fft::extract3D<fft::HC2H>(
                     m_grid_data_fft, m_grid_shape,
                     slice_fft, m_slice_shape,
-                    scaling, rotation, cutoff, m_target_shape);
+                    scaling, fwd_rotation, cutoff, m_target_shape);
             noa::geometry::fft::extract3D<fft::HC2H>(
                     m_grid_weights_fft, m_grid_shape,
                     m_weights_extract_fft, m_slice_shape,
-                    scaling, rotation, cutoff, m_target_shape);
+                    scaling, fwd_rotation, cutoff, m_target_shape);
             signal::fft::shift2D<fft::H2H>(slice_fft, slice_fft, m_slice_shape, shift);
             math::ewise(slice_fft, m_weights_extract_fft, 1e-3f, slice_fft,
                         math::divide_epsilon_t{});
@@ -181,6 +181,69 @@ namespace {
         dim4_t m_grid_shape;
         dim4_t m_slice_shape;
         dim4_t m_target_shape;
+    };
+
+    class ProjectorInterp {
+    public:
+        ProjectorInterp(float slice_z_radius,
+                        dim4_t grid_shape,
+                        dim4_t slice_shape,
+                        dim4_t target_shape = {},
+                        ArrayOption options = {})
+                : m_grid_data_fft(memory::zeros<cfloat_t>(grid_shape.fft(), options)),
+                  m_grid_weights_fft(memory::zeros<float>(grid_shape.fft(), options)),
+                  m_weights_ones_fft(memory::ones<float>(slice_shape.fft(), options)),
+                  m_weights_extract_fft(memory::empty<float>(slice_shape.fft(), options)),
+                  m_grid_shape(grid_shape),
+                  m_slice_shape(slice_shape),
+                  m_target_shape(target_shape),
+                  m_slice_z_radius(slice_z_radius) {}
+
+        void backward(const Array<cfloat_t>& slice_fft,
+                      float33_t fwd_rotation,
+                      float2_t shift,
+                      float22_t scaling = {},
+                      float cutoff = 0.5f) const {
+            noa::signal::fft::shift2D<fft::H2H>(
+                    slice_fft, slice_fft, m_slice_shape, shift);
+            noa::fft::remap(fft::H2HC, slice_fft, slice_fft, m_slice_shape);
+            noa::geometry::fft::insert3D<fft::HC2HC>(
+                    slice_fft, m_slice_shape,
+                    m_grid_data_fft, m_grid_shape,
+                    scaling, math::inverse(fwd_rotation), m_slice_z_radius, cutoff, m_target_shape);
+            noa::geometry::fft::insert3D<fft::HC2HC>(
+                    m_weights_ones_fft, m_slice_shape,
+                    m_grid_weights_fft, m_grid_shape,
+                    scaling, math::inverse(fwd_rotation), m_slice_z_radius, cutoff, m_target_shape);
+        }
+
+        void forward(Array<cfloat_t>& slice_fft,
+                     float33_t fwd_rotation,
+                     float2_t shift,
+                     float22_t scaling = {},
+                     float cutoff = 0.5f) const {
+            noa::geometry::fft::extract3D<fft::HC2H>(
+                    m_grid_data_fft, m_grid_shape,
+                    slice_fft, m_slice_shape,
+                    scaling, fwd_rotation, cutoff, m_target_shape);
+            noa::geometry::fft::extract3D<fft::HC2H>(
+                    m_grid_weights_fft, m_grid_shape,
+                    m_weights_extract_fft, m_slice_shape,
+                    scaling, fwd_rotation, cutoff, m_target_shape);
+            signal::fft::shift2D<fft::H2H>(slice_fft, slice_fft, m_slice_shape, shift);
+            math::ewise(slice_fft, m_weights_extract_fft, 1e-3f, slice_fft,
+                        math::divide_epsilon_t{});
+        }
+
+    public:
+        Array<cfloat_t> m_grid_data_fft;
+        Array<float> m_grid_weights_fft;
+        Array<float> m_weights_ones_fft;
+        Array<float> m_weights_extract_fft;
+        dim4_t m_grid_shape;
+        dim4_t m_slice_shape;
+        dim4_t m_target_shape;
+        float m_slice_z_radius;
     };
 }
 
@@ -213,7 +276,7 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
 
         const dim4_t target_shape{1, 1024, slice_shape_padded[2], slice_shape_padded[3]};
         const dim4_t grid_shape{1, 1024, slice_shape_padded[2], slice_shape_padded[3]};
-        Projector projector(grid_shape, slice_shape, target_shape);
+        ProjectorRasterize projector(grid_shape, slice_shape, target_shape);
         projector.backward(slice_fft, fwd_matrix0, -slice_center);
         projector.forward(slice_fft, fwd_matrix1, slice_center);
 
@@ -233,7 +296,7 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
 
         const dim4_t target_shape{1, 1024, slice_shape_padded[2], slice_shape_padded[3]};
         const dim4_t grid_shape{1, 1024, slice_shape_padded[2], slice_shape_padded[3]};
-        Projector projector(grid_shape, slice_shape_padded, target_shape);
+        ProjectorRasterize projector(grid_shape, slice_shape_padded, target_shape);
         projector.backward(slice_padded_fft, fwd_matrix0, -slice_center_padded);
         projector.forward(slice_padded_fft, fwd_matrix1, slice_center_padded);
 
@@ -313,3 +376,123 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
 //        io::save(slice_padded, output_dir / "test0_slice_padded_transform2D.mrc");
 //    }
 }
+
+TEST_CASE("unified::geometry::fft, project test5", "[.]") {
+    const path_t output_dir = test::NOA_DATA_PATH / "geometry" / "fft" / "reconstruction";
+    const path_t input_path = output_dir / "tilt1_cropped_preali_bin2_mrcfile.mrc";
+
+    // The goal here is to back-project the views at a given angle.
+    const float yaw = 0.f;
+    const dim_t target_index = 20;
+    const float tilt_start = -60.f;
+    const float tilt_increment = 3.f;
+    const float target_tilt = tilt_start + target_index * tilt_increment;
+    const float33_t fwd_matrix_target =
+            geometry::euler2matrix(math::deg2rad(float3_t{yaw, target_tilt, 0}), "ZYX", false);
+    fmt::print("target tilt: {}", target_tilt);
+
+    // Prepare the input slice: center and taper edges.
+    Array<float> stack = io::load<float>(input_path);
+    stack = stack.reshape({stack.shape()[1], 1, stack.shape()[2], stack.shape()[3]});
+    const auto slice_count = stack.shape()[0];
+    const auto slice_shape = dim4_t{1, 1, stack.shape()[2], stack.shape()[3]};
+    const auto slice_center = float2_t{stack.shape()[2] / 2, stack.shape()[3] / 2};
+    const auto slice_size_padded = std::max(slice_shape[2], slice_shape[3]) * 2;
+    const auto slice_shape_padded = dim4_t{1, 1, slice_size_padded, slice_size_padded};
+    const auto slice_center_padded = float2_t{dim2_t(slice_shape_padded.get(2)) / 2};
+
+    math::ewise(stack, math::mean(stack), stack, math::minus_t{});
+    signal::rectangle(stack, stack, slice_center, slice_center - 100, 100);
+    io::save(stack.subregion(target_index), output_dir / "test5_target.mrc");
+
+    const dim4_t grid_shape{1, slice_size_padded, slice_size_padded, slice_size_padded};
+    ProjectorInterp projector(0.003f, grid_shape, slice_shape_padded);
+
+    Array extract_slice_padded_fft = memory::zeros<cfloat_t>(slice_shape_padded.fft());
+    Array extract_weight_padded_fft = memory::zeros<float>(slice_shape_padded.fft());
+    Array extract_weights_padded_fft_ones = memory::ones<float>(slice_shape_padded.fft());
+
+    float reference_tilt = tilt_start;
+    for (dim_t i = 0; i < slice_count; ++i) {
+        if (i == 0 || i == target_index) {
+            reference_tilt += 3.f;
+            continue;
+        }
+
+        Array slice = stack.subregion(i);
+        Array slice_padded = memory::resize(slice, slice_shape_padded);
+        Array slice_padded_fft = fft::r2c(slice_padded);
+        signal::fft::lowpass<fft::H2H>(slice_padded_fft, slice_padded_fft, slice_shape_padded, 0.5f, 0.05f);
+
+        const float33_t fwd_matrix_reference =
+                geometry::euler2matrix(math::deg2rad(float3_t{yaw, reference_tilt, 0}), "ZYX", false);
+        projector.backward(slice_padded_fft, fwd_matrix_reference, -slice_center_padded);
+
+        // Now with the new Fourier extraction.
+        // The project already shift and center the slice, so just insert.
+        geometry::fft::extract3D<fft::HC2H>(
+                slice_padded_fft, slice_shape_padded,
+                extract_slice_padded_fft, slice_shape_padded,
+                float22_t{}, fwd_matrix_reference.transpose(),
+                float22_t{}, fwd_matrix_target,
+                0.0019f, 0.5f);
+        geometry::fft::extract3D<fft::HC2H>(
+                extract_weights_padded_fft_ones, slice_shape_padded,
+                extract_weight_padded_fft, slice_shape_padded,
+                float22_t{}, fwd_matrix_reference.transpose(),
+                float22_t{}, fwd_matrix_target,
+                0.0019f, 0.5f);
+
+        reference_tilt += 3.f;
+    }
+
+    // With the grid:
+    io::save(projector.m_grid_weights_fft, output_dir / "test5_grid.mrc");
+
+    Array reference_padded_fft = memory::empty<cfloat_t>(slice_shape_padded.fft());
+    projector.forward(reference_padded_fft, fwd_matrix_target, slice_center_padded);
+
+    Array tmp = memory::empty<float>(slice_shape_padded.fft());
+    math::ewise(reference_padded_fft, tmp, math::abs_one_log_t{});
+    io::save(tmp, output_dir / "test5_grid_reference_fft.mrc");
+
+    Array reference_padded = fft::c2r(reference_padded_fft, slice_shape_padded);
+    Array reference = memory::resize(reference_padded, slice_shape);
+    io::save(reference, output_dir / "test5_grid_reference.mrc");
+
+    // Without the grid:
+    signal::fft::shift2D<fft::H2H>(
+            extract_slice_padded_fft, extract_slice_padded_fft, slice_shape_padded, slice_center_padded);
+    math::ewise(extract_slice_padded_fft, extract_weight_padded_fft, 1e-3f, extract_slice_padded_fft,
+                math::divide_epsilon_t{});
+
+    math::ewise(extract_slice_padded_fft, tmp, math::abs_one_log_t{});
+    io::save(tmp, output_dir / "test5_nogrid_reference_fft.mrc");
+
+    reference_padded = fft::c2r(extract_slice_padded_fft, slice_shape_padded);
+    reference = memory::resize(reference_padded, slice_shape);
+    io::save(reference, output_dir / "test5_nogrid_reference.mrc");
+
+    // Notes:
+    //  1.  The version with the grid includes a bit more signal, probably due to the grid sampling itself.
+    //      As a result, the slice_z_radius should be a bit higher on the no-grid version.
+    //  2.  The difference between neighbouring views is much bigger as the tilt increases. This is obvious,
+    //      but we could maybe do something about it.
+    //  3.  Increasing the slice_z_radius too much produces worst results. Signal from the other views starts
+    //      to leak and the projected reference isn't correct.
+}
+
+//        {
+//            // Cosine stretch
+//            const float2_t cos_factor{1, math::cos(reference_tilt) / math::cos(target_tilt)};
+//            const float33_t stretch_target_to_reference{
+//                    noa::geometry::translate(slice_center) *
+//                    float33_t{noa::geometry::scale(cos_factor)} *
+//                    noa::geometry::translate(-slice_center)
+//            };
+//
+//            // After this point, the target should "overlap" with the reference.
+//            Array slice_cos_stretched = memory::like(slice);
+//            noa::geometry::transform2D(slice, slice_cos_stretched, math::inverse(stretch_target_to_reference));
+//            io::save(slice_cos_stretched, output_dir / "test5_slice_cos.mrc");
+//        }
