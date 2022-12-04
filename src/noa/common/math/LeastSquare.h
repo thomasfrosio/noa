@@ -11,11 +11,11 @@ namespace noa::math {
     /// Least squares regression for quadratic curve fitting.
     /// Returns {a, b, c}, as in ``y = ax^2 + bx + c``, where x is an integral number from 0 to size-1.
     /// For large sizes, prefer to use the more stable math::lstsq().
-    template<bool ACCURATE_SUM = true, typename T>
-    std::tuple<double, double, double>
-    lstsqFitQuadratic(const T* y, size_t size) {
+    template<bool ACCURATE_SUM = true, typename Real, typename Int>
+    constexpr NOA_HD void lstsqFitQuadratic(const Real* y, Int size, double* a, double* b, double* c) {
+        static_assert(traits::is_float_v<Real> && traits::is_int_v<Int>);
         if (!y || size < 3)
-            return {};
+            return;
 
         double sy{0};
         double syx{0};
@@ -28,14 +28,14 @@ namespace noa::math {
         auto sum_ = [](double& s, double& e, double value) {
             if constexpr (ACCURATE_SUM) {
                 auto t = s + value;
-                e += std::abs(s) >= std::abs(value) ? (s - t) + value : (value - t) + s;
+                e += noa::math::abs(s) >= noa::math::abs(value) ? (s - t) + value : (value - t) + s;
                 s = t;
             } else {
                 s += value;
             }
         };
 
-        for (size_t i = 0; i < size; ++i) {
+        for (Int i = 0; i < size; ++i) {
             const auto iy = static_cast<double>(y[i]);
             const auto ix = static_cast<double>(i);
             sum_(sy, ey, iy);
@@ -56,19 +56,41 @@ namespace noa::math {
         const double tmp1 = sx3 * sx0 - sx1 * sx2;
         const double tmp2 = sx3 * sx1 - sx2 * sx2;
 
-        const double a = (syx2 * (tmp0) - syx * (tmp1) + sy * (tmp2)) /
-                         (sx4 * (tmp0) - sx3 * (tmp1) + sx2 * (tmp2));
+        *a = (syx2 * (tmp0) - syx * (tmp1) + sy * (tmp2)) /
+            (sx4 * (tmp0) - sx3 * (tmp1) + sx2 * (tmp2));
 
-        const double b = (sx4 * (syx * sx0 - sy * sx1) -
-                          sx3 * (syx2 * sx0 - sy * sx2) +
-                          sx2 * (syx2 * sx1 - syx * sx2)) /
-                         (sx4 * (tmp0) - sx3 * (tmp1) + sx2 * (tmp2));
+        *b = (sx4 * (syx * sx0 - sy * sx1) -
+             sx3 * (syx2 * sx0 - sy * sx2) +
+             sx2 * (syx2 * sx1 - syx * sx2)) /
+            (sx4 * (tmp0) - sx3 * (tmp1) + sx2 * (tmp2));
 
-        const double c = (sx4 * (sx2 * sy - sx1 * syx) -
-                          sx3 * (sx3 * sy - sx1 * syx2) +
-                          sx2 * (sx3 * syx - sx2 * syx2)) /
-                         (sx4 * (tmp0) - sx3 * (tmp1) + sx2 * (tmp2));
+        if (c) {
+            *c = (sx4 * (sx2 * sy - sx1 * syx) -
+                  sx3 * (sx3 * sy - sx1 * syx2) +
+                  sx2 * (sx3 * syx - sx2 * syx2)) /
+                 (sx4 * (tmp0) - sx3 * (tmp1) + sx2 * (tmp2));
+        }
+    }
 
-        return {a, b, c};
+    template<bool ACCURATE_SUM = true, typename Real, typename Int>
+    auto lstsqFitQuadratic(const Real* y, Int size) {
+        double a{}, b{}, c{};
+        lstsqFitQuadratic<ACCURATE_SUM>(y, size, &a, &b, &c);
+        return std::tuple{a, b, c};
+    }
+
+    /// This is equivalent to math::lstsqFitQuadratic() if one wants to get the vertex for three points.
+    template<typename Real>
+    constexpr NOA_IHD Real lstsqFitQuadraticVertex3Points(Real y0, Real y1, Real y2) noexcept {
+        // From IMOD/libcfshr/filtxcorr.c::parabolicFitPosition
+        const Real d = 2 * (y0 + y2 - 2 * y1);
+        Real x = 0;
+        if (noa::math::abs(d) > noa::math::abs(static_cast<Real>(1e-2) * (y0 - y2)))
+            x = (y0 - y2) / d;
+        if (x > Real{0.5})
+            x = Real{0.5};
+        if (x < Real{-0.5})
+            x = Real{-0.5};
+        return x;
     }
 }

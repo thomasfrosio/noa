@@ -1,20 +1,19 @@
 #include "noa/common/signal/Shape.h"
+#include "noa/common/signal/details/FourierCorrelationPeak.h"
 #include "noa/common/math/LeastSquare.h"
 
-#include "noa/gpu/cuda/fft/Transforms.h"
-#include "noa/gpu/cuda/math/Ewise.h"
 #include "noa/gpu/cuda/math/Find.h"
-#include "noa/gpu/cuda/math/Reduce.h"
 #include "noa/gpu/cuda/memory/PtrPinned.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/signal/fft/Correlate.h"
 #include "noa/gpu/cuda/signal/fft/Shape.h"
-#include "noa/gpu/cuda/signal/fft/Shift.h"
 
-#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
-#include "noa/gpu/cuda/utils/ReduceUnary.cuh"
-#include "noa/gpu/cuda/utils/ReduceBinary.cuh"
+#include "noa/gpu/cuda/utils/Pointers.h"
 #include "noa/gpu/cuda/utils/Warp.cuh"
+#include "noa/gpu/cuda/utils/Block.cuh"
+
+// TODO If centered, select subregion within max_radius.
+// TODO Try to merge the 1D, 2D and 3D cases in to a single function?
+//      The annoying bit right now is that the library doesn't have a 1D vector.
 
 namespace {
     using namespace ::noa;
@@ -54,172 +53,337 @@ namespace {
 
     // Copy the window of the peak. The number of threads should be >= than the window size.
     // The read to global memory only coalesces if the stride is 1.
-    template<fft::Remap REMAP, typename T>
-    constexpr NOA_FD T copyWindowParabola1D_(const T* input, uint32_t stride, int32_t size,
-                                             int32_t peak, int32_t radius, int32_t tid) {
-        auto nonCenteredIndex2Frequency_ = [] (int32_t index, int32_t dim_size) {
-            return index < (dim_size + 1) / 2 ? index : index - dim_size;
-        };
-
-        auto frequency2NonCenteredIndex_ = [] (int32_t frequency, int32_t dim_size) {
-            return frequency < 0 ? dim_size + frequency : frequency;
-        };
-
-        T value = 0;
-        const int32_t elements = radius * 2 + 1;
+    template<fft::Remap REMAP, typename Real>
+    constexpr NOA_FD Real copyWindowParabola1D_(const Real* xmap, uint32_t xmap_stride, int32_t xmap_size,
+                                                int32_t peak_index, int32_t peak_radius, int32_t tid) {
+        Real value = 0;
+        const int32_t elements = peak_radius * 2 + 1;
         if (tid < elements) {
-            const int32_t thread_offset = tid - radius;
+            const int32_t tid_offset = tid - peak_radius;
             if constexpr (REMAP == fft::F2F) {
-                const int32_t tid_frequency = nonCenteredIndex2Frequency_(peak, size) + thread_offset;
-                if (-size / 2 <= tid_frequency && tid_frequency <= (size - 1) / 2) {
-                    const int64_t tid_index = frequency2NonCenteredIndex_(tid_frequency, size);
-                    value = input[tid_index * stride];
+                using namespace noa::signal::fft::details;
+                const int32_t tid_frequency = nonCenteredIndex2Frequency(peak_index, xmap_size) + tid_offset;
+                if (-xmap_size / 2 <= tid_frequency && tid_frequency <= (xmap_size - 1) / 2) {
+                    const int32_t tid_index = frequency2NonCenteredIndex(tid_frequency, xmap_size);
+                    value = xmap[tid_index * xmap_stride];
                 }
             } else {
-                const int32_t index = peak + thread_offset;
-                if (0 <= index && index < size)
-                    value = input[index * stride];
+                const int32_t tid_index = peak_index + tid_offset;
+                if (0 <= tid_index && tid_index < xmap_size)
+                    value = xmap[tid_index * xmap_stride];
             }
         }
         return value;
     }
 
-    template<fft::Remap REMAP, typename T>
-    __global__ void copy1DWindowParabola_(const T* __restrict__ input, uint2_t strides, int32_t size,
-                                          const uint32_t* __restrict__ peaks,
-                                          T* __restrict__ output_window, int32_t window_radius) {
+    template<fft::Remap REMAP, typename Real>
+    __global__ void subpixelRegistrationParabola1D_1D(
+            const Real* xmap, uint2_t xmap_strides, int32_t xmap_size,
+            const uint32_t* peak_offset, float* peak_coord, int32_t peak_radius) {
         using namespace cuda::utils;
         const uint32_t batch = blockIdx.x;
         const auto tidx = static_cast<int32_t>(threadIdx.x);
-        input += strides[0] * batch;
+        xmap += xmap_strides[0] * batch;
 
-        output_window[tidx] = copyWindowParabola1D_<REMAP>(input, strides[1], size, peaks[batch], window_radius, tidx);
+        const uint32_t argmax = peak_offset[batch];
+        Real* peak_window = block::dynamicSharedResource<Real>();
+        peak_window[tidx] = copyWindowParabola1D_<REMAP>(
+                xmap, xmap_strides[1], xmap_size, argmax, peak_radius, tidx);
+
+        // Fit parabola and compute vertex.
+        // Not a lot of parallelism here, but while we could use wrap reduction, for most cases,
+        // the peak radius is quite small, and it's just simpler (and maybe faster) to use a single
+        // thread for the rest of this.
+        block::synchronize();
+        if (tidx == 0) {
+            auto peak_coord_2d = float2_t{
+                REMAP == fft::F2F ? math::FFTShift(static_cast<int32_t>(argmax), xmap_size) : argmax, 0};
+            signal::fft::details::addSubpixelCoordParabola1D<1>(
+                    peak_window, int2_t{peak_radius}, peak_coord_2d);
+            peak_coord[batch] = peak_coord_2d[0];
+        }
     }
 
-    template<fft::Remap REMAP, typename T>
-    __global__ void copy2DWindowParabola_(const T* __restrict__ input, uint3_t strides, int2_t shape,
-                                          const uint32_t* __restrict__ max_value_offsets,
-                                          T* __restrict__ output_window, int2_t window_radius) {
+    template<fft::Remap REMAP, typename Real>
+    __global__ void subpixelRegistrationParabola1D_2D(
+            const Real* xmap, uint3_t xmap_strides, int2_t xmap_shape,
+            const uint32_t* peak_offset, float2_t* peak_coord, int2_t peak_radius) {
         using namespace cuda::utils;
         const uint32_t batch = blockIdx.x;
         const auto tidx = static_cast<int32_t>(threadIdx.x);
-        input += strides[0] * batch;
+        xmap += xmap_strides[0] * batch;
 
-        const uint32_t max_value_offset = max_value_offsets[batch];
-        const auto peak = int2_t(indexing::indexes(max_value_offset, uint2_t(strides.get(1)), uint2_t(shape)));
-        output_window[tidx] =
-                copyWindowParabola1D_<REMAP>(input + peak[1] * strides[2], strides[1],
-                                             shape[0], peak[0], window_radius[0], tidx);
-        output_window[tidx + window_radius[0] * 2 + 1] =
-                copyWindowParabola1D_<REMAP>(input + peak[0] * strides[1], strides[2],
-                                             shape[1], peak[1], window_radius[1], tidx);
+        const auto xmap_strides_2d = uint2_t(xmap_strides.get(1));
+        const auto peak_index = int2_t(indexing::indexes(peak_offset[batch], xmap_strides_2d, uint2_t(xmap_shape)));
+        Real* peak_window = block::dynamicSharedResource<Real>();
+        const int2_t peak_window_offset = {0, peak_radius[0] * 2 + 1};
+
+        peak_window[tidx + peak_window_offset[0]] = copyWindowParabola1D_<REMAP>(
+                xmap + peak_index[1] * xmap_strides_2d[1], xmap_strides_2d[0], xmap_shape[0],
+                peak_index[0], peak_radius[0], tidx);
+        peak_window[tidx + peak_window_offset[1]] = copyWindowParabola1D_<REMAP>(
+                xmap + peak_index[0] * xmap_strides_2d[0], xmap_strides_2d[1], xmap_shape[1],
+                peak_index[1], peak_radius[1], tidx);
+
+        block::synchronize();
+        if (tidx == 0) {
+            auto peak_coord_2d = float2_t(REMAP == fft::F2F ? math::FFTShift(peak_index, xmap_shape) : peak_index);
+            signal::fft::details::addSubpixelCoordParabola1D<2>(
+                    peak_window, peak_radius, peak_coord_2d);
+            peak_coord[batch] = peak_coord_2d;
+        }
     }
 
-    template<fft::Remap REMAP, typename T>
-    __global__ void copy3DWindowParabola_(const T* __restrict__ input, uint4_t strides, int3_t shape,
-                                          const uint32_t* __restrict__ max_value_offsets,
-                                          T* __restrict__ output_window, int3_t window_radius) {
+    template<fft::Remap REMAP, typename Real>
+    __global__ void subpixelRegistrationParabola1D_3D(
+            const Real* xmap, uint4_t xmap_strides, int3_t xmap_shape,
+            const uint32_t* peak_offset, float3_t* peak_coord, int3_t peak_radius) {
         using namespace cuda::utils;
         const uint32_t batch = blockIdx.x;
         const auto tidx = static_cast<int32_t>(threadIdx.x);
-        input += strides[0] * batch;
+        xmap += xmap_strides[0] * batch;
 
-        const uint32_t max_value_offset = max_value_offsets[batch];
-        const auto peak = int3_t(indexing::indexes(max_value_offset, uint3_t(strides.get(1)), uint3_t(shape)));
-        output_window[tidx] =
-                copyWindowParabola1D_<REMAP>(input + peak[1] * strides[2] + peak[2] * strides[3],
-                                             strides[1], shape[0], peak[0], window_radius[0], tidx);
-        output_window[tidx + window_radius[0] * 2 + 1] =
-                copyWindowParabola1D_<REMAP>(input + peak[0] * strides[1] + peak[2] * strides[3],
-                                             strides[2], shape[1], peak[1], window_radius[1], tidx);
-        output_window[tidx + window_radius[0] * 2 + 1 + window_radius[1] * 2 + 1] =
-                copyWindowParabola1D_<REMAP>(input + peak[0] * strides[1] + peak[1] * strides[2],
-                                             strides[3], shape[2], peak[2], window_radius[2], tidx);
+        const auto xmap_strides_3d = uint3_t(xmap_strides.get(1));
+        const auto peak_index = int3_t(indexing::indexes(peak_offset[batch], xmap_strides_3d, uint3_t(xmap_shape)));
+        Real* peak_window = block::dynamicSharedResource<Real>();
+        int3_t peak_window_offset;
+        peak_window_offset[1] = peak_radius[0] * 2 + 1;
+        peak_window_offset[2] = peak_radius[1] * 2 + 1 + peak_window_offset[1];
+
+        peak_window[tidx + peak_window_offset[0]] = copyWindowParabola1D_<REMAP>(
+                xmap + peak_index[1] * xmap_strides_3d[1] + peak_index[2] * xmap_strides_3d[2],
+                xmap_strides_3d[0], xmap_shape[0], peak_index[0], peak_radius[0], tidx);
+        peak_window[tidx + peak_window_offset[1]] = copyWindowParabola1D_<REMAP>(
+                xmap + peak_index[0] * xmap_strides_3d[0] + peak_index[2] * xmap_strides_3d[2],
+                xmap_strides_3d[1], xmap_shape[1], peak_index[1], peak_radius[1], tidx);
+        peak_window[tidx + peak_window_offset[2]] = copyWindowParabola1D_<REMAP>(
+                xmap + peak_index[0] * xmap_strides_3d[0] + peak_index[1] * xmap_strides_3d[1],
+                xmap_strides_3d[2], xmap_shape[2], peak_index[2], peak_radius[2], tidx);
+
+        block::synchronize();
+        if (tidx == 0) {
+            auto peak_coord_3d = float3_t(REMAP == fft::F2F ? math::FFTShift(peak_index, xmap_shape) : peak_index);
+            signal::fft::details::addSubpixelCoordParabola1D<3>(
+                    peak_window, peak_radius, peak_coord_3d);
+            peak_coord[batch] = peak_coord_3d;
+        }
     }
 
-    // This is equivalent to math::lstsqFitQuadratic(), but slightly faster
-    // (I don't think it is significantly faster though).
-    template<typename T>
-    inline T getParabolicVertex3Points_(T y0, T y1, T y2) noexcept {
-        // From IMOD/libcfshr/filtxcorr.c::parabolicFitPosition
-        const T d = 2 * (y0 + y2 - 2 * y1);
-        T x = 0;
-        if (math::abs(d) > math::abs(static_cast<T>(1e-2) * (y0 - y2)))
-            x = (y0 - y2) / d;
-        if (x > T{0.5})
-            x = T{0.5};
-        if (x < T{-0.5})
-            x = T{-0.5};
-        return x;
-    }
+    template<fft::Remap REMAP, typename Real>
+    __global__ void __launch_bounds__(cuda::Limits::WARP_SIZE)
+    subpixelRegistrationCOM_1D(
+            const Real* xmap, uint2_t xmap_strides, int32_t xmap_size,
+            const uint32_t* peak_offset, float* peak_coords, int32_t peak_radius) {
+        using namespace cuda::utils;
+        const uint32_t batch = blockIdx.x;
+        const auto tidx = static_cast<int32_t>(threadIdx.x);
+        xmap += xmap_strides[0] * batch;
 
-    template<fft::Remap REMAP, typename T>
-    float addVertexOffsetParabola1D(const T* window, int32_t window_radius, int32_t size, int32_t peak) {
-        static_assert(REMAP == fft::F2F || REMAP == fft::FC2FC);
+        const auto xmap_stride = static_cast<uint32_t>(xmap_strides[1]);
+        const auto peak_index = static_cast<int32_t>(peak_offset[batch] / xmap_stride);
+        const int32_t peak_width = peak_radius * 2 + 1;
 
-        const auto window_elements = static_cast<size_t>(window_radius) * 2 + 1;
+        double tid_com{0}, tid_com_total{0};
+        // Each thread collects its partial 3D COM...
+        if constexpr (REMAP == fft::FC2FC) {
+            for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
+                const auto relative_offset = l - peak_radius;
+                const auto current_index = peak_index + relative_offset;
+                const auto f_relative_offset = static_cast<double>(relative_offset);
 
-        // Add sub-pixel position by fitting a 1D parabola to the peak and its adjacent points.
-        float vertex_offset;
-        if (window_radius == 1) {
-            vertex_offset = static_cast<float>(getParabolicVertex3Points_(window[0], window[1], window[2]));
+                if (current_index >= 0 && current_index < xmap_size) {
+                    const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_stride)]);
+                    tid_com += value * f_relative_offset;
+                    tid_com_total += value;
+                }
+            }
+        } else if constexpr (REMAP == fft::F2F) {
+            using namespace noa::signal::fft::details;
+            const int32_t frequency_min = -xmap_size / 2;
+            const int32_t frequency_max = (xmap_size - 1) / 2;
+            const int32_t peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_size);
+
+            for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
+                const auto relative_offset = l - peak_radius;
+                const auto current_frequency = peak_frequency + relative_offset;
+                const auto f_relative_offset = static_cast<double>(relative_offset);
+
+                if (frequency_min <= current_frequency && current_frequency <= frequency_max) {
+                    using namespace noa::signal::fft::details;
+                    const int32_t current_index = frequency2NonCenteredIndex(current_frequency, xmap_size);
+                    const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_stride)]);
+                    tid_com += value * f_relative_offset;
+                    tid_com_total += value;
+                }
+            }
         } else {
-            const auto [a, b, _] = math::lstsqFitQuadratic(window, window_elements);
-            NOA_ASSERT(a != 0); // This can only happen if all values in output are equal.
-            const auto radius_ = static_cast<double>(window_radius);
-            vertex_offset = static_cast<float>(std::clamp(-b / (2 * a) - radius_, -radius_ + 0.5, radius_ - 0.5));
+            static_assert(noa::traits::always_false_v<Real>);
         }
-        if constexpr (REMAP == fft::F2F)
-            peak = math::FFTShift(peak, size);
-        return static_cast<float>(peak) + vertex_offset;
-    }
 
-    template<fft::Remap REMAP, typename T>
-    inline float subpixelRegistration1DParabola(const T* window, int32_t window_radius, int32_t size, int32_t peak) {
-        // TODO Check assembly to see if this helps and is optimized.
-        switch (window_radius) {
-            case 1:
-                return addVertexOffsetParabola1D<REMAP>(window, 1, size, peak);
-            case 2:
-                return addVertexOffsetParabola1D<REMAP>(window, 2, size, peak);
-            case 3:
-                return addVertexOffsetParabola1D<REMAP>(window, 3, size, peak);
-            default:
-                return addVertexOffsetParabola1D<REMAP>(window, window_radius, size, peak);
+        // ... and then the first thread collects everything.
+        tid_com = warp::reduce(tid_com, math::plus_t{});
+        tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
+
+        if (tidx == 0) {
+            if (tid_com_total != 0)
+                tid_com /= tid_com_total;
+            tid_com += static_cast<double>(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_size));
+            peak_coords[batch] = static_cast<float>(tid_com);
         }
     }
 
-    template<fft::Remap REMAP, typename T>
-    inline float2_t subpixelRegistration2DParabola(const T* window, int2_t window_radius, int2_t shape, int2_t peak) {
-        return {
-                subpixelRegistration1DParabola<REMAP>(
-                        window, window_radius[0], shape[0], peak[0]),
-                subpixelRegistration1DParabola<REMAP>(
-                        window + window_radius[0] * 2 + 1, window_radius[1], shape[1], peak[1])
-        };
+    template<fft::Remap REMAP, typename Real>
+    __global__ void __launch_bounds__(cuda::Limits::WARP_SIZE)
+    subpixelRegistrationCOM_2D(
+            const Real* xmap, uint3_t xmap_strides, int2_t xmap_shape,
+            const uint32_t* peak_offset, float2_t* peak_coords, int2_t peak_radius) {
+        using namespace cuda::utils;
+        const uint32_t batch = blockIdx.x;
+        const auto tidx = static_cast<int32_t>(threadIdx.x);
+        xmap += xmap_strides[0] * batch;
+
+        const auto xmap_strides_2d = uint2_t(xmap_strides.get(1));
+        const auto peak_index = int2_t(indexing::indexes(peak_offset[batch], xmap_strides_2d, uint2_t(xmap_shape)));
+        const int32_t peak_width = peak_radius[1] * 2 + 1;
+
+        double2_t tid_com;
+        double tid_com_total{0};
+        // Each thread collects its partial 3D COM...
+        if constexpr (REMAP == fft::FC2FC) {
+            for (int32_t k = -peak_radius[0]; k <= peak_radius[0]; ++k) {
+                for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
+                    const auto relative_offset = int2_t{k, l - peak_radius[1]};
+                    const auto current_index = peak_index + relative_offset;
+                    const auto f_relative_offset = double2_t(relative_offset);
+
+                    if (all(current_index >= 0 && current_index < xmap_shape)) {
+                        const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_2d)]);
+                        tid_com += value * f_relative_offset;
+                        tid_com_total += value;
+                    }
+                }
+            }
+        } else if constexpr (REMAP == fft::F2F) {
+            using namespace noa::signal::fft::details;
+            const int2_t frequency_min = -xmap_shape / 2;
+            const int2_t frequency_max = (xmap_shape - 1) / 2;
+            const int2_t peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_shape);
+
+            for (int32_t k = -peak_radius[0]; k <= peak_radius[0]; ++k) {
+                for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
+                    const auto relative_offset = int2_t{k, l - peak_radius[1]};
+                    const auto current_frequency = peak_frequency + relative_offset;
+                    const auto f_relative_offset = double2_t(relative_offset);
+
+                    if (all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
+                        using namespace noa::signal::fft::details;
+                        const int2_t current_index = frequency2NonCenteredIndex(current_frequency, xmap_shape);
+                        const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_2d)]);
+                        tid_com += value * f_relative_offset;
+                        tid_com_total += value;
+                    }
+                }
+            }
+        } else {
+            static_assert(noa::traits::always_false_v<Real>);
+        }
+
+        // ... and then the first thread collects everything.
+        for (int32_t dim = 0; dim < 2; ++dim)
+            tid_com[dim] = warp::reduce(tid_com[dim], math::plus_t{});
+        tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
+
+        if (tidx == 0) {
+            if (tid_com_total != 0)
+                tid_com /= tid_com_total;
+            tid_com += double2_t(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_shape));
+            peak_coords[batch] = float2_t(tid_com);
+        }
     }
 
-    template<fft::Remap REMAP, typename T>
-    inline float3_t subpixelRegistration3DParabola(const T* window, int3_t window_radius, int3_t shape, int3_t peak) {
-        return {
-                subpixelRegistration1DParabola<REMAP>(
-                        window, window_radius[0], shape[0], peak[0]),
-                subpixelRegistration1DParabola<REMAP>(
-                        window + window_radius[0] * 2 + 1, window_radius[1], shape[1], peak[1]),
-                subpixelRegistration1DParabola<REMAP>(
-                        window + window_radius[0] * 2 + 1 + window_radius[1] * 2 + 1, window_radius[2], shape[2], peak[2])
-        };
+    template<fft::Remap REMAP, typename Real>
+    __global__ void __launch_bounds__(cuda::Limits::WARP_SIZE)
+    subpixelRegistrationCOM_3D(
+            const Real* xmap, uint4_t xmap_strides, int3_t xmap_shape,
+            const uint32_t* peak_offset, float3_t* peak_coords, int3_t peak_radius) {
+        using namespace cuda::utils;
+        const uint32_t batch = blockIdx.x;
+        const auto tidx = static_cast<int32_t>(threadIdx.x);
+        xmap += xmap_strides[0] * batch;
+
+        const auto xmap_strides_3d = uint3_t(xmap_strides.get(1));
+        const auto peak_index = int3_t(indexing::indexes(peak_offset[batch], xmap_strides_3d, uint3_t(xmap_shape)));
+        const int32_t peak_width = peak_radius[2] * 2 + 1;
+
+        double3_t tid_com;
+        double tid_com_total{};
+        // Each thread collects its partial 3D COM...
+        if constexpr (REMAP == fft::FC2FC) {
+            for (int32_t j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
+                for (int32_t k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
+                    for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
+                        const auto relative_offset = int3_t{j, k, l - peak_radius[2]};
+                        const auto current_index = peak_index + relative_offset;
+                        const auto f_relative_offset = double3_t(relative_offset);
+
+                        if (all(current_index >= 0 && current_index < xmap_shape)) {
+                            const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_3d)]);
+                            tid_com += value * f_relative_offset;
+                            tid_com_total += value;
+                        }
+                    }
+                }
+            }
+        } else if constexpr (REMAP == fft::F2F) {
+            using namespace noa::signal::fft::details;
+            const int3_t frequency_min = -xmap_shape / 2;
+            const int3_t frequency_max = (xmap_shape - 1) / 2;
+            const int3_t peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_shape);
+
+            for (int32_t j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
+                for (int32_t k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
+                    for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
+                        const auto relative_offset = int3_t{j, k, l - peak_radius[2]};
+                        const auto current_frequency = peak_frequency + relative_offset;
+                        const auto f_relative_offset = double3_t(relative_offset);
+
+                        if (all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
+                            using namespace noa::signal::fft::details;
+                            const int3_t current_index = frequency2NonCenteredIndex(current_frequency, xmap_shape);
+                            const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_3d)]);
+                            tid_com += value * f_relative_offset;
+                            tid_com_total += value;
+                        }
+                    }
+                }
+            }
+        } else {
+            static_assert(noa::traits::always_false_v<Real>);
+        }
+
+        // ... and then the first thread collects everything.
+        for (int32_t dim = 0; dim < 3; ++dim)
+            tid_com[dim] = warp::reduce(tid_com[dim], math::plus_t{});
+        tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
+
+        if (tidx == 0) {
+            if (tid_com_total != 0)
+                tid_com /= tid_com_total;
+            tid_com += double3_t(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_shape));
+            peak_coords[batch] = float3_t(tid_com);
+        }
     }
 }
 
 namespace noa::cuda::signal::fft {
-    template<Remap REMAP, typename T, typename>
-    void xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, const shared_t<float[]>& peaks,
-                 float max_radius, int64_t registration_radius, Stream& stream) {
+    template<Remap REMAP, typename Real, typename>
+    void xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
+                 const shared_t<float[]>& peak_coordinates, PeakMode peak_mode, int64_t peak_radius, Stream& stream) {
         const bool is_column = shape[3] == 1;
         NOA_ASSERT(strides[3 - is_column] > 0);
         NOA_ASSERT(all(shape > 0) && dim3_t(shape.get(1)).ndim() == 1);
         NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(peak_coordinates.get(), stream.device());
 
         const auto u_shape = safe_cast<uint4_t>(shape);
         const auto u_strides = safe_cast<uint4_t>(strides);
@@ -227,208 +391,196 @@ namespace noa::cuda::signal::fft {
         const uint2_t u_strides_1d{u_strides[0], u_strides[3 - is_column]};
 
         // In-place mask on the phase-correlation map.
-        if (max_radius > 0)
-            enforceMaxRadiusInPlace1D_<REMAP>(xmap.get(), max_radius, u_shape_1d, u_strides_1d, stream);
+        if (xmap_ellipse_radius > 0)
+            enforceMaxRadiusInPlace1D_<REMAP>(xmap.get(), xmap_ellipse_radius, u_shape_1d, u_strides_1d, stream);
 
         // Find the maximum value.
-        memory::PtrPinned<uint32_t> max_offset(shape[0]);
-        math::find(noa::math::first_max_t{}, xmap, strides, shape, max_offset.share(), true, true, stream);
+        memory::PtrPinned<uint32_t> peak_offsets(shape[0]);
+        math::find(noa::math::first_max_t{}, xmap, strides, shape, peak_offsets.share(), true, true, stream);
 
-        // Copy to the host the window centered on the max value.
-        const auto registration_size = safe_cast<size_t>(registration_radius * 2 + 1);
-        memory::PtrPinned<T> window(registration_size);
-        const uint32_t threads = noa::math::nextMultipleOf(registration_size, size_t{32});
-        const uint32_t blocks = u_shape_1d[0];
-        stream.enqueue("signal::fft::xpeak1D", copy1DWindowParabola_<REMAP, T>, {blocks, threads},
-                       xmap.get(), u_strides_1d, u_shape_1d[1],
-                       max_offset.get(), window.get(), registration_radius);
-
-        // Optional buffer on the host if the output peaks are on the device...
-        float* peaks_ptr = utils::hostPointer(peaks.get());
-        shared_t<float[]> buffer;
-        if (!peaks_ptr) { // on the device
-            buffer = memory::PtrPinned<float>::alloc(u_shape_1d[0]);
-            peaks_ptr = buffer.get();
+        switch (peak_mode) {
+            case noa::signal::PEAK_PARABOLA_1D: {
+                const auto peak_mode_size = clamp_cast<uint32_t>(peak_radius * 2 + 1);
+                const uint32_t threads = noa::math::nextMultipleOf(peak_mode_size, Limits::WARP_SIZE);
+                const uint32_t blocks = u_shape_1d[0];
+                const LaunchConfig config{blocks, threads, threads * sizeof(Real)};
+                stream.enqueue("signal::fft::xpeak1D_parabola1D",
+                               subpixelRegistrationParabola1D_1D<REMAP, Real>, config,
+                               xmap.get(), u_strides_1d, u_shape_1d[1],
+                               peak_offsets.get(), peak_coordinates.get(), peak_radius);
+                break;
+            }
+            case noa::signal::PEAK_COM: {
+                const uint32_t threads = Limits::WARP_SIZE;
+                const uint32_t blocks = u_shape_1d[0];
+                const LaunchConfig config{blocks, threads};
+                stream.enqueue("signal::fft::xpeak1D_COM",
+                               subpixelRegistrationCOM_1D<REMAP, Real>, config,
+                               xmap.get(), u_strides_1d, u_shape_1d[1],
+                               peak_offsets.get(), peak_coordinates.get(), peak_radius);
+                break;
+            }
         }
-
-        // Subpixel registration on the host.
-        stream.synchronize(); // TODO Add callback
-        for (size_t i = 0; i < shape[0]; ++i) {
-            peaks_ptr[i] = subpixelRegistration1DParabola<REMAP>(
-                    window.get(), registration_radius, u_shape_1d[1], max_offset[i]);
-        }
-
-        if (buffer) // host -> device
-            memory::copy(buffer, peaks, shape[0], stream);
+        stream.attach(xmap, peak_coordinates);
     }
 
-    template<Remap REMAP, typename T, typename>
-    float xpeak1D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                  float max_radius, int64_t registration_radius, Stream& stream) {
+    template<Remap REMAP, typename Real, typename>
+    float xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
+                  PeakMode peak_mode, int64_t peak_radius, Stream& stream) {
         if (shape[0] != 1) // throw instead of assert because this could result in segfault
             NOA_THROW("This overload does not supported batched arrays, but got {} batches", shape[0]);
 
-        float peak;
-        const shared_t<float[]> peak_ptr(xmap, &peak);
-        xpeak1D<REMAP>(xmap, strides, shape, peak_ptr, max_radius, registration_radius, stream);
-        // TODO Add sync when callback is added. Until then it is not necessary since we pass a host pointer.
-        return peak;
+        memory::PtrPinned<float> peak_coordinate(1);
+        xpeak1D<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
+                       peak_coordinate.share(), peak_mode, peak_radius, stream);
+        stream.synchronize();
+        return peak_coordinate[0];
     }
 
-    template<Remap REMAP, typename T, typename>
-    void xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, const shared_t<float2_t[]>& peaks,
-                 float2_t max_radius, long2_t registration_radius, Stream& stream) {
+    template<Remap REMAP, typename Real, typename>
+    void xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
+                 const shared_t<float2_t[]>& peak_coordinates, PeakMode peak_mode, long2_t peak_radius, Stream& stream) {
         NOA_ASSERT(all(shape > 0) && shape[1] == 1);
         NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(peak_coordinates.get(), stream.device());
 
         const auto u_shape = safe_cast<uint4_t>(shape);
         const auto u_strides = safe_cast<uint4_t>(strides);
-        const auto i_radius = static_cast<int2_t>(registration_radius);
+        const auto u_strides_2d = uint3_t{u_strides[0], u_strides[2], u_strides[3]};
         const auto i_shape_2d = int2_t{u_shape[2], u_shape[3]};
 
         // In-place mask on the phase-correlation map.
-        if (any(max_radius > 0)) {
-            // TODO If centered, select subregion within max_radius.
-
+        if (any(xmap_ellipse_radius > 0)) {
             const float2_t center(i_shape_2d / 2);
             const float edge_size = static_cast<float>(noa::math::max(i_shape_2d)) * 0.05f;
-            const auto cvalue =  traits::value_type_t<T>(1);
             ellipse<REMAP>(xmap, strides, xmap, strides, shape,
-                           center, max_radius, edge_size,
-                           float22_t{}, noa::math::multiply_t{}, cvalue, false, stream);
+                           center, xmap_ellipse_radius, edge_size,
+                           float22_t{}, noa::math::multiply_t{}, Real{1}, false, stream);
         }
 
         // Find the maximum value.
-        memory::PtrPinned<uint32_t> max_offset(shape[0]);
-        math::find(noa::math::first_max_t{}, xmap, strides, shape, max_offset.share(), true, true, stream);
+        memory::PtrPinned<uint32_t> peak_offsets(shape[0]);
+        math::find(noa::math::first_max_t{}, xmap, strides, shape, peak_offsets.share(), true, true, stream);
 
-        // Copy to the host the window centered on the max value.
-        const auto registration_size = safe_cast<dim2_t>(registration_radius) * 2 + 1;
-        memory::PtrPinned<T> window(noa::math::sum(registration_size));
-        const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(registration_size), dim_t{32});
-        const uint32_t blocks = u_shape[0];
-        stream.enqueue("signal::fft::xpeak2D", copy2DWindowParabola_<REMAP, T>, {blocks, threads},
-                       xmap.get(), uint3_t{u_strides[0], u_strides[2], u_strides[3]}, i_shape_2d,
-                       max_offset.get(), window.get(), i_radius);
-
-        // Optional buffer on the host if the output peaks are on the device...
-        float2_t* peaks_ptr = utils::hostPointer(peaks.get());
-        shared_t<float2_t[]> buffer;
-        if (!peaks_ptr) { // on the device
-            buffer = memory::PtrPinned<float2_t>::alloc(shape[0]);
-            peaks_ptr = buffer.get();
+        switch (peak_mode) {
+            case noa::signal::PEAK_PARABOLA_1D: {
+                const auto peak_mode_size = clamp_cast<uint2_t>(peak_radius * 2 + 1);
+                const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(peak_mode_size), Limits::WARP_SIZE);
+                const uint32_t size_shared_memory = noa::math::max(threads, peak_mode_size[1]) + peak_mode_size[0];
+                const uint32_t blocks = u_shape[0];
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
+                stream.enqueue("signal::fft::xpeak2D_parabola1D",
+                               subpixelRegistrationParabola1D_2D<REMAP, Real>, config,
+                               xmap.get(), u_strides_2d, i_shape_2d,
+                               peak_offsets.get(), peak_coordinates.get(), int2_t(peak_radius));
+                break;
+            }
+            case noa::signal::PEAK_COM: {
+                const uint32_t threads = Limits::WARP_SIZE;
+                const uint32_t blocks = u_shape[0];
+                const LaunchConfig config{blocks, threads};
+                stream.enqueue("signal::fft::xpeak1D_COM",
+                               subpixelRegistrationCOM_2D<REMAP, Real>, config,
+                               xmap.get(), u_strides_2d, i_shape_2d,
+                               peak_offsets.get(), peak_coordinates.get(), int2_t(peak_radius));
+                break;
+            }
         }
-
-        // Subpixel registration on the host.
-        stream.synchronize(); // TODO Add callback
-        const auto u_strides_2d = uint2_t(u_strides.get(2));
-        const auto u_shape_2d = uint2_t(i_shape_2d);
-        for (size_t i = 0; i < shape[0]; ++i) {
-            const auto peak = int2_t(indexing::indexes(max_offset[i], u_strides_2d, u_shape_2d));
-            peaks_ptr[i] = subpixelRegistration2DParabola<REMAP>(
-                    window.get(), i_radius, i_shape_2d, peak);
-        }
-
-        if (buffer) // host -> device
-            memory::copy(buffer, peaks, shape[0], stream);
+        stream.attach(xmap, peak_coordinates);
     }
 
-    template<Remap REMAP, typename T, typename>
-    float2_t xpeak2D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                     float2_t max_radius, long2_t registration_radius, Stream& stream) {
+    template<Remap REMAP, typename Real, typename>
+    float2_t xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
+                     PeakMode peak_mode, long2_t peak_radius, Stream& stream) {
         if (shape[0] != 1) // throw instead of assert because this could result in segfault
             NOA_THROW("This overload does not supported batched arrays, but got {} batches", shape[0]);
 
-        float2_t peak;
-        const shared_t<float2_t[]> peak_ptr(xmap, &peak);
-        xpeak2D<REMAP>(xmap, strides, shape, peak_ptr, max_radius, registration_radius, stream);
-        // TODO Add sync when callback is added. Until then it is not necessary since we pass a host pointer.
-        return peak;
+        memory::PtrPinned<float2_t> peak_coordinate(1);
+        xpeak2D<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
+                       peak_coordinate.share(), peak_mode, peak_radius, stream);
+        stream.synchronize();
+        return peak_coordinate[0];
     }
 
-    template<Remap REMAP, typename T, typename>
-    void xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape, const shared_t<float3_t[]>& peaks,
-                 float3_t max_radius, long3_t registration_radius, Stream& stream) {
+    template<Remap REMAP, typename Real, typename>
+    void xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
+                 const shared_t<float3_t[]>& peak_coordinates, PeakMode peak_mode, long3_t peak_radius, Stream& stream) {
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(peak_coordinates.get(), stream.device());
 
         const auto u_shape = safe_cast<uint4_t>(shape);
         const auto u_strides = safe_cast<uint4_t>(strides);
-        const auto i_radius = static_cast<int3_t>(registration_radius);
         const auto i_shape_3d = int3_t{u_shape[1], u_shape[2], u_shape[3]};
 
         // In-place mask on the phase-correlation map.
-        if (any(max_radius > 0)) {
-            // TODO If centered, select subregion within max_radius.
-
+        if (any(xmap_ellipse_radius > 0)) {
             const float3_t center(i_shape_3d / 2);
             const float edge_size = static_cast<float>(noa::math::max(i_shape_3d)) * 0.05f;
-            const auto cvalue =  traits::value_type_t<T>(1);
             ellipse<REMAP>(xmap, strides, xmap, strides, shape,
-                           center, max_radius, edge_size,
-                           float33_t{}, noa::math::multiply_t{}, cvalue, false, stream);
+                           center, xmap_ellipse_radius, edge_size,
+                           float33_t{}, noa::math::multiply_t{}, Real{1}, false, stream);
         }
 
         // Find the maximum value.
-        memory::PtrPinned<uint32_t> max_offset(shape[0]);
-        math::find(noa::math::first_max_t{}, xmap, strides, shape, max_offset.share(), true, true, stream);
+        memory::PtrPinned<uint32_t> peak_offsets(shape[0]);
+        math::find(noa::math::first_max_t{}, xmap, strides, shape, peak_offsets.share(), true, true, stream);
 
-        // Copy to the host the window centered on the max value.
-        const auto registration_size = safe_cast<dim3_t>(registration_radius) * 2 + 1;
-        memory::PtrPinned<T> window(noa::math::sum(registration_size));
-        const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(registration_size), dim_t{32});
-        const uint32_t blocks = u_shape[0];
-        stream.enqueue("signal::fft::xpeak3D", copy3DWindowParabola_<REMAP, T>, {blocks, threads},
-                       xmap.get(), u_strides, i_shape_3d,
-                       max_offset.get(), window.get(), i_radius);
-
-        // Optional buffer on the host if the output peaks are on the device...
-        float3_t* peaks_ptr = utils::hostPointer(peaks.get());
-        shared_t<float3_t[]> buffer;
-        if (!peaks_ptr) { // on the device
-            buffer = memory::PtrPinned<float3_t>::alloc(shape[0]);
-            peaks_ptr = buffer.get();
+        switch (peak_mode) {
+            case noa::signal::PEAK_PARABOLA_1D: {
+                const auto peak_mode_size = clamp_cast<uint3_t>(peak_radius * 2 + 1);
+                const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(peak_mode_size), Limits::WARP_SIZE);
+                const uint32_t blocks = u_shape[0];
+                const uint32_t size_shared_memory =
+                        noa::math::max(threads, peak_mode_size[2]) +
+                        peak_mode_size[1] +
+                        peak_mode_size[0];
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
+                stream.enqueue("signal::fft::xpeak3D_parabola1D",
+                               subpixelRegistrationParabola1D_3D<REMAP, Real>, config,
+                               xmap.get(), u_strides, i_shape_3d,
+                               peak_offsets.get(), peak_coordinates.get(), int3_t(peak_radius));
+                break;
+            }
+            case noa::signal::PEAK_COM: {
+                const uint32_t threads = Limits::WARP_SIZE;
+                const uint32_t blocks = u_shape[0];
+                const LaunchConfig config{blocks, threads};
+                stream.enqueue("signal::fft::xpeak2D_COM",
+                               subpixelRegistrationCOM_3D<REMAP, Real>, config,
+                               xmap.get(), u_strides, i_shape_3d,
+                               peak_offsets.get(), peak_coordinates.get(), int3_t(peak_radius));
+                break;
+            }
         }
-
-        // Subpixel registration on the host.
-        stream.synchronize(); // TODO Add callback
-        const auto u_strides_3d = uint3_t(u_strides.get(1));
-        const auto u_shape_3d = uint3_t(i_shape_3d);
-        for (size_t i = 0; i < shape[0]; ++i) {
-            const auto peak = int3_t(indexing::indexes(max_offset[i], u_strides_3d, u_shape_3d));
-            peaks_ptr[i] = subpixelRegistration3DParabola<REMAP>(
-                    window.get(), i_radius, i_shape_3d, peak);
-        }
-
-        if (buffer) // host -> device
-            memory::copy(buffer, peaks, shape[0], stream);
+        stream.attach(xmap, peak_coordinates);
     }
 
-    template<Remap REMAP, typename T, typename>
-    float3_t xpeak3D(const shared_t<T[]>& xmap, dim4_t strides, dim4_t shape,
-                     float3_t max_radius, long3_t registration_radius, Stream& stream) {
+    template<Remap REMAP, typename Real, typename>
+    float3_t xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
+                     PeakMode peak_mode, long3_t peak_radius, Stream& stream) {
         if (shape[0] != 1) // throw instead of assert because this could result in segfault
             NOA_THROW("This overload does not supported batched arrays, but got {} batches", shape[0]);
 
-        float3_t peak;
-        const shared_t<float3_t[]> peak_ptr(xmap, &peak);
-        xpeak3D<REMAP>(xmap, strides, shape, peak_ptr, max_radius, registration_radius, stream);
-        // TODO Add sync when callback is added. Until then it is not necessary since we pass a host pointer.
-        return peak;
+        memory::PtrPinned<float3_t> peak_coordinate(1);
+        xpeak3D<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
+                       peak_coordinate.share(), peak_mode, peak_radius, stream);
+        stream.synchronize();
+        return peak_coordinate[0];
     }
 
-    #define INSTANTIATE_XPEAK(R, T) \
-    template void xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float[]>&, float, int64_t, Stream&);         \
-    template void xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float2_t[]>&, float2_t, long2_t, Stream&);   \
-    template void xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<float3_t[]>&, float3_t, long3_t, Stream&);   \
-    template float xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, int64_t, Stream&);                                  \
-    template float2_t xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, long2_t, Stream&);                            \
-    template float3_t xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, long3_t, Stream&)
+    #define NOA_INSTANTIATE_XPEAK(R, T) \
+    template void xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, const shared_t<float[]>&, PeakMode, int64_t, Stream&);         \
+    template void xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, const shared_t<float2_t[]>&, PeakMode, long2_t, Stream&);   \
+    template void xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, const shared_t<float3_t[]>&, PeakMode, long3_t, Stream&);   \
+    template float xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, PeakMode, int64_t, Stream&);                                  \
+    template float2_t xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, PeakMode, long2_t, Stream&);                            \
+    template float3_t xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, PeakMode, long3_t, Stream&)
 
-    #define INSTANTIATE_XPEAK_ALL(T)    \
-    INSTANTIATE_XPEAK(Remap::F2F, T);   \
-    INSTANTIATE_XPEAK(Remap::FC2FC, T)
+    #define NOA_INSTANTIATE_XPEAK_ALL(T)    \
+    NOA_INSTANTIATE_XPEAK(Remap::F2F, T);   \
+    NOA_INSTANTIATE_XPEAK(Remap::FC2FC, T)
 
-    INSTANTIATE_XPEAK_ALL(float);
-    INSTANTIATE_XPEAK_ALL(double);
+    NOA_INSTANTIATE_XPEAK_ALL(float);
+    NOA_INSTANTIATE_XPEAK_ALL(double);
 }

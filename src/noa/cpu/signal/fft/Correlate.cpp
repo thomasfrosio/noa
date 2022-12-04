@@ -4,41 +4,68 @@
 #include "noa/cpu/signal/fft/Shift.h"
 
 namespace noa::cpu::signal::fft {
-    template<Remap REMAP, typename T, typename>
-    void xmap(const shared_t<Complex<T>[]>& lhs, dim4_t lhs_strides,
-              const shared_t<Complex<T>[]>& rhs, dim4_t rhs_strides,
-              const shared_t<T[]>& output, dim4_t output_strides,
-              dim4_t shape, bool normalize, Norm norm, Stream& stream,
-              const shared_t<Complex<T>[]>& tmp, dim4_t tmp_strides) {
+    template<Remap REMAP, typename Real, typename>
+    void xmap(const shared_t<Complex<Real>[]>& lhs, dim4_t lhs_strides,
+              const shared_t<Complex<Real>[]>& rhs, dim4_t rhs_strides,
+              const shared_t<Real[]>& output, dim4_t output_strides,
+              dim4_t shape, CorrelationMode correlation_mode, Norm norm, Stream& stream,
+              const shared_t<Complex<Real>[]>& tmp, dim4_t tmp_strides) {
 
-        const shared_t<Complex<T>[]>& buffer = tmp ? tmp : rhs;
+        using complex_t = Complex<Real>;
+        using real_t = Real;
+        const shared_t<complex_t[]>& buffer = tmp ? tmp : rhs;
         const dim4_t& buffer_strides = tmp ? tmp_strides : rhs_strides;
         NOA_ASSERT(all(buffer_strides > 0));
 
-        if (normalize) {
-            cpu::math::ewise(
-                    lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
-                    [](Complex<T> l, Complex<T> r) {
-                        const Complex<T> product = l * noa::math::conj(r);
-                        const T magnitude = noa::math::abs(product);
-                        return product / (magnitude + static_cast<T>(1e-13));
-                        // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
-                        // for input values close to zero (less than 1e-10). In most cases, this is fine.
-                        // Note that the normalization can sharpen the peak considerably.
-                    }, stream);
-        } else {
-            cpu::math::ewise(lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides,
-                             shape.fft(), noa::math::multiply_conj_t{}, stream);
+        constexpr auto EPSILON = static_cast<real_t>(1e-13);
+        switch (correlation_mode) {
+            case noa::signal::CONVENTIONAL_CORRELATION:
+                cpu::math::ewise(lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides,
+                                 shape.fft(), noa::math::multiply_conj_t{}, stream);
+                break;
+            case noa::signal::PHASE_CORRELATION:
+                cpu::math::ewise(
+                        lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
+                        [](complex_t l, complex_t r) {
+                            const complex_t product = l * noa::math::conj(r);
+                            const real_t magnitude = noa::math::abs(product);
+                            return product / (magnitude + EPSILON);
+                            // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
+                            // for input values close to zero (less than 1e-10). In most cases, this is fine.
+                        }, stream);
+                break;
+            case noa::signal::DOUBLE_PHASE_CORRELATION:
+                cpu::math::ewise(
+                        lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
+                        [](complex_t l, complex_t r) -> complex_t {
+                            const complex_t product = l * noa::math::conj(r);
+                            const complex_t product_sqd = {product.real * product.real, product.imag * product.imag};
+                            const real_t magnitude = noa::math::sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
+                            return {(product_sqd.real - product_sqd.imag) / magnitude,
+                                    (2 * product.real * product.imag) / magnitude};
+                        }, stream);
+                break;
+            case noa::signal::MUTUAL_CORRELATION:
+                cpu::math::ewise(
+                        lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
+                        [](complex_t l, complex_t r) {
+                            const complex_t product = l * noa::math::conj(r);
+                            const real_t magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));
+                            return product / (magnitude_sqrt + EPSILON);
+                        }, stream);
+                break;
         }
 
         if constexpr (REMAP == Remap::H2FC) {
             const dim3_t shape_3d(shape.get(1));
             if (shape_3d.ndim() == 3) {
-                cpu::signal::fft::shift3D<Remap::H2H>(buffer, buffer_strides, buffer, buffer_strides, shape,
-                                                      float3_t(shape_3d / 2), 1, stream);
+                cpu::signal::fft::shift3D<Remap::H2H>(
+                        buffer, buffer_strides, buffer, buffer_strides, shape,
+                        float3_t(shape_3d / 2), 1, stream);
             } else {
-                cpu::signal::fft::shift2D<Remap::H2H>(buffer, buffer_strides, buffer, buffer_strides, shape,
-                                                      float2_t{shape_3d[1] / 2, shape_3d[2] / 2}, 1, stream);
+                cpu::signal::fft::shift2D<Remap::H2H>(
+                        buffer, buffer_strides, buffer, buffer_strides, shape,
+                        float2_t{shape_3d[1] / 2, shape_3d[2] / 2}, 1, stream);
             }
         }
 
@@ -50,7 +77,8 @@ namespace noa::cpu::signal::fft {
         const shared_t<Complex<T>[]>&, dim4_t,  \
         const shared_t<Complex<T>[]>&, dim4_t,  \
         const shared_t<T[]>&, dim4_t, dim4_t,   \
-        bool, Norm, Stream&, const shared_t<Complex<T>[]>&, dim4_t)
+        CorrelationMode, Norm, Stream&,         \
+        const shared_t<Complex<T>[]>&, dim4_t)
 
     #define INSTANTIATE_XMAP_ALL(T)     \
     INSTANTIATE_XMAP(Remap::H2F, T);    \
@@ -61,10 +89,10 @@ namespace noa::cpu::signal::fft {
 }
 
 namespace noa::cpu::signal::fft::details {
-    template<typename T>
-    T xcorr(const Complex<T>* lhs, dim3_t lhs_strides,
-            const Complex<T>* rhs, dim3_t rhs_strides,
-            dim3_t shape, dim_t threads) {
+    template<typename Real>
+    Real xcorr(const Complex<Real>* lhs, dim3_t lhs_strides,
+               const Complex<Real>* rhs, dim3_t rhs_strides,
+               dim3_t shape, dim_t threads) {
         double sum = 0, sum_lhs = 0, sum_rhs = 0;
         double err = 0, err_lhs = 0, err_rhs = 0;
 
@@ -95,7 +123,7 @@ namespace noa::cpu::signal::fft::details {
 
         const double numerator = sum + err;
         const double denominator = noa::math::sqrt((sum_lhs + err_lhs) * (sum_rhs + err_rhs));
-        return static_cast<T>(numerator / denominator);
+        return static_cast<Real>(numerator / denominator);
     }
 
     #define INSTANTIATE_XCORR(T) \

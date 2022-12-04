@@ -143,7 +143,7 @@ namespace {
 
             // Find and apply shift:
             signal::fft::xmap<fft::H2F>(reference_pad_fft, target_pad_fft, xmap,
-                                        true, fft::NORM_DEFAULT, reference_pad_fft);
+                                        signal::CONVENTIONAL_CORRELATION, fft::NORM_DEFAULT, reference_pad_fft);
             const float2_t peak = signal::fft::xpeak2D<fft::F2F>(xmap);
             const float2_t slice_center = float2_t(slice_shape.get(2)) / 2;
             const float2_t shift = peak - slice_center;

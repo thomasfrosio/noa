@@ -83,3 +83,29 @@ namespace noa::fft {
         return os;
     }
 }
+
+namespace noa::signal {
+    std::ostream& operator<<(std::ostream& os, CorrelationMode correlation) {
+        switch (correlation) {
+            case CONVENTIONAL_CORRELATION:
+                return os << "CONVENTIONAL_CORRELATION";
+            case PHASE_CORRELATION:
+                return os << "PHASE_CORRELATION";
+            case DOUBLE_PHASE_CORRELATION:
+                return os << "DOUBLE_PHASE_CORRELATION";
+            case MUTUAL_CORRELATION:
+                return os << "MUTUAL_CORRELATION";
+        }
+        return os;
+    }
+
+    std::ostream& operator<<(std::ostream& os, PeakMode peak_mode) {
+        switch (peak_mode) {
+            case PEAK_PARABOLA_1D:
+                return os << "PEAK_PARABOLA_1D";
+            case PEAK_COM:
+                return os << "PEAK_COM";
+        }
+        return os;
+    }
+}

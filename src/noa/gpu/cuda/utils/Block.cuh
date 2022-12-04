@@ -13,7 +13,7 @@ namespace noa::cuda::utils::block {
         __syncthreads();
     }
 
-    // Retrieves the  dynamically allocated per-block shared memory.
+    // Retrieves the dynamically allocated per-block shared memory.
     // For using dynamically-sized (i.e. "extern" with unspecified-size array) shared memory in templated
     // kernels, this kind of utility is necessary to avoid errors with non-basic types (e.g. cfloat_t).
     // Also, since the documentation is unclear about the alignment and whether it comes with any alignment

@@ -34,7 +34,6 @@ set(TEST_CUDA_SOURCES
         noa/gpu/cuda/memory/TestCUDAResize.cpp
 
         noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
-        noa/gpu/cuda/signal/fft/TestCUDACorrelate.cpp
         noa/gpu/cuda/signal/fft/TestCUDAShiftFFT.cpp
         noa/gpu/cuda/signal/fft/TestCUDAStandardize.cpp
         noa/gpu/cuda/signal/TestCUDAConvolve.cpp

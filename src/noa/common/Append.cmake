@@ -49,6 +49,7 @@ set(NOA_COMMON_HEADERS
         common/io/TIFFFile.h
 
         common/signal/details/Shape.h
+        common/signal/details/FourierCorrelationPeak.h
         common/signal/Shape.h
         common/signal/Windows.h
 

@@ -92,7 +92,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
         Array<cfloat_t> lhs_polar_fft{polar_shape.fft(), options}, rhs_polar_fft{polar_shape.fft(), options};
         fft::r2c(lhs_polar, lhs_polar_fft);
         fft::r2c(rhs_polar, rhs_polar_fft);
-        signal::fft::xmap<fft::H2FC>(lhs_polar_fft, rhs_polar_fft, lhs_polar, true);
+        signal::fft::xmap<fft::H2FC>(lhs_polar_fft, rhs_polar_fft, lhs_polar);
 
         file.open(directory / string::format("test_{}_xmap_mellin.mrc", device), io::WRITE);
         file.shape(polar_shape);
@@ -193,7 +193,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
         Array<cfloat_t> rhs_polar_fft{polar_shape.fft(), options};
         fft::r2c(lhs_polar, lhs_polar_fft, norm);
         fft::r2c(rhs_polar, rhs_polar_fft, norm);
-        signal::fft::xmap<fft::H2FC>(lhs_polar_fft, rhs_polar_fft, lhs_polar, true, norm);
+        signal::fft::xmap<fft::H2FC>(lhs_polar_fft, rhs_polar_fft, lhs_polar,
+                                     signal::CONVENTIONAL_CORRELATION, norm);
 
         file.open(directory / string::format("test_{}_xmap_mellin.mrc", device), io::WRITE);
         file.shape(polar_shape);

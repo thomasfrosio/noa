@@ -173,3 +173,33 @@ namespace noa::math {
     NOA_IH std::ostream& operator<<(std::ostream& os, log_normal_t) { return os << "log-normal"; }
     NOA_IH std::ostream& operator<<(std::ostream& os, poisson_t) { return os << "poisson"; }
 }
+
+namespace noa::signal {
+    /// Correlation mode to compute the cross-correlation map.
+    enum CorrelationMode {
+        /// Conventional cross-correlation. Generates smooth peaks, but often suffer from
+        /// roof-top effect if highpass filter is not strong enough.
+        CONVENTIONAL_CORRELATION,
+
+        /// Phase-only cross-correlation. Generates sharper, but noisier, peaks.
+        PHASE_CORRELATION,
+
+        /// Double-phase correlation. Generate similar peaks that the conventional approach,
+        /// but is more accurate due to the doubling of the peak position.
+        DOUBLE_PHASE_CORRELATION,
+
+        /// Good general alternative. Sharper than the conventional approach.
+        MUTUAL_CORRELATION
+    };
+    std::ostream& operator<<(std::ostream& os, CorrelationMode correlation);
+
+    /// Subpixel registration method.
+    enum PeakMode {
+        /// Updates the pixel location by fitting a 1D parabola along axis.
+        PEAK_PARABOLA_1D,
+
+        /// Updates the pixel location by adding the center-of-mass (COM).
+        PEAK_COM
+    };
+    std::ostream& operator<<(std::ostream& os, PeakMode peak_mode);
+}
