@@ -29,11 +29,6 @@ namespace noa::indexing {
     NOA_FHD constexpr auto at(index0_t i0, index1_t i1, index2_t i2, index3_t i3,
                               const Int4<offset_t>& strides) noexcept {
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-
-        NOA_ASSERT((traits::is_uint_v<index0_t> || i0 >= index0_t{0}) &&
-                   (traits::is_uint_v<index1_t> || i1 >= index1_t{0}) &&
-                   (traits::is_uint_v<index2_t> || i2 >= index2_t{0}) &&
-                   (traits::is_uint_v<index3_t> || i3 >= index3_t{0}));
         NOA_ASSERT(isSafeCast<offset_t>(i0) && isSafeCast<offset_t>(i1) &&
                    isSafeCast<offset_t>(i2) && isSafeCast<offset_t>(i3));
 
@@ -62,10 +57,6 @@ namespace noa::indexing {
     NOA_FHD constexpr auto at(index0_t i0, index1_t i1, index2_t i2, const strides_t& strides) noexcept {
         using offset_t = traits::value_type_t<strides_t>;
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-
-        NOA_ASSERT((traits::is_uint_v<index0_t> || i0 >= index0_t{0}) &&
-                   (traits::is_uint_v<index1_t> || i1 >= index1_t{0}) &&
-                   (traits::is_uint_v<index2_t> || i2 >= index2_t{0}));
         NOA_ASSERT(isSafeCast<offset_t>(i0) && isSafeCast<offset_t>(i1) && isSafeCast<offset_t>(i2));
 
         return static_cast<offset_t>(i0) * strides[0] +
@@ -92,9 +83,6 @@ namespace noa::indexing {
     NOA_FHD constexpr auto at(index0_t i0, index1_t i1, const strides_t& strides) noexcept {
         using offset_t = traits::value_type_t<strides_t>;
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-
-        NOA_ASSERT((traits::is_uint_v<index0_t> || i0 >= index0_t{0}) &&
-                   (traits::is_uint_v<index1_t> || i1 >= index1_t{0}));
         NOA_ASSERT(isSafeCast<offset_t>(i0) && isSafeCast<offset_t>(i1));
 
         return static_cast<offset_t>(i0) * strides[0]+
@@ -127,8 +115,6 @@ namespace noa::indexing {
     NOA_FHD constexpr auto at(index_t i0, strides_t strides) noexcept {
         using offset_t = traits::value_type_t<strides_t>;
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-
-        NOA_ASSERT(traits::is_uint_v<index_t> || i0 >= index_t{0});
         NOA_ASSERT(isSafeCast<offset_t>(i0));
 
         if constexpr (traits::is_int_v<strides_t>) {
