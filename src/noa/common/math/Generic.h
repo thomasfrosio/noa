@@ -7,6 +7,7 @@
 #include <cfloat> // FLT_EPSILON, DBL_EPSILON
 
 #include "noa/common/Definitions.h"
+#include "noa/common/traits/ArrayTypes.h"
 #include "noa/common/traits/BaseTypes.h"
 #include "noa/common/math/Constant.h"
 
@@ -210,15 +211,33 @@ namespace noa::math {
     NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
 
     /// Returns the centered index of the corresponding non-centered idx. Should be within `0 <= idx < dim`.
-    template<typename T, typename = std::enable_if_t<traits::is_int_v<T>>>
-    [[nodiscard]] NOA_FHD constexpr T FFTShift(T idx, T dim) {
-        return (idx < (dim + 1) / 2) ? idx + dim / 2 : idx - (dim + 1) / 2; // or (idx + dim / 2) % dim
+    template<typename Int, typename std::enable_if_t<traits::is_int_v<Int>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr Int FFTShift(Int index, Int size) {
+        return (index < (size + 1) / 2) ? index + size / 2 : index - (size + 1) / 2; // or (index + size / 2) % size
     }
 
     /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
-    template<typename T, typename = std::enable_if_t<traits::is_int_v<T>>>
-    [[nodiscard]] NOA_FHD constexpr T iFFTShift(T idx, T dim) {
-        return (idx < dim / 2) ? idx + (dim + 1) / 2 : idx - dim / 2; // or (idx + (dim + 1) / 2) % dim
+    template<typename IntX, typename std::enable_if_t<traits::is_intX_v<IntX>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr IntX FFTShift(IntX index, IntX shape) {
+        IntX out;
+        for (size_t dim = 0; dim < IntX::COUNT; ++dim)
+            out[dim] = FFTShift(index[dim], shape[dim]);
+        return out;
+    }
+
+    /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
+    template<typename Int, typename std::enable_if_t<traits::is_int_v<Int>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr Int iFFTShift(Int index, Int size) {
+        return (index < size / 2) ? index + (size + 1) / 2 : index - size / 2; // or (index + (size + 1) / 2) % size
+    }
+
+    /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
+    template<typename IntX, typename std::enable_if_t<traits::is_intX_v<IntX>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr IntX iFFTShift(IntX index, IntX shape) {
+        IntX out;
+        for (size_t dim = 0; dim < IntX::COUNT; ++dim)
+            out[dim] = iFFTShift(index[dim], shape[dim]);
+        return out;
     }
 
     /// Returns the value at a particular index within an evenly spaced range within a given interval.
