@@ -231,7 +231,8 @@ namespace noa::geometry::fft::details {
     // Direct Fourier insertion, using data-driven interpolation (gridding).
     template<Remap REMAP,
              typename Index, typename Data, typename Offset,
-             typename ScaleOrEmpty, typename Rotate, typename EWSOrEmpty>
+             typename ScaleOrEmpty, typename Rotate, typename EWSOrEmpty,
+             typename SliceAccessorOrValue>
     class FourierInsertionByGridding {
         using Layout = ::noa::fft::Layout;
         static constexpr auto REMAP_ = static_cast<uint8_t>(REMAP);
@@ -244,6 +245,7 @@ namespace noa::geometry::fft::details {
         static_assert(traits::is_any_v<EWSOrEmpty, float, float2_t> || std::is_empty_v<EWSOrEmpty>);
         static_assert(traits::is_any_v<Rotate, float33_t, const float33_t*>);
         static_assert(traits::is_any_v<Index, int32_t, int64_t>);
+        static_assert(traits::is_any_v<SliceAccessorOrValue, Data, AccessorRestrict<const Data, 3, Offset>>);
 
         using index_type = Index;
         using data_type = Data;
@@ -252,7 +254,7 @@ namespace noa::geometry::fft::details {
         using rotate_type = Rotate;
         using ews_or_empty_type = EWSOrEmpty;
 
-        using slice_accessor_type = AccessorRestrict<const data_type, 3, offset_type>;
+        using slice_accessor_or_value_type = SliceAccessorOrValue;
         using grid_accessor_type = AccessorRestrict<data_type, 3, offset_type>;
         using index2_type = Int2<index_type>;
         using index3_type = Int3<index_type>;
@@ -260,7 +262,7 @@ namespace noa::geometry::fft::details {
 
     public:
         FourierInsertionByGridding(
-                slice_accessor_type slice, dim4_t slice_shape,
+                slice_accessor_or_value_type slice, dim4_t slice_shape,
                 grid_accessor_type grid, dim4_t grid_shape,
                 scale_or_empty_type inv_scaling_matrices, rotate_type fwd_rotation_matrices,
                 float cutoff, dim4_t target_shape, ews_or_empty_type ews_radius)
@@ -317,7 +319,11 @@ namespace noa::geometry::fft::details {
             freq_3d *= m_f_target_shape;
 
             // At this point, we know we are going to use the slice value.
-            data_type value = m_slice(batch, y, u);
+            data_type value;
+            if constexpr (std::is_same_v<data_type, slice_accessor_or_value_type>)
+                value = m_slice;
+            else
+                value = m_slice(batch, y, u);
             if constexpr(traits::is_complex_v<data_type>)
                 value.imag *= conj;
             else
@@ -327,7 +333,7 @@ namespace noa::geometry::fft::details {
         }
 
     private:
-        slice_accessor_type m_slice;
+        slice_accessor_or_value_type m_slice;
         grid_accessor_type m_grid;
         rotate_type m_fwd_rotation_matrices;
         scale_or_empty_type m_inv_scaling_matrices;
@@ -348,8 +354,24 @@ namespace noa::geometry::fft::details {
             const AccessorRestrict<Data, 3, Offset>& grid, dim4_t grid_shape,
             ScaleOrEmpty inv_scaling_matrices, Rotate fwd_rotation_matrices,
             float cutoff, dim4_t target_shape, EWSOrEmpty ews_radius) {
+        using slice_accessor_t = AccessorRestrict<const Data, 3, Offset>;
         return FourierInsertionByGridding<
-                REMAP, Index, Data, Offset, ScaleOrEmpty, Rotate, EWSOrEmpty>(
+                REMAP, Index, Data, Offset, ScaleOrEmpty, Rotate, EWSOrEmpty, slice_accessor_t>(
+                slice, slice_shape, grid, grid_shape,
+                inv_scaling_matrices, fwd_rotation_matrices,
+                cutoff, target_shape, ews_radius);
+    }
+
+    template<Remap REMAP,
+            typename Index, typename Data, typename Offset,
+            typename ScaleOrEmpty, typename Rotate, typename EWSOrEmpty>
+    auto fourierInsertionByGridding(
+            Data slice, dim4_t slice_shape,
+            const AccessorRestrict<Data, 3, Offset>& grid, dim4_t grid_shape,
+            ScaleOrEmpty inv_scaling_matrices, Rotate fwd_rotation_matrices,
+            float cutoff, dim4_t target_shape, EWSOrEmpty ews_radius) {
+        return FourierInsertionByGridding<
+                REMAP, Index, Data, Offset, ScaleOrEmpty, Rotate, EWSOrEmpty, Data>(
                 slice, slice_shape, grid, grid_shape,
                 inv_scaling_matrices, fwd_rotation_matrices,
                 cutoff, target_shape, ews_radius);
@@ -642,7 +664,6 @@ namespace noa::geometry::fft::details {
 
         using output_slice_accessor_type = AccessorRestrict<data_type, 3, offset_type>;
         using index2_type = Int2<index_type>;
-        using index3_type = Int3<index_type>;
         using real_type = traits::value_type_t<data_type>;
 
     public:

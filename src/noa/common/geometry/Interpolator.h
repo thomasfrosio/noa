@@ -108,7 +108,7 @@ namespace noa::geometry {
             } else if constexpr (BORDER_MODE == BORDER_VALUE) {
                 if (index[1] < 0 || index[1] >= m_shape[1] ||
                     index[0] < 0 || index[0] >= m_shape[0])
-                    return static_cast<data_type>(m_cvalue);
+                    return m_cvalue;
                 else
                     return accessor(index[0], index[1]);
             } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
@@ -251,8 +251,8 @@ namespace noa::geometry {
 namespace noa::geometry {
     // Interpolates 3D data.
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
-            typename Data, typename Offset = int64_t, typename Coord = float,
-            int ACCESSOR_NDIM = 3, AccessorTraits ACCESSOR_TRAITS = AccessorTraits::DEFAULT>
+             typename Data, typename Offset = int64_t, typename Coord = float,
+             int ACCESSOR_NDIM = 3, AccessorTraits ACCESSOR_TRAITS = AccessorTraits::DEFAULT>
     class Interpolator3D {
     public:
         static_assert(traits::is_any_v<Offset, int32_t, int64_t, uint32_t, uint64_t>);
@@ -343,7 +343,7 @@ namespace noa::geometry {
                 if (index[2] < 0 || index[2] >= m_shape[2] ||
                     index[1] < 0 || index[1] >= m_shape[1] ||
                     index[0] < 0 || index[0] >= m_shape[0])
-                    return static_cast<data_type>(m_cvalue);
+                    return m_cvalue;
                 else
                     return accessor(index[0], index[1], index[2]);
             } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||

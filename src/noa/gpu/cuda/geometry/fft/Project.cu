@@ -1,6 +1,6 @@
 #include "noa/common/geometry/Interpolator.h"
+#include "noa/common/geometry/InterpolatorValue.h"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
 #include "noa/gpu/cuda/utils/Atomic.cuh"
@@ -217,6 +217,47 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
+    void insert3D(Value slice, dim4_t slice_shape,
+                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+                  float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
+
+        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
+
+        const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
+        const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid.get(), grid_strides_3d);
+        const auto iwise_shape = safe_cast<int3_t>(dim3_t{slice_shape[0], slice_shape[2], slice_shape[3]}).fft();
+
+        const auto apply_ews = any(ews_radius != 0);
+        const bool apply_scale = inv_scaling_matrices != Scale{};
+
+        const auto inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(inv_scaling_matrices, stream.device());
+        const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(fwd_rotation_matrices, stream.device());
+
+        using namespace noa::geometry::fft::details;
+        if (apply_ews || apply_scale) {
+            const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
+                    slice, slice_shape, grid_accessor, grid_shape,
+                    inv_scaling_matrices_, fwd_rotation_matrices_,
+                    cutoff, target_shape, ews_radius);
+            utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+        } else {
+            const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
+                    slice, slice_shape, grid_accessor, grid_shape,
+                    empty_t{}, fwd_rotation_matrices_,
+                    cutoff, target_shape, empty_t{});
+            utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+        }
+
+        stream.attach(grid);
+        if constexpr (!traits::is_floatXX_v<Scale>)
+            if (inv_scaling_matrices)
+                stream.attach(inv_scaling_matrices);
+        if constexpr (!traits::is_floatXX_v<Rotate>)
+            stream.attach(fwd_rotation_matrices);
+    }
+
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
     void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
                   const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
                   const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
@@ -235,6 +276,24 @@ namespace noa::cuda::geometry::fft {
                          fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
                          slice_z_radius, stream);
         stream.attach(slice, grid);
+    }
+
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
+    void insert3D(Value slice, dim4_t slice_shape,
+                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
+                  float cutoff, dim4_t target_shape, float2_t ews_radius,
+                  float slice_z_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
+
+        const auto slice_shape_2d = safe_cast<int2_t>(dim2_t(slice_shape.get(2)));
+        const auto slice_interpolator = noa::geometry::interpolatorValue2D<BORDER_ZERO, INTERP_LINEAR>(
+                slice, slice_shape_2d.fft(), Value{0});
+
+        insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
+                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                         slice_z_radius, stream);
+        stream.attach(grid);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
@@ -363,6 +422,27 @@ namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename Value,
              typename Scale0, typename Scale1,
              typename Rotate0, typename Rotate1, typename>
+    void extract3D(Value input_slice, dim4_t input_slice_shape,
+                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
+                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
+                   const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
+                   float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(output_slice.get(), stream.device());
+
+        const auto input_slice_interpolator = noa::geometry::interpolatorValue2D<BORDER_ZERO, INTERP_LINEAR>(
+                input_slice, safe_cast<int2_t>(dim2_t(input_slice_shape.get(2))).fft(), Value{0});
+
+        extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
+                          output_slice.get(), output_slice_strides, output_slice_shape,
+                          insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                          extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                          cutoff, ews_radius, slice_z_radius, stream);
+        stream.attach(output_slice);
+    }
+
+    template<Remap REMAP, typename Value,
+             typename Scale0, typename Scale1,
+             typename Rotate0, typename Rotate1, typename>
     void extract3D(const shared_t<cudaArray>& input_slice_array,
                    const shared_t<cudaTextureObject_t>& input_slice_texture,
                    InterpMode input_slice_interpolation_mode, dim4_t input_slice_shape,
@@ -444,16 +524,24 @@ namespace noa::cuda::geometry::fft {
         stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_INSERT_(T, REMAP, S, R) \
-    template void insert3D<REMAP, T, S, R, void>(   \
-        const shared_t<T[]>&, dim4_t, dim4_t,       \
-        const shared_t<T[]>&, dim4_t, dim4_t,       \
+    #define NOA_INSTANTIATE_INSERT_(T, REMAP, S, R)             \
+    template void insert3D<REMAP, T, S, R, void>(               \
+        const shared_t<T[]>&, dim4_t, dim4_t,                   \
+        const shared_t<T[]>&, dim4_t, dim4_t,                   \
+        const S&, const R&, float, dim4_t, float2_t, Stream&);  \
+    template void insert3D<REMAP, T, S, R, void>(               \
+        T, dim4_t,                                              \
+        const shared_t<T[]>&, dim4_t, dim4_t,                   \
         const S&, const R&, float, dim4_t, float2_t, Stream&)
 
-    #define NOA_INSTANTIATE_INSERT_THICK_(T, REMAP, S, R)                   \
-    template void insert3D<REMAP, T, S, R, void>(                           \
-        const shared_t<T[]>&, dim4_t, dim4_t,                               \
-        const shared_t<T[]>&, dim4_t, dim4_t,                               \
+    #define NOA_INSTANTIATE_INSERT_THICK_(T, REMAP, S, R)               \
+    template void insert3D<REMAP, T, S, R, void>(                       \
+        const shared_t<T[]>&, dim4_t, dim4_t,                           \
+        const shared_t<T[]>&, dim4_t, dim4_t,                           \
+        const S&, const R&, float, dim4_t, float2_t, float, Stream&);   \
+    template void insert3D<REMAP, T, S, R, void>(                       \
+        T, dim4_t,                                                      \
+        const shared_t<T[]>&, dim4_t, dim4_t,                           \
         const S&, const R&, float, dim4_t, float2_t, float, Stream&)
 
     #define NOA_INSTANTIATE_EXTRACT_(T, REMAP, S, R)    \
@@ -465,6 +553,11 @@ namespace noa::cuda::geometry::fft {
     #define NOA_INSTANTIATE_INSERT_EXTRACT_(T, REMAP, S0, S1, R0, R1)   \
     template void extract3D<REMAP, T, S0, S1, R0, R1, void>(            \
         const shared_t<T[]>&, dim4_t, dim4_t,                           \
+        const shared_t<T[]>&, dim4_t, dim4_t,                           \
+        const S0&, const R0&, const S1&, const R1&, float,              \
+        float2_t, float, Stream&);                                      \
+    template void extract3D<REMAP, T, S0, S1, R0, R1, void>(            \
+        T, dim4_t,                                                      \
         const shared_t<T[]>&, dim4_t, dim4_t,                           \
         const S0&, const R0&, const S1&, const R1&, float,              \
         float2_t, float, Stream&)

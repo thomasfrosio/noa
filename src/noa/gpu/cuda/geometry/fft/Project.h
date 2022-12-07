@@ -62,10 +62,18 @@ namespace noa::cuda::geometry::fft::details {
 namespace noa::cuda::geometry::fft {
     using Remap = noa::fft::Remap;
 
-    // Inserts 2D central slice(s) into a 3D Fourier volume, using tri-linear interpolation.
+    // Inserts 2D central slice(s) into a 3D Fourier volume, using tri-linear rasterization.
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_v<REMAP, Value, Scale, Rotate>>>
     void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+                  float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream);
+
+    // Inserts 2D central slice(s) into a 3D Fourier volume, using tri-linear rasterization.
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
+             typename = std::enable_if_t<details::is_valid_insert_v<REMAP, Value, Scale, Rotate>>>
+    void insert3D(Value slice, dim4_t slice_shape,
                   const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
                   const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream);
@@ -74,6 +82,15 @@ namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
     void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
+                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
+                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
+                  float cutoff, dim4_t target_shape, float2_t ews_radius,
+                  float slice_z_radius, Stream& stream);
+
+    // Inserts 2D central slice(s) into a 3D Fourier volume, using tri-linear interpolation.
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
+             typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
+    void insert3D(Value slice, dim4_t slice_shape,
                   const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
                   const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
                   float cutoff, dim4_t target_shape, float2_t ews_radius,
@@ -112,6 +129,16 @@ namespace noa::cuda::geometry::fft {
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
                      REMAP, Value, Scale0, Scale1, Rotate0, Rotate1>>>
     void extract3D(const shared_t<Value[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
+                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
+                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
+                   const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
+                   float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream);
+
+    // Inserts 2D central slice(s) into a "virtual" 3D Fourier volume and immediately extracts 2D central slices.
+    template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
+             typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
+                     REMAP, Value, Scale0, Scale1, Rotate0, Rotate1>>>
+    void extract3D(Value input_slice, dim4_t input_slice_shape,
                    const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
                    const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
                    const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,

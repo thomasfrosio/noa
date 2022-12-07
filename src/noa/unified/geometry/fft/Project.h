@@ -102,6 +102,20 @@ namespace noa::geometry::fft {
                   dim4_t target_shape = {},
                   float2_t ews_radius = {});
 
+    /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using tri-linear rasterisation.
+    /// \details This function has the same features and limitations as the overload taking arrays,
+    ///          but the slice is represented by a single constant value. This is for example useful
+    ///          to keep track of the multiplicity of the Fourier insertion.
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
+             typename = std::enable_if_t<details::is_valid_insert_v<REMAP, Value, Scale, Rotate>>>
+    void insert3D(Value slice, dim4_t slice_shape,
+                  const Array<Value>& grid, dim4_t grid_shape,
+                  const Scale& inv_scaling_matrix,
+                  const Rotate& fwd_rotation_matrix,
+                  float cutoff,
+                  dim4_t target_shape = {},
+                  float2_t ews_radius = {});
+
     /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using bi-linear interpolation and sinc-weighting.
     /// \details This function computes the inverse transformation compared to the overload above using rasterization,
     ///          effectively transforming the 3D grid onto the input slice(s). Briefly, for each input slice, each
@@ -151,6 +165,20 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
     void insert3D(const Texture<Value>& slice, dim4_t slice_shape,
+                  const Array<Value>& grid, dim4_t grid_shape,
+                  const Scale& fwd_scaling_matrix,
+                  const Rotate& inv_rotation_matrix,
+                  float slice_z_radius,
+                  float cutoff,
+                  dim4_t target_shape = {},
+                  float2_t ews_radius = {});
+
+    /// \details This function has the same features and limitations as the overload taking arrays,
+    ///          but the slice is represented by a single constant value. This is for example useful
+    ///          to keep track of the multiplicity of the Fourier insertion.
+    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
+             typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
+    void insert3D(Value slice, dim4_t slice_shape,
                   const Array<Value>& grid, dim4_t grid_shape,
                   const Scale& fwd_scaling_matrix,
                   const Rotate& inv_rotation_matrix,
@@ -262,6 +290,21 @@ namespace noa::geometry::fft {
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
                     REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
     void extract3D(const Texture<Value>& input_slice, dim4_t input_slice_shape,
+                   const Array<Value>& output_slice, dim4_t output_slice_shape,
+                   const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
+                   const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
+                   float slice_z_radius,
+                   float cutoff = 0.5f,
+                   float2_t ews_radius = {});
+
+    /// Extracts 2D Fourier slice(s) from a virtual volume filled by other slices, using linear interpolation.
+    /// \details This function has the same features and limitations as the overload taking arrays,
+    ///          but the slice is represented by a single constant value. This is for example useful
+    ///          to keep track of the multiplicity of the Fourier insertion.
+    template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
+             typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
+                    REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
+    void extract3D(Value input_slice, dim4_t input_slice_shape,
                    const Array<Value>& output_slice, dim4_t output_slice_shape,
                    const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
                    const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
