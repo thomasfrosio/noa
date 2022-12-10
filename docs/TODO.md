@@ -54,6 +54,11 @@
   so they have the same interface as the CPU interpolators.
 
 
+- __Vector N__: Not having a generic static Vector<N, T> is becoming more and more problematic. I should create such 
+  vector and progressively replace the FloatN and IntN alternatives. This will also go with making the library more
+  type-safe and have strong types for Strides<N, T> and Shape<N, T>.
+
+
 - Move the backend tests to the unified API. While the backend are mostly well tested, the API isn't. Instead, use
   the unified API for the tests to test both the main API and the backend at the same time.
 
