@@ -90,6 +90,7 @@ namespace noa::signal::fft {
     ///                             of \p xmap. If negative or 0, it is ignored.
     /// \param peak_mode            Registration mode to use for subpixel accuracy.
     /// \param peak_radius          HW radius of the registration window, centered on the peak.
+    /// \note On the GPU, \p peak_radius is limited to 8 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     void xpeak2D(const Array<Real>& xmap, const Array<float2_t>& peaks,
                  float2_t xmap_ellipse_radius = float2_t{0},
@@ -105,6 +106,7 @@ namespace noa::signal::fft {
     ///                             of \p xmap. If negative or 0, it is ignored.
     /// \param peak_mode            Registration mode to use for subpixel accuracy.
     /// \param peak_radius          HW radius of the registration window, centered on the peak.
+    /// \note On the GPU, \p peak_radius is limited to 8 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     [[nodiscard]] float2_t xpeak2D(const Array<Real>& xmap,
                                    float2_t xmap_ellipse_radius = float2_t{0},
@@ -123,6 +125,7 @@ namespace noa::signal::fft {
     ///                             of \p xmap. If negative or 0, it is ignored.
     /// \param peak_mode            Registration mode to use for subpixel accuracy.
     /// \param peak_radius          DHW radius of the registration window, centered on the peak.
+    /// \note On the GPU, \p peak_radius is limited to 2 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     void xpeak3D(const Array<Real>& xmap, const Array<float3_t>& peak,
                  float3_t xmap_ellipse_radius = float3_t{0},
@@ -140,6 +143,7 @@ namespace noa::signal::fft {
     ///                             of \p xmap. If negative or 0, it is ignored.
     /// \param peak_mode            Registration mode to use for subpixel accuracy.
     /// \param peak_radius          DHW radius of the registration window, centered on the peak.
+    /// \note On the GPU, \p peak_radius is limited to 2 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     [[nodiscard]] float3_t xpeak3D(const Array<Real>& xmap,
                                    float3_t xmap_ellipse_radius = float3_t{0},

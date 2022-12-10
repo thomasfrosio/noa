@@ -189,7 +189,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D, cpu vs gpu", "[no
         return;
 
     const auto peak_mode = GENERATE(signal::PEAK_PARABOLA_1D, signal::PEAK_COM);
-    test::Randomizer<long> long_randomizer{1, 32};
+    test::Randomizer<long> long_randomizer{1, peak_mode == signal::PEAK_COM ? 8 : 32};
     const long2_t peak_window = {long_randomizer.get(), long_randomizer.get()};
 
     INFO(peak_mode);
@@ -428,7 +428,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D, cpu vs gpu", "[no
         return;
 
     const auto peak_mode = GENERATE(signal::PEAK_PARABOLA_1D, signal::PEAK_COM);
-    test::Randomizer<long> long_randomizer{1, 32};
+    test::Randomizer<long> long_randomizer{1, peak_mode == signal::PEAK_COM ? 2 : 32};
     const long3_t peak_window = {long_randomizer.get(), long_randomizer.get(), long_randomizer.get()};
 
     INFO(peak_mode);
@@ -440,8 +440,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D, cpu vs gpu", "[no
         auto [rhs, rhs_fft] = fft::empty<TestType>(shape);
         Array xmap = memory::empty<TestType>(shape);
 
-        signal::rectangle({}, lhs, lhs_center, radius, taper);
-        signal::rectangle({}, rhs, rhs_center, radius, taper);
+        signal::rectangle({}, lhs, lhs_center, radius, taper, {}, {}, TestType(-1));
+        signal::rectangle({}, rhs, rhs_center, radius, taper, {}, {}, TestType(-1));
         fft::r2c(lhs, lhs_fft);
         fft::r2c(rhs, rhs_fft);
         signal::fft::xmap<fft::H2FC>(lhs_fft, rhs_fft, xmap);

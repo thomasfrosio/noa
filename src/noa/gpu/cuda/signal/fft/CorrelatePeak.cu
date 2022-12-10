@@ -169,208 +169,152 @@ namespace {
         }
     }
 
-    template<fft::Remap REMAP, typename Real>
-    __global__ void __launch_bounds__(cuda::Limits::WARP_SIZE)
-    subpixelRegistrationCOM_1D(
-            const Real* xmap, uint2_t xmap_strides, int32_t xmap_size,
-            const uint32_t* peak_offset, float* peak_coords, int32_t peak_radius) {
-        using namespace cuda::utils;
-        const uint32_t batch = blockIdx.x;
-        const auto tidx = static_cast<int32_t>(threadIdx.x);
-        xmap += xmap_strides[0] * batch;
-
-        const auto xmap_stride = static_cast<uint32_t>(xmap_strides[1]);
-        const auto peak_index = static_cast<int32_t>(peak_offset[batch] / xmap_stride);
-        const int32_t peak_width = peak_radius * 2 + 1;
-
-        double tid_com{0}, tid_com_total{0};
-        // Each thread collects its partial 3D COM...
-        if constexpr (REMAP == fft::FC2FC) {
-            for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
-                const auto relative_offset = l - peak_radius;
-                const auto current_index = peak_index + relative_offset;
-                const auto f_relative_offset = static_cast<double>(relative_offset);
-
-                if (current_index >= 0 && current_index < xmap_size) {
-                    const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_stride)]);
-                    tid_com += value * f_relative_offset;
-                    tid_com_total += value;
-                }
-            }
-        } else if constexpr (REMAP == fft::F2F) {
-            using namespace noa::signal::fft::details;
-            const int32_t frequency_min = -xmap_size / 2;
-            const int32_t frequency_max = (xmap_size - 1) / 2;
-            const int32_t peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_size);
-
-            for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
-                const auto relative_offset = l - peak_radius;
-                const auto current_frequency = peak_frequency + relative_offset;
-                const auto f_relative_offset = static_cast<double>(relative_offset);
-
-                if (frequency_min <= current_frequency && current_frequency <= frequency_max) {
-                    using namespace noa::signal::fft::details;
-                    const int32_t current_index = frequency2NonCenteredIndex(current_frequency, xmap_size);
-                    const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_stride)]);
-                    tid_com += value * f_relative_offset;
-                    tid_com_total += value;
-                }
-            }
-        } else {
-            static_assert(noa::traits::always_false_v<Real>);
-        }
-
-        // ... and then the first thread collects everything.
-        tid_com = warp::reduce(tid_com, math::plus_t{});
-        tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
-
-        if (tidx == 0) {
-            if (tid_com_total != 0)
-                tid_com /= tid_com_total;
-            tid_com += static_cast<double>(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_size));
-            peak_coords[batch] = static_cast<float>(tid_com);
+    template<int32_t NDIM, typename UIntN, typename IntN>
+    constexpr NOA_FD auto peakOffsetToIndex_(uint32_t peak_offset, UIntN xmap_strides, IntN xmap_shape) {
+        if constexpr (NDIM == 1) {
+            return static_cast<IntN>(peak_offset / xmap_strides);
+        } else { // NDIM == 3
+            return static_cast<IntN>(indexing::indexes(peak_offset, xmap_strides, UIntN(xmap_shape)));
         }
     }
 
-    template<fft::Remap REMAP, typename Real>
-    __global__ void __launch_bounds__(cuda::Limits::WARP_SIZE)
-    subpixelRegistrationCOM_2D(
-            const Real* xmap, uint3_t xmap_strides, int2_t xmap_shape,
-            const uint32_t* peak_offset, float2_t* peak_coords, int2_t peak_radius) {
-        using namespace cuda::utils;
-        const uint32_t batch = blockIdx.x;
-        const auto tidx = static_cast<int32_t>(threadIdx.x);
-        xmap += xmap_strides[0] * batch;
-
-        const auto xmap_strides_2d = uint2_t(xmap_strides.get(1));
-        const auto peak_index = int2_t(indexing::indexes(peak_offset[batch], xmap_strides_2d, uint2_t(xmap_shape)));
-        const int32_t peak_width = peak_radius[1] * 2 + 1;
-
-        double2_t tid_com;
-        double tid_com_total{0};
-        // Each thread collects its partial 3D COM...
-        if constexpr (REMAP == fft::FC2FC) {
-            for (int32_t k = -peak_radius[0]; k <= peak_radius[0]; ++k) {
-                for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
-                    const auto relative_offset = int2_t{k, l - peak_radius[1]};
-                    const auto current_index = peak_index + relative_offset;
-                    const auto f_relative_offset = double2_t(relative_offset);
-
-                    if (all(current_index >= 0 && current_index < xmap_shape)) {
-                        const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_2d)]);
-                        tid_com += value * f_relative_offset;
-                        tid_com_total += value;
-                    }
-                }
-            }
-        } else if constexpr (REMAP == fft::F2F) {
-            using namespace noa::signal::fft::details;
-            const int2_t frequency_min = -xmap_shape / 2;
-            const int2_t frequency_max = (xmap_shape - 1) / 2;
-            const int2_t peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_shape);
-
-            for (int32_t k = -peak_radius[0]; k <= peak_radius[0]; ++k) {
-                for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
-                    const auto relative_offset = int2_t{k, l - peak_radius[1]};
-                    const auto current_frequency = peak_frequency + relative_offset;
-                    const auto f_relative_offset = double2_t(relative_offset);
-
-                    if (all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
-                        using namespace noa::signal::fft::details;
-                        const int2_t current_index = frequency2NonCenteredIndex(current_frequency, xmap_shape);
-                        const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_2d)]);
-                        tid_com += value * f_relative_offset;
-                        tid_com_total += value;
-                    }
-                }
-            }
-        } else {
-            static_assert(noa::traits::always_false_v<Real>);
-        }
-
-        // ... and then the first thread collects everything.
-        for (int32_t dim = 0; dim < 2; ++dim)
-            tid_com[dim] = warp::reduce(tid_com[dim], math::plus_t{});
-        tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
-
-        if (tidx == 0) {
-            if (tid_com_total != 0)
-                tid_com /= tid_com_total;
-            tid_com += double2_t(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_shape));
-            peak_coords[batch] = float2_t(tid_com);
+    template<int32_t NDIM, typename IntN>
+    constexpr NOA_FD auto peakWindowOffsetToIndex_(int32_t offset, IntN peak_width) {
+        if constexpr (NDIM == 1) {
+            return offset;
+        } else if constexpr (NDIM == 2) {
+            return indexing::indexes(offset, peak_width[1]);
+        } else { // NDIM == 3
+            return indexing::indexes(offset, peak_width[1], peak_width[2]);
         }
     }
 
-    template<fft::Remap REMAP, typename Real>
+    // The block must be a single warp.
+    // Shared memory size is the size of the peak window.
+    // Elements are collected and saved in the shared buffer.
+    template<fft::Remap REMAP, int32_t NDIM, typename Real,
+             typename UIntN, typename IntN, typename FloatN>
     __global__ void __launch_bounds__(cuda::Limits::WARP_SIZE)
-    subpixelRegistrationCOM_3D(
-            const Real* xmap, uint4_t xmap_strides, int3_t xmap_shape,
-            const uint32_t* peak_offset, float3_t* peak_coords, int3_t peak_radius) {
-        using namespace cuda::utils;
+    subpixelRegistrationCOM_ND(
+            const Real* xmap, uint32_t xmap_stride_batch, UIntN xmap_strides, IntN xmap_shape,
+            const uint32_t* peak_offset, FloatN* peak_coords, IntN peak_radius, int32_t peak_window_elements) {
+
+        constexpr int32_t WARP_SIZE = cuda::Limits::WARP_SIZE;
+        NOA_ASSERT(WARP_SIZE == blockDim.x);
+
         const uint32_t batch = blockIdx.x;
-        const auto tidx = static_cast<int32_t>(threadIdx.x);
-        xmap += xmap_strides[0] * batch;
+        xmap += xmap_stride_batch * batch;
 
-        const auto xmap_strides_3d = uint3_t(xmap_strides.get(1));
-        const auto peak_index = int3_t(indexing::indexes(peak_offset[batch], xmap_strides_3d, uint3_t(xmap_shape)));
-        const int32_t peak_width = peak_radius[2] * 2 + 1;
+        const auto peak_index = peakOffsetToIndex_<NDIM>(peak_offset[batch], xmap_strides, xmap_shape);
+        const IntN peak_width = peak_radius * 2 + 1;
 
-        double3_t tid_com;
-        double tid_com_total{};
-        // Each thread collects its partial 3D COM...
+        // Collect the elements within the peak window.
+        // Values are stored in the rightmost order.
+        using namespace cuda::utils;
+        Real* peak_window_values = block::dynamicSharedResource<Real>();
+
+        // We'll need to subtract by the peak window min.
+        // Here, each thread collects the min of the values it processed.
+        Real tid_peak_window_min{0};
+
+        const auto tid = static_cast<int32_t>(threadIdx.x);
         if constexpr (REMAP == fft::FC2FC) {
-            for (int32_t j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
-                for (int32_t k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
-                    for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
-                        const auto relative_offset = int3_t{j, k, l - peak_radius[2]};
-                        const auto current_index = peak_index + relative_offset;
-                        const auto f_relative_offset = double3_t(relative_offset);
+            for (int32_t i = tid; i < peak_window_elements; i += WARP_SIZE) {
+                const auto indexes = peakWindowOffsetToIndex_<NDIM>(i, peak_width);
+                const auto relative_index = indexes - peak_radius;
+                const auto current_index = peak_index + relative_index;
 
-                        if (all(current_index >= 0 && current_index < xmap_shape)) {
-                            const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_3d)]);
-                            tid_com += value * f_relative_offset;
-                            tid_com_total += value;
-                        }
-                    }
+                // Collect the value in the peak window at these indexes.
+                // If the indexes are OOB, we still need to initialize the shared array with 0.
+                Real value{0};
+                if (noa::all(current_index >= 0 && current_index < xmap_shape)) {
+                    value = xmap[indexing::at(current_index, xmap_strides)];
+                    tid_peak_window_min = math::min(tid_peak_window_min, value);
                 }
+                peak_window_values[i] = value;
             }
         } else if constexpr (REMAP == fft::F2F) {
+            // The peak window can be split across two separate quadrant.
+            // Retrieve the frequency and if it is a valid frequency,
+            // convert back to an index and compute the memory offset.
             using namespace noa::signal::fft::details;
-            const int3_t frequency_min = -xmap_shape / 2;
-            const int3_t frequency_max = (xmap_shape - 1) / 2;
-            const int3_t peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_shape);
+            const IntN frequency_min = -xmap_shape / 2;
+            const IntN frequency_max = (xmap_shape - 1) / 2;
+            const IntN peak_frequency = nonCenteredIndex2Frequency(peak_index, xmap_shape);
 
-            for (int32_t j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
-                for (int32_t k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
-                    for (int32_t l = tidx; l < peak_width; l += cuda::Limits::WARP_SIZE) {
-                        const auto relative_offset = int3_t{j, k, l - peak_radius[2]};
-                        const auto current_frequency = peak_frequency + relative_offset;
-                        const auto f_relative_offset = double3_t(relative_offset);
+            for (int32_t i = tid; i < peak_window_elements; i += WARP_SIZE) {
+                const auto indexes = peakWindowOffsetToIndex_<NDIM>(i, peak_width);
+                const auto relative_index = indexes - peak_radius;
+                const auto current_frequency = peak_frequency + relative_index;
 
-                        if (all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
-                            using namespace noa::signal::fft::details;
-                            const int3_t current_index = frequency2NonCenteredIndex(current_frequency, xmap_shape);
-                            const auto value = static_cast<double>(xmap[indexing::at(current_index, xmap_strides_3d)]);
-                            tid_com += value * f_relative_offset;
-                            tid_com_total += value;
-                        }
-                    }
+                Real value{0};
+                if (noa::all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
+                    const IntN current_index = frequency2NonCenteredIndex(current_frequency, xmap_shape);
+                    value = xmap[indexing::at(current_index, xmap_strides)];
+                    tid_peak_window_min = math::min(tid_peak_window_min, value);
                 }
+                peak_window_values[i] = value;
             }
         } else {
             static_assert(noa::traits::always_false_v<Real>);
         }
 
-        // ... and then the first thread collects everything.
-        for (int32_t dim = 0; dim < 3; ++dim)
-            tid_com[dim] = warp::reduce(tid_com[dim], math::plus_t{});
-        tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
+        // Compute the min of the peak window.
+        tid_peak_window_min = warp::reduce(tid_peak_window_min, math::less_t{});
+        warp::shuffle(tid_peak_window_min, 0);
 
-        if (tidx == 0) {
+        // Set the min to 0 and compute the partial COM.
+        block::synchronize();
+
+        // FIXME We don't have 1D support. We need to add it (Vector<N,T>).
+        //       In the meantime, have a special case for 1D...
+        if constexpr (NDIM == 1) {
+            double tid_com{0};
+            double tid_com_total{0};
+            for (int32_t i = tid; i < peak_window_elements; i += WARP_SIZE) {
+                const auto indexes = peakWindowOffsetToIndex_<NDIM>(i, peak_width);
+                const auto relative_index = static_cast<double>(indexes - peak_radius);
+                const auto value = static_cast<double>(peak_window_values[i] - tid_peak_window_min);
+                tid_com += value * relative_index;
+                tid_com_total += value;
+            }
+
+            // Then the first thread collects everything.
+            tid_com = warp::reduce(tid_com, math::plus_t{});
+            tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
+
+            // From that point, only the value in the thread 0 matters, but why mask now?
             if (tid_com_total != 0)
                 tid_com /= tid_com_total;
-            tid_com += double3_t(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_shape));
-            peak_coords[batch] = float3_t(tid_com);
+            tid_com += static_cast<double>(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_shape));
+
+            if (tid == 0)
+                peak_coords[batch] = static_cast<float>(tid_com);
+
+        } else {
+            using doubleN_t = std::conditional_t<NDIM == 2, double2_t, double3_t>;
+            doubleN_t tid_com{0};
+            double tid_com_total{0};
+            for (int32_t i = tid; i < peak_window_elements; i += WARP_SIZE) {
+                const auto indexes = peakWindowOffsetToIndex_<NDIM>(i, peak_width);
+                const auto relative_index = doubleN_t(indexes - peak_radius);
+                const auto value = static_cast<double>(peak_window_values[i] - tid_peak_window_min);
+                tid_com += value * relative_index;
+                tid_com_total += value;
+            }
+
+            // Then the first thread collects everything.
+            for (int32_t dim = 0; dim < NDIM; ++dim)
+                tid_com[dim] = warp::reduce(tid_com[dim], math::plus_t{});
+            tid_com_total = warp::reduce(tid_com_total, math::plus_t{});
+
+            // From that point, only the value in the thread 0 matters, but why mask now?
+            if (tid_com_total != 0)
+                tid_com /= tid_com_total;
+            tid_com += doubleN_t(REMAP == fft::FC2FC ? peak_index : math::FFTShift(peak_index, xmap_shape));
+
+            if (tid == 0)
+                peak_coords[batch] = FloatN(tid_com);
         }
     }
 }
@@ -380,6 +324,7 @@ namespace noa::cuda::signal::fft {
     void xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
                  const shared_t<float[]>& peak_coordinates, PeakMode peak_mode, int64_t peak_radius, Stream& stream) {
         const bool is_column = shape[3] == 1;
+        NOA_ASSERT(peak_radius > 0);
         NOA_ASSERT(strides[3 - is_column] > 0);
         NOA_ASSERT(all(shape > 0) && dim3_t(shape.get(1)).ndim() == 1);
         NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
@@ -398,10 +343,10 @@ namespace noa::cuda::signal::fft {
         memory::PtrPinned<uint32_t> peak_offsets(shape[0]);
         math::find(noa::math::first_max_t{}, xmap, strides, shape, peak_offsets.share(), true, true, stream);
 
+        const auto peak_window_size = clamp_cast<uint32_t>(peak_radius * 2 + 1);
         switch (peak_mode) {
             case noa::signal::PEAK_PARABOLA_1D: {
-                const auto peak_mode_size = clamp_cast<uint32_t>(peak_radius * 2 + 1);
-                const uint32_t threads = noa::math::nextMultipleOf(peak_mode_size, Limits::WARP_SIZE);
+                const uint32_t threads = noa::math::nextMultipleOf(peak_window_size, Limits::WARP_SIZE);
                 const uint32_t blocks = u_shape_1d[0];
                 const LaunchConfig config{blocks, threads, threads * sizeof(Real)};
                 stream.enqueue("signal::fft::xpeak1D_parabola1D",
@@ -413,11 +358,12 @@ namespace noa::cuda::signal::fft {
             case noa::signal::PEAK_COM: {
                 const uint32_t threads = Limits::WARP_SIZE;
                 const uint32_t blocks = u_shape_1d[0];
-                const LaunchConfig config{blocks, threads};
-                stream.enqueue("signal::fft::xpeak1D_COM",
-                               subpixelRegistrationCOM_1D<REMAP, Real>, config,
-                               xmap.get(), u_strides_1d, u_shape_1d[1],
-                               peak_offsets.get(), peak_coordinates.get(), peak_radius);
+                const LaunchConfig config{blocks, threads, peak_window_size * sizeof(Real)};
+                stream.enqueue("signal::fft::xpeak2D_COM",
+                               subpixelRegistrationCOM_ND<REMAP, 1, Real, uint32_t, int32_t, float>, config,
+                               xmap.get(), u_strides_1d[0], u_strides_1d[1], u_shape_1d[1],
+                               peak_offsets.get(), peak_coordinates.get(), peak_radius,
+                               peak_window_size);
                 break;
             }
         }
@@ -440,6 +386,7 @@ namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename Real, typename>
     void xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
                  const shared_t<float2_t[]>& peak_coordinates, PeakMode peak_mode, long2_t peak_radius, Stream& stream) {
+        NOA_ASSERT(all(peak_radius > 0));
         NOA_ASSERT(all(shape > 0) && shape[1] == 1);
         NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(peak_coordinates.get(), stream.device());
@@ -462,11 +409,11 @@ namespace noa::cuda::signal::fft {
         memory::PtrPinned<uint32_t> peak_offsets(shape[0]);
         math::find(noa::math::first_max_t{}, xmap, strides, shape, peak_offsets.share(), true, true, stream);
 
+        const auto peak_window_size = clamp_cast<uint2_t>(peak_radius * 2 + 1);
         switch (peak_mode) {
             case noa::signal::PEAK_PARABOLA_1D: {
-                const auto peak_mode_size = clamp_cast<uint2_t>(peak_radius * 2 + 1);
-                const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(peak_mode_size), Limits::WARP_SIZE);
-                const uint32_t size_shared_memory = noa::math::max(threads, peak_mode_size[1]) + peak_mode_size[0];
+                const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(peak_window_size), Limits::WARP_SIZE);
+                const uint32_t size_shared_memory = noa::math::max(threads, peak_window_size[1]) + peak_window_size[0];
                 const uint32_t blocks = u_shape[0];
                 const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
                 stream.enqueue("signal::fft::xpeak2D_parabola1D",
@@ -478,11 +425,13 @@ namespace noa::cuda::signal::fft {
             case noa::signal::PEAK_COM: {
                 const uint32_t threads = Limits::WARP_SIZE;
                 const uint32_t blocks = u_shape[0];
-                const LaunchConfig config{blocks, threads};
-                stream.enqueue("signal::fft::xpeak1D_COM",
-                               subpixelRegistrationCOM_2D<REMAP, Real>, config,
-                               xmap.get(), u_strides_2d, i_shape_2d,
-                               peak_offsets.get(), peak_coordinates.get(), int2_t(peak_radius));
+                const uint32_t size_shared_memory = noa::math::prod(peak_window_size);
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
+                stream.enqueue("signal::fft::xpeak2D_COM",
+                               subpixelRegistrationCOM_ND<REMAP, 2, Real, uint2_t, int2_t, float2_t>, config,
+                               xmap.get(), u_strides_2d[0], uint2_t(u_strides_2d[1], u_strides_2d[2]), i_shape_2d,
+                               peak_offsets.get(), peak_coordinates.get(), int2_t(peak_radius),
+                               size_shared_memory);
                 break;
             }
         }
@@ -505,12 +454,14 @@ namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename Real, typename>
     void xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
                  const shared_t<float3_t[]>& peak_coordinates, PeakMode peak_mode, long3_t peak_radius, Stream& stream) {
+        NOA_ASSERT(all(peak_radius > 0));
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(xmap.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(peak_coordinates.get(), stream.device());
 
         const auto u_shape = safe_cast<uint4_t>(shape);
         const auto u_strides = safe_cast<uint4_t>(strides);
+        const auto u_strides_3d = uint3_t(u_strides.get(1));
         const auto i_shape_3d = int3_t{u_shape[1], u_shape[2], u_shape[3]};
 
         // In-place mask on the phase-correlation map.
@@ -526,15 +477,15 @@ namespace noa::cuda::signal::fft {
         memory::PtrPinned<uint32_t> peak_offsets(shape[0]);
         math::find(noa::math::first_max_t{}, xmap, strides, shape, peak_offsets.share(), true, true, stream);
 
+        const auto peak_window_size = clamp_cast<uint3_t>(peak_radius * 2 + 1);
         switch (peak_mode) {
             case noa::signal::PEAK_PARABOLA_1D: {
-                const auto peak_mode_size = clamp_cast<uint3_t>(peak_radius * 2 + 1);
-                const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(peak_mode_size), Limits::WARP_SIZE);
+                const uint32_t threads = noa::math::nextMultipleOf(noa::math::max(peak_window_size), Limits::WARP_SIZE);
                 const uint32_t blocks = u_shape[0];
                 const uint32_t size_shared_memory =
-                        noa::math::max(threads, peak_mode_size[2]) +
-                        peak_mode_size[1] +
-                        peak_mode_size[0];
+                        noa::math::max(threads, peak_window_size[2]) +
+                        peak_window_size[1] +
+                        peak_window_size[0];
                 const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
                 stream.enqueue("signal::fft::xpeak3D_parabola1D",
                                subpixelRegistrationParabola1D_3D<REMAP, Real>, config,
@@ -543,13 +494,16 @@ namespace noa::cuda::signal::fft {
                 break;
             }
             case noa::signal::PEAK_COM: {
+                NOA_ASSERT(all(peak_radius <= 2));
                 const uint32_t threads = Limits::WARP_SIZE;
                 const uint32_t blocks = u_shape[0];
-                const LaunchConfig config{blocks, threads};
+                const uint32_t size_shared_memory = noa::math::prod(peak_window_size);
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
                 stream.enqueue("signal::fft::xpeak2D_COM",
-                               subpixelRegistrationCOM_3D<REMAP, Real>, config,
-                               xmap.get(), u_strides, i_shape_3d,
-                               peak_offsets.get(), peak_coordinates.get(), int3_t(peak_radius));
+                               subpixelRegistrationCOM_ND<REMAP, 3, Real, uint3_t, int3_t, float3_t>, config,
+                               xmap.get(), u_strides[0], u_strides_3d, i_shape_3d,
+                               peak_offsets.get(), peak_coordinates.get(), int3_t(peak_radius),
+                               size_shared_memory);
                 break;
             }
         }

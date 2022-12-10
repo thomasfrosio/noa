@@ -5,7 +5,7 @@
 #include "noa/gpu/cuda/utils/Traits.h"
 #include "noa/gpu/cuda/utils/Warp.cuh"
 
-// TODO CUDA's cub seems to have some load and store functions. Surely some of them can be use here.
+// TODO CUDA's cub seems to have some load and store functions. Surely some of them can be used here.
 
 namespace noa::cuda::utils::block {
     // Synchronizes the block.
@@ -35,17 +35,19 @@ namespace noa::cuda::utils::block {
     //                      the first element of the block's work space. It should be aligned to VEC_SIZE.
     // per_thread_output:   Per thread output array. At least ELEMENTS_PER_THREAD elements.
     // tidx:                Thread index in the 1D block. Usually threadIdx.x.
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T>
-    NOA_ID void vectorizedLoad(const T* __restrict__ per_block_input, T* __restrict__ per_thread_output, uint tidx) {
+    template<int32_t BLOCK_SIZE, int32_t ELEMENTS_PER_THREAD, int32_t VEC_SIZE, typename Value>
+    NOA_ID void vectorizedLoad(const Value* __restrict__ per_block_input,
+                               Value* __restrict__ per_thread_output,
+                               int32_t tidx) {
         static_assert(ELEMENTS_PER_THREAD >= VEC_SIZE); // TODO This could be improved...
-        using vec_t = traits::aligned_vector_t<T, VEC_SIZE>;
+        using vec_t = traits::aligned_vector_t<Value, VEC_SIZE>;
         const auto* from = reinterpret_cast<const vec_t*>(per_block_input);
-        constexpr int COUNT = ELEMENTS_PER_THREAD / VEC_SIZE;
+        constexpr int32_t COUNT = ELEMENTS_PER_THREAD / VEC_SIZE;
         #pragma unroll
-        for (int i = 0; i < COUNT; ++i) {
+        for (int32_t i = 0; i < COUNT; ++i) {
             vec_t v = from[i * BLOCK_SIZE + tidx];
             #pragma unroll
-            for (int j = 0; j < VEC_SIZE; ++j)
+            for (int32_t j = 0; j < VEC_SIZE; ++j)
                 per_thread_output[VEC_SIZE * i + j] = v.val[j];
         }
     }
@@ -58,17 +60,19 @@ namespace noa::cuda::utils::block {
     // per_block_output:    Contiguous output array to write into. This is per block, and should point at
     //                      the first element of the block's work space. It should be aligned to VEC_SIZE.
     // tidx:                Thread index in the 1D block. Usually threadIdx.x.
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE, typename T>
-    NOA_ID void vectorizedStore(const T* __restrict__ per_thread_input, T* __restrict__ per_block_output, uint tidx) {
+    template<int32_t BLOCK_SIZE, int32_t ELEMENTS_PER_THREAD, int32_t VEC_SIZE, typename Value>
+    NOA_ID void vectorizedStore(const Value* __restrict__ per_thread_input,
+                                Value* __restrict__ per_block_output,
+                                int32_t tidx) {
         static_assert(ELEMENTS_PER_THREAD >= VEC_SIZE); // TODO This could be improved...
-        using vec_t = traits::aligned_vector_t<T, VEC_SIZE>;
+        using vec_t = traits::aligned_vector_t<Value, VEC_SIZE>;
         auto* to = reinterpret_cast<vec_t*>(per_block_output);
-        constexpr int COUNT = ELEMENTS_PER_THREAD / VEC_SIZE;
+        constexpr int32_t COUNT = ELEMENTS_PER_THREAD / VEC_SIZE;
         #pragma unroll
-        for (int i = 0; i < COUNT; i++) {
+        for (int32_t i = 0; i < COUNT; i++) {
             vec_t v;
             #pragma unroll
-            for (int j = 0; j < VEC_SIZE; j++)
+            for (int32_t j = 0; j < VEC_SIZE; j++)
                 v.val[j] = per_thread_input[VEC_SIZE * i + j];
             to[i * BLOCK_SIZE + tidx] = v;
         }
@@ -78,20 +82,27 @@ namespace noa::cuda::utils::block {
     // s_data:      Shared memory to reduce. Should be at least BLOCK_SIZE elements. It is overwritten.
     // tid:         Thread index. From 0 to BLOCK_SIZE - 1.
     // reduce_op:   Reduction operator.
-    template<uint BLOCK_SIZE, typename T, typename reduce_op_t>
-    NOA_ID T reduceShared1D(T* s_data, int tid, reduce_op_t reduce_op) {
+    template<int32_t BLOCK_SIZE, typename Value, typename ReduceOp>
+    NOA_ID Value reduceShared1D(Value* s_data, int32_t tid, ReduceOp reduce_op) {
         static_assert(BLOCK_SIZE == 1024 || BLOCK_SIZE == 512 ||
-                      BLOCK_SIZE == 256 || BLOCK_SIZE == 128 || BLOCK_SIZE == 64);
-        T* s_data_tid = s_data + tid;
+                      BLOCK_SIZE == 256 || BLOCK_SIZE == 128 ||
+                      BLOCK_SIZE == 64 || BLOCK_SIZE == 32);
+        constexpr int32_t WARP_SIZE = cuda::Limits::WARP_SIZE;
 
-        #pragma unroll
-        for (uint SIZE = BLOCK_SIZE / 2; SIZE >= 32; SIZE /= 2) {
-            if (tid < SIZE)
-                *s_data_tid = reduce_op(*s_data_tid, s_data_tid[SIZE]);
-            synchronize();
+        // Reduce shared data.
+        if constexpr (BLOCK_SIZE > WARP_SIZE) {
+            Value* s_data_tid = s_data + tid;
+            #pragma unroll
+            for (int32_t SIZE = BLOCK_SIZE / 2; SIZE >= WARP_SIZE; SIZE /= 2) {
+                if (tid < SIZE)
+                    *s_data_tid = reduce_op(*s_data_tid, s_data_tid[SIZE]);
+                synchronize();
+            }
         }
-        T value;
-        if (tid < 32)
+
+        // Final reduction within a warp.
+        Value value;
+        if (tid < WARP_SIZE)
             value = utils::warp::reduce(s_data[tid], reduce_op);
         return value;
     }
@@ -102,27 +113,35 @@ namespace noa::cuda::utils::block {
     // s_offsets:   Shared memory with the corresponding indexes. At least BLOCK_SIZE elements. It is overwritten.
     // tid:         Thread index. From 0 to BLOCK_SIZE - 1.
     // find_op:     Find operator: ``operator()(current, candidate) -> reduced``.
-    template<uint BLOCK_SIZE, typename value_t, typename offset_t, typename find_op_t>
-    NOA_ID Pair<value_t, offset_t> findShared1D(value_t* __restrict__ s_values,
-                                                offset_t* __restrict__ s_offsets, uint tid, find_op_t find_op) {
+    template<int32_t BLOCK_SIZE, typename Value, typename Offset, typename FindOp>
+    NOA_ID Pair<Value, Offset>
+    findShared1D(Value* __restrict__ s_values,
+                 Offset* __restrict__ s_offsets,
+                 int32_t tid, FindOp find_op) {
         static_assert(BLOCK_SIZE == 1024 || BLOCK_SIZE == 512 ||
-                      BLOCK_SIZE == 256 || BLOCK_SIZE == 128 || BLOCK_SIZE == 64);
-        using pair_t = Pair<value_t, offset_t>;
-        value_t* s_values_tid = s_values + tid;
-        offset_t* s_offsets_tid = s_offsets + tid;
-        pair_t current{*s_values_tid, *s_offsets_tid};
+                      BLOCK_SIZE == 256 || BLOCK_SIZE == 128 ||
+                      BLOCK_SIZE == 64 || BLOCK_SIZE == 32);
+        constexpr int32_t WARP_SIZE = cuda::Limits::WARP_SIZE;
+        using pair_t = Pair<Value, Offset>;
 
-        #pragma unroll
-        for (uint SIZE = BLOCK_SIZE / 2; SIZE >= 32; SIZE /= 2) {
-            if (tid < SIZE) {
-                current = find_op(current, pair_t{s_values_tid[SIZE], s_offsets_tid[SIZE]});
-                *s_values_tid = current.first;
-                *s_offsets_tid = current.second;
+        if constexpr (BLOCK_SIZE > WARP_SIZE) {
+            Value* s_values_tid = s_values + tid;
+            Offset* s_offsets_tid = s_offsets + tid;
+            pair_t current{*s_values_tid, *s_offsets_tid};
+
+            #pragma unroll
+            for (int32_t SIZE = BLOCK_SIZE / 2; SIZE >= WARP_SIZE; SIZE /= 2) {
+                if (tid < SIZE) {
+                    current = find_op(current, pair_t{s_values_tid[SIZE], s_offsets_tid[SIZE]});
+                    *s_values_tid = current.first;
+                    *s_offsets_tid = current.second;
+                }
+                synchronize();
             }
-            synchronize();
         }
+
         pair_t reduced;
-        if (tid < 32)
+        if (tid < WARP_SIZE)
             reduced = utils::warp::find(s_values[tid], s_offsets[tid], find_op);
         return reduced;
     }
@@ -143,38 +162,39 @@ namespace noa::cuda::utils::block {
     // reduced:             Per-thread left-hand side argument of reduce_op.
     //                      It is updated with the final reduced value.
     // tidx:                Thread index in the dimension to reduce.
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
-             typename value_t, typename reduce_value_t, typename transform_op_t, typename reduce_op_t>
-    NOA_ID void reduceUnaryGlobal1D(const value_t* __restrict__ input, [[maybe_unused]] uint stride, uint elements,
-                                    transform_op_t transform_op, reduce_op_t reduce_op,
-                                    reduce_value_t* __restrict__ reduced, uint tidx) {
+    template<int32_t BLOCK_SIZE, int32_t ELEMENTS_PER_THREAD, int32_t VEC_SIZE,
+             typename Value, typename ReducedValue, typename TransformOp, typename ReduceOp>
+    NOA_ID void reduceUnaryGlobal1D(const Value* __restrict__ input,
+                                    uint32_t input_stride, uint32_t input_elements,
+                                    TransformOp transform_op, ReduceOp reduce_op,
+                                    ReducedValue* __restrict__ reduced, int32_t tidx) {
         if constexpr (VEC_SIZE > 1) {
-            (void) stride; // assume contiguous
-            if (elements < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
+            (void) input_stride; // assume contiguous
+            if (input_elements < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint tid = BLOCK_SIZE * i + tidx;
-                    if (tid < elements) {
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t tid = BLOCK_SIZE * i + tidx;
+                    if (tid < input_elements) {
                         const auto transformed = transform_op(input[tid]);
-                        *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(transformed));
+                        *reduced = reduce_op(*reduced, static_cast<ReducedValue>(transformed));
                     }
                 }
             } else {
-                value_t args[ELEMENTS_PER_THREAD];
+                Value args[ELEMENTS_PER_THREAD];
                 utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
                 #pragma unroll
-                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const auto transformed = transform_op(args[i]);
-                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(transformed));
+                    *reduced = reduce_op(*reduced, static_cast<ReducedValue>(transformed));
                 }
             }
         } else {
             #pragma unroll
-            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                const uint tid = BLOCK_SIZE * i + tidx;
-                if (tid < elements) {
-                    const auto transformed = transform_op(input[tid * stride]);
-                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(transformed));
+            for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint32_t tid = BLOCK_SIZE * i + tidx;
+                if (tid < input_elements) {
+                    const auto transformed = transform_op(input[tid * input_stride]);
+                    *reduced = reduce_op(*reduced, static_cast<ReducedValue>(transformed));
                 }
             }
         }
@@ -199,91 +219,94 @@ namespace noa::cuda::utils::block {
     // reduced:             Per-thread left-hand side argument of reduce_op.
     //                      It is updated with the final reduced value.
     // tidx:                Thread index in the dimension to reduce.
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
-             typename lhs_value_t, typename rhs_value_t, typename reduce_value_t,
-             typename transform_op_lhs_t, typename transform_op_rhs_t,
-             typename combine_op_t, typename reduce_op_t>
-    NOA_ID void reduceBinaryGlobal1D(const lhs_value_t* lhs, uint lhs_stride,
-                                     const rhs_value_t* rhs, uint rhs_stride, uint elements,
-                                     transform_op_lhs_t lhs_transform_op, transform_op_rhs_t rhs_transform_op,
-                                     combine_op_t combine_op, reduce_op_t reduce_op,
-                                     reduce_value_t* reduced, uint tidx) {
+    template<int32_t BLOCK_SIZE, int32_t ELEMENTS_PER_THREAD, int32_t VEC_SIZE,
+             typename LhsValue, typename RhsValue, typename ReducedValue,
+             typename TransformOpLhs, typename TransformOpRhs,
+             typename CombineOp, typename ReduceOp>
+    NOA_ID void reduceBinaryGlobal1D(const LhsValue* lhs, uint32_t lhs_stride,
+                                     const RhsValue* rhs, uint32_t rhs_stride, uint32_t elements,
+                                     TransformOpLhs lhs_transform_op,
+                                     TransformOpRhs rhs_transform_op,
+                                     CombineOp combine_op, ReduceOp reduce_op,
+                                     ReducedValue* reduced, int32_t tidx) {
         if constexpr (VEC_SIZE > 1) {
             (void) lhs_stride; // assume contiguous
             (void) rhs_stride; // assume contiguous
             if (elements < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint tid = BLOCK_SIZE * i + tidx;
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t tid = BLOCK_SIZE * i + tidx;
                     if (tid < elements) {
                         const auto combined = combine_op(lhs_transform_op(lhs[tid]), rhs_transform_op(rhs[tid]));
-                        *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(combined));
+                        *reduced = reduce_op(*reduced, static_cast<ReducedValue>(combined));
                     }
                 }
             } else {
-                lhs_value_t lhs_args[ELEMENTS_PER_THREAD];
-                rhs_value_t rhs_args[ELEMENTS_PER_THREAD];
+                LhsValue lhs_args[ELEMENTS_PER_THREAD];
+                RhsValue rhs_args[ELEMENTS_PER_THREAD];
                 utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(lhs, lhs_args, tidx);
                 utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(rhs, rhs_args, tidx);
                 #pragma unroll
-                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
                     const auto combined = combine_op(lhs_transform_op(lhs_args[i]), rhs_transform_op(rhs_args[i]));
-                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(combined));
+                    *reduced = reduce_op(*reduced, static_cast<ReducedValue>(combined));
                 }
             }
         } else {
             #pragma unroll
-            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                const uint tid = BLOCK_SIZE * i + tidx;
+            for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint32_t tid = BLOCK_SIZE * i + tidx;
                 if (tid < elements) {
                     const auto combined = combine_op(lhs_transform_op(lhs[tid * lhs_stride]),
                                                      rhs_transform_op(rhs[tid * rhs_stride]));
-                    *reduced = reduce_op(*reduced, static_cast<reduce_value_t>(combined));
+                    *reduced = reduce_op(*reduced, static_cast<ReducedValue>(combined));
                 }
             }
         }
     }
 
     // TODO Add documentation
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
-            typename value_t, typename transformed_t, typename offset_t, typename transform_op_t, typename find_op_t>
-    NOA_ID void findGlobal1D(const value_t* __restrict__ input, uint gidx, uint tidx, uint stride, uint elements,
-                             transform_op_t transform_op, find_op_t find_op,
-                             Pair<transformed_t, offset_t>* __restrict__ reduced) {
-        using pair_t = Pair<transformed_t, offset_t>;
-        const uint remaining = elements - gidx;
+    template<int32_t BLOCK_SIZE, int32_t ELEMENTS_PER_THREAD, int32_t VEC_SIZE,
+             typename Value, typename TransformedValue, typename Offset,
+             typename TransformOp, typename FindOp>
+    NOA_ID void findGlobal1D(const Value* __restrict__ input, uint32_t gidx, uint32_t tidx,
+                             uint32_t stride, uint32_t elements,
+                             TransformOp transform_op, FindOp find_op,
+                             Pair<TransformedValue, Offset>* __restrict__ reduced) {
+        using pair_t = Pair<TransformedValue, Offset>;
+        const uint32_t remaining = elements - gidx;
         if constexpr (VEC_SIZE > 1) {
             input += gidx;
             (void) stride; // assume contiguous
             if (remaining < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint tid = BLOCK_SIZE * i + tidx;
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t tid = BLOCK_SIZE * i + tidx;
                     if (tid < remaining) {
-                        const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid])),
-                                               static_cast<offset_t>(gidx + tid)};
+                        const pair_t candidate{static_cast<TransformedValue>(transform_op(input[tid])),
+                                               static_cast<Offset>(gidx + tid)};
                         *reduced = find_op(*reduced, candidate);
                     }
                 }
             } else {
-                value_t args[ELEMENTS_PER_THREAD];
+                Value args[ELEMENTS_PER_THREAD];
                 utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(input, args, tidx);
                 #pragma unroll
-                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint offset = gidx + (tidx + (i / VEC_SIZE) * BLOCK_SIZE) * VEC_SIZE + i % VEC_SIZE;
-                    const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])),
-                                           static_cast<offset_t>(offset)};
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t offset = gidx + (tidx + (i / VEC_SIZE) * BLOCK_SIZE) * VEC_SIZE + i % VEC_SIZE;
+                    const pair_t candidate{static_cast<TransformedValue>(transform_op(args[i])),
+                                           static_cast<Offset>(offset)};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
         } else {
             input += gidx * stride;
             #pragma unroll
-            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                const uint tid = BLOCK_SIZE * i + tidx;
+            for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint32_t tid = BLOCK_SIZE * i + tidx;
                 if (tid < remaining) {
-                    const pair_t candidate{static_cast<transformed_t>(transform_op(input[tid * stride])),
-                                           static_cast<offset_t>((gidx + tid) * stride)};
+                    const pair_t candidate{static_cast<TransformedValue>(transform_op(input[tid * stride])),
+                                           static_cast<Offset>((gidx + tid) * stride)};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
@@ -291,46 +314,47 @@ namespace noa::cuda::utils::block {
     }
 
     // TODO Add documentation
-    template<uint BLOCK_SIZE, uint ELEMENTS_PER_THREAD, uint VEC_SIZE,
-            typename value_t, typename transformed_t, typename offset_t, typename transform_op_t, typename find_op_t>
-    NOA_ID void findGlobal1D(const value_t* __restrict__ values, const offset_t* __restrict__ offsets,
-                             uint gidx, uint tidx, uint elements,
-                             transform_op_t transform_op, find_op_t find_op,
-                             Pair<transformed_t, offset_t>* __restrict__ reduced) {
-        using pair_t = Pair<transformed_t, offset_t>;
-        const uint remaining = elements - gidx;
+    template<int32_t BLOCK_SIZE, int32_t ELEMENTS_PER_THREAD, int32_t VEC_SIZE,
+             typename Value, typename TransformedValue, typename Offset,
+             typename TransformOp, typename FindOp>
+    NOA_ID void findGlobal1D(const Value* __restrict__ values, const Offset* __restrict__ offsets,
+                             uint32_t gidx, uint32_t tidx, uint32_t elements,
+                             TransformOp transform_op, FindOp find_op,
+                             Pair<TransformedValue, Offset>* __restrict__ reduced) {
+        using pair_t = Pair<TransformedValue, Offset>;
+        const uint32_t remaining = elements - gidx;
         values += gidx;
         offsets += gidx;
         if constexpr (VEC_SIZE > 1) {
             if (remaining < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
                 #pragma unroll
-                for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const uint tid = BLOCK_SIZE * i + tidx;
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const uint32_t tid = BLOCK_SIZE * i + tidx;
                     if (tid < remaining) {
-                        const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])),
-                                               static_cast<offset_t>(offsets[tid])};
+                        const pair_t candidate{static_cast<TransformedValue>(transform_op(values[tid])),
+                                               static_cast<Offset>(offsets[tid])};
                         *reduced = find_op(*reduced, candidate);
                     }
                 }
             } else {
-                value_t args[ELEMENTS_PER_THREAD];
-                offset_t offs[ELEMENTS_PER_THREAD];
+                Value args[ELEMENTS_PER_THREAD];
+                Offset offs[ELEMENTS_PER_THREAD];
                 utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(values, args, tidx);
                 utils::block::vectorizedLoad<BLOCK_SIZE, ELEMENTS_PER_THREAD, VEC_SIZE>(offsets, offs, tidx);
                 #pragma unroll
-                for (uint i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                    const pair_t candidate{static_cast<transformed_t>(transform_op(args[i])),
-                                           static_cast<offset_t>(offs[i])};
+                for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                    const pair_t candidate{static_cast<TransformedValue>(transform_op(args[i])),
+                                           static_cast<Offset>(offs[i])};
                     *reduced = find_op(*reduced, candidate);
                 }
             }
         } else {
             #pragma unroll
-            for (int i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-                const uint tid = BLOCK_SIZE * i + tidx;
+            for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+                const uint32_t tid = BLOCK_SIZE * i + tidx;
                 if (tid < remaining) {
-                    const pair_t candidate{static_cast<transformed_t>(transform_op(values[tid])),
-                                           static_cast<offset_t>(offsets[tid])};
+                    const pair_t candidate{static_cast<TransformedValue>(transform_op(values[tid])),
+                                           static_cast<Offset>(offsets[tid])};
                     *reduced = find_op(*reduced, candidate);
                 }
             }

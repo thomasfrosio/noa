@@ -94,8 +94,8 @@ namespace noa::signal::fft {
         NOA_CHECK(indexing::isVector(xmap.shape(), true) && xmap.shape()[1] == 1 && xmap.shape()[2 + is_column] == 1,
                   "The 1D cross-correlation map(s) should be a (batch of) row or column vector(s), but got shape {}",
                   xmap.shape());
-        NOA_CHECK(peak_radius > 0 && peak_radius <= 256,
-                  "The registration radius should be a small positive value (less than 256), but got {}",
+        NOA_CHECK(peak_radius > 0 && peak_radius <= 64,
+                  "The registration radius should be a small positive value (less than 64), but got {}",
                   peak_radius);
         NOA_CHECK(xmap.device() == peaks.device(),
                   "The cross-correlation map and output peaks must be on the same device, but got xmap:{} and peak:{}",
@@ -125,8 +125,8 @@ namespace noa::signal::fft {
                   "The 1D cross-correlation map should not have its stride set to 0");
         NOA_CHECK(xmap.shape().ndim() == 1,
                   "The 1D cross-correlation map should be a row or column vector, but got shape {}", xmap.shape());
-        NOA_CHECK(peak_radius > 0 && peak_radius <= 256,
-                  "The registration radius should be a small positive value (less than 256), but got {}",
+        NOA_CHECK(peak_radius > 0 && peak_radius <= 64,
+                  "The registration radius should be a small positive value (less than 64), but got {}",
                   peak_radius);
 
         Stream& stream = Stream::current(xmap.device());
@@ -159,9 +159,10 @@ namespace noa::signal::fft {
         NOA_CHECK(xmap.shape()[1] == 1,
                   "The cross-correlation map(s) should be a (batch of) 2D array(s), but got shape {}",
                   xmap.shape());
-        NOA_CHECK(all(peak_radius > 0 && peak_radius <= 256),
-                  "The registration radius should be a small positive value (less than 256), but got {}",
-                  peak_radius);
+        const int64_t peak_radius_limit = xmap.device().gpu() && peak_mode == PEAK_COM ? 8 : 64;
+        NOA_CHECK(all(peak_radius > 0 && peak_radius <= peak_radius_limit),
+                  "The registration radius should be a small positive value (less than {}), but got {}",
+                  peak_radius_limit, peak_radius);
         NOA_CHECK(xmap.device() == peaks.device(),
                   "The cross-correlation map and output peaks must be on the same device, but got xmap:{} and peak:{}",
                   xmap.device(), peaks.device());
@@ -188,9 +189,10 @@ namespace noa::signal::fft {
         NOA_CHECK(all(xmap.strides() > 0), "The cross-correlation map should not be broadcast");
         NOA_CHECK(xmap.shape().ndim() == 2,
                   "The cross-correlation map should be a single 2D array, but got shape {}", xmap.shape());
-        NOA_CHECK(all(peak_radius > 0 && peak_radius <= 256),
-                  "The registration radius should be a small positive value (less than 256), but got {}",
-                  peak_radius);
+        const int64_t peak_radius_limit = xmap.device().gpu() && peak_mode == PEAK_COM ? 8 : 64;
+        NOA_CHECK(all(peak_radius > 0 && peak_radius <= peak_radius_limit),
+                  "The registration radius should be a small positive value (less than {}), but got {}",
+                  peak_radius_limit, peak_radius);
 
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
@@ -219,9 +221,10 @@ namespace noa::signal::fft {
                   peaks.elements(), xmap.shape()[0]);
 
         NOA_CHECK(all(xmap.strides() > 0), "The cross-correlation map should not be broadcast");
-        NOA_CHECK(all(peak_radius > 0 && peak_radius <= 256),
-                  "The registration radius should be a small positive value (less than 256), but got {}",
-                  peak_radius);
+        const int64_t peak_radius_limit = xmap.device().gpu() && peak_mode == PEAK_COM ? 2 : 64;
+        NOA_CHECK(all(peak_radius > 0 && peak_radius <= peak_radius_limit),
+                  "The registration radius should be a small positive value (less than {}), but got {}",
+                  peak_radius_limit, peak_radius);
         NOA_CHECK(xmap.device() == peaks.device(),
                   "The cross-correlation map and output peaks must be on the same device, but got xmap:{} and peak:{}",
                   xmap.device(), peaks.device());
@@ -249,9 +252,10 @@ namespace noa::signal::fft {
         NOA_CHECK(all(xmap.strides() > 0), "The cross-correlation map should not be broadcast");
         NOA_CHECK(xmap.shape().ndim() == 3,
                   "The cross-correlation map should be a single 3D array, but got shape {}", xmap.shape());
-        NOA_CHECK(all(peak_radius > 0 && peak_radius <= 256),
-                  "The registration radius should be a small positive value (less than 256), but got {}",
-                  peak_radius);
+        const int64_t peak_radius_limit = xmap.device().gpu() && peak_mode == PEAK_COM ? 2 : 64;
+        NOA_CHECK(all(peak_radius > 0 && peak_radius <= peak_radius_limit),
+                  "The registration radius should be a small positive value (less than {}), but got {}",
+                  peak_radius_limit, peak_radius);
 
         Stream& stream = Stream::current(xmap.device());
         if (stream.device().cpu()) {
