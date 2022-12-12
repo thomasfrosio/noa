@@ -59,6 +59,10 @@
   type-safe and have strong types for Strides<N, T> and Shape<N, T>.
 
 
+- Add `io::load_data()`, to return the file data section (the Array). And make `io::load()` return the Array and
+  the pixel size.
+
+
 - Move the backend tests to the unified API. While the backend are mostly well tested, the API isn't. Instead, use
   the unified API for the tests to test both the main API and the backend at the same time.
 

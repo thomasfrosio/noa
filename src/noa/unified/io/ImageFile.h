@@ -227,32 +227,68 @@ namespace noa::io {
 
 namespace noa::io {
     /// Loads a file into a new array.
-    /// \tparam T           Any data type (integer, floating-point, complex).
-    /// \param[in] filename Path of the file to read.
-    /// \param clamp        Whether the values in the file should be clamped to fit the output \p T type.
-    ///                     If false, out of range values are undefined.
-    /// \param option       Options for the output array.
-    /// \return             BDHW C-contiguous output array containing the whole data array of the file.
-    /// \note This is an utility function. For better flexibility, use ImageFile directly.
-    template<typename T>
-    [[nodiscard]] Array<T> load(const path_t& filename, bool clamp = false, ArrayOption option = {}) {
-        return ImageFile(filename, io::READ).read<T>(option, clamp);
+    /// \tparam Value           Any data type (integer, floating-point, complex).
+    ///                         Values in the file are clamped to this type's range.
+    /// \param[in] filename     Path of the file to read.
+    /// \param enforce_2d_stack Whether to enforce the output array to be a stack of 2D images,
+    ///                         instead of a single 3D volume. This is useful for files that are
+    ///                         not encoded properly.
+    /// \param option           Options for the output array.
+    /// \return                 BDHW C-contiguous output array containing the whole data array of the file.
+    template<typename Value>
+    [[nodiscard]] Array<Value> load(const path_t& filename, bool enforce_2d_stack = false, ArrayOption option = {}) {
+        Array data = ImageFile(filename, io::READ).read<Value>(option);
+        if (enforce_2d_stack && (data.shape()[0] == 1 && data.shape()[1] > 1))
+            data = data.reshape({data.shape()[1], data.shape()[0], data.shape()[2], data.shape()[3]});
+        return data;
     }
 
-    /// Saves the input array into a file.
+    /// Saves the input array into a new file.
     /// \tparam T           Any data type (integer, floating-point, complex).
     /// \param[in] input    Array to serialize.
     /// \param[in] filename Path of the new file.
-    /// \param dtype        Data type of the file. If DTYPE_UNKNOWN, let the file format decide the best data type
-    ///                     for \p T values, so that no truncation or loss of precision happens.
-    /// \param clamp        Whether the values of the array should be clamped to fit the file data type.
-    ///                     If false, out of range values are undefined.
-    /// \note This is an utility function. For better flexibility, use ImageFile directly.
-    template<typename T>
-    void save(const Array<T> input, const path_t& filename, DataType dtype = DTYPE_UNKNOWN, bool clamp = false) {
-        ImageFile file(filename, io::WRITE);
-        if (dtype != DTYPE_UNKNOWN)
-            file.dtype(dtype);
-        file.write(input, clamp);
+    /// \param data_type    Data type of the file. If DTYPE_UNKNOWN, let the file format decide the best data type
+    ///                     for \p Value, so that no truncation or loss of precision happens.
+    template<typename Value>
+    void save(const Array<Value>& input, const path_t& filename,
+              DataType data_type = DTYPE_UNKNOWN) {
+        auto file = ImageFile(filename, io::WRITE);
+        if (data_type != DTYPE_UNKNOWN)
+            file.dtype(data_type);
+        file.write(input);
+    }
+
+    /// Saves the input array into a new file.
+    /// \tparam T           Any data type (integer, floating-point, complex).
+    /// \param[in] input    Array to serialize.
+    /// \param pixel_size   DHW pixel size \p input.
+    /// \param[in] filename Path of the new file.
+    /// \param data_type    Data type of the file. If DTYPE_UNKNOWN, let the file format decide the best data type
+    ///                     for \p Value, so that no truncation or loss of precision happens.
+    template<typename Value>
+    void save(const Array<Value>& input, float3_t pixel_size, const path_t& filename,
+              DataType data_type = DTYPE_UNKNOWN) {
+        auto file = ImageFile(filename, io::WRITE);
+        file.pixelSize(pixel_size);
+        if (data_type != DTYPE_UNKNOWN)
+            file.dtype(data_type);
+        file.write(input);
+    }
+
+    /// Saves the input array into a new file.
+    /// \tparam T           Any data type (integer, floating-point, complex).
+    /// \param[in] input    Array to serialize.
+    /// \param pixel_size   HW pixel size \p input.
+    /// \param[in] filename Path of the new file.
+    /// \param data_type    Data type of the file. If DTYPE_UNKNOWN, let the file format decide the best data type
+    ///                     for \p Value, so that no truncation or loss of precision happens.
+    template<typename Value>
+    void save(const Array<Value>& input, float2_t pixel_size, const path_t& filename,
+              DataType data_type = DTYPE_UNKNOWN) {
+        auto file = ImageFile(filename, io::WRITE);
+        file.pixelSize({1, pixel_size[0], pixel_size[1]});
+        if (data_type != DTYPE_UNKNOWN)
+            file.dtype(data_type);
+        file.write(input);
     }
 }
