@@ -99,37 +99,70 @@ namespace noa::cuda::memory {
     }
 
     // Copies asynchronously regions of (strided/padded) memory.
-    // Contiguous regions of memory have no copy restrictions, as well as (batched) row vectors (and column
-    // vectors if SWAP_LAYOUT is true), and regions with padding on the right side of the innermost
-    // dimension (referred to as a "pitch" in CUDA).
+    // Contiguous regions of memory have no copy restrictions, as well as (batched) row/column vectors,
+    // regions with padding on the right side of the innermost dimension (referred to as a "pitch" in CUDA),
+    // or layouts that can be reordered/reshaped to these aforementioned cases.
     // However, if the contiguity is broken in any other dimension, an error will be thrown if:
     // 1) the source and destination are on different devices,
     // 2) the copy is between unregistered host memory and a device,
     // 3) the copy involves a device that is not the stream's device.
     // If the copy involves an unregistered memory regions, the stream will be synchronized when the function
     // returns. Otherwise, this function can be asynchronous relative to the host and may return before completion.
-    template<bool SWAP_LAYOUT = true, typename T>
+    template<typename T>
     void copy(const T* src, dim4_t src_strides,
               T* dst, dim4_t dst_strides,
               dim4_t shape, Stream& stream) {
-        if constexpr (SWAP_LAYOUT) {
+        NOA_ASSERT(all(shape > 0));
+
+        bool4_t is_contiguous;
+
+        // If contiguous or with a pitch (as defined in CUDA, i.e. padding the width on the right side),
+        // then we can rely on the CUDA runtime. Given that we reorder to rightmost order and collapse
+        // the contiguous dimensions together, this should be 99% of cases.
+        for (int32_t test = 0; test <= 1; ++test) {
+            // Rearrange to the rightmost order. Empty and broadcast dimensions are moved to the left.
+            // The input can be broadcast onto the output shape. However, the output should not broadcast
+            // a non-empty dimension of this input. This is not valid. However, here broadcast dimensions
+            // in the output are treated as empty, so the corresponding input dimension isn't used.
+            shape = indexing::effectiveShape(shape, dst_strides);
             const auto order = indexing::order(dst_strides, shape);
             shape = indexing::reorder(shape, order);
             src_strides = indexing::reorder(src_strides, order);
             dst_strides = indexing::reorder(dst_strides, order);
-        }
 
-        const bool4_t is_contiguous = indexing::isContiguous(src_strides, shape) &&
-                                      indexing::isContiguous(dst_strides, shape);
+            is_contiguous = indexing::isContiguous(src_strides, shape) && indexing::isContiguous(dst_strides, shape);
+            if (is_contiguous[0] && is_contiguous[1] && is_contiguous[3]) {
+                if (is_contiguous[2]) {
+                    return copy(src, dst, shape.elements(), stream);
+                } else if (src_strides[2] >= shape[3] && dst_strides[2] >= shape[3]) { // 2d pitch
+                    return copy(src, src_strides[2], dst, dst_strides[2], shape, stream);
+                }
+            }
 
-        // If contiguous or with a pitch (as defined in CUDA, i.e. padding the width on the right side),
-        // then we can rely on the CUDA runtime. This should be 99% of cases. If SWAP_LAYOUT, F-contiguous
-        // arrays are swapped to C-contiguous.
-        if (is_contiguous[0] && is_contiguous[1] && is_contiguous[3]) {
-            if (is_contiguous[2]) {
-                return copy(src, dst, shape.elements(), stream);
-            } else { // 2d pitch
-                return copy(src, src_strides[2], dst, dst_strides[2], shape, stream);
+            if (test == 0) { // first pass
+                // Before trying to call our own kernels, which cannot copy between devices/host,
+                // collapse the contiguous dimensions together, and try again.
+                // TODO move to a new function, like indexing::collapse().
+                dim4_t collapsed_shape = shape;
+                for (dim_t i = 0; i < 3; ++i) {
+                    if (is_contiguous[i] && is_contiguous[i + 1]) {
+                        collapsed_shape[i + 1] *= collapsed_shape[i];
+                        collapsed_shape[i] = 1;
+                    }
+                }
+                dim4_t new_src_strides;
+                dim4_t new_dst_strides;
+                if (indexing::reshape(shape, src_strides, collapsed_shape, new_src_strides) &&
+                    indexing::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
+                    // Update and try again.
+                    shape = collapsed_shape;
+                    src_strides = new_src_strides;
+                    dst_strides = new_dst_strides;
+                } else {
+                    NOA_THROW("Copy failed. This should not have happened. Please report this issue. "
+                              "shape:{}, src_strides:{}, dst_strides:{}",
+                              shape, src_strides, dst_strides);
+                }
             }
         }
 
@@ -195,9 +228,9 @@ namespace noa::cuda::memory {
         } else if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             // Last resort for strided row-vector(s). Since 3 first dimensions are contiguous, collapse them.
             // Non-contiguous row vector can be reshaped to a 2D pitch array so that it can be passed to the CUDA API.
-            // If SWAP_LAYOUT, this works for column vectors as well.
-            // Note: This is the last resort because it is much less efficient than our custom copy (on host or device),
-            // so this is only if the copy is between unregister host and device.
+            // This works for column vectors as well, since we've swapped to everything to rightmost.
+            // Note: This is the last resort because it should be less efficient than our custom copy
+            // (on host or device), so this is only if the copy is between unregister host and device.
             const dim4_t shape_{1, shape[0] * shape[1] * shape[2], shape[3], 1};
             return copy(src, src_strides[3], dst, dst_strides[3], shape_, stream);
 
@@ -209,11 +242,11 @@ namespace noa::cuda::memory {
     }
 
     // Same as above, but making sure the memory regions stay valid until completion.
-    template<bool SWAP_LAYOUT = true, typename T>
+    template<typename T>
     void copy(const shared_t<T[]>& src, dim4_t src_strides,
               const shared_t<T[]>& dst, dim4_t dst_strides,
               dim4_t shape, Stream& stream) {
-        copy<SWAP_LAYOUT>(src.get(), src_strides, dst.get(), dst_strides, shape, stream);
+        copy(src.get(), src_strides, dst.get(), dst_strides, shape, stream);
         stream.attach(src, dst);
     }
 }

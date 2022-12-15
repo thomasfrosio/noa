@@ -210,6 +210,10 @@ namespace noa::indexing {
     /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
     /// \note If one want to check whether the array is contiguous or not, while all(isContiguous(...)) is equal to
     ///       areContiguous(...), the later is preferred simply because it is clearer and slightly more efficient.
+    /// FIXME Broadcast dimensions are NOT contiguous, but they are treated as such.
+    ///       Only empty dimensions are treated as contiguous regardless of their stride.
+    ///       Functions that require broadcast dimensions to be contiguous should call effectiveShape first,
+    ///       to "cancel" the broadcasting and mark the dimension as empty.
     template<char ORDER = 'C', typename T>
     NOA_FHD constexpr auto isContiguous(Int4<T> strides, const Int4<T>& shape) {
         if (any(shape == 0)) // guard against empty array
@@ -487,8 +491,8 @@ namespace noa::indexing {
     /// \return Whether the input and output shape and strides are compatible.
     ///         If false, \p new_strides is left in an undefined state.
     template<typename T>
-    NOA_IH bool reshape(const Int4<T>& old_shape, const Int4<T>& old_strides,
-                        const Int4<T>& new_shape, Int4<T>& new_strides) noexcept {
+    NOA_IH bool reshape(Int4<T> old_shape, Int4<T> old_strides,
+                        Int4<T> new_shape, Int4<T>& new_strides) noexcept {
         // see https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/TensorUtils.cpp
         if (!math::prod(old_shape))
             return false;

@@ -43,3 +43,25 @@ TEMPLATE_TEST_CASE("unified::memory::copy", "[noa][unified]", int32_t, float, do
         REQUIRE(test::Matcher(test::MATCH_ABS, a, d, 1e-8));
     }
 }
+
+TEST_CASE("unified::memory::copy, strided data from GPU to CPU", "[noa][unified]") {
+    if (!Device::any(Device::GPU))
+        return;
+
+    const auto shape = dim4_t{1, 10, 10, 10};
+    const auto gpu_array_full = memory::arange(shape, 0, 1, Device("gpu"));
+
+    // Select top half
+    using namespace ::noa::indexing;
+    const auto gpu_array_top = gpu_array_full.subregion(ellipsis_t{}, slice_t{5, 10}, full_extent_t{});
+    REQUIRE(all(gpu_array_top.shape() == dim4_t{1, 10, 5, 10}));
+
+    // Try to copy to CPU
+    const auto cpu_array_top = gpu_array_top.to(Device("cpu"));
+    REQUIRE(all(cpu_array_top.shape() == dim4_t{1, 10, 5, 10}));
+
+    // Check the copy was successful.
+    const auto cpu_array_full = memory::arange(shape, 0, 1);
+    const auto cpu_array_expected_top = cpu_array_full.subregion(ellipsis_t{}, slice_t{5, 10}, full_extent_t{});
+    REQUIRE(test::Matcher(test::MATCH_ABS, cpu_array_top, cpu_array_expected_top, 1e-7));
+}

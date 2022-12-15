@@ -479,3 +479,35 @@ TEMPLATE_TEST_CASE("common: reorder matrices", "[noa][common]", uint32_t, int32_
         }
     }
 }
+
+TEST_CASE("common::indexing::reshape, broadcasting", "[noa][indexing]") {
+    const auto shape1 = dim4_t{30, 20, 10, 5};
+    const auto strides1 = dim4_t{1000, 50, 5, 1};
+
+    // Reshape contiguous array to a row vector.
+    dim4_t new_strides;
+    auto new_shape = dim4_t{1, 1, 1, math::prod(shape1)};
+    bool success = indexing::reshape(shape1, strides1, new_shape, new_strides);
+    REQUIRE(success);
+
+    // Broadcast the shape2 onto shape1.
+    const auto shape2 = dim4_t{30, 1, 10, 5};
+    auto strides2 = shape2.strides();
+    success = indexing::broadcast(shape2, strides2, shape1);
+    REQUIRE(success);
+
+    // Reshape the broadcast array to a row vector.
+    new_shape = dim4_t{1, 1, 1, math::prod(shape2)};
+    success = indexing::reshape(shape2, strides2, new_shape, new_strides);
+    REQUIRE(success);
+
+    bool4_t is_contiguous = {1,0,1,1};
+    dim4_t test_shape = shape1;
+    for (dim_t i = 0; i < 3; ++i) {
+        if (is_contiguous[i] && is_contiguous[i + 1]) {
+            test_shape[i + 1] *= test_shape[i];
+            test_shape[i] = 1;
+        }
+    }
+    REQUIRE(success);
+}
