@@ -15,6 +15,13 @@ namespace noa::cuda::fft {
 }
 
 namespace noa::cuda::fft::details {
+    template<size_t ALIGNMENT, typename Value>
+    bool isAligned(Value* ptr) {
+        // This is apparently not guaranteed to work by the standard.
+        // But this should work in all modern and mainstream platforms.
+        return !(reinterpret_cast<std::uintptr_t>(ptr) % ALIGNMENT);
+    }
+
     template<bool HALF, typename T>
     void normalize(const shared_t<T[]>& array, dim4_t strides, dim4_t shape, Sign sign, Norm norm, Stream& stream) {
         using real_t = noa::traits::value_type_t<T>;
@@ -44,6 +51,10 @@ namespace noa::cuda::fft {
     inline void r2c(const shared_t<T[]>& input,
                     const shared_t<Complex<T>[]>& output,
                     const Plan<T>& plan, Stream& stream) {
+        NOA_CHECK(details::isAligned<alignof(Complex<T>)>(input.get()),
+                  "cufft requires both the input and output to be aligned to the complex type. This might not "
+                  "be the case for the real input when operating on a subregion starting at an odd offset. "
+                  "Hint: copy the real array to a new array or add adequate padding.");
         NOA_THROW_IF(cufftSetStream(plan.get(), stream.get()));
         if constexpr (std::is_same_v<T, float>)
             NOA_THROW_IF(cufftExecR2C(plan.get(), input.get(), reinterpret_cast<cufftComplex*>(output.get())));
@@ -56,6 +67,10 @@ namespace noa::cuda::fft {
     inline void c2r(const shared_t<Complex<T>[]>& input,
                     const shared_t<T[]>& output,
                     const Plan<T>& plan, Stream& stream) {
+        NOA_CHECK(details::isAligned<alignof(Complex<T>)>(output.get()),
+                  "cufft requires both the input and output to be aligned to the complex type. This might not "
+                  "be the case for the real output when operating on a subregion starting at an odd offset. "
+                  "Hint: copy the real array to a new array or add adequate padding.");
         NOA_THROW_IF(cufftSetStream(plan.get(), stream.get()));
         if constexpr (std::is_same_v<T, float>)
             NOA_THROW_IF(cufftExecC2R(plan.get(), reinterpret_cast<cufftComplex*>(input.get()), output.get()));
