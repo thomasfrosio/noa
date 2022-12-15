@@ -231,6 +231,46 @@ namespace YAML {
     };
 
     template<>
+    struct convert<noa::double3_t> {
+        static Node encode(const noa::double3_t& rhs) {
+            Node node;
+            node.push_back(rhs[0]);
+            node.push_back(rhs[1]);
+            node.push_back(rhs[2]);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
+
+        static bool decode(const Node& node, noa::double3_t& rhs) {
+            if (!node.IsSequence() || node.size() != 3)
+                return false;
+            rhs[0] = node[0].as<double>();
+            rhs[1] = node[1].as<double>();
+            rhs[2] = node[2].as<double>();
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<noa::double2_t> {
+        static Node encode(const noa::double2_t& rhs) {
+            Node node;
+            node.push_back(rhs[0]);
+            node.push_back(rhs[1]);
+            node.SetStyle(EmitterStyle::Flow);
+            return node;
+        }
+
+        static bool decode(const Node& node, noa::double2_t& rhs) {
+            if (!node.IsSequence() || node.size() != 2)
+                return false;
+            rhs[0] = node[0].as<double>();
+            rhs[1] = node[1].as<double>();
+            return true;
+        }
+    };
+
+    template<>
     struct convert<noa::path_t> {
         static Node encode(const noa::path_t& rhs) {
             return convert<std::string>::encode(rhs.string());

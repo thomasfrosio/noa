@@ -98,9 +98,18 @@ namespace noa::cuda::math {
     // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(Lhs lhs,
+               const shared_t<Mhs[]>& mhs, dim4_t mhs_strides,
+               const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
+               dim4_t shape, TrinaryOp trinary_op, Stream& stream);
+
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
     void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
                Mhs mhs,
-               Rhs rhs,
+               const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
                const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream);
 
@@ -116,9 +125,27 @@ namespace noa::cuda::math {
     // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
-    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+    void ewise(Lhs lhs,
                Mhs mhs,
                const shared_t<Rhs[]>& rhs, dim4_t rhs_strides,
+               const shared_t<Out[]>& output, dim4_t output_strides,
+               dim4_t shape, TrinaryOp trinary_op, Stream& stream);
+
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(Lhs lhs,
+               const shared_t<Mhs[]>& mhs, dim4_t mhs_strides,
+               Rhs rhs,
+               const shared_t<Out[]>& output, dim4_t output_strides,
+               dim4_t shape, TrinaryOp trinary_op, Stream& stream);
+
+    // Element-wise transformation using a trinary operator()(\p Lhs, \p Mhs, \p Rhs) -> \p Out
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
+             typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
+    void ewise(const shared_t<Lhs[]>& lhs, dim4_t lhs_strides,
+               Mhs mhs,
+               Rhs rhs,
                const shared_t<Out[]>& output, dim4_t output_strides,
                dim4_t shape, TrinaryOp trinary_op, Stream& stream);
 

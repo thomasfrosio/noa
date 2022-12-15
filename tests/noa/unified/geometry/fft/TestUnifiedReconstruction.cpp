@@ -25,13 +25,28 @@ namespace {
         }
         return rotations;
     }
+
+    Array<float33_t> generateRotationsTiltSeries_() {
+        constexpr float PI2 = math::Constants<float>::PI2;
+        test::Randomizer<float> randomizer(-PI2, PI2);
+
+        Array<float33_t> rotations(41);
+        float33_t* rotations_ = rotations.get();
+        float start = -60;
+        for (size_t i = 0; i < 41; ++i) {
+            if (i != 36)
+                rotations_[i] = geometry::euler2matrix(float3_t{0, math::deg2rad(start), 0}, "ZYX");
+            start += 3;
+        }
+        return rotations;
+    }
 }
 
 TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     using namespace ::noa;
     Timer timer;
 
-    const size_t count = 250;
+    const size_t count = 41;
     const int32_t padding_factor = 2;
     const path_t input_path = "/home/thomas/Projects/data/ribo/emd_14454.mrc";
     const path_t output_dir = test::NOA_DATA_PATH / "geometry" / "fft" / "reconstruction";
@@ -41,7 +56,7 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
                count, io::ImageFile(input_path, io::READ).shape(), padding_factor);
 
     const ArrayOption options(device, Allocator::DEFAULT_ASYNC);
-    Array<float33_t> fwd_rotations = generateRotations_(count);
+    Array<float33_t> fwd_rotations = generateRotationsTiltSeries_();//generateRotations_(count);
     if (device.gpu())
         fwd_rotations = fwd_rotations.to(device);
 
@@ -98,23 +113,28 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
         timer.start();
         Array slices_fft = fft::r2c(slices);
         signal::fft::shift2D<fft::H2H>(slices_fft, slices_fft, slices_shape, -slices_center);
+        fft::remap(fft::H2HC, slices_fft, slices_fft, slices_shape);
 
+        for (size_t i = 0; i < fwd_rotations.size(); ++i)
+            fwd_rotations[i] = fwd_rotations[i].transpose();
+
+        // Backward projection of the data:
         Array volume_fft = memory::zeros<cfloat_t>(volume_shape.fft(), options);
-        geometry::fft::insert3D<fft::H2H>(slices_fft, slices_shape,
-                                          volume_fft, volume_shape,
-                                          float22_t{}, fwd_rotations, 0.5f);
+        geometry::fft::insert3D<fft::HC2H>(slices_fft, slices_shape,
+                                           volume_fft, volume_shape,
+                                           float22_t{}, fwd_rotations, 0.0025f, 0.5f);
         signal::fft::shift3D<fft::H2H>(volume_fft, volume_fft, volume_shape, volume_center);
 
-        // Backward projection on the weights:
+        // Backward projection of the weights:
         Array<float> weights_slices_fft = memory::ones<float>(slice_shape.fft(), options);
         weights_slices_fft = indexing::broadcast(weights_slices_fft, slices_shape.fft());
         Array<float> weights_volume_fft = memory::zeros<float>(volume_shape.fft(), options);
-        geometry::fft::insert3D<fft::H2H>(weights_slices_fft.release(), slices_shape,
-                                          weights_volume_fft, volume_shape,
-                                          float22_t{}, fwd_rotations, 0.5f);
+        geometry::fft::insert3D<fft::HC2H>(weights_slices_fft, slices_shape,
+                                           weights_volume_fft, volume_shape,
+                                           float22_t{}, fwd_rotations, 0.0025f, 0.5f);
 
         // Weighting:
-        math::ewise(volume_fft, weights_volume_fft.release(), 1e-3f, volume_fft, math::divide_epsilon_t{});
+        math::ewise(volume_fft, weights_volume_fft, 1e-3f, volume_fft, math::divide_epsilon_t{});
         volume = fft::alias(volume_fft, volume_shape);
         fft::c2r(volume_fft, volume);
         volume.eval();
@@ -378,18 +398,18 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
 }
 
 TEST_CASE("unified::geometry::fft, project test5", "[.]") {
-    const path_t output_dir = test::NOA_DATA_PATH / "geometry" / "fft" / "reconstruction";
+    const path_t output_dir = test::NOA_DATA_PATH / "geometry" / "fft" / "test5";
     const path_t input_path = output_dir / "tilt1_cropped_preali_bin2_mrcfile.mrc";
 
     // The goal here is to back-project the views at a given angle.
     const float yaw = 0.f;
-    const dim_t target_index = 20;
+    const dim_t target_index = 35;
     const float tilt_start = -60.f;
     const float tilt_increment = 3.f;
     const float target_tilt = tilt_start + target_index * tilt_increment;
     const float33_t fwd_matrix_target =
-            geometry::euler2matrix(math::deg2rad(float3_t{yaw, target_tilt, 0}), "ZYX", false);
-    fmt::print("target tilt: {}", target_tilt);
+            geometry::euler2matrix(math::deg2rad(float3_t{0, target_tilt, 0}), "ZYX", false);
+    fmt::print("target tilt: {}\n", target_tilt);
 
     // Prepare the input slice: center and taper edges.
     Array<float> stack = io::load<float>(input_path);
@@ -402,11 +422,11 @@ TEST_CASE("unified::geometry::fft, project test5", "[.]") {
     const auto slice_center_padded = float2_t{dim2_t(slice_shape_padded.get(2)) / 2};
 
     math::ewise(stack, math::mean(stack), stack, math::minus_t{});
-    signal::rectangle(stack, stack, slice_center, slice_center - 100, 100);
+    signal::rectangle(stack, stack, slice_center, slice_center - 50, 50);
     io::save(stack.subregion(target_index), output_dir / "test5_target.mrc");
 
     const dim4_t grid_shape{1, slice_size_padded, slice_size_padded, slice_size_padded};
-    ProjectorInterp projector(0.003f, grid_shape, slice_shape_padded);
+    ProjectorInterp projector(0.0015f, grid_shape, slice_shape_padded);
 
     Array extract_slice_padded_fft = memory::zeros<cfloat_t>(slice_shape_padded.fft());
     Array extract_weight_padded_fft = memory::zeros<float>(slice_shape_padded.fft());
@@ -419,6 +439,8 @@ TEST_CASE("unified::geometry::fft, project test5", "[.]") {
             continue;
         }
 
+        fmt::print("back-project tilt: {}\n", reference_tilt);
+
         Array slice = stack.subregion(i);
         Array slice_padded = memory::resize(slice, slice_shape_padded);
         Array slice_padded_fft = fft::r2c(slice_padded);
@@ -429,19 +451,19 @@ TEST_CASE("unified::geometry::fft, project test5", "[.]") {
         projector.backward(slice_padded_fft, fwd_matrix_reference, -slice_center_padded);
 
         // Now with the new Fourier extraction.
-        // The project already shift and center the slice, so just insert.
+        // The projector already shifts and centers the slice, so just insert.
         geometry::fft::extract3D<fft::HC2H>(
                 slice_padded_fft, slice_shape_padded,
                 extract_slice_padded_fft, slice_shape_padded,
                 float22_t{}, fwd_matrix_reference.transpose(),
                 float22_t{}, fwd_matrix_target,
-                0.0019f, 0.5f);
+                0.0015f, 0.5f);
         geometry::fft::extract3D<fft::HC2H>(
                 extract_weights_padded_fft_ones, slice_shape_padded,
                 extract_weight_padded_fft, slice_shape_padded,
                 float22_t{}, fwd_matrix_reference.transpose(),
                 float22_t{}, fwd_matrix_target,
-                0.0019f, 0.5f);
+                0.0015f, 0.5f);
 
         reference_tilt += 3.f;
     }

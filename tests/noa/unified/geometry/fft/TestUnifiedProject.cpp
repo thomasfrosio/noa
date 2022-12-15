@@ -575,3 +575,41 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::extract3D from slices, using value",
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_slice_fft0, output_slice_fft1, 5e-5));
     }
 }
+
+TEST_CASE("unified::geometry::fft::extract3D from slices, test rot", "jhkjhj") {
+    std::vector<Device> devices = {Device("cpu")};
+//    if (Device::any(Device::GPU))
+//        devices.emplace_back("gpu");
+
+    const auto input_slice_shape = dim4_t{1, 1, 256, 256};
+    const auto output_slice_shape = dim4_t{11, 1, 256, 256};
+
+    const float33_t input_slice_rotation = geometry::euler2matrix(math::deg2rad(float3_t{0, 0, 0}), "ZYX", false);
+    Array<float33_t> output_fwd_rotation_matrices(output_slice_shape[0]);
+    float angle = -5;
+    for (size_t i = 0; i < output_slice_shape[0]; ++i) {
+        fmt::print("angle: {}\n", angle);
+        output_fwd_rotation_matrices[i] = geometry::euler2matrix(math::deg2rad(float3_t{0, 1, 1}), "ZYX", false);
+        angle += 1;
+    }
+
+    for (auto& device: devices) {
+        StreamGuard stream(device);
+        ArrayOption options(device, Allocator::MANAGED);
+        INFO(device);
+
+        Array input_slice_fft = memory::linspace<float>(input_slice_shape.fft(), -100, 100, true, options);
+        Array output_slice_fft0 = memory::zeros<float>(output_slice_shape.fft(), options);
+
+        geometry::fft::extract3D<fft::HC2HC>(
+                input_slice_fft, input_slice_shape,
+                output_slice_fft0, output_slice_shape,
+                float22_t{}, math::inverse(input_slice_rotation),
+                float22_t{}, output_fwd_rotation_matrices,
+                0.002f, 0.5f);
+
+        const path_t directory = test::NOA_DATA_PATH / "geometry" / "fft" / "reproject_slices";
+        io::save(input_slice_fft, directory / "input_slice.mrc");
+        io::save(output_slice_fft0, directory / "output_slice.mrc");
+    }
+}
