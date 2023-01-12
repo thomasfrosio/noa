@@ -1,19 +1,14 @@
 #include "noa/common/geometry/Interpolator.h"
 #include "noa/common/geometry/InterpolatorValue.h"
+#include "noa/common/geometry/details/FourierProjections.h"
+
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/memory/PtrArray.h"
 #include "noa/gpu/cuda/memory/PtrTexture.h"
-#include "noa/gpu/cuda/utils/Atomic.cuh"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/Pointers.h"
 #include "noa/gpu/cuda/geometry/Interpolator.h"
 #include "noa/gpu/cuda/geometry/fft/Project.h"
-
-// This header contains the implementation, which includes
-// a call to cuda's atomicAdd. For now, leave it like this, but make
-// sure the Atomic.cuh header is included before this point.
-// TODO Move atomics to the common directory.
-#include "noa/common/geometry/details/FourierProjections.h"
 
 namespace {
     using namespace ::noa;

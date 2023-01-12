@@ -3,33 +3,13 @@
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Interpolate.h"
 #include "noa/common/geometry/details/Utilities.h"
+#include "noa/common/utils/Atomic.h"
 
 // Implementation for backward and forward projections using Fourier insertion and extraction.
 // Can be called from the CPU (serial/OpenMP) or CUDA backend.
 
 namespace noa::geometry::fft::details {
     using Remap = ::noa::fft::Remap;
-
-    // TODO Move atomic to separate common header!
-    template<typename GridAccessor, typename Int, typename Data>
-    NOA_FHD void atomicAdd(const GridAccessor& grid,
-                           Int idx_w, Int idx_v, Int idx_u,
-                           Data value) {
-        #if defined(__CUDA_ARCH__)
-        ::noa::cuda::utils::atomic::add(grid.offsetPointer(grid.get(), idx_w, idx_v, idx_u), value);
-        #else
-        Data& grid_value = grid(idx_w, idx_v, idx_u);
-        if constexpr (traits::is_complex_v<Data>) {
-            #pragma omp atomic
-            grid_value[0] += value[0];
-            #pragma omp atomic
-            grid_value[1] += value[1];
-        } else {
-            #pragma omp atomic
-            grid_value += value;
-        }
-        #endif
-    }
 
     // The gridding kernel is a tri-linear pulse. The total weight within the 2x2x2 cube is 1.
     template<typename Int>
@@ -67,7 +47,7 @@ namespace noa::geometry::fft::details {
                         idx_v >= 0 && idx_v < grid_shape[1] &&
                         idx_u >= 0 && idx_u < grid_shape[2]) {
                         const auto fraction = static_cast<real_t>(kernel[w][v][u]);
-                        noa::geometry::fft::details::atomicAdd(grid, idx_w, idx_v, idx_u, data * fraction);
+                        noa::details::atomicAdd(grid, idx_w, idx_v, idx_u, data * fraction);
                     }
                 }
             }
@@ -86,7 +66,7 @@ namespace noa::geometry::fft::details {
                     if (idx_w >= 0 && idx_w < grid_shape[0] &&
                         idx_v >= 0 && idx_v < grid_shape[1]) {
                         const auto fraction = static_cast<real_t>(kernel[w][v][0]);
-                        noa::geometry::fft::details::atomicAdd(grid, idx_w, idx_v, SInt{0}, data * fraction);
+                        noa::details::atomicAdd(grid, idx_w, idx_v, SInt{0}, data * fraction);
                     }
                 }
             }
@@ -585,7 +565,7 @@ namespace noa::geometry::fft::details {
         // For every pixel of every slice to extract.
         NOA_HD void operator()(index_type batch, index_type y, index_type u) const noexcept {
             // Transform slice onto the grid.
-            const int64_t v = index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
+            const index_type v = index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
             const float2_t freq_2d = float2_t{v, u} / m_f_slice_shape;
             const float3_t freq_3d = transformSliceToGrid(
                     freq_2d, m_inv_scaling_matrices, m_fwd_rotation_matrices, batch, m_ews_diam_inv);
@@ -707,7 +687,7 @@ namespace noa::geometry::fft::details {
         // Should be called for every pixel of every slice to extract.
         NOA_HD void operator()(index_type output_batch, index_type y, index_type u) const noexcept {
             // First, compute the 3D frequency of the current slice i to extract.
-            const int64_t v = index2frequency<IS_OUTPUT_SLICE_CENTERED>(y, m_output_slice_size_y);
+            const index_type v = index2frequency<IS_OUTPUT_SLICE_CENTERED>(y, m_output_slice_size_y);
             float2_t freq_2d = float2_t{v, u} / m_f_output_shape;
             float3_t freq_3d = transformSliceToGrid(
                     freq_2d, m_extract_inv_scaling_matrices, m_extract_fwd_rotation_matrices,
@@ -718,7 +698,7 @@ namespace noa::geometry::fft::details {
 
             // Then, insert the input slices.
             data_type value{0};
-            for (int64_t i = 0; i < m_input_count; ++i) {
+            for (index_type i = 0; i < m_input_count; ++i) {
                 auto [freq_z, new_freq] = transformGridToSlice(
                         freq_3d, m_insert_fwd_scaling_matrices, m_insert_inv_rotation_matrices, i, m_ews_diam_inv);
 
