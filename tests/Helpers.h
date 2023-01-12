@@ -161,6 +161,7 @@ namespace test {
 }
 
 namespace test {
+    using namespace ::noa;
     enum CompType {
         MATCH_ABS,
         MATCH_ABS_SAFE,
