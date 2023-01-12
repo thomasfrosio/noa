@@ -18,6 +18,7 @@ set(NOA_COMMON_HEADERS
         common/math/LeastSquare.h
 
         common/utils/Any.h
+        common/utils/Atomic.h
         common/utils/Irange.h
         common/utils/Profiler.h
         common/utils/Sort.h

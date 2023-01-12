@@ -6,7 +6,8 @@
 namespace noa::cuda::geometry::fft::details {
     using namespace ::noa::fft;
     template<Remap REMAP, typename Value>
-    constexpr bool is_valid_polar_xform_v = traits::is_any_v<Value, float, cfloat_t> && REMAP == HC2FC;
+    constexpr bool is_valid_polar_xform_v =
+            traits::is_any_v<Value, float, cfloat_t, double, cdouble_t> && REMAP == HC2FC;
 }
 
 namespace noa::cuda::geometry::fft {

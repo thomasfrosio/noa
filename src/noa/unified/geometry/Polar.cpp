@@ -11,9 +11,7 @@ namespace {
     enum class PolarDirection { C2P, P2C };
 
     template<PolarDirection DIRECTION, typename ArrayOrTexture, typename Value>
-    void polarCheckParameters_(const ArrayOrTexture& input,
-                               const Array<Value>& output,
-                               InterpMode interp = INTERP_LINEAR, bool prefilter = false) {
+    void polarCheckParameters_(const ArrayOrTexture& input, const Array<Value>& output) {
         const char* FUNC_NAME = DIRECTION == PolarDirection::C2P ? "cartesian2polar" : "polar2cartesian";
 
         NOA_CHECK_FUNC(FUNC_NAME, !input.empty() && !output.empty(), "Empty array detected");
@@ -22,33 +20,17 @@ namespace {
                        "batches in the output array ({})", input.shape()[0], output.shape()[0]);
         NOA_CHECK_FUNC(FUNC_NAME, input.shape()[1] == 1 && output.shape()[1] == 1, "3D arrays are not supported");
 
-        const Device device = output.device();
-        if (device.cpu()) {
-            NOA_CHECK(device == input.device(),
-                      "The input and output arrays must be on the same device, "
-                      "but got input:{} and output:{}", input.device(), device);
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                NOA_CHECK(!indexing::isOverlap(input, output),
-                          "Input and output arrays should not overlap");
-            }
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                const bool is_bspline = interp == INTERP_CUBIC_BSPLINE || interp == INTERP_CUBIC_BSPLINE_FAST;
-                NOA_CHECK_FUNC(FUNC_NAME, device == input.device() || (!prefilter || !is_bspline),
-                               "The input is about to be prefiltered for cubic B-spline interpolation. "
-                               "In this case, the input and output arrays must be on the same device. "
-                               "Got device input:{} and output:{}", input.device(), device);
-                if (input.device().cpu())
-                    Stream::current(Device(Device::CPU)).synchronize();
-            } else {
-                NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
-                               "The input texture and output array must be on the same device, "
-                               "but got input:{} and output:{}", input.device(), output.device());
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+        NOA_CHECK(input.device() == output.device(),
+                  "The input and output arrays must be on the same device, "
+                  "but got input:{} and output:{}", input.device(), output.device());
+
+        if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
+            NOA_CHECK(!indexing::isOverlap(input, output),
+                      "Input and output arrays should not overlap");
+            NOA_CHECK_FUNC(FUNC_NAME, indexing::areElementsUnique(output.strides(), output.shape()),
+                           "The elements in the output should not overlap in memory, "
+                           "otherwise a data-race might occur. Got output strides:{} and shape:{}",
+                           output.strides(), output.shape());
         }
     }
 }
@@ -58,7 +40,7 @@ namespace noa::geometry {
     void cartesian2polar(const Array<Value>& cartesian, const Array<Value>& polar,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interpolation_mode, bool prefilter) {
-        polarCheckParameters_<PolarDirection::C2P>(cartesian, polar, interpolation_mode, prefilter);
+        polarCheckParameters_<PolarDirection::C2P>(cartesian, polar);
 
         const Device device = polar.device();
         Stream& stream = Stream::current(device);
@@ -70,15 +52,11 @@ namespace noa::geometry {
                     interpolation_mode, prefilter, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::cartesian2polar(
-                        cartesian.share(), cartesian.strides(), cartesian.shape(),
-                        polar.share(), polar.strides(), polar.shape(),
-                        cartesian_center, radius_range, angle_range, log,
-                        interpolation_mode, prefilter, stream.cuda());
-            }
+            cuda::geometry::cartesian2polar(
+                    cartesian.share(), cartesian.strides(), cartesian.shape(),
+                    polar.share(), polar.strides(), polar.shape(),
+                    cartesian_center, radius_range, angle_range, log,
+                    interpolation_mode, prefilter, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -118,7 +96,7 @@ namespace noa::geometry {
     void polar2cartesian(const Array<Value>& polar, const Array<Value>& cartesian,
                          float2_t cartesian_center, float2_t radius_range, float2_t angle_range,
                          bool log, InterpMode interpolation_mode, bool prefilter) {
-        polarCheckParameters_<PolarDirection::P2C>(cartesian, polar, interpolation_mode, prefilter);
+        polarCheckParameters_<PolarDirection::P2C>(cartesian, polar);
 
         const Device device = cartesian.device();
         Stream& stream = Stream::current(device);
@@ -130,15 +108,11 @@ namespace noa::geometry {
                     interpolation_mode, prefilter, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::cartesian2polar(
-                        polar.share(), polar.strides(), polar.shape(),
-                        cartesian.share(), cartesian.strides(), cartesian.shape(),
-                        cartesian_center, radius_range, angle_range, log,
-                        interpolation_mode, prefilter, stream.cuda());
-            }
+            cuda::geometry::cartesian2polar(
+                    polar.share(), polar.strides(), polar.shape(),
+                    cartesian.share(), cartesian.strides(), cartesian.shape(),
+                    cartesian_center, radius_range, angle_range, log,
+                    interpolation_mode, prefilter, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

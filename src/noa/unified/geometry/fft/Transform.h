@@ -51,15 +51,6 @@ namespace noa::geometry::fft {
     ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     ///
-    /// \note If the output is on the CPU:\n
-    ///         - \p input and \p output should not overlap.\n
-    ///         - \p matrices and \p shifts should be accessible by the CPU.\n
-    /// \note If the output is on the GPU:\n
-    ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - \p input should be in the rightmost order and the width dimension should be contiguous.\n
-    ///         - In-place transformation (\p input == \p output) is always allowed.\n
-    ///         - \p input, \p matrices and \p shifts can be on any device, including the CPU.\n
-    ///
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
@@ -100,15 +91,6 @@ namespace noa::geometry::fft {
     ///                         Values are clamped from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are set to 0.
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
-    ///
-    /// \note If the output is on the CPU:\n
-    ///         - \p input and \p output should not overlap.\n
-    ///         - \p matrices and \p shifts should be accessible by the CPU.\n
-    /// \note If the output is on the GPU:\n
-    ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - \p input should be in the rightmost order and the depth and width dimension should be contiguous.\n
-    ///         - In-place transformation (\p input == \p output) is always allowed.\n
-    ///         - \p input, \p matrices and \p shifts can be on any device, including the CPU.\n
     ///
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
@@ -151,14 +133,6 @@ namespace noa::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     ///
-    /// \note If the output is on the CPU:\n
-    ///         - \p input and \p output should not overlap.\n
-    /// \note If the output is on the GPU:\n
-    ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - \p input should be in the rightmost order and the width dimension should be contiguous.\n
-    ///         - In-place transformation (\p input == \p output) is always allowed.\n
-    ///         - \p input can be on any device, including the CPU.\n
-    ///
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
@@ -193,14 +167,6 @@ namespace noa::geometry::fft {
     /// \param interp_mode      Interpolation/filtering mode. Cubic modes are currently not supported.
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
-    ///
-    /// \note If the output is on the CPU:\n
-    ///         - \p input and \p output should not overlap.\n
-    /// \note If the output is on the GPU:\n
-    ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - \p input should be in the rightmost order and the depth and width dimension should be contiguous.\n
-    ///         - In-place transformation (\p input == \p output) is always allowed.\n
-    ///         - \p input can be on any device, including the CPU.\n
     ///
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on

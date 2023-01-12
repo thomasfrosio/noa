@@ -1,4 +1,5 @@
 #include "noa/common/Assert.h"
+#include "noa/common/geometry/Interpolator.h"
 #include "noa/common/geometry/details/PolarTransformFourier.h"
 
 #include "noa/gpu/cuda/geometry/fft/Polar.h"
@@ -77,25 +78,66 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
 
-        // Broadcast input if it is not batched:
-        if (cartesian_strides[0] == 0)
-            cartesian_shape[0] = 1;
-        else if (cartesian_shape[0] == 1)
+        // Broadcast the input to every output batch.
+        if (cartesian_shape[0] == 1)
             cartesian_strides[0] = 0;
-        const dim4_t output_shape{cartesian_shape[0] > 1 ? 1 : polar_shape[0],
-                                  polar_shape[1], polar_shape[2], polar_shape[3]};
+        else if (cartesian_strides[0] == 0)
+            cartesian_shape[0] = 1;
 
-        // Copy to texture and launch (per input batch):
-        memory::PtrArray<Value> array(dim4_t{1, 1, cartesian_shape[2], cartesian_shape[3] / 2 + 1});
-        memory::PtrTexture texture(array.get(), interp_mode, BORDER_ZERO);
-        for (dim_t i = 0; i < cartesian_shape[0]; ++i) {
-            memory::copy(cartesian.get() + i * cartesian_strides[0], cartesian_strides,
-                         array.get(), array.shape(), stream);
-            launchCartesian2Polar_<false>(texture.get(), interp_mode, cartesian_shape,
-                    polar.get() + i * polar_strides[0], polar_strides, output_shape,
-                    frequency_range, angle_range, log, stream);
-        }
-        stream.attach(cartesian, polar, array.share(), texture.share());
+        const auto cartesian_shape_2d = int2_t{cartesian_shape[2], cartesian_shape[3]};
+        const auto polar_shape_2d = int3_t(polar_shape[0], polar_shape[2], polar_shape[3]);
+        const auto cartesian_strides_2d = safe_cast<uint3_t>(dim3_t{cartesian_strides[0], cartesian_strides[2], cartesian_strides[3]});
+        const auto polar_strides_2d = safe_cast<uint3_t>(dim3_t{polar_strides[0], polar_strides[2], polar_strides[3]});
+        const auto cartesian_accessor = AccessorRestrict<const Value, 3, uint32_t>(cartesian.get(),cartesian_strides_2d);
+        const auto polar_accessor = AccessorRestrict<Value, 3, uint32_t>(polar.get(), polar_strides_2d);
+
+            switch (interp_mode) {
+                case INTERP_NEAREST: {
+                    const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_NEAREST>(
+                            cartesian_accessor, cartesian_shape_2d);
+                    const auto kernel = noa::geometry::fft::details::cartesian2polar<int32_t>(
+                            interpolator, cartesian_shape, polar_accessor, polar_shape,
+                            frequency_range, angle_range, log);
+                    return noa::cuda::utils::iwise3D("geometry::fft::cartesian2polar", polar_shape_2d, kernel, stream);
+                }
+                case INTERP_LINEAR: {
+                    const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
+                            cartesian_accessor, cartesian_shape_2d);
+                    const auto kernel = noa::geometry::fft::details::cartesian2polar<int32_t>(
+                            interpolator, cartesian_shape, polar_accessor, polar_shape,
+                            frequency_range, angle_range, log);
+                    return noa::cuda::utils::iwise3D("geometry::fft::cartesian2polar", polar_shape_2d, kernel, stream);
+                }
+                case INTERP_COSINE: {
+                    const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE>(
+                            cartesian_accessor, cartesian_shape_2d);
+                    const auto kernel = noa::geometry::fft::details::cartesian2polar<int32_t>(
+                            interpolator, cartesian_shape, polar_accessor, polar_shape,
+                            frequency_range, angle_range, log);
+                    return noa::cuda::utils::iwise3D("geometry::fft::cartesian2polar", polar_shape_2d, kernel, stream);
+                }
+                case INTERP_LINEAR_FAST: {
+                    const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR_FAST>(
+                            cartesian_accessor, cartesian_shape_2d);
+                    const auto kernel = noa::geometry::fft::details::cartesian2polar<int32_t>(
+                            interpolator, cartesian_shape, polar_accessor, polar_shape,
+                            frequency_range, angle_range, log);
+                    return noa::cuda::utils::iwise3D("geometry::fft::cartesian2polar", polar_shape_2d, kernel, stream);
+                }
+                case INTERP_COSINE_FAST: {
+                    const auto interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE_FAST>(
+                            cartesian_accessor, cartesian_shape_2d);
+                    const auto kernel = noa::geometry::fft::details::cartesian2polar<int32_t>(
+                            interpolator, cartesian_shape, polar_accessor, polar_shape,
+                            frequency_range, angle_range, log);
+                    return noa::cuda::utils::iwise3D("geometry::fft::cartesian2polar", polar_shape_2d, kernel, stream);
+                }
+                case INTERP_CUBIC:
+                case INTERP_CUBIC_BSPLINE:
+                case INTERP_CUBIC_BSPLINE_FAST:
+                    NOA_THROW("{} is not supported", interp_mode);
+            }
+        stream.attach(cartesian, polar);
     }
 
     template<typename Value, typename>
@@ -126,9 +168,22 @@ namespace noa::cuda::geometry::fft {
     }
 
     #define INSTANTIATE_POLAR(T) \
-    template void cartesian2polar<Remap::HC2FC, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float2_t, float2_t, bool, InterpMode, Stream&); \
-    template void cartesian2polar<T, void>(const shared_t<cudaArray>&, const shared_t<cudaTextureObject_t>&, InterpMode, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float2_t, float2_t, bool, Stream&)
+    template void cartesian2polar<Remap::HC2FC, T, void>( \
+        const shared_t<T[]>&, dim4_t, dim4_t,             \
+        const shared_t<T[]>&, dim4_t, dim4_t,             \
+        float2_t, float2_t, bool, InterpMode, Stream&)
+
+    #define INSTANTIATE_POLAR_TEXTURE(T) \
+    template void cartesian2polar<T, void>(               \
+        const shared_t<cudaArray>&,                       \
+        const shared_t<cudaTextureObject_t>&, InterpMode, \
+        dim4_t, const shared_t<T[]>&, dim4_t, dim4_t,     \
+        float2_t, float2_t, bool, Stream&)
 
     INSTANTIATE_POLAR(float);
     INSTANTIATE_POLAR(cfloat_t);
+    INSTANTIATE_POLAR(double);
+    INSTANTIATE_POLAR(cdouble_t);
+    INSTANTIATE_POLAR_TEXTURE(float);
+    INSTANTIATE_POLAR_TEXTURE(cfloat_t);
 }

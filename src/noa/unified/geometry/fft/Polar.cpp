@@ -24,23 +24,20 @@ namespace {
         NOA_CHECK_FUNC(FUNC_NAME, input.shape()[1] == 1 && output.shape()[1] == 1,
                        "3D arrays are not supported");
 
-        if (input.device().cpu()) {
-            NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
+        if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
+            NOA_CHECK_FUNC(FUNC_NAME, output.device() == input.device(),
                            "The input and output arrays must be on the same device, "
                            "but got input:{} and output:{}", input.device(), output.device());
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                NOA_CHECK_FUNC(FUNC_NAME, !indexing::isOverlap(input, output),
-                               "Input and output arrays should not overlap");
-            }
+            NOA_CHECK_FUNC(FUNC_NAME, !indexing::isOverlap(input, output),
+                           "The input and output arrays should not overlap");
+            NOA_CHECK_FUNC(FUNC_NAME, indexing::areElementsUnique(output.strides(), output.shape()),
+                           "The elements in the output should not overlap in memory, "
+                           "otherwise a data-race might occur. Got output strides:{} and shape:{}",
+                           output.strides(), output.shape());
         } else {
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                if (input.device().cpu())
-                    Stream::current(Device(Device::CPU)).synchronize();
-            } else {
-                NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
-                               "The input texture and output array must be on the same device, "
-                               "but got input:{} and output:{}", input.device(), output.device());
-            }
+            NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
+                           "The input texture and output array must be on the same device, "
+                           "but got input:{} and output:{}", input.device(), output.device());
         }
     }
 }
@@ -62,14 +59,10 @@ namespace noa::geometry::fft {
                     frequency_range, angle_range, log, interp, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::fft::cartesian2polar<REMAP>(
-                        cartesian.share(), cartesian.strides(), cartesian_shape,
-                        polar.share(), polar.strides(), polar.shape(),
-                        frequency_range, angle_range, log, interp, stream.cuda());
-            }
+            cuda::geometry::fft::cartesian2polar<REMAP>(
+                    cartesian.share(), cartesian.strides(), cartesian_shape,
+                    polar.share(), polar.strides(), polar.shape(),
+                    frequency_range, angle_range, log, interp, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

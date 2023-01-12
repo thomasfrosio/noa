@@ -46,17 +46,17 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
     using namespace ::noa;
     Timer timer;
 
-    const size_t count = 41;
-    const int32_t padding_factor = 2;
-    const path_t input_path = "/home/thomas/Projects/data/ribo/emd_14454.mrc";
-    const path_t output_dir = test::NOA_DATA_PATH / "geometry" / "fft" / "reconstruction";
+    const size_t count = 100;
+    const int32_t padding_factor = 1;
+    const path_t input_path = "/home/thomas/Downloads/4v6x.mrc";
+    const path_t output_dir = "/home/thomas/Projects/noa-data/assets/geometry/fft/reconstruction";
     const Device device("cpu");
 
     fmt::print("problem size: count={}, shape={}, padding_factor={}\n",
                count, io::ImageFile(input_path, io::READ).shape(), padding_factor);
 
-    const ArrayOption options(device, Allocator::DEFAULT_ASYNC);
-    Array<float33_t> fwd_rotations = generateRotationsTiltSeries_();//generateRotations_(count);
+    const ArrayOption options(device, Allocator::MANAGED);
+    Array<float33_t> fwd_rotations = generateRotations_(count);
     if (device.gpu())
         fwd_rotations = fwd_rotations.to(device);
 
@@ -78,6 +78,10 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
 
     Array<float> slices;
     {
+        float mean = noa::math::mean(volume);
+        float std = noa::math::std(volume);
+        noa::math::ewise(volume, mean, std, volume, noa::math::minus_divide_t{});
+
         // Zero pad:
         timer.start();
         auto [volume_padded, volume_padded_fft] = fft::empty<float>(volume_shape_padded, options);
@@ -87,21 +91,34 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
 
         // Prepare the volume for the forward projection:
         timer.start();
+//        geometry::fft::griddingCorrection(volume_padded, volume_padded, false);
+        io::save(volume_padded, output_dir / "volume_padded.mrc");
+
+        fft::remap(fft::F2FC, volume_padded.copy(), volume_padded, volume_shape);
+
         fft::r2c(volume_padded, volume_padded_fft);
         fft::remap(fft::H2HC, volume_padded_fft, volume_padded_fft, volume_shape_padded);
-        signal::fft::shift3D<fft::HC2HC>(volume_padded_fft, volume_padded_fft,
-                                         volume_shape_padded, -volume_center_padded);
+//        signal::fft::shift3D<fft::HC2HC>(volume_padded_fft, volume_padded_fft,
+//                                         volume_shape_padded, -volume_center_padded);
 
         // Extract the slices:
         auto [slices_padded, slices_padded_fft] = fft::empty<float>(slices_shape_padded, options);
-        geometry::fft::extract3D<fft::HC2H>(volume_padded_fft.release(), volume_shape_padded,
+        geometry::fft::extract3D<fft::HC2HC>(volume_padded_fft.release(), volume_shape_padded,
                                             slices_padded_fft, slices_shape_padded,
                                             float22_t{}, fwd_rotations);
+        fft::remap(fft::HC2H, slices_padded_fft.copy(), slices_padded_fft, slices_shape_padded);
+
+        signal::fft::lowpass<fft::H2H>(slices_padded_fft, slices_padded_fft, slices_shape_padded, 0.45f, 0.03f);
+        Array tmp = noa::memory::empty<float>(slices_padded_fft.shape(), options);
+        noa::math::ewise(slices_padded_fft, tmp, noa::math::abs_one_log_t{});
+        io::save(tmp, output_dir / "slices_ps.mrc");
 
         // Post-process the slices:
-        signal::fft::shift2D<fft::H2H>(slices_padded_fft, slices_padded_fft,
-                                       slices_shape_padded, slices_center_padded);
+//        signal::fft::shift2D<fft::H2H>(slices_padded_fft, slices_padded_fft,
+//                                       slices_shape_padded, slices_center_padded);
         fft::c2r(slices_padded_fft.release(), slices_padded);
+        fft::remap(fft::FC2F, slices_padded.copy(), slices_padded, slices_shape_padded);
+
         slices = memory::resize(slices_padded.release(), slices_shape);
         slices.eval();
         fmt::print("forward projection: {}ms\n", timer.elapsed());

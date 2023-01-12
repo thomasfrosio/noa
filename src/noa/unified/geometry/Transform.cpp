@@ -9,8 +9,9 @@ namespace {
     using namespace ::noa;
 
     template<int32_t NDIM, bool SYMMETRY = false, typename ArrayOrTexture, typename Value, typename Matrix>
-    void transformNDCheckParameters_(const ArrayOrTexture& input, const Array<Value>& output, const Matrix& matrix,
-                                     InterpMode interp_mode = INTERP_LINEAR, bool prefilter = false) {
+    void transformNDCheckParameters_(const ArrayOrTexture& input,
+                                     const Array<Value>& output,
+                                     const Matrix& matrix) {
         const char* FUNC_NAME = SYMMETRY ?
                                 NDIM == 2 ? "symmetry2D" : "symmetry3D" :
                                 NDIM == 2 ? "transform2D" : "transform3D";
@@ -32,6 +33,8 @@ namespace {
                            input.shape(), output.shape());
         }
 
+        const Device device = output.device();
+
         if constexpr (!traits::is_floatXX_v<Matrix>) {
             NOA_CHECK_FUNC(FUNC_NAME,
                            indexing::isVector(matrix.shape()) &&
@@ -39,51 +42,25 @@ namespace {
                            "The number of matrices, specified as a contiguous vector, should be equal "
                            "to the number of batches in the output, got {} matrices and {} output batches",
                            matrix.elements(), output.shape()[0]);
+            NOA_CHECK_FUNC(FUNC_NAME, device == matrix.device(),
+                           "The transformation matrices should be on the same device as the output, "
+                           "but got matrices:{} and output:{}", matrix.device(), device);
         }
 
-        const Device device = output.device();
-        if (device.cpu()) {
+        if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
             NOA_CHECK_FUNC(FUNC_NAME, device == input.device(),
                            "The input and output arrays must be on the same device, "
                            "but got input:{} and output:{}", input.device(), device);
-
-            if constexpr (!traits::is_floatXX_v<Matrix>) {
-                NOA_CHECK_FUNC(FUNC_NAME, matrix.dereferenceable(),
-                               "The matrices should be accessible to the host");
-                if (matrix.device().gpu())
-                    Stream::current(matrix.device()).synchronize();
-            }
-
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                NOA_CHECK_FUNC(FUNC_NAME, !indexing::isOverlap(input, output),
-                               "The input and output arrays should not overlap");
-            }
+            NOA_CHECK_FUNC(FUNC_NAME, !indexing::isOverlap(input, output),
+                           "The input and output arrays should not overlap");
+            NOA_CHECK_FUNC(FUNC_NAME, indexing::areElementsUnique(output.strides(), output.shape()),
+                           "The elements in the output should not overlap in memory, "
+                           "otherwise a data-race might occur. Got output strides:{} and shape:{}",
+                           output.strides(), output.shape());
         } else {
-            #ifdef NOA_ENABLE_CUDA
-            bool sync_cpu{false};
-            if constexpr (!traits::is_floatXX_v<Matrix>) {
-                if (matrix.device().cpu())
-                    sync_cpu = true;
-                else if (matrix.device().id() != device.id())
-                    Stream::current(matrix.device()).synchronize();
-            }
-
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                if (input.device().cpu())
-                    sync_cpu = true;
-                const bool is_bspline = interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST;
-                NOA_CHECK_FUNC(FUNC_NAME, device == input.device() || (!prefilter || !is_bspline),
-                               "The input is about to be prefiltered for cubic B-spline interpolation. "
-                               "In this case, the input and output arrays must be on the same device. "
-                               "Got device input:{} and output:{}", input.device(), device);
-            } else {
-                NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
-                               "The input texture and output array must be on the same device, "
-                               "but got input:{} and output:{}", input.device(), output.device());
-            }
-            if (sync_cpu)
-                Stream::current(Device(Device::CPU)).synchronize();
-            #endif
+            NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
+                           "The input texture and output array must be on the same device, "
+                           "but got input:{} and output:{}", input.device(), output.device());
         }
     }
 
@@ -103,7 +80,7 @@ namespace noa::geometry {
     template<typename Value, typename Matrix, typename>
     void transform2D(const Array<Value>& input, const Array<Value>& output, const Matrix& inv_matrices,
                      InterpMode interp_mode, BorderMode border_mode, Value value, bool prefilter) {
-        transformNDCheckParameters_<2>(input, output, inv_matrices, interp_mode, prefilter);
+        transformNDCheckParameters_<2>(input, output, inv_matrices);
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -116,15 +93,11 @@ namespace noa::geometry {
 
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::transform2D(
-                        input.share(), input.strides(), input.shape(),
-                        output.share(), output.strides(), output.shape(),
-                        extractMatrix_(inv_matrices), interp_mode, border_mode,
-                        prefilter, stream.cuda());
-            }
+            cuda::geometry::transform2D(
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
+                    extractMatrix_(inv_matrices), interp_mode, border_mode, value,
+                    prefilter, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -147,7 +120,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+                NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform2D(
@@ -165,7 +138,7 @@ namespace noa::geometry {
     template<typename Value, typename Matrix, typename>
     void transform3D(const Array<Value>& input, const Array<Value>& output, const Matrix& inv_matrices,
                      InterpMode interp_mode, BorderMode border_mode, Value value, bool prefilter) {
-        transformNDCheckParameters_<3>(input, output, inv_matrices, interp_mode, prefilter);
+        transformNDCheckParameters_<3>(input, output, inv_matrices);
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -178,15 +151,11 @@ namespace noa::geometry {
 
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::transform3D(
-                        input.share(), input.strides(), input.shape(),
-                        output.share(), output.strides(), output.shape(),
-                        extractMatrix_(inv_matrices), interp_mode, border_mode,
-                        prefilter, stream.cuda());
-            }
+            cuda::geometry::transform3D(
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
+                    extractMatrix_(inv_matrices), interp_mode, border_mode,
+                    value, prefilter, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -209,7 +178,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+                NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform3D(
@@ -259,7 +228,7 @@ namespace noa::geometry {
     void transform2D(const Array<Value>& input, const Array<Value>& output,
                      float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
                      InterpMode interp_mode, bool prefilter, bool normalize) {
-        transformNDCheckParameters_<2>(input, output, float22_t{}, interp_mode, prefilter);
+        transformNDCheckParameters_<2>(input, output, float22_t{});
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -271,15 +240,11 @@ namespace noa::geometry {
                     prefilter, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::transform2D(
-                        input.share(), input.strides(), input.shape(),
-                        output.share(), output.strides(), output.shape(),
-                        shift, inv_matrix, symmetry, center, interp_mode,
-                        prefilter, normalize, stream.cuda());
-            }
+            cuda::geometry::transform2D(
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
+                    shift, inv_matrix, symmetry, center, interp_mode,
+                    prefilter, normalize, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -304,7 +269,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+                NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform2D(
@@ -336,15 +301,11 @@ namespace noa::geometry {
                     prefilter, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::transform3D(
-                        input.share(), input.strides(), input.shape(),
-                        output.share(), output.strides(), output.shape(),
-                        shift, inv_matrix, symmetry, center, interp_mode,
-                        prefilter, normalize, stream.cuda());
-            }
+            cuda::geometry::transform3D(
+                    input.share(), input.strides(), input.shape(),
+                    output.share(), output.strides(), output.shape(),
+                    shift, inv_matrix, symmetry, center, interp_mode,
+                    prefilter, normalize, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -369,7 +330,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+                NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform3D(
@@ -389,7 +350,7 @@ namespace noa::geometry {
     void symmetrize2D(const Array<Value>& input, const Array<Value>& output,
                       const Symmetry& symmetry, float2_t center,
                       InterpMode interp_mode, bool prefilter, bool normalize) {
-        transformNDCheckParameters_<2, true>(input, output, float22_t{}, interp_mode, prefilter);
+        transformNDCheckParameters_<2, true>(input, output, float22_t{});
         dim4_t input_strides = input.strides();
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
@@ -403,14 +364,10 @@ namespace noa::geometry {
                     symmetry, center, interp_mode, prefilter, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<Value>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::symmetrize2D(
-                        input.share(), input_strides,
-                        output.share(), output.strides(), output.shape(),
-                        symmetry, center, interp_mode, prefilter, normalize, stream.cuda());
-            }
+            cuda::geometry::symmetrize2D(
+                    input.share(), input_strides,
+                    output.share(), output.strides(), output.shape(),
+                    symmetry, center, interp_mode, prefilter, normalize, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -421,7 +378,7 @@ namespace noa::geometry {
     void symmetrize2D(const Texture<Value>& input, const Array<Value>& output,
                       const Symmetry& symmetry, float2_t center,
                       bool normalize) {
-        transformNDCheckParameters_<2, true>(input, output, float22_t{}, INTERP_LINEAR, false);
+        transformNDCheckParameters_<2, true>(input, output, float22_t{});
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -435,7 +392,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+                NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::symmetrize2D(
@@ -453,7 +410,7 @@ namespace noa::geometry {
     void symmetrize3D(const Array<Value>& input, const Array<Value>& output,
                       const Symmetry& symmetry, float3_t center,
                       InterpMode interp_mode, bool prefilter, bool normalize) {
-        transformNDCheckParameters_<2, true>(input, output, float22_t{}, interp_mode, prefilter);
+        transformNDCheckParameters_<3, true>(input, output, float22_t{});
         dim4_t input_strides = input.strides();
         if (input.shape()[0] == 1)
             input_strides[0] = 0;
@@ -467,14 +424,10 @@ namespace noa::geometry {
                     symmetry, center, interp_mode, prefilter, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<Value>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::symmetrize3D(
-                        input.share(), input_strides,
-                        output.share(), output.strides(), output.shape(),
-                        symmetry, center, interp_mode, prefilter, normalize, stream.cuda());
-            }
+            cuda::geometry::symmetrize3D(
+                    input.share(), input_strides,
+                    output.share(), output.strides(), output.shape(),
+                    symmetry, center, interp_mode, prefilter, normalize, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -485,7 +438,7 @@ namespace noa::geometry {
     void symmetrize3D(const Texture<Value>& input, const Array<Value>& output,
                       const Symmetry& symmetry, float3_t center,
                       bool normalize) {
-        transformNDCheckParameters_<3, true>(input, output, float33_t{}, INTERP_LINEAR, false);
+        transformNDCheckParameters_<3, true>(input, output, float33_t{});
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -499,7 +452,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!traits::is_any_v<Value, float, cfloat_t>) {
-                NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
+                NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::symmetrize3D(

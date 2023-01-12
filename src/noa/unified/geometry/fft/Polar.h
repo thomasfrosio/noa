@@ -30,16 +30,6 @@ namespace noa::geometry::fft {
     /// \param log              Whether log-polar coordinates should be computed instead.
     /// \param interp           Interpolation method used to interpolate the values onto the new grid.
     ///                         Cubic interpolations are not supported.
-    ///
-    /// \note Out-of-bounds elements are set to zero.
-    /// \note If \p polar is on the CPU:\n
-    ///         - \p cartesian and \p polar should not overlap.\n
-    ///         - \p cartesian and \p polar should be on the same device.\n
-    /// \note If \p polar is on the GPU:\n
-    ///         - Double-precision (complex-) floating-points are not supported.\n
-    ///         - \p input should be in the rightmost order and the width dimension should be contiguous.\n
-    ///         - \p cartesian can be on any device including the CPU.
-    ///         - In-place transformation is always allowed.\n
     template<Remap REMAP, typename Value, typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, Value>>>
     void cartesian2polar(const Array<Value>& cartesian, dim4_t cartesian_shape,
                          const Array<Value>& polar,

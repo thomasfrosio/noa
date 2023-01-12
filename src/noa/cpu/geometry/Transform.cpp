@@ -254,33 +254,15 @@ namespace {
         if (!symmetry.count())
             return cpu::memory::copy(input, input_strides, output, output_strides, shape, stream);
 
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST))
+            cpu::geometry::bspline::prefilter(input, input_strides, input, input_strides, shape, stream);
+
         const dim_t threads = stream.threads();
-        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            stream.enqueue([=]() mutable {
-                dim4_t new_shape = shape;
-                dim4_t new_strides = new_shape.strides();
-
-                if (input_strides[0] == 0) {
-                    new_shape[0] = 1; // only one batch in input
-                    new_strides[0] = 0;
-                }
-                const auto unique_buffer = cpu::memory::PtrHost<Value>::alloc(new_shape.elements());
-                cpu::geometry::bspline::prefilter(
-                        input.get(), input_strides,
-                        unique_buffer.get(), new_strides,
-                        new_shape, threads);
-
-                launchSymmetry_<Value>(
-                        unique_buffer.get(), new_strides, output.get(), output_strides, shape,
-                        symmetry, center, interp_mode, normalize, threads);
-            });
-        } else {
-            stream.enqueue([=]() {
-                launchSymmetry_<Value>(
-                        input.get(), input_strides, output.get(), output_strides, shape,
-                        symmetry, center, interp_mode, normalize, threads);
-            });
-        }
+        stream.enqueue([=]() {
+            launchSymmetry_<Value>(
+                    input.get(), input_strides, output.get(), output_strides, shape,
+                    symmetry, center, interp_mode, normalize, threads);
+        });
     }
 
     template<typename Matrix>
@@ -320,30 +302,15 @@ namespace noa::cpu::geometry {
         const auto output_shape_2d = long3_t{output_shape[0], output_shape[2], output_shape[3]};
         const auto threads = stream.threads();
 
-        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            stream.enqueue([=]() mutable {
-                dim4_t buffer_strides = input_shape.strides();
-                if (input_shape[0] == 1)
-                    buffer_strides[0] = 0;
-                const auto buffer_strides_2d = long3_t{buffer_strides[0], buffer_strides[2], buffer_strides[3]};
-                const auto unique_buffer = memory::PtrHost<Value>::alloc(input_shape.elements());
-                bspline::prefilter(input.get(), input_strides,
-                                   unique_buffer.get(), buffer_strides,
-                                   input_shape, threads);
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST))
+            bspline::prefilter(input, input_strides, input, input_strides, input_shape, stream);
 
-                launchLinearTransform_<2>(
-                        {unique_buffer.get(), buffer_strides_2d}, input_shape_2d,
-                        {output.get(), output_strides_2d}, output_shape_2d,
-                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
-            });
-        } else {
-            stream.enqueue([=]() {
-                launchLinearTransform_<2>(
-                        {input.get(), input_strides_2d}, input_shape_2d,
-                        {output.get(), output_strides_2d}, output_shape_2d,
-                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
-            });
-        }
+        stream.enqueue([=]() {
+            launchLinearTransform_<2>(
+                    {input.get(), input_strides_2d}, input_shape_2d,
+                    {output.get(), output_strides_2d}, output_shape_2d,
+                    matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
+        });
     }
 
     template<typename Value, typename Matrix, typename>
@@ -360,33 +327,19 @@ namespace noa::cpu::geometry {
         else if (input_strides[0] == 0)
             input_shape[0] = 1;
 
-        const long3_t input_shape_3d(input_shape.get(1));
-        const long4_t output_shape_3d(output_shape);
+        const auto input_shape_3d = long3_t(input_shape.get(1));
+        const auto output_shape_3d = long4_t(output_shape);
         const dim_t threads = stream.threads();
 
-        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-            stream.enqueue([=]() mutable {
-                dim4_t buffer_strides = input_shape.strides();
-                if (input_shape[0] == 1)
-                    buffer_strides[0] = 0;
-                const auto unique_buffer = memory::PtrHost<Value>::alloc(input_shape.elements());
-                bspline::prefilter(input.get(), input_strides,
-                                   unique_buffer.get(), buffer_strides,
-                                   input_shape, threads);
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST))
+            bspline::prefilter(input, input_strides, input, input_strides, input_shape, stream);
 
-                launchLinearTransform_<3>(
-                        {unique_buffer.get(), buffer_strides}, input_shape_3d,
-                        {output.get(), output_strides}, output_shape_3d,
-                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
-            });
-        } else {
-            stream.enqueue([=]() {
-                launchLinearTransform_<3>(
-                        {input.get(), input_strides}, input_shape_3d,
-                        {output.get(), output_strides}, output_shape_3d,
-                        matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
-            });
-        }
+        stream.enqueue([=]() {
+            launchLinearTransform_<3>(
+                    {input.get(), input_strides}, input_shape_3d,
+                    {output.get(), output_strides}, output_shape_3d,
+                    matrixOrRawConstPtr(inv_matrices), value, interp_mode, border_mode, threads);
+        });
     }
 
     template<typename Value, typename>
@@ -405,29 +358,17 @@ namespace noa::cpu::geometry {
         else if (input_strides[0] == 0)
             input_shape[0] = 1;
 
-        const dim_t threads = stream.threads();
-        stream.enqueue([=]() mutable {
-            using unique_ptr = typename memory::PtrHost<Value>::alloc_unique_t;
-            unique_ptr buffer;
-            const Value* input_ptr;
-            dim3_t input_strides_2d; // assume Z == 1
-            if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-                buffer = memory::PtrHost<Value>::alloc(input_shape.elements());
-                dim4_t buffer_strides = input_shape.strides();
-                if (input_shape[0] == 1)
-                    buffer_strides[0] = 0;
-                bspline::prefilter(input.get(), input_strides, buffer.get(), buffer_strides, input_shape, threads);
-                input_ptr = buffer.get();
-                input_strides_2d = {buffer_strides[0], buffer_strides[2], buffer_strides[3]};
-            } else {
-                input_ptr = input.get();
-                input_strides_2d = {input_strides[0], input_strides[2], input_strides[3]};
-            }
+        const auto input_shape_2d = long2_t{input_shape[2], input_shape[3]};
+        const auto input_strides_2d = long3_t{input_strides[0], input_strides[2], input_strides[3]};
+        const auto output_shape_2d = long3_t{output_shape[0], output_shape[2], output_shape[3]};
+        const auto output_strides_2d = long3_t{output_strides[0], output_strides[2], output_strides[3]};
 
-            const auto input_shape_2d = long2_t{input_shape[2], input_shape[3]};
-            const auto output_shape_2d = long3_t{output_shape[0], output_shape[2], output_shape[3]};
-            const auto output_strides_2d = long3_t{output_strides[0], output_strides[2], output_strides[3]};
-            const auto input_accessor = AccessorRestrict<const Value, 3, int64_t>(input_ptr, input_strides_2d);
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST))
+            bspline::prefilter(input, input_strides, input, input_strides, input_shape, stream);
+
+        const dim_t threads = stream.threads();
+        stream.enqueue([=]() {
+            const auto input_accessor = AccessorRestrict<const Value, 3, int64_t>(input.get(), input_strides_2d);
             const auto output_accessor = AccessorRestrict<Value, 3, int64_t>(output.get(), output_strides_2d);
 
             using real_t = traits::value_type_t<Value>;
@@ -497,28 +438,15 @@ namespace noa::cpu::geometry {
         else if (input_strides[0] == 0)
             input_shape[0] = 1;
 
+        const long3_t input_shape_3d(input_shape.get(1));
+        const long4_t output_shape_3d(output_shape);
         const dim_t threads = stream.threads();
-        stream.enqueue([=]() mutable {
-            using unique_ptr = typename memory::PtrHost<Value>::alloc_unique_t;
-            unique_ptr buffer;
-            const Value* input_ptr;
-            long4_t input_strides_3d;
-            if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST)) {
-                buffer = memory::PtrHost<Value>::alloc(input_shape.elements());
-                dim4_t buffer_strides = input_shape.strides();
-                if (input_shape[0] == 1)
-                    buffer_strides[0] = 0;
-                bspline::prefilter(input.get(), input_strides, buffer.get(), buffer_strides, input_shape, threads);
-                input_ptr = buffer.get();
-                input_strides_3d = long4_t(buffer_strides);
-            } else {
-                input_ptr = input.get();
-                input_strides_3d = long4_t(input_strides);
-            }
 
-            const long3_t input_shape_3d(input_shape.get(1));
-            const long4_t output_shape_3d(output_shape);
-            const auto input_accessor = AccessorRestrict<const Value, 4, int64_t>(input_ptr, input_strides_3d);
+        if (prefilter && (interp_mode == INTERP_CUBIC_BSPLINE || interp_mode == INTERP_CUBIC_BSPLINE_FAST))
+            bspline::prefilter(input, input_strides, input, input_strides, input_shape, stream);
+
+        stream.enqueue([=]() {
+            const auto input_accessor = AccessorRestrict<const Value, 4, int64_t>(input.get(), input_strides);
             const auto output_accessor = AccessorRestrict<Value, 4, int64_t>(output.get(), output_strides);
 
             using real_t = traits::value_type_t<Value>;

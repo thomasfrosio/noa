@@ -27,6 +27,11 @@ namespace {
                        "The number of batches in the input ({}) is not compatible with the number of "
                        "batches in the output ({})", input.shape()[0], output.shape()[0]);
 
+        const Device device = output.device();
+        NOA_CHECK_FUNC(FUNC_NAME, device == input.device(),
+                       "The input and output arrays must be on the same device, "
+                       "but got input:{} and output:{}", input.device(), device);
+
         if constexpr (!traits::is_floatXX_v<Matrix>) {
             NOA_CHECK_FUNC(FUNC_NAME,
                            indexing::isVector(inv_matrices.shape()) &&
@@ -34,6 +39,9 @@ namespace {
                            "The number of matrices, specified as a contiguous vector, should be equal "
                            "to the number of batches in the output, got {} matrices and {} output batches",
                            inv_matrices.elements(), output.shape()[0]);
+            NOA_CHECK_FUNC(FUNC_NAME, device == inv_matrices.device(),
+                           "The input matrices and output arrays must be on the same device, "
+                           "but got matrix:{} and output:{}", inv_matrices.device(), device);
         }
         if constexpr (!traits::is_floatX_v<Shift>) {
             NOA_CHECK_FUNC(FUNC_NAME,
@@ -42,66 +50,25 @@ namespace {
                            "The number of shifts, specified as a contiguous vector, should be equal "
                            "to the number of batches in the output, got {} shifts and {} output batches",
                            post_shifts.elements(), output.shape()[0]);
+            NOA_CHECK_FUNC(FUNC_NAME, device == post_shifts.device(),
+                           "The input shifts and output arrays must be on the same device, "
+                           "but got shift:{} and output:{}", post_shifts.device(), device);
         }
 
-        const Device device = output.device();
-        if (device.cpu()) {
+        if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
             NOA_CHECK_FUNC(FUNC_NAME, device == input.device(),
                            "The input and output arrays must be on the same device, "
                            "but got input:{} and output:{}", input.device(), device);
-
-            if constexpr (!traits::is_floatXX_v<Matrix>) {
-                NOA_CHECK_FUNC(FUNC_NAME, inv_matrices.dereferenceable(),
-                               "The matrices should be accessible to the CPU");
-                if (inv_matrices.device().gpu())
-                    Stream::current(inv_matrices.device()).synchronize();
-                if constexpr (!traits::is_floatX_v<Shift>) {
-                    NOA_CHECK_FUNC(FUNC_NAME, post_shifts.empty() || post_shifts.dereferenceable(),
-                                   "The shifts should be accessible to the CPU");
-                    if (!post_shifts.empty() && post_shifts.device().gpu() &&
-                        inv_matrices.device() != post_shifts.device())
-                        Stream::current(post_shifts.device()).synchronize();
-                }
-            } else if constexpr (!traits::is_floatX_v<Shift>) {
-                NOA_CHECK_FUNC(FUNC_NAME, post_shifts.empty() || post_shifts.dereferenceable(),
-                               "The shifts should be accessible to the CPU");
-                if (!post_shifts.empty() && post_shifts.device().gpu())
-                    Stream::current(post_shifts.device()).synchronize();
-            }
-
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                NOA_CHECK_FUNC(FUNC_NAME, !indexing::isOverlap(input, output),
-                               "The input and output arrays should not overlap");
-            }
+            NOA_CHECK_FUNC(FUNC_NAME, !indexing::isOverlap(input, output),
+                           "The input and output arrays should not overlap");
+            NOA_CHECK_FUNC(FUNC_NAME, indexing::areElementsUnique(output.strides(), output.shape()),
+                           "The elements in the output should not overlap in memory, "
+                           "otherwise a data-race might occur. Got output strides:{} and shape:{}",
+                           output.strides(), output.shape());
         } else {
-            #ifdef NOA_ENABLE_CUDA
-            bool sync_cpu = false;
-            if constexpr (!traits::is_floatXX_v<Matrix>) {
-                if (inv_matrices.device().cpu())
-                    sync_cpu = true;
-                else if (inv_matrices.device().id() != device.id())
-                    Stream::current(inv_matrices.device()).synchronize();
-            }
-            if constexpr (!traits::is_floatX_v<Shift>) {
-                if (!post_shifts.empty()) {
-                    if (post_shifts.device().cpu())
-                        sync_cpu = true;
-                    else if (post_shifts.device().id() != device.id())
-                        Stream::current(post_shifts.device()).synchronize();
-                }
-            }
-
-            if constexpr (std::is_same_v<ArrayOrTexture, Array<Value>>) {
-                if (input.device().cpu())
-                    sync_cpu = true;
-            } else {
-                NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
-                               "The input texture and output array must be on the same device, "
-                               "but got input:{} and output:{}", input.device(), output.device());
-            }
-            if (sync_cpu)
-                Stream::current(Device(Device::CPU)).synchronize();
-            #endif
+            NOA_CHECK_FUNC(FUNC_NAME, input.device() == output.device(),
+                           "The input texture and output array must be on the same device, "
+                           "but got input:{} and output:{}", input.device(), output.device());
         }
     }
 
@@ -138,16 +105,12 @@ namespace noa::geometry::fft {
                     cutoff, interp_mode, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<Value>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::fft::transform2D<REMAP>(
-                        input.share(), input_strides,
-                        output.share(), output.strides(), shape,
-                        extractMatrixOrShift_(inv_matrices),
-                        extractMatrixOrShift_(post_shifts),
-                        cutoff, interp_mode, stream.cuda());
-            }
+            cuda::geometry::fft::transform2D<REMAP>(
+                    input.share(), input_strides,
+                    output.share(), output.strides(), shape,
+                    extractMatrixOrShift_(inv_matrices),
+                    extractMatrixOrShift_(post_shifts),
+                    cutoff, interp_mode, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -174,7 +137,7 @@ namespace noa::geometry::fft {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::fft::transform2D<REMAP>(
                         texture.array, texture.texture, input.interp(),
-                        output.share(), output.strides(), output.shape(),
+                        output.share(), output.strides(), shape,
                         extractMatrixOrShift_(inv_matrices),
                         extractMatrixOrShift_(post_shifts),
                         cutoff, stream.cuda());
@@ -205,16 +168,12 @@ namespace noa::geometry::fft {
                     cutoff, interp_mode, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<Value>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::fft::transform3D<REMAP>(
-                        input.share(), input_strides,
-                        output.share(), output.strides(), shape,
-                        extractMatrixOrShift_(inv_matrices),
-                        extractMatrixOrShift_(post_shifts),
-                        cutoff, interp_mode, stream.cuda());
-            }
+            cuda::geometry::fft::transform3D<REMAP>(
+                    input.share(), input_strides,
+                    output.share(), output.strides(), shape,
+                    extractMatrixOrShift_(inv_matrices),
+                    extractMatrixOrShift_(post_shifts),
+                    cutoff, interp_mode, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -240,7 +199,7 @@ namespace noa::geometry::fft {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::fft::transform3D<REMAP>(
                         texture.array, texture.texture, input.interp(),
-                        output.share(), output.strides(), output.shape(),
+                        output.share(), output.strides(), shape,
                         extractMatrixOrShift_(inv_matrices),
                         extractMatrixOrShift_(post_shifts),
                         cutoff, stream.cuda());
@@ -309,15 +268,11 @@ namespace noa::geometry::fft {
                     interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<Value>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::fft::transform2D<REMAP>(
-                        input.share(), input_strides,
-                        output.share(), output.strides(), shape,
-                        inv_matrix, symmetry, post_shift, cutoff,
-                        interp_mode, normalize, stream.cuda());
-            }
+            cuda::geometry::fft::transform2D<REMAP>(
+                    input.share(), input_strides,
+                    output.share(), output.strides(), shape,
+                    inv_matrix, symmetry, post_shift, cutoff,
+                    interp_mode, normalize, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -343,7 +298,7 @@ namespace noa::geometry::fft {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::fft::transform2D<REMAP>(
                         texture.array, texture.texture, input.interp(),
-                        output.share(), output.strides(), output.shape(),
+                        output.share(), output.strides(), shape,
                         inv_matrix, symmetry, post_shift, cutoff, normalize, stream.cuda());
             }
             #else
@@ -371,15 +326,11 @@ namespace noa::geometry::fft {
                     interp_mode, normalize, stream.cpu());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(traits::value_type_t<Value>) >= 8) {
-                NOA_THROW("Double-precision floating-points are not supported");
-            } else {
-                cuda::geometry::fft::transform3D<REMAP>(
-                        input.share(), input_strides,
-                        output.share(), output.strides(), shape,
-                        inv_matrix, symmetry, post_shift, cutoff,
-                        interp_mode, normalize, stream.cuda());
-            }
+            cuda::geometry::fft::transform3D<REMAP>(
+                    input.share(), input_strides,
+                    output.share(), output.strides(), shape,
+                    inv_matrix, symmetry, post_shift, cutoff,
+                    interp_mode, normalize, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -406,7 +357,7 @@ namespace noa::geometry::fft {
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::fft::transform3D<REMAP>(
                         texture.array, texture.texture, input.interp(),
-                        output.share(), output.strides(), output.shape(),
+                        output.share(), output.strides(), shape,
                         inv_matrix, symmetry, post_shift, cutoff, normalize, stream.cuda());
             }
             #else

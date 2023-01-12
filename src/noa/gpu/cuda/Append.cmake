@@ -139,12 +139,12 @@ set(NOA_CUDA_SOURCES
         # noa::cuda::geometry
         gpu/cuda/geometry/fft/Polar.cu
         gpu/cuda/geometry/fft/Project.cu
-        gpu/cuda/geometry/fft/Transform2D.cu
-        gpu/cuda/geometry/fft/Transform3D.cu
+        gpu/cuda/geometry/fft/Transform.cu
+        gpu/cuda/geometry/fft/TransformTexture.cu
         gpu/cuda/geometry/Polar.cu
         gpu/cuda/geometry/Prefilter.cu
-        gpu/cuda/geometry/Transform2D.cu
-        gpu/cuda/geometry/Transform3D.cu
+        gpu/cuda/geometry/Transform.cu
+        gpu/cuda/geometry/TransformTexture.cu
 
         )
 

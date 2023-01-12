@@ -125,7 +125,7 @@ namespace noa::geometry::interpolate {
 // http://www.dannyruijters.nl/cubicinterpolation/
 namespace noa::geometry::interpolate {
     template<typename data_t, typename coord_t, typename = details::enable_if_valid_interp_t<data_t, coord_t>>
-    constexpr NOA_IH data_t cubicBSpline1D(data_t v0, data_t v1, data_t v2, data_t v3, coord_t r) {
+    constexpr NOA_IHD data_t cubicBSpline1D(data_t v0, data_t v1, data_t v2, data_t v3, coord_t r) {
         using real_t = traits::value_type_t<data_t>;
         real_t w0, w1, w2, w3;
         details::bsplineWeights(r, &w0, &w1, &w2, &w3);
@@ -133,7 +133,7 @@ namespace noa::geometry::interpolate {
     }
 
     template<typename data_t, typename coord_t, typename = details::enable_if_valid_interp_t<data_t, coord_t>>
-    constexpr NOA_HOST data_t cubicBSpline2D(data_t v[4][4], coord_t rx, coord_t ry) {
+    constexpr NOA_HD data_t cubicBSpline2D(data_t v[4][4], coord_t rx, coord_t ry) {
         using real_t = traits::value_type_t<data_t>;
         real_t w0, w1, w2, w3;
         details::bsplineWeights(rx, &w0, &w1, &w2, &w3);
@@ -146,7 +146,7 @@ namespace noa::geometry::interpolate {
     }
 
     template<typename data_t, typename coord_t, typename = details::enable_if_valid_interp_t<data_t, coord_t>>
-    constexpr NOA_HOST data_t cubicBSpline3D(data_t v[4][4][4], coord_t rx, coord_t ry, coord_t rz) {
+    constexpr NOA_HD data_t cubicBSpline3D(data_t v[4][4][4], coord_t rx, coord_t ry, coord_t rz) {
         using real_t = traits::value_type_t<data_t>;
         real_t wx0, wx1, wx2, wx3;
         real_t wy0, wy1, wy2, wy3;
