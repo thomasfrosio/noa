@@ -11,9 +11,12 @@
 // TODO Add half_t/chalf_t support. https://docs.nvidia.com/cuda/cufft/index.html#half-precision-transforms
 
 namespace noa::cuda::fft::details {
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, dim4_t shape, int32_t device);
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, dim4_t input_stride, dim4_t output_stride,
-                                         dim4_t shape, int32_t device);
+    [[nodiscard]] std::shared_ptr<cufftHandle>
+    getPlan(cufftType_t type, dim4_t shape, int32_t device);
+
+    [[nodiscard]] std::shared_ptr<cufftHandle>
+    getPlan(cufftType_t type, dim4_t input_stride, dim4_t output_stride, dim4_t shape, int32_t device);
+
     void cacheClear(int32_t device) noexcept;
     void cacheLimit(int32_t device, dim_t count) noexcept;
 }
@@ -26,20 +29,20 @@ namespace noa::cuda::fft {
     dim_t fastSize(dim_t size);
 
     // Returns the optimum DHW logical shape.
-    template<typename T>
-    inline Int3<T> fastShape(Int3<T> shape) {
-        return {shape[0] > 1 ? static_cast<T>(fastSize(static_cast<dim_t>(shape[0]))) : shape[0],
-                shape[1] > 1 ? static_cast<T>(fastSize(static_cast<dim_t>(shape[1]))) : shape[1],
-                shape[2] > 1 ? static_cast<T>(fastSize(static_cast<dim_t>(shape[2]))) : shape[2]};
+    template<typename Int>
+    inline Int3<Int> fastShape(Int3<Int> shape) {
+        return {shape[0] > 1 ? static_cast<Int>(fastSize(static_cast<dim_t>(shape[0]))) : shape[0],
+                shape[1] > 1 ? static_cast<Int>(fastSize(static_cast<dim_t>(shape[1]))) : shape[1],
+                shape[2] > 1 ? static_cast<Int>(fastSize(static_cast<dim_t>(shape[2]))) : shape[2]};
     }
 
     // Returns the optimum BDHW logical shape.
-    template<typename T>
-    inline Int4<T> fastShape(Int4<T> shape) {
+    template<typename Int>
+    inline Int4<Int> fastShape(Int4<Int> shape) {
         return {shape[0],
-                shape[1] > 1 ? static_cast<T>(fastSize(static_cast<dim_t>(shape[1]))) : shape[1],
-                shape[2] > 1 ? static_cast<T>(fastSize(static_cast<dim_t>(shape[2]))) : shape[2],
-                shape[3] > 1 ? static_cast<T>(fastSize(static_cast<dim_t>(shape[3]))) : shape[3]};
+                shape[1] > 1 ? static_cast<Int>(fastSize(static_cast<dim_t>(shape[1]))) : shape[1],
+                shape[2] > 1 ? static_cast<Int>(fastSize(static_cast<dim_t>(shape[2]))) : shape[2],
+                shape[3] > 1 ? static_cast<Int>(fastSize(static_cast<dim_t>(shape[3]))) : shape[3]};
     }
 
     // Type of transform to plan for.
@@ -69,7 +72,7 @@ namespace noa::cuda::fft {
     //       should only be accessed by one (host) thread at a time.
     // NOTE: For C2C, column-major is also supported.
     //       If strides are not provided, arrays should be C-contiguous.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, float, double>>>
+    template<typename Real, typename = std::enable_if_t<traits::is_any_v<Real, float, double>>>
     class Plan {
     public:
         Plan(Type type, dim4_t shape, Device device = Device::current()) {
@@ -101,7 +104,7 @@ namespace noa::cuda::fft {
         // Offset the type if double precision.
         static cufftType_t getCufftType_(int32_t type) noexcept {
             static_assert(CUFFT_Z2Z - CUFFT_C2C == 64 && CUFFT_Z2D - CUFFT_C2R == 64 && CUFFT_D2Z - CUFFT_R2C == 64);
-            return std::is_same_v<T, float> ? static_cast<cufftType_t>(type) : static_cast<cufftType_t>(type + 64);
+            return std::is_same_v<Real, float> ? static_cast<cufftType_t>(type) : static_cast<cufftType_t>(type + 64);
         }
     };
 }

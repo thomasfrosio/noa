@@ -1,8 +1,11 @@
 #include <deque>
+
 #include "noa/gpu/cuda/fft/Plan.h"
 #include "noa/common/string/Format.h"
 
 namespace {
+    using namespace ::noa;
+
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
     constexpr uint32_t sizes_even_cufft_[315] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 48, 50, 54, 56, 60, 64, 70, 72, 80, 84,
