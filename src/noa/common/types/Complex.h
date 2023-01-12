@@ -384,6 +384,13 @@ namespace noa {
             return {length * cos(theta), length * sin(theta)};
         }
 
+        template<typename T>
+        [[nodiscard]] NOA_FHD constexpr T dot(Complex<T> a, Complex<T> b) noexcept {
+            if constexpr (std::is_same_v<T, half_t>)
+                return fma(a[0], b[0], a[1] * b[1]);
+            return a[0] * b[0] + a[1] * b[1];
+        }
+
         #define NOA_ULP_ 2
         #define NOA_EPSILON_ 1e-6f
 
