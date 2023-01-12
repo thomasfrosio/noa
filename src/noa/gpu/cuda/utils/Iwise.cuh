@@ -9,7 +9,7 @@
 
 namespace noa::cuda::utils {
     template<uint32_t THREADS_X, uint32_t THREADS_Y,
-             uint32_t ITERATIONS_X, uint32_t ITERATIONS_Y>
+             uint32_t ITERATIONS_X = 1, uint32_t ITERATIONS_Y = 1>
     struct IwiseStaticConfig {
         static constexpr uint32_t BLOCK_SIZE_X = THREADS_X;
         static constexpr uint32_t BLOCK_SIZE_Y = THREADS_Y;
