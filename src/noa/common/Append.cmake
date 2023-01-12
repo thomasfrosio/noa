@@ -52,6 +52,7 @@ set(NOA_COMMON_HEADERS
 
         common/signal/details/Shape.h
         common/signal/details/FourierCorrelationPeak.h
+        common/signal/details/FSC.h
         common/signal/Shape.h
         common/signal/Windows.h
 

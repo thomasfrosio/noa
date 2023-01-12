@@ -33,6 +33,8 @@ set(NOA_CPU_HEADERS
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.h
         cpu/signal/fft/Correlate.h
+        cpu/signal/fft/FSC.h
+        cpu/signal/fft/FSC.cpp
         cpu/signal/fft/Shape.h
         cpu/signal/fft/Shift.h
         cpu/signal/fft/Standardize.h

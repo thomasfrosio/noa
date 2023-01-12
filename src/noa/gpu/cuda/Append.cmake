@@ -63,6 +63,7 @@ set(NOA_CUDA_HEADERS
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.h
         gpu/cuda/signal/fft/Correlate.h
+        gpu/cuda/signal/fft/FSC.h
         gpu/cuda/signal/fft/Shape.h
         gpu/cuda/signal/fft/Shift.h
         gpu/cuda/signal/fft/Standardize.h
@@ -126,6 +127,7 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/signal/fft/Bandpass.cu
         gpu/cuda/signal/fft/Correlate.cu
         gpu/cuda/signal/fft/CorrelatePeak.cu
+        gpu/cuda/signal/fft/FSC.cu
         gpu/cuda/signal/fft/Shape2D.cu
         gpu/cuda/signal/fft/Shape3D.cu
         gpu/cuda/signal/fft/Shift.cu

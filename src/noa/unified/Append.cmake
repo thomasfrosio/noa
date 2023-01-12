@@ -35,6 +35,7 @@ set(NOA_UNIFIED_HEADERS
         unified/signal/fft/Bandpass.h
         unified/signal/fft/Bandpass.inl
         unified/signal/fft/Correlate.h
+        unified/signal/fft/FSC.h
         unified/signal/fft/Shape.h
         unified/signal/fft/Shape.inl
         unified/signal/fft/Shift.h
@@ -99,6 +100,7 @@ set(NOA_UNIFIED_SOURCES
         unified/geometry/fft/Transform.cpp
 
         unified/signal/fft/Correlate.cpp
+        unified/signal/fft/FSC.cpp
 
         )
 
