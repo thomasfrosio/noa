@@ -50,13 +50,15 @@
   centralize most CPU and CUDA to a few index-wise functions. Then we just need to provide functors/lambdas,
   which can be shared by all the backends... I really think this is where the library should go.
 
-  For the `geometry` namespace, move the main kernels to the `common` directory as well and encapsulate textures,
-  so they have the same interface as the CPU interpolators.
-
 
 - __Vector N__: Not having a generic static Vector<N, T> is becoming more and more problematic. I should create such 
   vector and progressively replace the FloatN and IntN alternatives. This will also go with making the library more
-  type-safe and have strong types for Strides<N, T> and Shape<N, T>.
+  type-safe and have strong types for Strides<N, T> and Shape<N, T>. Remove the pointer constructor and add a "filter"
+  function to filter indexes: e.g. `Vec<4, int>(0,1,2,3).filter(1,3) <-> Vec<2, int>(1,3)`
+
+
+- __Rust/LLVM numeric types__: Use `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f16`, `f32`, `f64`, `c32`,
+  `c64`, `c128` types. There could be the `is_numeric` traits.
 
 
 - Add `io::load_data()`, to return the file data section (the Array). And make `io::load()` return the Array and
