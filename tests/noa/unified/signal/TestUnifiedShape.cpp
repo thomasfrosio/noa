@@ -8,6 +8,8 @@
 #include "Helpers.h"
 #include "Assets.h"
 
+using namespace ::noa;
+
 TEST_CASE("unified::signal::sphere, 2D", "[assets][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices = {Device("cpu")};

@@ -3,8 +3,6 @@
 #error "Cannot include this private header"
 #endif
 
-using namespace noa;
-
 namespace noa::string {
     template<typename T, typename>
     T parse(const std::string& string, int& error) noexcept {

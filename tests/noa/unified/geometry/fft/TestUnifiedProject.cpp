@@ -7,6 +7,8 @@
 #include "Helpers.h"
 #include "Assets.h"
 
+using namespace ::noa;
+
 TEST_CASE("unified::geometry::fft::insert3D, by rasterisation", "[noa][unified]") {
     const path_t path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert3D_rasterisation"];
@@ -576,7 +578,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::extract3D from slices, using value",
     }
 }
 
-TEST_CASE("unified::geometry::fft::extract3D from slices, test rot", "jhkjhj") {
+TEST_CASE("unified::geometry::fft::extract3D from slices, test rot", "[.]") {
     std::vector<Device> devices = {Device("cpu")};
 //    if (Device::any(Device::GPU))
 //        devices.emplace_back("gpu");
