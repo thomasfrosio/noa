@@ -210,8 +210,8 @@ namespace noa::indexing {
     /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
     /// \note If one want to check whether the array is contiguous or not, while all(isContiguous(...)) is equal to
     ///       areContiguous(...), the later is preferred simply because it is clearer and slightly more efficient.
-    /// FIXME Broadcast dimensions are NOT contiguous, but they are treated as such.
-    ///       Only empty dimensions are treated as contiguous regardless of their stride.
+    /// FIXME Broadcast dimensions are NOT contiguous, but they are wrongly treated as such here.
+    ///       Only empty dimensions should be treated as contiguous regardless of their stride.
     ///       Functions that require broadcast dimensions to be contiguous should call effectiveShape first,
     ///       to "cancel" the broadcasting and mark the dimension as empty.
     template<char ORDER = 'C', typename T>
@@ -490,6 +490,7 @@ namespace noa::indexing {
     /// \param[out] new_strides New strides.
     /// \return Whether the input and output shape and strides are compatible.
     ///         If false, \p new_strides is left in an undefined state.
+    /// \note Zero strides are allowed.
     template<typename T>
     NOA_IH bool reshape(Int4<T> old_shape, Int4<T> old_strides,
                         Int4<T> new_shape, Int4<T>& new_strides) noexcept {
@@ -530,9 +531,9 @@ namespace noa::indexing {
         return lhs_start <= rhs_end && lhs_end >= rhs_start;
     }
 
-    template<typename T, typename U, typename int_t, typename = std::enable_if_t<traits::is_int_v<int_t>>>
-    constexpr bool isOverlap(const T* lhs, int_t lhs_stride, int_t lhs_size ,
-                             const U* rhs, int_t rhs_stride, int_t rhs_size) noexcept {
+    template<typename T, typename U, typename Int, typename = std::enable_if_t<traits::is_int_v<Int>>>
+    constexpr bool isOverlap(const T* lhs, Int lhs_stride, Int lhs_size ,
+                             const U* rhs, Int rhs_stride, Int rhs_size) noexcept {
         if (lhs_size == 0 || rhs_size == 0)
             return false;
 
@@ -543,9 +544,9 @@ namespace noa::indexing {
         return isOverlap(lhs_start, lhs_end, rhs_start, rhs_end);
     }
 
-    template<typename T, typename U, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
-    constexpr bool isOverlap(const T* lhs, const intX_t& lhs_strides, const intX_t& lhs_shape,
-                             const U* rhs, const intX_t& rhs_strides, const intX_t& rhs_shape) noexcept {
+    template<typename T, typename U, typename IntX, typename = std::enable_if_t<traits::is_intX_v<IntX>>>
+    constexpr bool isOverlap(const T* lhs, const IntX& lhs_strides, const IntX& lhs_shape,
+                             const U* rhs, const IntX& rhs_strides, const IntX& rhs_shape) noexcept {
         if (any(lhs_shape == 0) || any(rhs_shape == 0))
             return false;
 
@@ -556,11 +557,23 @@ namespace noa::indexing {
         return isOverlap(lhs_start, lhs_end, rhs_start, rhs_end);
     }
 
-    template<typename T, typename U, typename intX_t, typename = std::enable_if_t<traits::is_intX_v<intX_t>>>
-    constexpr bool isOverlap(const T* lhs, intX_t lhs_strides,
-                             const U* rhs, intX_t rhs_strides,
-                             intX_t shape) noexcept {
+    template<typename T, typename U, typename IntX, typename = std::enable_if_t<traits::is_intX_v<IntX>>>
+    constexpr bool isOverlap(const T* lhs, IntX lhs_strides,
+                             const U* rhs, IntX rhs_strides,
+                             IntX shape) noexcept {
         return isOverlap(lhs, lhs_strides, shape, rhs, rhs_strides, shape);
+    }
+
+    /// Whether the array with this memory layout has elements pointing to the same memory.
+    /// This is useful to guard against data-race when the array is passed as output.
+    template<typename IntX, typename = std::enable_if_t<traits::is_intX_v<IntX>>>
+    constexpr bool areElementsUnique(const IntX& strides, const IntX& shape) noexcept {
+        for (size_t i = 0; i < std::decay_t<IntX>::COUNT; ++i)
+            if (strides[i] == 0 && shape[i] > 1)
+                return false;
+
+        // FIXME Check that a dimension doesn't overlap with another dimension.
+        return true;
     }
 }
 
