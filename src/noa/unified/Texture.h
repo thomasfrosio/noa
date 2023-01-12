@@ -128,7 +128,7 @@ namespace noa {
         [[nodiscard]] const dim4_t& shape() const noexcept;
 
         /// Returns the BDHW strides of the array.
-        [[nodiscard]] const dim4_t strides() const;
+        [[nodiscard]] dim4_t strides() const;
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>

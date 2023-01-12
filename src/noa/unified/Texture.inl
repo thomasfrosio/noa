@@ -99,7 +99,7 @@ namespace noa {
     }
 
     template<typename Value>
-    const dim4_t Texture<Value>::strides() const {
+    dim4_t Texture<Value>::strides() const {
         if (device().cpu())
             return cpu().strides;
         else

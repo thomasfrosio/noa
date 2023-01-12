@@ -97,8 +97,6 @@ namespace noa::cuda::memory {
                 case INTERP_CUBIC_BSPLINE_FAST:
                     *filter_mode = cudaFilterModeLinear;
                     break;
-                default:
-                    NOA_THROW("{} is not supported", interp);
             }
 
             // Ensure BorderMode and InterpMode are compatible
@@ -158,7 +156,7 @@ namespace noa::cuda::memory {
             tex_desc.readMode = normalized_reads_to_float;
             tex_desc.normalizedCoords = normalized_coordinates;
 
-            cudaTextureObject_t texture;
+            cudaTextureObject_t texture{};
             if (cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr))
                 NOA_THROW("Creating the texture object from a CUDA array failed, "
                           "with normalized={}, filter={}, addressing={}, reads_to_float={}",
@@ -205,7 +203,7 @@ namespace noa::cuda::memory {
             tex_desc.readMode = normalized_reads_to_float;
             tex_desc.normalizedCoords = normalized_coordinates;
 
-            cudaTextureObject_t texture;
+            cudaTextureObject_t texture{};
             if (cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr))
                 NOA_THROW("Creating the texture object from a CUDA array failed, "
                           "with normalized={}, filter={}, addressing={}, reads_to_float={}",
@@ -238,7 +236,7 @@ namespace noa::cuda::memory {
             tex_desc.readMode = normalized_reads_to_float;
             tex_desc.normalizedCoords = normalized_coordinates;
 
-            cudaTextureObject_t texture;
+            cudaTextureObject_t texture{};
             NOA_THROW_IF(cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr));
             return texture;
         }
@@ -262,8 +260,8 @@ namespace noa::cuda::memory {
         // See PtrTexture::description() for more details.
         static std::unique_ptr<cudaTextureObject_t, Deleter>
         alloc(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
-            cudaTextureFilterMode filter;
-            cudaTextureAddressMode address;
+            cudaTextureFilterMode filter{};
+            cudaTextureAddressMode address{};
             bool normalized_coords;
             description(interp_mode, border_mode, &filter, &address, &normalized_coords);
             auto tex = alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
@@ -277,8 +275,8 @@ namespace noa::cuda::memory {
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
         static std::unique_ptr<cudaTextureObject_t, Deleter>
         alloc(const T* array, dim_t pitch, dim3_t shape, InterpMode interp_mode, BorderMode border_mode) {
-            cudaTextureFilterMode filter;
-            cudaTextureAddressMode address;
+            cudaTextureFilterMode filter{};
+            cudaTextureAddressMode address{};
             bool normalized_coords;
             description(interp_mode, border_mode, &filter, &address, &normalized_coords);
             const auto tex = alloc(array, pitch, shape, filter, address, cudaReadModeElementType, normalized_coords);
