@@ -32,7 +32,7 @@ namespace noa::cuda::memory {
         } else if constexpr (traits::is_floatX_v<T> ||
                              traits::is_intX_v<T> ||
                              traits::is_floatXX_v<T>) {
-            if (all(value == T{0})) {
+            if (noa::all(value == T{0})) {
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, elements * sizeof(T), stream.id()));
             } else {
                 NOA_THROW("Setting an array of {} with a value other than {} is not currently allowed",

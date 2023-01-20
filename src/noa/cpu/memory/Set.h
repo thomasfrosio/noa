@@ -12,7 +12,7 @@ namespace noa::cpu::memory {
         if constexpr (traits::is_complex_v<T> || traits::is_intX_v<T> ||
                       traits::is_floatX_v<T> || traits::is_floatXX_v<T>) {
             using value_t = traits::value_type_t<T>;
-            if (value == T{0})
+            if (noa::all(value == T{0}))
                 return std::fill(reinterpret_cast<value_t*>(first), reinterpret_cast<value_t*>(last), value_t{0});
         }
         // std::fill is calling memset, https://godbolt.org/z/1zEzTnoTK
