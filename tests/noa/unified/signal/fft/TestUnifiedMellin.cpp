@@ -99,7 +99,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
         file.writeAll(lhs_polar.eval().get());
         file.close();
 
-        const float2_t peak = signal::fft::xpeak2D<fft::FC2FC>(lhs_polar);
+        const auto [peak, _] = signal::fft::xpeak2D<fft::FC2FC>(lhs_polar);
         std::cout << peak;
     }
 }
@@ -201,12 +201,12 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
         file.writeAll(lhs_polar.eval().get());
         file.close();
 
-        const float2_t peak0 = signal::fft::xpeak2D<fft::FC2FC>(lhs_polar);
+        const auto [peak0, _0] = signal::fft::xpeak2D<fft::FC2FC>(lhs_polar);
         std::cout << peak0 << '\n';
 
         Array<float> line{size4_t{1, 1, polar_shape[2], 1}, options};
         math::sum(lhs_polar, line);
-        const float peak1 = signal::fft::xpeak1D<fft::FC2FC>(line.reshape({1, 1, 1, polar_shape[2]}));
+        const auto [peak1, _1] = signal::fft::xpeak1D<fft::FC2FC>(line.reshape({1, 1, 1, polar_shape[2]}));
         std::cout << peak1 << '\n';
     }
 }

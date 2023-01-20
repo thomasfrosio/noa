@@ -45,32 +45,38 @@ namespace noa::cpu::signal::fft {
     // Find the highest peak in a cross-correlation line.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     void xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
-                 const shared_t<float[]>& peak_coordinates, PeakMode peak_mode, int64_t peak_radius, Stream& stream);
+                 const shared_t<float[]>& peak_coordinates, const shared_t<Real[]>& peak_values,
+                 PeakMode peak_mode, int64_t peak_radius, Stream& stream);
 
     // Returns the coordinates of the highest peak in a cross-correlation line.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    float xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
-                  PeakMode peak_mode, int64_t peak_radius, Stream& stream);
+    std::pair<float, Real> xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape,
+                                   float xmap_ellipse_radius,
+                                   PeakMode peak_mode, int64_t peak_radius, Stream& stream);
 
     // Find the highest peak in a cross-correlation map.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     void xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
-                 const shared_t<float2_t[]>& peak_coordinates, PeakMode peak_mode, long2_t peak_radius, Stream& stream);
+                 const shared_t<float2_t[]>& peak_coordinates, const shared_t<Real[]>& peak_values,
+                 PeakMode peak_mode, long2_t peak_radius, Stream& stream);
 
     // Returns the HW coordinates of the highest peak in a cross-correlation map.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    float2_t xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
-                     PeakMode peak_mode, long2_t peak_radius, Stream& stream);
+    std::pair<float2_t, Real> xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape,
+                                      float2_t xmap_ellipse_radius,
+                                      PeakMode peak_mode, long2_t peak_radius, Stream& stream);
 
     // Find the highest peak in a cross-correlation map.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
     void xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
-                 const shared_t<float3_t[]>& peak_coordinates, PeakMode peak_mode, long3_t peak_radius, Stream& stream);
+                 const shared_t<float3_t[]>& peak_coordinates, const shared_t<Real[]>& peak_values,
+                 PeakMode peak_mode, long3_t peak_radius, Stream& stream);
 
     // Returns the DHW coordinates of the highest peak in a cross-correlation map.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    float3_t xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
-                     PeakMode peak_mode, long3_t peak_radius, Stream& stream);
+    std::pair<float3_t, Real> xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape,
+                                      float3_t xmap_ellipse_radius,
+                                      PeakMode peak_mode, long3_t peak_radius, Stream& stream);
 }
 
 namespace noa::cpu::signal::fft {

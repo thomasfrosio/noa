@@ -8,7 +8,6 @@
 using namespace ::noa;
 
 TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D", "[noa][unified]", float, double) {
-    using namespace ::noa;
     dim4_t shape = test::getRandomShape(2);
     shape[2] += 200;
     shape[3] += 200;
@@ -20,70 +19,78 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D", "[noa][unified]"
     const float2_t rhs_shift{randomizer.get(), randomizer.get()};
     const float2_t rhs_center = lhs_center + rhs_shift;
 
-    std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    std::vector<noa::Device> devices{noa::Device("cpu")};
+    if (noa::Device::any(noa::Device::GPU))
         devices.emplace_back("gpu");
 
-    const std::array<signal::CorrelationMode, 4> modes{
-            signal::CONVENTIONAL_CORRELATION,
-            signal::MUTUAL_CORRELATION,
-            signal::PHASE_CORRELATION,
-            signal::DOUBLE_PHASE_CORRELATION};
+    const std::array<noa::signal::CorrelationMode, 4> modes{
+            noa::signal::CONVENTIONAL_CORRELATION,
+            noa::signal::MUTUAL_CORRELATION,
+            noa::signal::PHASE_CORRELATION,
+            noa::signal::DOUBLE_PHASE_CORRELATION};
 
     for (auto correlation_mode: modes) {
         for (auto& device: devices) {
             INFO(device);
             INFO(correlation_mode);
-            StreamGuard stream(device);
-            ArrayOption options(device, Allocator::MANAGED);
+            const auto stream = noa::StreamGuard(device);
+            const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
 
-            auto [lhs, lhs_fft] = fft::empty<TestType>(shape, options);
-            auto [rhs, rhs_fft] = fft::empty<TestType>(shape, options);
-            Array xmap = memory::empty<TestType>(shape, options);
-            Array buffer = memory::like(lhs_fft);
+            auto [lhs, lhs_fft] = noa::fft::empty<TestType>(shape, options);
+            auto [rhs, rhs_fft] = noa::fft::empty<TestType>(shape, options);
+            noa::Array xmap = noa::memory::empty<TestType>(shape, options);
+            noa::Array buffer = noa::memory::like(lhs_fft);
 
-            signal::rectangle({}, lhs, lhs_center, radius, taper);
-            signal::rectangle({}, rhs, rhs_center, radius, taper);
-            fft::r2c(lhs, lhs_fft);
-            fft::r2c(rhs, rhs_fft);
+            noa::signal::rectangle({}, lhs, lhs_center, radius, taper);
+            noa::signal::rectangle({}, rhs, rhs_center, radius, taper);
+            noa::fft::r2c(lhs, lhs_fft);
+            noa::fft::r2c(rhs, rhs_fft);
 
             float2_t shift_centered;
             float2_t shift_not_centered;
 
             {
-                signal::fft::xmap<fft::H2FC>(
+                noa::signal::fft::xmap<noa::fft::H2FC>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
 
-                shift_centered = signal::fft::xpeak2D<fft::FC2FC>(xmap);
-                shift_centered -= lhs_center;
-                if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
-                    shift_centered /= 2;
+                auto [coordinate, value] = noa::signal::fft::xpeak2D<noa::fft::FC2FC>(xmap);
+                coordinate -= lhs_center;
+                if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
+                    coordinate /= 2;
 
                 INFO("Excepted shift: " << rhs_shift);
-                INFO("Computed shift: " << -shift_centered);
-                REQUIRE_THAT(shift_centered[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
-                REQUIRE_THAT(shift_centered[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+                INFO("Computed shift: " << -coordinate);
+                REQUIRE_THAT(coordinate[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
+                REQUIRE_THAT(coordinate[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+                shift_centered = coordinate;
+
+                const auto max_value = noa::math::max(xmap);
+                REQUIRE(max_value <= value);
             }
 
             {
-                signal::fft::xmap<fft::H2F>(
+                noa::signal::fft::xmap<noa::fft::H2F>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
 
-                shift_not_centered = signal::fft::xpeak2D<fft::F2F>(xmap);
-                shift_not_centered -= lhs_center;
-                if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
-                    shift_not_centered /= 2;
+                auto [coordinate, value] = noa::signal::fft::xpeak2D<noa::fft::F2F>(xmap);
+                coordinate -= lhs_center;
+                if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
+                    coordinate /= 2;
 
                 INFO("Excepted shift: " << rhs_shift);
-                INFO("Computed shift: " << -shift_not_centered);
-                REQUIRE_THAT(shift_not_centered[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
-                REQUIRE_THAT(shift_not_centered[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+                INFO("Computed shift: " << -coordinate);
+                REQUIRE_THAT(coordinate[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
+                REQUIRE_THAT(coordinate[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+                shift_not_centered = coordinate;
+
+                const auto max_value = noa::math::max(xmap);
+                REQUIRE(max_value <= value);
             }
 
-            REQUIRE_THAT(shift_not_centered[0], Catch::WithinAbs(static_cast<double>(shift_centered[0]), 5e-5));
-            REQUIRE_THAT(shift_not_centered[1], Catch::WithinAbs(static_cast<double>(shift_centered[1]), 5e-5));
+            REQUIRE_THAT(shift_not_centered[0], Catch::WithinAbs(static_cast<double>(shift_centered[0]), 1e-4));
+            REQUIRE_THAT(shift_not_centered[1], Catch::WithinAbs(static_cast<double>(shift_centered[1]), 1e-4));
         }
     }
 }
@@ -101,71 +108,81 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D batched", "[noa][u
     const float2_t rhs_shift{randomizer.get(), randomizer.get()};
     const float2_t rhs_center = lhs_center + rhs_shift;
 
-    std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    std::vector<noa::Device> devices{noa::Device("cpu")};
+    if (noa::Device::any(noa::Device::GPU))
         devices.emplace_back("gpu");
 
-    const std::array<signal::CorrelationMode, 4> modes{
-            signal::CONVENTIONAL_CORRELATION,
-            signal::MUTUAL_CORRELATION,
-            signal::PHASE_CORRELATION,
-            signal::DOUBLE_PHASE_CORRELATION};
+    const std::array<noa::signal::CorrelationMode, 4> modes{
+            noa::signal::CONVENTIONAL_CORRELATION,
+            noa::signal::MUTUAL_CORRELATION,
+            noa::signal::PHASE_CORRELATION,
+            noa::signal::DOUBLE_PHASE_CORRELATION};
 
     for (auto correlation_mode: modes) {
         for (auto& device: devices) {
-            StreamGuard stream(device);
-            ArrayOption options(device, Allocator::MANAGED);
+            const auto stream = noa::StreamGuard(device);
+            const auto options = noa::ArrayOption(device, Allocator::MANAGED);
 
-            auto [lhs, lhs_fft] = fft::empty<TestType>(shape, options);
-            auto [rhs, rhs_fft] = fft::empty<TestType>(shape, options);
-            Array xmap = memory::empty<TestType>(shape, options);
-            Array buffer = memory::like(lhs_fft);
-            Array shifts = memory::empty<float2_t>({1, 1, 1, shape[0]}, options);
+            auto [lhs, lhs_fft] = noa::fft::empty<TestType>(shape, options);
+            auto [rhs, rhs_fft] = noa::fft::empty<TestType>(shape, options);
+            noa::Array xmap = noa::memory::empty<TestType>(shape, options);
+            noa::Array buffer = noa::memory::like(lhs_fft);
+            noa::Array shifts = noa::memory::empty<float2_t>({shape[0], 1, 1, 1}, options);
+            noa::Array values = noa::memory::empty<TestType>({shape[0], 1, 1, 1}, options);
 
-            signal::rectangle({}, lhs, lhs_center, radius, taper);
-            signal::rectangle({}, rhs, rhs_center, radius, taper);
-            fft::r2c(lhs, lhs_fft);
-            fft::r2c(rhs, rhs_fft);
+            noa::signal::rectangle({}, lhs, lhs_center, radius, taper);
+            noa::signal::rectangle({}, rhs, rhs_center, radius, taper);
+            noa::fft::r2c(lhs, lhs_fft);
+            noa::fft::r2c(rhs, rhs_fft);
 
             // Centered:
             {
-                signal::fft::xmap<fft::H2FC>(
+                noa::signal::fft::xmap<noa::fft::H2FC>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
-                signal::fft::xpeak2D<fft::FC2FC>(xmap, shifts);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
+                noa::signal::fft::xpeak2D<noa::fft::FC2FC>(xmap, shifts, values);
                 shifts.eval();
 
                 for (dim_t i = 0; i < shape[0]; ++i) {
                     float2_t shift = shifts[i];
                     shift -= lhs_center;
-                    if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
+                    if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
                         shift /= 2;
 
                     INFO("Excepted shift: " << rhs_shift);
                     INFO("Computed shift: " << -shift);
                     REQUIRE_THAT(shift[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
                     REQUIRE_THAT(shift[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+
+                    const auto max = noa::math::max(xmap.subregion(i));
+                    REQUIRE(max <= values[i]);
                 }
             }
 
+            noa::memory::fill(shifts, float2_t{0});
+            noa::memory::fill(values, TestType{0});
+
             // Non-centered:
             {
-                signal::fft::xmap<fft::H2F>(
+                noa::signal::fft::xmap<noa::fft::H2F>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
-                signal::fft::xpeak2D<fft::F2F>(xmap, shifts);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
+                noa::signal::fft::xpeak2D<noa::fft::F2F>(xmap, shifts, values);
                 shifts.eval();
 
                 for (dim_t i = 0; i < shape[0]; ++i) {
                     float2_t shift = shifts[i];
                     shift -= lhs_center;
-                    if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
+                    if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
                         shift /= 2;
 
                     INFO("Excepted shift: " << rhs_shift);
                     INFO("Computed shift: " << -shift);
                     REQUIRE_THAT(shift[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
                     REQUIRE_THAT(shift[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+
+                    const auto max = noa::math::max(xmap.subregion(i));
+                    REQUIRE(max <= values[i]);
                 }
             }
         }
@@ -192,6 +209,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D, cpu vs gpu", "[no
     test::Randomizer<long> long_randomizer{1, peak_mode == signal::PEAK_COM ? 8 : 32};
     const long2_t peak_window = {long_randomizer.get(), long_randomizer.get()};
 
+    INFO(shape);
     INFO(peak_mode);
     INFO(peak_window);
 
@@ -208,14 +226,17 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D, cpu vs gpu", "[no
         signal::fft::xmap<fft::H2FC>(lhs_fft, rhs_fft, xmap);
         const auto xmap_gpu = xmap.to(Device("gpu"));
 
-        const float2_t cpu_shift = signal::fft::xpeak2D<fft::FC2FC>(xmap, {}, peak_mode, peak_window) - lhs_center;
-        const float2_t gpu_shift = signal::fft::xpeak2D<fft::FC2FC>(xmap_gpu, {}, peak_mode, peak_window) - lhs_center;
+        auto [cpu_shift, cpu_value] = signal::fft::xpeak2D<fft::FC2FC>(xmap, {}, peak_mode, peak_window);
+        auto [gpu_shift, gpu_value] = signal::fft::xpeak2D<fft::FC2FC>(xmap_gpu.eval(), {}, peak_mode, peak_window);
+        cpu_shift -= lhs_center;
+        gpu_shift -= lhs_center;
 
         INFO("Excepted shift: " << rhs_shift);
         INFO("Computed cpu shift: " << -cpu_shift);
         INFO("Computed gpu shift: " << -gpu_shift);
         REQUIRE_THAT(cpu_shift[0], Catch::WithinAbs(static_cast<double>(gpu_shift[0]), 5e-5));
         REQUIRE_THAT(cpu_shift[1], Catch::WithinAbs(static_cast<double>(gpu_shift[1]), 5e-5));
+        REQUIRE_THAT(cpu_value, Catch::WithinAbs(static_cast<double>(gpu_value), 5e-6));
     }
 
     // Non-centered:
@@ -231,14 +252,17 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 2D, cpu vs gpu", "[no
         signal::fft::xmap<fft::H2F>(lhs_fft, rhs_fft, xmap);
         const auto xmap_gpu = xmap.to(Device("gpu"));
 
-        const float2_t cpu_shift = signal::fft::xpeak2D<fft::F2F>(xmap, {}, peak_mode, peak_window) - lhs_center;
-        const float2_t gpu_shift = signal::fft::xpeak2D<fft::F2F>(xmap_gpu, {}, peak_mode, peak_window) - lhs_center;
+        auto [cpu_shift, cpu_value] = signal::fft::xpeak2D<fft::F2F>(xmap, {}, peak_mode, peak_window);
+        auto [gpu_shift, gpu_value] = signal::fft::xpeak2D<fft::F2F>(xmap_gpu, {}, peak_mode, peak_window);
+        cpu_shift -= lhs_center;
+        gpu_shift -= lhs_center;
 
         INFO("Excepted shift: " << rhs_shift);
         INFO("Computed cpu shift: " << -cpu_shift);
         INFO("Computed gpu shift: " << -gpu_shift);
         REQUIRE_THAT(cpu_shift[0], Catch::WithinAbs(static_cast<double>(gpu_shift[0]), 5e-5));
         REQUIRE_THAT(cpu_shift[1], Catch::WithinAbs(static_cast<double>(gpu_shift[1]), 5e-5));
+        REQUIRE_THAT(cpu_value, Catch::WithinAbs(static_cast<double>(gpu_value), 5e-6));
     }
 }
 
@@ -256,69 +280,81 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D", "[noa][unified]"
     const float3_t rhs_shift{randomizer.get(), randomizer.get(), randomizer.get()};
     const float3_t rhs_center = lhs_center + rhs_shift;
 
-    std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    std::vector<noa::Device> devices{noa::Device("cpu")};
+    if (noa::Device::any(noa::Device::GPU))
         devices.emplace_back("gpu");
 
-    const std::array<signal::CorrelationMode, 4> modes{
-            signal::CONVENTIONAL_CORRELATION,
-            signal::MUTUAL_CORRELATION,
-            signal::PHASE_CORRELATION,
-            signal::DOUBLE_PHASE_CORRELATION};
+    const std::array<noa::signal::CorrelationMode, 4> modes{
+            noa::signal::CONVENTIONAL_CORRELATION,
+            noa::signal::MUTUAL_CORRELATION,
+            noa::signal::PHASE_CORRELATION,
+            noa::signal::DOUBLE_PHASE_CORRELATION};
 
     for (auto correlation_mode: modes) {
         for (auto& device: devices) {
-            StreamGuard stream(device);
-            ArrayOption options(device, Allocator::MANAGED);
+            const auto stream = noa::StreamGuard(device);
+            const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
 
-            auto [lhs, lhs_fft] = fft::empty<TestType>(shape, options);
-            auto [rhs, rhs_fft] = fft::empty<TestType>(shape, options);
-            Array xmap = memory::empty<TestType>(shape, options);
-            Array buffer = memory::like(lhs_fft);
+            auto [lhs, lhs_fft] = noa::fft::empty<TestType>(shape, options);
+            auto [rhs, rhs_fft] = noa::fft::empty<TestType>(shape, options);
+            noa::Array xmap = noa::memory::empty<TestType>(shape, options);
+            noa::Array buffer = noa::memory::like(lhs_fft);
 
-            signal::rectangle({}, lhs, lhs_center, radius, taper);
-            signal::rectangle({}, rhs, rhs_center, radius, taper);
-            fft::r2c(lhs, lhs_fft);
-            fft::r2c(rhs, rhs_fft);
+            noa::signal::rectangle({}, lhs, lhs_center, radius, taper);
+            noa::signal::rectangle({}, rhs, rhs_center, radius, taper);
+            noa::fft::r2c(lhs, lhs_fft);
+            noa::fft::r2c(rhs, rhs_fft);
 
             float3_t shift_centered;
             float3_t shift_not_centered;
 
             // Centered:
             {
-                signal::fft::xmap<fft::H2FC>(
+                noa::signal::fft::xmap<noa::fft::H2FC>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
 
-                shift_centered = signal::fft::xpeak3D<fft::FC2FC>(xmap);
-                shift_centered -= lhs_center;
-                if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
-                    shift_centered /= 2;
+                auto [shift, value] = noa::signal::fft::xpeak3D<noa::fft::FC2FC>(xmap);
+                shift -= lhs_center;
+                if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
+                    shift /= 2;
 
                 INFO("Excepted shift: " << rhs_shift);
-                INFO("Computed shift: " << -shift_centered);
-                REQUIRE_THAT(shift_centered[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
-                REQUIRE_THAT(shift_centered[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
-                REQUIRE_THAT(shift_centered[2], Catch::WithinAbs(static_cast<double>(-rhs_shift[2]), 5e-2));
+                INFO("Computed shift: " << -shift);
+                REQUIRE_THAT(shift[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
+                REQUIRE_THAT(shift[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+                REQUIRE_THAT(shift[2], Catch::WithinAbs(static_cast<double>(-rhs_shift[2]), 5e-2));
+                shift_centered = shift;
+
+                const auto max = noa::math::max(xmap);
+                REQUIRE(max <= value);
             }
 
             // Non-centered:
             {
-                signal::fft::xmap<fft::H2F>(
+                noa::signal::fft::xmap<noa::fft::H2F>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
 
-                shift_not_centered = signal::fft::xpeak3D<fft::F2F>(xmap);
-                shift_not_centered -= lhs_center;
-                if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
-                    shift_not_centered /= 2;
+                auto [shift, value] = noa::signal::fft::xpeak3D<noa::fft::F2F>(xmap);
+                shift -= lhs_center;
+                if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
+                    shift /= 2;
 
                 INFO("Excepted shift: " << rhs_shift);
-                INFO("Computed shift: " << -shift_not_centered);
-                REQUIRE_THAT(shift_not_centered[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
-                REQUIRE_THAT(shift_not_centered[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
-                REQUIRE_THAT(shift_not_centered[2], Catch::WithinAbs(static_cast<double>(-rhs_shift[2]), 5e-2));
+                INFO("Computed shift: " << -shift);
+                REQUIRE_THAT(shift[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
+                REQUIRE_THAT(shift[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
+                REQUIRE_THAT(shift[2], Catch::WithinAbs(static_cast<double>(-rhs_shift[2]), 5e-2));
+                shift_not_centered = shift;
+
+                const auto max = noa::math::max(xmap);
+                REQUIRE(max <= value);
             }
+
+            REQUIRE_THAT(shift_not_centered[0], Catch::WithinAbs(static_cast<double>(shift_centered[0]), 1e-4));
+            REQUIRE_THAT(shift_not_centered[1], Catch::WithinAbs(static_cast<double>(shift_centered[1]), 1e-4));
+            REQUIRE_THAT(shift_not_centered[2], Catch::WithinAbs(static_cast<double>(shift_centered[2]), 1e-4));
         }
     }
 }
@@ -337,44 +373,45 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D batched", "[noa][u
     const float3_t rhs_shift{randomizer.get(), randomizer.get(), randomizer.get()};
     const float3_t rhs_center = lhs_center + rhs_shift;
 
-    std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    std::vector<noa::Device> devices{noa::Device("cpu")};
+    if (noa::Device::any(noa::Device::GPU))
         devices.emplace_back("gpu");
 
-    const std::array<signal::CorrelationMode, 4> modes{
-            signal::CONVENTIONAL_CORRELATION,
-            signal::MUTUAL_CORRELATION,
-            signal::PHASE_CORRELATION,
-            signal::DOUBLE_PHASE_CORRELATION};
+    const std::array<noa::signal::CorrelationMode, 4> modes{
+            noa::signal::CONVENTIONAL_CORRELATION,
+            noa::signal::MUTUAL_CORRELATION,
+            noa::signal::PHASE_CORRELATION,
+            noa::signal::DOUBLE_PHASE_CORRELATION};
 
     for (auto correlation_mode: modes) {
         for (auto& device: devices) {
-            StreamGuard stream(device);
-            ArrayOption options(device, Allocator::MANAGED);
+            const auto stream = noa::StreamGuard(device);
+            const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
 
-            auto [lhs, lhs_fft] = fft::empty<TestType>(shape, options);
-            auto [rhs, rhs_fft] = fft::empty<TestType>(shape, options);
-            Array xmap = memory::empty<TestType>(shape, options);
-            Array buffer = memory::like(lhs_fft);
-            Array shifts = memory::empty<float3_t>({1, 1, 1, shape[0]}, options);
+            auto [lhs, lhs_fft] = noa::fft::empty<TestType>(shape, options);
+            auto [rhs, rhs_fft] = noa::fft::empty<TestType>(shape, options);
+            noa::Array xmap = noa::memory::empty<TestType>(shape, options);
+            noa::Array buffer = noa::memory::like(lhs_fft);
+            noa::Array shifts = noa::memory::empty<float3_t>({shape[0], 1, 1, 1}, options);
+            noa::Array values = noa::memory::empty<TestType>({shape[0], 1, 1, 1}, options);
 
-            signal::rectangle({}, lhs, lhs_center, radius, taper);
-            signal::rectangle({}, rhs, rhs_center, radius, taper);
-            fft::r2c(lhs, lhs_fft);
-            fft::r2c(rhs, rhs_fft);
+            noa::signal::rectangle({}, lhs, lhs_center, radius, taper);
+            noa::signal::rectangle({}, rhs, rhs_center, radius, taper);
+            noa::fft::r2c(lhs, lhs_fft);
+            noa::fft::r2c(rhs, rhs_fft);
 
             // Centered:
             {
-                signal::fft::xmap<fft::H2FC>(
+                noa::signal::fft::xmap<noa::fft::H2FC>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
-                signal::fft::xpeak3D<fft::FC2FC>(xmap, shifts);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
+                noa::signal::fft::xpeak3D<noa::fft::FC2FC>(xmap, shifts, values);
                 shifts.eval();
 
                 for (dim_t i = 0; i < shape[0]; ++i) {
                     float3_t shift = shifts[i];
                     shift -= lhs_center;
-                    if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
+                    if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
                         shift /= 2;
 
                     INFO("Excepted shift: " << rhs_shift);
@@ -382,21 +419,27 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D batched", "[noa][u
                     REQUIRE_THAT(shift[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
                     REQUIRE_THAT(shift[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
                     REQUIRE_THAT(shift[2], Catch::WithinAbs(static_cast<double>(-rhs_shift[2]), 5e-2));
+
+                    const auto max = noa::math::max(xmap.subregion(i));
+                    REQUIRE(max <= values[i]);
                 }
             }
 
+            noa::memory::fill(shifts, float3_t{0});
+            noa::memory::fill(values, TestType{0});
+
             // Non-centered:
             {
-                signal::fft::xmap<fft::H2F>(
+                noa::signal::fft::xmap<noa::fft::H2F>(
                         lhs_fft, rhs_fft, xmap,
-                        correlation_mode, fft::NORM_DEFAULT, buffer);
-                signal::fft::xpeak3D<fft::F2F>(xmap, shifts);
+                        correlation_mode, noa::fft::NORM_DEFAULT, buffer);
+                noa::signal::fft::xpeak3D<noa::fft::F2F>(xmap, shifts, values);
                 shifts.eval();
 
                 for (dim_t i = 0; i < shape[0]; ++i) {
                     float3_t shift = shifts[i];
                     shift -= lhs_center;
-                    if (correlation_mode == signal::DOUBLE_PHASE_CORRELATION)
+                    if (correlation_mode == noa::signal::DOUBLE_PHASE_CORRELATION)
                         shift /= 2;
 
                     INFO("Excepted shift: " << rhs_shift);
@@ -404,6 +447,9 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D batched", "[noa][u
                     REQUIRE_THAT(shift[0], Catch::WithinAbs(static_cast<double>(-rhs_shift[0]), 5e-2));
                     REQUIRE_THAT(shift[1], Catch::WithinAbs(static_cast<double>(-rhs_shift[1]), 5e-2));
                     REQUIRE_THAT(shift[2], Catch::WithinAbs(static_cast<double>(-rhs_shift[2]), 5e-2));
+
+                    const auto max = noa::math::max(xmap.subregion(i));
+                    REQUIRE(max <= values[i]);
                 }
             }
         }
@@ -447,8 +493,10 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D, cpu vs gpu", "[no
         signal::fft::xmap<fft::H2FC>(lhs_fft, rhs_fft, xmap);
         const auto xmap_gpu = xmap.to(Device("gpu"));
 
-        const float3_t cpu_shift = signal::fft::xpeak3D<fft::FC2FC>(xmap, {}, peak_mode, peak_window) - lhs_center;
-        const float3_t gpu_shift = signal::fft::xpeak3D<fft::FC2FC>(xmap_gpu, {}, peak_mode, peak_window) - lhs_center;
+        auto [cpu_shift, cpu_value] = signal::fft::xpeak3D<fft::FC2FC>(xmap, {}, peak_mode, peak_window);
+        auto [gpu_shift, gpu_value] = signal::fft::xpeak3D<fft::FC2FC>(xmap_gpu, {}, peak_mode, peak_window);
+        cpu_shift -= lhs_center;
+        gpu_shift -= lhs_center;
 
         INFO("Excepted shift: " << rhs_shift);
         INFO("Computed cpu shift: " << -cpu_shift);
@@ -456,6 +504,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D, cpu vs gpu", "[no
         REQUIRE_THAT(cpu_shift[0], Catch::WithinAbs(static_cast<double>(gpu_shift[0]), 5e-5));
         REQUIRE_THAT(cpu_shift[1], Catch::WithinAbs(static_cast<double>(gpu_shift[1]), 5e-5));
         REQUIRE_THAT(cpu_shift[2], Catch::WithinAbs(static_cast<double>(gpu_shift[2]), 5e-5));
+        REQUIRE_THAT(cpu_value, Catch::WithinAbs(static_cast<double>(gpu_value), 5e-6));
     }
 
     // Non-centered:
@@ -471,8 +520,10 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D, cpu vs gpu", "[no
         signal::fft::xmap<fft::H2F>(lhs_fft, rhs_fft, xmap);
         const auto xmap_gpu = xmap.to(Device("gpu"));
 
-        const float3_t cpu_shift = signal::fft::xpeak3D<fft::F2F>(xmap, {}, peak_mode, peak_window) - lhs_center;
-        const float3_t gpu_shift = signal::fft::xpeak3D<fft::F2F>(xmap_gpu, {}, peak_mode, peak_window) - lhs_center;
+        auto [cpu_shift, cpu_value] = signal::fft::xpeak3D<fft::F2F>(xmap, {}, peak_mode, peak_window);
+        auto [gpu_shift, gpu_value] = signal::fft::xpeak3D<fft::F2F>(xmap_gpu, {}, peak_mode, peak_window);
+        cpu_shift -= lhs_center;
+        gpu_shift -= lhs_center;
 
         INFO("Excepted shift: " << rhs_shift);
         INFO("Computed cpu shift: " << -cpu_shift);
@@ -480,27 +531,28 @@ TEMPLATE_TEST_CASE("unified::signal::fft, correlation peak 3D, cpu vs gpu", "[no
         REQUIRE_THAT(cpu_shift[0], Catch::WithinAbs(static_cast<double>(gpu_shift[0]), 5e-5));
         REQUIRE_THAT(cpu_shift[1], Catch::WithinAbs(static_cast<double>(gpu_shift[1]), 5e-3));
         REQUIRE_THAT(cpu_shift[2], Catch::WithinAbs(static_cast<double>(gpu_shift[2]), 5e-5));
+        REQUIRE_THAT(cpu_value, Catch::WithinAbs(static_cast<double>(gpu_value), 5e-6));
     }
 }
 
 TEST_CASE("unified::signal::fft::autocorrelate", "[.]") {
-    std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    std::vector<noa::Device> devices{noa::Device("cpu")};
+    if (noa::Device::any(noa::Device::GPU))
         devices.emplace_back("gpu");
 
     const auto shape = test::getRandomShape(3);
     const auto center = double3_t(dim3_t(shape.get(1)) / 2);
 
     for (auto& device: devices) {
-        StreamGuard stream(device);
-        ArrayOption options(device, Allocator::MANAGED);
+        const auto stream = noa::StreamGuard(device);
+        const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
 
-        Array lhs = math::random<float>(math::uniform_t{}, shape, -50, 50, options);
-        Array lhs_fft = fft::r2c(lhs);
-        Array rhs_fft = lhs_fft.copy();
-        Array xmap = memory::like(lhs);
-        signal::fft::xmap<fft::H2F>(lhs_fft, rhs_fft, xmap);
-        const float3_t shift = signal::fft::xpeak3D<fft::F2F>(xmap);
+        noa::Array lhs = noa::math::random<float>(noa::math::uniform_t{}, shape, -50, 50, options);
+        noa::Array lhs_fft = noa::fft::r2c(lhs);
+        noa::Array rhs_fft = lhs_fft.copy();
+        noa::Array xmap = noa::memory::like(lhs);
+        noa::signal::fft::xmap<noa::fft::H2F>(lhs_fft, rhs_fft, xmap);
+        const auto [shift, _] = noa::signal::fft::xpeak3D<noa::fft::F2F>(xmap);
         REQUIRE_THAT(shift[0], Catch::WithinAbs(center[0], 5e-2));
         REQUIRE_THAT(shift[1], Catch::WithinAbs(center[1], 5e-2));
         REQUIRE_THAT(shift[2], Catch::WithinAbs(center[2], 5e-2));

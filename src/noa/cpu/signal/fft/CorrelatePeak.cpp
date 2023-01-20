@@ -36,11 +36,12 @@ namespace {
         });
     }
 
-    // Fits (in the least-square sense) the peak values to a parabola to compute the subpixel position of the vertex.
-    // The "xmap" (and therefore the "peak") can be non-centered (F2F case). The "peak_radius" defines the window
-    // of the elements, around the original "peak" position, that should be included in the fit.
-    // Returns the centered peak position, with subpixel registration.
-    template<int64_t NDIM, fft::Remap REMAP, typename Real, typename Int64Vector>
+    // Fits (in the least-square sense) the peak values to a parabola to compute the vertex subpixel position and value.
+    // The "xmap" (and therefore the "peak_index") can be non-centered (F2F case). The "peak_radius" defines the window
+    // of the elements, around the original "peak_index" position, that should be included in the fit.
+    // Returns the (fft-centered) peak position and value.
+    template<int64_t NDIM, fft::Remap REMAP,
+             typename Real, typename Int64Vector>
     constexpr auto subpixelRegistrationParabola1D_(
             const Real* xmap, Int64Vector xmap_strides, Int64Vector xmap_shape,
             Int64Vector peak_index, Int64Vector peak_radius) {
@@ -105,20 +106,21 @@ namespace {
                 }
             }
         }
-        // At this point, the peak window is saved in row-major order in output.
-        // Also, the peak index is centered, so we can simply add the subpixel offset and return.
 
-        // Add sub-pixel position.
-        using real_peak_type = std::conditional_t<NDIM == 3, float3_t, float2_t>;
-        real_peak_type real_peak;
+        // At this point, the peak window is saved in row-major order in output.
+        // Also, the peak index is centered, so we can simply add the subpixel offset and compute the value.
+        using peak_coordinate_type = std::conditional_t<NDIM == 3, float3_t, float2_t>;
+        peak_coordinate_type peak_coordinate{0};
         for (int64_t dim = 0; dim < NDIM; ++dim)
-            real_peak[dim] = static_cast<float>(peak_index[dim]);
-        signal::fft::details::addSubpixelCoordParabola1D<NDIM>(output, peak_radius, real_peak);
-        return real_peak;
+            peak_coordinate[dim] += static_cast<float>(peak_index[dim]);
+        const double peak_value = signal::fft::details::vertexParabola1D<NDIM>(output, peak_radius, peak_coordinate);
+        return std::pair{peak_coordinate, static_cast<Real>(peak_value)};
     }
 
+    // Compute the center of mass around the peak and use it to adjust the peak coordinate.
+    // TODO The peak value is NOT adjusted, and it simply returns the value at "peak_index".
     template<fft::Remap REMAP, typename Real>
-    constexpr double3_t subpixelRegistrationCOM_(
+    constexpr auto subpixelRegistrationCOM_(
             Accessor<const Real, 3, int64_t> xmap, long3_t xmap_shape,
             long3_t peak_index, long3_t peak_radius) {
 
@@ -200,16 +202,22 @@ namespace {
                 }
             }
         }
-        return com / com_total + static_cast<double3_t>(peak_index);
+        const double3_t peak_coordinate = com / com_total + static_cast<double3_t>(peak_index);
+
+        // Finally, get the peak value.
+        const auto peak_window_shape = peak_radius * 2 + 1;
+        const auto peak_value = peak_window_values[noa::indexing::at(peak_radius, peak_window_shape.strides())];
+        return std::pair{peak_coordinate, peak_value};
     }
 }
 
 namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename Real, typename>
     void xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
-                 const shared_t<float[]>& peak_coordinates, PeakMode peak_mode, int64_t peak_radius,
-                 Stream& stream) {
-        NOA_ASSERT(dim3_t(shape.get(1)).ndim() == 1);
+                 const shared_t<float[]>& peak_coordinates, const shared_t<Real[]>& peak_values,
+                 PeakMode peak_mode, int64_t peak_radius, Stream& stream) {
+        NOA_ASSERT(all(shape > 0) && dim3_t(shape.get(1)).ndim() == 1);
+        NOA_ASSERT(xmap && peak_radius >= 1);
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
@@ -219,9 +227,10 @@ namespace noa::cpu::signal::fft {
             if (xmap_ellipse_radius > 0)
                 enforceMaxRadiusInPlace1D_<REMAP>(xmap.get(), strides, shape, xmap_ellipse_radius, current_stream);
 
-            const memory::PtrHost<int64_t> peak_offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape,
-                       peak_offsets.share(), true, true, current_stream);
+            const auto peak_offsets = cpu::memory::PtrHost<int64_t>::alloc(shape[0]);
+            cpu::math::find(noa::math::first_max_t{}, xmap, strides, shape,
+                            std::shared_ptr<int64_t[]>(xmap, peak_offsets.get()),
+                            true, true, current_stream);
 
             const bool is_column = shape[3] == 1;
             NOA_ASSERT(strides[3 - is_column] > 0);
@@ -233,18 +242,25 @@ namespace noa::cpu::signal::fft {
 
                 switch (peak_mode) {
                     case noa::signal::PEAK_PARABOLA_1D: {
-                        // For 1D this is annoying because we don't have Int1 or Float1...
-                        peak_coordinates.get()[batch] = subpixelRegistrationParabola1D_<1, REMAP>(
+                        // FIXME For 1D this is annoying because we don't have Vec<1,T>, yet...
+                        const auto [coordinate, value] = subpixelRegistrationParabola1D_<1, REMAP>(
                                 imap, long2_t(stride), long2_t(size),
-                                long2_t(peak_index), long2_t(peak_radius))[0];
+                                long2_t(peak_index), long2_t(peak_radius));
+                        if (peak_coordinates)
+                            peak_coordinates.get()[batch] = coordinate[0];
+                        if (peak_values)
+                            peak_values.get()[batch] = value;
                         break;
                     }
                     case noa::signal::PEAK_COM: {
                         const auto accessor = Accessor<const Real, 3, int64_t>(imap, long3_t{0, 0, stride});
-                        const double3_t final_peak = subpixelRegistrationCOM_<REMAP>(
+                        const auto [coordinate, value] = subpixelRegistrationCOM_<REMAP>(
                                 accessor, long3_t{1, 1, size},
                                 long3_t{0, 0, peak_index}, long3_t{0, 0, peak_radius});
-                        peak_coordinates.get()[batch] = static_cast<float>(final_peak[2]);
+                        if (peak_coordinates)
+                            peak_coordinates.get()[batch] = static_cast<float>(coordinate[2]);
+                        if (peak_values)
+                            peak_values.get()[batch] = value;
                         break;
                     }
                 }
@@ -253,29 +269,32 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    float xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
-                  PeakMode peak_mode, int64_t peak_radius, Stream& stream) {
+    std::pair<float, Real>
+    xpeak1D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float xmap_ellipse_radius,
+            PeakMode peak_mode, int64_t peak_radius, Stream& stream) {
         if (shape[0] != 1) // throw instead of assert because this could result in segfault
-            NOA_THROW("This overload does not supported batched arrays, but got {} batches", shape[0]);
+            NOA_THROW("This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        float peak{};
-        const shared_t<float[]> peak_ptr(xmap, &peak);
+        float coordinate{};
+        Real value{};
+        const shared_t<float[]> coordinate_ptr(xmap, &coordinate);
+        const shared_t<Real[]> value_ptr(xmap, &value);
         xpeak1D<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
-                       peak_ptr, peak_mode, peak_radius, stream);
+                       coordinate_ptr, value_ptr, peak_mode, peak_radius, stream);
         stream.synchronize();
-        return peak;
+        return {coordinate, value};
     }
 
     template<Remap REMAP, typename Real, typename>
     void xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
-                 const shared_t<float2_t[]>& peak_coordinates, PeakMode peak_mode, long2_t peak_radius,
-                 Stream& stream) {
-        NOA_ASSERT(shape[1] == 1);
-        NOA_ASSERT(all(peak_radius >= 1));
+                 const shared_t<float2_t[]>& peak_coordinates, const shared_t<Real[]>& peak_values,
+                 PeakMode peak_mode, long2_t peak_radius, Stream& stream) {
+        NOA_ASSERT(shape[1] == 1 && all(shape > 0));
+        NOA_ASSERT(xmap && all(peak_radius >= 1));
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
-            Stream current_stream(Stream::CURRENT);
+            auto current_stream = cpu::Stream(Stream::CURRENT);
             current_stream.threads(threads);
 
             if (any(xmap_ellipse_radius > 0)) {
@@ -288,30 +307,38 @@ namespace noa::cpu::signal::fft {
                                float22_t{}, noa::math::multiply_t{}, cvalue, false, current_stream);
             }
 
-            cpu::memory::PtrHost<int64_t> peak_offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape,
-                       peak_offsets.share(), true, true, current_stream);
+            const auto peak_offsets = cpu::memory::PtrHost<int64_t>::alloc(shape[0]);
+            cpu::math::find(noa::math::first_max_t{}, xmap, strides, shape,
+                            std::shared_ptr<int64_t[]>(xmap, peak_offsets.get()),
+                            true, true, current_stream);
 
             const auto shape_2d = safe_cast<long2_t>(dim2_t(shape.get(2)));
             const auto strides_2d = safe_cast<long2_t>(dim2_t(strides.get(2)));
             for (dim_t batch = 0; batch < shape[0]; ++batch) {
-                const long2_t peak_index = indexing::indexes(peak_offsets[batch], strides_2d, shape_2d);
+                const long2_t peak_index = noa::indexing::indexes(peak_offsets[batch], strides_2d, shape_2d);
                 const Real* imap = xmap.get() + strides[0] * batch;
 
                 switch (peak_mode) {
                     case noa::signal::PEAK_PARABOLA_1D: {
-                        peak_coordinates.get()[batch] = subpixelRegistrationParabola1D_<2, REMAP>(
+                        const auto [coordinate, value] = subpixelRegistrationParabola1D_<2, REMAP>(
                                 imap, strides_2d, shape_2d, peak_index, peak_radius);
+                        if (peak_coordinates)
+                            peak_coordinates.get()[batch] = coordinate;
+                        if (peak_values)
+                            peak_values.get()[batch] = value;
                         break;
                     }
                     case noa::signal::PEAK_COM: {
                         const auto accessor = Accessor<const Real, 3, int64_t>(
                                 imap, long3_t{0, strides_2d[0], strides_2d[1]});
-                        const double3_t final_peak = subpixelRegistrationCOM_<REMAP>(
+                        const auto [coordinate, value] = subpixelRegistrationCOM_<REMAP>(
                                 accessor, long3_t{1, shape_2d[0], shape_2d[1]},
                                 long3_t{0, peak_index[0], peak_index[1]},
                                 long3_t{0, peak_radius[0], peak_radius[1]});
-                        peak_coordinates.get()[batch] = float2_t{final_peak[1], final_peak[2]};
+                        if (peak_coordinates)
+                            peak_coordinates.get()[batch] = float2_t{coordinate[1], coordinate[2]};
+                        if (peak_values)
+                            peak_values.get()[batch] = value;
                         break;
                     }
                 }
@@ -320,24 +347,28 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    float2_t xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
-                     PeakMode peak_mode, long2_t peak_radius, Stream& stream) {
+    std::pair<float2_t, Real>
+    xpeak2D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float2_t xmap_ellipse_radius,
+            PeakMode peak_mode, long2_t peak_radius, Stream& stream) {
         if (shape[0] != 1) // throw instead of assert because this could result in segfault
-            NOA_THROW("This overload does not supported batched arrays, but got {} batches", shape[0]);
+            NOA_THROW("This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        float2_t peak;
-        const shared_t<float2_t[]> peak_ptr(xmap, &peak);
+        float2_t coordinate{};
+        Real value{};
+        const shared_t<float2_t[]> coordinate_ptr(xmap, &coordinate);
+        const shared_t<Real[]> value_ptr(xmap, &value);
         xpeak2D<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
-                       peak_ptr, peak_mode, peak_radius, stream);
+                       coordinate_ptr, value_ptr, peak_mode, peak_radius, stream);
         stream.synchronize();
-        return peak;
+        return {coordinate, value};
     }
 
     template<Remap REMAP, typename Real, typename>
     void xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
-                 const shared_t<float3_t[]>& peak_coordinates, PeakMode peak_mode, long3_t peak_radius,
-                 Stream& stream) {
+                 const shared_t<float3_t[]>& peak_coordinates, const shared_t<Real[]>& peak_values,
+                 PeakMode peak_mode, long3_t peak_radius, Stream& stream) {
         NOA_ASSERT(all(peak_radius >= 1));
+        NOA_ASSERT(xmap && all(shape > 0));
 
         const dim_t threads = stream.threads();
         stream.enqueue([=]() mutable {
@@ -354,9 +385,10 @@ namespace noa::cpu::signal::fft {
                                float33_t{}, noa::math::multiply_t{}, cvalue, false, current_stream);
             }
 
-            cpu::memory::PtrHost<int64_t> peak_offsets(shape[0]);
-            math::find(noa::math::first_max_t{}, xmap, strides, shape,
-                       peak_offsets.share(), true, true, current_stream);
+            const auto peak_offsets = cpu::memory::PtrHost<int64_t>::alloc(shape[0]);
+            cpu::math::find(noa::math::first_max_t{}, xmap, strides, shape,
+                            std::shared_ptr<int64_t[]>(xmap, peak_offsets.get()),
+                            true, true, current_stream);
 
             const auto shape_3d = safe_cast<long3_t>(dim3_t(shape.get(1)));
             const auto strides_3d = safe_cast<long3_t>(dim3_t(strides.get(1)));
@@ -366,15 +398,22 @@ namespace noa::cpu::signal::fft {
 
                 switch (peak_mode) {
                     case noa::signal::PEAK_PARABOLA_1D: {
-                        peak_coordinates.get()[batch] = subpixelRegistrationParabola1D_<3, REMAP>(
+                        const auto [coordinate, value] = subpixelRegistrationParabola1D_<3, REMAP>(
                                 imap, strides_3d, shape_3d, peak, peak_radius);
+                        if (peak_coordinates)
+                            peak_coordinates.get()[batch] = coordinate;
+                        if (peak_values)
+                            peak_values.get()[batch] = value;
                         break;
                     }
                     case noa::signal::PEAK_COM: {
                         const auto accessor = Accessor<const Real, 3, int64_t>(imap, strides_3d);
-                        const double3_t final_peak = subpixelRegistrationCOM_<REMAP>(
+                        const auto [coordinate, value] = subpixelRegistrationCOM_<REMAP>(
                                 accessor, shape_3d, peak, peak_radius);
-                        peak_coordinates.get()[batch] = float3_t(final_peak);
+                        if (peak_coordinates)
+                            peak_coordinates.get()[batch] = float3_t(coordinate);
+                        if (peak_values)
+                            peak_values.get()[batch] = value;
                         break;
                     }
                 }
@@ -383,26 +422,29 @@ namespace noa::cpu::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    float3_t xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
-                     PeakMode peak_mode, long3_t peak_radius, Stream& stream) {
+    std::pair<float3_t, Real>
+    xpeak3D(const shared_t<Real[]>& xmap, dim4_t strides, dim4_t shape, float3_t xmap_ellipse_radius,
+            PeakMode peak_mode, long3_t peak_radius, Stream& stream) {
         if (shape[0] != 1) // throw instead of assert because this could result in segfault
-            NOA_THROW("This overload does not supported batched arrays, but got {} batches", shape[0]);
+            NOA_THROW("This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        float3_t peak;
-        const shared_t<float3_t[]> peak_ptr(xmap, &peak);
+        float3_t coordinate{};
+        Real value{};
+        const shared_t<float3_t[]> coordinate_ptr(xmap, &coordinate);
+        const shared_t<Real[]> value_ptr(xmap, &value);
         xpeak3D<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
-                       peak_ptr, peak_mode, peak_radius, stream);
+                       coordinate_ptr, value_ptr, peak_mode, peak_radius, stream);
         stream.synchronize();
-        return peak;
+        return {coordinate, value};
     }
 
     #define NOA_INSTANTIATE_XPEAK(R, T) \
-    template void xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, const shared_t<float[]>&, PeakMode, int64_t, Stream&);         \
-    template void xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, const shared_t<float2_t[]>&, PeakMode, long2_t, Stream&);   \
-    template void xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, const shared_t<float3_t[]>&, PeakMode, long3_t, Stream&);   \
-    template float xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, PeakMode, int64_t, Stream&);                                  \
-    template float2_t xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, PeakMode, long2_t, Stream&);                            \
-    template float3_t xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, PeakMode, long3_t, Stream&)
+    template void xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, const shared_t<float[]>&, const shared_t<T[]>&, PeakMode, int64_t, Stream&);         \
+    template void xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, const shared_t<float2_t[]>&, const shared_t<T[]>&, PeakMode, long2_t, Stream&);   \
+    template void xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, const shared_t<float3_t[]>&, const shared_t<T[]>&, PeakMode, long3_t, Stream&);   \
+    template std::pair<float,T> xpeak1D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float, PeakMode, int64_t, Stream&);                                           \
+    template std::pair<float2_t,T> xpeak2D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float2_t, PeakMode, long2_t, Stream&);                                     \
+    template std::pair<float3_t,T> xpeak3D<R, T, void>(const shared_t<T[]>&, dim4_t, dim4_t, float3_t, PeakMode, long3_t, Stream&)
 
     #define NOA_INSTANTIATE_XPEAK_ALL(T)    \
     NOA_INSTANTIATE_XPEAK(Remap::F2F, T);   \

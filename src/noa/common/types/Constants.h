@@ -196,9 +196,11 @@ namespace noa::signal {
     /// Subpixel registration method.
     enum PeakMode {
         /// Updates the pixel location by fitting a 1D parabola along axis.
+        /// The peak value is average of the vertex height along each dimension.
         PEAK_PARABOLA_1D,
 
         /// Updates the pixel location by adding the center-of-mass (COM).
+        /// The peak value is currently not modified and the original max value is returned.
         PEAK_COM
     };
     std::ostream& operator<<(std::ostream& os, PeakMode peak_mode);

@@ -48,107 +48,115 @@ namespace noa::signal::fft {
               const Array<Complex<Real>>& buffer = {});
 
     /// Find the highest peak in a cross-correlation line.
-    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                float or double.
-    /// \param[in] xmap             1D cross-correlation map. Should be a column or row vector.
-    ///                             It can be overwritten depending on \p peak_radius.
-    /// \param[out] peaks           Output coordinates of the highest peak. One per batch.
-    /// \param xmap_ellipse_radius  Radius of the smooth mask to apply (in-place) on \p xmap.
-    ///                             This is used to restrict the peak position relative to the center
-    ///                             of \p xmap. If negative or 0, it is ignored.
-    /// \param peak_mode            Registration mode to use for subpixel accuracy.
-    /// \param peak_radius          Radius of the registration window, centered on the peak.
+    /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam Real                    float or double.
+    /// \param[in] xmap                 1D cross-correlation map. Should be a column or row vector.
+    ///                                 It can be overwritten depending on \p xmap_radius.
+    /// \param[out] peak_coordinates    Output coordinate of the highest peak. One per batch or empty.
+    /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
+    /// \param xmap_radius              Radius of the smooth mask to apply (in-place) on \p xmap.
+    ///                                 This is used to restrict the peak position relative to the center of \p xmap.
+    ///                                 If negative or 0, it is ignored.
+    /// \param peak_mode                Registration mode to use for subpixel accuracy.
+    /// \param peak_radius              Radius of the registration window, centered on the peak.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak1D(const Array<Real>& xmap, const Array<float>& peaks,
-                 float xmap_ellipse_radius = 0,
+    void xpeak1D(const Array<Real>& xmap,
+                 const Array<float>& peak_coordinates,
+                 const Array<Real>& peak_values = {},
+                 float xmap_radius = 0,
                  PeakMode peak_mode = PEAK_PARABOLA_1D,
                  int64_t peak_radius = 1);
 
-    /// Returns the coordinates of the highest peak in a cross-correlation map.
-    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                float or double.
-    /// \param[in] xmap             1D cross-correlation map. Should be a column or row vector.
-    ///                             It can be overwritten depending on \p peak_radius.
-    /// \param xmap_ellipse_radius  Radius of the smooth mask to apply (in-place) on \p xmap.
-    ///                             This is used to restrict the peak position relative to the center
-    ///                             of \p xmap. If negative or 0, it is ignored.
-    /// \param peak_mode            Registration mode to use for subpixel accuracy.
-    /// \param peak_radius          Radius of the registration window, centered on the peak.
+    /// Returns the coordinate and value of the highest peak in a cross-correlation map.
+    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam Real        float or double.
+    /// \param[in] xmap     1D cross-correlation map. Should be a column or row vector.
+    ///                     It can be overwritten depending on \p xmap_radius.
+    /// \param xmap_radius  Radius of the smooth mask to apply (in-place) to \p xmap.
+    ///                     This is used to restrict the peak position relative to the center of \p xmap.
+    ///                     If negative or 0, it is ignored.
+    /// \param peak_mode    Registration mode to use for subpixel accuracy.
+    /// \param peak_radius  Radius of the registration window, centered on the peak.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    [[nodiscard]] float xpeak1D(const Array<Real>& xmap,
-                                float xmap_ellipse_radius = 0,
-                                PeakMode peak_mode = PEAK_PARABOLA_1D,
-                                int64_t peak_radius = 1);
+    [[nodiscard]] std::pair<float, Real>
+    xpeak1D(const Array<Real>& xmap,
+            float xmap_radius = 0,
+            PeakMode peak_mode = PEAK_PARABOLA_1D,
+            int64_t peak_radius = 1);
 
     /// Find the highest peak in a cross-correlation map.
-    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                float or double.
-    /// \param[in,out] xmap         2D cross-correlation map. It can be overwritten depending on \p peak_radius.
-    /// \param[out] peaks           Output HW coordinates of the highest peak. One per batch.
-    /// \param xmap_ellipse_radius  HW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
-    ///                             This is used to restrict the peak position relative to the center
-    ///                             of \p xmap. If negative or 0, it is ignored.
-    /// \param peak_mode            Registration mode to use for subpixel accuracy.
-    /// \param peak_radius          HW radius of the registration window, centered on the peak.
+    /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam Real                    float or double.
+    /// \param[in,out] xmap             2D cross-correlation map. It can be overwritten depending on \p xmap_radius.
+    /// \param[out] peak_coordinates    Output HW coordinate of the highest peak. One per batch or empty.
+    /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
+    /// \param xmap_radius              HW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
+    ///                                 This is used to restrict the peak position relative to the center of \p xmap.
+    ///                                 If negative or 0, it is ignored.
+    /// \param peak_mode                Registration mode to use for subpixel accuracy.
+    /// \param peak_radius              HW radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 8 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak2D(const Array<Real>& xmap, const Array<float2_t>& peaks,
-                 float2_t xmap_ellipse_radius = float2_t{0},
+    void xpeak2D(const Array<Real>& xmap,
+                 const Array<float2_t>& peak_coordinates,
+                 const Array<Real>& peak_values = {},
+                 float2_t xmap_radius = float2_t{0},
                  PeakMode peak_mode = PEAK_PARABOLA_1D,
                  long2_t peak_radius = long2_t{1});
 
-    /// Returns the HW coordinates of the highest peak in a cross-correlation map.
-    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                float or double.
-    /// \param[in,out] xmap         2D cross-correlation map. It can be overwritten depending on \p peak_radius.
-    /// \param xmap_ellipse_radius  HW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
-    ///                             This is used to restrict the peak position relative to the center
-    ///                             of \p xmap. If negative or 0, it is ignored.
-    /// \param peak_mode            Registration mode to use for subpixel accuracy.
-    /// \param peak_radius          HW radius of the registration window, centered on the peak.
+    /// Returns the HW coordinate and value of the highest peak in a cross-correlation map.
+    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam Real        float or double.
+    /// \param[in,out] xmap 2D cross-correlation map. It can be overwritten depending on \p xmap_radius.
+    /// \param xmap_radius  HW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
+    ///                     This is used to restrict the peak position relative to the center of \p xmap.
+    ///                     If negative or 0, it is ignored.
+    /// \param peak_mode    Registration mode to use for subpixel accuracy.
+    /// \param peak_radius  HW radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 8 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    [[nodiscard]] float2_t xpeak2D(const Array<Real>& xmap,
-                                   float2_t xmap_ellipse_radius = float2_t{0},
-                                   PeakMode peak_mode = PEAK_PARABOLA_1D,
-                                   long2_t peak_radius = long2_t{1});
+    [[nodiscard]] std::pair<float2_t, Real>
+    xpeak2D(const Array<Real>& xmap,
+            float2_t xmap_radius = float2_t{0},
+            PeakMode peak_mode = PEAK_PARABOLA_1D,
+            long2_t peak_radius = long2_t{1});
 
     /// Find the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                float or double.
-    /// \param[in,out] xmap         3D cross-correlation map. It can be overwritten depending on \p peak_radius.
-    /// \param[out] peaks           Output DHW coordinates of the highest peak. One per batch.
-    /// \param xmap_ellipse_radius  DHW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
-    ///                             This is used to restrict the peak position relative to the center
-    ///                             of \p xmap. If negative or 0, it is ignored.
-    /// \param peak_mode            Registration mode to use for subpixel accuracy.
-    /// \param peak_radius          DHW radius of the registration window, centered on the peak.
+    /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam Real                    float or double.
+    /// \param[in,out] xmap             3D cross-correlation map. It can be overwritten depending on \p xmap_radius.
+    /// \param[out] peak_coordinates    Output DHW coordinate of the highest peak. One per batch or empty.
+    /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
+    /// \param xmap_radius              DHW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
+    ///                                 This is used to restrict the peak position relative to the center of \p xmap.
+    ///                                 If negative or 0, it is ignored.
+    /// \param peak_mode                Registration mode to use for subpixel accuracy.
+    /// \param peak_radius              DHW radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 2 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak3D(const Array<Real>& xmap, const Array<float3_t>& peak,
-                 float3_t xmap_ellipse_radius = float3_t{0},
+    void xpeak3D(const Array<Real>& xmap,
+                 const Array<float3_t>& peak_coordinates,
+                 const Array<Real>& peak_values = {},
+                 float3_t xmap_radius = float3_t{0},
                  PeakMode peak_mode = PEAK_PARABOLA_1D,
                  long3_t peak_radius = long3_t{1});
 
-    /// Returns the DHW coordinates of the highest peak in a cross-correlation map.
-    /// \details The highest value of the map is found. Then the sub-pixel position is determined
-    ///          by fitting a parabola separately in each dimension to the peak and 2 adjacent points.
-    /// \tparam REMAP               Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                float or double.
-    /// \param[in,out] xmap         3D cross-correlation map. It can be overwritten depending on \p peak_radius.
-    /// \param xmap_ellipse_radius  DHW radius of the smooth elliptic mask to apply (in-place) on \p xmap.
-    ///                             This is used to restrict the peak position relative to the center
-    ///                             of \p xmap. If negative or 0, it is ignored.
-    /// \param peak_mode            Registration mode to use for subpixel accuracy.
-    /// \param peak_radius          DHW radius of the registration window, centered on the peak.
+    /// Returns the DHW coordinate and value of the highest peak in a cross-correlation map.
+    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam Real        float or double.
+    /// \param[in,out] xmap 3D cross-correlation map. It can be overwritten depending on \p xmap_radius.
+    /// \param xmap_radius  DHW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
+    ///                     This is used to restrict the peak position relative to the center of \p xmap.
+    ///                     If negative or 0, it is ignored.
+    /// \param peak_mode    Registration mode to use for subpixel accuracy.
+    /// \param peak_radius  DHW radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 2 with \p peak_mode PEAK_PARABOLA_COM.
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    [[nodiscard]] float3_t xpeak3D(const Array<Real>& xmap,
-                                   float3_t xmap_ellipse_radius = float3_t{0},
-                                   PeakMode peak_mode = PEAK_PARABOLA_1D,
-                                   long3_t peak_radius = long3_t{1});
+    [[nodiscard]] std::pair<float3_t, Real>
+    xpeak3D(const Array<Real>& xmap,
+            float3_t xmap_radius = float3_t{0},
+            PeakMode peak_mode = PEAK_PARABOLA_1D,
+            long3_t peak_radius = long3_t{1});
 
     /// Computes the cross-correlation coefficient(s).
     /// \tparam REMAP               Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.

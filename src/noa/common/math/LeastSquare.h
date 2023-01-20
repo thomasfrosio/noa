@@ -35,6 +35,7 @@ namespace noa::math {
             }
         };
 
+        // FIXME Add CUDA warp reduction?
         for (Int i = 0; i < size; ++i) {
             const auto iy = static_cast<double>(y[i]);
             const auto ix = static_cast<double>(i);
@@ -81,16 +82,15 @@ namespace noa::math {
 
     /// This is equivalent to math::lstsqFitQuadratic() if one wants to get the vertex for three points.
     template<typename Real>
-    constexpr NOA_IHD Real lstsqFitQuadraticVertex3Points(Real y0, Real y1, Real y2) noexcept {
-        // From IMOD/libcfshr/filtxcorr.c::parabolicFitPosition
-        const Real d = 2 * (y0 + y2 - 2 * y1);
-        Real x = 0;
-        if (noa::math::abs(d) > noa::math::abs(static_cast<Real>(1e-2) * (y0 - y2)))
-            x = (y0 - y2) / d;
-        if (x > Real{0.5})
-            x = Real{0.5};
-        if (x < Real{-0.5})
-            x = Real{-0.5};
-        return x;
+    constexpr NOA_IHD auto lstsqFitQuadraticVertex3Points(Real y0, Real y1, Real y2) noexcept {
+        // https://stackoverflow.com/a/717791
+        const Real a = 2 * y1 - y0 - y2; // * -0.5
+        const Real b = y0 - y2; // * -0.5
+        const Real c = y1;
+
+        const Real x = noa::math::clamp(-b / (2 * a), Real{-0.5}, Real{0.5});
+        const Real y = c + b * b / (8 * a);
+
+        return Pair{x, y};
     }
 }
