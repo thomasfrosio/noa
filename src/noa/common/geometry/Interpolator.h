@@ -3,7 +3,7 @@
 #include "noa/common/Types.h"
 #include "noa/common/geometry/Interpolate.h"
 
-// On of the main difference between these interpolations and what we can find on other cryoEM packages,
+// One of the main difference between these interpolations and what we can find in other cryoEM packages,
 // is that the interpolation window can be partially out-of-bound (OOB), that is, elements that are OOB
 // are replaced according to a BorderMode. cryoEM packages usually check that all elements are in bound
 // and if there's even one element OOB, they don't interpolate.
