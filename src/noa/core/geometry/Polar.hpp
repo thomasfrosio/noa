@@ -19,12 +19,12 @@ namespace noa::geometry {
     /// \param radius_range     Radius [start,end] range of the bounding circle, in pixels.
     /// \param log              Whether this is the log-polar coordinates system.
     template<typename T>
-    [[nodiscard]] NOA_IHD T polar2rho(T polar_coordinate, size_t polar_size, Float2<T> radius_range, bool log) {
+    [[nodiscard]] NOA_IHD T polar2rho(T polar_coordinate, i64 polar_size, Vec2<T> radius_range, bool log) {
         NOA_ASSERT(radius_range[1] - radius_range[0] > 1);
         const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
-            const T step = math::log(radius_range[1] - radius_range[0]) / effective_size;
-            return math::exp(polar_coordinate * step) - 1 + radius_range[0];
+            const T step = noa::math::log(radius_range[1] - radius_range[0]) / effective_size;
+            return noa::math::exp(polar_coordinate * step) - 1 + radius_range[0];
         } else {
             const T step = (radius_range[1] - radius_range[0]) / effective_size;
             return polar_coordinate * step + radius_range[0];
@@ -38,7 +38,7 @@ namespace noa::geometry {
     /// \param angle_range  Angle [start,end] range, in radians, of the bounding (truncated)-circle.
     ///                     Increases in the counterclockwise orientation (i.e. unit circle).
     template<typename T>
-    [[nodiscard]] NOA_IHD T polar2phi(T coordinate, size_t size, Float2<T> angle_range) {
+    [[nodiscard]] NOA_IHD T polar2phi(T coordinate, i64 size, Vec2<T> angle_range) {
         const T step = (angle_range[1] - angle_range[0]) / static_cast<T>(size - 1);
         return coordinate * step + angle_range[0];
     }
@@ -58,36 +58,36 @@ namespace noa::geometry {
     ///       angle range is also explicitly defined (they assume 0 -> 2pi). Also, we use a counterclockwise
     ///       rotation, as always.
     template<typename T>
-    [[nodiscard]] NOA_IHD Float2<T>
-    polar2cartesian(Float2<T> polar_coordinate, size2_t polar_shape, Float2<T> cartesian_center,
-                    Float2<T> radius_range, Float2<T> angle_range, bool log) {
+    [[nodiscard]] NOA_IHD auto polar2cartesian(
+            Vec2<T> polar_coordinate, Vec2<i64> polar_shape, Vec2<T> cartesian_center,
+            Vec2<T> radius_range, Vec2<T> angle_range, bool log) -> Vec2<T> {
         const T phi = polar2phi(polar_coordinate[0], polar_shape[0], angle_range);
         const T rho = polar2rho(polar_coordinate[1], polar_shape[1], radius_range, log);
-        return {cartesian_center[0] + rho * math::sin(phi),
-                cartesian_center[1] + rho * math::cos(phi)};
+        return {cartesian_center[0] + rho * noa::math::sin(phi),
+                cartesian_center[1] + rho * noa::math::cos(phi)};
     }
 
     /// Returns the (y,x) coordinates corresponding to the polar coordinates (rho, phi[0,2pi]).
     template<typename T>
-    [[nodiscard]] NOA_IHD Float2<T> polar2cartesian(T rho, T phi) {
-        return {rho * math::sin(phi), rho * math::cos(phi)};
+    [[nodiscard]] NOA_IHD Vec2<T> polar2cartesian(T rho, T phi) {
+        return {rho * noa::math::sin(phi), rho * noa::math::cos(phi)};
     }
 
     /// Returns the (z,y,x) coordinates corresponding to the spherical coordinates (rho, phi[0,2pi], theta[0,pi]).
     template<typename T>
-    [[nodiscard]] NOA_IHD Float3<T> spherical2cartesian(T rho, T phi, T theta) {
-        return {rho * math::cos(theta),
-                rho * math::sin(phi) * math::sin(theta),
-                rho * math::cos(phi) * math::sin(theta)};
+    [[nodiscard]] NOA_IHD Vec3<T> spherical2cartesian(T rho, T phi, T theta) {
+        return {rho * noa::math::cos(theta),
+                rho * noa::math::sin(phi) * noa::math::sin(theta),
+                rho * noa::math::cos(phi) * noa::math::sin(theta)};
     }
 }
 
 // Cartesian -> Polar
 namespace noa::geometry {
     /// Returns the magnitude rho of a cartesian \p coordinate.
-    template<typename T, typename = std::enable_if_t<traits::is_float2_v<T> || traits::is_float3_v<T>>>
+    template<typename T, typename = std::enable_if_t<traits::is_real2_v<T> || traits::is_real3_v<T>>>
     [[nodiscard]] NOA_IHD auto cartesian2rho(T cartesian_coordinate) {
-        return math::norm(cartesian_coordinate);
+        return noa::math::norm(cartesian_coordinate);
     }
 
     /// Maps rho to the radial polar coordinate.
@@ -97,11 +97,11 @@ namespace noa::geometry {
     /// \param radius_range Radius [start,end] range of the bounding circle, in pixels.
     /// \param log          Whether this is the log-polar coordinates system.
     template<typename T>
-    [[nodiscard]] NOA_IHD T rho2polar(T rho, size_t polar_size, Float2<T> radius_range, bool log) {
+    [[nodiscard]] NOA_IHD T rho2polar(T rho, i64 polar_size, Vec2<T> radius_range, bool log) {
         const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
-            const T step = math::log(radius_range[1] - radius_range[0]) / effective_size;
-            return math::log(rho + 1 - radius_range[0]) / step;
+            const T step = noa::math::log(radius_range[1] - radius_range[0]) / effective_size;
+            return noa::math::log(rho + 1 - radius_range[0]) / step;
         } else {
             const T step = (radius_range[1] - radius_range[0]) / effective_size;
             return (rho - radius_range[0]) / step;
@@ -111,27 +111,27 @@ namespace noa::geometry {
     /// Returns the phi angle of the (y,x) cartesian \p coordinate.
     /// If \p OFFSET, the returned values is between [0,2pi], otherwise [-pi,pi].
     template<bool OFFSET = true, typename T>
-    [[nodiscard]] NOA_IHD T cartesian2phi(Float2<T> coordinate) {
-        T angle = math::atan2(coordinate[0], coordinate[1]); // [-pi,pi]
+    [[nodiscard]] NOA_IHD T cartesian2phi(Vec2<T> coordinate) {
+        T angle = noa::math::atan2(coordinate[0], coordinate[1]); // [-pi,pi]
         if (OFFSET && angle < 0)
-            angle += math::Constants<T>::PI2; // [0,2pi]
+            angle += noa::math::Constant<T>::PI2; // [0,2pi]
         return angle;
     }
 
     /// Returns the phi angle of the (z,y,x) cartesian \p coordinate.
     /// If \p OFFSET, the returned values is between [0,2pi], otherwise [-pi,pi].
     template<bool OFFSET = true, typename T>
-    [[nodiscard]] NOA_IHD T cartesian2phi(Float3<T> coordinate) {
-        T angle = math::atan2(coordinate[1], coordinate[2]); // [-pi,pi]
+    [[nodiscard]] NOA_IHD T cartesian2phi(Vec3<T> coordinate) {
+        T angle = noa::math::atan2(coordinate[1], coordinate[2]); // [-pi,pi]
         if (OFFSET && angle < 0)
-            angle += math::Constants<T>::PI2; // [0,2pi]
+            angle += noa::math::Constant<T>::PI2; // [0,2pi]
         return angle;
     }
 
     /// Returns the theta angle [0,pi] of the (z,y,x) cartesian \p coordinate.
     template<typename T>
-    [[nodiscard]] NOA_IHD T cartesian2theta(Float3<T> coordinate) {
-        T angle = math::atan2(math::hypot(coordinate[1], coordinate[2]), coordinate[0]); // [0,pi]
+    [[nodiscard]] NOA_IHD T cartesian2theta(Vec3<T> coordinate) {
+        T angle = noa::math::atan2(noa::math::hypot(coordinate[1], coordinate[2]), coordinate[0]); // [0,pi]
         return angle;
     }
 
@@ -142,14 +142,13 @@ namespace noa::geometry {
     /// \param angle_range  Angle [start,end] range, in radians, of the bounding (truncated)-circle.
     ///                     Increases in the counterclockwise orientation (i.e. unit circle).
     template<typename T>
-    [[nodiscard]] NOA_IHD T phi2polar(T phi, size_t polar_size, Float2<T> angle_range) {
+    [[nodiscard]] NOA_IHD T phi2polar(T phi, i64 polar_size, Vec2<T> angle_range) {
         const T effective_size = static_cast<T>(polar_size - 1);
         const T step_angle = (angle_range[1] - angle_range[0]) / effective_size;
         return (phi - angle_range[0]) / step_angle;
     }
 
     /// Returns the mapped polar HW coordinates for a given cartesian HW coordinate.
-    /// \tparam T
     /// \param cartesian_coordinate HW coordinates (y,x).
     /// \param cartesian_center     HW center of transformation in the cartesian space.
     /// \param polar_shape          HW shape of the polar grid.
@@ -158,9 +157,10 @@ namespace noa::geometry {
     ///                             Increases in the counterclockwise orientation (i.e. unit circle).
     /// \param log                  Whether this is the log-polar coordinates system.
     template<typename T>
-    [[nodiscard]] NOA_IHD Float2<T>
-    cartesian2polar(Float2<T> cartesian_coordinate, Float2<T> cartesian_center,
-                    size2_t polar_shape, Float2<T> radius_range, Float2<T> angle_range, bool log) {
+    [[nodiscard]] NOA_IHD auto cartesian2polar(
+            Vec2<T> cartesian_coordinate, Vec2<T> cartesian_center,
+            Vec2<i64> polar_shape, Vec2<T> radius_range,
+            Vec2<T> angle_range, bool log) -> Vec2<T> {
         cartesian_coordinate -= cartesian_center;
         const T phi = cartesian2phi(cartesian_coordinate);
         const T rho = cartesian2rho(cartesian_coordinate);

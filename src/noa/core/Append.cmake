@@ -53,6 +53,14 @@ set(NOA_COMMON_HEADERS
         core/types/Shape.hpp
         core/types/Vec.hpp
 
+        core/geometry/Euler.hpp
+        core/geometry/Interpolate.hpp
+        core/geometry/Interpolator.hpp
+        core/geometry/InterpolatorValue.hpp
+        core/geometry/Polar.hpp
+        core/geometry/Symmetry.hpp
+        core/geometry/Transform.hpp
+
         #        core/memory/details/ExtractInsert.hpp
 
 
@@ -64,13 +72,7 @@ set(NOA_COMMON_HEADERS
 #        core/geometry/details/PolarTransform.hpp
 #        core/geometry/details/PolarTransformFourier.hpp
 #        core/geometry/details/Utilities.hpp
-#        core/geometry/Euler.hpp
-#        core/geometry/Interpolate.hpp
-#        core/geometry/Interpolator.hpp
-#        core/geometry/InterpolatorValue.hpp
-#        core/geometry/Polar.hpp
-#        core/geometry/Symmetry.hpp
-#        core/geometry/Transform.hpp
+#
 #
 #        core/io/BinaryFile.hpp
 #        core/io/ImageFile.hpp
@@ -97,9 +99,9 @@ set(NOA_COMMON_SOURCES
         core/Logger.cpp
         core/Session.cpp
 
-#        core/geometry/Euler.cpp
-#        core/geometry/Symmetry.cpp
-#
+        core/geometry/Euler.cpp
+        core/geometry/Symmetry.cpp
+
 #        core/io/IO.cpp
 #        core/io/BinaryFile.cpp
 #        core/io/MRCFile.cpp

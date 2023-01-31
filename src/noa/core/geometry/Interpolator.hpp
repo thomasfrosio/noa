@@ -18,13 +18,15 @@
 namespace noa::geometry {
     // Interpolates 2D data.
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
-             typename Data, typename Offset = int64_t, typename Coord = float,
-             int ACCESSOR_NDIM = 2, AccessorTraits ACCESSOR_TRAITS = AccessorTraits::DEFAULT>
+             typename Data, typename Offset = i64, typename Coord = f32,
+             i32 ACCESSOR_NDIM = 2,
+             PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED>
     class Interpolator2D {
     public:
-        static_assert(traits::is_any_v<Offset, int32_t, int64_t, uint32_t, uint64_t>);
-        static_assert(traits::is_float_or_complex_v<Data> && !std::is_const_v<Data>);
-        static_assert(traits::is_float_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(traits::is_any_v<Offset, i32, i64, u32, u64>);
+        static_assert(traits::is_real_or_complex_v<Data> && !std::is_const_v<Data>);
+        static_assert(traits::is_real_v<Coord> && !std::is_const_v<Coord>);
         static_assert(ACCESSOR_NDIM == 2 || ACCESSOR_NDIM == 3);
 
         using data_type = Data;
@@ -32,16 +34,19 @@ namespace noa::geometry {
         using coord_type = Coord;
 
         using index_type = std::make_signed_t<offset_type>;
-        using index2_type = Int2<index_type>;
-        using coord2_type = Float2<coord_type>;
-        using data_or_empty_type = std::conditional_t<BORDER_MODE == BORDER_VALUE, data_type, empty_t>;
-        using accessor_type = Accessor<const data_type, ACCESSOR_NDIM, offset_type, ACCESSOR_TRAITS>;
+        using index2_type = Vec2<index_type>;
+        using coord2_type = Vec2<coord_type>;
+        using shape2_type = Shape2<index_type>;
+        using data_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, data_type, traits::Empty>;
+        using accessor_type = Accessor<const data_type, ACCESSOR_NDIM, offset_type, PointerTrait, StridesTrait>;
 
     public:
         constexpr Interpolator2D() = default;
 
-        constexpr NOA_HD Interpolator2D(accessor_type data, index2_type shape, data_type cvalue = data_type{0}) noexcept
-                : m_data(data), m_shape(shape) {
+        constexpr NOA_HD Interpolator2D(
+                accessor_type data, shape2_type shape,
+                data_type cvalue = data_type{0}) noexcept
+                : m_data(data), m_shape(shape.vec()) {
             if constexpr (!std::is_empty_v<data_or_empty_type>)
                 m_cvalue = cvalue;
         }
@@ -51,31 +56,31 @@ namespace noa::geometry {
         template<typename Int = index_type, typename = std::enable_if_t<traits::is_int_v<Int>>>
         constexpr NOA_HD data_type operator()(coord2_type coordinate, Int batch = Int{0}) const noexcept {
             if constexpr (ACCESSOR_NDIM == 2) {
-                if constexpr (INTERP_MODE == INTERP_NEAREST) {
+                if constexpr (INTERP_MODE == InterpMode::NEAREST) {
                     return nearest_(m_data, coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_LINEAR ||
-                                     INTERP_MODE == INTERP_LINEAR_FAST ||
-                                     INTERP_MODE == INTERP_COSINE ||
-                                     INTERP_MODE == INTERP_COSINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::LINEAR ||
+                                     INTERP_MODE == InterpMode::LINEAR_FAST ||
+                                     INTERP_MODE == InterpMode::COSINE ||
+                                     INTERP_MODE == InterpMode::COSINE_FAST) {
                     return linear_(m_data, coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_CUBIC ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::CUBIC ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data, coordinate);
                 } else {
                     static_assert(traits::always_false_v<data_type>);
                 }
             } else {
-                if constexpr (INTERP_MODE == INTERP_NEAREST) {
+                if constexpr (INTERP_MODE == InterpMode::NEAREST) {
                     return nearest_(m_data[batch], coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_LINEAR ||
-                                     INTERP_MODE == INTERP_LINEAR_FAST ||
-                                     INTERP_MODE == INTERP_COSINE ||
-                                     INTERP_MODE == INTERP_COSINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::LINEAR ||
+                                     INTERP_MODE == InterpMode::LINEAR_FAST ||
+                                     INTERP_MODE == InterpMode::COSINE ||
+                                     INTERP_MODE == InterpMode::COSINE_FAST) {
                     return linear_(m_data[batch], coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_CUBIC ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::CUBIC ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data[batch], coordinate);
                 } else {
                     static_assert(traits::always_false_v<data_type>);
@@ -99,20 +104,20 @@ namespace noa::geometry {
             static_assert(Accessor2D::COUNT == 2);
             const index2_type index(::noa::math::round(coordinate));
 
-            if constexpr (BORDER_MODE == BORDER_ZERO) {
+            if constexpr (BORDER_MODE == BorderMode::ZERO) {
                 if (index[1] < 0 || index[1] >= m_shape[1] ||
                     index[0] < 0 || index[0] >= m_shape[0])
                     return data_type{0};
                 else
                     return accessor(index[0], index[1]);
-            } else if constexpr (BORDER_MODE == BORDER_VALUE) {
+            } else if constexpr (BORDER_MODE == BorderMode::VALUE) {
                 if (index[1] < 0 || index[1] >= m_shape[1] ||
                     index[0] < 0 || index[0] >= m_shape[0])
                     return m_cvalue;
                 else
                     return accessor(index[0], index[1]);
-            } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
-                                 BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
+            } else if constexpr (BORDER_MODE == BorderMode::CLAMP || BORDER_MODE == BorderMode::PERIODIC ||
+                                 BORDER_MODE == BorderMode::MIRROR || BORDER_MODE == BorderMode::REFLECT) {
                 return accessor(indexing::at<BORDER_MODE>(index[0], m_shape[0]),
                                 indexing::at<BORDER_MODE>(index[1], m_shape[1]));
             } else {
@@ -127,11 +132,11 @@ namespace noa::geometry {
             const index2_type idx1(idx0 + 1);
 
             data_type values[4]; // v00, v10, v01, v11
-            if constexpr (BORDER_MODE == BORDER_ZERO || BORDER_MODE == BORDER_VALUE) {
+            if constexpr (BORDER_MODE == BorderMode::ZERO || BORDER_MODE == BorderMode::VALUE) {
                 const bool cond_y[2] = {idx0[0] >= 0 && idx0[0] < m_shape[0], idx1[0] >= 0 && idx1[0] < m_shape[0]};
                 const bool cond_x[2] = {idx0[1] >= 0 && idx0[1] < m_shape[1], idx1[1] >= 0 && idx1[1] < m_shape[1]};
 
-                if constexpr (BORDER_MODE == BORDER_ZERO) {
+                if constexpr (BORDER_MODE == BorderMode::ZERO) {
                     values[0] = cond_y[0] && cond_x[0] ? accessor(idx0[0], idx0[1]) : data_type{0}; // v00
                     values[1] = cond_y[0] && cond_x[1] ? accessor(idx0[0], idx1[1]) : data_type{0}; // v01
                     values[2] = cond_y[1] && cond_x[0] ? accessor(idx1[0], idx0[1]) : data_type{0}; // v10
@@ -143,8 +148,8 @@ namespace noa::geometry {
                     values[3] = cond_y[1] && cond_x[1] ? accessor(idx1[0], idx1[1]) : m_cvalue;
                 }
 
-            } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
-                                 BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
+            } else if constexpr (BORDER_MODE == BorderMode::CLAMP || BORDER_MODE == BorderMode::PERIODIC ||
+                                 BORDER_MODE == BorderMode::MIRROR || BORDER_MODE == BorderMode::REFLECT) {
                 const index_type tmp[4] = {indexing::at<BORDER_MODE>(idx0[1], m_shape[1]),
                                            indexing::at<BORDER_MODE>(idx1[1], m_shape[1]),
                                            indexing::at<BORDER_MODE>(idx0[0], m_shape[0]),
@@ -159,10 +164,10 @@ namespace noa::geometry {
             }
 
             const coord2_type fraction{coordinate - static_cast<coord2_type>(idx0)};
-            if constexpr (INTERP_MODE == INTERP_COSINE || INTERP_MODE == INTERP_COSINE_FAST)
-                return interpolate::cosine2D(values[0], values[1], values[2], values[3], fraction[1], fraction[0]);
+            if constexpr (INTERP_MODE == InterpMode::COSINE || INTERP_MODE == InterpMode::COSINE_FAST)
+                return interpolate::cosine_2d(values[0], values[1], values[2], values[3], fraction[1], fraction[0]);
             else
-                return interpolate::lerp2D(values[0], values[1], values[2], values[3], fraction[1], fraction[0]);
+                return interpolate::lerp_2d(values[0], values[1], values[2], values[3], fraction[1], fraction[0]);
         }
 
         template<typename Accessor2D>
@@ -171,7 +176,7 @@ namespace noa::geometry {
             const index2_type idx(::noa::math::floor(coordinate));
 
             data_type square[4][4]; // [y][x]
-            if constexpr (BORDER_MODE == BORDER_ZERO || BORDER_MODE == BORDER_VALUE) {
+            if constexpr (BORDER_MODE == BorderMode::ZERO || BORDER_MODE == BorderMode::VALUE) {
                 const bool cond_y[4] = {idx[0] - 1 >= 0 && idx[0] - 1 < m_shape[0],
                                         idx[0] + 0 >= 0 && idx[0] + 0 < m_shape[0],
                                         idx[0] + 1 >= 0 && idx[0] + 1 < m_shape[0],
@@ -185,14 +190,14 @@ namespace noa::geometry {
                     const index_type idx_y = idx[0] + offset[j];
                     for (index_type i = 0; i < 4; ++i) {
                         const index_type idx_x = idx[1] + offset[i];
-                        if constexpr (BORDER_MODE == BORDER_ZERO)
+                        if constexpr (BORDER_MODE == BorderMode::ZERO)
                             square[j][i] = cond_x[i] && cond_y[j] ? accessor(idx_y, idx_x) : data_type{0};
                         else
                             square[j][i] = cond_x[i] && cond_y[j] ? accessor(idx_y, idx_x) : m_cvalue;
                     }
                 }
-            } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
-                                 BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
+            } else if constexpr (BORDER_MODE == BorderMode::CLAMP || BORDER_MODE == BorderMode::PERIODIC ||
+                                 BORDER_MODE == BorderMode::MIRROR || BORDER_MODE == BorderMode::REFLECT) {
                 const index_type tmp_y[4] = {indexing::at<BORDER_MODE>(idx[0] - 1, m_shape[0]),
                                              indexing::at<BORDER_MODE>(idx[0] + 0, m_shape[0]),
                                              indexing::at<BORDER_MODE>(idx[0] + 1, m_shape[0]),
@@ -209,41 +214,47 @@ namespace noa::geometry {
                 static_assert(traits::always_false_v<data_type>);
             }
             const coord2_type fraction{coordinate - static_cast<coord2_type>(idx)};
-            if constexpr (INTERP_MODE == INTERP_CUBIC_BSPLINE || INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST)
-                return interpolate::cubicBSpline2D(square, fraction[1], fraction[0]);
+            if constexpr (INTERP_MODE == InterpMode::CUBIC_BSPLINE || INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST)
+                return interpolate::cubic_bspline_2d(square, fraction[1], fraction[0]);
             else
-                return interpolate::cubic2D(square, fraction[1], fraction[0]);
+                return interpolate::cubic_2d(square, fraction[1], fraction[0]);
         }
 
     private:
         accessor_type m_data{};
         index2_type m_shape{};
-        data_or_empty_type m_cvalue{};
+        NOA_NO_UNIQUE_ADDRESS data_or_empty_type m_cvalue{};
     };
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
-             typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
+             typename Data, typename Offset, typename Index, i32 NDIM,
+             PointerTraits PointerTrait, StridesTraits StridesTrait,
              typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
-    constexpr auto interpolator2D(const Accessor<Data, NDIM, Offset, TRAITS>& accessor,
-                                  Int2<Index> shape,
-                                  CValue cvalue = CValue{0}) {
+    constexpr auto interpolator_2d(const Accessor<Data, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
+                                   Shape2<Index> shape,
+                                   CValue cvalue = CValue{0}) {
         using mutable_data_t = std::remove_cv_t<Data>;
-        using interpolator_t = Interpolator2D<BORDER_MODE, INTERP_MODE, mutable_data_t, Offset, Coord, NDIM, TRAITS>;
+        using interpolator_t = Interpolator2D<
+                BORDER_MODE, INTERP_MODE, mutable_data_t,
+                Offset, Coord, NDIM, PointerTrait, StridesTrait>;
         return interpolator_t(accessor, shape, cvalue);
     }
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
-             typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
+             typename Data, typename Offset, typename Index, i32 NDIM,
+             PointerTraits PointerTrait, StridesTraits StridesTrait,
              typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
-    constexpr auto interpolator2D(const AccessorReference<Data, NDIM, Offset, TRAITS>& accessor,
-                                  Int2<Index> shape,
-                                  CValue cvalue = CValue{0}) {
+    constexpr auto interpolator_2d(const AccessorReference<Data, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
+                                   Shape2<Index> shape,
+                                   CValue cvalue = CValue{0}) {
         using mutable_data_t = std::remove_cv_t<Data>;
-        using interpolator_t = Interpolator2D<BORDER_MODE, INTERP_MODE, mutable_data_t, Offset, Coord, NDIM, TRAITS>;
+        using interpolator_t = Interpolator2D<
+                BORDER_MODE, INTERP_MODE, mutable_data_t,
+                Offset, Coord, NDIM, PointerTrait, StridesTrait>;
         return interpolator_t({accessor.data(), accessor.strides()}, shape, cvalue);
     }
 }
@@ -251,13 +262,15 @@ namespace noa::geometry {
 namespace noa::geometry {
     // Interpolates 3D data.
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
-             typename Data, typename Offset = int64_t, typename Coord = float,
-             int ACCESSOR_NDIM = 3, AccessorTraits ACCESSOR_TRAITS = AccessorTraits::DEFAULT>
+             typename Data, typename Offset = i64, typename Coord = f32,
+             i32 ACCESSOR_NDIM = 3,
+             PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED>
     class Interpolator3D {
     public:
-        static_assert(traits::is_any_v<Offset, int32_t, int64_t, uint32_t, uint64_t>);
-        static_assert(traits::is_float_or_complex_v<Data> && !std::is_const_v<Data>);
-        static_assert(traits::is_float_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(traits::is_any_v<Offset, i32, i64, u32, u64>);
+        static_assert(traits::is_real_or_complex_v<Data> && !std::is_const_v<Data>);
+        static_assert(traits::is_real_v<Coord> && !std::is_const_v<Coord>);
         static_assert(ACCESSOR_NDIM == 3 || ACCESSOR_NDIM == 4);
 
         using data_type = Data;
@@ -265,16 +278,19 @@ namespace noa::geometry {
         using coord_type = Coord;
 
         using index_type = std::make_signed_t<offset_type>;
-        using index3_type = Int3<index_type>;
-        using coord3_type = Float3<coord_type>;
-        using data_or_empty_type = std::conditional_t<BORDER_MODE == BORDER_VALUE, data_type, empty_t>;
-        using accessor_type = Accessor<const data_type, ACCESSOR_NDIM, offset_type, ACCESSOR_TRAITS>;
+        using index3_type = Vec3<index_type>;
+        using coord3_type = Vec3<coord_type>;
+        using shape3_type = Shape3<index_type>;
+        using data_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, data_type, traits::Empty>;
+        using accessor_type = Accessor<const data_type, ACCESSOR_NDIM, offset_type, PointerTrait, StridesTrait>;
 
     public:
         constexpr Interpolator3D() = default;
 
-        constexpr NOA_HD Interpolator3D(accessor_type data, index3_type shape, data_type cvalue = data_type{0}) noexcept
-                : m_data(data), m_shape(shape) {
+        constexpr NOA_HD Interpolator3D(
+                accessor_type data, shape3_type shape,
+                data_type cvalue = data_type{0}) noexcept
+                : m_data(data), m_shape(shape.vec()) {
             if constexpr (!std::is_empty_v<data_or_empty_type>)
                 m_cvalue = cvalue;
         }
@@ -284,31 +300,31 @@ namespace noa::geometry {
         template<typename Int = index_type, typename = std::enable_if_t<traits::is_int_v<Int>>>
         constexpr NOA_HD data_type operator()(coord3_type coordinate, Int batch = Int{0}) const noexcept {
             if constexpr (ACCESSOR_NDIM == 3) {
-                if constexpr (INTERP_MODE == INTERP_NEAREST) {
+                if constexpr (INTERP_MODE == InterpMode::NEAREST) {
                     return nearest_(m_data, coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_LINEAR ||
-                                     INTERP_MODE == INTERP_LINEAR_FAST ||
-                                     INTERP_MODE == INTERP_COSINE ||
-                                     INTERP_MODE == INTERP_COSINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::LINEAR ||
+                                     INTERP_MODE == InterpMode::LINEAR_FAST ||
+                                     INTERP_MODE == InterpMode::COSINE ||
+                                     INTERP_MODE == InterpMode::COSINE_FAST) {
                     return linear_(m_data, coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_CUBIC ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::CUBIC ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data, coordinate);
                 } else {
                     static_assert(traits::always_false_v<data_type>);
                 }
             } else {
-                if constexpr (INTERP_MODE == INTERP_NEAREST) {
+                if constexpr (INTERP_MODE == InterpMode::NEAREST) {
                     return nearest_(m_data[batch], coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_LINEAR ||
-                                     INTERP_MODE == INTERP_LINEAR_FAST ||
-                                     INTERP_MODE == INTERP_COSINE ||
-                                     INTERP_MODE == INTERP_COSINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::LINEAR ||
+                                     INTERP_MODE == InterpMode::LINEAR_FAST ||
+                                     INTERP_MODE == InterpMode::COSINE ||
+                                     INTERP_MODE == InterpMode::COSINE_FAST) {
                     return linear_(m_data[batch], coordinate);
-                } else if constexpr (INTERP_MODE == INTERP_CUBIC ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE ||
-                                     INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST) {
+                } else if constexpr (INTERP_MODE == InterpMode::CUBIC ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE ||
+                                     INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data[batch], coordinate);
                 } else {
                     static_assert(traits::always_false_v<data_type>);
@@ -332,22 +348,22 @@ namespace noa::geometry {
             static_assert(Accessor3D::COUNT == 3);
 
             const index3_type index(noa::math::round(coordinate));
-            if constexpr (BORDER_MODE == BORDER_ZERO) {
+            if constexpr (BORDER_MODE == BorderMode::ZERO) {
                 if (index[2] < 0 || index[2] >= m_shape[2] ||
                     index[1] < 0 || index[1] >= m_shape[1] ||
                     index[0] < 0 || index[0] >= m_shape[0])
                     return data_type{0};
                 else
                     return accessor(index[0], index[1], index[2]);
-            } else if constexpr (BORDER_MODE == BORDER_VALUE) {
+            } else if constexpr (BORDER_MODE == BorderMode::VALUE) {
                 if (index[2] < 0 || index[2] >= m_shape[2] ||
                     index[1] < 0 || index[1] >= m_shape[1] ||
                     index[0] < 0 || index[0] >= m_shape[0])
                     return m_cvalue;
                 else
                     return accessor(index[0], index[1], index[2]);
-            } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
-                                 BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
+            } else if constexpr (BORDER_MODE == BorderMode::CLAMP || BORDER_MODE == BorderMode::PERIODIC ||
+                                 BORDER_MODE == BorderMode::MIRROR || BORDER_MODE == BorderMode::REFLECT) {
                 return accessor(indexing::at<BORDER_MODE>(index[0], m_shape[0]),
                                 indexing::at<BORDER_MODE>(index[1], m_shape[1]),
                                 indexing::at<BORDER_MODE>(index[2], m_shape[2]));
@@ -364,14 +380,14 @@ namespace noa::geometry {
             idx[1] = idx[0] + 1;
 
             data_type values[8];
-            if constexpr (BORDER_MODE == BORDER_ZERO || BORDER_MODE == BORDER_VALUE) {
+            if constexpr (BORDER_MODE == BorderMode::ZERO || BORDER_MODE == BorderMode::VALUE) {
                 const bool cond_z[2] = {idx[0][0] >= 0 && idx[0][0] < m_shape[0], idx[1][0] >= 0 && idx[1][0] < m_shape[0]};
                 const bool cond_y[2] = {idx[0][1] >= 0 && idx[0][1] < m_shape[1], idx[1][1] >= 0 && idx[1][1] < m_shape[1]};
                 const bool cond_x[2] = {idx[0][2] >= 0 && idx[0][2] < m_shape[2], idx[1][2] >= 0 && idx[1][2] < m_shape[2]};
 
                 // TODO Might be more efficient to do two 2D interpolations and a final 1D...
                 data_type cval;
-                if constexpr (BORDER_MODE == BORDER_ZERO)
+                if constexpr (BORDER_MODE == BorderMode::ZERO)
                     cval = data_type{0};
                 else
                     cval = m_cvalue;
@@ -384,8 +400,8 @@ namespace noa::geometry {
                 values[6] = cond_z[1] && cond_y[1] && cond_x[0] ? accessor(idx[1][0], idx[1][1], idx[0][2]) : cval; // v110
                 values[7] = cond_z[1] && cond_y[1] && cond_x[1] ? accessor(idx[1][0], idx[1][1], idx[1][2]) : cval; // v111
 
-            } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
-                                 BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
+            } else if constexpr (BORDER_MODE == BorderMode::CLAMP || BORDER_MODE == BorderMode::PERIODIC ||
+                                 BORDER_MODE == BorderMode::MIRROR || BORDER_MODE == BorderMode::REFLECT) {
                 const offset_type tmp[6] = {static_cast<offset_type>(indexing::at<BORDER_MODE>(idx[0][2], m_shape[2])),
                                             static_cast<offset_type>(indexing::at<BORDER_MODE>(idx[1][2], m_shape[2])),
                                             static_cast<offset_type>(indexing::at<BORDER_MODE>(idx[0][1], m_shape[1])),
@@ -405,14 +421,14 @@ namespace noa::geometry {
             }
 
             const coord3_type fraction{coordinate - static_cast<coord3_type>(idx[0])};
-            if constexpr (INTERP_MODE == INTERP_COSINE || INTERP_MODE == INTERP_CUBIC_BSPLINE) {
-                return interpolate::cosine3D(values[0], values[1], values[2], values[3],
-                                             values[4], values[5], values[6], values[7],
-                                             fraction[2], fraction[1], fraction[0]);
+            if constexpr (INTERP_MODE == InterpMode::COSINE || INTERP_MODE == InterpMode::CUBIC_BSPLINE) {
+                return interpolate::cosine_3d(values[0], values[1], values[2], values[3],
+                                              values[4], values[5], values[6], values[7],
+                                              fraction[2], fraction[1], fraction[0]);
             } else {
-                return interpolate::lerp3D(values[0], values[1], values[2], values[3],
-                                           values[4], values[5], values[6], values[7],
-                                           fraction[2], fraction[1], fraction[0]);
+                return interpolate::lerp_3d(values[0], values[1], values[2], values[3],
+                                            values[4], values[5], values[6], values[7],
+                                            fraction[2], fraction[1], fraction[0]);
             }
         }
 
@@ -422,7 +438,7 @@ namespace noa::geometry {
 
             const index3_type idx(noa::math::floor(coordinate));
             data_type values[4][4][4]; // [z][y][x]
-            if constexpr (BORDER_MODE == BORDER_ZERO || BORDER_MODE == BORDER_VALUE) {
+            if constexpr (BORDER_MODE == BorderMode::ZERO || BORDER_MODE == BorderMode::VALUE) {
                 const bool cond_z[4] = {idx[0] - 1 >= 0 && idx[0] - 1 < m_shape[0],
                                         idx[0] + 0 >= 0 && idx[0] + 0 < m_shape[0],
                                         idx[0] + 1 >= 0 && idx[0] + 1 < m_shape[0],
@@ -436,7 +452,7 @@ namespace noa::geometry {
                                         idx[2] + 1 >= 0 && idx[2] + 1 < m_shape[2],
                                         idx[2] + 2 >= 0 && idx[2] + 2 < m_shape[2]};
                 data_type cval;
-                if constexpr (BORDER_MODE == BORDER_ZERO)
+                if constexpr (BORDER_MODE == BorderMode::ZERO)
                     cval = data_type{0};
                 else
                     cval = m_cvalue;
@@ -451,8 +467,8 @@ namespace noa::geometry {
                         }
                     }
                 }
-            } else if constexpr (BORDER_MODE == BORDER_CLAMP || BORDER_MODE == BORDER_PERIODIC ||
-                                 BORDER_MODE == BORDER_MIRROR || BORDER_MODE == BORDER_REFLECT) {
+            } else if constexpr (BORDER_MODE == BorderMode::CLAMP || BORDER_MODE == BorderMode::PERIODIC ||
+                                 BORDER_MODE == BorderMode::MIRROR || BORDER_MODE == BorderMode::REFLECT) {
                 const index_type tmp_z[4] = {indexing::at<BORDER_MODE>(idx[0] - 1, m_shape[0]),
                                              indexing::at<BORDER_MODE>(idx[0] + 0, m_shape[0]),
                                              indexing::at<BORDER_MODE>(idx[0] + 1, m_shape[0]),
@@ -475,41 +491,47 @@ namespace noa::geometry {
             }
 
             const coord3_type fraction{coordinate - static_cast<coord3_type>(idx)};
-            if constexpr (INTERP_MODE == INTERP_CUBIC_BSPLINE || INTERP_MODE == INTERP_CUBIC_BSPLINE_FAST)
-                return interpolate::cubicBSpline3D(values, fraction[2], fraction[1], fraction[0]);
+            if constexpr (INTERP_MODE == InterpMode::CUBIC_BSPLINE || INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST)
+                return interpolate::cubic_bspline_3d(values, fraction[2], fraction[1], fraction[0]);
             else
-                return interpolate::cubic3D(values, fraction[2], fraction[1], fraction[0]);
+                return interpolate::cubic_3d(values, fraction[2], fraction[1], fraction[0]);
         }
 
     private:
         accessor_type m_data{};
         index3_type m_shape{};
-        data_or_empty_type m_cvalue{};
+        NOA_NO_UNIQUE_ADDRESS data_or_empty_type m_cvalue{};
     };
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
-             typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
+             typename Data, typename Offset, typename Index, i32 NDIM,
+             PointerTraits PointerTrait, StridesTraits StridesTrait,
              typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
-    constexpr auto interpolator3D(const Accessor<Data, NDIM, Offset, TRAITS>& accessor,
-                                  Int3<Index> shape,
+    constexpr auto interpolator3D(const Accessor<Data, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
+                                  Shape3<Index> shape,
                                   CValue cvalue = CValue{0}) {
         using mutable_data_t = std::remove_cv_t<Data>;
-        using interpolator_t = Interpolator3D<BORDER_MODE, INTERP_MODE, mutable_data_t, Offset, Coord, NDIM, TRAITS>;
+        using interpolator_t = Interpolator3D<
+                BORDER_MODE, INTERP_MODE, mutable_data_t,
+                Offset, Coord, NDIM, PointerTrait, StridesTrait>;
         return interpolator_t(accessor, shape, cvalue);
     }
 
-    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = float,
-             typename Data, typename Offset, typename Index, int NDIM, AccessorTraits TRAITS,
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
+             typename Data, typename Offset, typename Index, i32 NDIM,
+             PointerTraits PointerTrait, StridesTraits StridesTrait,
              typename CValue = traits::remove_ref_cv_t<Data>,
              typename = std::enable_if_t<traits::is_almost_same_v<Data, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
-    constexpr auto interpolator3D(const AccessorReference<Data, NDIM, Offset, TRAITS>& accessor,
-                                  Int3<Index> shape,
+    constexpr auto interpolator3D(const AccessorReference<Data, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
+                                  Shape3<Index> shape,
                                   CValue cvalue = CValue{0}) {
         using mutable_data_t = std::remove_cv_t<Data>;
-        using interpolator_t = Interpolator3D<BORDER_MODE, INTERP_MODE, mutable_data_t, Offset, Coord, NDIM, TRAITS>;
+        using interpolator_t = Interpolator3D<
+                BORDER_MODE, INTERP_MODE, mutable_data_t,
+                Offset, Coord, NDIM, PointerTrait, StridesTrait>;
         return interpolator_t({accessor.data(), accessor.strides()}, shape, cvalue);
     }
 }

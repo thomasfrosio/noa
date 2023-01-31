@@ -1,8 +1,3 @@
-/// \file noa/core/Symmetry.h
-/// \brief Symmetry operations.
-/// \author Thomas - ffyr2w
-/// \date 20 Jul 2020
-
 #pragma once
 
 #include <string_view>
@@ -29,7 +24,7 @@ namespace noa::geometry {
     public:
         /// Symmetry symbol.
         struct Symbol {
-            size_t order; // O = 0, C|D = X, I1 = 1, I2 = 2
+            i32 order; // O = 0, C|D = X, I1 = 1, I2 = 2
             char type; // C, D, O, I
         };
 
@@ -42,7 +37,7 @@ namespace noa::geometry {
         constexpr Symmetry() = default;
 
         /// Parses the symmetry symbol and sets the underlying symmetry matrices.
-        explicit Symmetry(std::string_view symmetry) { parseAndSetMatrices_(symmetry); }
+        explicit Symmetry(std::string_view symmetry) { parse_and_set_matrices_(symmetry); }
 
         /// Creates a symmetry from raw data.
         /// This is mostly to create an interface with non-supported symmetries.
@@ -51,21 +46,21 @@ namespace noa::geometry {
         ///                     Note that this function does not copy the underlying data and nor does it
         ///                     owns it. It creates a view and the caller remains the owner of the matrices.
         /// \param count        Number of 3x3 matrices in \p matrices.
-        Symmetry(Symbol symbol, const float33_t* matrices, size_t count)
+        Symmetry(Symbol symbol, const Float33* matrices, i64 count)
                 : m_matrices(matrices), m_count(count), m_symbol(symbol) {}
 
     public: // Access data
         /// Returns the symmetry matrices, which doesn't include the identity, required to describe the symmetry.
         /// The number of returned matrices can be accessed at any time using count().
-        [[nodiscard]] const float33_t* get() const { return m_matrices; }
+        [[nodiscard]] const Float33* get() const { return m_matrices; }
 
         /// Returns a shared pointer of the internal data. Always points to the matrices returned by get().
-        [[nodiscard]] shared_t<const float33_t[]> share() const {
+        [[nodiscard]] Shared<const Float33[]> share() const {
             return {m_buffer, m_matrices};
         }
 
         /// Returns the number of matrices returned by matrices().
-        [[nodiscard]] size_t count() const { return m_count; }
+        [[nodiscard]] i64 count() const { return m_count; }
 
         /// Returns the symbol of the current symmetry. \see Symmetry::Symbol.
         [[nodiscard]] Symbol symbol() const { return m_symbol; }
@@ -79,17 +74,17 @@ namespace noa::geometry {
         }
 
     private: // Private member variables and functions
-        std::shared_ptr<float33_t[]> m_buffer{}; // is only used for C and D symmetries
-        const float33_t* m_matrices{}; // actual pointer that should be shared; can point to static data
-        size_t m_count{}; // number of symmetry matrices, without the identity, to describe the symmetry
+        Shared<Float33[]> m_buffer{}; // is only used for C and D symmetries
+        const Float33* m_matrices{}; // actual pointer that should be shared; can point to static data
+        i64 m_count{}; // number of symmetry matrices, without the identity, to describe the symmetry
         Symbol m_symbol{};
 
         // Parses the symbol but doesn't check if it is recognized.
-        static Symbol parseSymbol_(std::string_view symbol);
+        static Symbol parse_symbol_(std::string_view symbol);
 
         // Supported are CX, DX, O, I1, I2. X is a non-zero positive integer.
         // The string should be left trimmed.
-        void parseAndSetMatrices_(std::string_view symbol);
+        void parse_and_set_matrices_(std::string_view symbol);
     };
 
     NOA_IH std::ostream& operator<<(std::ostream& os, const Symmetry& s) {
