@@ -169,8 +169,8 @@ target_include_directories(noa
         )
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/utils/Version.h.in"
-        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
+        "${PROJECT_SOURCE_DIR}/cmake/utils/Version.hpp.in"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
         @ONLY)
 
 # Since it is static library only, the SOVERSION shouldn't matter.
@@ -211,7 +211,7 @@ endforeach ()
 
 # Generated headers:
 install(FILES
-        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 
 message(STATUS "-> noa::noa: configuring public target... done")

@@ -1,7 +1,7 @@
 // This is the entry point to ALL tests.
 
-#include <noa/Session.h>
-#include <noa/common/Types.h>
+#include <noa/core/Session.hpp>
+#include <noa/core/Types.hpp>
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>

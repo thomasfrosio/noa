@@ -1,6 +1,6 @@
 #pragma once
 
-#include <noa/common/Types.h>
+#include <noa/core/Types.hpp>
 #include <ostream>
 
 #if defined(NOA_COMPILER_CLANG)

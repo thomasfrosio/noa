@@ -1,8 +1,8 @@
 #pragma once
 
-#include <noa/common/Types.h>
-#include <noa/common/Math.h>
-#include <noa/common/traits/Numerics.h>
+#include <noa/core/Types.hpp>
+#include <noa/core/Math.hpp>
+#include <noa/core/traits/Numerics.hpp>
 
 //#ifdef NOA_ENABLE_UNIFIED
 //#include <noa/Array.h>
