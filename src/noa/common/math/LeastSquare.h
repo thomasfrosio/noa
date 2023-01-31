@@ -4,6 +4,8 @@
 #include <cstddef>
 
 #include "noa/common/math/Generic.h"
+#include "noa/common/math/Comparison.h"
+#include "noa/common/utils/Pair.h"
 
 // More details at: https://www.codeproject.com/Articles/63170/Least-Squares-Regression-for-Quadratic-Curve-Fitti
 
@@ -12,8 +14,8 @@ namespace noa::math {
     /// Returns {a, b, c}, as in ``y = ax^2 + bx + c``, where x is an integral number from 0 to size-1.
     /// For large sizes, prefer to use the more stable math::lstsq().
     template<bool ACCURATE_SUM = true, typename Real, typename Int>
-    constexpr NOA_HD void lstsqFitQuadratic(const Real* y, Int size, double* a, double* b, double* c) {
-        static_assert(traits::is_float_v<Real> && traits::is_int_v<Int>);
+    constexpr NOA_HD void lstsq_fit_quadratic(const Real* y, Int size, double* a, double* b, double* c) {
+        static_assert(noa::traits::is_real_v<Real> && noa::traits::is_int_v<Int>);
         if (!y || size < 3)
             return;
 
@@ -74,15 +76,15 @@ namespace noa::math {
     }
 
     template<bool ACCURATE_SUM = true, typename Real, typename Int>
-    auto lstsqFitQuadratic(const Real* y, Int size) {
+    auto lstsq_fit_quadratic(const Real* y, Int size) {
         double a{}, b{}, c{};
-        lstsqFitQuadratic<ACCURATE_SUM>(y, size, &a, &b, &c);
+        lstsq_fit_quadratic<ACCURATE_SUM>(y, size, &a, &b, &c);
         return std::tuple{a, b, c};
     }
 
     /// This is equivalent to math::lstsqFitQuadratic() if one wants to get the vertex for three points.
     template<typename Real>
-    constexpr NOA_IHD auto lstsqFitQuadraticVertex3Points(Real y0, Real y1, Real y2) noexcept {
+    constexpr NOA_IHD auto lstsq_fit_quadratic_vertex_3points(Real y0, Real y1, Real y2) noexcept {
         // https://stackoverflow.com/a/717791
         const Real a = 2 * y1 - y0 - y2; // * -0.5
         const Real b = y0 - y2; // * -0.5

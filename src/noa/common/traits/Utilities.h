@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 
 namespace noa::traits {
     template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
@@ -12,23 +13,26 @@ namespace noa::traits {
     template <bool... Bs> using bool_sequence_t = std::integer_sequence<bool, Bs...>;
     template <bool... Bs> using bool_and = std::is_same<bool_sequence_t<Bs...>, bool_sequence_t<(Bs || true)...>>;
     template <bool... Bs> using bool_or = std::integral_constant<bool, !bool_and<!Bs...>::value>;
+
+    template<typename T> using always_false = std::false_type;
+    template<typename T> constexpr bool always_false_v = always_false<T>::value;
+
+    struct Empty {};
+    using empty_t = Empty;
 }
 
 namespace noa::traits {
     namespace details {
         template<typename T, typename = void> struct value_type { using type = T; };
-        template<typename T> struct value_type<T, std::void_t<typename T::value_type>> { using type = typename T::value_type; };
-
         template<typename T, typename = void> struct element_type { using type = T; };
-        template<typename T> struct element_type<T, std::void_t<typename T::element_type>> { using type = typename T::element_type; };
-
         template<typename T, typename = void> struct index_type { using type = T; };
-        template<typename T> struct index_type<T, std::void_t<typename T::index_type>> { using type = typename T::index_type; };
-
-        template<typename T, typename = void> struct pointer_type { using type = T; };
-        template<typename T> struct pointer_type<T, std::void_t<typename T::pointer_type>> { using type = typename T::pointer_type; };
-
         template<typename T, typename = void> struct shared_type { using type = T; };
+        template<typename T, typename = void> struct pointer_type { using type = T; };
+
+        template<typename T> struct value_type<T, std::void_t<typename T::value_type>> { using type = typename T::value_type; };
+        template<typename T> struct element_type<T, std::void_t<typename T::element_type>> { using type = typename T::element_type; };
+        template<typename T> struct index_type<T, std::void_t<typename T::index_type>> { using type = typename T::index_type; };
+        template<typename T> struct pointer_type<T, std::void_t<typename T::pointer_type>> { using type = typename T::pointer_type; };
         template<typename T> struct shared_type<T, std::void_t<typename T::shared_type>> { using type = typename T::shared_type; };
     }
 
@@ -54,7 +58,23 @@ namespace noa::traits {
 
     template<typename T, typename... Ts> struct are_all_same : std::bool_constant<(std::is_same_v<T, Ts> && ...)> {};
     template<typename T, typename... Ts> constexpr bool are_all_same_v = are_all_same<T, Ts...>::value;
+}
 
-    template<typename T> using always_false = std::false_type;
-    template<typename T> constexpr bool always_false_v = always_false<T>::value;
+namespace noa::traits {
+    template<typename T>
+    class has_name {
+        using one_type = int8_t;
+        using two_type = int16_t;
+
+        template<typename C>
+        static constexpr one_type test(decltype(std::string(C::name()))) { return {}; }
+
+        template<typename...>
+        static constexpr two_type test(...) { return {}; }
+
+    public:
+        static constexpr bool value = sizeof(test<T>(0)) == sizeof(int8_t);
+    };
+
+    template<typename T> constexpr bool has_name_v = has_name<T>::value;
 }

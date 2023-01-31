@@ -5,20 +5,19 @@
 #include <cfloat> // FLT_EPSILON, DBL_EPSILON
 
 #include "noa/common/Definitions.h"
-#include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/Numerics.h"
 
 namespace noa::math {
     /// Some constants.
-    template<typename T>
-    struct Constants {
-        static constexpr T PI = static_cast<T>(3.1415926535897932384626433832795);
-        static constexpr T PI2 = static_cast<T>(6.283185307179586476925286766559);
-        static constexpr T PIHALF = static_cast<T>(1.5707963267948966192313216916398);
+    template<typename Real>
+    struct Constant {
+        static_assert(noa::traits::is_real_v<Real>);
+        static constexpr Real PI = static_cast<Real>(3.1415926535897932384626433832795);
     };
 
     /// Numeric limits.
-    /// \note Use this type instead of \c std::numeric_limits to work on CUDA-device code
-    ///       without the \c --expt-relaxed-constexpr flag on.
+    /// \note Use this type instead of std::numeric_limits to work on CUDA-device code
+    ///       without the --expt-relaxed-constexpr flag on.
     template<typename T>
     struct Limits {
         NOA_FHD static constexpr T epsilon() {
@@ -29,7 +28,7 @@ namespace noa::math {
             } else {
                 static_assert(traits::always_false_v<T>);
             }
-            return static_cast<T>(0); // unreachable
+            return T{0}; // unreachable
         }
 
         NOA_FHD static constexpr T min() {
@@ -55,7 +54,7 @@ namespace noa::math {
             } else {
                 static_assert(traits::always_false_v<T>);
             }
-            return static_cast<T>(0); // unreachable
+            return T{0}; // unreachable
             #else
             return std::numeric_limits<T>::min();
             #endif
@@ -92,7 +91,7 @@ namespace noa::math {
             } else {
                 static_assert(traits::always_false_v<T>);
             }
-            return static_cast<T>(0); // unreachable
+            return T{0; // unreachable
             #else
             return std::numeric_limits<T>::max();
             #endif
@@ -105,7 +104,7 @@ namespace noa::math {
             } else {
                 return min();
             }
-            return static_cast<T>(0); // unreachable
+            return T{0}; // unreachable
             #else
             return std::numeric_limits<T>::lowest();
             #endif

@@ -1,16 +1,12 @@
-/// \file noa/common/Math.h
-/// \brief Various mathematical functions for built-in types.
-/// \author Thomas - ffyr2w
-/// \date 20 Jul 2020
-
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/Types.h"
 #include "noa/common/Math.h"
+#include "noa/common/traits/Numerics.h"
+#include "noa/common/types/Complex.h"
 
 // -- Unary operators -- //
-namespace noa::math {
+namespace noa {
     struct copy_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return lhs; }
@@ -38,27 +34,27 @@ namespace noa::math {
 
     struct round_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return noa::math::round(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::round(lhs); }
     };
 
     struct rint_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return noa::math::rint(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::rint(lhs); }
     };
 
     struct ceil_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return noa::math::ceil(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::ceil(lhs); }
     };
 
     struct floor_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return noa::math::floor(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::floor(lhs); }
     };
 
     struct trunc_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return noa::math::trunc(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::trunc(lhs); }
     };
 
     struct nonzero_t {
@@ -137,7 +133,7 @@ namespace noa::math {
     struct abs_one_log_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
-            using value_t = traits::value_type_t<T>;
+            using value_t = ::noa::traits::value_type_t<T>;
             return ::noa::math::log(value_t{1} + ::noa::math::abs(x));
         }
     };
@@ -145,20 +141,21 @@ namespace noa::math {
     struct one_log_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
-            using value_t = traits::value_type_t<T>;
+            using value_t = ::noa::traits::value_type_t<T>;
             return ::noa::math::log(value_t{1} + x);
         }
     };
-}
 
-// -- Binary operators -- //
-namespace noa::math {
+    // -- Binary operators -- //
+
     struct plus_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs + rhs; }
 
         template<typename T, typename U, typename V>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return lhs + mhs + rhs; }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs + mhs + rhs;
+        }
     };
 
     struct minus_t {
@@ -166,7 +163,9 @@ namespace noa::math {
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs - rhs; }
 
         template<typename T, typename U, typename V>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return lhs - mhs - rhs; }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs - mhs - rhs;
+        }
     };
 
     struct multiply_t {
@@ -174,12 +173,14 @@ namespace noa::math {
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * rhs; }
 
         template<typename T, typename U, typename V>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return lhs * mhs * rhs; }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return lhs * mhs * rhs;
+        }
     };
 
     struct multiply_conj_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * noa::math::conj(rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * ::noa::math::conj(rhs); }
     };
 
     struct divide_t {
@@ -187,7 +188,9 @@ namespace noa::math {
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs / rhs; }
 
         template<typename T, typename U, typename V>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const { return (lhs / mhs) / rhs; }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
+            return (lhs / mhs) / rhs;
+        }
     };
 
     struct modulo_t {
@@ -198,7 +201,7 @@ namespace noa::math {
     struct divide_safe_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const {
-            if constexpr (::noa::traits::is_float_v<U>) {
+            if constexpr (::noa::traits::is_real_v<U>) {
                 return ::noa::math::abs(rhs) < ::noa::math::Limits<U>::epsilon() ? T(0) : lhs / rhs;
             } else if constexpr (std::is_integral_v<U>) {
                 return rhs == 0 ? T(0) : T(lhs / rhs); // short is implicitly promoted to int so cast it back
@@ -276,10 +279,9 @@ namespace noa::math {
     struct last_min_t {}; // undefined implementation
     struct first_max_t {}; // undefined implementation
     struct last_max_t {}; // undefined implementation
-}
 
-// -- Trinary operators -- //
-namespace noa::math {
+    // -- Trinary operators -- //
+
     struct plus_minus_t {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
@@ -328,6 +330,7 @@ namespace noa::math {
             return lhs * mhs + rhs;
         }
     };
+
     using fma_t = multiply_plus_t;
 
     struct multiply_minus_t {

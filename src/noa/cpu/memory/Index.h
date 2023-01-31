@@ -12,21 +12,17 @@
 // -- Using coordinates -- //
 namespace noa::cpu::memory {
     // Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.
-    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void extract(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                 const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
-                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value,
-                 Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_restricted_data_v<Value>>>
+    void extract_subregions(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
+                            const shared_t<Value[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
+                            const shared_t<int4_t[]>& origins, BorderMode border_mode, Value border_value,
+                            Stream& stream);
 
     // Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
-    template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void insert(const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
-                const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
-                const shared_t<int4_t[]>& origins, Stream& stream);
-
-    // Gets the atlas layout (shape + subregion origins).
-    template<typename T, typename = std::enable_if_t<traits::is_int2_v<T> || traits::is_int4_v<T>>>
-    inline dim4_t atlasLayout(dim4_t subregion_shape, T* origins);
+    template<typename Value, typename = std::enable_if_t<traits::is_restricted_data_v<Value>>>
+    void insert_subregions(const shared_t<Value[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
+                           const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
+                           const shared_t<int4_t[]>& origins, Stream& stream);
 }
 
 // -- Using a sequence of linear indexes -- //

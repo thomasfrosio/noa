@@ -2,11 +2,11 @@
 
 #include <noa/common/Types.h>
 #include <noa/common/Math.h>
-#include <noa/common/traits/BaseTypes.h>
+#include <noa/common/traits/Numerics.h>
 
-#ifdef NOA_ENABLE_UNIFIED
-#include <noa/Array.h>
-#endif
+//#ifdef NOA_ENABLE_UNIFIED
+//#include <noa/Array.h>
+//#endif
 
 #include <random>
 #include <cstdlib>
@@ -14,12 +14,12 @@
 #include <cmath>
 
 namespace test {
-    extern noa::path_t NOA_DATA_PATH; // defined at runtime by main.
+    extern noa::Path NOA_DATA_PATH; // defined at runtime by main.
 }
 
 namespace test {
     template<typename T, size_t N>
-    inline std::vector<T> toVector(const std::array<T, N>& array) {
+    inline std::vector<T> array2vector(const std::array<T, N>& array) {
         return std::vector<T>(array.cbegin(), array.cend());
     }
 }
@@ -29,68 +29,78 @@ namespace test {
     template<typename T>
     class Randomizer {
     private:
-        using value_t = noa::traits::value_type_t<T>;
-        using gen_value_t = std::conditional_t<std::is_same_v<value_t, noa::half_t>, float, value_t>;
-        using distributor_t = std::conditional_t<std::is_integral_v<T>,
-                                                 std::uniform_int_distribution<T>,
-                                                 std::uniform_real_distribution<gen_value_t>>;
+        using value_type = noa::traits::value_type_t<T>;
+        using gen_value_type = std::conditional_t<
+                std::is_same_v<value_type, noa::f16>, noa::f32, value_type>;
+        using distributor_type = std::conditional_t<
+                std::is_integral_v<T>,
+                std::uniform_int_distribution<T>,
+                std::uniform_real_distribution<gen_value_type>>;
         std::random_device rand_dev;
         std::mt19937 generator;
-        distributor_t distribution;
+        distributor_type distribution;
+
     public:
         template<typename U>
         Randomizer(U range_from, U range_to)
                 : generator(rand_dev()),
-                  distribution(static_cast<gen_value_t>(range_from), static_cast<gen_value_t>(range_to)) {}
+                  distribution(static_cast<gen_value_type>(range_from),
+                               static_cast<gen_value_type>(range_to)) {}
+
         inline T get() {
-            if constexpr(noa::traits::is_complex_v<T>)
-                return {static_cast<value_t>(distribution(generator)), static_cast<value_t>(distribution(generator))};
-            else
+            if constexpr(noa::traits::is_complex_v<T>) {
+                return {static_cast<value_type>(distribution(generator)),
+                        static_cast<value_type>(distribution(generator))};
+            } else {
                 return static_cast<T>(distribution(generator));
+            }
         }
     };
 
-    inline noa::size4_t getRandomShape(size_t ndim) {
+    inline noa::Shape4<noa::u64> get_random_shape4(size_t ndim) {
         if (ndim == 2) {
-            test::Randomizer<size_t> rand(32, 512);
-            return noa::size4_t{1, 1, rand.get(), rand.get()};
+            test::Randomizer<noa::u64> rand(32, 512);
+            return noa::Shape4<noa::u64>{1, 1, rand.get(), rand.get()};
         } else if (ndim == 3) {
-            test::Randomizer<size_t> rand(32, 128);
-            return noa::size4_t{1, rand.get(), rand.get(), rand.get()};
+            test::Randomizer<noa::u64> rand(32, 128);
+            return noa::Shape4<noa::u64>{1, rand.get(), rand.get(), rand.get()};
         } else if (ndim == 4) {
-            test::Randomizer<size_t> rand(32, 128);
-            return noa::size4_t{test::Randomizer<size_t>(1, 3).get(), rand.get(), rand.get(), rand.get()};
+            test::Randomizer<noa::u64> rand(32, 128);
+            return noa::Shape4<noa::u64>{test::Randomizer<noa::u64>(1, 3).get(),
+                               rand.get(), rand.get(), rand.get()};
         } else {
-            test::Randomizer<size_t> rand(32, 1024);
-            return noa::size4_t{1, 1, 1, rand.get()};
+            test::Randomizer<noa::u64> rand(32, 1024);
+            return noa::Shape4<noa::u64>{1, 1, 1, rand.get()};
         }
     }
 
-    inline noa::size4_t getRandomShapeBatched(size_t ndim) {
-        test::Randomizer<size_t> rand_batch(1, 3);
+    inline noa::Shape4<noa::u64> get_random_shape4_batched(size_t ndim) {
+        test::Randomizer<noa::u64> rand_batch(1, 3);
         if (ndim == 2) {
-            test::Randomizer<size_t> randomizer(32, 512);
-            return noa::size4_t{rand_batch.get(), 1, randomizer.get(), randomizer.get()};
+            test::Randomizer<noa::u64> randomizer(32, 512);
+            return noa::Shape4<noa::u64>{rand_batch.get(), 1,
+                               randomizer.get(), randomizer.get()};
         } else if (ndim >= 3) {
-            test::Randomizer<size_t> randomizer(32, 128);
-            return noa::size4_t{rand_batch.get(), randomizer.get(), randomizer.get(), randomizer.get()};
+            test::Randomizer<noa::u64> randomizer(32, 128);
+            return noa::Shape4<noa::u64>{rand_batch.get(), randomizer.get(),
+                               randomizer.get(), randomizer.get()};
         } else {
-            test::Randomizer<size_t> randomizer(32, 1024);
-            return noa::size4_t{rand_batch.get(), 1, 1, randomizer.get()};
+            test::Randomizer<noa::u64> randomizer(32, 1024);
+            return noa::Shape4<noa::u64>{rand_batch.get(), 1, 1, randomizer.get()};
         }
     }
 
-    inline noa::size4_t getRandomShape(size_t ndim, bool even) { // if even is false, return odd only
-        noa::size4_t shape = getRandomShape(ndim);
-        shape += noa::size4_t{shape != 1} * // ignore empty dimensions
-                 ((shape % 2) * even + !even * noa::size4_t{(shape % 2) == 0});
+    inline noa::Shape4<noa::u64> get_random_shape4(size_t ndim, bool even) { // if even is false, return odd only
+        noa::Shape4<noa::u64> shape = get_random_shape4(ndim);
+        shape += noa::Shape4<noa::u64>{shape != 1} * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::Shape4<noa::u64>{(shape % 2) == 0});
         return shape;
     }
 
-    inline noa::size4_t getRandomShapeBatched(size_t ndim, bool even) {
-        noa::size4_t shape = getRandomShapeBatched(ndim);
-        shape += noa::size4_t{shape != 1} * // ignore empty dimensions
-                 ((shape % 2) * even + !even * noa::size4_t{(shape % 2) == 0});
+    inline noa::Shape4<noa::u64> get_random_shape4_batched(size_t ndim, bool even) {
+        noa::Shape4<noa::u64> shape = get_random_shape4_batched(ndim);
+        shape += noa::Shape4<noa::u64>{shape != 1} * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::Shape4<noa::u64>{(shape % 2) == 0});
         return shape;
     }
 }
@@ -134,7 +144,7 @@ namespace test {
 
 namespace test {
     template<typename T>
-    inline T getDifference(const T* in, const T* out, size_t elements) {
+    inline T get_difference(const T* in, const T* out, size_t elements) {
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
             T diff{0}, tmp;
@@ -177,9 +187,9 @@ namespace test {
 
         template<typename U>
         Matcher(CompType comparison,
-                const T* lhs, noa::size4_t lhs_strides,
-                const T* rhs, noa::size4_t rhs_strides,
-                noa::size4_t shape, U epsilon) noexcept
+                const T* lhs, noa::Strides4<noa::u64> lhs_strides,
+                const T* rhs, noa::Strides4<noa::u64> rhs_strides,
+                noa::Shape4<noa::u64> shape, U epsilon) noexcept
                 : m_shape(shape),
                   m_lhs_strides(lhs_strides),
                   m_rhs_strides(rhs_strides),
@@ -198,9 +208,9 @@ namespace test {
 
         template<typename U>
         Matcher(CompType comparison,
-                const T* lhs, noa::size4_t lhs_strides,
+                const T* lhs, noa::Strides4<noa::u64> lhs_strides,
                 const T rhs,
-                noa::size4_t shape, U epsilon) noexcept
+                noa::Shape4<noa::u64> shape, U epsilon) noexcept
                 : m_shape(shape),
                   m_lhs_strides(lhs_strides),
                   m_lhs(lhs),
@@ -220,31 +230,31 @@ namespace test {
         template<typename U>
         Matcher(CompType comparison, const T* lhs, const T* rhs, size_t elements, U epsilon) noexcept
             : Matcher(comparison,
-                      lhs, noa::size4_t{1, 1, 1, elements}.strides(),
-                      rhs, noa::size4_t{1, 1, 1, elements}.strides(),
-                      noa::size4_t{1, 1, 1, elements}, epsilon) {}
+                      lhs, noa::Shape4<noa::u64>{1, 1, 1, elements}.strides(),
+                      rhs, noa::Shape4<noa::u64>{1, 1, 1, elements}.strides(),
+                      noa::Shape4<noa::u64>{1, 1, 1, elements}, epsilon) {}
 
         template<typename U>
         Matcher(CompType comparison, const T* lhs, T rhs, size_t elements, U epsilon) noexcept
                 : Matcher(comparison,
-                          lhs, noa::size4_t{1, 1, 1, elements}.strides(),
+                          lhs, noa::Shape4<noa::u64>{1, 1, 1, elements}.strides(),
                           rhs,
-                          noa::size4_t{1, 1, 1, elements}, epsilon) {}
+                          noa::Shape4<noa::u64>{1, 1, 1, elements}, epsilon) {}
 
-        #ifdef NOA_ENABLE_UNIFIED
-        template<typename U>
-        Matcher(CompType comparison, const noa::Array<T>& lhs, const noa::Array<T>& rhs, U epsilon) noexcept
-                : Matcher(comparison,
-                          lhs.eval().get(), lhs.strides(),
-                          rhs.eval().get(), rhs.strides(),
-                          lhs.shape(), epsilon) {
-            NOA_ASSERT(all(lhs.shape() == rhs.shape()));
-        }
-
-        template<typename U>
-        Matcher(CompType comparison, const noa::Array<T>& lhs, T rhs, U epsilon) noexcept
-                : Matcher(comparison, lhs.eval().get(), lhs.strides(), rhs, lhs.shape(), epsilon) {}
-        #endif
+//        #ifdef NOA_ENABLE_UNIFIED
+//        template<typename U>
+//        Matcher(CompType comparison, const noa::Array<T>& lhs, const noa::Array<T>& rhs, U epsilon) noexcept
+//                : Matcher(comparison,
+//                          lhs.eval().get(), lhs.strides(),
+//                          rhs.eval().get(), rhs.strides(),
+//                          lhs.shape(), epsilon) {
+//            NOA_ASSERT(all(lhs.shape() == rhs.shape()));
+//        }
+//
+//        template<typename U>
+//        Matcher(CompType comparison, const noa::Array<T>& lhs, T rhs, U epsilon) noexcept
+//                : Matcher(comparison, lhs.eval().get(), lhs.strides(), rhs, lhs.shape(), epsilon) {}
+//        #endif
 
         explicit operator bool() const noexcept {
             return m_match;
@@ -257,7 +267,7 @@ namespace test {
                 using namespace noa;
                 using namespace noa::indexing;
 
-                size4_t idx = matcher.m_index_failed;
+                Vec4<u64> idx = matcher.m_index_failed;
                 if (matcher.m_shape.ndim() == 1)
                     os << "Matcher: check failed at index=" << idx;
                 else
@@ -269,7 +279,7 @@ namespace test {
                     os << noa::string::format(", lhs={}, rhs={}, epsilon={}, total_abs_diff={}",
                                               lhs_value, rhs_value, matcher.m_epsilon, matcher.m_total_abs_diff);
                 } else {
-                    int dyn_precision;
+                    int dyn_precision{};
                     if constexpr (noa::traits::is_complex_v<T>)
                         dyn_precision =
                                 noa::math::max(int(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
@@ -297,26 +307,26 @@ namespace test {
     private:
         void check_() noexcept {
             if (m_comparison == MATCH_ABS)
-                check_(Matcher<T>::checkAbs_<T>);
+                check_(Matcher<T>::check_abs_<T>);
             else if (m_comparison == MATCH_ABS_SAFE)
-                check_(Matcher<T>::checkAbsSafe_<T>);
+                check_(Matcher<T>::check_abs_safe_<T>);
             else if (m_comparison == MATCH_REL)
-                check_(Matcher<T>::checkRel_<T>);
+                check_(Matcher<T>::check_rel_<T>);
         }
 
         template<typename F>
         void check_(F&& value_checker) noexcept {
-            using namespace noa::indexing;
             m_total_abs_diff = T{0};
             m_match = true;
-            for (size_t i = 0; i < m_shape[0]; ++i) {
-                for (size_t j = 0; j < m_shape[1]; ++j) {
-                    for (size_t k = 0; k < m_shape[2]; ++k) {
-                        for (size_t l = 0; l < m_shape[3]; ++l) {
-                            const bool passed = value_checker(m_lhs[at(i, j, k, l, m_lhs_strides)],
-                                                              m_rhs[at(i, j, k, l, m_rhs_strides)],
-                                                              m_epsilon,
-                                                              m_total_abs_diff);
+            for (u64 i = 0; i < m_shape[0]; ++i) {
+                for (u64 j = 0; j < m_shape[1]; ++j) {
+                    for (u64 k = 0; k < m_shape[2]; ++k) {
+                        for (u64 l = 0; l < m_shape[3]; ++l) {
+                            const bool passed = value_checker(
+                                    m_lhs[noa::indexing::at(i, j, k, l, m_lhs_strides)],
+                                    m_rhs[noa::indexing::at(i, j, k, l, m_rhs_strides)],
+                                    m_epsilon,
+                                    m_total_abs_diff);
                             if (m_match && !passed) {
                                 m_index_failed = {i, j, k, l};
                                 m_match = false;
@@ -328,11 +338,11 @@ namespace test {
         }
 
         template<typename U>
-        static bool checkAbs_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
+        static bool check_abs_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
             if constexpr (noa::traits::is_complex_v<U>) {
                 using real_t = noa::traits::value_type_t<U>;
-                return Matcher<T>::checkAbs_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
-                       Matcher<T>::checkAbs_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
+                return Matcher<T>::check_abs_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
+                       Matcher<T>::check_abs_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
             } else if constexpr (std::is_integral_v<U>) {
                 U diff = input - expected;
                 if constexpr (traits::is_uint_v<U>)
@@ -348,11 +358,11 @@ namespace test {
         }
 
         template<typename U>
-        static bool checkAbsSafe_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
+        static bool check_abs_safe_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
             if constexpr (noa::traits::is_complex_v<U>) {
                 using real_t = noa::traits::value_type_t<U>;
-                return Matcher<T>::checkAbsSafe_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
-                       Matcher<T>::checkAbsSafe_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
+                return Matcher<T>::check_abs_safe_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
+                       Matcher<T>::check_abs_safe_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
             } else if constexpr (std::is_integral_v<U>) {
                 U diff = input - expected;
                 if constexpr (traits::is_uint_v<U>)
@@ -366,18 +376,18 @@ namespace test {
                 using namespace ::noa;
                 U diff = math::abs(input - expected);
                 total_abs_diff += diff;
-                if (!math::isFinite(diff))
+                if (!math::is_finite(diff))
                     return false;
                 return diff <= epsilon || diff <= math::max(math::abs(input), math::abs(expected)) * epsilon;
             }
         }
 
         template<typename U>
-        static bool checkRel_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
+        static bool check_rel_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
             if constexpr (noa::traits::is_complex_v<U>) {
                 using real_t = noa::traits::value_type_t<U>;
-                return Matcher<T>::checkRel_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
-                       Matcher<T>::checkRel_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
+                return Matcher<T>::check_rel_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
+                       Matcher<T>::check_rel_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
             } else if constexpr (std::is_integral_v<U>) {
                 U diff = input - expected;
                 if constexpr (traits::is_uint_v<U>)
@@ -388,17 +398,17 @@ namespace test {
             } else {
                 total_abs_diff += math::abs(input - expected);
                 auto margin = epsilon * noa::math::max(noa::math::abs(input), noa::math::abs(expected));
-                if (noa::math::isInf(margin))
+                if (noa::math::is_inf(margin))
                     margin = U(0);
                 return (input + margin >= expected) && (expected + margin >= input); // abs(a-b) <= epsilon
             }
         }
 
     private:
-        noa::size4_t m_shape{};
-        noa::size4_t m_lhs_strides{};
-        noa::size4_t m_rhs_strides{};
-        noa::size4_t m_index_failed{};
+        noa::Shape4<noa::u64> m_shape{};
+        noa::Strides4<noa::u64> m_lhs_strides{};
+        noa::Strides4<noa::u64> m_rhs_strides{};
+        noa::Vec4<noa::u64> m_index_failed{};
         const T* m_lhs{};
         const T* m_rhs{};
         T m_rhs_value{};

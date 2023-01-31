@@ -1,155 +1,28 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Math.h"
+#include "noa/common/memory/details/ExtractInsert.h"
 
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/memory/Index.h"
 #include "noa/gpu/cuda/memory/PtrDevice.h"
 #include "noa/gpu/cuda/utils/Pointers.h"
-
-namespace {
-    using namespace noa;
-    constexpr uint32_t BLOCK_SIZE = 256;
-    constexpr dim3 BLOCK_SIZE_2D(32, BLOCK_SIZE / 32);
-    constexpr uint32_t ELEMENTS_PER_THREAD = 4;
-    constexpr dim3 BLOCK_WORK_SIZE_2D(BLOCK_SIZE_2D.x * ELEMENTS_PER_THREAD, BLOCK_SIZE_2D.y);
-
-    template<typename T>
-    __global__ __launch_bounds__(BLOCK_SIZE)
-    void extractOrNothing_(AccessorRestrict<const T, 4, uint32_t> input, int4_t input_shape,
-                           AccessorRestrict<T, 4, uint32_t> subregions, int2_t subregion_shape,
-                           const int4_t* __restrict__ origins, int4_t order, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        if (gid[2] >= subregion_shape[0])
-            return;
-
-        const int4_t origin = indexing::reorder(origins[gid[0]], order); // TODO constant memory?
-        const int32_t ii = origin[0];
-        const int32_t ij = origin[1] + gid[1];
-        const int32_t ik = origin[2] + gid[2];
-        if (ii < 0 || ii >= input_shape[0] ||
-            ij < 0 || ij >= input_shape[1] ||
-            ik < 0 || ik >= input_shape[2])
-            return;
-
-        const auto input_row = input[ii][ij][ik];
-        const auto subregions_row = subregions[gid[0]][gid[1]][gid[2]];
-
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-            const int32_t ol = gid[3] + static_cast<int32_t>(BLOCK_SIZE_2D.x) * i;
-            const int32_t il = origin[3] + ol;
-            if (ol < subregion_shape[1] && il >= 0 && il < input_shape[3])
-                subregions_row[ol] = input_row[il];
-        }
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(BLOCK_SIZE)
-    void extractOrValue_(AccessorRestrict<const T, 4, uint32_t> input, int4_t input_shape,
-                         AccessorRestrict<T, 4, uint32_t> subregions, int2_t subregion_shape,
-                         const int4_t* __restrict__ origins, T value, int4_t order, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        if (gid[2] >= subregion_shape[0])
-            return;
-
-        const int4_t origin = indexing::reorder(origins[gid[0]], order); // TODO constant memory?
-        const int32_t ii = origin[0];
-        const int32_t ij = origin[1] + gid[1];
-        const int32_t ik = origin[2] + gid[2];
-        const bool is_in = ii >= 0 && ii < input_shape[0] &&
-                           ij >= 0 && ij < input_shape[1] &&
-                           ik >= 0 && ik < input_shape[2];
-
-        const auto subregions_row = subregions[gid[0]][gid[1]][gid[2]];
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-            const int32_t ol = gid[3] + static_cast<int32_t>(BLOCK_SIZE_2D.x) * i;
-            if (ol >= subregion_shape[1])
-                return;
-
-            const int32_t il = origin[3] + ol;
-            if (is_in && il >= 0 && il < input_shape[3])
-                subregions_row[ol] = input(ii, ij, ik, il);
-            else
-                subregions_row[ol] = value;
-        }
-    }
-
-    template<BorderMode MODE, typename T>
-    __global__ __launch_bounds__(BLOCK_SIZE)
-    void extract_(AccessorRestrict<const T, 4, uint32_t> input, int4_t input_shape,
-                  AccessorRestrict<T, 4, uint32_t> subregions, int2_t subregion_shape,
-                  const int4_t* __restrict__ origins, int4_t order, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        if (gid[2] >= subregion_shape[0])
-            return;
-
-        const int4_t origin = indexing::reorder(origins[gid[0]], order); // TODO constant memory?
-        const int32_t ii = indexing::at<MODE>(origin[0], input_shape[0]);
-        const int32_t ij = indexing::at<MODE>(origin[1] + gid[1], input_shape[1]);
-        const int32_t ik = indexing::at<MODE>(origin[2] + gid[2], input_shape[2]);
-
-        const auto input_row = input[ii][ij][ik];
-        const auto subregions_row = subregions[gid[0]][gid[1]][gid[2]];
-
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-            const int32_t ol = gid[2] + static_cast<int32_t>(BLOCK_SIZE_2D.x) * i;
-            const int32_t il = indexing::at<MODE>(origin[3] + ol, input_shape[3]);
-            if (ol < subregion_shape[1])
-                subregions_row[ol] = input_row[il];
-        }
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(BLOCK_SIZE)
-    void insert_(AccessorRestrict<const T, 4, uint32_t> subregions, int2_t subregion_shape,
-                 AccessorRestrict<T, 4, uint32_t> output, int4_t output_shape,
-                 const int4_t* __restrict__ origins, int4_t order, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const int4_t gid{blockIdx.z,
-                         blockIdx.y,
-                         BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                         BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        if (gid[2] >= subregion_shape[0])
-            return;
-
-        const int4_t origin = indexing::reorder(origins[gid[0]], order); // TODO constant memory?
-        const int32_t oi = origin[0];
-        const int32_t oj = origin[1] + gid[1];
-        const int32_t ok = origin[2] + gid[2];
-        if (oi < 0 || oi >= output_shape[0] ||
-            oj < 0 || oj >= output_shape[1] ||
-            ok < 0 || ok >= output_shape[2])
-            return;
-
-        const auto output_row = output[oi][oj][ok];
-        const auto subregions_row = subregions[gid[0]][gid[1]][gid[2]];
-
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD; ++i) {
-            const int32_t il = gid[3] + static_cast<int32_t>(BLOCK_SIZE_2D.x) * i;
-            const int32_t ol = origin[3] + il;
-            if (il < subregion_shape[1] && ol >= 0 && ol < output_shape[3])
-                output_row[ol] = subregions_row[il];
-        }
-    }
-}
+#include "noa/gpu/cuda/utils/Iwise.cuh"
 
 namespace noa::cuda::memory {
     template<typename T, typename>
-    void extract(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                 const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
-                 const shared_t<int4_t[]>& origins, BorderMode border_mode, T border_value, Stream& stream) {
+    void extract_subregions(
+            const shared_t<T[]>& input,
+            dim4_t input_strides,
+            dim4_t input_shape,
+            const shared_t<T[]>& subregions,
+            dim4_t subregion_strides,
+            dim4_t subregion_shape,
+            const shared_t<int4_t[]>& origins,
+            BorderMode border_mode,
+            T border_value,
+            Stream& stream) {
+
         // Reorder the DHW dimensions to the rightmost order.
         // We'll have to reorder the origins similarly later.
         NOA_ASSERT(all(input_shape > 0) && all(subregion_shape > 0));
@@ -164,55 +37,64 @@ namespace noa::cuda::memory {
         NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(subregions.get(), stream.device());
         const shared_t<int4_t[]> d_origins = utils::ensureDeviceAccess(origins, stream, subregion_shape[0]);
-        const auto i_shape = safe_cast<int4_t>(input_shape);
-        const auto o_shape = safe_cast<int2_t>(dim2_t(subregion_shape.get(2)));
 
-        const uint32_t blocks_x = math::divideUp(static_cast<uint>(o_shape[1]), BLOCK_WORK_SIZE_2D.x);
-        const uint32_t blocks_y = math::divideUp(static_cast<uint>(o_shape[0]), BLOCK_WORK_SIZE_2D.y);
-        const dim3 blocks(blocks_x * blocks_y, subregion_shape[1], subregion_shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_accessor(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> subregions_accessor(subregions.get(), safe_cast<uint4_t>(subregion_strides));
-
+        const auto iwise_shape = safe_cast<int4_t>(subregion_shape);
         switch (border_mode) {
-            case BORDER_NOTHING:
-                stream.enqueue("memory::extractOrNothing", extractOrNothing_<T>, {blocks, BLOCK_SIZE_2D},
-                               input_accessor, i_shape, subregions_accessor, o_shape,
-                               d_origins.get(), order, blocks_x);
+            case BORDER_NOTHING: {
+                const auto extractor = noa::memory::details::extract<BORDER_NOTHING, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrNothing", iwise_shape, extractor, stream);
                 break;
-            case BORDER_ZERO:
-                stream.enqueue("memory::extractOrValue", extractOrValue_<T>, {blocks, BLOCK_SIZE_2D},
-                               input_accessor, i_shape, subregions_accessor, o_shape,
-                               d_origins.get(), T{0}, order, blocks_x);
+            }
+            case BORDER_ZERO: {
+                const auto extractor = noa::memory::details::extract<BORDER_ZERO, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrZero", iwise_shape, extractor, stream);
                 break;
-            case BORDER_VALUE:
-                stream.enqueue("memory::extractOrValue", extractOrValue_<T>, {blocks, BLOCK_SIZE_2D},
-                               input_accessor, i_shape, subregions_accessor, o_shape,
-                               d_origins.get(), border_value, order, blocks_x);
+            }
+            case BORDER_VALUE: {
+                const auto extractor = noa::memory::details::extract<BORDER_VALUE, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order, border_value);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrValue", iwise_shape, extractor, stream);
                 break;
-            case BORDER_CLAMP:
-                stream.enqueue("memory::extract<CLAMP>", extract_<BORDER_CLAMP, T>, {blocks, BLOCK_SIZE_2D},
-                               input_accessor, i_shape, subregions_accessor, o_shape,
-                               d_origins.get(), order, blocks_x);
+            }
+            case BORDER_CLAMP: {
+                const auto extractor = noa::memory::details::extract<BORDER_CLAMP, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrClamp", iwise_shape, extractor, stream);
                 break;
-            case BORDER_MIRROR:
-                stream.enqueue("memory::extract<MIRROR>", extract_<BORDER_MIRROR, T>, {blocks, BLOCK_SIZE_2D},
-                               input_accessor, i_shape, subregions_accessor, o_shape,
-                               d_origins.get(), order, blocks_x);
+            }
+            case BORDER_MIRROR: {
+                const auto extractor = noa::memory::details::extract<BORDER_MIRROR, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrMirror", iwise_shape, extractor, stream);
                 break;
-            case BORDER_REFLECT:
-                stream.enqueue("memory::extract<REFLECT>", extract_<BORDER_REFLECT, T>, {blocks, BLOCK_SIZE_2D},
-                               input_accessor, i_shape, subregions_accessor, o_shape,
-                               d_origins.get(), order, blocks_x);
+            }
+            case BORDER_PERIODIC: {
+                const auto extractor = noa::memory::details::extract<BORDER_PERIODIC, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrPeriodic", iwise_shape, extractor, stream);
                 break;
-            default:
-                NOA_THROW("Border mode {} is not supported", border_mode);
+            }
+            case BORDER_REFLECT: {
+                const auto extractor = noa::memory::details::extract<BORDER_REFLECT, int32_t, uint32_t>(
+                        input.get(), input_strides, input_shape, subregions.get(), subregion_strides,
+                        d_origins.get(), order);
+                noa::cuda::utils::iwise4D("cuda::memory::extractOrReflect", iwise_shape, extractor, stream);
+                break;
+            }
         }
         stream.attach(input, subregions, d_origins);
     }
 
     template<typename T, typename>
-    void insert(const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
+    void insert_subregion(const shared_t<T[]>& subregions, dim4_t subregion_strides, dim4_t subregion_shape,
                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape,
                 const shared_t<int4_t[]>& origins, Stream& stream) {
         // Reorder the DHW dimensions to the rightmost order.
@@ -241,6 +123,13 @@ namespace noa::cuda::memory {
                        subregions_accessor, i_shape,
                        output_accessor, safe_cast<int4_t>(output_shape), d_origins.get(),
                        order, blocks_x);
+
+
+        const auto insert_functor = noa::memory::details::insert<int64_t, int64_t>(
+                subregions.get(), subregion_strides,
+                output.get(), output_strides, output_shape,
+                origins.get(), order);
+        noa::cuda::utils::iwise4D("cuda::memory::insert", iwise_shape, extractor, stream);
         stream.attach(subregions, output, d_origins);
     }
 

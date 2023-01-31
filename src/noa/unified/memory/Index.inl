@@ -72,7 +72,23 @@ namespace noa::memory {
 
     template<typename T, typename>
     dim4_t atlasLayout(dim4_t subregion_shape, T* origins) {
-        return cpu::memory::atlasLayout(subregion_shape, origins);
+        NOA_ASSERT(origins && all(subregion_shape > 0));
+        using namespace noa::math;
+        const auto col = static_cast<dim_t>(ceil(sqrt(static_cast<float>(subregion_shape[0]))));
+        const dim_t row = (subregion_shape[0] + col - 1) / col;
+        const dim4_t atlas_shape{1, subregion_shape[1], row * subregion_shape[2], col * subregion_shape[3]};
+        for (dim_t y = 0; y < row; ++y) {
+            for (dim_t x = 0; x < col; ++x) {
+                const dim_t idx = y * col + x;
+                if (idx >= subregion_shape[0])
+                    break;
+                if constexpr (traits::is_int4_v<T>)
+                    origins[idx] = {0, 0, y * subregion_shape[2], x * subregion_shape[3]};
+                else
+                    origins[idx] = {y * subregion_shape[2], x * subregion_shape[3]};
+            }
+        }
+        return atlas_shape;
     }
 }
 

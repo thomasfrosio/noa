@@ -7,7 +7,7 @@
 #include <catch2/catch.hpp>
 
 namespace test {
-    noa::path_t NOA_DATA_PATH;
+    noa::Path NOA_DATA_PATH;
 }
 
 int main(int argc, char* argv[]) {

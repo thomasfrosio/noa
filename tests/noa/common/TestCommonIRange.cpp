@@ -4,7 +4,7 @@
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("irange()", "[noa][common]", int32_t, uint32_t, int64_t, uint64_t) {
+TEMPLATE_TEST_CASE("core::irange()", "[noa][common]", int32_t, uint32_t, int64_t, uint64_t) {
     TestType ii = 0;
     for (auto i: irange<TestType>(10)) {
         REQUIRE(i == ii);

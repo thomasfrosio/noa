@@ -15,268 +15,70 @@
 #endif
 
 namespace YAML {
-    template<>
-    struct convert<noa::size4_t> {
-        static Node encode(const noa::size4_t& rhs) {
+    template<typename T, size_t N>
+    struct convert<noa::Shape<T, N>> {
+        static Node encode(const noa::Shape<T, N>& rhs) {
             Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.push_back(rhs[3]);
+            for (auto e: rhs)
+                node.push_back(e);
             node.SetStyle(EmitterStyle::Flow);
             return node;
         }
 
-        static bool decode(const Node& node, noa::size4_t& rhs) {
+        static bool decode(const Node& node, noa::Shape<T, N>& rhs) {
             if (!node.IsSequence() || node.size() != 4)
                 return false;
-            rhs[0] = node[0].as<size_t>();
-            rhs[1] = node[1].as<size_t>();
-            rhs[2] = node[2].as<size_t>();
-            rhs[3] = node[3].as<size_t>();
+            for (size_t i = 0; i < N; ++i)
+                rhs[i] = node[i].as<T>();
             return true;
         }
     };
 
-    template<>
-    struct convert<noa::size3_t> {
-        static Node encode(const noa::size3_t& rhs) {
+    template<typename T, size_t N>
+    struct convert<noa::Strides<T, N>> {
+        static Node encode(const noa::Strides<T, N>& rhs) {
             Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
+            for (auto e: rhs)
+                node.push_back(e);
             node.SetStyle(EmitterStyle::Flow);
             return node;
         }
 
-        static bool decode(const Node& node, noa::size3_t& rhs) {
-            if (!node.IsSequence() || node.size() != 3)
-                return false;
-            rhs[0] = node[0].as<size_t>();
-            rhs[1] = node[1].as<size_t>();
-            rhs[2] = node[2].as<size_t>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::size2_t> {
-        static Node encode(const noa::size2_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::size2_t& rhs) {
-            if (!node.IsSequence() || node.size() != 2)
-                return false;
-            rhs[0] = node[0].as<size_t>();
-            rhs[1] = node[1].as<size_t>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::int4_t> {
-        static Node encode(const noa::int4_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.push_back(rhs[3]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::int4_t& rhs) {
+        static bool decode(const Node& node, noa::Strides<T, N>& rhs) {
             if (!node.IsSequence() || node.size() != 4)
                 return false;
-            rhs[0] = node[0].as<int>();
-            rhs[1] = node[1].as<int>();
-            rhs[2] = node[2].as<int>();
-            rhs[3] = node[3].as<int>();
+            for (size_t i = 0; i < N; ++i)
+                rhs[i] = node[i].as<T>();
             return true;
         }
     };
 
-    template<>
-    struct convert<noa::int3_t> {
-        static Node encode(const noa::int3_t& rhs) {
+    template<typename T, size_t N>
+    struct convert<noa::Vec<T, N>> {
+        static Node encode(const noa::Vec<T, N>& rhs) {
             Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
+            for (auto e: rhs)
+                node.push_back(e);
             node.SetStyle(EmitterStyle::Flow);
             return node;
         }
 
-        static bool decode(const Node& node, noa::int3_t& rhs) {
-            if (!node.IsSequence() || node.size() != 3)
-                return false;
-            rhs[0] = node[0].as<int>();
-            rhs[1] = node[1].as<int>();
-            rhs[2] = node[2].as<int>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::uint4_t> {
-        static Node encode(const noa::uint4_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.push_back(rhs[3]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::uint4_t& rhs) {
+        static bool decode(const Node& node, noa::Vec<T, N>& rhs) {
             if (!node.IsSequence() || node.size() != 4)
                 return false;
-            rhs[0] = node[0].as<uint>();
-            rhs[1] = node[1].as<uint>();
-            rhs[2] = node[2].as<uint>();
-            rhs[3] = node[3].as<uint>();
+            for (size_t i = 0; i < N; ++i)
+                rhs[i] = node[i].as<T>();
             return true;
         }
     };
 
     template<>
-    struct convert<noa::uint3_t> {
-        static Node encode(const noa::uint3_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::uint3_t& rhs) {
-            if (!node.IsSequence() || node.size() != 3)
-                return false;
-            rhs[0] = node[0].as<uint>();
-            rhs[1] = node[1].as<uint>();
-            rhs[2] = node[2].as<uint>();
-            return true;
-        }
-    };
-
-
-    template<>
-    struct convert<noa::float4_t> {
-        static Node encode(const noa::float4_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.push_back(rhs[3]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::float4_t& rhs) {
-            if (!node.IsSequence() || node.size() != 4)
-                return false;
-            rhs[0] = node[0].as<float>();
-            rhs[1] = node[1].as<float>();
-            rhs[2] = node[2].as<float>();
-            rhs[3] = node[3].as<float>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::float3_t> {
-        static Node encode(const noa::float3_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::float3_t& rhs) {
-            if (!node.IsSequence() || node.size() != 3)
-                return false;
-            rhs[0] = node[0].as<float>();
-            rhs[1] = node[1].as<float>();
-            rhs[2] = node[2].as<float>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::float2_t> {
-        static Node encode(const noa::float2_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::float2_t& rhs) {
-            if (!node.IsSequence() || node.size() != 2)
-                return false;
-            rhs[0] = node[0].as<float>();
-            rhs[1] = node[1].as<float>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::double3_t> {
-        static Node encode(const noa::double3_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.push_back(rhs[2]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::double3_t& rhs) {
-            if (!node.IsSequence() || node.size() != 3)
-                return false;
-            rhs[0] = node[0].as<double>();
-            rhs[1] = node[1].as<double>();
-            rhs[2] = node[2].as<double>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::double2_t> {
-        static Node encode(const noa::double2_t& rhs) {
-            Node node;
-            node.push_back(rhs[0]);
-            node.push_back(rhs[1]);
-            node.SetStyle(EmitterStyle::Flow);
-            return node;
-        }
-
-        static bool decode(const Node& node, noa::double2_t& rhs) {
-            if (!node.IsSequence() || node.size() != 2)
-                return false;
-            rhs[0] = node[0].as<double>();
-            rhs[1] = node[1].as<double>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<noa::path_t> {
-        static Node encode(const noa::path_t& rhs) {
+    struct convert<noa::Path> {
+        static Node encode(const noa::Path& rhs) {
             return convert<std::string>::encode(rhs.string());
         }
 
-        static bool decode(const Node& node, noa::path_t& rhs) {
+        static bool decode(const Node& node, noa::Path& rhs) {
             std::string str;
             bool status = convert<std::string>::decode(node, str);
             rhs = str;
@@ -299,21 +101,21 @@ namespace YAML {
 
             using namespace ::noa;
             if (buffer == "INTERP_NEAREST")
-                rhs = INTERP_NEAREST;
+                rhs = InterpMode::NEAREST;
             else if (buffer == "INTERP_LINEAR")
-                rhs = INTERP_LINEAR;
+                rhs = InterpMode::LINEAR;
             else if (buffer == "INTERP_COSINE")
-                rhs = INTERP_COSINE;
+                rhs = InterpMode::COSINE;
             else if (buffer == "INTERP_CUBIC")
-                rhs = INTERP_CUBIC;
+                rhs = InterpMode::CUBIC;
             else if (buffer == "INTERP_CUBIC_BSPLINE")
-                rhs = INTERP_CUBIC_BSPLINE;
+                rhs = InterpMode::CUBIC_BSPLINE;
             else if (buffer == "INTERP_LINEAR_FAST")
-                rhs = INTERP_LINEAR_FAST;
+                rhs = InterpMode::LINEAR_FAST;
             else if (buffer == "INTERP_COSINE_FAST")
-                rhs = INTERP_COSINE_FAST;
+                rhs = InterpMode::COSINE_FAST;
             else if (buffer == "INTERP_CUBIC_BSPLINE_FAST")
-                rhs = INTERP_CUBIC_BSPLINE_FAST;
+                rhs = InterpMode::CUBIC_BSPLINE_FAST;
             else
                 return false;
             return true;
@@ -335,19 +137,19 @@ namespace YAML {
 
             using namespace ::noa;
             if (buffer == "BORDER_NOTHING")
-                rhs = BORDER_NOTHING;
+                rhs = BorderMode::NOTHING;
             else if (buffer == "BORDER_ZERO")
-                rhs = BORDER_ZERO;
+                rhs = BorderMode::ZERO;
             else if (buffer == "BORDER_VALUE")
-                rhs = BORDER_VALUE;
+                rhs = BorderMode::VALUE;
             else if (buffer == "BORDER_CLAMP")
-                rhs = BORDER_CLAMP;
+                rhs = BorderMode::CLAMP;
             else if (buffer == "BORDER_REFLECT")
-                rhs = BORDER_REFLECT;
+                rhs = BorderMode::REFLECT;
             else if (buffer == "BORDER_MIRROR")
-                rhs = BORDER_MIRROR;
+                rhs = BorderMode::MIRROR;
             else if (buffer == "BORDER_PERIODIC")
-                rhs = BORDER_PERIODIC;
+                rhs = BorderMode::PERIODIC;
             else
                 return false;
             return true;

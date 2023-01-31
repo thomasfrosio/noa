@@ -1,8 +1,3 @@
-/// \file noa/common/Assert.h
-/// \brief Assertions.
-/// \author Thomas - ffyr2w
-/// \date 20 Jul 2020
-
 #pragma once
 
 #include "noa/common/Definitions.h"

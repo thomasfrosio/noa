@@ -12,8 +12,8 @@ void noa::Session::threads(size_t threads) {
     if (threads) {
         m_threads = threads;
     } else {
-        uint max_threads;
-        const char* str;
+        uint max_threads{};
+        const char* str{};
         try {
             str = std::getenv("NOA_THREADS");
             if (str) {

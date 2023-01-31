@@ -11,6 +11,9 @@ set(NOA_CPU_HEADERS
 
         # noa::cpu::utils
         cpu/utils/Iwise.h
+        cpu/utils/EwiseUnary.h
+        cpu/utils/EwiseBinary.h
+        cpu/utils/EwiseTrinary.h
 
         # noa::cpu::fft
         cpu/fft/Plan.h

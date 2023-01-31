@@ -13,4 +13,18 @@ namespace noa::memory {
     void copy(const Array<T>& input, const Array<T>& output) {
         input.to(output);
     }
+
+    /// (Deep-)Copies arrays.
+    template<typename Value, typename Vector>
+    void copy(const Array<Value>& input, const Array<Value>& output,
+              const Vector& batch_indexes) {
+        // If the batches to copy into output are next to each other,
+        // this becomes a slice operation.
+
+        // If the arrays are on the same device, use extract for
+        // better performance (only one ewise call).
+
+        // Worst case, copy batches across devices.
+
+    }
 }

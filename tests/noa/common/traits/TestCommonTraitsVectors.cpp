@@ -4,115 +4,97 @@
 
 using namespace ::noa;
 
-#define REQUIRE_FOR_ALL_TYPES(type_trait, type)               \
-REQUIRE((type_trait<type>));                                  \
-REQUIRE((type_trait<std::add_const_t<type>>));                \
-REQUIRE((type_trait<std::add_volatile_t<type>>));             \
-REQUIRE((type_trait<std::add_cv_t<type>>));                   \
-REQUIRE((type_trait<std::add_lvalue_reference_t<type>>));     \
-REQUIRE((type_trait<std::add_rvalue_reference_t<type>>))
-
-#define REQUIRE_FALSE_FOR_ALL_TYPES(type_trait, type)               \
-REQUIRE_FALSE((type_trait<type>));                                  \
-REQUIRE_FALSE((type_trait<std::add_const_t<type>>));                \
-REQUIRE_FALSE((type_trait<std::add_volatile_t<type>>));             \
-REQUIRE_FALSE((type_trait<std::add_cv_t<type>>));                   \
-REQUIRE_FALSE((type_trait<std::add_lvalue_reference_t<type>>));     \
-REQUIRE_FALSE((type_trait<std::add_rvalue_reference_t<type>>))
-
-#define REQUIRE_FOR_ALL_TYPES_BOOL(type_traits)              \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Bool2);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Bool3);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Bool4)
-
-#define REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(type_traits)                \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Bool2);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Bool3);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Bool4)
-
-#define REQUIRE_FOR_ALL_TYPES_INT(type_traits)              \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Int2<TestType>);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Int3<TestType>);  \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Int4<TestType>)
-
-#define REQUIRE_FALSE_FOR_ALL_TYPES_INT(type_traits)                \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Int2<TestType>);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Int3<TestType>);    \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Int4<TestType>)
-
-#define REQUIRE_FOR_ALL_TYPES_FLOAT(type_traits)                \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Float2<TestType>);    \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Float3<TestType>);    \
-REQUIRE_FOR_ALL_TYPES(type_traits, ::noa::Float4<TestType>)
-
-#define REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(type_traits)              \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Float2<TestType>);  \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Float3<TestType>);  \
-REQUIRE_FALSE_FOR_ALL_TYPES(type_traits, ::noa::Float4<TestType>)
-
-TEMPLATE_TEST_CASE("traits:: BoolX, IntX, FloatX", "[noa][common][traits]",
-                   uint8_t, unsigned short, unsigned int, unsigned long, unsigned long long,
-                   int8_t, short, int, long, long long,
-                   float, double,
-                   bool) {
+TEMPLATE_TEST_CASE("core::traits:: Vec", "[noa][core]",
+                   u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, bool) {
     using namespace ::noa::traits;
 
-    if constexpr (std::is_same_v<TestType, float> || std::is_same_v<TestType, double>) {
-        REQUIRE_FOR_ALL_TYPES_FLOAT(is_floatX_v);
-        REQUIRE_FOR_ALL_TYPES(is_float2_v, Float2<TestType>);
-        REQUIRE_FOR_ALL_TYPES(is_float3_v, Float3<TestType>);
-        REQUIRE_FOR_ALL_TYPES(is_float4_v, Float4<TestType>);
+    static_assert(is_vec_v<Vec1<TestType>>);
+    static_assert(is_vec_v<const Vec2<TestType>>);
+    static_assert(is_vec_v<Vec3<TestType>&>);
+    static_assert(is_vec_v<Vec4<TestType>&&>);
+    static_assert(!is_vec_v<Vec2<TestType>*>);
 
-        REQUIRE_FALSE(is_float3_v<Float2<TestType>>);
-        REQUIRE_FALSE(is_float4_v<Float2<TestType>>);
-        REQUIRE_FALSE(is_float2_v<Float3<TestType>>);
-        REQUIRE_FALSE(is_float4_v<Float3<TestType>>);
-        REQUIRE_FALSE(is_float2_v<Float4<TestType>>);
-        REQUIRE_FALSE(is_float3_v<Float4<TestType>>);
+    static_assert(is_vecN_v<Vec2<TestType>, 2>);
+    static_assert(is_vecN_v<const Vec<TestType, 5>, 5>);
+    static_assert(is_vecN_v<Vec1<TestType>&, 1>);
 
-        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_intX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_boolX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int2_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int3_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_FLOAT(is_int4_v);
+    static_assert(is_vecT_v<Vec2<TestType>, TestType>);
+    static_assert(is_vecT_v<const Vec<TestType, 5>, TestType>);
+    static_assert(is_vecT_v<Vec1<TestType>&, TestType>);
+    static_assert(!is_vecT_v<Vec2<TestType>, const TestType>);
+    static_assert(!is_vecT_v<const Vec<TestType, 5>, TestType&>);
+    static_assert(!is_vecT_v<Vec1<TestType>&, TestType*>);
+
+    if constexpr (std::is_same_v<TestType, f32> || std::is_same_v<TestType, f64>) {
+        static_assert(is_realX_v<Vec1<TestType>>);
+        static_assert(is_real2_v<Vec2<TestType>>);
+        static_assert(is_real4_v<Vec4<TestType>>);
+        static_assert(is_realN_v<Vec4<TestType>, 4>);
+
+        static_assert(!is_real3_v<Vec2<TestType>>);
+        static_assert(!is_real4_v<Vec2<TestType>>);
+        static_assert(!is_real2_v<Vec3<TestType>>);
+        static_assert(!is_real4_v<Vec3<TestType>>);
+        static_assert(!is_int4_v<Vec4<TestType>>);
+        static_assert(!is_real3_v<Vec4<TestType>>);
 
     } else if constexpr (std::is_same_v<TestType, bool>) {
-        REQUIRE_FOR_ALL_TYPES_BOOL(noa::traits::is_boolX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(noa::traits::is_floatX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_BOOL(noa::traits::is_intX_v);
+        static_assert(is_boolX_v<Vec1<TestType>>);
+        static_assert(is_bool2_v<Vec2<TestType>>);
+        static_assert(is_bool4_v<Vec4<TestType>>);
+        static_assert(is_boolN_v<Vec4<TestType>, 4>);
+        static_assert(is_int3_v<Vec3<TestType>>);
+        static_assert(is_uint3_v<Vec3<TestType>>);
+        static_assert(!is_sint3_v<Vec3<TestType>>);
+
+        static_assert(!is_bool4_v<Vec2<TestType>>);
+        static_assert(!is_bool2_v<Vec3<TestType>>);
+        static_assert(!is_bool4_v<Vec3<TestType>>);
 
     } else if constexpr (std::is_unsigned_v<TestType>) {
-        REQUIRE_FOR_ALL_TYPES_INT(is_intX_v);
-        REQUIRE_FOR_ALL_TYPES_INT(is_uintX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_boolX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_floatX_v);
+        static_assert(is_uintX_v<Vec1<TestType>>);
+        static_assert(is_uint2_v<Vec2<TestType>>);
+        static_assert(is_uint4_v<Vec4<TestType>>);
+        static_assert(is_uintN_v<Vec4<TestType>, 4>);
 
-        REQUIRE_FALSE(is_uint3_v<Int2<TestType>>);
-        REQUIRE_FALSE(is_uint4_v<Int2<TestType>>);
-        REQUIRE_FALSE(is_uint2_v<Int3<TestType>>);
-        REQUIRE_FALSE(is_uint4_v<Int3<TestType>>);
-        REQUIRE_FALSE(is_uint2_v<Int4<TestType>>);
-        REQUIRE_FALSE(is_uint3_v<Int4<TestType>>);
+        static_assert(is_intX_v<Vec1<TestType>>);
+        static_assert(is_int2_v<Vec2<TestType>>);
+        static_assert(is_int4_v<Vec4<TestType>>);
+        static_assert(is_intN_v<Vec4<TestType>, 4>);
 
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float2_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float3_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float4_v);
+        static_assert(!is_sintX_v<Vec1<TestType>>);
+        static_assert(!is_sint2_v<Vec2<TestType>>);
+        static_assert(!is_sint4_v<Vec4<TestType>>);
+        static_assert(!is_sintN_v<Vec4<TestType>, 4>);
+
+        static_assert(!is_int3_v<Vec2<TestType>>);
+        static_assert(!is_real4_v<Vec4<TestType>>);
+        static_assert(!is_int2_v<Vec3<TestType>>);
+        static_assert(!is_int4_v<Vec3<TestType>>);
+        static_assert(!is_bool4_v<Vec4<TestType>>);
+        static_assert(!is_int3_v<Vec4<TestType>>);
 
     } else {
-        REQUIRE_FOR_ALL_TYPES_INT(is_intX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_uintX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_boolX_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_floatX_v);
+        static_assert(is_sintX_v<Vec1<TestType>>);
+        static_assert(is_sint2_v<Vec2<TestType>>);
+        static_assert(is_sint4_v<Vec4<TestType>>);
+        static_assert(is_sintN_v<Vec4<TestType>, 4>);
 
-        REQUIRE_FALSE(is_int3_v<Int2<TestType>>);
-        REQUIRE_FALSE(is_int4_v<Int2<TestType>>);
-        REQUIRE_FALSE(is_int2_v<Int3<TestType>>);
-        REQUIRE_FALSE(is_int4_v<Int3<TestType>>);
-        REQUIRE_FALSE(is_int2_v<Int4<TestType>>);
-        REQUIRE_FALSE(is_int3_v<Int4<TestType>>);
+        static_assert(is_intX_v<Vec1<TestType>>);
+        static_assert(is_int2_v<Vec2<TestType>>);
+        static_assert(is_int4_v<Vec4<TestType>>);
+        static_assert(is_intN_v<Vec4<TestType>, 4>);
 
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float2_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float3_v);
-        REQUIRE_FALSE_FOR_ALL_TYPES_INT(is_float4_v);
+        static_assert(!is_uintX_v<Vec1<TestType>>);
+        static_assert(!is_uint2_v<Vec2<TestType>>);
+        static_assert(!is_uint4_v<Vec4<TestType>>);
+        static_assert(!is_uintN_v<Vec4<TestType>, 4>);
+
+        static_assert(!is_int3_v<Vec2<TestType>>);
+        static_assert(!is_real4_v<Vec4<TestType>>);
+        static_assert(!is_int2_v<Vec3<TestType>>);
+        static_assert(!is_int4_v<Vec3<TestType>>);
+        static_assert(!is_bool4_v<Vec4<TestType>>);
+        static_assert(!is_int3_v<Vec4<TestType>>);
     }
 }

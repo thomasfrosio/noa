@@ -1,8 +1,3 @@
-/// \file noa/common/Definitions.h
-/// \brief Some useful macros.
-/// \author Thomas - ffyr2w
-/// \date 20 Jul 2020
-
 #pragma once
 
 // --- Platform detection ----------------------------------------------------------------------------------------------
@@ -116,13 +111,25 @@
 #endif
 
 // --- Detect host compiler --------------------------------------------------------------------------------------------
+// Even in C++ 17, [[no_unique_address]] works for G++/Clang 9 or later.
 
 #if defined(__clang__)
     #define NOA_COMPILER_CLANG
-#elif defined(__GNUC__) || defined(__GNUG__)
+    #if __clang_major__ > 9
+        #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
+    #else
+        #define NOA_NO_UNIQUE_ADDRESS
+    #endif
+#elif defined(__GNUG__)
     #define NOA_COMPILER_GCC
+    #if __GNUC__ > 9
+    #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
+    #else
+    #define NOA_NO_UNIQUE_ADDRESS
+    #endif
 #elif defined(_MSC_VER)
     #define NOA_COMPILER_MSVC
+    #define NOA_NO_UNIQUE_ADDRESS
 #else
     #error "C++ compiler isn't recognized"
 #endif

@@ -1,8 +1,3 @@
-/// \file noa/common/string/Split.h
-/// \brief Split strings.
-/// \author Thomas - ffyr2w
-/// \date 10 Jan 2021
-
 #pragma once
 
 #include <array>
@@ -15,7 +10,7 @@
 
 #include "noa/common/Exception.h"
 #include "noa/common/string/Parse.h"
-#include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/Numerics.h"
 
 namespace noa::string {
     /// Splits (and parses) \p str.

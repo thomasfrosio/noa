@@ -1,8 +1,3 @@
-/// \file noa/common/Logger.h
-/// \brief The default logger used by the core.
-/// \author Thomas - ffyr2w
-/// \date 25 Jul 2020
-
 #pragma once
 
 #include "noa/common/Definitions.h"

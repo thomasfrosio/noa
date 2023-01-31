@@ -1,11 +1,6 @@
-/// \file noa/common/Traits.h
-/// \brief Some type traits.
-/// \author Thomas - ffyr2w
-/// \date 23 Jul 2020
-
 #pragma once
 
-#include "noa/common/traits/ArrayTypes.h"
-#include "noa/common/traits/BaseTypes.h"
-#include "noa/common/traits/STLContainers.h"
+#include "noa/common/traits/VecTypes.h"
+#include "noa/common/traits/Numerics.h"
 #include "noa/common/traits/Utilities.h"
+#include "noa/common/traits/String.h"

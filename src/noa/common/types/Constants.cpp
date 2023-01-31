@@ -3,42 +3,42 @@
 namespace noa {
     std::ostream& operator<<(std::ostream& os, BorderMode border_mode) {
         switch (border_mode) {
-            case BORDER_NOTHING:
-                return os << "BORDER_NOTHING";
-            case BORDER_ZERO:
-                return os << "BORDER_ZERO";
-            case BORDER_VALUE:
-                return os << "BORDER_VALUE";
-            case BORDER_CLAMP:
-                return os << "BORDER_CLAMP";
-            case BORDER_REFLECT:
-                return os << "BORDER_REFLECT";
-            case BORDER_MIRROR:
-                return os << "BORDER_MIRROR";
-            case BORDER_PERIODIC:
-                return os << "BORDER_PERIODIC";
+            case BorderMode::NOTHING:
+                return os << "BorderMode::NOTHING";
+            case BorderMode::ZERO:
+                return os << "BorderMode::ZERO";
+            case BorderMode::VALUE:
+                return os << "BorderMode::VALUE";
+            case BorderMode::CLAMP:
+                return os << "BorderMode::CLAMP";
+            case BorderMode::REFLECT:
+                return os << "BorderMode::REFLECT";
+            case BorderMode::MIRROR:
+                return os << "BorderMode::MIRROR";
+            case BorderMode::PERIODIC:
+                return os << "BorderMode::PERIODIC";
         }
         return os;
     }
 
     std::ostream& operator<<(std::ostream& os, InterpMode interp_mode) {
         switch (interp_mode) {
-            case INTERP_NEAREST:
-                return os << "INTERP_NEAREST";
-            case INTERP_LINEAR:
-                return os << "INTERP_LINEAR";
-            case INTERP_COSINE:
-                return os << "INTERP_COSINE";
-            case INTERP_CUBIC:
-                return os << "INTERP_CUBIC";
-            case INTERP_CUBIC_BSPLINE:
-                return os << "INTERP_CUBIC_BSPLINE";
-            case INTERP_LINEAR_FAST:
-                return os << "INTERP_LINEAR_FAST";
-            case INTERP_COSINE_FAST:
-                return os << "INTERP_COSINE_FAST";
-            case INTERP_CUBIC_BSPLINE_FAST:
-                return os << "INTERP_CUBIC_BSPLINE_FAST";
+            case InterpMode::NEAREST:
+                return os << "InterpMode::NEAREST";
+            case InterpMode::LINEAR:
+                return os << "InterpMode::LINEAR";
+            case InterpMode::COSINE:
+                return os << "InterpMode::COSINE";
+            case InterpMode::CUBIC:
+                return os << "InterpMode::CUBIC";
+            case InterpMode::CUBIC_BSPLINE:
+                return os << "InterpMode::CUBIC_BSPLINE";
+            case InterpMode::LINEAR_FAST:
+                return os << "InterpMode::LINEAR_FAST";
+            case InterpMode::COSINE_FAST:
+                return os << "InterpMode::COSINE_FAST";
+            case InterpMode::CUBIC_BSPLINE_FAST:
+                return os << "InterpMode::CUBIC_BSPLINE_FAST";
         }
         return os;
     }
@@ -47,38 +47,38 @@ namespace noa {
 namespace noa::fft {
     std::ostream& operator<<(std::ostream& os, Remap remap) {
         switch (remap) {
-            case H2H:
-                return os << "H2H";
-            case H2HC:
-                return os << "H2HC";
-            case H2F:
-                return os << "H2F";
-            case H2FC:
-                return os << "H2FC";
-            case HC2H:
-                return os << "HC2H";
-            case HC2HC:
-                return os << "HC2HC";
-            case HC2F:
-                return os << "HC2F";
-            case HC2FC:
-                return os << "HC2FC";
-            case F2H:
-                return os << "F2H";
-            case F2HC:
-                return os << "F2HC";
-            case F2F:
-                return os << "F2F";
-            case F2FC:
-                return os << "F2FC";
-            case FC2H:
-                return os << "FC2H";
-            case FC2HC:
-                return os << "FC2HC";
-            case FC2F:
-                return os << "FC2F";
-            case FC2FC:
-                return os << "FC2FC";
+            case Remap::H2H:
+                return os << "Remap::H2H";
+            case Remap::H2HC:
+                return os << "Remap::H2HC";
+            case Remap::H2F:
+                return os << "Remap::H2F";
+            case Remap::H2FC:
+                return os << "Remap::H2FC";
+            case Remap::HC2H:
+                return os << "Remap::HC2H";
+            case Remap::HC2HC:
+                return os << "Remap::HC2HC";
+            case Remap::HC2F:
+                return os << "Remap::HC2F";
+            case Remap::HC2FC:
+                return os << "Remap::HC2FC";
+            case Remap::F2H:
+                return os << "Remap::F2H";
+            case Remap::F2HC:
+                return os << "Remap::F2HC";
+            case Remap::F2F:
+                return os << "Remap::F2F";
+            case Remap::F2FC:
+                return os << "Remap::F2FC";
+            case Remap::FC2H:
+                return os << "Remap::FC2H";
+            case Remap::FC2HC:
+                return os << "Remap::FC2HC";
+            case Remap::FC2F:
+                return os << "Remap::FC2F";
+            case Remap::FC2FC:
+                return os << "Remap::FC2FC";
         }
         return os;
     }
@@ -87,24 +87,24 @@ namespace noa::fft {
 namespace noa::signal {
     std::ostream& operator<<(std::ostream& os, CorrelationMode correlation) {
         switch (correlation) {
-            case CONVENTIONAL_CORRELATION:
-                return os << "CONVENTIONAL_CORRELATION";
-            case PHASE_CORRELATION:
-                return os << "PHASE_CORRELATION";
-            case DOUBLE_PHASE_CORRELATION:
-                return os << "DOUBLE_PHASE_CORRELATION";
-            case MUTUAL_CORRELATION:
-                return os << "MUTUAL_CORRELATION";
+            case CorrelationMode::CONVENTIONAL:
+                return os << "CorrelationMode::CONVENTIONAL";
+            case CorrelationMode::PHASE:
+                return os << "CorrelationMode::PHASE";
+            case CorrelationMode::DOUBLE_PHASE:
+                return os << "CorrelationMode::DOUBLE_PHASE";
+            case CorrelationMode::MUTUAL:
+                return os << "CorrelationMode::MUTUAL";
         }
         return os;
     }
 
     std::ostream& operator<<(std::ostream& os, PeakMode peak_mode) {
         switch (peak_mode) {
-            case PEAK_PARABOLA_1D:
-                return os << "PEAK_PARABOLA_1D";
-            case PEAK_COM:
-                return os << "PEAK_COM";
+            case PeakMode::PARABOLA_1D:
+                return os << "PeakMode::PARABOLA_1D";
+            case PeakMode::COM:
+                return os << "PeakMode::COM";
         }
         return os;
     }

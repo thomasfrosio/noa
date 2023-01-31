@@ -18,7 +18,7 @@ namespace noa::memory {
     /// \note \p input and \p subregions should not overlap.
     /// \note On the GPU, \p origins can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void extract(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
+    void extract_subregions(const Array<T>& input, const Array<T>& subregions, const Array<int4_t>& origins,
                  BorderMode border_mode = BORDER_ZERO, T border_value = T{0});
 
     /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
@@ -33,7 +33,7 @@ namespace noa::memory {
     /// \note \p subregions and \p output should not overlap.
     /// \note On the GPU, \p origins can be on any device, including the CPU.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_data_v<T>>>
-    void insert(const Array<T>& subregions, const Array<T>& output, const Array<int4_t>& origins);
+    void insert_subregions(const Array<T>& subregions, const Array<T>& output, const Array<int4_t>& origins);
 
     /// Gets the atlas layout (shape + subregion origins).
     /// \param subregion_shape  BDHW shape of the subregion(s).
@@ -192,6 +192,14 @@ namespace noa::memory {
     ///         - \p T should be equal to \p value_t.
     template<typename value_t, typename offset_t, typename T>
     void insert(const Array<value_t>& values, const Array<offset_t>& offsets, const Array<T>& output);
+}
+
+namespace noa::memory {
+    /// Extracts some batches from input and save
+    template<typename Value>
+    void extract(const Array<Value>& input,
+                 const Array<Value>& output,
+                 const Array<int64_t>& batch_indexes);
 }
 
 #define NOA_UNIFIED_INDEX_

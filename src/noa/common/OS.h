@@ -1,8 +1,3 @@
-/// \file noa/common/OS.h
-/// \brief OS namespace and some file system related functions
-/// \author Thomas - ffyr2w
-/// \date 9 Oct 2020
-
 #pragma once
 
 #include <filesystem>
@@ -18,7 +13,7 @@ namespace noa::os {
     namespace fs = std::filesystem;
 
     /// Whether or not \a path points to an existing regular file. Symlinks are followed.
-    inline bool existsFile(const fs::path& path) {
+    inline bool is_file(const fs::path& path) {
         try {
             return fs::is_regular_file(path);
         } catch (const fs::filesystem_error& e) {
@@ -29,12 +24,12 @@ namespace noa::os {
     }
 
     /// Whether or not \a file_status describes an existing regular file. Symlinks are followed.
-    inline bool existsFile(const fs::file_status& file_status) noexcept {
+    inline bool is_file(const fs::file_status& file_status) noexcept {
         return fs::is_regular_file(file_status);
     }
 
     /// Whether or not \a path points to an existing directory.
-    inline bool existsDirectory(const fs::path& path) {
+    inline bool is_directory(const fs::path& path) {
         try {
             return fs::is_directory(path);
         } catch (const fs::filesystem_error& e) {
@@ -45,12 +40,12 @@ namespace noa::os {
     }
 
     /// Whether or not \a file_status describes an existing directory.
-    inline bool existsDirectory(const fs::file_status& file_status) noexcept {
+    inline bool is_directory(const fs::file_status& file_status) noexcept {
         return fs::is_directory(file_status);
     }
 
     /// Whether or not \a path points to an existing file or directory. Symlinks are followed.
-    inline bool exists(const fs::path& path) {
+    inline bool is_file_or_directory(const fs::path& path) {
         try {
             return fs::exists(path);
         } catch (const fs::filesystem_error& e) {
@@ -61,14 +56,14 @@ namespace noa::os {
     }
 
     /// Whether or not \a file_status describes an existing file or directory. Symlinks are followed.
-    inline bool exists(const fs::file_status& file_status) noexcept {
+    inline bool is_file_or_directory(const fs::file_status& file_status) noexcept {
         return fs::exists(file_status);
     }
 
     /// Gets the size, in bytes, of a regular file. Symlinks are followed.
     /// \note The result of attempting to determine the size of a directory (as well as any other
     ///       file that is not a regular file or a symlink) is implementation-defined.
-    inline size_t size(const fs::path& path) {
+    inline size_t file_size(const fs::path& path) {
         try {
             return fs::file_size(path);
         } catch (const fs::filesystem_error& e) {
@@ -96,7 +91,7 @@ namespace noa::os {
     ///             If it does not exist, do nothing.
     /// \throw If the file or directory could not be removed.
     /// \note Symlinks are remove but not their targets.
-    inline void removeAll(const fs::path& path) {
+    inline void remove_all(const fs::path& path) {
         try {
             fs::remove_all(path);
         } catch (const fs::filesystem_error& e) {
@@ -144,7 +139,7 @@ namespace noa::os {
     /// \throw If \a from is not a regular file.
     ///        If \a from and \a to are equivalent.
     ///        If \a option is empty or if \a to exists and options == fs::copy_options::none.
-    inline bool copyFile(const fs::path& from, const fs::path& to,
+    inline bool copy_file(const fs::path& from, const fs::path& to,
                          const fs::copy_options options = fs::copy_options::overwrite_existing) {
         try {
             return fs::copy_file(from, to, options);
@@ -159,7 +154,7 @@ namespace noa::os {
     /// \param from     Path to a symbolic link to copy. Can resolve to a file or directory.
     /// \param to       Destination path of the new symlink.
     /// \throw          If the symlink could not be copied.
-    inline void copySymlink(const fs::path& from, const fs::path& to) {
+    inline void copy_symlink(const fs::path& from, const fs::path& to) {
         try {
             fs::copy_symlink(from, to);
         } catch (const fs::filesystem_error& e) {
@@ -188,7 +183,7 @@ namespace noa::os {
     ///   │                                             Note: \a from must be a file.
     ///   └─ \c fs::copy_options::create_hard_links:    Instead of creating copies of files, create hardlinks.
     ///  Group 4:
-    ///   └─ Any of the options from copyFile().
+    ///   └─ Any of the options from copy_file().
     ///
     /// \throw If \a from or \a to is not a regular file, symlink or directory.
     ///        If \a from is equivalent to \a to or if \a from does not exist.
@@ -197,7 +192,7 @@ namespace noa::os {
     ///
     /// \note If \a from is a regular file and \a to is a directory, it copies \a from into \a to.
     /// \note If \a from and \a to are directories, it copies the content of \a from into \a to.
-    /// \note To copy a single file, use copyFile().
+    /// \note To copy a single file, use copy_file().
     inline void copy(const fs::path& from,
                      const fs::path& to,
                      const fs::copy_options options = fs::copy_options::recursive |
@@ -214,8 +209,6 @@ namespace noa::os {
 
     /// \param from         Path of the file to backup. The backup is suffixed with '~'.
     /// \param overwrite    Whether or not it should perform a backup move or backup copy.
-    ///
-    /// \throw   If the backup did not succeed.
     /// \warning With backup moves, symlinks are moved, whereas backup copies follow
     ///          the symlinks and copy the targets. This is usually the expected behavior.
     inline void backup(const fs::path& from, bool overwrite = false) {
@@ -224,7 +217,7 @@ namespace noa::os {
             if (overwrite)
                 os::move(from, to);
             else
-                os::copyFile(from, to);
+                os::copy_file(from, to);
         } catch (...) {
             NOA_THROW("File: {}. Could not backup the file", from);
         }
@@ -246,7 +239,7 @@ namespace noa::os {
     }
 
     /// Returns the directory location suitable for temporary files.
-    inline fs::path tempDirectory() {
+    inline fs::path temp_directory() {
         try {
             return fs::temp_directory_path();
         } catch (const fs::filesystem_error& e) {

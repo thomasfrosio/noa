@@ -1,8 +1,3 @@
-/// \file noa/common/types/Constants.h
-/// \brief Some constants and enums that are common to multiple header/namespaces.
-/// \author Thomas - ffyr2w
-/// \date 11 Jan 2021
-
 #pragma once
 
 #include <ostream>
@@ -10,72 +5,72 @@
 
 namespace noa {
     /// Border mode, i.e. how out of bounds coordinates are handled. It is compatible with cudaTextureAddressMode.
-    enum BorderMode {
+    enum class BorderMode {
         /// The input is extended by wrapping around to the opposite edge.
         /// Equal to cudaAddressModeWrap.
         /// (a b c d | a b c d | a b c d)
-        BORDER_PERIODIC = 0,
+        PERIODIC = 0,
 
         /// The input is extended by replicating the last pixel.
         /// Equal to cudaAddressModeClamp.
         /// (a a a a | a b c d | d d d d)
-        BORDER_CLAMP = 1,
+        CLAMP = 1,
 
         /// The input is extended by mirroring the input window.
         /// Equal to cudaAddressModeMirror.
         /// (d c b a | a b c d | d c b a)
-        BORDER_MIRROR = 2,
+        MIRROR = 2,
 
         /// The input is extended by filling all values beyond the edge with zeros.
         /// Equal to cudaAddressModeBorder.
         /// (0 0 0 0 | a b c d | 0 0 0 0)
-        BORDER_ZERO = 3,
+        ZERO = 3,
 
         /// The input is extended by filling all values beyond the edge with a constant value.
         /// (k k k k | a b c d | k k k k)
-        BORDER_VALUE,
+        VALUE,
 
         /// The input is extended by reflection, with the center of the operation on the last pixel.
         /// (d c b | a b c d | c b a)
-        BORDER_REFLECT,
+        REFLECT,
 
         /// The input is extended but the values are left unchanged.
-        BORDER_NOTHING
+        NOTHING
     };
     std::ostream& operator<<(std::ostream& os, BorderMode border_mode);
 
     /// Interpolation methods.
-    enum InterpMode {
+    enum class InterpMode {
         /// Nearest neighbour interpolation.
         /// Corresponds to cudaFilterModePoint.
-        INTERP_NEAREST = 0,
+        NEAREST = 0,
 
         /// (bi|tri)linear interpolation.
-        INTERP_LINEAR = 1,
+        LINEAR = 1,
 
         /// (bi|tri)linear interpolation with cosine smoothing.
-        INTERP_COSINE,
+        COSINE,
 
         /// (bi|tri)cubic interpolation.
-        INTERP_CUBIC,
+        CUBIC,
 
         /// (bi|tri)cubic B-spline interpolation.
-        INTERP_CUBIC_BSPLINE,
+        CUBIC_BSPLINE,
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
-        /// Faster than INTERP_LINEAR, but at the cost of precision.
+        /// Faster than LINEAR, but at the cost of precision.
         /// Corresponds to cudaFilterModeLinear. Only used in the CUDA backend.
-        INTERP_LINEAR_FAST,
+        LINEAR_FAST,
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
-        /// Faster than INTERP_COSINE, but at the cost of precision.
+        /// Faster than COSINE, but at the cost of precision.
         /// Only used in the CUDA backend.
-        INTERP_COSINE_FAST,
+        COSINE_FAST,
 
         /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
-        /// Faster than INTER_CUBIC_BSPLINE, but at the cost of precision.
+        /// Faster than CUBIC_BSPLINE, but at the cost of precision.
         /// Only used in the CUDA backend.
-        INTERP_CUBIC_BSPLINE_FAST
+        CUBIC_BSPLINE_FAST
     };
     std::ostream& operator<<(std::ostream& os, InterpMode interp_mode);
 }
@@ -83,18 +78,18 @@ namespace noa {
 namespace noa::fft {
     /// Sign of the exponent in the formula that defines the Fourier transform.
     /// Either FORWARD (-1) for the forward/direct transform, or BACKWARD (+1) for the backward/inverse transform.
-    enum Sign : int {
+    enum class Sign : int32_t {
         FORWARD = -1,
         BACKWARD = 1
     };
 
     /// Normalization mode. Indicates which direction of the forward/backward pair of transforms is scaled and
     /// with what normalization factor. ORTHO scales each transform with 1/sqrt(N).
-    enum Norm {
-        NORM_FORWARD,
-        NORM_ORTHO,
-        NORM_BACKWARD,
-        NORM_NONE
+    enum class Norm {
+        FORWARD,
+        ORTHO,
+        BACKWARD,
+        NONE
     };
 
     /// Bitmask encoding a FFT layout.
@@ -168,28 +163,28 @@ namespace noa::math {
     struct log_normal_t : public distribution_t {};
     struct poisson_t : public distribution_t {};
 
-    NOA_IH std::ostream& operator<<(std::ostream& os, uniform_t) { return os << "uniform"; }
-    NOA_IH std::ostream& operator<<(std::ostream& os, normal_t) { return os << "normal"; }
-    NOA_IH std::ostream& operator<<(std::ostream& os, log_normal_t) { return os << "log-normal"; }
-    NOA_IH std::ostream& operator<<(std::ostream& os, poisson_t) { return os << "poisson"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, uniform_t) { return os << "Distribution::Uniform"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, normal_t) { return os << "Distribution::Normal"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, log_normal_t) { return os << "Distribution::Log-normal"; }
+    NOA_IH std::ostream& operator<<(std::ostream& os, poisson_t) { return os << "Distribution::Poisson"; }
 }
 
 namespace noa::signal {
     /// Correlation mode to compute the cross-correlation map.
-    enum CorrelationMode {
+    enum class CorrelationMode {
         /// Conventional cross-correlation. Generates smooth peaks, but often suffer from
         /// roof-top effect if highpass filter is not strong enough.
-        CONVENTIONAL_CORRELATION,
+        CONVENTIONAL,
 
         /// Phase-only cross-correlation. Generates sharper, but noisier, peaks.
-        PHASE_CORRELATION,
+        PHASE,
 
         /// Double-phase correlation. Generate similar peaks that the conventional approach,
         /// but is more accurate due to the doubling of the peak position.
-        DOUBLE_PHASE_CORRELATION,
+        DOUBLE_PHASE,
 
         /// Good general alternative. Sharper than the conventional approach.
-        MUTUAL_CORRELATION
+        MUTUAL
     };
     std::ostream& operator<<(std::ostream& os, CorrelationMode correlation);
 
@@ -197,11 +192,11 @@ namespace noa::signal {
     enum PeakMode {
         /// Updates the pixel location by fitting a 1D parabola along axis.
         /// The peak value is average of the vertex height along each dimension.
-        PEAK_PARABOLA_1D,
+        PARABOLA_1D,
 
         /// Updates the pixel location by adding the center-of-mass (COM).
         /// The peak value is currently not modified and the original max value is returned.
-        PEAK_COM
+        COM
     };
     std::ostream& operator<<(std::ostream& os, PeakMode peak_mode);
 }

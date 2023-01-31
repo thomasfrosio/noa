@@ -1,8 +1,3 @@
-/// \file noa/common/Exception.h
-/// \brief Exceptions and error handling.
-/// \author Thomas - ffyr2w
-/// \date 14 Sep 2020
-
 #pragma once
 
 #include <string>
@@ -24,9 +19,8 @@ namespace noa {
         /// \param[in] args      Error message or arguments to format.
         /// \note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
         template<typename... Args>
-        Exception(const char* file, const char* function, int line, Args&& ... args) {
-            m_buffer = format_(file, function, line, string::format(args...));
-        }
+        Exception(const char* file, const char* function, int line, Args&& ... args)
+                : m_buffer(format_(file, function, line, string::format(args...))) {}
 
         /// Returns the formatted error message of this (and only this) exception.
         [[nodiscard]] const char* what() const noexcept override {

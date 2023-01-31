@@ -1,8 +1,3 @@
-/// \file noa/common/types/Complex.h
-/// \author Thomas - ffyr2w
-/// \date 10 Dec 2020
-/// \brief A complex number that can be used on the device.
-
 #pragma once
 
 #include <complex>
@@ -12,32 +7,30 @@
 #include "noa/common/Assert.h"
 #include "noa/common/Definitions.h"
 #include "noa/common/Math.h"
-#include "noa/common/traits/BaseTypes.h"
 #include "noa/common/string/Format.h"
-#include "noa/common/types/Bool2.h"
+#include "noa/common/traits/Numerics.h"
 #include "noa/common/types/Half.h"
 
 namespace noa {
-    template<typename>
-    class Float2;
+    template<typename, size_t>
+    class Vec;
 
-    template<typename>
-    class Int2;
-
-    template<typename T>
-    class alignas(sizeof(T) * 2) Complex {
+    template<typename Real>
+    class alignas(sizeof(Real) * 2) Complex {
     public:
-        static_assert(traits::is_float_v<T>);
-        T real{}, imag{};
+        static_assert(traits::is_real_v<Real>);
+        Real real{}, imag{};
 
     public:
-        using value_type = T;
+        using value_type = Real;
 
     public: // Component accesses
         static constexpr size_t COUNT = 2;
+        static constexpr size_t SIZE = 2;
+        static constexpr int64_t SSIZE = 2;
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr T& operator[](I i) noexcept {
+        NOA_HD constexpr value_type& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
                 return this->imag;
@@ -46,7 +39,7 @@ namespace noa {
         }
 
         template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
-        NOA_HD constexpr const T& operator[](I i) const noexcept {
+        NOA_HD constexpr const value_type& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
                 return this->imag;
@@ -55,45 +48,39 @@ namespace noa {
         }
 
     public: // Default constructors
-        constexpr Complex(const Complex&) noexcept = default;
-        constexpr Complex(Complex&&) noexcept = default;
-
-        NOA_HD constexpr /* implicit */ Complex(T re = T(), T im = T()) noexcept
+        NOA_HD constexpr /* implicit */ Complex(value_type re = value_type(),
+                                                value_type im = value_type()) noexcept
                 : real(re), imag(im) {}
 
     public: // Conversion constructors
         template<typename U>
         NOA_HD constexpr explicit Complex(U v) noexcept
-                : real(static_cast<T>(v)) {}
+                : real(static_cast<value_type>(v)) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(U* ptr) noexcept
-                : real(static_cast<T>(ptr[0])), imag(static_cast<T>(ptr[1])) {}
+                : real(static_cast<value_type>(ptr[0])),
+                  imag(static_cast<value_type>(ptr[1])) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(Complex<U> v) noexcept
-                : real(static_cast<T>(v.real)), imag(static_cast<T>(v.imag)) {}
+                : real(static_cast<value_type>(v.real)),
+                  imag(static_cast<value_type>(v.imag)) {}
 
         template<typename U>
-        NOA_HD constexpr explicit Complex(Float2<U> v) noexcept
-                : real(static_cast<T>(v[0])), imag(static_cast<T>(v[1])) {}
-
-        template<typename U>
-        NOA_HD constexpr explicit Complex(Int2<U> v) noexcept
-                : real(static_cast<T>(v[0])), imag(static_cast<T>(v[1])) {}
+        NOA_HD constexpr explicit Complex(Vec<U, 2> v) noexcept
+                : real(static_cast<value_type>(v[0])),
+                  imag(static_cast<value_type>(v[1])) {}
 
         template<typename U>
         NOA_HD constexpr explicit Complex(std::complex<U> v) noexcept
-                : real(static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[0])),
-                  imag(static_cast<T>(reinterpret_cast<const U(&)[2]>(v)[1])) {}
+                : real(static_cast<value_type>(reinterpret_cast<const U(&)[2]>(v)[0])),
+                  imag(static_cast<value_type>(reinterpret_cast<const U(&)[2]>(v)[1])) {}
 
     public: // Assignment operators
-        constexpr Complex& operator=(const Complex& v) noexcept = default;
-        constexpr Complex& operator=(Complex&& v) noexcept = default;
-
-        NOA_HD constexpr Complex& operator=(T v) noexcept {
+        NOA_HD constexpr Complex& operator=(value_type v) noexcept {
             this->real = v;
-            this->imag = T(0);
+            this->imag = value_type{0};
             return *this;
         }
 
@@ -114,19 +101,19 @@ namespace noa {
             return *this;
         }
 
-        NOA_HD constexpr Complex& operator+=(T rhs) noexcept {
+        NOA_HD constexpr Complex& operator+=(value_type rhs) noexcept {
             *this = *this + rhs;
             return *this;
         }
-        NOA_HD constexpr Complex& operator-=(T rhs) noexcept {
+        NOA_HD constexpr Complex& operator-=(value_type rhs) noexcept {
             *this = *this - rhs;
             return *this;
         }
-        NOA_HD constexpr Complex& operator*=(T rhs) noexcept {
+        NOA_HD constexpr Complex& operator*=(value_type rhs) noexcept {
             *this = *this * rhs;
             return *this;
         }
-        NOA_HD constexpr Complex& operator/=(T rhs) noexcept {
+        NOA_HD constexpr Complex& operator/=(value_type rhs) noexcept {
             *this = *this / rhs;
             return *this;
         }
@@ -139,7 +126,7 @@ namespace noa {
 
         [[nodiscard]] friend NOA_HD constexpr Complex operator-(Complex v) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>) {
+            if constexpr (std::is_same_v<value_type, Half>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
                 *tmp = -(*tmp);
                 return v;
@@ -151,7 +138,7 @@ namespace noa {
         // -- Binary Arithmetic Operators --
         [[nodiscard]] friend NOA_HD constexpr Complex operator+(Complex lhs, Complex rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>) {
+            if constexpr (std::is_same_v<value_type, Half>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
                 *tmp += *reinterpret_cast<__half2*>(&rhs);
                 return lhs;
@@ -160,17 +147,17 @@ namespace noa {
             return {lhs.real + rhs.real, lhs.imag + rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator+(T lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator+(value_type lhs, Complex rhs) noexcept {
             return {lhs + rhs.real, rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator+(Complex lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator+(Complex lhs, value_type rhs) noexcept {
             return {lhs.real + rhs, lhs.imag};
         }
 
         [[nodiscard]] friend NOA_HD constexpr Complex operator-(Complex lhs, Complex rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>) {
+            if constexpr (std::is_same_v<value_type, Half>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
                 *tmp -= *reinterpret_cast<__half2*>(&rhs);
                 return lhs;
@@ -179,24 +166,24 @@ namespace noa {
             return {lhs.real - rhs.real, lhs.imag - rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator-(T lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator-(value_type lhs, Complex rhs) noexcept {
             return {lhs - rhs.real, -rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator-(Complex lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator-(Complex lhs, value_type rhs) noexcept {
             return {lhs.real - rhs, lhs.imag};
         }
 
         [[nodiscard]] friend NOA_HD constexpr Complex operator*(Complex lhs, Complex rhs) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return Complex{Complex<HALF_ARITHMETIC_TYPE>(lhs) * Complex<HALF_ARITHMETIC_TYPE>(rhs)};
+            if constexpr (std::is_same_v<value_type, Half>)
+                return Complex{Complex<Half::arithmetic_type>(lhs) * Complex<Half::arithmetic_type>(rhs)};
             return {lhs.real * rhs.real - lhs.imag * rhs.imag,
                     lhs.real * rhs.imag + lhs.imag * rhs.real};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator*(T lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator*(value_type lhs, Complex rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>) {
+            if constexpr (std::is_same_v<value_type, Half>) {
                 auto* tmp = reinterpret_cast<__half2*>(&rhs);
                 *tmp *= __half2half2(lhs.native());
                 return rhs;
@@ -205,7 +192,7 @@ namespace noa {
             return {lhs * rhs.real, lhs * rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator*(Complex lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator*(Complex lhs, value_type rhs) noexcept {
             return rhs * lhs;
         }
 
@@ -215,30 +202,30 @@ namespace noa {
         // complex library implementations, with some also offering an unguarded,
         // faster version."
         [[nodiscard]] friend NOA_HD constexpr Complex operator/(Complex lhs, Complex rhs) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return Complex{Complex<HALF_ARITHMETIC_TYPE>(lhs) / Complex<HALF_ARITHMETIC_TYPE>(rhs)};
+            if constexpr (std::is_same_v<value_type, Half>)
+                return Complex{Complex<Half::arithmetic_type>(lhs) / Complex<Half::arithmetic_type>(rhs)};
 
-            T s = math::abs(rhs.real) + math::abs(rhs.imag);
-            T oos = T(1.0) / s;
+            auto s = math::abs(rhs.real) + math::abs(rhs.imag);
+            auto oos = value_type(1.0) / s;
 
-            T ars = lhs.real * oos;
-            T ais = lhs.imag * oos;
-            T brs = rhs.real * oos;
-            T bis = rhs.imag * oos;
+            auto ars = lhs.real * oos;
+            auto ais = lhs.imag * oos;
+            auto brs = rhs.real * oos;
+            auto bis = rhs.imag * oos;
 
             s = (brs * brs) + (bis * bis);
-            oos = T(1.0) / s;
+            oos = value_type(1.0) / s;
 
             return {((ars * brs) + (ais * bis)) * oos, ((ais * brs) - (ars * bis)) * oos};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator/(T lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator/(value_type lhs, Complex rhs) noexcept {
             return Complex(lhs) / rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Complex operator/(Complex lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Complex operator/(Complex lhs, value_type rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>) {
+            if constexpr (std::is_same_v<value_type, Half>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
                 *tmp /= __half2half2(rhs.native());
                 return lhs;
@@ -250,196 +237,169 @@ namespace noa {
         // -- Equality Operators -- //
         [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, Complex rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>)
+            if constexpr (std::is_same_v<value_type, Half>)
                 return *reinterpret_cast<__half2*>(&lhs) == *reinterpret_cast<__half2*>(&rhs);
             #endif
             return lhs.real == rhs.real && lhs.imag == rhs.imag;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator==(T lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(value_type lhs, Complex rhs) noexcept {
             return Complex(lhs) == rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, value_type rhs) noexcept {
             return lhs == Complex(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, Complex rhs) noexcept {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<T, half_t>)
+            if constexpr (std::is_same_v<value_type, Half>)
                 return *reinterpret_cast<__half2*>(&lhs) != *reinterpret_cast<__half2*>(&rhs);
             #endif
             return !(lhs == rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator!=(T lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(value_type lhs, Complex rhs) noexcept {
             return Complex(lhs) != rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, T rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, value_type rhs) noexcept {
             return lhs != Complex(rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, std::complex<T> rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, std::complex<value_type> rhs) noexcept {
             return lhs == Complex(rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator==(std::complex<T> lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(std::complex<value_type> lhs, Complex rhs) noexcept {
             return Complex(lhs) == rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, std::complex<T> rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, std::complex<value_type> rhs) noexcept {
             return !(lhs == rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator!=(std::complex<T> lhs, Complex rhs) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(std::complex<value_type> lhs, Complex rhs) noexcept {
             return !(lhs == rhs);
+        }
+
+    public:
+        [[nodiscard]] NOA_HD constexpr auto vec() const noexcept {
+            return Vec<value_type, 2>(real, imag);
+        }
+
+    public: // Support for noa::string::human<Vec>();
+        [[nodiscard]] static std::string name() {
+            if constexpr (std::is_same_v<value_type, Half>)
+                return "c16";
+            else if constexpr (std::is_same_v<value_type, float>)
+                return "c32";
+            else
+                return "c64";
         }
     };
+}
 
-    namespace math {
-        /// Returns the real part of the complex number \a x.
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T real(Complex<T> x) noexcept { return x.real; }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T real(std::complex<T> x) noexcept { return x.real(); }
-
-        /// Returns the imaginary part of the complex number \a x.
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T imag(Complex<T> x) noexcept { return x.imag; }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T imag(std::complex<T> x) noexcept { return x.imag(); }
-
-        /// Returns the phase angle (in radians) of the complex number \a z.
-        template<typename T>
-        [[nodiscard]] NOA_FHD T arg(Complex<T> x) {
-            return atan2(x.imag, x.real);
-        }
-
-        /// Returns the magnitude of the complex number \a x.
-        template<typename T>
-        [[nodiscard]] NOA_FHD T abs(Complex<T> x) {
-            return hypot(x.real, x.imag);
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD T length(Complex<T> x) { return abs(x); }
-
-        /// Returns the length-normalized of the complex number \a x to 1, reducing it to its phase.
-        template<typename T>
-        [[nodiscard]] NOA_FHD Complex<T> normalize(Complex<T> x) {
-            if constexpr (std::is_same_v<T, half_t>)
-                return Complex<T>(normalize(Complex<HALF_ARITHMETIC_TYPE>(x)));
-            T magnitude = abs(x);
-            if (magnitude > T{0}) // hum ...
-                magnitude = T{1} / magnitude;
-            return x * magnitude;
-        }
-
-        /// Returns the squared magnitude of the complex number \a x.
-        template<typename T>
-        NOA_IHD T norm(Complex<T> x);
-
-        template<>
-        [[nodiscard]] NOA_IHD float norm<float>(Complex<float> x) {
-            constexpr float THRESHOLD = 1.0842021724855044e-19f; // sqrt(FLT_MIN);
-            if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
-                const float a = x.real * 4.0f;
-                const float b = x.imag * 4.0f;
-                return (a * a + b * b) / 16.0f;
-            }
-            return x.real * x.real + x.imag * x.imag;
-        }
-
-        template<>
-        [[nodiscard]] NOA_IHD double norm<double>(Complex<double> x) {
-            constexpr double THRESHOLD = 1.4916681462400413e-154; // sqrt(DBL_MIN)
-            if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
-                const double a = x.real * 4.0;
-                const double b = x.imag * 4.0;
-                return (a * a + b * b) / 16.0;
-            }
-            return x.real * x.real + x.imag * x.imag;
-        }
-
-        template<>
-        [[nodiscard]] NOA_IHD half_t norm<half_t>(Complex<half_t> x) {
-            return half_t(norm(Complex<HALF_ARITHMETIC_TYPE>(x)));
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD T lengthSq(Complex<T> x) { return norm(x); }
-
-        /// Returns the complex conjugate of \a x.
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr Complex<T> conj(Complex<T> x) noexcept {
-            return {x.real, -x.imag};
-        }
-
-        /// Returns a complex number with magnitude \a length (should be positive) and phase angle \a theta.
-        template<typename T>
-        [[nodiscard]] NOA_FHD Complex<T> polar(T length, T theta) {
-            return {length * cos(theta), length * sin(theta)};
-        }
-
-        template<typename T>
-        [[nodiscard]] NOA_FHD constexpr T dot(Complex<T> a, Complex<T> b) noexcept {
-            if constexpr (std::is_same_v<T, half_t>)
-                return fma(a[0], b[0], a[1] * b[1]);
-            return a[0] * b[0] + a[1] * b[1];
-        }
-
-        #define NOA_ULP_ 2
-        #define NOA_EPSILON_ 1e-6f
-
-        template<uint ULP = NOA_ULP_, typename T>
-        [[nodiscard]] NOA_FHD constexpr Bool2 isEqual(Complex<T> a, Complex<T> b, T e = NOA_EPSILON_) {
-            return isEqual<ULP>(a.real, b.real, e) && isEqual<ULP>(a.imag, b.imag, e);
-        }
-
-        template<uint ULP = NOA_ULP_, typename T>
-        [[nodiscard]] NOA_FHD constexpr Bool2 isEqual(Complex<T> a, T b, T e = NOA_EPSILON_) {
-            return isEqual<ULP>(a.real, b, e) && isEqual<ULP>(a.imag, b, e);
-        }
-
-        template<uint ULP = NOA_ULP_, typename T>
-        [[nodiscard]] NOA_FHD constexpr Bool2 isEqual(T a, Complex<T> b, T e = NOA_EPSILON_) {
-            return isEqual<ULP>(a, b.real, e) && isEqual<ULP>(a, b.imag, e);
-        }
-
-        #undef NOA_ULP_
-        #undef NOA_EPSILON_
-    }
-
-    namespace traits {
-        template<>
-        struct proclaim_is_complex<Complex<half_t>> : std::true_type {};
-        template<>
-        struct proclaim_is_complex<Complex<float>> : std::true_type {};
-        template<>
-        struct proclaim_is_complex<Complex<double>> : std::true_type {};
-    }
-
-    using chalf_t = Complex<half_t>;
-    using cfloat_t = Complex<float>;
-    using cdouble_t = Complex<double>;
+namespace noa::math {
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T real(Complex<T> x) noexcept { return x.real; }
 
     template<typename T>
-    [[nodiscard]] NOA_IH constexpr std::array<T, 2> toArray(Complex<T> v) noexcept {
-        return {v.real, v.imag};
+    [[nodiscard]] NOA_FHD constexpr T real(std::complex<T> x) noexcept { return x.real(); }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T imag(Complex<T> x) noexcept { return x.imag; }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T imag(std::complex<T> x) noexcept { return x.imag(); }
+
+    // Returns the phase angle (in radians) of the complex number z.
+    template<typename T>
+    [[nodiscard]] NOA_FHD T arg(Complex<T> x) {
+        return atan2(x.imag, x.real);
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD T phase(Complex<T> x) {
+        return arg(x);
+    }
+
+    // Returns the magnitude of the complex number x.
+    template<typename T>
+    [[nodiscard]] NOA_FHD T abs(Complex<T> x) {
+        return hypot(x.real, x.imag);
+    }
+
+    // Returns the length-normalized of the complex number x to 1, reducing it to its phase.
+    template<typename T>
+    [[nodiscard]] NOA_FHD Complex<T> normalize(Complex<T> x) {
+        if constexpr (std::is_same_v<T, Half>)
+            return Complex<T>(normalize(Complex<Half::arithmetic_type>(x)));
+        T magnitude = abs(x);
+        if (magnitude > T{0})
+            magnitude = T{1} / magnitude;
+        return x * magnitude;
+    }
+
+    // Returns the squared magnitude of the complex number x.
+    template<typename T>
+    NOA_IHD T abs_squared(Complex<T> x);
+
+    template<>
+    [[nodiscard]] NOA_IHD float abs_squared<float>(Complex<float> x) {
+        constexpr float THRESHOLD = 1.0842021724855044e-19f; // sqrt(FLT_MIN);
+        if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
+            const float a = x.real * 4.0f;
+            const float b = x.imag * 4.0f;
+            return (a * a + b * b) / 16.0f;
+        }
+        return x.real * x.real + x.imag * x.imag;
     }
 
     template<>
-    [[nodiscard]] NOA_IH std::string string::human<cdouble_t>() { return "cdouble"; }
+    [[nodiscard]] NOA_IHD double abs_squared<double>(Complex<double> x) {
+        constexpr double THRESHOLD = 1.4916681462400413e-154; // sqrt(DBL_MIN)
+        if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
+            const double a = x.real * 4.0;
+            const double b = x.imag * 4.0;
+            return (a * a + b * b) / 16.0;
+        }
+        return x.real * x.real + x.imag * x.imag;
+    }
+
     template<>
-    [[nodiscard]] NOA_IH std::string string::human<cfloat_t>() { return "cfloat"; }
-    template<>
-    [[nodiscard]] NOA_IH std::string string::human<chalf_t>() { return "chalf"; }
+    [[nodiscard]] NOA_IHD Half abs_squared<Half>(Complex<Half> x) {
+        return Half(abs_squared(Complex<Half::arithmetic_type>(x)));
+    }
 
     template<typename T>
-    NOA_IH std::ostream& operator<<(std::ostream& os, Complex<T> z) {
+    [[nodiscard]] NOA_FHD constexpr Complex<T> conj(Complex<T> x) noexcept {
+        return {x.real, -x.imag};
+    }
+
+    // Returns a complex number with magnitude length (should be positive) and phase angle theta.
+    template<typename T>
+    [[nodiscard]] NOA_FHD Complex<T> polar(T length, T theta) {
+        return {length * cos(theta), length * sin(theta)};
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr T dot(Complex<T> a, Complex<T> b) noexcept {
+        if constexpr (std::is_same_v<T, Half>)
+            return fma(a[0], b[0], a[1] * b[1]);
+        return a[0] * b[0] + a[1] * b[1];
+    }
+}
+
+namespace noa::traits {
+    template<> struct proclaim_is_complex<Complex<Half>> : std::true_type {};
+    template<> struct proclaim_is_complex<Complex<float>> : std::true_type {};
+    template<> struct proclaim_is_complex<Complex<double>> : std::true_type {};
+}
+
+namespace noa {
+    template<typename T>
+    std::ostream& operator<<(std::ostream& os, Complex<T> z) {
         os << string::format("({:.3f},{:.3f})", z.real, z.imag);
         return os;
     }

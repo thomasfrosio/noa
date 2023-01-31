@@ -9,7 +9,7 @@ using namespace ::noa;
 REQUIRE_THAT(double(math::real(x)), Catch::WithinAbs(double(math::real(y)), abs));  \
 REQUIRE_THAT(double(math::imag(x)), Catch::WithinAbs(double(math::imag(y)), abs))
 
-TEMPLATE_TEST_CASE("Complex", "[noa][complex]", half_t, float, double) {
+TEMPLATE_TEST_CASE("core::Complex", "[noa][complex]", Half, float, double) {
     using noaComplex = Complex<TestType>;
     using stdComplex = std::complex<TestType>;
 
@@ -52,7 +52,7 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", half_t, float, double) {
         TestType scalar5_nonzero = randomizer2.get();
         TestType scalar6_nonzero = randomizer2.get();
 
-        double epsilon = std::is_same_v<half_t, TestType> ? 5e-3 : 1e-6;
+        double epsilon = std::is_same_v<Half, TestType> ? 5e-3 : 1e-6;
 
         AND_THEN("Operators: '+=', '-=', '*=', '/='") {
             std_complex += scalar1;
@@ -131,15 +131,15 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", half_t, float, double) {
         }
 
         AND_THEN("Other non-member functions") {
-            if constexpr (std::is_same_v<TestType, half_t>) {
+            if constexpr (std::is_same_v<TestType, Half>) {
                 auto f1 = static_cast<float>(scalar1);
                 auto f2 = static_cast<float>(scalar2);
                 auto f3 = static_cast<float>(scalar3);
                 auto f4 = static_cast<float>(scalar4_nonzero);
-                noa::chalf_t nc(scalar1, scalar3);
+                noa::Complex<Half> nc(scalar1, scalar3);
                 std::complex<float> sc(f1, f3);
 
-                nc = noa::chalf_t(scalar1, scalar3);
+                nc = noa::Complex<Half>(scalar1, scalar3);
                 sc = std::complex<float>(f1,f3);
                 REQUIRE(nc == sc);
 
@@ -147,15 +147,16 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", half_t, float, double) {
                 sc = std::abs(sc);
                 REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
 
-                nc = math::arg(noa::chalf_t(scalar3, scalar1));
+                nc = math::arg(noa::Complex<Half>(scalar3, scalar1));
                 sc = std::arg(std::complex<float>(f3, f1));
                 REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
 
-                nc = math::norm(noa::chalf_t(scalar3, scalar1));
+                // norm is too ambiguous...
+                nc = math::abs_squared(noa::Complex<Half>(scalar3, scalar1));
                 sc = std::norm(std::complex<float>(f3, f1));
                 REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon * 10);
 
-                nc = math::conj(noa::chalf_t(scalar2, scalar1));
+                nc = math::conj(noa::Complex<Half>(scalar2, scalar1));
                 sc = std::conj(std::complex<float>(f2, f1));
                 REQUIRE_COMPLEX_EQUALS_ABS(nc, sc, epsilon);
 
@@ -176,7 +177,7 @@ TEMPLATE_TEST_CASE("Complex", "[noa][complex]", half_t, float, double) {
                 std_complex = std::arg(stdComplex(scalar3, scalar1));
                 REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 
-                noa_complex = math::norm(noaComplex(scalar3, scalar1));
+                noa_complex = math::abs_squared(noaComplex(scalar3, scalar1));
                 std_complex = std::norm(stdComplex(scalar3, scalar1));
                 REQUIRE_COMPLEX_EQUALS_ABS(noa_complex, std_complex, epsilon);
 

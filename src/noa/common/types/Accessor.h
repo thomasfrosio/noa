@@ -5,404 +5,476 @@
 
 #include "noa/common/Assert.h"
 #include "noa/common/Definitions.h"
-#include "noa/common/traits/BaseTypes.h"
-#include "noa/common/types/SafeCast.h"
-#include "noa/common/Indexing.h"
-#include "noa/common/types/Int2.h"
-#include "noa/common/types/Int3.h"
-#include "noa/common/types/Int4.h"
+#include "noa/common/traits/Numerics.h"
+#include "noa/common/types/Vec.h"
+#include "noa/common/utils/Indexing.h"
+
+// The Accessor and AccessorReference are used bind a pointer (pointing to a memory region) and
+// the strides of this memory region, i.e. should step through this memory region. This is mostly
+// intended for the backends to use, so these aim for overall good performance. As such:
+//  1) The size of the dimensions are not stored, so it cannot bound-check the indexes against
+//     their dimension size. In a lot of cases, the input/output arrays have the same size/shape,
+//     and, the size/shape is often not needed by the compute kernel (e.g. ewise/iwise).
+//     Either way, it would require storing unused information.
+//  2) Pointer traits. By default, the pointers are not marked with any attributes, but the "restrict"
+//     traits can be added. This is useful to trigger optimizations ultimately leading to less memory
+//     transfers, better use of registers, and even automatic-vectorization on the CPU.
+//  3) Strides are fully dynamic (one dynamic stride per dimension) by default, but the rightmost
+//     dimension can be marked contiguous. The Accessor use the rightmost convention, so already
+//     assumes that the layout is ordered and that the innermost dimension is the rightmost dimension.
+//     F-contiguous layouts are not supported because the backends is supposed to reevaluate
+//     the layout of the arrays at runtime and reorder dimensions to the rightmost order before
+//     creating the accessors, thereby transforming F-contiguous arrays to C-contiguous arrays.
+//     Similarly, if the layout is fully contiguous and the indexes are not needed (e.g. ewise),
+//     the backend can transform the layout to a 1D contiguous accessor, which only stores a pointer
+//     and uses a fixed stride of 1.
+//     One disadvantage of the contiguous case is that the API becomes a bit more "rough" because
+//     the innermost stride is not stored. Thus, one should be pay attention to this when accessing
+//     the strides, specially with AccessorReference. In practice, this rarely (never?) happens.
 
 namespace noa {
-    enum class AccessorTraits { DEFAULT, RESTRICT };
+    enum class PointerTraits { DEFAULT, RESTRICT };
+    enum class StridesTraits { STRIDED, CONTIGUOUS };
 
-    template<typename Value, int NDIM, typename Index, AccessorTraits TRAITS>
+    // Empty type used to emulate the stride of a contiguous dimension.
+    template<typename I>
+    struct AccessorContiguousStride {
+        template<typename... Ts>
+        constexpr explicit AccessorContiguousStride(Ts&&...) noexcept {}
+
+        constexpr I* data() const noexcept { return nullptr; }
+
+        template<typename T>
+        [[nodiscard]] constexpr I operator[](T i) const noexcept {
+            NOA_ASSERT(i == 1);
+            (void) i;
+            return I{1};
+        }
+    };
+}
+
+namespace noa::details {
+    template<typename InputValue, typename OutputValue>
+    constexpr bool is_mutable_value_type_v =
+            std::is_const_v<OutputValue> &&
+            std::is_same_v<InputValue, std::remove_const_t<OutputValue>>;
+}
+
+namespace noa {
+    template<typename T, int N, typename I,
+            PointerTraits PointerTrait,
+            StridesTraits StridesTrait>
     class AccessorReference;
 
-    /// Multidimensional accessor using C-style multidimensional array indexing.
-    /// \details This class in meant to provide multidimensional-indexing on contiguous/strided data.
-    ///          It only keeps track of a pointer and one stride for each dimension. As opposed, to View,
-    ///          it cannot bound check the index against the dimension size.
-    /// \note The only reason the Accessor doesn't keep track of the dimension size is that in a lot of
-    ///       cases, the input/output arrays have the same size/shape, so kernels would have to transfer
-    ///       redundant information to the device, which could cause a performance hit for CUDA kernels.
-    ///       If this is not an issue, prefer to use View.
-    template<typename Value, int NDIM, typename Index, AccessorTraits TRAITS = AccessorTraits::DEFAULT>
+    // Multidimensional accessor using C-style multidimensional array indexing.
+    template<typename T, size_t N, typename I,
+             PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED>
     class Accessor {
     public:
-        static_assert(!std::is_pointer_v<Value>);
-        static_assert(!std::is_reference_v<Value>);
-        static_assert(std::is_integral_v<Index>);
-        static_assert(NDIM > 0 && NDIM <= 4);
+        static_assert(!std::is_pointer_v<T>);
+        static_assert(!std::is_reference_v<T>);
+        static_assert(std::is_integral_v<I>);
+        static_assert(N > 0 && N <= 4);
+
+        static constexpr bool IS_RESTRICT = PointerTrait == PointerTraits::RESTRICT;
+        static constexpr bool IS_CONTIGUOUS = StridesTrait == StridesTraits::CONTIGUOUS;
 
         #if defined(__CUDACC__)
-        using pointer_type = std::conditional_t<TRAITS == AccessorTraits::RESTRICT, Value* __restrict__, Value*>;
+        using pointer_type = std::conditional_t<IS_RESTRICT, T* __restrict__, T*>;
         #else
-        using pointer_type = std::conditional_t<TRAITS == AccessorTraits::RESTRICT, Value* __restrict, Value*>;
+        using pointer_type = std::conditional_t<IS_RESTRICT, T* __restrict, T*>;
         #endif
 
-        using value_type = Value;
-        using index_type = Index;
-        static constexpr index_type COUNT = NDIM;
+        using value_type = T;
+        using index_type = I;
+        static constexpr index_type COUNT = N;
+        static constexpr size_t SIZE = N;
+        static constexpr int64_t SSIZE = N;
 
-    public:
-        /// Creates an empty view.
+        using strided_strides_type = Strides<index_type, N>;
+        using contiguous_strides_type = Strides<index_type, noa::math::max(size_t{1}, N - 1)>;
+        using contiguous_stride_type = AccessorContiguousStride<index_type>;
+        using strides_type =
+                std::conditional_t<!IS_CONTIGUOUS, strided_strides_type,
+                std::conditional_t<(N > 1), contiguous_strides_type, contiguous_stride_type>>;
+
+    public: // Constructors
         NOA_HD constexpr Accessor() = default;
 
-        /// Creates a strided accessor.
-        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        NOA_HD constexpr Accessor(pointer_type pointer, const Int* strides) noexcept : m_ptr(pointer) {
-            NOA_ASSERT(strides != nullptr);
-            for (index_type i = 0; i < COUNT; ++i) {
-                NOA_ASSERT(isSafeCast<index_type>(strides[i]));
-                m_strides[i] = static_cast<index_type>(strides[i]);
-            }
+        // Creates a strided or contiguous accessor.
+        NOA_HD constexpr Accessor(pointer_type pointer, const Strides<index_type, SIZE>& strides) noexcept
+                : m_ptr(pointer), m_strides(strides.data()) {}
+
+        // Creates a contiguous accessor, assuming the innermost dimension has a stride of 1.
+        template<typename Void, typename = std::enable_if_t<(SIZE > 1) && IS_CONTIGUOUS && std::is_void_v<Void>>>
+        NOA_HD constexpr Accessor(pointer_type pointer, const Strides<index_type, SIZE - 1>& strides) noexcept
+                : m_ptr(pointer), m_strides(strides.data()) {}
+
+        // Creates a contiguous 1D accessor, assuming the stride is 1.
+        template<typename Void, typename = std::enable_if_t<(SIZE == 1) && IS_CONTIGUOUS && std::is_void_v<Void>>>
+        NOA_HD constexpr Accessor(pointer_type pointer) noexcept
+                : m_ptr(pointer), m_strides(nullptr) {}
+
+        // Creates a const accessor from an existing non-const accessor.
+        template<typename U,
+                 typename = std::enable_if_t<details::is_mutable_value_type_v<U, value_type>>>
+        NOA_HD constexpr /* implicit */ Accessor(const Accessor<U, N, I, PointerTrait, StridesTrait>& accessor)
+                : m_ptr(accessor.get()), m_strides(accessor.strides().data()) {}
+
+    public: // Accessing strides
+        template<size_t INDEX>
+        [[nodiscard]] NOA_HD constexpr auto stride() const noexcept {
+            static_assert(INDEX < N);
+            if constexpr (IS_CONTIGUOUS && INDEX == SIZE - 1)
+                return index_type{1};
+            return m_strides[INDEX];
         }
 
-        template<typename Int, typename = std::enable_if_t<COUNT == 1 && traits::is_int_v<Int>>>
-        NOA_HD constexpr Accessor(pointer_type pointer, Int stride) noexcept
-                : Accessor(pointer, &stride) {}
-
-        template<typename Int,
-                 typename = std::enable_if_t<(COUNT == 2 && traits::is_int2_v<Int>) ||
-                                             (COUNT == 3 && traits::is_int3_v<Int>) ||
-                                             (COUNT == 4 && traits::is_int4_v<Int>)>>
-        NOA_HD constexpr Accessor(pointer_type pointer, const Int& strides) noexcept
-                : Accessor(pointer, strides.get()) {}
-
-        /// Creates a const accessor from an existing non-const accessor.
-        template<typename MutableValue,
-                 typename = std::enable_if_t<std::is_const_v<value_type> &&
-                                             std::is_same_v<MutableValue, std::remove_const_t<value_type>>>>
-        NOA_HD constexpr /* implicit */ Accessor(const Accessor<MutableValue, COUNT, index_type, TRAITS>& accessor)
-                : Accessor(accessor.data(), accessor.strides()) {}
+        [[nodiscard]] NOA_HD constexpr strides_type& strides() noexcept { return m_strides; }
+        [[nodiscard]] NOA_HD constexpr const strides_type& strides() const noexcept { return m_strides; }
 
     public:
-        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        [[nodiscard]] NOA_HD constexpr index_type& stride(Int dim) noexcept {
-            NOA_ASSERT(static_cast<index_type>(dim) < COUNT);
-            return m_strides[dim];
-        }
-
-        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        [[nodiscard]] NOA_HD constexpr const index_type& stride(Int dim) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(dim) < COUNT);
-            return m_strides[dim];
-        }
-
-        [[nodiscard]] NOA_HD constexpr index_type* strides() noexcept { return m_strides; }
-        [[nodiscard]] NOA_HD constexpr const index_type* strides() const noexcept { return m_strides; }
-        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_ptr; }
         [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HD constexpr bool empty() const noexcept { return m_ptr == nullptr; }
-        [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return m_ptr == nullptr; }
+        [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !is_empty(); }
 
         template<typename Int0, typename Int1,
-                 typename = std::enable_if_t<std::is_integral_v<Int0> && std::is_integral_v<Int1>>>
-        [[nodiscard]] NOA_HD constexpr Accessor swap(Int0 d0, Int1 d1) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(d0) < COUNT && static_cast<index_type>(d1) < COUNT);
+                 typename = std::enable_if_t<
+                         StridesTraits::STRIDED == StridesTrait &&
+                         noa::traits::are_int_v<Int0, Int1>>>
+        [[nodiscard]] NOA_HD constexpr Accessor swap_dimensions(Int0 d0, Int1 d1) const noexcept {
             Accessor out = *this;
-            const auto tmp = out.stride(d0); // swap
-            out.stride(d0) = out.stride(d1);
-            out.stride(d1) = tmp;
+            noa::swap(out.strides()[d0], out.strides()[d1]);
             return out;
         }
 
     public:
-        /// Offsets the current pointer at dimension 0 (without changing the dimensionality of the accessor)
-        /// and return a reference of that new accessor.
-        template<typename Int, typename std::enable_if_t<std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD auto offset(Int index) const noexcept {
-            NOA_ASSERT((traits::is_uint_v<Int> || index >= Int{0}) && isSafeCast<index_type>(index));
-            using output_type = AccessorReference<value_type, COUNT, index_type, TRAITS>;
-            return output_type(m_ptr + m_strides[0] * static_cast<index_type>(index), strides());
+        // Offsets the current pointer at dimension 0 (without changing the dimensionality of the accessor)
+        // and return a reference of that new accessor.
+        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+        [[nodiscard]] NOA_HD auto offset_accessor(Int index) const noexcept {
+            NOA_ASSERT(!is_empty());
+            using output_type = AccessorReference<value_type, SIZE, index_type, PointerTrait, StridesTrait>;
+            return output_type(m_ptr + indexing::at(index, stride<0>()), strides().data());
         }
 
-        /// Indexing operator, on 1D accessor. 1D -> ref
-        template<typename Int, typename std::enable_if_t<COUNT == 1 && std::is_integral_v<Int>, bool> = true>
+        // C-style indexing operator, on 1D accessor. 1D -> value_type&
+        template<typename Int, std::enable_if_t<SIZE == 1 && std::is_integral_v<Int>, bool> = true>
         [[nodiscard]] NOA_HD value_type& operator[](Int index) const noexcept {
-            NOA_ASSERT(m_ptr != nullptr &&
-                       (traits::is_uint_v<Int> || index >= Int{0}) &&
-                       isSafeCast<index_type>(index));
-            return m_ptr[m_strides[0] * static_cast<index_type>(index)];
+            NOA_ASSERT(!is_empty());
+            return m_ptr[indexing::at(index, stride<0>())];
         }
 
-        /// Indexing operator, multidimensional accessor. ND -> ND-1
-        template<typename Int, typename std::enable_if_t<(COUNT > 1) && std::is_integral_v<Int>, bool> = true>
+        // C-style indexing operator, on multidimensional accessor. ND -> ND-1
+        template<typename Int, std::enable_if_t<(SIZE > 1) && std::is_integral_v<Int>, bool> = true>
         [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
-            NOA_ASSERT(m_ptr != nullptr &&
-                       (traits::is_uint_v<Int> || index >= Int{0}) &&
-                       isSafeCast<index_type>(index));
-            // While returning an Accessor adds no overhead on the CPU, on the GPU it does.
-            // Returning an AccessorReference removes a few instructions.
-            using output_type = AccessorReference<value_type, COUNT - 1, index_type, TRAITS>;
-            return output_type(m_ptr + stride(0) * static_cast<index_type>(index), m_strides + 1);
+            NOA_ASSERT(!is_empty());
+            using output_type = AccessorReference<value_type, SIZE - 1, index_type, PointerTrait, StridesTrait>;
+            return output_type(m_ptr + indexing::at(index, stride<0>()), strides().data() + 1);
         }
 
     public:
         template<typename Pointer, typename Int0,
-                 typename std::enable_if_t<std::is_integral_v<Int0>, bool> = true>
+                 std::enable_if_t<std::is_integral_v<Int0>, bool> = true>
         [[nodiscard]] NOA_HD auto
-        offsetPointer(Pointer pointer, Int0 i0) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
+        offset_pointer(Pointer pointer, Int0 i0) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
             return pointer;
         }
 
         template<typename Pointer, typename Int0, typename Int1,
-                 typename std::enable_if_t<(COUNT >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
-        offsetPointer(Pointer pointer, Int0 i0, Int1 i1) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
-            pointer += indexing::at(i1, m_strides[1]);
+        offset_pointer(Pointer pointer, Int0 i0, Int1 i1) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
+            pointer += indexing::at(i1, stride<1>());
             return pointer;
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2,
-                 typename std::enable_if_t<(COUNT >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
-        offsetPointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
-            pointer += indexing::at(i1, m_strides[1]);
-            pointer += indexing::at(i2, m_strides[2]);
+        offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
+            pointer += indexing::at(i1, stride<1>());
+            pointer += indexing::at(i2, stride<2>());
             return pointer;
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2, typename Int3,
-                 typename std::enable_if_t<COUNT == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
-        offsetPointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
-            pointer += indexing::at(i1, m_strides[1]);
-            pointer += indexing::at(i2, m_strides[2]);
-            pointer += indexing::at(i3, m_strides[3]);
+        offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
+            pointer += indexing::at(i1, stride<1>());
+            pointer += indexing::at(i2, stride<2>());
+            pointer += indexing::at(i3, stride<3>());
             return pointer;
         }
 
         template<typename Int0,
-                 typename std::enable_if_t<(COUNT >= 1) && std::is_integral_v<Int0>, bool> = true>
+                 std::enable_if_t<(SIZE >= 1) && std::is_integral_v<Int0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0);
         }
 
         template<typename Int0, typename Int1,
-                 typename std::enable_if_t<(COUNT >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0, i1);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0, i1);
         }
 
         template<typename Int0, typename Int1, typename Int2,
-                 typename std::enable_if_t<(COUNT >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0, i1, i2);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0, i1, i2);
         }
 
         template<typename Int0, typename Int1, typename Int2, typename Int3,
-                 typename std::enable_if_t<COUNT == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0, i1, i2, i3);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0, i1, i2, i3);
         }
 
-        template<typename Int, typename std::enable_if_t<(COUNT >= 2) && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Int2<Int>& i01) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i01[0], i01[1]);
+        template<typename Int, std::enable_if_t<(SIZE >= 2) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec2<Int>& i01) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i01[0], i01[1]);
         }
 
-        template<typename Int, typename std::enable_if_t<(COUNT >= 3) && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Int3<Int>& i012) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i012[0], i012[1], i012[2]);
+        template<typename Int, std::enable_if_t<(SIZE >= 3) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec3<Int>& i012) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i012[0], i012[1], i012[2]);
         }
 
-        template<typename Int, typename std::enable_if_t<(COUNT >= 4) && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Int4<Int>& i0123) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0123[0], i0123[1], i0123[2], i0123[3]);
+        template<typename Int, std::enable_if_t<(SIZE >= 4) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec4<Int>& i0123) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0123[0], i0123[1], i0123[2], i0123[3]);
         }
 
     private:
         pointer_type m_ptr{};
-        index_type m_strides[(size_t) COUNT]{};
+        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 
-    /// Multidimensional accessor.
-    /// \warning This class does not copy the strides. It is simpler and safer to use Accessor instead.
-    template<typename Value, int NDIM, typename Index, AccessorTraits TRAITS = AccessorTraits::DEFAULT>
+    // Multidimensional accessor.
+    // This is similar to Accessor, except that this type does not copy the strides,
+    // it simply points to existing ones. Usually "AccessorReference" is not created
+    // by the user, but instead by an Accessor during a ND C-style indexing.
+    template<typename T, int N, typename I,
+             PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED>
     class AccessorReference {
     public:
-        static_assert(!std::is_pointer_v<Value>);
-        static_assert(!std::is_reference_v<Value>);
-        static_assert(std::is_integral_v<Index>);
-        static_assert(NDIM > 0 && NDIM <= 4);
+        static constexpr bool IS_RESTRICT = PointerTrait == PointerTraits::RESTRICT;
+        static constexpr bool IS_CONTIGUOUS = StridesTrait == StridesTraits::CONTIGUOUS;
 
-        #if defined(__CUDACC__)
-        using pointer_type = std::conditional_t<TRAITS == AccessorTraits::RESTRICT, Value* __restrict__, Value*>;
-        #else
-        using pointer_type = std::conditional_t<TRAITS == AccessorTraits::RESTRICT, Value* __restrict, Value*>;
-        #endif
+        using accessor_type = Accessor<T, N, I, PointerTrait, StridesTrait>;
+        using value_type = typename accessor_type::value_type;
+        using index_type = typename accessor_type::index_type;
+        using pointer_type = typename accessor_type::pointer_type;
+        using strides_type = std::conditional_t<
+                StridesTrait == StridesTraits::CONTIGUOUS && N == 1,
+                AccessorContiguousStride<index_type>, const index_type*>;
 
-        using value_type = Value;
-        using index_type = Index;
-        static constexpr index_type COUNT = NDIM;
+        static constexpr index_type COUNT = N;
+        static constexpr size_t SIZE = N;
+        static constexpr int64_t SSIZE = N;
 
     public:
-        /// Creates an empty view.
+        // Creates an empty view.
         NOA_HD constexpr AccessorReference() = default;
 
-        /// Creates a strided accessor.
-        NOA_HD constexpr AccessorReference(pointer_type pointer, const index_type* strides) noexcept
-                : m_ptr(pointer), m_strides(strides) {}
+        // Creates a strided accessor.
+        // For the contiguous case, the rightmost stride is ignored and never read from
+        // the input strides pointer (so N-1 elements are read from "strides").
+        // Therefore, in the 1D contiguous case, a nullptr can be passed.
+        NOA_HD constexpr AccessorReference(pointer_type pointer, strides_type strides) noexcept
+                : m_ptr(pointer),
+                  m_strides(strides) {}
 
-        /// Creates a const accessor from an existing non-const accessor.
-        template<typename MutableValue,
-                 typename = std::enable_if_t<std::is_const_v<value_type> &&
-                                             std::is_same_v<MutableValue, std::remove_const_t<value_type>>>>
-        NOA_HD constexpr /* implicit */
-        AccessorReference(const AccessorReference<MutableValue, COUNT, index_type, TRAITS>& accessor)
-                : m_ptr(accessor.data()), m_strides(accessor.strides()) {}
+        // Creates a const accessor from an existing non-const accessor.
+        template<typename U,
+                 typename = std::enable_if_t<details::is_mutable_value_type_v<U, value_type>>>
+        NOA_HD constexpr /* implicit */ AccessorReference(const Accessor<U, N, I, PointerTrait, StridesTrait>& accessor)
+                : m_ptr(accessor.get()), m_strides(accessor.strides().data()) {}
+
+    public: // Accessing strides
+        template<size_t INDEX>
+        [[nodiscard]] NOA_HD constexpr auto stride() const noexcept {
+            static_assert(INDEX < N);
+            if constexpr (IS_CONTIGUOUS && INDEX == SIZE - 1)
+                return index_type{1};
+            return m_strides[INDEX];
+        }
+
+        [[nodiscard]] NOA_HD constexpr strides_type strides() noexcept { return m_strides; }
+
+    public:
+        [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_ptr; }
+        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return m_ptr == nullptr; }
+        [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !is_empty(); }
 
     public:
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        [[nodiscard]] NOA_HD constexpr index_type stride(Int dim) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(dim) < COUNT);
-            return m_strides[dim];
-        }
-
-        [[nodiscard]] NOA_HD constexpr const index_type* strides() const noexcept { return m_strides; }
-        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_ptr; }
-        [[nodiscard]] NOA_HD constexpr bool empty() const noexcept { return m_ptr == nullptr; }
-        [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !empty(); }
-
-        template<typename Int0, typename Int1, typename = std::enable_if_t<traits::are_int_v<Int0, Int1>>>
-        [[nodiscard]] NOA_HD constexpr auto swap(Int0 d0, Int1 d1) const noexcept {
-            using output_type = Accessor<value_type, COUNT, index_type, TRAITS>;
-            return output_type(m_ptr, strides()).swap(d0, d1);
-        }
-
-    public:
-        template<typename Int, typename std::enable_if_t<std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD auto offset(Int index) const noexcept {
-            NOA_ASSERT((traits::is_uint_v<Int> || index >= Int{0}) && isSafeCast<index_type>(index));
-            return AccessorReference(m_ptr + m_strides[0] * static_cast<index_type>(index), strides());
+        [[nodiscard]] NOA_HD auto offset_accessor(Int index) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return AccessorReference(m_ptr + noa::indexing::at(index, stride<0>()), m_strides);
         }
 
         /// Indexing operator, on 1D accessor. 1D -> ref
-        template<typename Int, typename std::enable_if_t<COUNT == 1 && std::is_integral_v<Int>, bool> = true>
+        template<typename Int, std::enable_if_t<SIZE == 1 && std::is_integral_v<Int>, bool> = true>
         [[nodiscard]] NOA_HD value_type& operator[](Int index) const noexcept {
-            NOA_ASSERT(m_ptr != nullptr &&
-                       (traits::is_uint_v<Int> || index >= Int{0}) &&
-                       isSafeCast<index_type>(index));
-            return m_ptr[m_strides[0] * static_cast<index_type>(index)];
+            NOA_ASSERT(!is_empty());
+            return m_ptr[noa::indexing::at(index, stride<0>())];
         }
 
         /// Indexing operator, multidimensional accessor. ND -> ND-1
-        template<typename Int, typename std::enable_if_t<(COUNT > 1) && std::is_integral_v<Int>, bool> = true>
+        template<typename Int, std::enable_if_t<(SIZE > 1) && std::is_integral_v<Int>, bool> = true>
         [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
-            NOA_ASSERT(m_ptr != nullptr &&
-                       (traits::is_uint_v<Int> || index >= Int{0}) &&
-                       isSafeCast<index_type>(index));
-            using output_type = AccessorReference<value_type, COUNT - 1, index_type, TRAITS>;
-            return output_type(m_ptr + stride(0) * static_cast<index_type>(index), m_strides + 1);
+            NOA_ASSERT(!is_empty());
+            using output_type = AccessorReference<value_type, SIZE - 1, index_type, PointerTrait, StridesTrait>;
+            return output_type(m_ptr + noa::indexing::at(index, stride<0>()), m_strides + 1);
         }
 
     public:
         template<typename Pointer, typename Int0,
-                 typename std::enable_if_t<std::is_integral_v<Int0>, bool> = true>
+                 std::enable_if_t<std::is_integral_v<Int0>, bool> = true>
         [[nodiscard]] NOA_HD auto
-        offsetPointer(Pointer pointer, Int0 i0) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
+        offset_pointer(Pointer pointer, Int0 i0) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
             return pointer;
         }
 
         template<typename Pointer, typename Int0, typename Int1,
-                 typename std::enable_if_t<(COUNT >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
-        offsetPointer(Pointer pointer, Int0 i0, Int1 i1) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
-            pointer += indexing::at(i1, m_strides[1]);
+        offset_pointer(Pointer pointer, Int0 i0, Int1 i1) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
+            pointer += indexing::at(i1, stride<1>());
             return pointer;
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2,
-                 typename std::enable_if_t<(COUNT >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
-        offsetPointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
-            pointer += indexing::at(i1, m_strides[1]);
-            pointer += indexing::at(i2, m_strides[2]);
+        offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
+            pointer += indexing::at(i1, stride<1>());
+            pointer += indexing::at(i2, stride<2>());
             return pointer;
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2, typename Int3,
-                 typename std::enable_if_t<COUNT == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
-        offsetPointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
-            pointer += indexing::at(i0, m_strides[0]);
-            pointer += indexing::at(i1, m_strides[1]);
-            pointer += indexing::at(i2, m_strides[2]);
-            pointer += indexing::at(i3, m_strides[3]);
+        offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
+            pointer += indexing::at(i0, stride<0>());
+            pointer += indexing::at(i1, stride<1>());
+            pointer += indexing::at(i2, stride<2>());
+            pointer += indexing::at(i3, stride<3>());
             return pointer;
         }
 
         template<typename Int0,
-                 typename std::enable_if_t<(COUNT >= 1) && std::is_integral_v<Int0>, bool> = true>
+                 std::enable_if_t<(SIZE >= 1) && std::is_integral_v<Int0>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0);
         }
 
         template<typename Int0, typename Int1,
-                 typename std::enable_if_t<(COUNT >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0, i1);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0, i1);
         }
 
         template<typename Int0, typename Int1, typename Int2,
-                 typename std::enable_if_t<(COUNT >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0, i1, i2);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0, i1, i2);
         }
 
         template<typename Int0, typename Int1, typename Int2, typename Int3,
-                 typename std::enable_if_t<COUNT == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0, i1, i2, i3);
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0, i1, i2, i3);
         }
 
-        template<typename Int, typename std::enable_if_t<(COUNT >= 2) && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Int2<Int>& i01) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i01[0], i01[1]);
+        template<typename Int, std::enable_if_t<(SIZE >= 2) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec2<Int>& i01) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i01[0], i01[1]);
         }
 
-        template<typename Int, typename std::enable_if_t<(COUNT >= 3) && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Int3<Int>& i012) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i012[0], i012[1], i012[2]);
+        template<typename Int, std::enable_if_t<(SIZE >= 3) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec3<Int>& i012) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i012[0], i012[1], i012[2]);
         }
 
-        template<typename Int, typename std::enable_if_t<(COUNT >= 4) && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Int4<Int>& i0123) const noexcept {
-            NOA_ASSERT(!empty());
-            return *offsetPointer(m_ptr, i0123[0], i0123[1], i0123[2], i0123[3]);
+        template<typename Int, std::enable_if_t<(SIZE >= 4) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec4<Int>& i0123) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0123[0], i0123[1], i0123[2], i0123[3]);
         }
 
     private:
         pointer_type m_ptr{};
-        const index_type* m_strides{};
+        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 
-    template<typename Value, int NDIM, typename Index>
-    using AccessorRestrict = Accessor<Value, NDIM, Index, AccessorTraits::RESTRICT>;
+    template<typename T, int N>
+    using AccessorI64 = Accessor<T, N, int64_t>;
+    template<typename T, int N>
+    using AccessorI32 = Accessor<T, N, int32_t>;
+    template<typename T, int N>
+    using AccessorU64 = Accessor<T, N, uint64_t>;
+    template<typename T, int N>
+    using AccessorU32 = Accessor<T, N, uint32_t>;
 
-    template<typename Value, int NDIM, typename Index>
-    using AccessorReferenceRestrict = AccessorReference<Value, NDIM, Index, AccessorTraits::RESTRICT>;
+    template<typename T, int N, typename I>
+    using AccessorRestrict = Accessor<T, N, I, PointerTraits::RESTRICT>;
+    template<typename T, int N>
+    using AccessorRestrictI64 = AccessorRestrict<T, N, int64_t>;
+    template<typename T, int N>
+    using AccessorRestrictI32 = AccessorRestrict<T, N, int32_t>;
+    template<typename T, int N>
+    using AccessorRestrictU64 = AccessorRestrict<T, N, uint64_t>;
+    template<typename T, int N>
+    using AccessorRestrictU32 = AccessorRestrict<T, N, uint32_t>;
+
+    template<typename T, int N, typename I>
+    using AccessorContiguous = Accessor<T, N, I, PointerTraits::DEFAULT, StridesTraits::CONTIGUOUS>;
+    template<typename T, int N>
+    using AccessorContiguousI64 = AccessorContiguous<T, N, int64_t>;
+    template<typename T, int N>
+    using AccessorContiguousI32 = AccessorContiguous<T, N, int32_t>;
+    template<typename T, int N>
+    using AccessorContiguousU64 = AccessorContiguous<T, N, uint64_t>;
+    template<typename T, int N>
+    using AccessorContiguousU32 = AccessorContiguous<T, N, uint32_t>;
+
+    template<typename T, int N, typename I>
+    using AccessorRestrictContiguous = Accessor<T, N, I, PointerTraits::RESTRICT, StridesTraits::CONTIGUOUS>;
+    template<typename T, int N>
+    using AccessorRestrictContiguousI64 = AccessorRestrictContiguous<T, N, int64_t>;
+    template<typename T, int N>
+    using AccessorRestrictContiguousI32 = AccessorRestrictContiguous<T, N, int32_t>;
+    template<typename T, int N>
+    using AccessorRestrictContiguousU64 = AccessorRestrictContiguous<T, N, uint64_t>;
+    template<typename T, int N>
+    using AccessorRestrictContiguousU32 = AccessorRestrictContiguous<T, N, uint32_t>;
 }
-

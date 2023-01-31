@@ -7,7 +7,7 @@
 #include <cmath>
 #include <limits>
 
-#include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/Numerics.h"
 #include "noa/common/types/Half.h"
 #include "noa/common/types/Complex.h"
 #include "noa/common/Math.h"
@@ -20,20 +20,21 @@ namespace noa {
     /// \note If the output type has a wider range than the input type, this function should have no runtime
     ///       overhead compared to static_cast.
     template<typename TTo, typename TFrom,
-             typename std::enable_if_t<traits::is_data_v<TTo> && traits::is_data_v<TFrom>, bool> = true>
+             typename std::enable_if_t<noa::traits::is_numeric_v<TTo> &&
+                                       noa::traits::is_numeric_v<TFrom>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
         if constexpr (std::is_same_v<TTo, TFrom>) {
             return src;
 
-        } else if constexpr(traits::is_complex_v<TFrom>) {
-            static_assert(traits::is_complex_v<TTo>); // only Complex<T> -> Complex<U>
+        } else if constexpr(noa::traits::is_complex_v<TFrom>) {
+            static_assert(noa::traits::is_complex_v<TTo>, "Cannot cast a complex value to a non-complex value");
             return {clamp_cast<typename TTo::value_type>(src.real),
                     clamp_cast<typename TTo::value_type>(src.imag)};
 
-        } else if constexpr(traits::is_complex_v<TTo>) {
+        } else if constexpr(noa::traits::is_complex_v<TTo>) {
             return clamp_cast<typename TTo::value_type>(src); // calls implicit constructor Complex(U); imaginary is 0.
 
-        } else if constexpr(traits::is_float_v<TTo>) {
+        } else if constexpr(noa::traits::is_real_v<TTo>) {
             // Floating-point conversions:
             //      - If smaller -> larger type, it is a promotion and the value does not change.
             //      - The larger type may be represented exactly by the smaller type. In this case, the value doesn't
@@ -50,28 +51,28 @@ namespace noa {
             //        representable value will be selected, although if IEEE arithmetic is supported, rounding defaults
             //        to nearest. If the source type is bool, the value false is converted to zero, and the value true
             //        is converted to one.
-            //      - half_t can only represent the range of (u)int8_t and int16_t. Note that the rounding may cause
-            //        the casting to be non-reversible (e.g. int(32767) -> half_t -> int(32768)). For larger integral
+            //      - Half can only represent the range of (u)int8_t and int16_t. Note that the rounding may cause
+            //        the casting to be non-reversible (e.g. int(32767) -> Half -> int(32768)). For larger integral
             //        or floating-point types, full clamping is required.
-            if constexpr (std::is_same_v<TTo, half_t>) {
+            if constexpr (std::is_same_v<TTo, Half>) {
                 if constexpr (sizeof(TFrom) == 1 || (sizeof(TFrom) == 2 && std::is_signed_v<TFrom>)) {
-                    return TTo(src); // (u)int8_t/int16_t -> half_t
+                    return TTo(src); // (u)int8_t/int16_t -> Half
                 } else if constexpr (std::is_unsigned_v<TFrom>) {
-                    return TTo(math::min(src, TFrom(math::Limits<TTo>::max()))); // uint(16|32|64)_t -> half_t
-                } else { // int(32|64)_t -> half_t, float/double -> half_t
-                    return TTo(math::clamp(src,
-                                           TFrom(math::Limits<TTo>::lowest()),
-                                           TFrom(math::Limits<TTo>::max())));
+                    return TTo(noa::math::min(src, TFrom(noa::math::Limits<TTo>::max()))); // uint(16|32|64)_t -> Half
+                } else { // int(32|64)_t -> Half, float/double -> Half
+                    return TTo(noa::math::clamp(src,
+                                                TFrom(noa::math::Limits<TTo>::lowest()),
+                                                TFrom(noa::math::Limits<TTo>::max())));
                 }
             } else if constexpr (std::is_integral_v<TFrom> || (sizeof(TFrom) < sizeof(TTo))) {
-                return TTo(src); // implicit integral/half_t->float/double conversion or float->double
+                return TTo(src); // implicit integral/Half->float/double conversion or float->double
             } else { // double->float
-                return TTo(math::clamp(src,
-                                       TFrom(math::Limits<TTo>::lowest()),
-                                       TFrom(math::Limits<TTo>::max())));
+                return TTo(noa::math::clamp(src,
+                                            TFrom(noa::math::Limits<TTo>::lowest()),
+                                            TFrom(noa::math::Limits<TTo>::max())));
             }
 
-        } else if constexpr (std::is_integral_v<TTo> && traits::is_float_v<TFrom>) {
+        } else if constexpr (std::is_integral_v<TTo> && noa::traits::is_real_v<TFrom>) {
             // Floating-point to integral conversions:
             //      - Floating-point type can be converted to any integer type. The fractional part is truncated.
             //      - If bool, this is a bool conversion, i.e. a value of zero gives false, anything else gives true.
@@ -79,16 +80,16 @@ namespace noa {
             //        See https://stackoverflow.com/a/26097083 for some exceptional cases.
             //        See https://stackoverflow.com/a/3793950 for largest int value that can be accurately represented
             //        by IEEE-754 floats.
-            //      - half_t is an exception since some integral types have a wider range. In these cases, no need to
+            //      - Half is an exception since some integral types have a wider range. In these cases, no need to
             //        clamp, but still check for NaN and +/-Inf.
-            using int_limits = math::Limits<TTo>;
+            using int_limits = noa::math::Limits<TTo>;
             constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>);
-            if constexpr (std::is_same_v<TFrom, half_t> && IS_WIDER_THAN_HALF) {
-                if (math::isNaN(src)) {
+            if constexpr (std::is_same_v<TFrom, Half> && IS_WIDER_THAN_HALF) {
+                if (noa::math::is_nan(src)) {
                     return 0;
-                } else if (src == half_t(half_t::Mode::BINARY, 0x7C00)) { // +inf
+                } else if (src == Half(Half::Mode::BINARY, 0x7C00)) { // +inf
                     return int_limits::max();
-                } else if (src == half_t(half_t::Mode::BINARY, 0xFC00)) { // -inf
+                } else if (src == Half(Half::Mode::BINARY, 0xFC00)) { // -inf
                     return int_limits::min();
                 } else {
                     if constexpr (std::is_unsigned_v<TTo>)
@@ -97,7 +98,7 @@ namespace noa {
                         return TTo(src);
                 }
             } else {
-                if (math::isNaN(src))
+                if (noa::math::is_nan(src))
                     return 0;
                 else if (src <= static_cast<TFrom>(int_limits::min()))
                     return int_limits::min();
@@ -120,14 +121,14 @@ namespace noa {
             //      - If the destination is signed, the value does not change if the source integer can be represented
             //        in the destination type. Otherwise, the result is implementation-defined (until C++20).
             //      - If bool is involved, everything is well-defined and clamping is never required.
-            using to_limits = math::Limits<TTo>;
+            using to_limits = noa::math::Limits<TTo>;
 
             if constexpr (std::is_unsigned_v<TFrom>) {
                 // Source is unsigned, we only need to check the upper bound.
                 // If destination is signed and wider, this is optimized away.
                 // If destination is unsigned and wider, this is optimized away (zero-extension).
                 using wider_type = std::conditional_t<(sizeof(TFrom) < sizeof(TTo)), TTo, TFrom>;
-                return TTo(math::min(wider_type(src), wider_type(to_limits::max())));
+                return TTo(noa::math::min(wider_type(src), wider_type(to_limits::max())));
 
             } else if constexpr (std::is_unsigned_v<TTo>) {
                 // Source is signed, we need to check the lower and upper bound.
@@ -136,14 +137,14 @@ namespace noa {
                 if (src < TFrom(0))
                     return TTo(0);
                 else
-                    return TTo(math::min(wider_type(src), wider_type(to_limits::max())));
+                    return TTo(noa::math::min(wider_type(src), wider_type(to_limits::max())));
             } else {
                 // Both are signed, we need to check the lower and lower bound.
                 // If destination is wider, this is optimized away (sign-extension).
                 using wider_type = std::conditional_t<(sizeof(TFrom) < sizeof(TTo)), TTo, TFrom>;
-                return TTo(math::clamp(wider_type(src),
-                                       wider_type(to_limits::min()),
-                                       wider_type(to_limits::max())));
+                return TTo(noa::math::clamp(wider_type(src),
+                                            wider_type(to_limits::min()),
+                                            wider_type(to_limits::max())));
             }
         }
         return TTo();

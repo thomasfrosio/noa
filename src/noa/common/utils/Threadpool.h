@@ -1,8 +1,3 @@
-/// \file noa/common/Threadpool.h
-/// \brief A simple and safe threadpool.
-/// \author Thomas - ffyr2w
-/// \date 18 Jun 2021
-
 #pragma once
 
 #include <future>

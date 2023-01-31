@@ -4,16 +4,17 @@
 #include "noa/common/traits/Utilities.h"
 
 namespace noa {
-    /// In-place stable sort for small arrays.
-    template<int N, typename T, typename U>
-    NOA_HD constexpr void smallStableSort(T* begin, U&& comp) noexcept {
-        constexpr auto swap = [](T& a, T& b) {
-            T tmp = a;
-            a = b;
-            b = tmp;
-        };
+    template<typename T>
+    NOA_FHD constexpr void swap(T& a, T& b) {
+        T tmp = a;
+        a = b;
+        b = tmp;
+    }
 
-        if constexpr (N <= 0) {
+    // In-place stable sort for small arrays.
+    template<int N, typename T, typename U, typename = std::enable_if_t<N <= 4>>
+    NOA_HD constexpr void small_stable_sort(T* begin, U&& comp) noexcept {
+        if constexpr (N <= 1) {
             return;
         } else if constexpr (N == 2) {
             if (comp(begin[1], begin[0]))
@@ -42,13 +43,13 @@ namespace noa {
             if (comp(begin[3], begin[2]))
                 swap(begin[3], begin[2]);
         } else {
-            static_assert(traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<T>);
         }
     }
 
-    /// In-place stable sort for small arrays. Sort in ascending order.
-    template<int N, typename T>
-    NOA_HD constexpr void smallStableSort(T* begin) noexcept {
-        smallStableSort<N>(begin, [](const T& a, const T& b) { return a < b; });
+    // In-place stable sort for small arrays. Sort in ascending order.
+    template<int N, typename T, typename = std::enable_if_t<N <= 4>>
+    NOA_HD constexpr void small_stable_sort(T* begin) noexcept {
+        small_stable_sort<N>(begin, [](const T& a, const T& b) { return a < b; });
     }
 }

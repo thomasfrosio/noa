@@ -45,7 +45,7 @@ namespace noa::cpu::math {
     inline void real(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
                      const shared_t<T[]>& real, dim4_t real_strides,
                      dim4_t shape, Stream& stream) {
-        cpu::math::ewise(input, input_strides, real, real_strides, shape, noa::math::real_t{}, stream);
+        cpu::math::ewise(input, input_strides, real, real_strides, shape, noa::real_t{}, stream);
     }
 
     // Extracts the imaginary part of complex numbers.
@@ -53,7 +53,7 @@ namespace noa::cpu::math {
     inline void imag(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
                      const shared_t<T[]>& imag, dim4_t imag_strides,
                      dim4_t shape, Stream& stream) {
-        cpu::math::ewise(input, input_strides, imag, imag_strides, shape, noa::math::imag_t{}, stream);
+        cpu::math::ewise(input, input_strides, imag, imag_strides, shape, noa::imag_t{}, stream);
     }
 
     // Fuses the real and imaginary components.

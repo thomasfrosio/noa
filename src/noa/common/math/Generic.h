@@ -1,127 +1,103 @@
 #pragma once
 
-#include <math.h> // I'm not sure cmath is entirely CUDA friendly.
+#include <math.h> // not sure cmath is entirely CUDA friendly
 #include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <cfloat> // FLT_EPSILON, DBL_EPSILON
 
 #include "noa/common/Definitions.h"
-#include "noa/common/traits/ArrayTypes.h"
-#include "noa/common/traits/BaseTypes.h"
+#include "noa/common/traits/Numerics.h"
 #include "noa/common/math/Constant.h"
 
 namespace noa::math {
-    /// Returns the cosine of an angle of x radians.
-    NOA_FHD double cos(double x) { return ::cos(x); }
-    NOA_FHD float cos(float x) { return ::cosf(x); }
+    [[nodiscard]] NOA_FHD double cos(double x) { return ::cos(x); }
+    [[nodiscard]] NOA_FHD float cos(float x) { return ::cosf(x); }
 
-    /// Returns the sine of an angle of x radians.
-    NOA_FHD double sin(double x) { return ::sin(x); }
-    NOA_FHD float sin(float x) { return ::sinf(x); }
+    [[nodiscard]] NOA_FHD double sin(double x) { return ::sin(x); }
+    [[nodiscard]] NOA_FHD float sin(float x) { return ::sinf(x); }
 
-    /// Returns the sinus cardinal of index Pi.
-    NOA_FHD double sinc(double x) { return x == 0 ? 1 : sin(x) / x; }
-    NOA_FHD float sinc(float x) { return x == 0 ? 1 : sin(x) / x; }
+    [[nodiscard]] NOA_FHD double sinc(double x) { return x == 0 ? 1 : sin(x) / x; }
+    [[nodiscard]] NOA_FHD float sinc(float x) { return x == 0 ? 1 : sin(x) / x; }
 
-    /// Returns the sine in \p s and cosine in \p c of an angle of x radians.
     NOA_FHD void sincos(double x, double* s, double* c) {
-    #ifdef __CUDA_ARCH__
+        #ifdef __CUDA_ARCH__
         ::sincos(x, s, c);
-    #else
+        #else
         *s = ::sin(x);
         *c = ::cos(x); // gcc calls its sincos
-    #endif
+        #endif
     }
 
     NOA_FHD void sincos(float x, float* s, float* c) {
-    #ifdef __CUDA_ARCH__
+        #ifdef __CUDA_ARCH__
         ::sincosf(x, s, c);
-    #else
+        #else
         *s = ::sinf(x);
-        *c = ::cosf(x); // gcc calls its sincosf
-    #endif
+        *c = ::cosf(x); // gcc calls its sincos
+        #endif
     }
 
-    /// Returns the tangent of an angle of x radians.
-    NOA_FHD double tan(double x) { return ::tan(x); }
-    NOA_FHD float tan(float x) { return ::tanf(x); }
+    [[nodiscard]] NOA_FHD double tan(double x) { return ::tan(x); }
+    [[nodiscard]] NOA_FHD float tan(float x) { return ::tanf(x); }
 
-    /// Returns the principal value of the arc cos of x, in radians.
-    NOA_FHD double acos(double x) { return ::acos(x); }
-    NOA_FHD float acos(float x) { return ::acosf(x); }
+    [[nodiscard]] NOA_FHD double acos(double x) { return ::acos(x); }
+    [[nodiscard]] NOA_FHD float acos(float x) { return ::acosf(x); }
 
-    /// Returns the principal value of the arc sine of x, in radians.
-    NOA_FHD double asin(double x) { return ::asin(x); }
-    NOA_FHD float asin(float x) { return ::asinf(x); }
+    [[nodiscard]] NOA_FHD double asin(double x) { return ::asin(x); }
+    [[nodiscard]] NOA_FHD float asin(float x) { return ::asinf(x); }
 
-    /// Returns the principal value of the arc tangent of x, in radians.
-    NOA_FHD double atan(double x) { return ::atan(x); }
-    NOA_FHD float atan(float x) { return ::atanf(x); }
+    [[nodiscard]] NOA_FHD double atan(double x) { return ::atan(x); }
+    [[nodiscard]] NOA_FHD float atan(float x) { return ::atanf(x); }
 
-    /// Returns the principal value of the arc tangent of y/x, in radians.
-    NOA_FHD double atan2(double y, double x) { return ::atan2(y, x); }
-    NOA_FHD float atan2(float y, float x) { return ::atan2f(y, x); }
+    [[nodiscard]] NOA_FHD double atan2(double y, double x) { return ::atan2(y, x); }
+    [[nodiscard]] NOA_FHD float atan2(float y, float x) { return ::atan2f(y, x); }
 
-    NOA_FHD constexpr double rad2deg(double x) noexcept { return x * (180. / Constants<double>::PI); }
-    NOA_FHD constexpr float rad2deg(float x) noexcept { return x * (180.f / Constants<float>::PI); }
+    [[nodiscard]] NOA_FHD constexpr double rad2deg(double x) noexcept { return x * (180. / Constant<double>::PI); }
+    [[nodiscard]] NOA_FHD constexpr float rad2deg(float x) noexcept { return x * (180.f / Constant<float>::PI); }
 
-    NOA_FHD constexpr double deg2rad(double x) noexcept { return x * (Constants<double>::PI / 180.); }
-    NOA_FHD constexpr float deg2rad(float x) noexcept { return x * (Constants<float>::PI / 180.f); }
+    [[nodiscard]] NOA_FHD constexpr double deg2rad(double x) noexcept { return x * (Constant<double>::PI / 180.); }
+    [[nodiscard]] NOA_FHD constexpr float deg2rad(float x) noexcept { return x * (Constant<float>::PI / 180.f); }
 
-    ///  Returns the hyperbolic cosine of x.
-    NOA_FHD double cosh(double x) { return ::cosh(x); }
-    NOA_FHD float cosh(float x) { return ::coshf(x); }
+    [[nodiscard]] NOA_FHD double cosh(double x) { return ::cosh(x); }
+    [[nodiscard]] NOA_FHD float cosh(float x) { return ::coshf(x); }
 
-    ///  Returns the hyperbolic sine of x.
-    NOA_FHD double sinh(double x) { return ::sinh(x); }
-    NOA_FHD float sinh(float x) { return ::sinhf(x); }
+    [[nodiscard]] NOA_FHD double sinh(double x) { return ::sinh(x); }
+    [[nodiscard]] NOA_FHD float sinh(float x) { return ::sinhf(x); }
 
-    ///  Returns the hyperbolic tangent of x.
-    NOA_FHD double tanh(double x) { return ::tanh(x); }
-    NOA_FHD float tanh(float x) { return ::tanhf(x); }
+    [[nodiscard]] NOA_FHD double tanh(double x) { return ::tanh(x); }
+    [[nodiscard]] NOA_FHD float tanh(float x) { return ::tanhf(x); }
 
-    /// Returns the non-negative area hyperbolic cosine of x.
-    NOA_FHD double acosh(double x) { return ::acosh(x); }
-    NOA_FHD float acosh(float x) { return ::acoshf(x); }
+    [[nodiscard]] NOA_FHD double acosh(double x) { return ::acosh(x); }
+    [[nodiscard]] NOA_FHD float acosh(float x) { return ::acoshf(x); }
 
-    /// Returns the area hyperbolic sine of x.
-    NOA_FHD double asinh(double x) { return ::asinh(x); }
-    NOA_FHD float asinh(float x) { return ::asinhf(x); }
+    [[nodiscard]] NOA_FHD double asinh(double x) { return ::asinh(x); }
+    [[nodiscard]] NOA_FHD float asinh(float x) { return ::asinhf(x); }
 
-    /// Returns the area hyperbolic tangent of x.
-    NOA_FHD double atanh(double x) { return ::atanh(x); }
-    NOA_FHD float atanh(float x) { return ::atanhf(x); }
+    [[nodiscard]] NOA_FHD double atanh(double x) { return ::atanh(x); }
+    [[nodiscard]] NOA_FHD float atanh(float x) { return ::atanhf(x); }
 
-    /// Returns the exponential of x.
-    NOA_FHD double exp(double x) { return ::exp(x); }
-    NOA_FHD float exp(float x) { return ::expf(x); }
+    [[nodiscard]] NOA_FHD double exp(double x) { return ::exp(x); }
+    [[nodiscard]] NOA_FHD float exp(float x) { return ::expf(x); }
 
-    /// Returns the natural logarithm of x.
-    NOA_FHD double log(double x) { return ::log(x); }
-    NOA_FHD float log(float x) { return ::logf(x); }
+    [[nodiscard]] NOA_FHD double log(double x) { return ::log(x); }
+    [[nodiscard]] NOA_FHD float log(float x) { return ::logf(x); }
 
-    /// Returns the base 10 logarithm of x.
-    NOA_FHD double log10(double x) { return ::log10(x); }
-    NOA_FHD float log10(float x) { return ::log10f(x); }
+    [[nodiscard]] NOA_FHD double log10(double x) { return ::log10(x); }
+    [[nodiscard]] NOA_FHD float log10(float x) { return ::log10f(x); }
 
-    /// Returns the natural logarithm of one plus x.
-    NOA_FHD double log1p(double x) { return ::log1p(x); }
-    NOA_FHD float log1p(float x) { return ::log1pf(x); }
+    [[nodiscard]] NOA_FHD double log1p(double x) { return ::log1p(x); }
+    [[nodiscard]] NOA_FHD float log1p(float x) { return ::log1pf(x); }
 
-    /// Returns the hypotenuse of a right-angled triangle whose legs are x and y.
-    NOA_FHD double hypot(double x, double y) { return ::hypot(x, y); }
-    NOA_FHD float hypot(float x, float y) { return ::hypotf(x, y); }
+    [[nodiscard]] NOA_FHD double hypot(double x, double y) { return ::hypot(x, y); }
+    [[nodiscard]] NOA_FHD float hypot(float x, float y) { return ::hypotf(x, y); }
 
-    ///  Returns @a base raised to the power exponent.
-    NOA_FHD double pow(double base, double exponent) { return ::pow(base, exponent); }
-    NOA_FHD float pow(float base, float exponent) { return ::powf(base, exponent); }
+    [[nodiscard]] NOA_FHD double pow(double base, double exponent) { return ::pow(base, exponent); }
+    [[nodiscard]] NOA_FHD float pow(float base, float exponent) { return ::powf(base, exponent); }
 
-    /// Returns the next power of 2.
-    /// \note If x is a power of 2 or is equal to 1, returns x.
-    template<typename T>
-    T nextPowerOf2(T x) {
-        static_assert(std::is_integral_v<T>);
+    // Returns the next power of 2. If x is a power of 2 or is equal to 1, returns x.
+    template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+    [[nodiscard]] NOA_FHD constexpr Int next_power_of_2(Int x) {
         --x;
         x |= x >> 1;
         x |= x >> 2;
@@ -131,135 +107,112 @@ namespace noa::math {
         return ++x;
     }
 
-    template<typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-    NOA_FHD constexpr T nextMultipleOf(T value, T base) { return (value + base - 1) / base * base; }
+    template<typename UInt, typename = std::enable_if_t<std::is_unsigned_v<UInt>>>
+    [[nodiscard]] NOA_FHD constexpr UInt next_multiple_of(UInt value, UInt base) { return (value + base - 1) / base * base; }
 
-    template<class T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-    NOA_FHD constexpr bool isPowerOf2(T value) { return (value & (value - 1)) == 0; }
+    template<class UInt, typename = std::enable_if_t<std::is_unsigned_v<UInt>>>
+    [[nodiscard]] NOA_FHD constexpr bool is_power_of_2(UInt value) { return (value & (value - 1)) == 0; }
 
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    NOA_FHD constexpr T divideUp(T dividend, T divisor) { return (dividend + divisor - 1) / divisor; }
+    template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+    [[nodiscard]] NOA_FHD constexpr Int divide_up(Int dividend, Int divisor) { return (dividend + divisor - 1) / divisor; }
 
-    /// Returns the square root of @a x.
-    NOA_FHD double sqrt(double x) { return ::sqrt(x); }
-    NOA_FHD float sqrt(float x) { return ::sqrtf(x); }
+    [[nodiscard]] NOA_FHD double sqrt(double x) { return ::sqrt(x); }
+    [[nodiscard]] NOA_FHD float sqrt(float x) { return ::sqrtf(x); }
 
-    /// Returns 1. / sqrt(@a x).
-    NOA_FHD double rsqrt(double x) {
-    #ifdef __CUDA_ARCH__
+    [[nodiscard]] NOA_FHD double rsqrt(double x) {
+        #ifdef __CUDA_ARCH__
         return ::rsqrt(x);
-    #else
+        #else
         return 1. / ::sqrt(x);
-    #endif
+        #endif
     }
 
-    NOA_FHD float rsqrt(float x) {
-    #ifdef __CUDA_ARCH__
+    [[nodiscard]] NOA_FHD float rsqrt(float x) {
+        #ifdef __CUDA_ARCH__
         return ::rsqrtf(x);
-    #else
+        #else
         return 1.f / ::sqrtf(x);
-    #endif
+        #endif
     }
 
-    /// Rounds x to nearest integral value.
-    NOA_FHD double round(double x) { return ::round(x); }
-    NOA_FHD float round(float x) { return ::roundf(x); }
+    [[nodiscard]] NOA_FHD double round(double x) { return ::round(x); }
+    [[nodiscard]] NOA_FHD float round(float x) { return ::roundf(x); }
 
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    NOA_FHD T round(T x) { return x; }
+    template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+    [[nodiscard]] NOA_FHD Int round(Int x) { return x; }
 
-    /// Rounds x to integral value. Should be preferred to round a double to an integer.
-    NOA_FHD double rint(double x) { return ::rint(x); }
-    NOA_FHD float rint(float x) { return ::rintf(x); }
+    [[nodiscard]] NOA_FHD double rint(double x) { return ::rint(x); }
+    [[nodiscard]] NOA_FHD float rint(float x) { return ::rintf(x); }
 
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    NOA_FHD T rint(T x) { return x; }
+    template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+    [[nodiscard]] NOA_FHD Int rint(Int x) { return x; }
 
-    /// Rounds up x.
-    NOA_FHD double ceil(double x) { return ::ceil(x); }
-    NOA_FHD float ceil(float x) { return ::ceilf(x); }
+    [[nodiscard]] NOA_FHD double ceil(double x) { return ::ceil(x); }
+    [[nodiscard]] NOA_FHD float ceil(float x) { return ::ceilf(x); }
 
-    /// Rounds down x.
-    NOA_FHD double floor(double x) { return ::floor(x); }
-    NOA_FHD float floor(float x) { return ::floorf(x); }
+    [[nodiscard]] NOA_FHD double floor(double x) { return ::floor(x); }
+    [[nodiscard]] NOA_FHD float floor(float x) { return ::floorf(x); }
 
-    /// Truncates x.
-    NOA_FHD double trunc(double x) { return ::trunc(x); }
-    NOA_FHD float trunc(float x) { return ::truncf(x); }
+    [[nodiscard]] NOA_FHD double trunc(double x) { return ::trunc(x); }
+    [[nodiscard]] NOA_FHD float trunc(float x) { return ::truncf(x); }
 
-    /// Returns a value with the magnitude of x and the sign of y.
-    NOA_FHD double copysign(double x, double y) { return ::copysign(x, y); }
-    NOA_FHD float copysign(float x, float y) { return ::copysign(x, y); }
+    [[nodiscard]] NOA_FHD double copysign(double x, double y) { return ::copysign(x, y); }
+    [[nodiscard]] NOA_FHD float copysign(float x, float y) { return ::copysign(x, y); }
 
-    /// Returns the sign x (1 or -1). If x == 0, return 1.
     template<typename T>
-    NOA_FHD constexpr T sign(T x) { return x >= 0 ? 1 : -1; }
+    [[nodiscard]] NOA_FHD constexpr T sign(T x) { return x >= 0 ? 1 : -1; }
 
-    /// Returns whether the sign of x is negative. Can be also applied to inf, NaNs and 0s (unsigned is positive).
-    NOA_FHD constexpr bool signbit(double x) { return ::signbit(x); }
-    NOA_FHD constexpr bool signbit(float x) { return ::signbit(x); }
+    [[nodiscard]] NOA_FHD constexpr bool signbit(double x) { return ::signbit(x); }
+    [[nodiscard]] NOA_FHD constexpr bool signbit(float x) { return ::signbit(x); }
 
-    /// Returns the absolute value of x.
     template<typename T>
-    NOA_FHD T abs(T x) { return ::abs(x); }
+    [[nodiscard]] NOA_FHD T abs(T x) { return ::abs(x); }
     template<>
-    NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
+    [[nodiscard]] NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
     template<>
-    NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    [[nodiscard]] NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
 
-    NOA_FHD double fma(double x, double y, double z) { return ::fma(x, y, z); }
-    NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
+    [[nodiscard]] NOA_FHD double fma(double x, double y, double z) { return ::fma(x, y, z); }
+    [[nodiscard]] NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
+}
 
-    /// Returns the centered index of the corresponding non-centered idx. Should be within `0 <= idx < dim`.
-    template<typename Int, typename std::enable_if_t<traits::is_int_v<Int>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr Int FFTShift(Int index, Int size) {
+namespace noa::math {
+    // Returns the fft centered index of the corresponding fft non-centered index.
+    // Should be within `0 <= index < size`.
+    template<typename Int, typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr Int fft_shift(Int index, Int size) {
         return (index < (size + 1) / 2) ? index + size / 2 : index - (size + 1) / 2; // or (index + size / 2) % size
     }
 
-    /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
-    template<typename IntX, typename std::enable_if_t<traits::is_intX_v<IntX>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr IntX FFTShift(IntX index, IntX shape) {
-        IntX out;
-        for (size_t dim = 0; dim < IntX::COUNT; ++dim)
-            out[dim] = FFTShift(index[dim], shape[dim]);
-        return out;
-    }
-
-    /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
-    template<typename Int, typename std::enable_if_t<traits::is_int_v<Int>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr Int iFFTShift(Int index, Int size) {
+    // Returns the fft non-centered index of the corresponding centered fft index.
+    // Should be within `0 <= index < size`.
+    template<typename Int, typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr Int ifft_shift(Int index, Int size) {
         return (index < size / 2) ? index + (size + 1) / 2 : index - size / 2; // or (index + (size + 1) / 2) % size
     }
 
-    /// Returns the non-centered index of the corresponding centered idx. Should be within `0 <= idx < dim`.
-    template<typename IntX, typename std::enable_if_t<traits::is_intX_v<IntX>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr IntX iFFTShift(IntX index, IntX shape) {
-        IntX out;
-        for (size_t dim = 0; dim < IntX::COUNT; ++dim)
-            out[dim] = iFFTShift(index[dim], shape[dim]);
-        return out;
-    }
-
-    /// Returns the value at a particular index within an evenly spaced range within a given interval.
-    template<typename T>
-    T linspace(size_t elements, size_t index, T start, T stop, bool endpoint = true) {
-        if (elements <= start) {
+    // Returns the value at a particular index within an evenly spaced range within a given interval.
+    template<typename Int, typename Real,
+             typename = std::enable_if_t<noa::traits::is_int_v<Real> && noa::traits::is_real_v<Real>>>
+    Real linspace(Int size, Int index, Real start, Real stop, bool endpoint = true) {
+        if (static_cast<Real>(size) <= start) {
             return start;
-        } else if (endpoint && index == elements - 1) {
+        } else if (endpoint && index == size - 1) {
             return stop;
         } else {
-            const size_t count = elements - static_cast<size_t>(endpoint);
-            const T delta = stop - start;
-            const T step = delta / static_cast<T>(count);
-            return start + static_cast<T>(index) * step;
+            const auto count = size - static_cast<Int>(endpoint);
+            const auto delta = stop - start;
+            const auto step = delta / static_cast<Real>(count);
+            return start + static_cast<Real>(index) * step;
         }
     }
 
-    /// Returns the step of an evenly spaced range within a given interval.
-    template<typename T>
-    T linspace(size_t elements, T start, T stop, bool endpoint = true) {
-        const size_t count = elements - static_cast<size_t>(endpoint);
-        const T delta = stop - start;
-        return delta / static_cast<T>(count);
+    // Returns the step of an evenly spaced range within a given interval.
+    template<typename Int, typename Real,
+             typename = std::enable_if_t<noa::traits::is_int_v<Real> && noa::traits::is_real_v<Real>>>
+    Real linspace(Int size, Real start, Real stop, bool endpoint = true) {
+        const auto count = size - static_cast<Int>(endpoint);
+        const auto delta = stop - start;
+        return delta / static_cast<Real>(count);
     }
 }

@@ -14,6 +14,7 @@ set(NOA_UNIFIED_HEADERS
         unified/Stream.inl
         unified/Texture.h
         unified/Texture.inl
+        # unified/types/View.h
 
         # noa::io
         unified/io/ImageFile.h

@@ -249,9 +249,9 @@ namespace noa::cuda::memory {
         return out;
     }
 
-    #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, I)                               \
-    template Extracted<T, I> extract<T,I,T,T,::noa::math::logical_not_t,void>(  \
-        const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, ::noa::math::logical_not_t, bool, bool, Stream&)
+    #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, I)                           \
+    template Extracted<T, I> extract<T,I,T,T,::noa::logical_not_t,void>(    \
+        const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, ::noa::logical_not_t, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_UNARY_(T)           \
     INSTANTIATE_EXTRACT_UNARY_BASE_(T, uint32_t);   \
@@ -358,13 +358,13 @@ namespace noa::cuda::memory {
     template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, dim4_t, T, const shared_t<T[]>&, dim4_t, dim4_t, BINARY, bool, bool, Stream&); \
     template Extracted<T,I> extract<T,I,T,T,T,BINARY,void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, BINARY, bool, bool, Stream&)
 
-    #define INSTANTIATE_EXTRACT_BINARY_BASE2_(T, I)                   \
-    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::equal_t);      \
-    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::not_equal_t);  \
-    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::less_t);       \
-    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::less_equal_t); \
-    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::greater_t);    \
-    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::math::greater_equal_t)
+    #define INSTANTIATE_EXTRACT_BINARY_BASE2_(T, I)             \
+    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::equal_t);      \
+    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::not_equal_t);  \
+    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::less_t);       \
+    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::less_equal_t); \
+    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::greater_t);    \
+    INSTANTIATE_EXTRACT_BINARY_BASE0_(T,I,::noa::greater_equal_t)
 
     #define INSTANTIATE_EXTRACT_BINARY_(T)           \
     INSTANTIATE_EXTRACT_BINARY_BASE2_(T, uint32_t);  \

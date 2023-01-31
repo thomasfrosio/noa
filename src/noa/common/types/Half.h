@@ -1,9 +1,9 @@
 #pragma once
 
 #include "noa/common/Definitions.h"
-#include "noa/common/traits/BaseTypes.h"
-#include "noa/common/string/Format.h"
 #include "noa/common/Math.h"
+#include "noa/common/string/Format.h"
+#include "noa/common/traits/Numerics.h"
 
 #if defined(NOA_COMPILER_GCC)
 #pragma GCC diagnostic push
@@ -60,31 +60,33 @@ namespace noa {
     ///       overloads are used internally (see HALF_ARITHMETIC_TYPE).
     class Half {
     public: // --- typedefs --- //
+        using arithmetic_type = HALF_ARITHMETIC_TYPE;
+
         #if defined(__CUDA_ARCH__)
-        using native_t = __half;
+        using native_type = __half;
         #else
-        using native_t = half_float::half;
+        using native_type = half_float::half;
         #endif
-        static_assert(std::is_standard_layout<native_t>::value);
-        static_assert(std::is_nothrow_move_assignable<native_t>::value);
-        static_assert(std::is_nothrow_move_constructible<native_t>::value);
+        static_assert(std::is_standard_layout<native_type>::value);
+        static_assert(std::is_nothrow_move_assignable<native_type>::value);
+        static_assert(std::is_nothrow_move_constructible<native_type>::value);
+        static_assert(sizeof(native_type) == 2);
+        static_assert(alignof(native_type) == alignof(uint16_t));
 
     public: // --- Constructors --- //
-        /// Default constructor, with initialization to 0.
+        // Default constructor, with initialization to 0.
         constexpr Half() = default;
 
-        /// Conversion constructor.
-        /// \details Any explicit initialization from a built-in type goes through that constructor.
-        ///          No conversion warnings will be raised.
-        /// \tparam T native_t, Half, float, double, (u)char, (u)short, (u)int, (u)long, (u)long long.
-        /// \param x  Value to convert. Be careful with overflows.
+        // Conversion constructor. Any explicit initialization from a built-in type goes through that constructor.
+        // No conversion warnings will be raised. Works with native_type, Half, float, double, (u)char, (u)short,
+        // (u)int, (u)long, (u)long long.
+        // Note that the value can overflow. Use clamp_cast or safe_cast to have a well-defined overflow behavior.
         template<typename T>
-        NOA_HD constexpr explicit Half(T x) : m_data(cast_<native_t>(x)) {}
+        NOA_HD constexpr explicit Half(T x) : m_data(cast_<native_type>(x)) {}
 
         enum class Mode { BINARY };
 
-        /// Conversion constructor.
-        /// \details Reinterprets the \p bits as Half.
+        // Conversion constructor. Reinterprets the bits as Half.
         NOA_HD constexpr Half(Mode, uint16_t bits) noexcept
         #if defined(__CUDA_ARCH__)
                 : m_data(__ushort_as_half(bits)) {}
@@ -95,19 +97,19 @@ namespace noa {
         #endif
 
     public:
-        /// Returns a copy of the native type.
-        /// On the host, it is half_float::half. On CUDA devices, it is __half.
-        [[nodiscard]] NOA_HD constexpr native_t native() const noexcept { return m_data; }
+        // Returns a copy of the native type.
+        // On the host, it is half_float::half. On CUDA devices, it is __half.
+        [[nodiscard]] NOA_HD constexpr native_type native() const noexcept { return m_data; }
 
     private:
-        // Cast to/from native_t. Most built-in type are supported.
+        // Cast to/from native_type. Most built-in type are supported.
         // Clang requires this function to be defined before the cast operator X()
         template<typename T, typename U>
         [[nodiscard]] NOA_HD static constexpr T cast_(U arg) {
             #ifdef __CUDA_ARCH__
             if constexpr (std::is_same_v<T, U>) {
                 return arg;
-            } else if constexpr (std::is_same_v<T, native_t>) { // built-in -> native_t
+            } else if constexpr (std::is_same_v<T, native_type>) { // built-in -> native_type
                 if constexpr (std::is_same_v<U, float>) {
                     return __float2half_rn(arg);
                 } else if constexpr (std::is_same_v<U, double>) {
@@ -131,9 +133,9 @@ namespace noa {
                 } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
                     return __ull2half_rn(arg);
                 } else {
-                    static_assert(traits::always_false_v<T>);
+                    static_assert(noa::traits::always_false_v<T>);
                 }
-            } else if constexpr (std::is_same_v<U, native_t>) { // native_t -> built-in
+            } else if constexpr (std::is_same_v<U, native_type>) { // native_type -> built-in
                 if constexpr (std::is_same_v<T, float>) {
                     return __half2float(arg);
                 } else if constexpr (std::is_same_v<T, double>) {
@@ -159,16 +161,16 @@ namespace noa {
                 } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
                     return static_cast<T>(__half2ull_rn(arg));
                 } else {
-                    static_assert(traits::always_false_v<T>);
+                    static_assert(noa::traits::always_false_v<T>);
                 }
             } else {
-                static_assert(traits::always_false_v<T>);
+                static_assert(noa::traits::always_false_v<T>);
             }
             return T(0); // unreachable
             #else
             if constexpr (std::is_same_v<T, U>) {
                 return arg;
-            } else if constexpr (std::is_same_v<T, native_t> || std::is_same_v<U, native_t>) {
+            } else if constexpr (std::is_same_v<T, native_type> || std::is_same_v<U, native_type>) {
                 // half_float::half_cast has a bug in int2half for the min value so check it beforehand.
                 if constexpr (std::is_integral_v<U> && std::is_signed_v<U>) {
                     if (arg == std::numeric_limits<U>::min()) {
@@ -182,7 +184,7 @@ namespace noa {
                 }
                 return half_float::half_cast<T>(arg);
             } else {
-                static_assert(traits::always_false_v<T>);
+                static_assert(noa::traits::always_false_v<T>);
             }
             return T(0); // unreachable
             #endif
@@ -260,7 +262,7 @@ namespace noa {
 
         NOA_HD Half& operator++() {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            m_data = __half(static_cast<HALF_ARITHMETIC_TYPE>(m_data) + 1);
+            m_data = __half(static_cast<Half::arithmetic_type>(m_data) + 1);
             #else
             ++m_data;
             #endif
@@ -268,7 +270,7 @@ namespace noa {
         }
         NOA_HD Half& operator--() {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            m_data = __half(static_cast<HALF_ARITHMETIC_TYPE>(m_data) - 1);
+            m_data = __half(static_cast<Half::arithmetic_type>(m_data) - 1);
             #else
             --m_data;
             #endif
@@ -288,28 +290,28 @@ namespace noa {
 
         [[nodiscard]] NOA_HD friend Half operator+(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return Half(static_cast<HALF_ARITHMETIC_TYPE>(lhs) + static_cast<HALF_ARITHMETIC_TYPE>(rhs));
+            return Half(static_cast<Half::arithmetic_type>(lhs) + static_cast<Half::arithmetic_type>(rhs));
             #else
             return Half(lhs.m_data + rhs.m_data);
             #endif
         }
         [[nodiscard]] NOA_HD friend Half operator-(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return Half(static_cast<HALF_ARITHMETIC_TYPE>(lhs) - static_cast<HALF_ARITHMETIC_TYPE>(rhs));
+            return Half(static_cast<Half::arithmetic_type>(lhs) - static_cast<Half::arithmetic_type>(rhs));
             #else
             return Half(lhs.m_data - rhs.m_data);
             #endif
         }
         [[nodiscard]] NOA_HD friend Half operator*(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return Half(static_cast<HALF_ARITHMETIC_TYPE>(lhs) * static_cast<HALF_ARITHMETIC_TYPE>(rhs));
+            return Half(static_cast<Half::arithmetic_type>(lhs) * static_cast<Half::arithmetic_type>(rhs));
             #else
             return Half(lhs.m_data * rhs.m_data);
             #endif
         }
         [[nodiscard]] NOA_HD friend Half operator/(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return Half(static_cast<HALF_ARITHMETIC_TYPE>(lhs) / static_cast<HALF_ARITHMETIC_TYPE>(rhs));
+            return Half(static_cast<Half::arithmetic_type>(lhs) / static_cast<Half::arithmetic_type>(rhs));
             #else
             return Half(lhs.m_data / rhs.m_data);
             #endif
@@ -320,7 +322,7 @@ namespace noa {
         }
         [[nodiscard]] NOA_HD friend Half operator-(Half lhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return Half(-static_cast<HALF_ARITHMETIC_TYPE>(lhs));
+            return Half(-static_cast<Half::arithmetic_type>(lhs));
             #else
             return Half(-lhs.m_data);
             #endif
@@ -328,42 +330,42 @@ namespace noa {
 
         [[nodiscard]] NOA_HD friend bool operator==(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return static_cast<HALF_ARITHMETIC_TYPE>(lhs) == static_cast<HALF_ARITHMETIC_TYPE>(rhs);
+            return static_cast<Half::arithmetic_type>(lhs) == static_cast<Half::arithmetic_type>(rhs);
             #else
             return lhs.m_data == rhs.m_data;
             #endif
         }
         [[nodiscard]] NOA_HD friend bool operator!=(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return static_cast<HALF_ARITHMETIC_TYPE>(lhs) != static_cast<HALF_ARITHMETIC_TYPE>(rhs);
+            return static_cast<Half::arithmetic_type>(lhs) != static_cast<Half::arithmetic_type>(rhs);
             #else
             return lhs.m_data != rhs.m_data;
             #endif
         }
         [[nodiscard]] NOA_HD friend bool operator>(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return static_cast<HALF_ARITHMETIC_TYPE>(lhs) > static_cast<HALF_ARITHMETIC_TYPE>(rhs);
+            return static_cast<Half::arithmetic_type>(lhs) > static_cast<Half::arithmetic_type>(rhs);
             #else
             return lhs.m_data > rhs.m_data;
             #endif
         }
         [[nodiscard]] NOA_HD friend bool operator<(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return static_cast<HALF_ARITHMETIC_TYPE>(lhs) < static_cast<HALF_ARITHMETIC_TYPE>(rhs);
+            return static_cast<Half::arithmetic_type>(lhs) < static_cast<Half::arithmetic_type>(rhs);
             #else
             return lhs.m_data < rhs.m_data;
             #endif
         }
         [[nodiscard]] NOA_HD friend bool operator>=(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return static_cast<HALF_ARITHMETIC_TYPE>(lhs) >= static_cast<HALF_ARITHMETIC_TYPE>(rhs);
+            return static_cast<Half::arithmetic_type>(lhs) >= static_cast<Half::arithmetic_type>(rhs);
             #else
             return lhs.m_data >= rhs.m_data;
             #endif
         }
         [[nodiscard]] NOA_HD friend bool operator<=(Half lhs, Half rhs) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            return static_cast<HALF_ARITHMETIC_TYPE>(lhs) <= static_cast<HALF_ARITHMETIC_TYPE>(rhs);
+            return static_cast<Half::arithmetic_type>(lhs) <= static_cast<Half::arithmetic_type>(rhs);
             #else
             return lhs.m_data <= rhs.m_data;
             #endif
@@ -371,275 +373,273 @@ namespace noa {
 
     public:
         NOA_HOST friend std::ostream& operator<<(std::ostream& os, Half half) {
-            return os << cast_<float>(half.m_data);
+            return os << static_cast<float>(half);
         }
 
     private:
-        native_t m_data{};
+        native_type m_data{};
     };
 
-    using half_t = Half;
+    template<>
+    [[nodiscard]] NOA_IH std::string string::human<Half>() { return "f16"; }
 
     template<>
-    [[nodiscard]] NOA_IH std::string string::human<half_t>() { return "half"; }
-
-    template<>
-    struct traits::proclaim_is_float<half_t> : std::true_type {};
+    struct noa::traits::proclaim_is_real<Half> : std::true_type {};
 
     namespace math {
         template<typename T>
         struct Limits;
 
         template<>
-        struct Limits<half_t> {
-            [[nodiscard]] NOA_FHD static constexpr half_t epsilon() {
+        struct Limits<Half> {
+            [[nodiscard]] NOA_FHD static constexpr Half epsilon() {
                 return {Half::Mode::BINARY, 0x1400};
             }
 
-            [[nodiscard]] NOA_FHD static constexpr half_t min() {
+            [[nodiscard]] NOA_FHD static constexpr Half min() {
                 return {Half::Mode::BINARY, 0x0400};
             }
 
-            [[nodiscard]] NOA_FHD static constexpr half_t max() {
+            [[nodiscard]] NOA_FHD static constexpr Half max() {
                 return {Half::Mode::BINARY, 0x7BFF};
             }
 
-            [[nodiscard]] NOA_FHD static constexpr half_t lowest() {
+            [[nodiscard]] NOA_FHD static constexpr Half lowest() {
                 return {Half::Mode::BINARY, 0xFBFF};
             }
         };
 
-        [[nodiscard]] NOA_FHD half_t fma(half_t x, half_t y, half_t z) {
+        [[nodiscard]] NOA_FHD Half fma(Half x, Half y, Half z) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(__hfma(x.native(), y.native(), z.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(fma(static_cast<HALF_ARITHMETIC_TYPE>(x),
-                            static_cast<HALF_ARITHMETIC_TYPE>(y),
-                            static_cast<HALF_ARITHMETIC_TYPE>(z)));
+            return Half(fma(static_cast<Half::arithmetic_type>(x),
+                            static_cast<Half::arithmetic_type>(y),
+                            static_cast<Half::arithmetic_type>(z)));
             #else
             return Half(half_float::fma(x.native(), y.native(), z.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t cos(half_t x) {
+        [[nodiscard]] NOA_FHD Half cos(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hcos(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(cos(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(cos(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::cos(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t sin(half_t x) {
+        [[nodiscard]] NOA_FHD Half sin(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hsin(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(sin(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(sin(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::sin(x.native()));
             #endif
         }
 
-        NOA_FHD void sincos(half_t x, half_t* s, half_t* c) {
+        NOA_FHD void sincos(Half x, Half* s, Half* c) {
             *s = sin(x); // FIXME use sincos instead?
             *c = cos(x);
         }
 
-        [[nodiscard]] NOA_FHD half_t tan(half_t x) {
+        [[nodiscard]] NOA_FHD Half tan(Half x) {
             #if defined(__CUDA_ARCH__)
-            return Half(tan(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(tan(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::tan(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t acos(half_t x) {
+        [[nodiscard]] NOA_FHD Half acos(Half x) {
             #if defined(__CUDA_ARCH__)
-            return Half(acos(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(acos(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::acos(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t asin(half_t x) {
+        [[nodiscard]] NOA_FHD Half asin(Half x) {
             #if defined(__CUDA_ARCH__)
-            return Half(asin(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(asin(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::asin(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t atan(half_t x) {
+        [[nodiscard]] NOA_FHD Half atan(Half x) {
             #if defined(__CUDA_ARCH__)
-            return Half(atan(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(atan(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::atan(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t atan2(half_t y, half_t x) {
+        [[nodiscard]] NOA_FHD Half atan2(Half y, Half x) {
             #if defined(__CUDA_ARCH__)
-            return Half(atan2(static_cast<HALF_ARITHMETIC_TYPE>(y),
-                              static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(atan2(static_cast<Half::arithmetic_type>(y),
+                              static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::atan2(y.native(), x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t rad2deg(half_t x) {
-            return Half(rad2deg(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+        [[nodiscard]] NOA_FHD Half rad2deg(Half x) {
+            return Half(rad2deg(static_cast<Half::arithmetic_type>(x)));
         }
 
-        [[nodiscard]] NOA_FHD half_t deg2rad(half_t x) {
-            return Half(deg2rad(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+        [[nodiscard]] NOA_FHD Half deg2rad(Half x) {
+            return Half(deg2rad(static_cast<Half::arithmetic_type>(x)));
         }
 
-        [[nodiscard]] NOA_FHD half_t pow(half_t x, half_t exp) {
+        [[nodiscard]] NOA_FHD Half pow(Half x, Half exp) {
             #if defined(__CUDA_ARCH__)
-            return Half(pow(static_cast<HALF_ARITHMETIC_TYPE>(x), static_cast<HALF_ARITHMETIC_TYPE>(exp)));
+            return Half(pow(static_cast<Half::arithmetic_type>(x), static_cast<Half::arithmetic_type>(exp)));
             #else
             return Half(half_float::pow(x.native(), exp.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t exp(half_t x) {
+        [[nodiscard]] NOA_FHD Half exp(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hexp(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(exp(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(exp(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::exp(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t log(half_t x) {
+        [[nodiscard]] NOA_FHD Half log(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hlog(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(log(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(log(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::log(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t log10(half_t x) {
+        [[nodiscard]] NOA_FHD Half log10(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hlog10(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(log10(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(log10(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::log10(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t hypot(half_t x, half_t y) {
-            return Half(hypot(static_cast<HALF_ARITHMETIC_TYPE>(x), static_cast<HALF_ARITHMETIC_TYPE>(y)));
+        [[nodiscard]] NOA_FHD Half hypot(Half x, Half y) {
+            return Half(hypot(static_cast<Half::arithmetic_type>(x), static_cast<Half::arithmetic_type>(y)));
         }
 
-        [[nodiscard]] NOA_FHD half_t sqrt(half_t x) {
+        [[nodiscard]] NOA_FHD Half sqrt(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hsqrt(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(sqrt(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(sqrt(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::sqrt(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t rsqrt(half_t x) {
+        [[nodiscard]] NOA_FHD Half rsqrt(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hrsqrt(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(rsqrt(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(rsqrt(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::rsqrt(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t round(half_t x) {
+        [[nodiscard]] NOA_FHD Half round(Half x) {
             #if defined(__CUDA_ARCH__)
-            return Half(round(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(round(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::round(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t rint(half_t x) {
+        [[nodiscard]] NOA_FHD Half rint(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hrint(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(rint(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(rint(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::rint(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t ceil(half_t x) {
+        [[nodiscard]] NOA_FHD Half ceil(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hceil(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(ceil(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(ceil(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::ceil(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t floor(half_t x) {
+        [[nodiscard]] NOA_FHD Half floor(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(hfloor(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(floor(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(floor(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::floor(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t trunc(half_t x) {
+        [[nodiscard]] NOA_FHD Half trunc(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(htrunc(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(trunc(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(trunc(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::trunc(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t isNaN(half_t x) {
+        [[nodiscard]] NOA_FHD Half is_nan(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(__hisnan(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(isNaN(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(isNaN(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::isnan(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t isInf(half_t x) {
+        [[nodiscard]] NOA_FHD Half is_inf(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(__hisinf(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(isInf(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(isInf(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::isinf(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD bool isFinite(half_t x) {
-            return !(isInf(x) || isNaN(x));
+        [[nodiscard]] NOA_FHD bool is_finite(Half x) {
+            return !(is_inf(x) || is_nan(x));
         }
 
-        [[nodiscard]] NOA_FHD half_t abs(half_t x) {
+        [[nodiscard]] NOA_FHD Half abs(Half x) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(__habs(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(abs(static_cast<HALF_ARITHMETIC_TYPE>(x)));
+            return Half(abs(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::abs(x.native()));
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t min(half_t x, half_t y) {
+        [[nodiscard]] NOA_FHD Half min(Half x, Half y) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             return Half(__hmin(x.native(), y.native()));
             #elif defined(__CUDA_ARCH__)
@@ -649,7 +649,7 @@ namespace noa {
             #endif
         }
 
-        [[nodiscard]] NOA_FHD half_t max(half_t x, half_t y) {
+        [[nodiscard]] NOA_FHD Half max(Half x, Half y) {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
             return Half(__hmax(x.native(), y.native()));
             #elif defined(__CUDA_ARCH__)

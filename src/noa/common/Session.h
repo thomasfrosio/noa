@@ -1,8 +1,3 @@
-/// \file noa/Session.h
-/// \brief The base session.
-/// \author Thomas - ffyr2w
-/// \date 18/06/2021
-
 #pragma once
 
 #include "noa/Version.h"

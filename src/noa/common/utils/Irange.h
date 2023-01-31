@@ -3,8 +3,6 @@
 #include <type_traits>
 #include <iterator>
 
-#include "noa/common/Traits.h"
-
 // Adapted from https://github.com/pytorch/pytorch/blob/master/c10/util/irange.h
 namespace noa::details {
     template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
