@@ -61,7 +61,7 @@ namespace noa::details {
 }
 
 namespace noa {
-    template<typename T, int N, typename I,
+    template<typename T, size_t N, typename I,
             PointerTraits PointerTrait,
             StridesTraits StridesTrait>
     class AccessorReference;
@@ -269,7 +269,7 @@ namespace noa {
     // This is similar to Accessor, except that this type does not copy the strides,
     // it simply points to existing ones. Usually "AccessorReference" is not created
     // by the user, but instead by an Accessor during a ND C-style indexing.
-    template<typename T, int N, typename I,
+    template<typename T, size_t N, typename I,
              PointerTraits PointerTrait = PointerTraits::DEFAULT,
              StridesTraits StridesTrait = StridesTraits::STRIDED>
     class AccessorReference {
@@ -436,45 +436,45 @@ namespace noa {
         NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorI64 = Accessor<T, N, int64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorI32 = Accessor<T, N, int32_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorU64 = Accessor<T, N, uint64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorU32 = Accessor<T, N, uint32_t>;
 
-    template<typename T, int N, typename I>
+    template<typename T, size_t N, typename I>
     using AccessorRestrict = Accessor<T, N, I, PointerTraits::RESTRICT>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictI64 = AccessorRestrict<T, N, int64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictI32 = AccessorRestrict<T, N, int32_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictU64 = AccessorRestrict<T, N, uint64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictU32 = AccessorRestrict<T, N, uint32_t>;
 
-    template<typename T, int N, typename I>
+    template<typename T, size_t N, typename I>
     using AccessorContiguous = Accessor<T, N, I, PointerTraits::DEFAULT, StridesTraits::CONTIGUOUS>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorContiguousI64 = AccessorContiguous<T, N, int64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorContiguousI32 = AccessorContiguous<T, N, int32_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorContiguousU64 = AccessorContiguous<T, N, uint64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorContiguousU32 = AccessorContiguous<T, N, uint32_t>;
 
-    template<typename T, int N, typename I>
+    template<typename T, size_t N, typename I>
     using AccessorRestrictContiguous = Accessor<T, N, I, PointerTraits::RESTRICT, StridesTraits::CONTIGUOUS>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictContiguousI64 = AccessorRestrictContiguous<T, N, int64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictContiguousI32 = AccessorRestrictContiguous<T, N, int32_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictContiguousU64 = AccessorRestrictContiguous<T, N, uint64_t>;
-    template<typename T, int N>
+    template<typename T, size_t N>
     using AccessorRestrictContiguousU32 = AccessorRestrictContiguous<T, N, uint32_t>;
 }
