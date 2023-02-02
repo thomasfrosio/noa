@@ -601,5 +601,6 @@ TEMPLATE_TEST_CASE("core::Vec1<T>", "[noa][common][types]", i32, i64, u32, u64, 
 
         const std::array<TestType, 1> b_array = {123};
         REQUIRE(noa::string::format("{}", b) == noa::string::format("{}", b_array));
+        REQUIRE(noa::string::format("{::.2f}", Vec<c32, 2>{}) == "[(0.00,0.00), (0.00,0.00)]");
     }
 }

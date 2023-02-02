@@ -194,6 +194,7 @@ TEMPLATE_TEST_CASE("core::Complex", "[noa][complex]", Half, float, double) {
 
     AND_THEN("to string") {
         noa::Complex<TestType> z;
-        REQUIRE((string::format("{:.4}", z) == std::string{"(0.000,0.000)"}));
+        REQUIRE((string::format("{:.3f}", z) == std::string{"(0.000,0.000)"}));
+        REQUIRE(noa::string::format("{::.2f}", std::array<c32, 2>{}) == "[(0.00,0.00), (0.00,0.00)]");
     }
 }
