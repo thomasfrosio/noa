@@ -49,8 +49,9 @@ namespace noa {
                         sizeof...(Ts) == SSIZE && (sizeof...(Ts) > 1) &&
                         noa::traits::are_numeric_v<Ts...>>>
         NOA_HD constexpr Vec(Ts... ts) noexcept : m_data{static_cast<value_type>(ts)...} {
-            for (auto&& e: m_data) {
+            for (auto& e: m_data) {
                 NOA_ASSERT(is_safe_cast<value_type>(e));
+                (void) e;
             }
         }
 
@@ -59,7 +60,7 @@ namespace noa {
         NOA_HD constexpr explicit Vec(T value) noexcept {
             NOA_ASSERT(is_safe_cast<value_type>(value));
             const auto value_cast = static_cast<value_type>(value);
-            for (auto&& e: m_data)
+            for (auto& e: m_data)
                 e = value_cast;
         }
 
@@ -82,13 +83,19 @@ namespace noa {
     public: // Accessor operators and functions
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         [[nodiscard]] NOA_HD constexpr value_type& operator[](Int i) noexcept {
-            NOA_ASSERT((std::is_unsigned_v<Int> || i >= 0) && static_cast<int64_t>(i) < SSIZE);
+            NOA_ASSERT(static_cast<int64_t>(i) < SSIZE);
+            if constexpr (std::is_signed_v<Int>) {
+                NOA_ASSERT(i >= 0);
+            }
             return m_data[i];
         }
 
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         [[nodiscard]] NOA_HD constexpr const value_type& operator[](Int i) const noexcept {
-            NOA_ASSERT((std::is_unsigned_v<Int> || i >= 0) && static_cast<int64_t>(i) < SSIZE);
+            NOA_ASSERT(static_cast<int64_t>(i) < SSIZE);
+            if constexpr (std::is_signed_v<Int>) {
+                NOA_ASSERT(i >= 0);
+            }
             return m_data[i];
         }
 
@@ -574,8 +581,11 @@ namespace std {
 // Support for output stream:
 namespace noa {
     template<typename T, size_t N>
-    NOA_IH std::ostream& operator<<(std::ostream& os, const Vec<T, N>& v) {
-        os << string::format("{}", v);
+    inline std::ostream& operator<<(std::ostream& os, const Vec<T, N>& v) {
+        if constexpr (noa::traits::is_real_or_complex_v<T>)
+            os << string::format("{::.3f}", v);
+        else
+            os << string::format("{}", v);
         return os;
     }
 }
