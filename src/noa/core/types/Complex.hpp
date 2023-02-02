@@ -284,7 +284,7 @@ namespace noa {
         }
 
     public:
-        [[nodiscard]] NOA_HD constexpr auto vec() const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto to_vec() const noexcept {
             return Vec<value_type, 2>(real, imag);
         }
 
