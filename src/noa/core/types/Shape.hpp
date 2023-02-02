@@ -365,7 +365,11 @@ namespace noa {
         }
 
         // Returns the logical number of dimensions in the BDHW convention.
-        // Note that both row and column vectors are considered to be 1D.
+        // This returns a value from 1 to 3. The batch dimension is ignored,
+        // and is_batched() should be used to know whether the array is batched.
+        // Note that both row and column vectors are considered to be 1D, but
+        // if the depth dimension is greater than 1, ndim() == 3 even if both the
+        // height and width are 1.
         [[nodiscard]] NOA_HD constexpr value_type ndim() const noexcept {
             NOA_ASSERT(!is_empty());
             if constexpr (N == 1) {
@@ -376,8 +380,7 @@ namespace noa {
                 return m_vec[0] > 1 ? 3 :
                        m_vec[1] > 1 && m_vec[2] > 1 ? 2 : 1;
             } else {
-                return m_vec[0] > 1 ? 4 :
-                       m_vec[1] > 1 ? 3 :
+                return m_vec[1] > 1 ? 3 :
                        m_vec[2] > 1 && m_vec[3] > 1 ? 2 : 1;
             }
         }
