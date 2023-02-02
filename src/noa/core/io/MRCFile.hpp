@@ -11,139 +11,137 @@ namespace noa::io {
     // Notes about the current implementation:
     //  - Pixel size:   If the cell size is equal to zero, the pixel size will be 0. This is allowed
     //                  since in some cases the pixel size is ignored. Thus, one should check the
-    //                  returned value of getPixelSize() before using it. Similarly, setPixelSize()
+    //                  returned value of pixel_size() before using it. Similarly, set_pixel_size()
     //                  can save a pixel size equal to 0, which is the default if a new file is closed
-    //                  without calling setPixelSize().
+    //                  without calling set_pixel_size().
     //  - Endianness:   It is not possible to change the endianness of existing data. As such, in the
-    //                  rare case of writing to an existing file (i.e. READ|WRITE), if the endianness is
-    //                  not the same as the CPU, the data being written will be swapped, which is slower.
-    //  - Data type:    In the rare case of writing to an existing file (i.e. READ|WRITE), the data
+    //                  rare case of writing to an existing file (i.e. READ|WRITE mode), the written
+    //                  data may have to be swapped to match the file's endianness.
+    //  - Data type:    In the rare case of writing to an existing file (i.e. READ|WRITE mode), the data
     //                  type cannot be changed. In other cases, the user should only set the data
-    //                  type once and before writing anything to the file.
+    //                  type once before writing anything to the file.
     //  - Order:        The map ordering should be mapc=1, mapr=2 and maps=3. Anything else is not
-    //                  supported and an exception is thrown when opening the file.
+    //                  supported and an exception is thrown when opening a file with a different ordering.
     //  - Unused flags: The extended header, the origin (xorg, yorg, zorg), nversion and other
     //                  parts of the header are ignored (see full detail on what is ignored in
-    //                  writeHeader_()). These are set to 0 or to the expected default value, or are
+    //                  write_header_()). These are set to 0 or to the expected default value, or are
     //                  left unchanged in non-overwriting mode.
-    //  - Setters:      In reading mode, using the "setters" (i.e. set(PixelSize|Shape|DataType)),
-    //                  is not allowed. Use read|write mode to modify a corrupted header.
     //
     // see      https://bio3d.colorado.edu/imod/doc/mrc_format.txt or
     //          https://www.ccpem.ac.uk/mrc_format/mrc2014.php
     class MRCFile : public details::ImageFile {
     public:
         MRCFile() = default;
-        MRCFile(const path_t& path, open_mode_t open_mode) { open_(path, open_mode); }
+        MRCFile(const Path& path, open_mode_t open_mode) { open_(path, open_mode); }
         ~MRCFile() override { close_(); }
 
     public:
         void reset() override {
             close();
             m_open_mode = open_mode_t{};
-            m_header = HeaderImp{};
+            m_header = HeaderData{};
         };
 
-        void open(const path_t& path, open_mode_t open_mode) override { open_(path, open_mode); }
+        void open(const Path& path, open_mode_t open_mode) override { open_(path, open_mode); }
         void close() override { close_(); }
 
     public:
-        [[nodiscard]] bool isOpen() const noexcept override { return m_fstream.is_open(); }
-        [[nodiscard]] const path_t& filename() const noexcept override { return m_filename; }
-        [[nodiscard]] std::string infoString(bool brief) const noexcept override;
+        [[nodiscard]] bool is_open() const noexcept override { return m_fstream.is_open(); }
+        [[nodiscard]] const Path& filename() const noexcept override { return m_filename; }
+        [[nodiscard]] std::string info_string(bool brief) const noexcept override;
         [[nodiscard]] Format format() const noexcept override { return Format::MRC; }
 
     public:
-        [[nodiscard]] size4_t shape() const noexcept override {
+        [[nodiscard]] Shape4<i64> shape() const noexcept override {
             return m_header.shape;
         }
 
-        void shape(size4_t new_shape) override;
+        void set_shape(const Shape4<i64>& new_shape) override;
 
-        [[nodiscard]] stats_t stats() const noexcept override {
-            stats_t out;
+        [[nodiscard]] Stats<f32> stats() const noexcept override {
+            Stats<f32> out;
             if (m_header.min != 0 || m_header.max != -1 || m_header.mean != -2) {
-                out.min(m_header.min);
-                out.max(m_header.max);
-                out.mean(m_header.mean);
+                out.set_min(m_header.min);
+                out.set_max(m_header.max);
+                out.set_mean(m_header.mean);
             }
             if (m_header.std >= 0)
-                out.std(m_header.std);
+                out.set_std(m_header.std);
             return out;
         }
 
-        void stats(stats_t stats) override {
+        void set_stats(Stats<f32> stats) override {
             // In reading mode, this will have no effect.
-            if (stats.hasMin())
+            if (stats.has_min())
                 m_header.min = stats.min();
-            if (stats.hasMax())
+            if (stats.has_max())
                 m_header.max = stats.max();
-            if (stats.hasMean())
+            if (stats.has_mean())
                 m_header.mean = stats.mean();
-            if (stats.hasStd())
+            if (stats.has_std())
                 m_header.std = stats.std();
         }
 
-        [[nodiscard]] float3_t pixelSize() const noexcept override {
+        [[nodiscard]] Vec3<f32> pixel_size() const noexcept override {
             return m_header.pixel_size;
         }
 
-        void pixelSize(float3_t new_pixel_size) override;
+        void set_pixel_size(Vec3<f32> new_pixel_size) override;
 
         [[nodiscard]] DataType dtype() const noexcept override {
             return m_header.data_type;
         }
 
-        void dtype(io::DataType data_type) override;
+        void set_dtype(io::DataType data_type) override;
 
     public:
-        void read(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
-        void readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) override;
-        void readSlice(void* output, size4_t strides, size4_t shape, DataType data_type, size_t start, bool clamp) override;
-        void readAll(void* output, DataType data_type, bool clamp) override;
-        void readAll(void* output, size4_t strides, size4_t shape, DataType data_type, bool clamp) override;
+        void read_elements(void* output, DataType data_type, i64 start, i64 end, bool clamp) override;
+        void read_slice(void* output, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, i64 start, bool clamp) override;
+        void read_slice(void* output, DataType data_type, i64 start, i64 end, bool clamp) override;
+        void read_all(void* output, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, bool clamp) override;
+        void read_all(void* output, DataType data_type, bool clamp) override;
 
-        void write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) override;
-        void writeSlice(const void* input, size4_t strides, size4_t shape, DataType data_type, size_t start, bool clamp) override;
-        void writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) override;
-        void writeAll(const void* input, size4_t strides, size4_t shape, DataType data_type, bool clamp) override;
-        void writeAll(const void* input, DataType data_type, bool clamp) override;
+        void write_elements(const void* input, DataType data_type, i64 start, i64 end, bool clamp) override;
+        void write_slice(const void* input, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, i64 start, bool clamp) override;
+        void write_slice(const void* input, DataType data_type, i64 start, i64 end, bool clamp) override;
+        void write_all(const void* input, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, bool clamp) override;
+        void write_all(const void* input, DataType data_type, bool clamp) override;
 
     public:
         template<typename T>
-        void read(T* output, size_t start, size_t end, bool clamp = false) {
-            read(output, io::dtype<T>(), start, end, clamp);
+        void read_elements(T* output, i64 start, i64 end, bool clamp = false) {
+            read_elements(output, io::dtype<T>(), start, end, clamp);
         }
 
         template<typename T>
-        void readAll(T* output, bool clamp = false) {
-            readAll(output, io::dtype<T>(), clamp);
+        void read_all(T* output, bool clamp = false) {
+            read_all(output, io::dtype<T>(), clamp);
         }
 
         template<typename T>
-        void readSlice(T* output, size_t start, size_t end, bool clamp = false) {
-            readSlice(output, io::dtype<T>(), start, end, clamp);
+        void read_slice(T* output, i64 start, i64 end, bool clamp = false) {
+            read_slice(output, io::dtype<T>(), start, end, clamp);
         }
 
         template<typename T>
-        void writeAll(T* output, bool clamp = false) {
-            writeAll(output, io::dtype<T>(), clamp);
+        void write_all(T* output, bool clamp = false) {
+            write_all(output, io::dtype<T>(), clamp);
         }
 
         template<typename T>
-        void writeSlice(T* output, size_t start, size_t end, bool clamp = false) {
-            writeSlice(output, io::dtype<T>(), start, end, clamp);
+        void write_slice(T* output, i64 start, i64 end, bool clamp = false) {
+            write_slice(output, io::dtype<T>(), start, end, clamp);
         }
 
-        [[nodiscard]] explicit operator bool() const noexcept { return isOpen(); }
+        [[nodiscard]] explicit operator bool() const noexcept { return is_open(); }
 
     private:
-        void open_(const path_t& filename, open_mode_t mode);
+        void open_(const Path& filename, open_mode_t mode);
 
         // Reads and checks the header of an existing file.
         // Throws if the header doesn't look like a MRC header or if the MRC file is not supported.
         // If read|write mode, the header is saved in m_header.buffer. This will be used before closing the file.
-        void readHeader_(const path_t& filename);
+        void readHeader_(const Path& filename);
 
         // Swap the endianness of the header.
         // The buffer is at least the first 224 bytes of the MRC header.
@@ -151,10 +149,10 @@ namespace noa::io {
         // In read or read|write mode, the data of the header should be swapped if the endianness of the file is
         // swapped. This function should be called just after reading the header AND just before writing it.
         // All used flags are swapped. Some unused flags are left unchanged.
-        static void swapHeader_(byte_t* buffer) {
-            io::swapEndian(buffer, 24, 4); // from 0 (nx) to 96 (next, included).
-            io::swapEndian(buffer + 152, 2, 4); // imodStamp, imodFlags
-            io::swapEndian(buffer + 216, 2, 4); // rms, nlabl
+        static void swap_header_(Byte* buffer) {
+            io::swap_endian(buffer, 24, 4); // from 0 (nx) to 96 (next, included).
+            io::swap_endian(buffer + 152, 2, 4); // imodStamp, imodFlags
+            io::swap_endian(buffer + 216, 2, 4); // rms, nlabl
         }
 
         // Closes the stream. Separate function so that the destructor can call close().
@@ -163,46 +161,46 @@ namespace noa::io {
 
         // Sets the header to default values.
         // This function should only be called to initialize the header before closing a (overwritten or new) file.
-        static void defaultHeader_(byte_t* buffer);
+        static void default_header_(Byte* buffer);
 
         // Writes the header to the file's header. Only called before closing a file.
         // Buffer containing the header. Only the used values (see m_header) are going to be modified before write
         // buffer to the file. As such, unused values should either be set to the defaults (overwrite mode, see
-        // defaultHeader_()) OR taken from an existing file (read|write mode, see readHeader_()).
-        void writeHeader_(byte_t* buffer);
+        // default_header_()) OR taken from an existing file (read|write mode, see readHeader_()).
+        void write_header_(Byte* buffer);
 
         // Gets the offset to the data.
-        [[nodiscard]] constexpr long offset_() const noexcept {
+        [[nodiscard]] constexpr i64 header_offset_() const noexcept {
             return 1024 + m_header.extended_bytes_nb;
         }
 
         // This is to set the default data type of the file in the first write operation of a new file in writing mode.
         // data_type is the type of the real data that is passed in, and we return the "closest" supported type.
-        static DataType closestSupportedDataType_(DataType data_type);
+        static DataType closest_supported_dtype_(DataType data_type);
 
     private:
         std::fstream m_fstream{};
-        path_t m_filename{};
+        Path m_filename{};
         open_mode_t m_open_mode{};
 
-        struct HeaderImp {
+        struct HeaderData {
             // Buffer containing the 1024 bytes of the header.
-            // Only used if the header needs to be saved, that is, in in|out mode.
-            std::unique_ptr<byte_t[]> buffer{nullptr};
-            DataType data_type{DataType::DTYPE_UNKNOWN};
+            // Only used if the header needs to be saved, that is, in "in|out" mode.
+            std::unique_ptr<Byte[]> buffer{nullptr};
+            DataType data_type{DataType::UNKNOWN};
 
-            size4_t shape{0};               // BDHW order.
-            float3_t pixel_size{0.f};       // Pixel spacing (DHW order) = cell_size / shape.
+            Shape4<i64> shape{0};           // BDHW order.
+            Vec3<f32> pixel_size{0.f};      // Pixel spacing (DHW order) = cell_size / shape.
 
-            float min{0};                   // Minimum pixel value.
-            float max{-1};                  // Maximum pixel value.
-            float mean{-2};                 // Mean pixel value.
-            float std{-1};                  // Stdev. Negative if not computed.
+            f32 min{0};                     // Minimum pixel value.
+            f32 max{-1};                    // Maximum pixel value.
+            f32 mean{-2};                   // Mean pixel value.
+            f32 std{-1};                    // Stdev. Negative if not computed.
 
-            int32_t extended_bytes_nb{0};   // Number of bytes in extended header.
+            i32 extended_bytes_nb{0};       // Number of bytes in extended header.
 
             bool is_endian_swapped{false};  // Whether the endianness of the data is swapped.
-            int32_t nb_labels{0};           // Number of labels with useful data.
+            i32 nb_labels{0};               // Number of labels with useful data.
         } m_header{};
     };
 }

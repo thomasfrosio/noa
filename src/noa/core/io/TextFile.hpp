@@ -1,8 +1,3 @@
-/// \file noa/core/files/TextFile.h
-/// \brief Text file template class.
-/// \author Thomas - ffyr2w
-/// \date 9 Oct 2020
-
 #pragma once
 
 #include <cstddef>
@@ -21,15 +16,21 @@
 #include "noa/core/io/IO.hpp"
 
 namespace noa::io {
-    /// Base class for all text files. It is not copyable, but it is movable.
+    /// Read from and write to text files.
+    /// It is not copyable, but it is movable.
     template<typename Stream = std::fstream>
     class TextFile {
     public:
         /// Initializes the underlying file stream.
         TextFile() = default;
 
+        /// Stores the path. Use open() to open the file.
+        explicit TextFile(Path path) : m_path(std::move(path)) {}
+
         /// Sets and opens the associated file. See open() for more details.
-        TextFile(path_t path, open_mode_t mode);
+        TextFile(Path path, open_mode_t mode) : m_path(std::move(path)) {
+            open_(mode);
+        }
 
         /// (Re)Opens the file.
         /// \param filename     Path of the file to open.
@@ -45,42 +46,96 @@ namespace noa::io {
         ///         - If failed to open the file.
         ///         - If an underlying OS error was raised.
         ///
-        /// \note Additionally, APP and/or BINARY can be turned on:
+        /// \note Additionally, ATE and/or BINARY can be turned on:
         ///         - ATE: the stream go to the end of the file after opening.
         ///         - BINARY: Disable text conversions.
-        /// \note Specifying TRUNC and APP is undefined.
-        void open(path_t path, open_mode_t mode);
+        void open(Path path, open_mode_t mode) {
+            m_path = std::move(path);
+            open_(mode);
+        }
 
-        /// Closes the stream if it is opened, otherwise don't do anything.
-        void close();
+        /// Closes the stream if it is opened, otherwise do nothing.
+        void close() {
+            if (m_fstream.is_open()) {
+                m_fstream.close();
+                if (m_fstream.fail() && !m_fstream.eof())
+                    NOA_THROW("File: {}. File stream error", m_path);
+            }
+        }
 
-        /// Writes a string or string_view to the file.
-        void write(std::string_view string);
+        /// Writes a string to the file.
+        void write(std::string_view string) {
+            m_fstream.write(string.data(), static_cast<std::streamsize>(string.size()));
+            if (m_fstream.fail()) {
+                if (m_fstream.is_open())
+                    NOA_THROW("File: {}. File stream error while writing", m_path);
+                NOA_THROW("File: {}. File stream error. File is closed file", m_path);
+            }
+        }
 
-        /// Gets the next line of the ifstream.
-        /// \param[in] line Buffer into which the line will be stored. It is erased before starting.
-        /// \return         A temporary reference of the istream. Its operator bool() evaluates to
-        ///                 istream.fail(). If false, it means the line could not be read, either
-        ///                 because the stream is failed or because it reached the end of the file.
+        /// Gets the next line of the file.
+        /// \param[out] line Buffer into which the line will be stored. It is erased before starting.
+        /// \return Whether the line was successfully read. If not, the stream failed or reached
+        ///         the end of the file. Use bad() to check if an error occurred while reading the file.
         ///
         /// \example Read a file line per line.
         /// \code
         /// TextFile file("some_file.txt");
         /// std::string line;
-        /// while(file.getLine(line)) {
+        /// while(file.get_line(line)) {
         ///     // do something with the line
         /// }
         /// if (file.bad())
         ///     // error while reading the file
-        /// else
-        ///     // file.eof() == true; everything is OK, the end of the file was reached without error.
+        /// // file.eof() == true; everything is OK, the end of the file was reached without error.
         /// \endcode
-        std::istream& getLine(std::string& line);
+        bool get_line(std::string& line) {
+            return static_cast<bool>(std::getline(m_fstream, line));
+        }
 
-        /// Reads the entire file into a string.
-        /// \return String containing the whole content of the file.
-        /// \note   The ifstream is rewound before reading.
-        std::string readAll();
+        /// Gets the next line of the file. If an error occurs, throw an exception.
+        /// \param[out] line Buffer into which the line will be stored. It is erased before starting.
+        /// \example Read a file line per line.
+        /// \code
+        /// TextFile file("some_file.txt");
+        /// std::string line;
+        /// while(file.get_line_or_throw(line)) {
+        ///     // do something with the line
+        /// }
+        /// // file.eof() == true; end of file reached successfully
+        /// \endcode
+        bool get_line_or_throw(std::string& line) {
+            const bool success = get_line(line);
+            if (!success && !this->eof())
+                NOA_THROW("File: {}. Failed to read a line", m_path);
+            return success;
+        }
+
+        /// Reads the entire file.
+        std::string read_all() {
+            std::string buffer;
+
+            // FIXME use os::file_size(m_path) instead?
+            m_fstream.seekg(0, std::ios::end);
+            const std::streampos size = m_fstream.tellg();
+            if (!size)
+                return buffer;
+            else if (size < 0)
+                NOA_THROW("File: {}. File stream error. Could not get the input position indicator", m_path);
+
+            try {
+                buffer.resize(static_cast<size_t>(size));
+            } catch (std::length_error& e) {
+                NOA_THROW("File: {}. Passed the maximum permitted size while try to load file. Got {} bytes",
+                          m_path, size);
+            }
+
+            m_fstream.seekg(0);
+            m_fstream.read(buffer.data(), size);
+            if (m_fstream.fail())
+                NOA_THROW("File: {}. File stream error. Could not read the entire file", m_path);
+            return buffer;
+        }
 
         /// Gets a reference of the underlying file stream.
         /// \note   This should be safe and the class should be able to handle whatever changes are
@@ -110,34 +165,73 @@ namespace noa::io {
         ///                        See \c std::fstream::bad().
         [[nodiscard]] Stream& fstream() noexcept { return m_fstream; }
 
-        /// Whether or not \a m_path points to a regular file or a symlink pointing to a regular file.
-        bool exists() { return os::existsFile(m_path); }
+        /// Gets the size (in bytes) of the file. Symlinks are followed.
+        i64 size() { return os::file_size(m_path); }
 
-        /// Gets the size (in bytes) of the file at \a m_path. Symlinks are followed.
-        size_t size() { return os::size(m_path); }
-
-        [[nodiscard]] const fs::path& path() const noexcept { return m_path; }
+        [[nodiscard]] const Path& path() const noexcept { return m_path; }
         [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
         [[nodiscard]] bool eof() const noexcept { return m_fstream.eof(); }
         [[nodiscard]] bool fail() const noexcept { return m_fstream.fail(); }
-        [[nodiscard]] bool isOpen() const noexcept { return m_fstream.is_open(); }
-        void clear() { m_fstream.clear(); }
+        [[nodiscard]] bool is_open() const noexcept { return m_fstream.is_open(); }
+        void clear_flags() { m_fstream.clear(); }
 
-        /// Whether or not the instance is in a "good" state.
+        /// Whether the instance is in a "good" state.
         [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
     private:
-        static_assert(std::is_same_v<Stream, std::ifstream> ||
-                      std::is_same_v<Stream, std::ofstream> ||
-                      std::is_same_v<Stream, std::fstream>);
-        path_t m_path{};
+        static_assert(noa::traits::is_any_v<Stream, std::ifstream, std::ofstream, std::fstream>);
         Stream m_fstream{};
+        Path m_path{};
 
     private:
-        void open_(open_mode_t);
-    };
-}
+        void open_(open_mode_t mode) {
+            close();
 
-#define NOA_TEXTFILE_INL_
-#include "noa/core/io/TextFile.inl"
-#undef NOA_TEXTFILE_INL_
+            NOA_CHECK(io::is_valid_open_mode(mode), "File: {}. Invalid open mode", m_path);
+            if constexpr (!std::is_same_v<Stream, std::ifstream>) {
+                if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
+                    const bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
+                    const bool exists = os::is_file(m_path);
+                    try {
+                        if (exists)
+                            os::backup(m_path, overwrite);
+                        else if (overwrite || mode & io::APP) /* all except case 2 */
+                            os::mkdir(m_path.parent_path());
+                    } catch (...) {
+                        NOA_THROW("File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
+                                  m_path, OpenModeStream{mode});
+                    }
+                }
+            }
+            const bool read_only = !(mode & (io::WRITE | io::TRUNC | io::APP));
+            const bool read_write_only = mode & io::WRITE && mode & io::READ && !(mode & (io::TRUNC | io::APP));
+            if constexpr (std::is_same_v<Stream, std::ifstream>) {
+                NOA_CHECK(read_only,
+                          "File: {}. Mode {} is not allowed for read-only TextFile",
+                          m_path, OpenModeStream{mode});
+            }
+
+            for (int it{0}; it < 5; ++it) {
+                m_fstream.open(m_path, io::toIOSBase(mode));
+                if (m_fstream.is_open())
+                    return;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            m_fstream.clear();
+
+            if (read_only || read_write_only) { // case 1|2
+                NOA_CHECK(os::is_file(m_path),
+                          "File: {}. Mode: {}. Trying to open a file that does not exist",
+                          m_path, OpenModeStream{mode});
+            }
+            NOA_THROW("File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                      m_path, OpenModeStream{mode});
+        }
+    };
+
+    /// Reads the entire text file.
+    inline std::string read_text(const Path& path) {
+        TextFile<std::ifstream> text_file(path, noa::io::READ);
+        return text_file.read_all();
+    }
+}

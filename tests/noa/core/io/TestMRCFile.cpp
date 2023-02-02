@@ -1,5 +1,5 @@
 #include <noa/core/OS.hpp>
-#include "noa/core/io/IO.h"
+#include "noa/core/io/IO.hpp"
 #include <noa/core/io/MRCFile.hpp>
 
 #include <iostream>
@@ -10,182 +10,189 @@
 using namespace ::noa;
 
 TEST_CASE("io::Stats", "[noa][common][io]") {
-    io::stats_t out;
-    REQUIRE_FALSE(out.hasMin());
-    REQUIRE_FALSE(out.hasMax());
-    REQUIRE_FALSE(out.hasSum());
-    REQUIRE_FALSE(out.hasMean());
-    REQUIRE_FALSE(out.hasVar());
-    REQUIRE_FALSE(out.hasStd());
+    io::Stats<f32> out;
+    REQUIRE_FALSE(out.has_min());
+    REQUIRE_FALSE(out.has_max());
+    REQUIRE_FALSE(out.has_sum());
+    REQUIRE_FALSE(out.has_mean());
+    REQUIRE_FALSE(out.has_var());
+    REQUIRE_FALSE(out.has_std());
 
-    out.min(1);
-    REQUIRE(out.hasMin());
+    out.set_min(1);
+    REQUIRE(out.has_min());
     REQUIRE(out.min() == 1);
-    out.max(2);
-    REQUIRE(out.hasMax());
+    out.set_max(2);
+    REQUIRE(out.has_max());
     REQUIRE(out.max() == 2);
-    out.sum(3);
-    REQUIRE(out.hasSum());
+    out.set_sum(3);
+    REQUIRE(out.has_sum());
     REQUIRE(out.sum() == 3);
-    out.mean(4);
-    REQUIRE(out.hasMean());
+    out.set_mean(4);
+    REQUIRE(out.has_mean());
     REQUIRE(out.mean() == 4);
-    out.var(5);
-    REQUIRE(out.hasVar());
+    out.set_var(5);
+    REQUIRE(out.has_var());
     REQUIRE(out.var() == 5);
-    out.std(6);
-    REQUIRE(out.hasStd());
+    out.set_std(6);
+    REQUIRE(out.has_std());
     REQUIRE(out.std() == 6);
 }
 
 TEST_CASE("io::MRCFile: real dtype", "[noa][common][io]") {
     const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
-    const std::string fixture_expected_header = "Format: MRC File\n"
-                                                "Shape (batches, depth, height, width): (11,1,576,410)\n"
-                                                "Pixel size (depth, height, width): (2.100,21.000,21.000)\n"
-                                                "Data type: INT16\n"
-                                                "Labels: 9\n"
-                                                "Extended header: 0 bytes";
-    const path_t test_dir = fs::current_path() / "test_MRCFile";
+    const std::string fixture_expected_header =
+            "Format: MRC File\n"
+            "Shape (batches, depth, height, width): [11, 1, 576, 410]\n"
+            "Pixel size (depth, height, width): [2.100, 21.000, 21.000]\n"
+            "Data type: DataType::I16\n"
+            "Labels: 9\n"
+            "Extended header: 0 bytes";
+    const Path test_dir = fs::current_path() / "test_MRCFile";
     fs::remove_all(test_dir);
 
     AND_THEN("write and read to a volume") {
         // create a MRC file...
-        const path_t file1 = test_dir / "file1.mrc";
+        const Path file1 = test_dir / "file1.mrc";
         io::MRCFile file(file1, io::WRITE);
         REQUIRE(file);
 
-        const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
-                                            io::DataType::UINT8, io::DataType::INT8,
-                                            io::DataType::FLOAT16, io::DataType::FLOAT32);
+        const io::DataType dtype =
+                GENERATE(io::DataType::I16, io::DataType::U16,
+                         io::DataType::U8, io::DataType::I8,
+                         io::DataType::F16, io::DataType::F32);
 
         // initialize data to put into the file...
-        const size4_t shape = {1, 64, 64, 64};
-        const float3_t pixel_size = {1.23f, 1.23f, 1.23f};
-        io::stats_t stats;
-        stats.min(-1);
-        stats.max(1);
-        stats.mean(0.5);
-        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(shape.elements());
+        const auto shape = Shape4<i64>{1, 64, 64, 64};
+        const auto size = static_cast<size_t>(shape.elements());
+        const auto pixel_size = Vec3<f32>{1.23f, 1.23f, 1.23f};
+        io::Stats<f32> stats;
+        stats.set_min(-1);
+        stats.set_max(1);
+        stats.set_mean(0.5);
+        const auto to_write = std::make_unique<f32[]>(size);
         test::Randomizer<int> randomizer(0, 127);
-        for (size_t i{0}; i < shape.elements(); ++i)
-            to_write[i] = static_cast<float>(randomizer.get());
+        for (size_t i{0}; i < size; ++i)
+            to_write[i] = static_cast<f32>(randomizer.get());
 
         // write to file...
-        file.dtype(dtype);
-        file.shape(shape);
-        file.pixelSize(pixel_size);
-        file.stats(stats);
-        file.writeAll(to_write.get());
+        file.set_dtype(dtype);
+        file.set_shape(shape);
+        file.set_pixel_size(pixel_size);
+        file.set_stats(stats);
+        file.write_all(to_write.get());
         file.close();
 
         // reading the file and check that it matches...
         io::MRCFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
-        REQUIRE(all(file_to_read.pixelSize() == pixel_size));
-        const io::stats_t file_stats = file_to_read.stats();
-        REQUIRE_FALSE(stats.hasSum());
-        REQUIRE_FALSE(stats.hasVar());
-        REQUIRE_FALSE(stats.hasStd());
-        REQUIRE(stats.hasMin());
-        REQUIRE(stats.hasMax());
-        REQUIRE(stats.hasMean());
+        REQUIRE(all(file_to_read.pixel_size() == pixel_size));
+        const io::Stats<f32> file_stats = file_to_read.stats();
+        REQUIRE_FALSE(file_stats.has_sum());
+        REQUIRE_FALSE(file_stats.has_var());
+        REQUIRE_FALSE(file_stats.has_std());
+        REQUIRE(file_stats.has_min());
+        REQUIRE(file_stats.has_max());
+        REQUIRE(file_stats.has_mean());
         REQUIRE(stats.min() == file_stats.min());
         REQUIRE(stats.max() == file_stats.max());
         REQUIRE(stats.mean() == file_stats.mean());
         REQUIRE(stats.std() == file_stats.std());
 
-        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.elements());
-        file_to_read.readAll(to_read.get());
-        float diff = test::getDifference(to_write.get(), to_read.get(), shape.elements());
+        const auto to_read = std::make_unique<f32[]>(size);
+        file_to_read.read_all(to_read.get());
+        const f32 diff = test::get_difference(to_write.get(), to_read.get(), size);
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
     }
 
     AND_THEN("write and read to a stack of volumes") {
         // create a MRC file...
-        const path_t file1 = test_dir / "file1.mrc";
+        const Path file1 = test_dir / "file1.mrc";
         io::MRCFile file(file1, io::WRITE);
         REQUIRE(file);
 
-        const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
-                                            io::DataType::UINT8, io::DataType::INT8,
-                                            io::DataType::FLOAT16, io::DataType::FLOAT32);
+        const io::DataType dtype = GENERATE(
+                io::DataType::I16, io::DataType::U16,
+                io::DataType::U8, io::DataType::I8,
+                io::DataType::F16, io::DataType::F32);
 
         // initialize data to put into the file...
-        const size4_t shape = {5, 64, 64, 64};
-        const float3_t pixel_size = {1.23f, 1.23f, 1.23f};
-        const io::stats_t stats;
-        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(shape.elements());
+        const auto shape = Shape4<i64>{5, 64, 64, 64};
+        const auto size = static_cast<size_t>(shape.elements());
+        const auto pixel_size = Vec3<f32>{1.23f, 1.23f, 1.23f};
+        const io::Stats<f32> stats;
+        const auto to_write = std::make_unique<f32[]>(size);
         test::Randomizer<int> randomizer(0, 127);
-        for (size_t i{0}; i < shape.elements(); ++i)
-            to_write[i] = static_cast<float>(randomizer.get());
+        for (size_t i{0}; i < size; ++i)
+            to_write[i] = static_cast<f32>(randomizer.get());
 
         // write to file...
-        file.dtype(dtype);
-        file.shape(shape);
-        file.pixelSize(pixel_size);
-        file.stats(stats);
-        file.writeAll(to_write.get());
+        file.set_dtype(dtype);
+        file.set_shape(shape);
+        file.set_pixel_size(pixel_size);
+        file.set_stats(stats);
+        file.write_all(to_write.get());
         file.close();
 
         // reading the file and check that it matches...
         io::MRCFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
-        REQUIRE(all(file_to_read.pixelSize() == pixel_size));
-        const io::stats_t file_stats = file_to_read.stats();
-        REQUIRE_FALSE(file_stats.hasMin());
-        REQUIRE_FALSE(file_stats.hasMax());
-        REQUIRE_FALSE(file_stats.hasSum());
-        REQUIRE_FALSE(file_stats.hasMean());
-        REQUIRE_FALSE(file_stats.hasVar());
-        REQUIRE_FALSE(file_stats.hasStd());
+        REQUIRE(all(file_to_read.pixel_size() == pixel_size));
+        const io::Stats<f32> file_stats = file_to_read.stats();
+        REQUIRE_FALSE(file_stats.has_min());
+        REQUIRE_FALSE(file_stats.has_max());
+        REQUIRE_FALSE(file_stats.has_sum());
+        REQUIRE_FALSE(file_stats.has_mean());
+        REQUIRE_FALSE(file_stats.has_var());
+        REQUIRE_FALSE(file_stats.has_std());
 
-        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.elements());
-        file_to_read.readAll(to_read.get());
-        float diff = test::getDifference(to_write.get(), to_read.get(), shape.elements());
+        const auto to_read = std::make_unique<f32[]>(size);
+        file_to_read.read_all(to_read.get());
+        const f32 diff = test::get_difference(to_write.get(), to_read.get(), size);
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
     }
 
     AND_THEN("write and read a stack of 2D images") {
         // create a MRC file...
-        const path_t file1 = test_dir / "file1.mrc";
+        const Path file1 = test_dir / "file1.mrc";
         io::MRCFile file(file1, io::WRITE);
         REQUIRE(file);
 
-        const io::DataType dtype = GENERATE(io::DataType::INT16, io::DataType::UINT16,
-                                            io::DataType::UINT8, io::DataType::INT8,
-                                            io::DataType::FLOAT16, io::DataType::FLOAT32);
+        const io::DataType dtype = GENERATE(
+                io::DataType::I16, io::DataType::U16,
+                io::DataType::U8, io::DataType::I8,
+                io::DataType::F16, io::DataType::F32);
 
         // initialize data to put into the file...
-        const size4_t shape = {41, 1, 64, 64};
-        const float3_t pixel_size = {1, 1.23f, 1.23f};
-        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(shape.elements());
+        const auto shape = Shape4<i64>{41, 1, 64, 64};
+        const auto size = static_cast<size_t>(shape.elements());
+        const auto pixel_size = Vec3<f32>{1, 1.23f, 1.23f};
+        const auto to_write = std::make_unique<f32[]>(size);
         test::Randomizer<int> randomizer(0, 127);
-        for (size_t i{0}; i < shape.elements(); ++i)
-            to_write[i] = static_cast<float>(randomizer.get());
+        for (size_t i{0}; i < size; ++i)
+            to_write[i] = static_cast<f32>(randomizer.get());
 
         // write to file...
-        file.dtype(dtype);
-        file.shape(shape);
-        file.pixelSize(pixel_size);
-        file.writeAll(to_write.get());
+        file.set_dtype(dtype);
+        file.set_shape(shape);
+        file.set_pixel_size(pixel_size);
+        file.write_all(to_write.get());
         file.close();
 
         // reading the file and check that it matches...
         io::MRCFile file_to_read(file1, io::READ);
         REQUIRE(all(file_to_read.shape() == shape));
-        REQUIRE(all(file_to_read.pixelSize() == pixel_size));
+        REQUIRE(all(file_to_read.pixel_size() == pixel_size));
 
-        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(shape.elements());
-        file_to_read.readAll(to_read.get());
-        float diff = test::getDifference(to_write.get(), to_read.get(), shape.elements());
+        const auto to_read = std::make_unique<f32[]>(size);
+        file_to_read.read_all(to_read.get());
+        const f32 diff = test::get_difference(to_write.get(), to_read.get(), size);
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
     }
 
     AND_THEN("reading files") {
-        const path_t fixture_copy = test_dir / "file2.mrc";
+        const Path fixture_copy = test_dir / "file2.mrc";
         os::mkdir(test_dir);
-        REQUIRE(os::copyFile(data_file, fixture_copy));
+        REQUIRE(os::copy_file(data_file, fixture_copy));
 
         // Writing permissions should not be necessary.
         fs::permissions(fixture_copy, fs::perms::owner_write | fs::perms::group_write |
@@ -193,49 +200,49 @@ TEST_CASE("io::MRCFile: real dtype", "[noa][common][io]") {
         io::MRCFile file;
         REQUIRE_THROWS_AS(file.open(fixture_copy, io::READ | io::WRITE), noa::Exception);
         os::remove(fixture_copy.string() + "~"); // Remove backup copy from this attempt.
-        REQUIRE_FALSE(file.isOpen());
+        REQUIRE_FALSE(file.is_open());
 
         // There should be no backup since it is read only.
         file.open(fixture_copy, io::READ);
-        REQUIRE(file.isOpen());
-        REQUIRE_FALSE(os::existsFile(fixture_copy.string() + "~"));
+        REQUIRE(file.is_open());
+        REQUIRE_FALSE(os::is_file(fixture_copy.string() + "~"));
 
         // Any writing operation should fail.
-        const size_t elements_per_slice = file.shape()[2] * file.shape()[3];
-        std::unique_ptr<float[]> ptr = std::make_unique<float[]>(elements_per_slice);
-        REQUIRE_THROWS_AS(file.writeSlice(ptr.get(), 0, 1), noa::Exception);
+        const auto elements_per_slice = static_cast<size_t>(file.shape()[2] * file.shape()[3]);
+        const auto ptr = std::make_unique<f32[]>(elements_per_slice);
+        REQUIRE_THROWS_AS(file.write_slice(ptr.get(), 0, 1), noa::Exception);
 
-        std::string str = file.infoString(false);
+        const std::string str = file.info_string(false);
         REQUIRE(str == fixture_expected_header);
     }
 
     AND_THEN("writing to an existing file") {
-        const path_t fixture_copy = test_dir / "file2.mrc";
+        const Path fixture_copy = test_dir / "file2.mrc";
         os::mkdir(test_dir);
-        REQUIRE(os::copyFile(data_file, fixture_copy));
+        REQUIRE(os::copy_file(data_file, fixture_copy));
 
         io::MRCFile image_file(fixture_copy, io::READ | io::WRITE);
-        REQUIRE(image_file.isOpen());
+        REQUIRE(image_file.is_open());
 
         // Check backup copy.
-        REQUIRE(os::existsFile(fixture_copy.string() + "~"));
-        REQUIRE(image_file.infoString(false) == fixture_expected_header);
+        REQUIRE(os::is_file(fixture_copy.string() + "~"));
+        REQUIRE(image_file.info_string(false) == fixture_expected_header);
 
-        const size_t elements_per_slice = image_file.shape()[2] * image_file.shape()[3];
-        std::unique_ptr<float[]> to_write = std::make_unique<float[]>(elements_per_slice);
-        test::Randomizer<float> randomizer(-1000, 1000);
+        const auto elements_per_slice = static_cast<size_t>(image_file.shape()[2] * image_file.shape()[3]);
+        const auto to_write = std::make_unique<f32[]>(elements_per_slice);
+        test::Randomizer<f32> randomizer(-1000, 1000);
         for (size_t idx{0}; idx < elements_per_slice; ++idx)
             to_write[idx] = randomizer.get();
-        image_file.writeSlice(to_write.get(), 5, 6);
+        image_file.write_slice(to_write.get(), 5, 6);
         image_file.close();
 
         image_file.open(fixture_copy, io::READ);
-        std::unique_ptr<float[]> to_read = std::make_unique<float[]>(elements_per_slice);
-        image_file.readSlice(to_read.get(), 5, 6);
-        float diff{0};
-        // cast to int16_t is necessary: it happens during writeSlice() since the file is in mode=int16.
+        const auto to_read = std::make_unique<f32[]>(elements_per_slice);
+        image_file.read_slice(to_read.get(), 5, 6);
+        f32 diff{0};
+        // cast to int16_t is necessary: it happens during write_slice() since the file is in mode=int16.
         for (size_t i{0}; i < elements_per_slice; ++i)
-            diff += static_cast<float>(static_cast<int16_t>(to_write[i])) - to_read[i];
+            diff += static_cast<f32>(static_cast<int16_t>(to_write[i])) - to_read[i];
         REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
     }
     std::error_code er;

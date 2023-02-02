@@ -1,127 +1,73 @@
-/// \file noa/core/types/Stats.h
-/// \brief The Stats type, which gather the basic statistics of an array.
-/// \author Thomas - ffyr2w
-/// \date 10 Dec 2020
-
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/core/traits/BaseTypes.h"
+#include "noa/core/traits/Numerics.hpp"
+#include "noa/core/Types.hpp"
 
 namespace noa::io {
     /// Statistics of an image file's data.
-    /// To check if a field is set, use the `has*()` member functions.
-    template<typename T>
+    /// To check if a field is set, use the `has_*()` member functions.
+    template<typename Value>
     struct Stats {
     public:
-        using real_t = noa::traits::value_type_t<T>;
+        static_assert(noa::traits::is_real_or_complex_v<Value>);
+        using value_type = Value;
+        using real_type = noa::traits::value_type_t<Value>;
 
     public: // getters
-        [[nodiscard]] T min() const noexcept;
-        [[nodiscard]] T max() const noexcept;
-        [[nodiscard]] T sum() const noexcept;
-        [[nodiscard]] T mean() const noexcept;
-        [[nodiscard]] real_t var() const noexcept;
-        [[nodiscard]] real_t std() const noexcept;
+        [[nodiscard]] NOA_HD constexpr value_type min() const noexcept { return m_min; }
+        [[nodiscard]] NOA_HD constexpr value_type max() const noexcept { return m_max; }
+        [[nodiscard]] NOA_HD constexpr value_type sum() const noexcept { return m_sum; }
+        [[nodiscard]] NOA_HD constexpr value_type mean() const noexcept { return m_mean; }
+        [[nodiscard]] NOA_HD constexpr real_type var() const noexcept { return m_var; }
+        [[nodiscard]] NOA_HD constexpr real_type std() const noexcept { return m_std; }
 
     public: // setters
-        void min(T min) noexcept;
-        void max(T max) noexcept;
-        void sum(T sum) noexcept;
-        void mean(T mean) noexcept;
-        void var(real_t var) noexcept;
-        void std(real_t std) noexcept;
+        NOA_HD constexpr void set_min(value_type min) noexcept {
+            m_min = min;
+            m_has_value |= 1 << 0;
+        }
+
+        NOA_HD constexpr void set_max(value_type max) noexcept {
+            m_max = max;
+            m_has_value |= 1 << 1;
+        }
+
+        NOA_HD constexpr void set_sum(value_type sum) noexcept {
+            m_sum = sum;
+            m_has_value |= 1 << 2;
+        }
+
+        NOA_HD constexpr void set_mean(value_type mean) noexcept {
+            m_mean = mean;
+            m_has_value |= 1 << 3;
+        }
+
+        NOA_HD constexpr void set_var(real_type var) noexcept {
+            m_var = var;
+            m_has_value |= 1 << 4;
+        }
+
+        NOA_HD constexpr void set_std(real_type std) noexcept {
+            m_std = std;
+            m_has_value |= 1 << 5;
+        }
 
     public: // checkers
-        [[nodiscard]] bool hasMin() const noexcept;
-        [[nodiscard]] bool hasMax() const noexcept;
-        [[nodiscard]] bool hasSum() const noexcept;
-        [[nodiscard]] bool hasMean() const noexcept;
-        [[nodiscard]] bool hasVar() const noexcept;
-        [[nodiscard]] bool hasStd() const noexcept;
+        [[nodiscard]] bool has_min() const noexcept { return m_has_value & (1 << 0); }
+        [[nodiscard]] bool has_max() const noexcept { return m_has_value & (1 << 1); }
+        [[nodiscard]] bool has_sum() const noexcept { return m_has_value & (1 << 2); }
+        [[nodiscard]] bool has_mean() const noexcept { return m_has_value & (1 << 3); }
+        [[nodiscard]] bool has_var() const noexcept { return m_has_value & (1 << 4); }
+        [[nodiscard]] bool has_std() const noexcept { return m_has_value & (1 << 5); }
 
     private:
-        static_assert(noa::traits::is_float_v<T> || noa::traits::is_complex_v<T>);
-
-        T m_min{}, m_max{}, m_sum{}, m_mean{};
-        real_t m_var{}, m_std{};
-        uint8_t m_has_value{}; // bitfield, one per stat, same order as in the structure
+        value_type m_min{};
+        value_type m_max{};
+        value_type m_sum{};
+        value_type m_mean{};
+        real_type m_var{};
+        real_type m_std{};
+        u8 m_has_value{}; // bitfield, one per stat, same order as in the structure
     };
-
-    using stats_t = Stats<float>;
-}
-
-
-namespace noa::io {
-    template<typename T>
-    T Stats<T>::min() const noexcept { return m_min; }
-
-    template<typename T>
-    T Stats<T>::max() const noexcept { return m_max; }
-
-    template<typename T>
-    T Stats<T>::sum() const noexcept { return m_sum; }
-
-    template<typename T>
-    T Stats<T>::mean() const noexcept { return m_mean; }
-
-    template<typename T>
-    typename Stats<T>::real_t Stats<T>::var() const noexcept { return m_var; }
-
-    template<typename T>
-    typename Stats<T>::real_t Stats<T>::std() const noexcept { return m_std; }
-
-    template<typename T>
-    void Stats<T>::min(T min) noexcept {
-        m_min = min;
-        m_has_value |= 1 << 0;
-    }
-
-    template<typename T>
-    void Stats<T>::max(T max) noexcept {
-        m_max = max;
-        m_has_value |= 1 << 1;
-    }
-
-    template<typename T>
-    void Stats<T>::sum(T sum) noexcept {
-        m_sum = sum;
-        m_has_value |= 1 << 2;
-    }
-
-    template<typename T>
-    void Stats<T>::mean(T mean) noexcept {
-        m_mean = mean;
-        m_has_value |= 1 << 3;
-    }
-
-    template<typename T>
-    void Stats<T>::var(real_t var) noexcept {
-        m_var = var;
-        m_has_value |= 1 << 4;
-    }
-
-    template<typename T>
-    void Stats<T>::std(real_t std) noexcept {
-        m_std = std;
-        m_has_value |= 1 << 5;
-    }
-
-    template<typename T>
-    bool Stats<T>::hasMin() const noexcept { return m_has_value & 1 << 0; }
-
-    template<typename T>
-    bool Stats<T>::hasMax() const noexcept { return m_has_value & 1 << 1; }
-
-    template<typename T>
-    bool Stats<T>::hasSum() const noexcept { return m_has_value & 1 << 2; }
-
-    template<typename T>
-    bool Stats<T>::hasMean() const noexcept { return m_has_value & 1 << 3; }
-
-    template<typename T>
-    bool Stats<T>::hasVar() const noexcept { return m_has_value & 1 << 4; }
-
-    template<typename T>
-    bool Stats<T>::hasStd() const noexcept { return m_has_value & 1 << 5; }
 }

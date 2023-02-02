@@ -12,39 +12,39 @@ namespace noa::io::details {
 
     public:
         virtual void reset() = 0;
-        virtual void open(const path_t&, open_mode_t) = 0;
+        virtual void open(const Path&, open_mode_t) = 0;
         virtual void close() = 0;
 
     public: // Getters
-        [[nodiscard]] virtual bool isOpen() const noexcept = 0;
-        [[nodiscard]] virtual const path_t& filename() const noexcept = 0;
-        [[nodiscard]] virtual std::string infoString(bool) const noexcept = 0;
-        [[nodiscard]] virtual Format format() const noexcept { return Format::FORMAT_UNKNOWN; }
+        [[nodiscard]] virtual bool is_open() const noexcept = 0;
+        [[nodiscard]] virtual const Path& filename() const noexcept = 0;
+        [[nodiscard]] virtual std::string info_string(bool) const noexcept = 0;
+        [[nodiscard]] virtual Format format() const noexcept { return Format::UNKNOWN; }
 
     public: // Getters and setters
-        [[nodiscard]] virtual size4_t shape() const noexcept = 0;
-        virtual void shape(size4_t) = 0;
+        [[nodiscard]] virtual Shape4<i64> shape() const noexcept = 0;
+        virtual void set_shape(const Shape4<i64>&) = 0;
 
-        [[nodiscard]] virtual stats_t stats() const noexcept = 0;
-        virtual void stats(stats_t) = 0;
+        [[nodiscard]] virtual Stats<f32> stats() const noexcept = 0;
+        virtual void set_stats(Stats<f32>) = 0;
 
-        [[nodiscard]] virtual float3_t pixelSize() const noexcept = 0;
-        virtual void pixelSize(float3_t) = 0;
+        [[nodiscard]] virtual Vec3<f32> pixel_size() const noexcept = 0;
+        virtual void set_pixel_size(Vec3<f32>) = 0;
 
         [[nodiscard]] virtual DataType dtype() const noexcept = 0;
-        virtual void dtype(DataType) = 0;
+        virtual void set_dtype(DataType) = 0;
 
     public:
-        virtual void read(void* output, DataType data_type, size_t start, size_t end, bool clamp) = 0;
-        virtual void readSlice(void* output, size4_t strides, size4_t shape, DataType data_type, size_t start, bool clamp) = 0;
-        virtual void readSlice(void* output, DataType data_type, size_t start, size_t end, bool clamp) = 0;
-        virtual void readAll(void* output, size4_t strides, size4_t shape, DataType data_type, bool clamp) = 0;
-        virtual void readAll(void* output, DataType data_type, bool clamp) = 0;
+        virtual void read_elements(void* output, DataType data_type, i64 start, i64 end, bool clamp) = 0;
+        virtual void read_slice(void* output, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, i64 start, bool clamp) = 0;
+        virtual void read_slice(void* output, DataType data_type, i64 start, i64 end, bool clamp) = 0;
+        virtual void read_all(void* output, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, bool clamp) = 0;
+        virtual void read_all(void* output, DataType data_type, bool clamp) = 0;
 
-        virtual void write(const void* input, DataType data_type, size_t start, size_t end, bool clamp) = 0;
-        virtual void writeSlice(const void* input, size4_t strides, size4_t shape, DataType data_type, size_t start, bool clamp) = 0;
-        virtual void writeSlice(const void* input, DataType data_type, size_t start, size_t end, bool clamp) = 0;
-        virtual void writeAll(const void* input, size4_t strides, size4_t shape, DataType data_type, bool clamp) = 0;
-        virtual void writeAll(const void* input, DataType data_type, bool clamp) = 0;
+        virtual void write_elements(const void* input, DataType data_type, i64 start, i64 end, bool clamp) = 0;
+        virtual void write_slice(const void* input, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, i64 start, bool clamp) = 0;
+        virtual void write_slice(const void* input, DataType data_type, i64 start, i64 end, bool clamp) = 0;
+        virtual void write_all(const void* input, const Strides4<i64>& strides, const Shape4<i64>& shape, DataType data_type, bool clamp) = 0;
+        virtual void write_all(const void* input, DataType data_type, bool clamp) = 0;
     };
 }

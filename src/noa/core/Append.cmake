@@ -58,13 +58,22 @@ set(NOA_COMMON_HEADERS
         core/geometry/Interpolator.hpp
         core/geometry/InterpolatorValue.hpp
         core/geometry/Polar.hpp
+        core/geometry/Shape.hpp
         core/geometry/Symmetry.hpp
         core/geometry/Transform.hpp
+        core/geometry/Windows.hpp
 
-        #        core/memory/details/ExtractInsert.hpp
+        core/io/BinaryFile.hpp
+        core/io/ImageFile.hpp
+        core/io/IO.hpp
+        core/io/IO.inl
+        core/io/MRCFile.hpp
+        core/io/Stats.hpp
+        core/io/TextFile.hpp
+        core/io/TIFFFile.hpp
 
-
-        #        core/geometry/details/FourierProjections.hpp
+#        core/memory/details/ExtractInsert.hpp
+#        core/geometry/details/FourierProjections.hpp
 #        core/geometry/details/LinearTransform2D.hpp
 #        core/geometry/details/LinearTransform2DFourier.hpp
 #        core/geometry/details/LinearTransform3D.hpp
@@ -72,25 +81,10 @@ set(NOA_COMMON_HEADERS
 #        core/geometry/details/PolarTransform.hpp
 #        core/geometry/details/PolarTransformFourier.hpp
 #        core/geometry/details/Utilities.hpp
-#
-#
-#        core/io/BinaryFile.hpp
-#        core/io/ImageFile.hpp
-#        core/io/IO.hpp
-#        core/io/IO.inl
-#        core/io/MRCFile.hpp
-#        core/io/Stats.hpp
-#        core/io/TextFile.hpp
-#        core/io/TextFile.inl
-#        core/io/TIFFFile.hpp
-#
+
 #        core/signal/details/Shape.hpp
 #        core/signal/details/FourierCorrelationPeak.hpp
 #        core/signal/details/FSC.hpp
-#        core/signal/Shape.hpp
-#        core/signal/Windows.hpp
-
-
 
         )
 
@@ -102,10 +96,10 @@ set(NOA_COMMON_SOURCES
         core/geometry/Euler.cpp
         core/geometry/Symmetry.cpp
 
-#        core/io/IO.cpp
-#        core/io/BinaryFile.cpp
-#        core/io/MRCFile.cpp
-#        core/io/TIFFFile.cpp
+        core/io/IO.cpp
+        core/io/BinaryFile.cpp
+        core/io/MRCFile.cpp
+        core/io/TIFFFile.cpp
 
         core/types/Constants.cpp
         )

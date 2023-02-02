@@ -595,7 +595,7 @@ namespace noa::indexing {
     ///       shape/strides should be compatible, otherwise an error will be thrown. This is mostly to represent
     ///       any data type as a array of bytes, or to switch between complex and real floating-point numbers with
     ///       the same precision.
-    template<typename Old, typename Index = size_t>
+    template<typename Old, typename Index>
     struct Reinterpret {
     public:
         static_assert(std::is_integral_v<Index>);
@@ -611,9 +611,8 @@ namespace noa::indexing {
         old_type* ptr{};
 
     public:
-        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        constexpr Reinterpret(const Shape4<Int>& a_shape,
-                              const Strides4<Int>& a_strides,
+        constexpr Reinterpret(const Shape4<index_type>& a_shape,
+                              const Strides4<index_type>& a_strides,
                               old_type* a_ptr) noexcept
                 : shape(a_shape),
                 strides(a_strides),
@@ -621,8 +620,8 @@ namespace noa::indexing {
 
     public:
         template<typename New>
-        Reinterpret<New> as() const {
-            Reinterpret<New> out(shape, strides, reinterpret_cast<New*>(ptr));
+        auto as() const {
+            Reinterpret<New, index_type> out(shape, strides, reinterpret_cast<New*>(ptr));
             if constexpr (traits::is_almost_same_v<old_type, New>)
                 return out;
 

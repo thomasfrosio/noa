@@ -5,11 +5,11 @@ namespace noa::io {
     void BinaryFile::open_(open_mode_t open_mode) {
         close();
 
-        NOA_CHECK(isValidOpenMode(open_mode), "File: {}. Invalid open mode", m_path);
-        bool overwrite = open_mode & io::TRUNC || !(open_mode & (io::READ | io::APP));
+        NOA_CHECK(is_valid_open_mode(open_mode), "File: {}. Invalid open mode", m_path);
+        const bool overwrite = open_mode & io::TRUNC || !(open_mode & (io::READ | io::APP));
         bool exists;
         try {
-            exists = os::existsFile(m_path);
+            exists = os::is_file(m_path);
             if (open_mode & io::WRITE) {
                 if (exists)
                     os::backup(m_path, overwrite);
@@ -22,7 +22,7 @@ namespace noa::io {
         }
 
         open_mode |= io::BINARY;
-        for (int it = 0; it < 5; ++it) {
+        for (i32 it = 0; it < 5; ++it) {
             m_fstream.open(m_path, io::toIOSBase(open_mode));
             if (m_fstream.is_open())
                 return;

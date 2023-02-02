@@ -19,42 +19,42 @@ ofstream_.close(); }
 
 TEST_CASE("core::os:: basics", "[noa][core]") {
     // Get some data
-    fs::path cwd = std::filesystem::current_path();
-    fs::path test_dir = cwd / "testOS";
+    const fs::path cwd = std::filesystem::current_path();
+    const fs::path test_dir = cwd / "testOS";
     std::filesystem::remove_all(test_dir);
     std::filesystem::create_directory(test_dir);
 
     // One empty file:
-    fs::path file1 = test_dir / "file1.txt";
+    const fs::path file1 = test_dir / "file1.txt";
     std::string file1_content{};
     CREATE_FILE(file1, file1_content);
 
     // An another file...
-    fs::path file2 = test_dir / "file2.txt";
+    const fs::path file2 = test_dir / "file2.txt";
     std::string file2_content = "Hello, this is just to create a file with a size of 60 bytes";
     CREATE_FILE(file2, file2_content);
 
     // And an another file...
-    fs::path file3 = test_dir / "file3.txt";
+    const fs::path file3 = test_dir / "file3.txt";
     std::string file3_content = "Hello world";
     CREATE_FILE(file3, file3_content);
 
     // And a symlink...
-    fs::path symlink1 = test_dir / "symlink1.txt";
+    const fs::path symlink1 = test_dir / "symlink1.txt";
     std::filesystem::create_symlink(file3, symlink1);
 
-    fs::path symlink2 = test_dir / "file3_symlink.txt";
+    const fs::path symlink2 = test_dir / "file3_symlink.txt";
     std::filesystem::create_symlink("i_do_not_exist.txt", symlink2);
 
     // Subdirectories
-    fs::path test_dir_subdir1 = test_dir / "subdir1";
-    fs::path test_dir_subdir2 = test_dir / "subdir2";
+    const fs::path test_dir_subdir1 = test_dir / "subdir1";
+    const fs::path test_dir_subdir2 = test_dir / "subdir2";
     std::filesystem::create_directory(test_dir_subdir1);
     std::filesystem::create_directory(test_dir_subdir2);
 
-    fs::path subdir2_file1 = test_dir_subdir2 / "file11.txt";
-    fs::path subdir2_file2 = test_dir_subdir2 / "file12.txt";
-    fs::path subdir2_symlink1 = test_dir_subdir2 / "symlink12.txt";
+    const fs::path subdir2_file1 = test_dir_subdir2 / "file11.txt";
+    const fs::path subdir2_file2 = test_dir_subdir2 / "file12.txt";
+    const fs::path subdir2_symlink1 = test_dir_subdir2 / "symlink12.txt";
     CREATE_EMPTY_FILE(subdir2_file1);
     CREATE_EMPTY_FILE(subdir2_file2);
     fs::create_symlink(subdir2_file2, subdir2_symlink1);
@@ -80,10 +80,10 @@ TEST_CASE("core::os:: basics", "[noa][core]") {
     }
 
     AND_THEN("size") {
-        REQUIRE(os::file_size(file1) == file1_content.size());
-        REQUIRE(os::file_size(file2) == file2_content.size());
-        REQUIRE(os::file_size(file3) == file3_content.size());
-        REQUIRE(os::file_size(symlink1) == file3_content.size());
+        REQUIRE(os::file_size(file1) == static_cast<i64>(file1_content.size()));
+        REQUIRE(os::file_size(file2) == static_cast<i64>(file2_content.size()));
+        REQUIRE(os::file_size(file3) == static_cast<i64>(file3_content.size()));
+        REQUIRE(os::file_size(symlink1) == static_cast<i64>(file3_content.size()));
         REQUIRE_THROWS_AS(os::file_size(test_dir / "foo.txt"), noa::Exception);
     }
 
@@ -115,7 +115,7 @@ TEST_CASE("core::os:: basics", "[noa][core]") {
             REQUIRE(os::is_file(file1));
             os::move(file1, file2);
             REQUIRE_FALSE(os::is_file(file1));
-            fs::path new_file = test_dir / "new_file.txt";
+            const fs::path new_file = test_dir / "new_file.txt";
             REQUIRE_FALSE(os::is_file(new_file));
             os::move(file2, new_file);
             REQUIRE(os::is_file(new_file));
@@ -138,7 +138,7 @@ TEST_CASE("core::os:: basics", "[noa][core]") {
             REQUIRE(os::is_file(file3));  // symlinks are not followed
             REQUIRE(fs::is_symlink(symlink2));
 
-            fs::path new_file = test_dir / "new_symlink.txt";
+            const fs::path new_file = test_dir / "new_symlink.txt";
             REQUIRE_FALSE(os::is_file_or_directory(new_file));
             os::move(symlink2, new_file);
             REQUIRE(os::is_file_or_directory(new_file));
@@ -146,7 +146,7 @@ TEST_CASE("core::os:: basics", "[noa][core]") {
         }
 
         AND_THEN("directories") {
-            fs::path new_dir = test_dir / "new_subdir";
+            const fs::path new_dir = test_dir / "new_subdir";
             REQUIRE(os::is_file_or_directory(test_dir_subdir1));
             os::move(test_dir_subdir1, new_dir);
             REQUIRE(os::is_file_or_directory(new_dir));
@@ -206,19 +206,19 @@ TEST_CASE("core::os:: basics", "[noa][core]") {
         os::backup(file3, false);
         REQUIRE(os::is_file(file3));
         REQUIRE(os::is_file(file3.string() + '~'));
-        REQUIRE(os::file_size(file3.string() + '~') == file3_content.size());
+        REQUIRE(os::file_size(file3.string() + '~') == static_cast<i64>(file3_content.size()));
 
         REQUIRE(os::copy_file(file2, file3));
         os::backup(file3, false);
         REQUIRE(os::is_file(file3));
         REQUIRE(os::is_file(file3.string() + '~'));
-        REQUIRE(os::file_size(file3.string() + '~') == file2_content.size());
+        REQUIRE(os::file_size(file3.string() + '~') == static_cast<i64>(file2_content.size()));
 
         REQUIRE(os::copy_file(file1, file3));
         os::backup(file3, true);
         REQUIRE_FALSE(os::is_file(file3));
         REQUIRE(os::is_file(file3.string() + '~'));
-        REQUIRE(os::file_size(file3.string() + '~') == file1_content.size());
+        REQUIRE(os::file_size(file3.string() + '~') == static_cast<i64>(file1_content.size()));
     }
 
     AND_THEN("mkdir") {

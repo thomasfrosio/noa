@@ -1,8 +1,3 @@
-/// \file noa/core/files/BinaryFile.h
-/// \brief BinaryFile class.
-/// \author Thomas - ffyr2w
-/// \date 18 Aug 2020
-
 #pragma once
 
 #include <type_traits>
@@ -22,26 +17,21 @@ namespace noa::io {
     ///     - the filename and path can be generated automatically.
     ///     - the file can be automatically deleted after closing.
     class BinaryFile {
-    private:
-        std::fstream m_fstream{};
-        path_t m_path{};
-        bool m_delete{false};
-
     public:
         /// Creates an empty instance. Use open() to open a file.
         BinaryFile() = default;
 
         /// Stores the path. Use open() to open the file.
-        explicit BinaryFile(path_t path) : m_path(std::move(path)) {}
+        explicit BinaryFile(Path path) : m_path(std::move(path)) {}
 
         /// Generates a temporary filename and opens the file.
         explicit BinaryFile(open_mode_t open_mode, bool close_delete = false)
-                : m_path(generateFilename_()), m_delete(close_delete) {
+                : m_path(generate_filename_()), m_delete(close_delete) {
             open_(open_mode);
         }
 
         /// Stores the path and opens the file. \see open() for more details.
-        BinaryFile(path_t path, open_mode_t open_mode, bool close_delete = false)
+        BinaryFile(Path path, open_mode_t open_mode, bool close_delete = false)
                 : m_path(std::move(path)), m_delete(close_delete) {
             open_(open_mode);
         }
@@ -53,7 +43,7 @@ namespace noa::io {
         ///                     \c READ|WRITE:          File should exists.     Backup copy.
         ///                     \c WRITE, WRITE|TRUNC:  Overwrite the file.     Backup move.
         ///                     \c READ|WRITE|TRUNC:    Overwrite the file.     Backup move.
-        /// \param close_delete Whether or not the file should be deleted after closing.
+        /// \param close_delete Whether the file should be deleted after closing.
         ///
         /// \throws Exception   If any of the following cases:
         ///         - If the file does not exist and \p open_mode is \c io::READ or \c io::READ|io::WRITE.
@@ -62,7 +52,7 @@ namespace noa::io {
         ///         - If an underlying OS error was raised.
         ///
         /// \note   Internally, the \c io::BINARY flag is always considered on.
-        void open(path_t path, open_mode_t open_mode, bool close_delete = false) {
+        void open(Path path, open_mode_t open_mode, bool close_delete = false) {
             m_path = std::move(path);
             m_delete = close_delete;
             open_(open_mode);
@@ -73,28 +63,28 @@ namespace noa::io {
         ///       In this case, \p open_mode should have the io::WRITE flag turned on.
         void open(open_mode_t open_mode, bool close_delete = false) {
             if (m_path.empty())
-                m_path = generateFilename_();
+                m_path = generate_filename_();
             m_delete = close_delete;
             open_(open_mode);
         }
 
         template<typename T>
-        void read(T* output, size_t offset, size_t elements) {
-            m_fstream.seekg(static_cast<std::streamoff>(offset));
+        void read(T* output, i64 offset, i64 elements) {
+            m_fstream.seekg(offset);
             if (m_fstream.fail())
                 NOA_THROW("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
-            auto bytes = static_cast<std::streamsize>(elements * sizeof(T));
+            const i64 bytes = elements * sizeof(T);
             m_fstream.read(reinterpret_cast<char*>(output), bytes);
             if (m_fstream.fail())
                 NOA_THROW("File stream error. Failed while reading {} bytes from {}", bytes, m_path);
         }
 
         template<typename T>
-        void write(T* output, size_t offset, size_t elements) {
-            m_fstream.seekp(static_cast<std::streamoff>(offset));
+        void write(T* output, i64 offset, i64 elements) {
+            m_fstream.seekp(offset);
             if (m_fstream.fail())
                 NOA_THROW("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
-            auto bytes = static_cast<std::streamsize>(elements * sizeof(T));
+            const i64 bytes = elements * sizeof(T);
             m_fstream.write(reinterpret_cast<char*>(output), bytes);
             if (m_fstream.fail())
                 NOA_THROW("File stream error. Failed while writing {} bytes from {}", bytes, m_path);
@@ -109,16 +99,16 @@ namespace noa::io {
         }
 
         void flush() { m_fstream.flush(); }
-        bool exists() { return os::existsFile(m_path); }
-        size_t size() { return os::size(m_path); }
-        void clear() { m_fstream.clear(); }
+        bool exists() { return os::is_file(m_path); }
+        i64 size() { return os::file_size(m_path); }
+        void clear_flags() { m_fstream.clear(); }
 
         [[nodiscard]] std::fstream& fstream() noexcept { return m_fstream; }
         [[nodiscard]] const fs::path& path() const noexcept { return m_path; }
         [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
         [[nodiscard]] bool eof() const noexcept { return m_fstream.eof(); }
         [[nodiscard]] bool fail() const noexcept { return m_fstream.fail(); }
-        [[nodiscard]] bool isOpen() const noexcept { return m_fstream.is_open(); }
+        [[nodiscard]] bool is_open() const noexcept { return m_fstream.is_open(); }
         [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
         ~BinaryFile() noexcept(false) {
@@ -133,17 +123,22 @@ namespace noa::io {
 
     private:
         // Generate an unused filename.
-        static path_t generateFilename_() {
-            path_t out(os::tempDirectory() / "");
+        static Path generate_filename_() {
+            Path out(os::temp_directory() / "");
             while (true) {
-                int tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits
+                const int tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits
                 out.replace_filename(string::format("tmp_{}.bin", tag));
-                if (!os::existsFile(out))
+                if (!os::is_file(out))
                     break;
             }
             return out;
         }
 
         void open_(open_mode_t open_mode);
+
+    private:
+        std::fstream m_fstream{};
+        Path m_path{};
+        bool m_delete{false};
     };
 }

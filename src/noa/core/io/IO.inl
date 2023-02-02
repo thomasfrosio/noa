@@ -1,22 +1,21 @@
 #ifndef NOA_IO_INL_
-#error "This file should not be included by anything other than IO.hpp"
+#error "This is a private header"
 #endif
 
 #include <algorithm> // std::reverse
 #include <ostream>
 
-#include "noa/core/traits/BaseTypes.h"
 #include "noa/core/Types.hpp"
 
 namespace noa::io::details {
-    template<size_t BYTES_IN_ELEMENTS>
-    inline void reverse(byte_t* element) noexcept {
+    template<i64 BYTES_IN_ELEMENTS>
+    inline void reverse(Byte* element) noexcept {
         std::reverse(element, element + BYTES_IN_ELEMENTS);
     }
 
-    template<size_t BYTES_PER_ELEMENTS>
-    inline void swapEndian(byte_t* ptr, size_t elements) noexcept {
-        for (size_t i{0}; i < elements * BYTES_PER_ELEMENTS; i += BYTES_PER_ELEMENTS)
+    template<i64 BYTES_PER_ELEMENTS>
+    inline void swap_endian(Byte* ptr, i64 elements) noexcept {
+        for (i64 i{0}; i < elements * BYTES_PER_ELEMENTS; i += BYTES_PER_ELEMENTS)
             reverse<BYTES_PER_ELEMENTS>(ptr + i);
     }
 }
@@ -24,26 +23,26 @@ namespace noa::io::details {
 namespace noa::io {
     std::ostream& operator<<(std::ostream& os, Format format) {
         switch (format) {
-            case Format::FORMAT_UNKNOWN:
-                return os << "FORMAT_UNKNOWN";
+            case Format::UNKNOWN:
+                return os << "Format::UNKNOWN";
             case Format::MRC:
-                return os << "MRC";
+                return os << "Format::MRC";
             case Format::TIFF:
-                return os << "TIFF";
+                return os << "Format::TIFF";
             case Format::EER:
-                return os << "EER";
+                return os << "Format::EER";
             case Format::JPEG:
-                return os << "JPEG";
+                return os << "Format::JPEG";
             case Format::PNG:
-                return os << "PNG";
+                return os << "Format::PNG";
         }
         return os;
     }
 
     std::ostream& operator<<(std::ostream& os, OpenModeStream open_mode) {
         // If any other than the first 6 bits are set, this is an invalid mode.
-        if (!isValidOpenMode(open_mode.mode)) {
-            os << "MODE_UNKNOWN";
+        if (!is_valid_open_mode(open_mode.mode)) {
+            os << "OpenMode::UNKNOWN";
             return os;
         }
 
@@ -58,6 +57,7 @@ namespace noa::io {
         };
 
         bool add{false};
+        os << "OpenMode::(";
         for (size_t i = 0; i < 6; ++i) {
             if (open_mode.mode & MODES[i].mode) {
                 if (add)
@@ -66,10 +66,11 @@ namespace noa::io {
                 add = true;
             }
         }
+        os << ')';
         return os;
     }
 
-    constexpr bool isValidOpenMode(open_mode_t open_mode) noexcept {
+    constexpr bool is_valid_open_mode(open_mode_t open_mode) noexcept {
         constexpr open_mode_t MASK = 0xFFFFFFC0;
         return !(open_mode & MASK);
     }
@@ -91,200 +92,201 @@ namespace noa::io {
         return mode;
     }
 
-    template<typename T>
+    template<typename ToSerialize>
     constexpr DataType dtype() noexcept {
-        if constexpr (traits::is_almost_same_v<T, int8_t> ||
-                      (traits::is_almost_same_v<T, char> && traits::is_sint_v<char>)) {
-            return DataType::INT8;
-        } else if constexpr (traits::is_almost_same_v<T, uint8_t> ||
-                             (traits::is_almost_same_v<T, char> && traits::is_uint_v<char>)) {
-            return DataType::UINT8;
-        } else if constexpr (traits::is_almost_same_v<T, int16_t>) {
-            return DataType::INT16;
-        } else if constexpr (traits::is_almost_same_v<T, uint16_t>) {
-            return DataType::UINT16;
-        } else if constexpr ((traits::is_almost_same_v<T, long> && sizeof(long) == 4) ||
-                             traits::is_almost_same_v<T, int32_t>) {
-            return DataType::INT32;
-        } else if constexpr ((traits::is_almost_same_v<T, long> && sizeof(unsigned long) == 4) ||
-                             traits::is_almost_same_v<T, uint32_t>) {
-            return DataType::UINT32;
-        } else if constexpr ((traits::is_almost_same_v<T, long> && sizeof(long) == 8) ||
-                             traits::is_almost_same_v<T, long long>) {
-            return DataType::INT64;
-        } else if constexpr ((traits::is_almost_same_v<T, unsigned long> && sizeof(unsigned long) == 8) ||
-                             traits::is_almost_same_v<T, unsigned long long>) {
-            return DataType::UINT64;
-        } else if constexpr (traits::is_almost_same_v<T, half_t>) {
-            return DataType::FLOAT16;
-        } else if constexpr (traits::is_almost_same_v<T, float>) {
-            return DataType::FLOAT32;
-        } else if constexpr (traits::is_almost_same_v<T, double>) {
-            return DataType::FLOAT64;
-        } else if constexpr (traits::is_almost_same_v<T, chalf_t>) {
-            return DataType::CFLOAT16;
-        } else if constexpr (traits::is_almost_same_v<T, cfloat_t>) {
-            return DataType::CFLOAT32;
-        } else if constexpr (traits::is_almost_same_v<T, cdouble_t>) {
-            return DataType::CFLOAT64;
+        if constexpr (noa::traits::is_almost_same_v<ToSerialize, i8>) {
+            return DataType::I8;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u8>) {
+            return DataType::U8;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, i16>) {
+            return DataType::I16;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u16>) {
+            return DataType::U16;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, i32>) {
+            return DataType::I32;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u32>) {
+            return DataType::U32;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, i64>) {
+            return DataType::I64;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u64>) {
+            return DataType::U64;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, f16>) {
+            return DataType::F16;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, f32>) {
+            return DataType::F32;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, f64>) {
+            return DataType::F64;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, c16>) {
+            return DataType::C16;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, c32>) {
+            return DataType::C32;
+        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, c64>) {
+            return DataType::C64;
         } else {
-            static_assert(traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<ToSerialize>);
         }
     }
 
-    template<typename T>
-    constexpr std::pair<T, T> typeMinMax(DataType data_type) noexcept {
-        if constexpr (traits::is_scalar_v<T>) {
+    template<typename Numeric>
+    constexpr auto type_range(DataType data_type) noexcept -> std::pair<Numeric, Numeric> {
+        if constexpr (noa::traits::is_scalar_v<Numeric>) {
             switch (data_type) {
-                case DataType::UINT4:
-                    return {T{0}, T{15}};
-                case DataType::INT8:
-                    return {clamp_cast<T>(math::Limits<int8_t>::min()),
-                            clamp_cast<T>(math::Limits<int8_t>::max())};
-                case DataType::UINT8:
-                    return {clamp_cast<T>(math::Limits<uint8_t>::min()),
-                            clamp_cast<T>(math::Limits<uint8_t>::max())};
-                case DataType::INT16:
-                    return {clamp_cast<T>(math::Limits<int16_t>::min()),
-                            clamp_cast<T>(math::Limits<int16_t>::max())};
-                case DataType::UINT16:
-                    return {clamp_cast<T>(math::Limits<uint16_t>::min()),
-                            clamp_cast<T>(math::Limits<uint16_t>::max())};
-                case DataType::INT32:
-                    return {clamp_cast<T>(math::Limits<int32_t>::min()),
-                            clamp_cast<T>(math::Limits<int32_t>::max())};
-                case DataType::UINT32:
-                    return {clamp_cast<T>(math::Limits<uint32_t>::min()),
-                            clamp_cast<T>(math::Limits<uint32_t>::max())};
-                case DataType::INT64:
-                    return {clamp_cast<T>(math::Limits<int64_t>::min()),
-                            clamp_cast<T>(math::Limits<int64_t>::max())};
-                case DataType::UINT64:
-                    return {clamp_cast<T>(math::Limits<uint64_t>::min()),
-                            clamp_cast<T>(math::Limits<uint64_t>::max())};
-                case DataType::CINT16:
-                    return {clamp_cast<T>(math::Limits<int16_t>::min()),
-                            clamp_cast<T>(math::Limits<int16_t>::max())};
-                case DataType::FLOAT16:
-                case DataType::CFLOAT16:
-                    return {clamp_cast<T>(math::Limits<half_t>::lowest()),
-                            clamp_cast<T>(math::Limits<half_t>::max())};
-                case DataType::FLOAT32:
-                case DataType::CFLOAT32:
-                    return {clamp_cast<T>(math::Limits<float>::lowest()),
-                            clamp_cast<T>(math::Limits<float>::max())};
-                case DataType::FLOAT64:
-                case DataType::CFLOAT64:
-                    return {clamp_cast<T>(math::Limits<double>::lowest()),
-                            clamp_cast<T>(math::Limits<double>::max())};
+                case DataType::U4:
+                    return {Numeric{0}, Numeric{15}};
+                case DataType::I8:
+                    return {clamp_cast<Numeric>(noa::math::Limits<i8>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<i8>::max())};
+                case DataType::U8:
+                    return {clamp_cast<Numeric>(noa::math::Limits<u8>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<u8>::max())};
+                case DataType::I16:
+                    return {clamp_cast<Numeric>(noa::math::Limits<i16>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<i16>::max())};
+                case DataType::U16:
+                    return {clamp_cast<Numeric>(noa::math::Limits<u16>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<u16>::max())};
+                case DataType::I32:
+                    return {clamp_cast<Numeric>(noa::math::Limits<i32>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<i32>::max())};
+                case DataType::U32:
+                    return {clamp_cast<Numeric>(noa::math::Limits<u32>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<u32>::max())};
+                case DataType::I64:
+                    return {clamp_cast<Numeric>(noa::math::Limits<i64>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<i64>::max())};
+                case DataType::U64:
+                    return {clamp_cast<Numeric>(noa::math::Limits<u64>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<u64>::max())};
+                case DataType::CI16:
+                    return {clamp_cast<Numeric>(noa::math::Limits<i16>::min()),
+                            clamp_cast<Numeric>(noa::math::Limits<i16>::max())};
+                case DataType::F16:
+                case DataType::C16:
+                    return {clamp_cast<Numeric>(noa::math::Limits<f16>::lowest()),
+                            clamp_cast<Numeric>(noa::math::Limits<f16>::max())};
+                case DataType::F32:
+                case DataType::C32:
+                    return {clamp_cast<Numeric>(noa::math::Limits<f32>::lowest()),
+                            clamp_cast<Numeric>(noa::math::Limits<f32>::max())};
+                case DataType::F64:
+                case DataType::C64:
+                    return {clamp_cast<Numeric>(noa::math::Limits<f64>::lowest()),
+                            clamp_cast<Numeric>(noa::math::Limits<f64>::max())};
                 default:
                     break;
             }
-        } else if constexpr (traits::is_complex_v<T>) {
-            using real_t = traits::value_type_t<T>;
-            auto[min, max] = typeMinMax<real_t>(data_type);
-            return {T{min, min}, T{max, max}};
+        } else if constexpr (noa::traits::is_complex_v<Numeric>) {
+            using real_t = noa::traits::value_type_t<Numeric>;
+            auto[min, max] = type_range<real_t>(data_type);
+            return {Numeric{min, min}, Numeric{max, max}};
         } else {
-            static_assert(traits::always_false_v<T>);
+            static_assert(noa::traits::always_false_v<Numeric>);
         }
         return {}; // unreachable
     }
 
-    bool isBigEndian() noexcept {
-        int16_t number = 1;
+    bool is_big_endian() noexcept {
+        i16 number = 1;
         return *reinterpret_cast<unsigned char*>(&number) == 0; // char[0] == 0
     }
 
     std::ostream& operator<<(std::ostream& os, DataType data_type) {
         switch (data_type) {
-            case DataType::DTYPE_UNKNOWN:
-                return os << "UNKNOWN";
-            case DataType::UINT4:
-                return os << "UINT4";
-            case DataType::INT8:
-                return os << "INT8";
-            case DataType::UINT8:
-                return os << "UINT8";
-            case DataType::INT16:
-                return os << "INT16";
-            case DataType::UINT16:
-                return os << "UINT16";
-            case DataType::INT32:
-                return os << "INT32";
-            case DataType::UINT32:
-                return os << "UINT32";
-            case DataType::INT64:
-                return os << "INT64";
-            case DataType::UINT64:
-                return os << "UINT64";
-            case DataType::FLOAT16:
-                return os << "FLOAT16";
-            case DataType::FLOAT32:
-                return os << "FLOAT32";
-            case DataType::FLOAT64:
-                return os << "FLOAT64";
-            case DataType::CINT16:
-                return os << "CINT16";
-            case DataType::CFLOAT16:
-                return os << "CFLOAT16";
-            case DataType::CFLOAT32:
-                return os << "CFLOAT32";
-            case DataType::CFLOAT64:
-                return os << "CFLOAT64";
+            case DataType::UNKNOWN:
+                return os << "DataType::UNKNOWN";
+            case DataType::U4:
+                return os << "DataType::U4";
+            case DataType::I8:
+                return os << "DataType::I8";
+            case DataType::U8:
+                return os << "DataType::U8";
+            case DataType::I16:
+                return os << "DataType::I16";
+            case DataType::U16:
+                return os << "DataType::U16";
+            case DataType::I32:
+                return os << "DataType::I32";
+            case DataType::U32:
+                return os << "DataType::U32";
+            case DataType::I64:
+                return os << "DataType::I64";
+            case DataType::U64:
+                return os << "DataType::U64";
+            case DataType::F16:
+                return os << "DataType::F16";
+            case DataType::F32:
+                return os << "DataType::F32";
+            case DataType::F64:
+                return os << "DataType::F64";
+            case DataType::CI16:
+                return os << "DataType::CI16";
+            case DataType::C16:
+                return os << "DataType::C16";
+            case DataType::C32:
+                return os << "DataType::C32";
+            case DataType::C64:
+                return os << "DataType::C64";
         }
         return os;
     }
 
-    void swapEndian(byte_t* ptr, size_t elements, size_t bytes_per_elements) noexcept {
+    void swap_endian(Byte* ptr, i64 elements, i64 bytes_per_elements) noexcept {
         if (bytes_per_elements == 2) {
-            details::swapEndian<2>(ptr, elements);
+            details::swap_endian<2>(ptr, elements);
         } else if (bytes_per_elements == 4) {
-            details::swapEndian<4>(ptr, elements);
+            details::swap_endian<4>(ptr, elements);
         } else if (bytes_per_elements == 8) {
-            details::swapEndian<8>(ptr, elements);
+            details::swap_endian<8>(ptr, elements);
         }
     }
 
     template<typename T>
-    void swapEndian(T* ptr, size_t elements) noexcept {
-        swapEndian(reinterpret_cast<byte_t*>(ptr), elements, sizeof(T));
+    void swap_endian(T* ptr, i64 elements) noexcept {
+        swap_endian(reinterpret_cast<Byte*>(ptr), elements, sizeof(T));
     }
 
-    size_t serializedSize(DataType data_type, size_t elements, size_t elements_per_row) noexcept {
+    i64 serialized_size(DataType data_type, i64 elements, i64 elements_per_row) noexcept {
         switch (data_type) {
-            case DataType::UINT4: {
+            case DataType::U4: {
                 if (elements_per_row == 0 || !(elements_per_row % 2)) {
                     return elements / 2;
                 } else {
                     NOA_ASSERT(!(elements % elements_per_row)); // otherwise, last partial row is ignored
-                    size_t rows = elements / elements_per_row;
-                    size_t bytes_per_row = (elements_per_row + 1) / 2;
+                    const auto rows = elements / elements_per_row;
+                    const auto bytes_per_row = (elements_per_row + 1) / 2;
                     return bytes_per_row * rows;
                 }
             }
-            case DataType::INT8:
-            case DataType::UINT8:
+            case DataType::I8:
+            case DataType::U8:
                 return elements;
-            case DataType::INT16:
-            case DataType::UINT16:
-            case DataType::FLOAT16:
+            case DataType::I16:
+            case DataType::U16:
+            case DataType::F16:
                 return elements * 2;
-            case DataType::INT32:
-            case DataType::UINT32:
-            case DataType::FLOAT32:
-            case DataType::CINT16:
-            case DataType::CFLOAT16:
+            case DataType::I32:
+            case DataType::U32:
+            case DataType::F32:
+            case DataType::CI16:
+            case DataType::C16:
                 return elements * 4;
-            case DataType::INT64:
-            case DataType::UINT64:
-            case DataType::FLOAT64:
-            case DataType::CFLOAT32:
+            case DataType::I64:
+            case DataType::U64:
+            case DataType::F64:
+            case DataType::C32:
                 return elements * 8;
-            case DataType::CFLOAT64:
+            case DataType::C64:
                 return elements * 16;
-            case DataType::DTYPE_UNKNOWN:
+            case DataType::UNKNOWN:
                 return 0;
         }
         return 0;
     }
+}
+
+// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator (operator<<))
+namespace fmt {
+    template<> struct formatter<noa::io::Format> : ostream_formatter {};
+    template<> struct formatter<noa::io::OpenModeStream> : ostream_formatter {};
+    template<> struct formatter<noa::io::DataType> : ostream_formatter {};
 }

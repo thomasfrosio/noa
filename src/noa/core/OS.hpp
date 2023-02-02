@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "noa/core/Exception.hpp"
+#include "noa/core/utils/ClampCast.hpp"
 
 /// Gathers a bunch of OS/filesystem related functions.
 /// All functions throws upon failure.
@@ -63,9 +64,9 @@ namespace noa::os {
     /// Gets the size, in bytes, of a regular file. Symlinks are followed.
     /// \note The result of attempting to determine the size of a directory (as well as any other
     ///       file that is not a regular file or a symlink) is implementation-defined.
-    inline size_t file_size(const fs::path& path) {
+    inline int64_t file_size(const fs::path& path) {
         try {
-            return fs::file_size(path);
+            return clamp_cast<int64_t>(fs::file_size(path));
         } catch (const fs::filesystem_error& e) {
             NOA_THROW(e.what());
         } catch (const std::exception& e) {
@@ -213,7 +214,7 @@ namespace noa::os {
     ///          the symlinks and copy the targets. This is usually the expected behavior.
     inline void backup(const fs::path& from, bool overwrite = false) {
         try {
-            fs::path to(from.string() + '~');
+            const fs::path to(from.string() + '~');
             if (overwrite)
                 os::move(from, to);
             else
