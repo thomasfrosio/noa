@@ -668,6 +668,11 @@ namespace fmt {
         auto format(const noa::Half& vec, FormatContext& ctx) {
             return formatter<float>::format(static_cast<float>(vec), ctx);
         }
+
+        template<typename FormatContext>
+        auto format(const noa::Half& vec, FormatContext& ctx) const {
+            return formatter<float>::format(static_cast<float>(vec), ctx);
+        }
     };
 }
 

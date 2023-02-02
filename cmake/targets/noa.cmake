@@ -5,6 +5,7 @@ message(STATUS "-> noa::noa: configuring public target...")
 # Linking options and libraries
 # ---------------------------------------------------------------------------------------
 # Common:
+include(${PROJECT_SOURCE_DIR}/cmake/ext/fmt.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/ext/spdlog.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/ext/half.cmake)
 
@@ -14,6 +15,7 @@ add_library(noa_private_libraries INTERFACE)
 
 target_link_libraries(noa_public_libraries
         INTERFACE
+        fmt::fmt
         spdlog::spdlog
         half::half
         )

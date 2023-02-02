@@ -20,6 +20,7 @@
 #include <fmt/os.h>
 #include <fmt/ostream.h>
 #include <fmt/ranges.h>
+#include <fmt/std.h>
 #else
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/fmt/bundled/chrono.h>

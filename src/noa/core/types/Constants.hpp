@@ -2,6 +2,7 @@
 
 #include <ostream>
 #include "noa/core/Definitions.hpp"
+#include "noa/core/string/Format.hpp"
 
 namespace noa {
     /// Border mode, i.e. how out of bounds coordinates are handled. It is compatible with cudaTextureAddressMode.
@@ -199,4 +200,17 @@ namespace noa::signal {
         COM
     };
     std::ostream& operator<<(std::ostream& os, PeakMode peak_mode);
+}
+
+// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator (operator<<))
+namespace fmt {
+    template<> struct formatter<noa::BorderMode> : ostream_formatter {};
+    template<> struct formatter<noa::InterpMode> : ostream_formatter {};
+    template<> struct formatter<noa::fft::Remap> : ostream_formatter {};
+    template<> struct formatter<noa::math::uniform_t> : ostream_formatter {};
+    template<> struct formatter<noa::math::normal_t> : ostream_formatter {};
+    template<> struct formatter<noa::math::log_normal_t> : ostream_formatter {};
+    template<> struct formatter<noa::math::poisson_t> : ostream_formatter {};
+    template<> struct formatter<noa::signal::CorrelationMode> : ostream_formatter {};
+    template<> struct formatter<noa::signal::PeakMode> : ostream_formatter {};
 }

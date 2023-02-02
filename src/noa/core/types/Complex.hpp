@@ -409,6 +409,19 @@ namespace fmt {
     template<typename T>
     struct formatter<noa::Complex<T>> : formatter<T> {
         template<typename FormatContext>
+        auto format(const noa::Complex<T>& vec, FormatContext& ctx) const {
+            auto out = ctx.out();
+            *out = '(';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.real, ctx);
+            *out = ',';
+            ctx.advance_to(out);
+            out = formatter<T>::format(vec.imag, ctx);
+            *out = ')';
+            return out;
+        }
+
+        template<typename FormatContext>
         auto format(const noa::Complex<T>& vec, FormatContext& ctx) {
             auto out = ctx.out();
             *out = '(';
