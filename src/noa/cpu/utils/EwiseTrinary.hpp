@@ -8,13 +8,13 @@ namespace noa::cpu::utils::details {
     // Parallelization is expensive. Turn it on only for large arrays.
     constexpr i64 EWISE_TRINARY_PARALLEL_THRESHOLD = 16'777'216; // 4096x4096
 
-    template<bool PARALLEL, typename LhsValue, typename RhsValue,
-             typename OutputValue, typename Index, typename Operator>
+    template<bool PARALLEL, typename Lhs, typename Rhs,
+             typename Output, typename Index, typename Operator>
     void ewise_trinary_4d(
-            Accessor<LhsValue, 4, Index> lhs,
-            Accessor<RhsValue, 4, Index> mhs,
-            Accessor<RhsValue, 4, Index> rhs,
-            Accessor<OutputValue, 4, Index> output,
+            Accessor<Lhs, 4, Index> lhs,
+            Accessor<Rhs, 4, Index> mhs,
+            Accessor<Rhs, 4, Index> rhs,
+            Accessor<Output, 4, Index> output,
             Shape4<Index> shape, Operator&& op, i64 threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
@@ -24,7 +24,7 @@ namespace noa::cpu::utils::details {
                     for (Index k = 0; k < shape[2]; ++k)
                         for (Index l = 0; l < shape[3]; ++l)
                             output(i, j, k, l) =
-                                    static_cast<OutputValue>(
+                                    static_cast<Output>(
                                             op(lhs(i, j, k, l),
                                                mhs(i, j, k, l),
                                                rhs(i, j, k, l)));
@@ -35,63 +35,63 @@ namespace noa::cpu::utils::details {
                     for (Index k = 0; k < shape[2]; ++k)
                         for (Index l = 0; l < shape[3]; ++l)
                             output(i, j, k, l) =
-                                    static_cast<OutputValue>(
+                                    static_cast<Output>(
                                             op(lhs(i, j, k, l),
                                                mhs(i, j, k, l),
                                                rhs(i, j, k, l)));
         }
     }
 
-    template<bool PARALLEL, typename LhsValue, typename MhsValue, typename RhsValue,
-             typename OutputValue, typename Index, typename Operator>
+    template<bool PARALLEL, typename Lhs, typename Mhs, typename Rhs,
+             typename Output, typename Index, typename Operator>
     void ewise_trinary_1d(
-            LhsValue* lhs,
-            MhsValue* mhs,
-            RhsValue* rhs,
-            OutputValue* output,
+            Lhs* lhs,
+            Mhs* mhs,
+            Rhs* rhs,
+            Output* output,
             Index size, Operator&& op, i64 threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) num_threads(threads) \
                     shared(lhs, mhs, rhs, output, size, op)
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(lhs[i], mhs[i], rhs[i]));
+                output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
         } else {
             (void) threads;
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(lhs[i], mhs[i], rhs[i]));
+                output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
         }
     }
 
-    template<bool PARALLEL, typename LhsValue, typename MhsValue, typename RhsValue,
-             typename OutputValue, typename Index, typename Operator>
+    template<bool PARALLEL, typename Lhs, typename Mhs, typename Rhs,
+             typename Output, typename Index, typename Operator>
     void ewise_trinary_1d_restrict(
-            LhsValue* __restrict lhs,
-            MhsValue* __restrict mhs,
-            RhsValue* __restrict rhs,
-            OutputValue* __restrict output,
+            Lhs* __restrict lhs,
+            Mhs* __restrict mhs,
+            Rhs* __restrict rhs,
+            Output* __restrict output,
             Index size, Operator&& op, i64 threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) num_threads(threads) \
                     shared(lhs, mhs, rhs, output, size, op)
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(lhs[i], mhs[i], rhs[i]));
+                output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
         } else {
             (void) threads;
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(lhs[i], mhs[i], rhs[i]));
+                output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
         }
     }
 }
 
 namespace noa::cpu::utils {
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int> && !std::is_const_v<OutputValue>>>
+             typename = std::enable_if_t<std::is_integral_v<Int> && !std::is_const_v<Output>>>
     constexpr void ewise_trinary(
-            LhsValue* lhs, Strides4<Index> lhs_strides,
-            MhsValue* mhs, Strides4<Index> mhs_strides,
-            RhsValue* rhs, Strides4<Index> rhs_strides,
-            OutputValue* output, Strides4<Index> output_strides,
+            Lhs* lhs, Strides4<Index> lhs_strides,
+            Mhs* mhs, Strides4<Index> mhs_strides,
+            Rhs* rhs, Strides4<Index> rhs_strides,
+            Output* output, Strides4<Index> output_strides,
             Shape4<Index> shape, Operator&& op, Int threads = Int{1}) {
         // Rearrange to rightmost order.
         shape = noa::indexing::effective_shape(shape, output_strides);
@@ -121,8 +121,8 @@ namespace noa::cpu::utils {
                 noa::indexing::are_contiguous(output_strides, shape);
         if (is_contiguous) {
             constexpr bool ARE_SAME_TYPE = noa::traits::are_all_same_v<
-                    std::remove_cv_t<LhsValue>, std::remove_cv_t<MhsValue>,
-                    std::remove_cv_t<RhsValue>, OutputValue>;
+                    std::remove_cv_t<Lhs>, std::remove_cv_t<Mhs>,
+                    std::remove_cv_t<Rhs>, Output>;
             if constexpr (ARE_SAME_TYPE) {
                 const bool are_equal = static_cast<const void*>(lhs) == static_cast<const void*>(output) &&
                                        static_cast<const void*>(mhs) == static_cast<const void*>(output) &&
@@ -146,10 +146,10 @@ namespace noa::cpu::utils {
                         lhs, mhs, rhs, output, elements, std::forward<Operator>(op), threads_omp);
             }
         } else {
-            const auto lhs_accessor = Accessor<LhsValue, 4, Index>(lhs, lhs_strides);
-            const auto mhs_accessor = Accessor<LhsValue, 4, Index>(mhs, mhs_strides);
-            const auto rhs_accessor = Accessor<LhsValue, 4, Index>(rhs, rhs_strides);
-            const auto output_accessor = Accessor<OutputValue, 4, Index>(output, output_strides);
+            const auto lhs_accessor = Accessor<Lhs, 4, Index>(lhs, lhs_strides);
+            const auto mhs_accessor = Accessor<Lhs, 4, Index>(mhs, mhs_strides);
+            const auto rhs_accessor = Accessor<Lhs, 4, Index>(rhs, rhs_strides);
+            const auto output_accessor = Accessor<Output, 4, Index>(output, output_strides);
             if (threads_omp <= 1) {
                 details::ewise_trinary_4d<false>(
                         lhs_accessor, mhs_accessor, rhs_accessor, output_accessor,
@@ -162,16 +162,16 @@ namespace noa::cpu::utils {
         }
     }
 
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> &&
-                                         !std::is_const_v<OutputValue> &&
-                                         !std::is_pointer_v<RhsValue>>>
+                                         !std::is_const_v<Output> &&
+                                         !std::is_pointer_v<Rhs>>>
     constexpr void ewise_trinary(
-            LhsValue* lhs, const Strides4<Index>& lhs_strides,
-            MhsValue* mhs, const Strides4<Index>& mhs_strides,
-            RhsValue rhs,
-            OutputValue* output, const Strides4<Index>& output_strides,
+            Lhs* lhs, const Strides4<Index>& lhs_strides,
+            Mhs* mhs, const Strides4<Index>& mhs_strides,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
             const Shape4<Index>& shape, Operator&& op, Int threads = Int{1}) {
         ewise_binary(lhs, lhs_strides, mhs, mhs_strides, output, output_strides, shape,
                      [=, op_ = std::forward<Operator>(op)](auto& lhs_value, auto& mhs_value) {
@@ -180,16 +180,16 @@ namespace noa::cpu::utils {
                      threads);
     }
 
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> &&
-                                         !std::is_const_v<OutputValue> &&
-                                         !std::is_pointer_v<RhsValue>>>
+                                         !std::is_const_v<Output> &&
+                                         !std::is_pointer_v<Rhs>>>
     constexpr void ewise_trinary(
-            LhsValue* lhs, const Strides4<Index>& lhs_strides,
-            MhsValue mhs,
-            RhsValue* rhs, const Strides4<Index>& rhs_strides,
-            OutputValue* output, const Strides4<Index>& output_strides,
+            Lhs* lhs, const Strides4<Index>& lhs_strides,
+            Mhs mhs,
+            Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
             const Shape4<Index>& shape, Operator&& op, Int threads = Int{1}) {
         ewise_binary(lhs, lhs_strides, rhs, rhs_strides, output, output_strides, shape,
                      [=, op_ = std::forward<Operator>(op)](auto& lhs_value, auto& rhs_value) {
@@ -198,16 +198,16 @@ namespace noa::cpu::utils {
                      threads);
     }
 
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> &&
-                                         !std::is_const_v<OutputValue> &&
-                                         !std::is_pointer_v<RhsValue>>>
+                                         !std::is_const_v<Output> &&
+                                         !std::is_pointer_v<Rhs>>>
     constexpr void ewise_trinary(
-            LhsValue lhs,
-            MhsValue* mhs, const Strides4<Index>& mhs_strides,
-            RhsValue* rhs, const Strides4<Index>& rhs_strides,
-            OutputValue* output, const Strides4<Index>& output_strides,
+            Lhs lhs,
+            Mhs* mhs, const Strides4<Index>& mhs_strides,
+            Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
             const Shape4<Index>& shape, Operator&& op, Int threads = Int{1}) {
         ewise_binary(mhs, mhs_strides, rhs, rhs_strides, output, output_strides, shape,
                      [=, op_ = std::forward<Operator>(op)](auto& mhs_value, auto& rhs_value) {
@@ -216,48 +216,48 @@ namespace noa::cpu::utils {
                      threads);
     }
 
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> &&
-                                         !std::is_const_v<OutputValue> &&
-                                         !std::is_pointer_v<LhsValue>>>
+                                         !std::is_const_v<Output> &&
+                                         !std::is_pointer_v<Lhs>>>
     constexpr void ewise_trinary(
-            LhsValue* lhs, const Strides4<Index>& lhs_strides,
-            MhsValue mhs,
-            RhsValue rhs,
-            OutputValue* output, const Strides4<Index>& output_strides,
+            Lhs* lhs, const Strides4<Index>& lhs_strides,
+            Mhs mhs,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
             const Shape4<Index>& shape, Operator&& op, Int threads = Int{1}) {
         ewise_unary(lhs, lhs_strides, output, output_strides, shape,
                     [=, op_ = std::forward<Operator>(op)](auto& lhs_value) { return op_(lhs_value, mhs, rhs); },
                     threads);
     }
 
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> &&
-                                         !std::is_const_v<OutputValue> &&
-                                         !std::is_pointer_v<LhsValue>>>
+                                         !std::is_const_v<Output> &&
+                                         !std::is_pointer_v<Lhs>>>
     constexpr void ewise_trinary(
-            LhsValue lhs,
-            MhsValue* mhs, const Strides4<Index>& mhs_strides,
-            RhsValue rhs,
-            OutputValue* output, const Strides4<Index>& output_strides,
+            Lhs lhs,
+            Mhs* mhs, const Strides4<Index>& mhs_strides,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
             const Shape4<Index>& shape, Operator&& op, Int threads = Int{1}) {
         ewise_unary(mhs, mhs_strides, output, output_strides, shape,
                     [=, op_ = std::forward<Operator>(op)](auto& mhs_value) { return op_(lhs, mhs_value, rhs); },
                     threads);
     }
 
-    template<typename LhsValue, typename MhsValue, typename RhsValue, typename OutputValue,
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> &&
-                                         !std::is_const_v<OutputValue> &&
-                                         !std::is_pointer_v<LhsValue>>>
+                                         !std::is_const_v<Output> &&
+                                         !std::is_pointer_v<Lhs>>>
     constexpr void ewise_trinary(
-            LhsValue lhs,
-            MhsValue mhs,
-            RhsValue* rhs, const Strides4<Index>& rhs_strides,
-            OutputValue* output, const Strides4<Index>& output_strides,
+            Lhs lhs,
+            Mhs mhs,
+            Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
             const Shape4<Index>& shape, Operator&& op, Int threads = Int{1}) {
         ewise_unary(rhs, rhs_strides, output, output_strides, shape,
                     [=, op_ = std::forward<Operator>(op)](auto& rhs_value) { return op_(lhs, mhs, rhs_value); },

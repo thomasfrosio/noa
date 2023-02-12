@@ -35,7 +35,7 @@ namespace {
             const auto rhs_strides_4d = shape.strides() * rhs_strides;
             c64 error{0};
             c64 sum{};
-            noa::cpu::utils::reduce_binary_4d(
+            noa::cpu::utils::reduce_binary(
                     lhs, lhs_strides_4d, rhs, rhs_strides_4d, shape,
                     &sum, Strides1<i64>{1}, c64{0},
                     [](T lhs_value, T rhs_value) { return static_cast<c64>(lhs_value * rhs_value); },
@@ -46,7 +46,7 @@ namespace {
             const auto lhs_strides_4d = shape.strides() * lhs_strides;
             const auto rhs_strides_4d = shape.strides() * rhs_strides;
             T sum{};
-            noa::cpu::utils::reduce_binary_4d(
+            noa::cpu::utils::reduce_binary(
                     lhs, lhs_strides_4d, rhs, rhs_strides_4d, shape,
                     &sum, Strides1<i64>{1}, T{0},
                     [](T lhs_value, T rhs_value) { return lhs_value * rhs_value; },
@@ -117,7 +117,7 @@ namespace noa::cpu::math {
         const auto threads = stream.threads();
         stream.enqueue([=]() {
             T* ptr = output.get();
-            // If there's a lot of batches, reduce_binary_4d might be faster.
+            // If there's a lot of batches, reduce_binary might be faster.
             // Also, Intel's MKL might have a batched version.
             for (i64 batch = 0; batch < batches; ++batch) {
                 ptr[batch] = cblas_dot_(

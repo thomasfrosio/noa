@@ -3,19 +3,19 @@
 #include <omp.h>
 #include "noa/core/Types.hpp"
 
-// Input -> PreprocessOp(Input) -> Reduced -> PostprocessOp(Reduced) -> Output
+// Input -> PreProcessOp(Input) -> Reduced -> PostprocessOp(Reduced) -> Output
 
 // Parallel reductions:
 namespace noa::cpu::utils::details {
     static constexpr i64 REDUCTION_PARALLEL_THRESHOLD = 16'777'216; // 4096x4096
 
     template<typename Input, typename Reduced, typename Index,
-             typename PreprocessOp, typename ReduceOp, typename PostProcessOp>
+             typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     auto reduce_unary_4d_parallel(
             Accessor<Input, 4, Index> input,
             Shape4<Index> shape,
             Reduced initial_reduce,
-            PreprocessOp preprocess_op,
+            PreProcessOp pre_process_op,
             ReduceOp reduce_op,
             PostProcessOp&& post_process_op,
             i64 threads) {
@@ -30,7 +30,7 @@ namespace noa::cpu::utils::details {
         // using its .closure() member function.
         #pragma omp parallel default(none) num_threads(threads) \
         shared(input, shape, initial_reduce, final_reduce) \
-        firstprivate(reduce_op, preprocess_op)
+        firstprivate(reduce_op, pre_process_op)
         {
             const i64 thread_id = omp_get_thread_num();
             Reduced local_reduce = initial_reduce;
@@ -43,12 +43,12 @@ namespace noa::cpu::utils::details {
                     for (Index k = 0; k < shape[2]; ++k) {
                         for (Index l = 0; l < shape[3]; ++l) {
                             if constexpr (noa::traits::is_detected_v<
-                                    noa::traits::has_binary_operator, PreprocessOp, Input, Index>) {
+                                    noa::traits::has_binary_operator, PreProcessOp, Input, Index>) {
                                 const auto offset = noa::indexing::at(i, j, k, l, input.strides());
                                 auto& value = input.get()[offset];
-                                local_reduce = reduce_op(local_reduce, preprocess_op(value, offset));
+                                local_reduce = reduce_op(local_reduce, pre_process_op(value, offset));
                             } else {
-                                local_reduce = reduce_op(local_reduce, preprocess_op(input(i, j, k, l)));
+                                local_reduce = reduce_op(local_reduce, pre_process_op(input(i, j, k, l)));
                             }
                         }
                     }
@@ -65,12 +65,12 @@ namespace noa::cpu::utils::details {
     }
 
     template<typename Input, typename Reduced, typename Index,
-             typename PreprocessOp, typename ReduceOp, typename PostProcessOp>
+             typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     auto reduce_unary_1d_parallel(
             Input* input,
             Index size,
             Reduced initial_reduce,
-            PreprocessOp&& preprocess_op,
+            PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op,
             i64 threads) {
@@ -78,7 +78,7 @@ namespace noa::cpu::utils::details {
 
         #pragma omp parallel default(none) num_threads(threads) \
         shared(input, size, initial_reduce, final_reduce) \
-        firstprivate(reduce_op, preprocess_op)
+        firstprivate(reduce_op, pre_process_op)
         {
             const i64 thread_id = omp_get_thread_num();
             Reduced local_reduce = initial_reduce;
@@ -87,10 +87,10 @@ namespace noa::cpu::utils::details {
 
             #pragma omp for
             for (Index i = 0; i < size; ++i) {
-                if constexpr (noa::traits::is_detected_v<noa::traits::has_binary_operator, PreprocessOp, Input, Index>)
-                    local_reduce = reduce_op(local_reduce, preprocess_op(input[i], i));
+                if constexpr (noa::traits::is_detected_v<noa::traits::has_binary_operator, PreProcessOp, Input, Index>)
+                    local_reduce = reduce_op(local_reduce, pre_process_op(input[i], i));
                 else
-                    local_reduce = reduce_op(local_reduce, preprocess_op(input[i]));
+                    local_reduce = reduce_op(local_reduce, pre_process_op(input[i]));
             }
 
             #pragma omp critical
@@ -107,12 +107,12 @@ namespace noa::cpu::utils::details {
 // Serial reductions:
 namespace noa::cpu::utils::details {
     template<typename Input, typename Reduced, typename Index,
-             typename PreprocessOp, typename ReduceOp, typename PostProcessOp>
+             typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     auto reduce_unary_4d_serial(
             Accessor<Input, 4, Index> input,
             Shape4<Index> shape,
             Reduced initial_reduce,
-            PreprocessOp&& preprocess_op,
+            PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op) {
         auto reduce = initial_reduce;
@@ -123,12 +123,12 @@ namespace noa::cpu::utils::details {
                 for (Index k = 0; k < shape[2]; ++k) {
                     for (Index l = 0; l < shape[3]; ++l) {
                         if constexpr (noa::traits::is_detected_v<
-                                noa::traits::has_binary_operator, PreprocessOp, Input, Index>) {
+                                noa::traits::has_binary_operator, PreProcessOp, Input, Index>) {
                             const auto offset = noa::indexing::at(i, j, k, l, input.strides());
                             auto& value = input.get()[offset];
-                            reduce = reduce_op(reduce, preprocess_op(value, offset));
+                            reduce = reduce_op(reduce, pre_process_op(value, offset));
                         } else {
-                            reduce = reduce_op(reduce, preprocess_op(input(i, j, k, l)));
+                            reduce = reduce_op(reduce, pre_process_op(input(i, j, k, l)));
                         }
                     }
                 }
@@ -140,12 +140,12 @@ namespace noa::cpu::utils::details {
     }
 
     template<typename Input, typename Reduced, typename Index,
-             typename PreprocessOp, typename ReduceOp, typename PostProcessOp>
+             typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     auto reduce_unary_1d_serial(
             Input* input,
             Index size,
             Reduced initial_reduce,
-            PreprocessOp&& preprocess_op,
+            PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op) {
         auto reduce = initial_reduce;
@@ -153,10 +153,10 @@ namespace noa::cpu::utils::details {
             reduce_op.initialize(0);
         for (Index i = 0; i < size; ++i) {
             if constexpr (noa::traits::is_detected_v<
-                    noa::traits::has_binary_operator, PreprocessOp, Input, Index>)
-                reduce = reduce_op(reduce, preprocess_op(input[i], i));
+                    noa::traits::has_binary_operator, PreProcessOp, Input, Index>)
+                reduce = reduce_op(reduce, pre_process_op(input[i], i));
             else
-                reduce = reduce_op(reduce, preprocess_op(input[i]));
+                reduce = reduce_op(reduce, pre_process_op(input[i]));
         }
         if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, ReduceOp>)
             reduce_op.closure(0);
@@ -167,23 +167,23 @@ namespace noa::cpu::utils::details {
 namespace noa::cpu::utils {
     // Generic element-wise 4D reduction.
     template<typename Input, typename Reduced, typename Output, typename Index,
-             typename PreprocessOp = noa::copy_t,
+             typename PreProcessOp = noa::copy_t,
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<!std::is_const_v<Reduced> && !std::is_const_v<Output>>>
-    constexpr void reduce_unary_4d(
+    constexpr void reduce_unary(
             Input* input, Strides4<Index> strides, Shape4<Index> shape,
             Output* output, Strides1<Index> output_stride,
             Reduced initial_reduce,
-            PreprocessOp&& preprocess_op,
+            PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op,
             i64 threads = 1,
             bool reduce_batch = true,
             bool swap_layout = true) {
 
-        static_assert((traits::is_detected_exact_v<Reduced, traits::has_unary_operator, PreprocessOp, Input> ||
-                       traits::is_detected_exact_v<Reduced, traits::has_binary_operator, PreprocessOp, Input, Index>));
+        static_assert((traits::is_detected_exact_v<Reduced, traits::has_unary_operator, PreProcessOp, Input> ||
+                       traits::is_detected_exact_v<Reduced, traits::has_binary_operator, PreProcessOp, Input, Index>));
         static_assert(traits::is_detected_exact_v<Reduced, traits::has_binary_operator, ReduceOp, Reduced, Reduced>);
         static_assert(traits::is_detected_convertible_v<Output, traits::has_unary_operator, PostProcessOp, Reduced>);
 
@@ -218,13 +218,13 @@ namespace noa::cpu::utils {
                     *output_ptr = static_cast<Output>(
                             noa::cpu::utils::details::reduce_unary_1d_parallel(
                                     input_ptr, elements, initial_reduce,
-                                    preprocess_op, reduce_op, post_process_op, threads
+                                    pre_process_op, reduce_op, post_process_op, threads
                             ));
                 } else {
                     *output_ptr = static_cast<Output>(
                             noa::cpu::utils::details::reduce_unary_1d_serial(
                                     input_ptr, elements, initial_reduce,
-                                    preprocess_op, reduce_op, post_process_op
+                                    pre_process_op, reduce_op, post_process_op
                             ));
                 }
             }
@@ -239,13 +239,13 @@ namespace noa::cpu::utils {
                     *output_ptr = static_cast<Output>(
                             noa::cpu::utils::details::reduce_unary_4d_parallel(
                                     input_accessor, shape, initial_reduce,
-                                    preprocess_op, reduce_op, post_process_op, threads
+                                    pre_process_op, reduce_op, post_process_op, threads
                             ));
                 } else {
                     *output_ptr = static_cast<Output>(
                             noa::cpu::utils::details::reduce_unary_4d_serial(
                                     input_accessor, shape, initial_reduce,
-                                    preprocess_op, reduce_op, post_process_op
+                                    pre_process_op, reduce_op, post_process_op
                             ));
                 }
             }

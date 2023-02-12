@@ -23,21 +23,21 @@ namespace {
             constexpr bool IS_SUM_OR_MEAN = MODE == ReductionMode::SUM || MODE == ReductionMode::MEAN;
             if constexpr (MODE == ReductionMode::MIN) {
                 Input output{};
-                noa::cpu::utils::reduce_unary_4d(
+                noa::cpu::utils::reduce_unary(
                         input, strides, shape, &output, Strides1<i64>{1},
                         noa::math::Limits<Input>::max(), {}, noa::min_t{}, {}, threads);
                 return output;
 
             } else if constexpr (MODE == ReductionMode::MAX) {
                 Input output{};
-                noa::cpu::utils::reduce_unary_4d(
+                noa::cpu::utils::reduce_unary(
                         input, strides, shape, &output, Strides1<i64>{1},
                         noa::math::Limits<Input>::min(), {}, noa::max_t{}, {}, threads);
                 return output;
 
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_int_v<Input>) {
                 Input output;
-                noa::cpu::utils::reduce_unary_4d(
+                noa::cpu::utils::reduce_unary(
                         input, strides, shape, &output, Strides1<i64>{1},
                         Input{0}, {}, noa::plus_t{}, {}, threads);
                 if constexpr (MODE == ReductionMode::MEAN)
@@ -47,7 +47,7 @@ namespace {
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_real_v<Input>) {
                 f64 global_error{0};
                 f64 global_sum{0};
-                noa::cpu::utils::reduce_unary_4d(
+                noa::cpu::utils::reduce_unary(
                         input, strides, shape, &global_sum, Strides1<i64>{1},
                         f64{0}, [](Input v) { return static_cast<f64>(v); },
                         noa::algorithm::math::AccuratePlusReal{&global_error}, {}, threads);
@@ -59,7 +59,7 @@ namespace {
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_complex_v<Input>) {
                 c64 global_error{0};
                 c64 global_sum{0};
-                noa::cpu::utils::reduce_unary_4d(
+                noa::cpu::utils::reduce_unary(
                         input, strides, shape, &global_sum, Strides1<i64>{1},
                         c64{0}, [](Input v) { return static_cast<c64>(v); },
                         noa::algorithm::math::AccuratePlusComplex{&global_error}, {}, threads);
@@ -81,7 +81,7 @@ namespace {
                 }
 
                 f64 variance{};
-                noa::cpu::utils::reduce_unary_4d(
+                noa::cpu::utils::reduce_unary(
                         input, strides, shape, &variance, Strides1<i64>{1},
                         f64{0}, transform_op, noa::plus_t{}, {}, threads);
                 variance /= count;

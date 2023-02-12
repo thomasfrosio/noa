@@ -26,7 +26,7 @@ namespace noa::cpu {
             const auto postprocess_op = [](const Pair<Value, i64>& pair) { return static_cast<Offset>(pair.second); };
 
             constexpr Value INITIAL_REDUCE = get_initial_reduce<ReduceOp, Value>();
-            noa::cpu::utils::reduce_unary_4d(
+            noa::cpu::utils::reduce_unary(
                     input.get(), strides, shape,
                     offsets.get(), Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
                     preprocess_op, reduce_op, postprocess_op,
@@ -46,7 +46,7 @@ namespace noa::cpu {
 
         i64 offset{};
         stream.synchronize();
-        noa::cpu::utils::reduce_unary_4d(
+        noa::cpu::utils::reduce_unary(
                 input.get(), strides, shape,
                 &offset, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,
@@ -74,7 +74,7 @@ namespace noa::cpu {
             const auto strides = shape.strides();
 
             i64 offset{};
-            noa::cpu::utils::reduce_unary_4d(
+            noa::cpu::utils::reduce_unary(
                     input.get(), strides, shape,
                     &offset, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
                     preprocess_op, reduce_op, postprocess_op,

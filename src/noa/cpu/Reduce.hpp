@@ -18,7 +18,7 @@ namespace noa::cpu {
             bool reduce_batch,
             bool swap_layout,
             Stream& stream) {
-        noa::cpu::utils::reduce_unary_4d(
+        noa::cpu::utils::reduce_unary(
                 input.get(), strides, shape,
                 output.get(), Strides1<i64>{1},
                 initial_reduce, preprocess_op, reduce_op, post_process_op,
@@ -40,7 +40,7 @@ namespace noa::cpu {
             Stream& stream) {
         using return_type = std::invoke_result_t<PostProcessOp, Reduced>;
         return_type output{};
-        noa::cpu::utils::reduce_unary_4d(
+        noa::cpu::utils::reduce_unary(
                 input.get(), strides, shape,
                 &output, Strides1<i64>{1},
                 initial_reduce, preprocess_op, reduce_op, post_process_op,

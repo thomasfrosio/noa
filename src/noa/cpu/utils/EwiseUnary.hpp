@@ -38,10 +38,10 @@ namespace noa::cpu::utils::details {
     //      optimizations. We could have another, more stringent, heuristic here for the 1D case.
     constexpr i64 EWISE_UNARY_PARALLEL_THRESHOLD = 16'777'216; // 4096x4096
 
-    template<typename InputValue, typename OutputValue, typename Index, typename Operator>
+    template<typename Input, typename Output, typename Index, typename Operator>
     void ewise_unary_4d_parallel(
-            Accessor<InputValue, 4, Index> input,
-            Accessor<OutputValue, 4, Index> output,
+            Accessor<Input, 4, Index> input,
+            Accessor<Output, 4, Index> output,
             Shape4<Index> shape, Operator op, i64 threads) {
 
         // We could use shared(op), but:
@@ -66,17 +66,17 @@ namespace noa::cpu::utils::details {
                 for (Index j = 0; j < shape[1]; ++j)
                     for (Index k = 0; k < shape[2]; ++k)
                         for (Index l = 0; l < shape[3]; ++l)
-                            output(i, j, k, l) = static_cast<OutputValue>(op(input(i, j, k, l)));
+                            output(i, j, k, l) = static_cast<Output>(op(input(i, j, k, l)));
 
             if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
                 op.closure(static_cast<i64>(omp_get_thread_num()));
         }
     }
 
-    template<typename InputValue, typename OutputValue, typename Index, typename Operator>
+    template<typename Input, typename Output, typename Index, typename Operator>
     void ewise_unary_4d_serial(
-            Accessor<InputValue, 4, Index> input,
-            Accessor<OutputValue, 4, Index> output,
+            Accessor<Input, 4, Index> input,
+            Accessor<Output, 4, Index> output,
             Shape4<Index> shape, Operator&& op) {
         if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
             op.initialize(0);
@@ -84,7 +84,7 @@ namespace noa::cpu::utils::details {
             for (Index j = 0; j < shape[1]; ++j)
                 for (Index k = 0; k < shape[2]; ++k)
                     for (Index l = 0; l < shape[3]; ++l)
-                        output(i, j, k, l) = static_cast<OutputValue>(op(input(i, j, k, l)));
+                        output(i, j, k, l) = static_cast<Output>(op(input(i, j, k, l)));
     }
 
     template<bool PARALLEL, typename Value, typename Index, typename Operator,
@@ -101,46 +101,46 @@ namespace noa::cpu::utils::details {
         }
     }
 
-    template<bool PARALLEL, typename InputValue, typename OutputValue, typename Index, typename Operator>
+    template<bool PARALLEL, typename Input, typename Output, typename Index, typename Operator>
     void ewise_unary_1d(
-            InputValue* input,
-            OutputValue* output,
+            Input* input,
+            Output* output,
             Index size, Operator&& op, i64 threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) num_threads(threads) shared(input, output, size, op)
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(input[i]));
+                output[i] = static_cast<Output>(op(input[i]));
         } else {
             (void) threads;
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(input[i]));
+                output[i] = static_cast<Output>(op(input[i]));
         }
     }
 
-    template<bool PARALLEL, typename InputValue, typename OutputValue, typename Index, typename Operator>
+    template<bool PARALLEL, typename Input, typename Output, typename Index, typename Operator>
     void ewise_unary_1d_restrict(
-            InputValue* __restrict input,
-            OutputValue* __restrict output,
+            Input* __restrict input,
+            Output* __restrict output,
             Index size, Operator&& op, i64 threads) {
         if constexpr (PARALLEL) {
             #pragma omp parallel for default(none) num_threads(threads) shared(input, output, size, op)
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(input[i]));
+                output[i] = static_cast<Output>(op(input[i]));
         } else {
             (void) threads;
             for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<OutputValue>(op(input[i]));
+                output[i] = static_cast<Output>(op(input[i]));
         }
     }
 }
 
 namespace noa::cpu::utils {
-    template<typename InputValue, typename OutputValue,
+    template<typename Input, typename Output,
              typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int> && !std::is_const_v<OutputValue>>>
+             typename = std::enable_if_t<std::is_integral_v<Int> && !std::is_const_v<Output>>>
     constexpr void ewise_unary(
-            InputValue* input, Strides4<Index> input_strides,
-            OutputValue* output, Strides4<Index> output_strides,
+            Input* input, Strides4<Index> input_strides,
+            Output* output, Strides4<Index> output_strides,
             Shape4<Index> shape, Operator&& op, Int threads = Int{1}) {
         // Rearrange to rightmost order.
         shape = noa::indexing::effective_shape(shape, output_strides);
@@ -173,7 +173,7 @@ namespace noa::cpu::utils {
         if (is_contiguous) {
             // Input and output can be of the same type, meaning that the input is not const.
             // In this case, we can simplify the ewise operation to a single array.
-            if constexpr (std::is_same_v<std::remove_cv_t<InputValue>, OutputValue>) {
+            if constexpr (std::is_same_v<std::remove_cv_t<Input>, Output>) {
                 const bool are_equal = static_cast<const void*>(input) == static_cast<const void*>(output);
                 if (are_equal) {
                     if (serial) {
@@ -204,8 +204,8 @@ namespace noa::cpu::utils {
         } else {
             // Not contiguous. Run 4 nested loops. Optimizations regarding the element-wise
             // loops are likely to be turned off because of the dynamic strides.
-            const auto input_accessor = Accessor<InputValue, 4, Index>(input, input_strides);
-            const auto output_accessor = Accessor<OutputValue, 4, Index>(output, output_strides);
+            const auto input_accessor = Accessor<Input, 4, Index>(input, input_strides);
+            const auto output_accessor = Accessor<Output, 4, Index>(output, output_strides);
             if (serial) {
                 details::ewise_unary_4d_serial(
                         input_accessor, output_accessor, shape,
