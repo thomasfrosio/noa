@@ -1,5 +1,5 @@
 #include <cblas.h>
-#include "noa/cpu/math/Blas.h"
+#include "noa/cpu/math/Blas.hpp"
 #include "noa/cpu/utils/ReduceBinary.hpp"
 #include "noa/algorithms/math/AccurateSum.hpp"
 

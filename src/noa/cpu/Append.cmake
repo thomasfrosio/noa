@@ -8,9 +8,9 @@ set(NOA_CPU_HEADERS
         cpu/Device.hpp
         cpu/Event.hpp
         cpu/Ewise.hpp
-        cpu/Find.h
+        cpu/Find.hpp
         cpu/Reduce.hpp
-        cpu/Sort.h
+        cpu/Sort.hpp
         cpu/Stream.hpp
 
         # noa::cpu::utils
@@ -26,13 +26,13 @@ set(NOA_CPU_HEADERS
 #        cpu/fft/Remap.h
 #        cpu/fft/Resize.h
 #        cpu/fft/Transforms.h
-#
+
         # noa::cpu::math
-        cpu/math/Blas.h
-        cpu/math/Complex.h
-        cpu/math/LinAlg.h
-        cpu/math/Random.h
-        cpu/math/Reduce.h
+        cpu/math/Blas.hpp
+        cpu/math/Complex.hpp
+        cpu/math/LinAlg.hpp
+        cpu/math/Random.hpp
+        cpu/math/Reduce.hpp
 
 #        # noa::cpu::signal
 #        cpu/signal/fft/Bandpass.h
@@ -58,7 +58,7 @@ set(NOA_CPU_HEADERS
         cpu/memory/Resize.hpp
         cpu/memory/Set.hpp
         cpu/memory/Subregion.hpp
-#
+
 #        # noa::cpu::geometry
 #        cpu/geometry/fft/Polar.h
 #        cpu/geometry/fft/Project.h

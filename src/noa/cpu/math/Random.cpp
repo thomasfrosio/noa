@@ -1,5 +1,5 @@
 #include <random>
-#include "noa/cpu/math/Random.h"
+#include "noa/cpu/math/Random.hpp"
 #include "noa/cpu/utils/EwiseUnary.hpp"
 
 // TODO Add MKL support

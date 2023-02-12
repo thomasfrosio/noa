@@ -1,7 +1,7 @@
 #include <algorithm>
 
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Sort.h"
+#include "noa/cpu/Sort.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
 
 namespace {

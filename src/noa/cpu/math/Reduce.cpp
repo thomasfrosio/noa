@@ -1,7 +1,7 @@
 #include "noa/core/Math.hpp"
 #include "noa/algorithms/math/AccurateSum.hpp"
 
-#include "noa/cpu/math/Reduce.h"
+#include "noa/cpu/math/Reduce.hpp"
 #include "noa/cpu/memory/Copy.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
 #include "noa/cpu/utils/ReduceUnary.hpp"

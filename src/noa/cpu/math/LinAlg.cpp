@@ -4,7 +4,7 @@
 
 #include "noa/cpu/memory/PtrHost.hpp"
 #include "noa/cpu/memory/Copy.hpp"
-#include "noa/cpu/math/LinAlg.h"
+#include "noa/cpu/math/LinAlg.hpp"
 
 // Using Eigen is much cleaner and flexible than the old lapacke... It is also easier to package.
 // Unfortunately, the SVD in Eigen takes >2min to compile, which is just not OK in my book.

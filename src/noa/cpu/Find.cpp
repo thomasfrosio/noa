@@ -1,6 +1,6 @@
 #include <algorithm>
 #include "noa/core/utils/Pair.hpp"
-#include "noa/cpu/Find.h"
+#include "noa/cpu/Find.hpp"
 #include "noa/cpu/utils/ReduceUnary.hpp"
 
 namespace {
