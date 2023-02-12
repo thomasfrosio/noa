@@ -1,8 +1,8 @@
 #pragma once
 
-#include "noa/common/Types.h"
+#include "noa/core/Types.hpp"
 
-namespace noa::memory::details {
+namespace noa::algorithm::memory {
     // Extract subregions from one or multiple arrays.
     // Subregions are defined by their 3D shape and their 4D origin.
     // The origin is the index in the input array that is the first element of the subregion.
@@ -16,26 +16,31 @@ namespace noa::memory::details {
         using value_type = Value;
         using index_type = Index;
         using offset_type = Offset;
-        using index4_type = Int4<Index>;
-        using value_or_empty_type = std::conditional_t<MODE == BORDER_VALUE, Value, empty_t>;
+        using index4_type = Vec4<Index>;
+        using shape4_type = Shape4<Index>;
+        using value_or_empty_type = std::conditional_t<MODE == BorderMode::VALUE, Value, traits::Empty>;
 
         using input_accessor_type = AccessorRestrict<const value_type, 4, offset_type>;
         using subregion_accessor_type = AccessorRestrict<value_type, 4, offset_type>;
-        using subregion_origins_type = const int4_t*;
+        using subregion_origins_type = const Vec4<i64>*;
 
     public:
-        Extract(input_accessor_type input_accessor,
-                subregion_accessor_type subregion_accessor,
-                const index4_type input_shape,
-                subregion_origins_type origins,
+        Extract(const input_accessor_type& input_accessor,
+                const subregion_accessor_type& subregion_accessor,
+                const shape4_type& input_shape,
+                const subregion_origins_type& origins,
                 value_type cvalue,
-                int4_t order)
+                const Vec4<i64>& order)
                 : m_input(input_accessor),
                   m_subregions(subregion_accessor),
                   m_subregion_origins(origins),
                   m_input_shape(input_shape),
-                  m_order(order),
-                  m_cvalue(cvalue) {}
+                  m_order(order) {
+            if constexpr (!std::is_empty_v<value_or_empty_type>)
+                m_cvalue = cvalue;
+            else
+                (void) cvalue;
+        }
 
         NOA_HD constexpr void operator()(index_type oi, index_type oj, index_type ok, index_type ol) const {
             // TODO For CUDA, the origins could copied to constant memory.
@@ -47,7 +52,7 @@ namespace noa::memory::details {
             const index_type ik = ok + corner_left[2];
             const index_type il = ol + corner_left[3];
 
-            if constexpr (MODE == BORDER_NOTHING) {
+            if constexpr (MODE == BorderMode::NOTHING) {
                 if (ii < 0 || ii >= m_input_shape[0] ||
                     ij < 0 || ij >= m_input_shape[1] ||
                     ik < 0 || ik >= m_input_shape[2] ||
@@ -55,14 +60,14 @@ namespace noa::memory::details {
                     return;
                 m_subregions(oi, oj, ok, ol) = m_input(ii, ij, ik, il);
 
-            } else if constexpr (MODE == BORDER_ZERO) {
+            } else if constexpr (MODE == BorderMode::ZERO) {
                 const bool is_valid = ii >= 0 && ii < m_input_shape[0] &&
                                       ij >= 0 && ij < m_input_shape[1] &&
                                       ik >= 0 && ik < m_input_shape[2] &&
                                       il >= 0 && il < m_input_shape[3];
                 m_subregions(oi, oj, ok, ol) = is_valid ? m_input(ii, ij, ik, il) : value_type{0};
 
-            } else if constexpr (MODE == BORDER_VALUE) {
+            } else if constexpr (MODE == BorderMode::VALUE) {
                 const bool is_valid = ii >= 0 && ii < m_input_shape[0] &&
                                       ij >= 0 && ij < m_input_shape[1] &&
                                       ik >= 0 && ik < m_input_shape[2] &&
@@ -82,27 +87,19 @@ namespace noa::memory::details {
         input_accessor_type m_input;
         subregion_accessor_type m_subregions;
         subregion_origins_type m_subregion_origins;
-        index4_type m_input_shape;
-        int4_t m_order;
-        value_or_empty_type m_cvalue;
+        shape4_type m_input_shape;
+        Vec4<i64> m_order;
+        NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue;
     };
 
     template<BorderMode MODE, typename Index, typename Offset, typename Value>
-    auto extract(const Value* input, const dim4_t& input_strides, const dim4_t& input_shape,
-                 Value* subregions, const dim4_t& subregion_strides,
-                 const int4_t* origins, int4_t order, Value cvalue = Value{}) {
-
-        using index4_t = Int4<Index>;
-        using offset4_t = Int4<Offset>;
-        const auto i_shape = safe_cast<index4_t>(input_shape);
-        const auto input_accessor = AccessorRestrict<const Value, 4, Offset>(
-                input, safe_cast<offset4_t>(input_strides));
-        const auto subregions_accessor = AccessorRestrict<Value, 4, Offset>(
-                subregions, safe_cast<offset4_t>(subregion_strides));
-
+    auto extract_subregion(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                           Value* subregions, const Strides4<i64>& subregion_strides,
+                           const Vec4 <i64>* origins, Vec4 <i64> order, Value cvalue = Value{}) {
         return Extract<MODE, Index, Offset, Value>(
-                input_accessor, subregions_accessor,
-                i_shape, origins, cvalue, order);
+                AccessorRestrict<const Value, 4, Offset>(input, input_strides.as_safe<Offset>()),
+                AccessorRestrict<Value, 4, Offset>(subregions, subregion_strides.as_safe<Offset>()),
+                input_shape.as_safe<Index>(), origins, cvalue, order);
     }
 
     // Insert subregions into one or multiple arrays.
@@ -116,18 +113,19 @@ namespace noa::memory::details {
         using value_type = Value;
         using index_type = Index;
         using offset_type = Offset;
-        using index4_type = Int4<Index>;
+        using index4_type = Vec4<Index>;
+        using shape4_type = Shape4<Index>;
 
         using output_accessor_type = AccessorRestrict<value_type, 4, offset_type>;
         using subregion_accessor_type = AccessorRestrict<const value_type, 4, offset_type>;
-        using subregion_origins_type = const int4_t*;
+        using subregion_origins_type = const Vec4<i64>*;
 
     public:
-        Insert(subregion_accessor_type subregion_accessor,
-               output_accessor_type output_accessor,
-               const index4_type output_shape,
-               subregion_origins_type origins,
-               int4_t order)
+        Insert(const subregion_accessor_type& subregion_accessor,
+               const output_accessor_type& output_accessor,
+               const shape4_type& output_shape,
+               const subregion_origins_type& origins,
+               const Vec4<i64>& order)
                 : m_output(output_accessor),
                   m_subregions(subregion_accessor),
                   m_subregion_origins(origins),
@@ -157,25 +155,17 @@ namespace noa::memory::details {
         output_accessor_type m_output;
         subregion_accessor_type m_subregions;
         subregion_origins_type m_subregion_origins;
-        index4_type m_output_shape;
-        int4_t m_order;
+        shape4_type m_output_shape;
+        Vec4<i64> m_order;
     };
 
     template<typename Index, typename Offset, typename Value>
-    auto insert(const Value* subregions, const dim4_t& subregion_strides,
-                Value* output, const dim4_t& output_strides, const dim4_t& output_shape,
-                const int4_t* origins, int4_t order) {
-
-        using index4_t = Int4<Index>;
-        using offset4_t = Int4<Offset>;
-        const auto o_shape = safe_cast<index4_t>(output_shape);
-        const auto output_accessor = AccessorRestrict<Value, 4, Offset>(
-                output, safe_cast<offset4_t>(output_strides));
-        const auto subregions_accessor = AccessorRestrict<const Value, 4, Offset>(
-                subregions, safe_cast<offset4_t>(subregion_strides));
-
+    auto insert_subregion(const Value* subregions, const Strides4<i64>& subregion_strides,
+                          Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                          const Vec4<i64>* origins, Vec4<i64> order) {
         return Insert<Index, Offset, Value>(
-                subregions_accessor, output_accessor,
-                o_shape, origins, order);
+                AccessorRestrict<const Value, 4, Offset>(subregions, subregion_strides.as_safe<Offset>()),
+                AccessorRestrict<Value, 4, Offset>(output, output_strides.as_safe<Offset>()),
+                output_shape.as_safe<Index>(), origins, order);
     }
 }

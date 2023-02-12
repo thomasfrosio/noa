@@ -159,7 +159,7 @@ namespace noa::string {
         } else if constexpr (traits::is_almost_same_v<std::complex<double>, T>) {
             return "std::complex<f64>";
 
-        } else if constexpr (traits::has_name_v<T>) {
+        } else if constexpr (noa::traits::is_detected_convertible_v<std::string, noa::traits::has_name, T>) {
             return T::name();
         } else {
             return typeid(T).name(); // implementation defined, no guarantee to be human-readable.

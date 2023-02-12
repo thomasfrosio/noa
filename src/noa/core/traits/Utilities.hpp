@@ -19,6 +19,11 @@ namespace noa::traits {
 
     struct Empty {};
     using empty_t = Empty;
+
+    template<typename T>
+    constexpr auto to_underlying(T value) noexcept {
+        return static_cast<std::underlying_type_t<T>>(value);
+    }
 }
 
 namespace noa::traits {
@@ -60,21 +65,67 @@ namespace noa::traits {
     template<typename T, typename... Ts> constexpr bool are_all_same_v = are_all_same<T, Ts...>::value;
 }
 
+// From https://en.cppreference.com/w/cpp/experimental/is_detected
+// And https://stackoverflow.com/a/41936999
 namespace noa::traits {
-    template<typename T>
-    class has_name {
-        using one_type = int8_t;
-        using two_type = int16_t;
+    namespace details {
+        struct nonesuch {
+            nonesuch() = delete;
+            ~nonesuch() = delete;
+            nonesuch(nonesuch const&) = delete;
+            void operator=(nonesuch const&) = delete;
+        };
 
-        template<typename C>
-        static constexpr one_type test(decltype(std::string(C::name()))) { return {}; }
+        template<class Default, class AlwaysVoid, template<class...> class Op, class... Args>
+        struct detector {
+            using value_t = std::false_type;
+            using type = Default;
+        };
+        template<class Default, template<class...> class Op, class... Args>
+        struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
+            using value_t = std::true_type;
+            using type = Op<Args...>;
+        };
+    }
 
-        template<typename...>
-        static constexpr two_type test(...) { return {}; }
+    template<template<class...> class Op, class... Args>
+    using is_detected = typename details::detector<details::nonesuch, void, Op, Args...>::value_t;
 
-    public:
-        static constexpr bool value = sizeof(test<T>(0)) == sizeof(int8_t);
-    };
+    template<template<class...> class Op, class... Args>
+    using detected_t = typename details::detector<details::nonesuch, void, Op, Args...>::type;
 
-    template<typename T> constexpr bool has_name_v = has_name<T>::value;
+    template<class Default, template<class...> class Op, class... Args>
+    using detected_or = details::detector<Default, void, Op, Args...>;
+
+    template< template<class...> class Op, class... Args >
+    constexpr inline bool is_detected_v = is_detected<Op, Args...>::value;
+
+    template< class Default, template<class...> class Op, class... Args >
+    using detected_or_t = typename detected_or<Default, Op, Args...>::type;
+
+    template <class Expected, template<class...> class Op, class... Args>
+    using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
+
+    template <class Expected, template<class...> class Op, class... Args>
+    constexpr inline bool is_detected_exact_v =
+            is_detected_exact<Expected, Op, Args...>::value;
+
+    template <class To, template<class...> class Op, class... Args>
+    using is_detected_convertible =
+            std::is_convertible<detected_t<Op, Args...>, To>;
+
+    template <class To, template<class...> class Op, class... Args>
+    constexpr inline bool is_detected_convertible_v =
+            is_detected_convertible<To, Op, Args...>::value;
+
+    // Predefined detection traits.
+    template<class T> using has_name = decltype(T::name());
+    template<class T> using has_initialize = decltype(std::declval<T&>().initialize(std::declval<size_t>()));
+    template<class T> using has_closure = decltype(std::declval<T&>().closure(std::declval<size_t>()));
+
+    template<typename Op, typename Lhs>
+    using has_unary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>()));
+
+    template<typename Op, typename Lhs, typename Rhs>
+    using has_binary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>(), std::declval<Rhs>()));
 }

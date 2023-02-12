@@ -477,8 +477,8 @@ namespace noa::indexing {
 
         const auto lhs_start = reinterpret_cast<std::uintptr_t>(lhs);
         const auto rhs_start = reinterpret_cast<std::uintptr_t>(rhs);
-        const auto lhs_end = reinterpret_cast<std::uintptr_t>(lhs + at(lhs_shape - 1, lhs_strides));
-        const auto rhs_end = reinterpret_cast<std::uintptr_t>(rhs + at(rhs_shape - 1, rhs_strides));
+        const auto lhs_end = reinterpret_cast<std::uintptr_t>(lhs + at((lhs_shape - 1).vec(), lhs_strides));
+        const auto rhs_end = reinterpret_cast<std::uintptr_t>(rhs + at((rhs_shape - 1).vec(), rhs_strides));
         return are_overlapped(lhs_start, lhs_end, rhs_start, rhs_end);
     }
 
@@ -615,8 +615,8 @@ namespace noa::indexing {
                               const Strides4<index_type>& a_strides,
                               old_type* a_ptr) noexcept
                 : shape(a_shape),
-                strides(a_strides),
-                ptr{a_ptr} {}
+                  strides(a_strides),
+                  ptr{a_ptr} {}
 
     public:
         template<typename New>
@@ -718,9 +718,9 @@ namespace noa::indexing {
     struct Subregion {
     public:
         using index_type = int64_t;
-        using offset_type = size_t;
+        using offset_type = int64_t;
         using shape_type = Shape4<index_type>;
-        using strides_type = Strides4<size_t>;
+        using strides_type = Strides4<offset_type>;
 
     public:
         shape_type shape;
@@ -739,7 +739,7 @@ namespace noa::indexing {
     public:
         constexpr Subregion() = default;
 
-        template<typename T, typename U, typename V = size_t>
+        template<typename T, typename U, typename V = int64_t>
         constexpr Subregion(const Shape4<T>& start_shape,
                             const Strides4<U>& start_strides,
                             V start_offset = V{0}) noexcept
@@ -786,9 +786,9 @@ namespace noa::indexing {
         template<typename IndexMode>
         static constexpr void extract_dim_(
                 IndexMode idx_mode, int64_t dim,
-                int64_t old_size, size_t old_strides,
-                int64_t* new_size, size_t* new_strides,
-                size_t* new_offset) {
+                int64_t old_size, int64_t old_strides,
+                int64_t* new_size, int64_t* new_strides,
+                int64_t* new_offset) {
 
             if constexpr (traits::is_int_v<IndexMode>) {
                 auto index = clamp_cast<int64_t>(idx_mode);
@@ -800,7 +800,7 @@ namespace noa::indexing {
                     index += old_size;
                 *new_strides = old_strides; // or 0
                 *new_size = 1;
-                *new_offset += old_strides * static_cast<size_t>(index);
+                *new_offset += old_strides * index;
 
             } else if constexpr(std::is_same_v<indexing::full_extent_t, IndexMode>) {
                 *new_strides = old_strides;
@@ -821,8 +821,8 @@ namespace noa::indexing {
                 idx_mode.end = noa::math::clamp(idx_mode.end, idx_mode.start, old_size);
 
                 *new_size = noa::math::divide_up(idx_mode.end - idx_mode.start, idx_mode.step);
-                *new_strides = old_strides * static_cast<size_t>(idx_mode.step);
-                *new_offset += static_cast<size_t>(idx_mode.start) * old_strides;
+                *new_strides = old_strides * idx_mode.step;
+                *new_offset += idx_mode.start * old_strides;
                 (void) dim;
             } else {
                 static_assert(traits::always_false_v<IndexMode>);

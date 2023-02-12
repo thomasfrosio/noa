@@ -302,31 +302,23 @@ namespace noa {
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            Shape<value_type, N + 1> output;
-            output.vec().push_front(value);
-            return output;
+            return Shape<value_type, N + 1>(m_vec.push_front(value));
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            Shape<value_type, N + 1> output;
-            output.vec().push_back(value);
-            return output;
+            return Shape<value_type, N + 1>(m_vec.push_back(value));
         }
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S>& vector) const noexcept {
             constexpr bool NEW_SIZE = N + S;
-            Shape<value_type, NEW_SIZE> output;
-            output.vec().push_front(vector);
-            return output;
+            return Shape<value_type, NEW_SIZE>(m_vec.push_front(vector));
         }
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
             constexpr bool NEW_SIZE = N + S;
-            Shape<value_type, NEW_SIZE> output;
-            output.vec().push_back(vector);
-            return output;
+            return Shape<value_type, NEW_SIZE>(m_vec.push_back(vector));
         }
 
         template<typename... Ts,
@@ -800,31 +792,23 @@ namespace noa {
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            Strides<value_type, N + 1> output;
-            output.vec().push_front(value);
-            return output;
+            return Strides<value_type, N + 1>(m_vec.push_front(value));
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            Strides<value_type, N + 1> output;
-            output.vec().push_back(value);
-            return output;
+            return Strides<value_type, N + 1>(m_vec.push_back(value));
         }
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S>& vector) const noexcept {
             constexpr bool NEW_SIZE = N + S;
-            Strides<value_type, NEW_SIZE> output;
-            output.vec().push_front(vector);
-            return output;
+            return Strides<value_type, NEW_SIZE>(m_vec.push_front(vector));
         }
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
             constexpr bool NEW_SIZE = N + S;
-            Strides<value_type, NEW_SIZE> output;
-            output.vec().push_back(vector);
-            return output;
+            return Strides<value_type, NEW_SIZE>(m_vec.push_back(vector));
         }
 
         template<typename... Ts,
@@ -955,6 +939,9 @@ namespace noa {
 
 // Type traits:
 namespace noa::traits {
+    static_assert(noa::traits::is_detected_convertible_v<std::string, has_name, Shape<int, 1>>);
+    static_assert(noa::traits::is_detected_convertible_v<std::string, has_name, Strides<int, 1>>);
+
     template<typename T, size_t N> struct proclaim_is_shape<Shape<T, N>> : std::true_type {};
     template<typename V1, size_t N, typename V2> struct proclaim_is_shape_of_type<Shape<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
     template<typename V, size_t N1, size_t N2> struct proclaim_is_shape_of_size<Shape<V, N1>, N2> : std::bool_constant<N1 == N2> {};
@@ -1030,37 +1017,37 @@ namespace noa {
 
 namespace noa::math {
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto abs(ShapeOrStrides shape) noexcept {
         return ShapeOrStrides(abs(shape.vec()));
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto sum(const ShapeOrStrides& shape) noexcept {
         return sum(shape.vec());
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto product(const ShapeOrStrides& shape) noexcept {
         return product(shape.vec());
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const ShapeOrStrides& shape) noexcept {
         return ShapeOrStrides(min(shape.vec()));
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const ShapeOrStrides& lhs, const ShapeOrStrides& rhs) noexcept {
         return ShapeOrStrides(min(lhs.vec(), rhs.vec()));
     }
 
     template<typename Int, typename ShapeOrStrides,
-             typename std::enable_if_t<
+             std::enable_if_t<
                      noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
                      noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const ShapeOrStrides& lhs, Int rhs) noexcept {
@@ -1068,7 +1055,7 @@ namespace noa::math {
     }
 
     template<typename Int, typename ShapeOrStrides,
-             typename std::enable_if_t<
+             std::enable_if_t<
                      noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
                      noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(Int lhs, const ShapeOrStrides& rhs) noexcept {
@@ -1076,19 +1063,19 @@ namespace noa::math {
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(const ShapeOrStrides& shape) noexcept {
         return ShapeOrStrides(max(shape.vec()));
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(const ShapeOrStrides& lhs, const ShapeOrStrides& rhs) noexcept {
         return ShapeOrStrides(max(lhs.vec(), rhs.vec()));
     }
 
     template<typename Int, typename ShapeOrStrides,
-             typename std::enable_if_t<
+             std::enable_if_t<
                      noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
                      noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(const ShapeOrStrides& lhs, Int rhs) noexcept {
@@ -1096,7 +1083,7 @@ namespace noa::math {
     }
 
     template<typename Int, typename ShapeOrStrides,
-             typename std::enable_if_t<
+             std::enable_if_t<
                      noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
                      noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(Int lhs, const ShapeOrStrides& rhs) noexcept {
@@ -1104,7 +1091,7 @@ namespace noa::math {
     }
 
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto clamp(const ShapeOrStrides& lhs,
                                                const ShapeOrStrides& low,
                                                const ShapeOrStrides& high) noexcept {
@@ -1112,7 +1099,7 @@ namespace noa::math {
     }
 
     template<typename Int, typename ShapeOrStrides,
-             typename std::enable_if_t<
+             std::enable_if_t<
                      noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
                      noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto clamp(const ShapeOrStrides& lhs, Int low, Int high) noexcept {

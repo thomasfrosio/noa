@@ -22,9 +22,9 @@ namespace noa {
         Session(std::string_view name,
                 std::string_view filename,
                 Logger::Level verbosity = Logger::BASIC,
-                size_t threads = 0) {
+                int64_t threads = 0) {
             logger = Logger(name, filename, verbosity);
-            Session::threads(threads);
+            Session::set_threads(threads);
         }
 
         /// Sets the maximum number of internal threads used by a session.
@@ -34,10 +34,10 @@ namespace noa {
         ///                 threads and use this number instead.
         /// \note This is the maximum number of internal threads. Users can of course create additional threads
         ///       using tools from the library, e.g. ThreadPool or Stream.
-        static void threads(size_t threads);
+        static void set_threads(int64_t threads);
 
         /// Returns the maximum number of internal threads.
-        [[nodiscard]] static size_t threads() noexcept {
+        [[nodiscard]] static int64_t threads() noexcept {
             return m_threads;
         }
 
@@ -50,6 +50,6 @@ namespace noa {
         static Logger logger;
 
     private:
-        static size_t m_threads;
+        static int64_t m_threads;
     };
 }

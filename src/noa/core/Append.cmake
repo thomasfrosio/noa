@@ -1,6 +1,6 @@
 # Included files for noa/core:
 
-set(NOA_COMMON_HEADERS
+set(NOA_CORE_HEADERS
         core/Assert.hpp
         core/Definitions.hpp
         core/Exception.hpp
@@ -61,7 +61,8 @@ set(NOA_COMMON_HEADERS
         core/geometry/Shape.hpp
         core/geometry/Symmetry.hpp
         core/geometry/Transform.hpp
-        core/geometry/Windows.hpp
+
+        core/signal/Windows.hpp
 
         core/io/BinaryFile.hpp
         core/io/ImageFile.hpp
@@ -88,7 +89,7 @@ set(NOA_COMMON_HEADERS
 
         )
 
-set(NOA_COMMON_SOURCES
+set(NOA_CORE_SOURCES
         core/Exception.cpp
         core/Logger.cpp
         core/Session.cpp
@@ -104,5 +105,5 @@ set(NOA_COMMON_SOURCES
         core/types/Constants.cpp
         )
 
-set(NOA_HEADERS ${NOA_HEADERS} ${NOA_COMMON_HEADERS})
-set(NOA_SOURCES ${NOA_SOURCES} ${NOA_COMMON_SOURCES})
+set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CORE_HEADERS})
+set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CORE_SOURCES})

@@ -58,7 +58,7 @@ namespace noa {
 
     /// Throw a nested noa::Exception if result evaluates to false.
     template<typename T>
-    void throwIf(T&& result, const char* file, const char* function, int line) {
+    void throw_if(T&& result, const char* file, const char* function, int line) {
         if (result)
             std::throw_with_nested(noa::Exception(file, function, line, string::format("{}", std::forward<T>(result))));
     }
@@ -70,8 +70,8 @@ namespace noa {
 /// Throws a nested noa::Exception. Allows to modify the function name.
 #define NOA_THROW_FUNC(func, ...) std::throw_with_nested(::noa::Exception(__FILE__, func, __LINE__, __VA_ARGS__))
 
-/// Throws a nested exception if \a result is an error. \see the throwIf() overload for the current namespace.
-#define NOA_THROW_IF(result) throwIf(result, __FILE__, __FUNCTION__, __LINE__)
+/// Throws a nested exception if \a result is an error. \see the throw_if() overload for the current namespace.
+#define NOA_THROW_IF(result) throw_if(result, __FILE__, __FUNCTION__, __LINE__)
 
 #if defined(NOA_DEBUG) || defined(NOA_ENABLE_CHECKS_RELEASE)
 /// Checks vs assertions:\n

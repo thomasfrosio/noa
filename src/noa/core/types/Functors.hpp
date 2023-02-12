@@ -275,11 +275,6 @@ namespace noa {
         NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return ::noa::math::max(lhs, rhs); }
     };
 
-    struct first_min_t {}; // undefined implementation
-    struct last_min_t {}; // undefined implementation
-    struct first_max_t {}; // undefined implementation
-    struct last_max_t {}; // undefined implementation
-
     // -- Trinary operators -- //
 
     struct plus_minus_t {
@@ -393,6 +388,60 @@ namespace noa {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& low, const T& high) const {
             return ::noa::math::clamp(lhs, low, high);
+        }
+    };
+
+    // -- Find offset --
+
+    struct first_min_t {
+        template<typename Value, typename Offset>
+        NOA_FHD constexpr auto operator()(
+                const noa::Pair<Value, Offset>& current,
+                const noa::Pair<Value, Offset>& candidate
+        ) const noexcept {
+            if (candidate.first < current.first ||
+                (current.first == candidate.first && candidate.second < current.second))
+                return candidate;
+            return current;
+        }
+    };
+
+    struct first_max_t {
+        template<typename Value, typename Offset>
+        NOA_FHD constexpr auto operator()(
+                const noa::Pair<Value, Offset>& current,
+                const noa::Pair<Value, Offset>& candidate
+        ) const noexcept {
+            if (candidate.first > current.first ||
+                (current.first == candidate.first && candidate.second < current.second))
+                return candidate;
+            return current;
+        }
+    };
+
+    struct last_min_t {
+        template<typename Value, typename Offset>
+        NOA_FHD constexpr auto operator()(
+                const noa::Pair<Value, Offset>& current,
+                const noa::Pair<Value, Offset>& candidate
+        ) const noexcept {
+            if (candidate.first < current.first ||
+                (current.first == candidate.first && candidate.second > current.second))
+                return candidate;
+            return current;
+        }
+    };
+
+    struct last_max_t {
+        template<typename Value, typename Offset>
+        NOA_FHD constexpr auto operator()(
+                const noa::Pair<Value, Offset>& current,
+                const noa::Pair<Value, Offset>& candidate
+        ) const noexcept {
+            if (candidate.first > current.first ||
+                (current.first == candidate.first && candidate.second > current.second))
+                return candidate;
+            return current;
         }
     };
 }

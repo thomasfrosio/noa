@@ -282,7 +282,7 @@ namespace noa {
                 Vec<bool, N> output;
                 #pragma unroll
                 for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hgt2(alias0[i], alias1[i])
+                    alias0[i] = __hgt2(alias0[i], alias1[i]);
                     output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
                     output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
                 }
@@ -311,7 +311,7 @@ namespace noa {
                 Vec<bool, N> output;
                 #pragma unroll
                 for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hlt2(alias0[i], alias1[i])
+                    alias0[i] = __hlt2(alias0[i], alias1[i]);
                     output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
                     output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
                 }
@@ -340,7 +340,7 @@ namespace noa {
                 Vec<bool, N> output;
                 #pragma unroll
                 for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hge2(alias0[i], alias1[i])
+                    alias0[i] = __hge2(alias0[i], alias1[i]);
                     output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
                     output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
                 }
@@ -369,7 +369,7 @@ namespace noa {
                 Vec<bool, N> output;
                 #pragma unroll
                 for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hle2(alias0[i], alias1[i])
+                    alias0[i] = __hle2(alias0[i], alias1[i]);
                     output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
                     output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
                 }
@@ -398,7 +398,7 @@ namespace noa {
                 Vec<bool, N> output;
                 #pragma unroll
                 for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __heq2(alias0[i], alias1[i])
+                    alias0[i] = __heq2(alias0[i], alias1[i]);
                     output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
                     output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
                 }
@@ -427,7 +427,7 @@ namespace noa {
                 Vec<bool, N> output;
                 #pragma unroll
                 for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hne2(alias0[i], alias1[i])
+                    alias0[i] = __hne2(alias0[i], alias1[i]);
                     output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
                     output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
                 }
@@ -592,6 +592,7 @@ namespace noa {
 
 // Type traits:
 namespace noa::traits {
+    static_assert(noa::traits::is_detected_convertible_v<std::string, has_name, Vec<bool, 1>>);
     template<typename T, size_t N> struct proclaim_is_vec<Vec<T, N>> : std::true_type {};
     template<typename V1, size_t N, typename V2> struct proclaim_is_vec_of_type<Vec<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
     template<typename V, size_t N1, size_t N2> struct proclaim_is_vec_of_size<Vec<V, N1>, N2> : std::bool_constant<N1 == N2> {};
@@ -1107,7 +1108,7 @@ namespace noa::math {
     template<typename T, size_t N>
     [[nodiscard]] NOA_FHD constexpr auto min(Vec<T, N> lhs, const Vec<T, N>& rhs) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-        if constexpr (std::is_same_v<value_type, Half> && !(N % 2)) {
+        if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
             auto* alias0 = reinterpret_cast<__half2*>(&lhs);
             auto* alias1 = reinterpret_cast<__half2*>(&rhs);
             for (size_t i = 0; i < N / 2; ++i)
@@ -1159,7 +1160,7 @@ namespace noa::math {
     template<typename T, size_t N>
     [[nodiscard]] NOA_FHD constexpr auto max(Vec<T, N> lhs, const Vec<T, N>& rhs) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-        if constexpr (std::is_same_v<value_type, Half> && !(N % 2)) {
+        if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
             auto* alias0 = reinterpret_cast<__half2*>(&lhs);
             auto* alias1 = reinterpret_cast<__half2*>(&rhs);
             for (size_t i = 0; i < N / 2; ++i)

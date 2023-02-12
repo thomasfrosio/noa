@@ -3,8 +3,7 @@
 #include "noa/core/Definitions.hpp"
 
 namespace noa {
-    /// Naive Pair.
-    /// \note Mostly used to have a std::pair like working on device code.
+    // Naive Pair. Mostly used to have a std::pair like working on device code.
     template<typename T, typename U>
     struct Pair {
         T first;

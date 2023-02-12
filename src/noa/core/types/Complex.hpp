@@ -48,8 +48,11 @@ namespace noa {
         }
 
     public: // Default constructors
-        NOA_HD constexpr /* implicit */ Complex(value_type re = value_type(),
-                                                value_type im = value_type()) noexcept
+        // Default constructor initializing the real and imaginary components to 0.
+        constexpr Complex() noexcept = default;
+
+        // Implicit constructor, defaulting the imaginary component to 0.
+        NOA_HD constexpr /* implicit */ Complex(value_type re, value_type im = value_type{0}) noexcept
                 : real(re), imag(im) {}
 
     public: // Conversion constructors
