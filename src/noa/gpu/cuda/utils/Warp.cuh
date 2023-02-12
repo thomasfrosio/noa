@@ -2,24 +2,21 @@
 
 #include <cuda_fp16.h>
 
-#include "noa/common/Definitions.h"
-#include "noa/common/Functors.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
 
-namespace noa::cuda::utils::warp::details {
+namespace noa::cuda::utils::details {
     template<typename T>
-    constexpr bool is_valid_suffle_v = noa::traits::is_data_v<T> || noa::traits::is_any_v<T, half, half2>;
+    constexpr bool is_valid_suffle_v = noa::traits::is_numeric_v<T> || noa::traits::is_any_v<T, half, half2>;
 }
 
-namespace noa::cuda::utils::warp {
-    using namespace noa;
-
+namespace noa::cuda::utils {
     template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>
-    NOA_FD T shuffle(T value, int32_t source, int32_t width = 32, uint32_t mask = 0xffffffff) {
-        if constexpr (noa::traits::is_almost_same_v<chalf_t, T>) {
+    NOA_FD T warp_shuffle(T value, int32_t source, int32_t width = 32, uint32_t mask = 0xffffffff) {
+        if constexpr (noa::traits::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_sync(mask, *reinterpret_cast<__half2*>(&value), source, width);
-            return *reinterpret_cast<chalf_t*>(&tmp);
-        } else if constexpr (std::is_same_v<half_t, T>) {
+            return *reinterpret_cast<c16*>(&tmp);
+        } else if constexpr (std::is_same_v<f16, T>) {
             return T(__shfl_sync(mask, value.native(), source, width));
         } else if constexpr (noa::traits::is_complex_v<T>) {
             return T(__shfl_sync(mask, value.real, source, width),
@@ -33,11 +30,11 @@ namespace noa::cuda::utils::warp {
     }
 
     template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>
-    NOA_FD T shuffleDown(T value, uint32_t delta, int32_t width = 32, uint32_t mask = 0xffffffff) {
-        if constexpr (noa::traits::is_almost_same_v<chalf_t, T>) {
+    NOA_FD T warp_suffle_down(T value, uint32_t delta, int32_t width = 32, uint32_t mask = 0xffffffff) {
+        if constexpr (noa::traits::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_down_sync(mask, *reinterpret_cast<__half2*>(&value), delta, width);
-            return *reinterpret_cast<chalf_t*>(&tmp);
-        } else if constexpr (std::is_same_v<half_t, T>) {
+            return *reinterpret_cast<c16*>(&tmp);
+        } else if constexpr (std::is_same_v<f16, T>) {
             return T(__shfl_down_sync(mask, value.native(), delta, width));
         } else if constexpr (noa::traits::is_complex_v<T>) {
             return T(__shfl_down_sync(mask, value.real, delta, width),
@@ -50,30 +47,32 @@ namespace noa::cuda::utils::warp {
         return T{}; // unreachable
     }
 
-    // Reduces one warp to one element. Returns the reduced value in tid 0 (undefined in other threads).
-    // T:           Any data type.
+    // Reduces one warp to one element.
+    // The first thread of the warp returns with the reduced value.
+    // The returned value is undefined for the other threads.
     // value:       Per-thread value.
     // reduce_op:   Reduction operator.
-    template<typename ReduceOp, typename T>
-    NOA_ID T reduce(T value, ReduceOp reduce_op) {
-        T other;
-        for (int delta = 1; delta < 32; delta *= 2) {
-            other = shuffleDown(value, delta);
-            value = reduce_op(value, other);
+    template<typename Value, typename ReduceOp,
+             typename = std::enable_if_t<noa::traits::is_numeric_v<Value>>>
+    NOA_ID Value warp_reduce(Value value, ReduceOp reduce_op) {
+        Value reduce;
+        for (i32 delta = 1; delta < 32; delta *= 2) {
+            reduce = warp_suffle_down(value, delta);
+            value = reduce_op(reduce, value);
         }
         return value;
     }
 
-    template<typename value_t, typename offset_t, typename find_op_t>
-    NOA_ID Pair<value_t, offset_t> find(value_t value, offset_t offset, find_op_t find_op) {
-        using pair_t = Pair<value_t, offset_t>;
-        pair_t current{value, offset};
-        pair_t candidate;
-        for (int delta = 1; delta < 32; delta *= 2) {
-            candidate.first = shuffleDown(current.first, delta);
-            candidate.second = shuffleDown(current.second, delta);
-            current = find_op(current, candidate);
+    // Overload for value-offset pairs.
+    template<typename Value, typename Offset, typename ReduceOp,
+             typename = std::enable_if_t<noa::traits::is_int_v<Offset>>>
+    NOA_ID auto warp_reduce(Pair<Value, Offset> pair, ReduceOp reduce_op) {
+        using pair_t = Pair<Value, Offset>;
+        for (i32 delta = 1; delta < 32; delta *= 2) {
+            pair_t reduce{warp_suffle_down(pair.first, delta),
+                          warp_suffle_down(pair.second, delta)};
+            pair = reduce_op(reduce, pair);
         }
-        return current;
+        return pair;
     }
 }

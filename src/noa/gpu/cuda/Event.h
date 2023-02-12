@@ -2,40 +2,39 @@
 
 #include <cuda_runtime.h>
 
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
 #include "noa/gpu/cuda/Stream.h"
 
 namespace noa::cuda {
+    enum class EventMode : u32 {
+        // Default behavior, i.e. record time and busy-wait on synchronization.
+        BUSY_TIMER = 0U,
+
+        // When synchronizing on this event, shall a thread block?
+        BLOCK_WHILE_WAITING = cudaEventBlockingSync,
+
+        // Can this event be used to record time values (e.g. duration between events)?
+        DISABLE_TIMING = cudaEventDisableTiming,
+
+        // Can multiple processes work with the constructed event?
+        INTERPROCESS = cudaEventInterprocess
+    };
+
     // A CUDA event (and its associated device).
     class Event {
     public:
-        enum Mode : uint32_t {
-            // Default behavior, i.e. record time and busy-wait on synchronization.
-            BUSY_TIMER = 0U,
-
-            // When synchronizing on this event, shall a thread block?
-            BLOCK_WHILE_WAITING = cudaEventBlockingSync,
-
-            // Can this event be used to record time values (e.g. duration between events)?
-            DISABLE_TIMING = cudaEventDisableTiming,
-
-            // Can multiple processes work with the constructed event?
-            INTERPROCESS = cudaEventInterprocess
-        };
-
-    public:
         // Creates an event on the current device.
-        explicit Event(Mode flags = BUSY_TIMER) : m_device(Device::current()) {
-            NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
+        explicit Event(EventMode flags = EventMode::BUSY_TIMER) : m_device(Device::current()) {
+            NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, mode2u32_(flags)));
         }
 
         // Creates an event on a specific device.
-        explicit Event(Device device, Mode flags = BUSY_TIMER) : m_device(device) {
-            DeviceGuard stream_device(m_device);
-            NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, flags));
+        explicit Event(Device device, EventMode flags = EventMode::BUSY_TIMER) : m_device(device) {
+            const DeviceGuard stream_device(m_device);
+            NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, mode2u32_(flags)));
         }
 
     public:
@@ -44,20 +43,20 @@ namespace noa::cuda {
         // calling CPU thread to block until the event has been completed by the device. Otherwise, the CPU
         // thread will busy-wait until the event has been completed by the device.
         void synchronize() {
-            DeviceGuard stream_device(m_device);
+            const DeviceGuard stream_device(m_device);
             NOA_THROW_IF(cudaEventSynchronize(m_event));
         }
 
-        // Whether or not the event has completed all operations.
-        bool busy() {
-            DeviceGuard scope_device(m_device);
-            cudaError_t status = cudaEventQuery(m_event);
+        // Whether the event has completed all operations.
+        bool is_busy() {
+            const DeviceGuard scope_device(m_device);
+            const cudaError_t status = cudaEventQuery(m_event);
             if (status == cudaError_t::cudaSuccess)
                 return true;
             else if (status == cudaError_t::cudaErrorNotReady)
                 return false;
             else
-                NOA_THROW(toString(status));
+                NOA_THROW(error2string(status));
         }
 
         // Records an already existing event into a stream. They must be on the same device.
@@ -66,7 +65,7 @@ namespace noa::cuda {
                 NOA_THROW("Stream and event are associated to different devices. Got device {} and device {}",
                           stream.device().id(), m_device.id());
             }
-            DeviceGuard scope_device(m_device);
+            const DeviceGuard scope_device(m_device);
             NOA_THROW_IF(cudaEventRecord(m_event, stream.id()));
         }
 
@@ -90,9 +89,9 @@ namespace noa::cuda {
         Event& operator=(Event&&) = delete;
 
         ~Event() noexcept(false) {
-            cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
+            const cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
             if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(toString(err));
+                NOA_THROW(error2string(err));
         }
 
         [[nodiscard]] cudaEvent_t get() const noexcept { return m_event; }
@@ -100,6 +99,8 @@ namespace noa::cuda {
         [[nodiscard]] Device device() const noexcept { return m_device; }
 
     private:
+        static u32 mode2u32_(EventMode mode) { return static_cast<std::underlying_type_t<EventMode>>(mode); }
+
         cudaEvent_t m_event{nullptr};
         Device m_device{};
     };

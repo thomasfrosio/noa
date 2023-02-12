@@ -5,9 +5,9 @@
 #include <string>
 #include <exception>
 
-#include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
-#include "noa/common/string/Format.h"
+#include "noa/core/Definitions.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/string/Format.hpp"
 
 // Ideally, we could overload the ostream<< or add a fmt::formatter, however cudaError_t is not defined in the
 // noa namespace and because of ADL (argument-dependent lookup) we would have to use the global namespace, which is
@@ -16,13 +16,13 @@
 
 namespace noa::cuda {
     // Formats the CUDA error result to a human-readable string.
-    inline std::string toString(cudaError_t result) {
+    inline std::string error2string(cudaError_t result) {
         return string::format("{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 
     // Throws a nested noa::Exception if cudaError_t =! cudaSuccess.
-    inline void throwIf(cudaError_t result, const char* file, const char* function, int line) {
+    inline void throw_if(cudaError_t result, const char* file, const char* function, int line) {
         if (result != cudaSuccess)
-            std::throw_with_nested(noa::Exception(file, function, line, toString(result)));
+            std::throw_with_nested(noa::Exception(file, function, line, error2string(result)));
     }
 }

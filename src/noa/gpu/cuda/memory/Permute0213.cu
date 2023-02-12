@@ -1,12 +1,12 @@
-#include "noa/common/Math.h"
+#include "noa/core/math/Generic.hpp"
 #include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/utils/Traits.h"
 #include "noa/gpu/cuda/memory/Permute.h"
+#include "noa/gpu/cuda/utils/Block.cuh"
 
 namespace {
     using namespace ::noa;
 
-    constexpr uint32_t TILE_DIM = 32;
+    constexpr u32 TILE_DIM = 32;
     constexpr dim3 BLOCK_SIZE(TILE_DIM, 256 / TILE_DIM);
 
     // Out-of-place.
@@ -16,21 +16,21 @@ namespace {
     //  - input_strides[2]->output_strides[1]
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute0213_(AccessorRestrict<const T, 4, uint32_t> input,
-                      AccessorRestrict<T, 4, uint32_t> output_swapped,
-                      uint2_t shape /* YX */ , uint32_t blocks_x) {
-        const uint2_t tid{threadIdx.y, threadIdx.x};
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint2_t gid = TILE_DIM * index + tid;
-        if (!IS_MULTIPLE_OF_TILE && gid[1] >= shape[1])
+    void permute_0213_(AccessorRestrict<const T, 4, u32> input,
+                       AccessorRestrict<T, 4, u32> output_swapped,
+                       Shape2<u32> shape_yx, u32 blocks_x) {
+        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
+        const Vec2<u32> index = noa::indexing::offset2index(blockIdx.x, blocks_x);
+        const Vec2<u32> gid = TILE_DIM * index + tid;
+        if (!IS_MULTIPLE_OF_TILE && gid[1] >= shape_yx[1])
             return;
 
         const auto input_ = input[blockIdx.z][blockIdx.y];
         const auto output_ = output_swapped[blockIdx.z][blockIdx.y];
 
-        for (uint32_t repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
-            const uint32_t gy = gid[0] + repeat;
-            if (IS_MULTIPLE_OF_TILE || gy < shape[0])
+        for (u32 repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
+            const u32 gy = gid[0] + repeat;
+            if (IS_MULTIPLE_OF_TILE || gy < shape_yx[0])
                 output_(gy, gid[1]) = input_(gy, gid[1]);
         }
     }
@@ -41,23 +41,23 @@ namespace {
     // The shared memory simply acts as a per thread buffer.
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute0213_inplace_(Accessor<T, 4, uint32_t> output, uint2_t shape, uint32_t blocks_x) {
-        using uninit_t = cuda::utils::traits::uninitialized_type_t<T>;
+    void permute_0213_inplace_(Accessor<T, 4, u32> output, Shape2<u32> shape, u32 blocks_x) {
+        using uninit_t = noa::cuda::utils::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[BLOCK_SIZE.y][BLOCK_SIZE.x];
         T(& tile)[BLOCK_SIZE.y][BLOCK_SIZE.x] = *reinterpret_cast<T(*)[BLOCK_SIZE.y][BLOCK_SIZE.x]>(&buffer);
 
-        const uint2_t tid{threadIdx.y, threadIdx.x};
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          TILE_DIM * index[0] + tid[0],
-                          TILE_DIM * index[1] + tid[1]};
+        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
+        const Vec2<u32> index = noa::indexing::offset2index(blockIdx.x, blocks_x);
+        const Vec4<u32> gid{blockIdx.z,
+                            blockIdx.y,
+                            TILE_DIM * index[0] + tid[0],
+                            TILE_DIM * index[1] + tid[1]};
         if (gid[3] >= shape[1])
             return;
 
         const auto output_ = output[gid[0]];
-        for (uint32_t repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
-            const uint32_t gy = gid[2] + repeat;
+        for (u32 repeat = 0; repeat < TILE_DIM; repeat += BLOCK_SIZE.y) {
+            const u32 gy = gid[2] + repeat;
             if (gid[1] > gy) // process one triangle + diagonal
                 continue;
 
@@ -74,75 +74,85 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute0213(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides,
-                     dim4_t shape, Stream& stream) {
+    void permute_0213(const Shared<T[]>& input, const Strides4<i64>& input_strides,
+                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+                      const Shape4<i64>& shape, Stream& stream) {
         NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        const auto uint_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
-        const bool are_multiple_tile = all((uint_shape % TILE_DIM) == 0);
+        const auto u_shape = shape.as_safe<u32>();
+        const auto shape_2d = u_shape.filter(2, 3);
+        const bool are_multiple_tile = all((shape_2d % TILE_DIM) == 0);
 
-        const uint32_t blocks_x = math::divideUp(uint_shape[1], TILE_DIM);
-        const uint32_t blocks_y = math::divideUp(uint_shape[0], TILE_DIM);
-        const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
+        const u32 blocks_x = noa::math::divide_up(shape_2d[1], TILE_DIM);
+        const u32 blocks_y = noa::math::divide_up(shape_2d[0], TILE_DIM);
+        const dim3 blocks(blocks_x * blocks_y, u_shape[1], u_shape[0]);
 
-        const AccessorRestrict<const T, 4, uint32_t> input_accessor(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_accessor(output.get(), safe_cast<uint4_t>(output_strides));
-        const auto swapped_output = output_accessor.swap(1, 2);
+        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input.get(), input_strides.as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<T, 4, u32>(output.get(), output_strides.as_safe<u32>());
+        const auto swapped_output = output_accessor.swap_dimensions(1, 2);
 
         if (are_multiple_tile) {
-            stream.enqueue("memory::permute0213", permute0213_<T, true>, {blocks, BLOCK_SIZE},
-                           input_accessor, swapped_output, uint_shape, blocks_x);
+            stream.enqueue("permute0213", permute_0213_<T, true>, {blocks, BLOCK_SIZE},
+                           input_accessor, swapped_output, shape_2d, blocks_x);
         } else {
-            stream.enqueue("memory::permute0213", permute0213_<T, false>, {blocks, BLOCK_SIZE},
-                           input_accessor, swapped_output, uint_shape, blocks_x);
+            stream.enqueue("permute0213", permute_0213_<T, false>, {blocks, BLOCK_SIZE},
+                           input_accessor, swapped_output, shape_2d, blocks_x);
         }
         stream.attach(input, output);
     }
-}
 
-namespace noa::cuda::memory::details::inplace {
     template<typename T>
-    void permute0213(const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
+    void permute_0213_inplace(const Shared<T[]>& output, const Strides4<i64>& output_strides,
+                              const Shape4<i64>& shape, Stream& stream) {
         NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
         if (shape[1] != shape[2])
             NOA_THROW("For a \"0213\" in-place permutation, shape[1] should be equal to shape[2]. Got {}", shape);
 
-        const auto uint_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
-        const bool are_multiple_tile = (uint_shape[0] % TILE_DIM) == 0;
+        const auto u_shape = shape.as_safe<u32>();
+        const auto shape_2d = u_shape.filter(2, 3);
+        const bool are_multiple_tile = (shape_2d[0] % TILE_DIM) == 0;
 
-        const uint32_t blocks_x = math::divideUp(uint_shape[1], TILE_DIM);
-        const uint32_t blocks_y = math::divideUp(uint_shape[0], TILE_DIM);
-        const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
-        const Accessor<T, 4, uint32_t> accessor(output.get(), safe_cast<uint4_t>(output_strides));
+        const u32 blocks_x = noa::math::divide_up(shape_2d[1], TILE_DIM);
+        const u32 blocks_y = noa::math::divide_up(shape_2d[0], TILE_DIM);
+        const dim3 blocks(blocks_x * blocks_y, u_shape[1], u_shape[0]);
+        const auto accessor = Accessor<T, 4, u32>(output.get(), output_strides.as_safe<u32>());
 
         if (are_multiple_tile) {
-            stream.enqueue("memory::permute0213_inplace", permute0213_inplace_<T, true>, {blocks, BLOCK_SIZE},
-                           accessor, uint_shape, blocks_x);
+            stream.enqueue("permute_0213_inplace",
+                           permute_0213_inplace_<T, true>, {blocks, BLOCK_SIZE},
+                           accessor, shape_2d, blocks_x);
         } else {
-            stream.enqueue("memory::permute0213_inplace", permute0213_inplace_<T, false>, {blocks, BLOCK_SIZE},
-                           accessor, uint_shape, blocks_x);
+            stream.enqueue("permute_0213_inplace",
+                           permute_0213_inplace_<T, false>, {blocks, BLOCK_SIZE},
+                           accessor, shape_2d, blocks_x);
         }
         stream.attach(output);
     }
+
+    #define NOA_INSTANTIATE_TRANSPOSE_(T)           \
+    template void permute_0213<T>(                  \
+        const Shared<T[]>&, const Strides4<i64>&,   \
+        const Shared<T[]>&, const Strides4<i64>&,   \
+        const Shape4<i64>&, Stream&);               \
+    template void permute_0213_inplace<T>(          \
+        const Shared<T[]>&, const Strides4<i64>&,   \
+        const Shape4<i64>&, Stream&)
+
+    NOA_INSTANTIATE_TRANSPOSE_(bool);
+    NOA_INSTANTIATE_TRANSPOSE_(i8);
+    NOA_INSTANTIATE_TRANSPOSE_(i16);
+    NOA_INSTANTIATE_TRANSPOSE_(i32);
+    NOA_INSTANTIATE_TRANSPOSE_(i64);
+    NOA_INSTANTIATE_TRANSPOSE_(u8);
+    NOA_INSTANTIATE_TRANSPOSE_(u16);
+    NOA_INSTANTIATE_TRANSPOSE_(u32);
+    NOA_INSTANTIATE_TRANSPOSE_(u64);
+    NOA_INSTANTIATE_TRANSPOSE_(f16);
+    NOA_INSTANTIATE_TRANSPOSE_(f32);
+    NOA_INSTANTIATE_TRANSPOSE_(f64);
+    NOA_INSTANTIATE_TRANSPOSE_(c16);
+    NOA_INSTANTIATE_TRANSPOSE_(c32);
+    NOA_INSTANTIATE_TRANSPOSE_(c64);
 }
 
-#define NOA_INSTANTIATE_TRANSPOSE_(T)                                                                                                   \
-template void noa::cuda::memory::details::permute0213<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-template void noa::cuda::memory::details::inplace::permute0213<T>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
 
-NOA_INSTANTIATE_TRANSPOSE_(bool);
-NOA_INSTANTIATE_TRANSPOSE_(int8_t);
-NOA_INSTANTIATE_TRANSPOSE_(int16_t);
-NOA_INSTANTIATE_TRANSPOSE_(int32_t);
-NOA_INSTANTIATE_TRANSPOSE_(int64_t);
-NOA_INSTANTIATE_TRANSPOSE_(uint8_t);
-NOA_INSTANTIATE_TRANSPOSE_(uint16_t);
-NOA_INSTANTIATE_TRANSPOSE_(uint32_t);
-NOA_INSTANTIATE_TRANSPOSE_(uint64_t);
-NOA_INSTANTIATE_TRANSPOSE_(half_t);
-NOA_INSTANTIATE_TRANSPOSE_(float);
-NOA_INSTANTIATE_TRANSPOSE_(double);
-NOA_INSTANTIATE_TRANSPOSE_(chalf_t);
-NOA_INSTANTIATE_TRANSPOSE_(cfloat_t);
-NOA_INSTANTIATE_TRANSPOSE_(cdouble_t);

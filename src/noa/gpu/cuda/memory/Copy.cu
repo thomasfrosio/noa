@@ -1,36 +1,35 @@
-#include "noa/common/Functors.h"
+#include "noa/core/types/Functors.hpp"
 #include "noa/gpu/cuda/memory/Copy.h"
 #include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::memory::details {
     template<typename T, typename>
-    void copy(const T* src, dim4_t src_strides,
-              T* dst, dim4_t dst_strides,
-              dim4_t shape, Stream& stream) {
-        // This function is called from noa::cuda::memory::copy(), which already has reordered to C-major.
-        utils::ewise::unary<true>(
+    void copy(const T* src, const Strides4<i64>& src_strides,
+              T* dst, const Strides4<i64>& dst_strides,
+              const Shape4<i64>& shape, Stream& stream) {
+        noa::cuda::utils::ewise_unary<PointerTraits::RESTRICT>(
                 "memory::copy",
                 src, src_strides,
                 dst, dst_strides,
-                shape, false, stream, noa::math::copy_t{});
+                shape, stream, noa::copy_t{});
     }
 
     #define NOA_INSTANTIATE_COPY_(T) \
-    template void copy<T,void>(const T*, dim4_t, T*, dim4_t, dim4_t, Stream&)
+    template void copy<T,void>(const T*, const Strides4<i64>&, T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_COPY_(bool);
-    NOA_INSTANTIATE_COPY_(int8_t);
-    NOA_INSTANTIATE_COPY_(int16_t);
-    NOA_INSTANTIATE_COPY_(int32_t);
-    NOA_INSTANTIATE_COPY_(int64_t);
-    NOA_INSTANTIATE_COPY_(uint8_t);
-    NOA_INSTANTIATE_COPY_(uint16_t);
-    NOA_INSTANTIATE_COPY_(uint32_t);
-    NOA_INSTANTIATE_COPY_(uint64_t);
-    NOA_INSTANTIATE_COPY_(half_t);
-    NOA_INSTANTIATE_COPY_(float);
-    NOA_INSTANTIATE_COPY_(double);
-    NOA_INSTANTIATE_COPY_(chalf_t);
-    NOA_INSTANTIATE_COPY_(cfloat_t);
-    NOA_INSTANTIATE_COPY_(cdouble_t);
+    NOA_INSTANTIATE_COPY_(i8);
+    NOA_INSTANTIATE_COPY_(i16);
+    NOA_INSTANTIATE_COPY_(i32);
+    NOA_INSTANTIATE_COPY_(i64);
+    NOA_INSTANTIATE_COPY_(u8);
+    NOA_INSTANTIATE_COPY_(u16);
+    NOA_INSTANTIATE_COPY_(u32);
+    NOA_INSTANTIATE_COPY_(u64);
+    NOA_INSTANTIATE_COPY_(f16);
+    NOA_INSTANTIATE_COPY_(f32);
+    NOA_INSTANTIATE_COPY_(f64);
+    NOA_INSTANTIATE_COPY_(c16);
+    NOA_INSTANTIATE_COPY_(c32);
+    NOA_INSTANTIATE_COPY_(c64);
 }

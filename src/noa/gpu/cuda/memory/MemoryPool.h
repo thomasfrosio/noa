@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
@@ -30,7 +30,7 @@ namespace noa::cuda::memory {
         }
 
         // Sets the default memory pool of device.
-        static void current(Device device, cudaMemPool_t pool) {
+        static void set_current(Device device, cudaMemPool_t pool) {
             NOA_THROW_IF(cudaDeviceSetMemPool(device.id(), pool));
         }
 
@@ -43,14 +43,14 @@ namespace noa::cuda::memory {
 
         // Sets this pool as default memory pool of device.
         void attach(Device device) const {
-            current(device, m_pool);
+            set_current(device, m_pool);
         }
 
         // Sets the amount of reserved memory in bytes to hold onto before trying to release memory back to the OS.
         // When more than the release threshold bytes of memory are held by the memory pool, the allocator will
         // try to release memory back to the OS on the next call to stream, event or context synchronize. The
         // default value is 0 bytes (i.e. stream synchronization frees the cached memory).
-        void threshold(size_t threshold_bytes) const {
+        void set_threshold(size_t threshold_bytes) const {
             NOA_THROW_IF(cudaMemPoolSetAttribute(m_pool, cudaMemPoolAttrReleaseThreshold, &threshold_bytes));
         }
 

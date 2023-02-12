@@ -1,776 +1,323 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/utils/Traits.h"
+#include "noa/gpu/cuda/Stream.h"
 #include "noa/gpu/cuda/utils/Block.cuh"
 #include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/EwiseUnary.cuh"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 
-namespace noa::cuda::utils::ewise::details {
-    struct TrinaryConfig {
-        static constexpr uint32_t ELEMENTS_PER_THREAD = 4;
-        static constexpr uint32_t BLOCK_SIZE = 128;
-        static constexpr uint32_t BLOCK_WORK_SIZE = BLOCK_SIZE * ELEMENTS_PER_THREAD;
+namespace noa::cuda::utils::details {
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output,
+             typename Index, typename TrinaryOp, typename Config,
+             u32 VECTOR_SIZE, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    __global__ __launch_bounds__(Config::BLOCK_SIZE)
+    void ewise_trinary_1d(Accessor<const Lhs, 2, Index, PointerTrait, StridesTrait> lhs_batched,
+                          Accessor<const Mhs, 2, Index, PointerTrait, StridesTrait> mhs_batched,
+                          Accessor<const Rhs, 2, Index, PointerTrait, StridesTrait> rhs_batched,
+                          Accessor<Output, 2, Index, PointerTrait, StridesTrait> output_batched,
+                          Index elements, TrinaryOp trinary_op) {
 
-        // Still the same threads per block and elements per thread, but using a 2D block.
-        // The goal is waste as fewer threads as possible, assuming 2D/3D/4D arrays have a
-        // similar number of elements in their two innermost dimensions.
-        static constexpr uint32_t ELEMENTS_PER_THREAD_2D = ELEMENTS_PER_THREAD / 2;
-        static constexpr dim3 BLOCK_SIZE_2D{32, BLOCK_SIZE / 32, 1};
-        static constexpr dim3 BLOCK_WORK_SIZE_2D{BLOCK_SIZE_2D.x * ELEMENTS_PER_THREAD_2D,
-                                                 BLOCK_SIZE_2D.y * ELEMENTS_PER_THREAD_2D, 1};
-    };
+        constexpr Index BLOCK_SIZE = Config::BLOCK_SIZE;
+        constexpr Index EPT = noa::math::max(Config::ELEMENTS_PER_THREAD, VECTOR_SIZE);
+        constexpr Index BLOCK_WORK_SIZE = BLOCK_SIZE * EPT;
 
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp,
-             int VEC_SIZE, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValue1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
-                         MhsVal mhs,
-                         RhsVal rhs,
-                         Accessor<OutVal, 2, uint32_t, TRAITS> output,
-                         uint32_t elements, TrinaryOp trinary_op) {
-        constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
-        constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
-        constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
+        const auto lhs = lhs_batched[blockIdx.y];
+        const auto mhs = mhs_batched[blockIdx.y];
+        const auto rhs = rhs_batched[blockIdx.y];
+        const auto output = output_batched[blockIdx.y];
+        const Index block_offset = BLOCK_WORK_SIZE * blockIdx.x;
 
-        const uint32_t batch = blockIdx.y;
-        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x;
-        const auto lhs_ = lhs[batch];
-        const auto out_ = output[batch];
-
-        if constexpr (VEC_SIZE == 1) {
+        if constexpr (VECTOR_SIZE == 1) {
             #pragma unroll
-            for (uint32_t i = 0; i < EPT; ++i) {
-                const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
+            for (Index i = 0; i < EPT; ++i) {
+                const Index gid = block_offset + BLOCK_SIZE * i + threadIdx.x;
                 if (gid < elements)
-                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs, rhs));
+                    output[gid] = static_cast<Output>(trinary_op(lhs[gid], mhs[gid], rhs[gid]));
             }
-        } else {
-            NOA_ASSERT(lhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::pointer_type;
-            using optr_t = typename decltype(output)::pointer_type;
-            lptr_t lhs_ptr = lhs_.get() + base;
-            optr_t out_ptr = out_.get() + base;
+        } else { // assume contiguous
+            auto lhs_ptr = lhs.get() + block_offset;
+            auto mhs_ptr = mhs.get() + block_offset;
+            auto rhs_ptr = rhs.get() + block_offset;
+            auto output_ptr = output.get() + block_offset;
 
-            const uint32_t remaining = elements - base;
+            const Index remaining = elements - block_offset;
             if (remaining < BLOCK_WORK_SIZE) {
                 #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i) {
-                    const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
-                    if (offset < remaining)
-                    out_ptr[offset] = static_cast<OutVal>(trinary_op(lhs_ptr[offset], mhs, rhs));
+                for (Index i = 0; i < EPT; ++i) {
+                    const Index gid = BLOCK_SIZE * i + threadIdx.x;
+                    if (gid < remaining)
+                        output_ptr[gid] = static_cast<Output>(trinary_op(lhs_ptr[gid], mhs_ptr[gid], rhs_ptr[gid]));
                 }
-            } else {
-                LhsVal args[EPT];
-                OutVal results[EPT];
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, args, threadIdx.x);
+            } else { // this block has BLOCK_WORK_SIZE elements to handle, so we can use vectorized memory accesses
+                Lhs lhs_values[EPT];
+                Mhs mhs_values[EPT];
+                Rhs rhs_values[EPT];
+                Output output_values[EPT];
+                block_load<BLOCK_SIZE, EPT, VECTOR_SIZE>(lhs_ptr, lhs_values, threadIdx.x);
+                block_load<BLOCK_SIZE, EPT, VECTOR_SIZE>(mhs_ptr, mhs_values, threadIdx.x);
+                block_load<BLOCK_SIZE, EPT, VECTOR_SIZE>(rhs_ptr, rhs_values, threadIdx.x);
                 #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<OutVal>(trinary_op(args[i], mhs, rhs));
-                block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
+                for (Index i = 0; i < EPT; ++i)
+                    output_values[i] = static_cast<Output>(trinary_op(lhs_values[i], mhs_values[i], rhs_values[i]));
+                block_store<BLOCK_SIZE, EPT, VECTOR_SIZE>(output_values, output_ptr, threadIdx.x);
             }
         }
     }
 
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValue4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
-                         MhsVal mhs, RhsVal rhs,
-                         Accessor<OutVal, 4, uint32_t, TRAITS> out,
-                         uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
+    template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename Index, typename TrinaryOp,
+             typename Config, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    __global__ __launch_bounds__(Config::BLOCK_SIZE)
+    void ewise_trinary_4d(Accessor<const Lhs, 4, Index, PointerTrait, StridesTrait> lhs_batched,
+                          Accessor<const Mhs, 4, Index, PointerTrait, StridesTrait> mhs_batched,
+                          Accessor<const Rhs, 4, Index, PointerTrait, StridesTrait> rhs_batched,
+                          Accessor<Output, 4, Index, PointerTrait, StridesTrait> output_batched,
+                          Shape2 <Index> shape, TrinaryOp trinary_op, Index blocks_x) {
 
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        const auto lhs_ = lhs[gid[0]][gid[1]];
-        const auto out_ = out[gid[0]][gid[1]];
+        const auto index = noa::indexing::offset2index(static_cast<Index>(blockIdx.x), blocks_x);
+        const auto gid = Vec4<Index>{
+                blockIdx.z, blockIdx.y,
+                Config::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
+                Config::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
+        const auto lhs = lhs_batched[gid[0]][gid[1]];
+        const auto mhs = mhs_batched[gid[0]][gid[1]];
+        const auto rhs = rhs_batched[gid[0]][gid[1]];
+        const auto output = output_batched[gid[0]][gid[1]];
 
         #pragma unroll
-        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
+        for (u32 k = 0; k < Config::ELEMENTS_PER_THREAD_2D; ++k) {
             #pragma unroll
-            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
-                const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
-                const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
+            for (u32 l = 0; l < Config::ELEMENTS_PER_THREAD_2D; ++l) {
+                const auto ik = gid[2] + Config::BLOCK_SIZE_2D.y * k;
+                const auto il = gid[3] + Config::BLOCK_SIZE_2D.x * l;
                 if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs, rhs));
-            }
-        }
-    }
-
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp,
-             int VEC_SIZE, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArrayValue1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
-                              Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs,
-                              RhsVal rhs,
-                              Accessor<OutVal, 2, uint32_t, TRAITS> out,
-                              uint32_t elements, TrinaryOp trinary_op) {
-        constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
-        constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
-        constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
-
-        const uint32_t batch = blockIdx.y;
-        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x;
-        const auto lhs_ = lhs[batch];
-        const auto mhs_ = mhs[batch];
-        const auto out_ = out[batch];
-
-        if constexpr (VEC_SIZE == 1) {
-            #pragma unroll
-            for (uint32_t i = 0; i < EPT; ++i) {
-                const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
-                if (gid < elements)
-                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs_[gid], rhs));
-            }
-        } else {
-            NOA_ASSERT(lhs_.stride(0) == 1 && mhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::pointer_type;
-            using mptr_t = typename decltype(mhs)::pointer_type;
-            using optr_t = typename decltype(out)::pointer_type;
-            lptr_t lhs_ptr = lhs_.get() + base;
-            mptr_t mhs_ptr = mhs_.get() + base;
-            optr_t out_ptr = out_.get() + base;
-
-            const uint32_t remaining = elements - base;
-            if (remaining < BLOCK_WORK_SIZE) {
-                #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i) {
-                    const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
-                    if (offset < remaining)
-                        out_ptr[offset] = static_cast<OutVal>(trinary_op(lhs_ptr[offset], mhs_ptr[offset], rhs));
-                }
-            } else {
-                LhsVal ilhs[EPT];
-                MhsVal imhs[EPT];
-                OutVal results[EPT];
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(mhs_ptr, imhs, threadIdx.x);
-                #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<OutVal>(trinary_op(ilhs[i], imhs[i], rhs));
-                block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
-            }
-        }
-    }
-
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArrayValue4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
-                              Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs,
-                              RhsVal rhs,
-                              Accessor<OutVal, 4, uint32_t, TRAITS> out,
-                              uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
-
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        const auto lhs_ = lhs[gid[0]][gid[1]];
-        const auto mhs_ = mhs[gid[0]][gid[1]];
-        const auto out_ = out[gid[0]][gid[1]];
-
-        #pragma unroll
-        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
-            #pragma unroll
-            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
-                const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
-                const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
-                if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs_(ik, il), rhs));
-            }
-        }
-    }
-
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp,
-             int VEC_SIZE, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValueArray1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
-                              MhsVal mhs,
-                              Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs,
-                              Accessor<OutVal, 2, uint32_t, TRAITS> out,
-                              uint32_t elements, TrinaryOp trinary_op) {
-        constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
-        constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
-        constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
-
-        const uint32_t batch = blockIdx.y;
-        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x;
-        const auto lhs_ = lhs[batch];
-        const auto rhs_ = rhs[batch];
-        const auto out_ = out[batch];
-
-        if constexpr (VEC_SIZE == 1) {
-            #pragma unroll
-            for (uint32_t i = 0; i < EPT; ++i) {
-                const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
-                if (gid < elements)
-                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs, rhs_[gid]));
-            }
-        } else {
-            NOA_ASSERT(lhs_.stride(0) == 1 && rhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::pointer_type;
-            using rptr_t = typename decltype(rhs)::pointer_type;
-            using optr_t = typename decltype(out)::pointer_type;
-            lptr_t lhs_ptr = lhs_.get() + base;
-            rptr_t rhs_ptr = rhs_.get() + base;
-            optr_t out_ptr = out_.get() + base;
-
-            const uint32_t remaining = elements - base;
-            if (remaining < BLOCK_WORK_SIZE) {
-                #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i) {
-                    const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
-                    if (offset < remaining)
-                        out_ptr[offset] = static_cast<OutVal>(trinary_op(lhs_ptr[offset], mhs, rhs_ptr[offset]));
-                }
-            } else {
-                LhsVal ilhs[EPT];
-                RhsVal irhs[EPT];
-                OutVal results[EPT];
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(rhs_ptr, irhs, threadIdx.x);
-                #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<OutVal>(trinary_op(ilhs[i], mhs, irhs[i]));
-                block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
-            }
-        }
-    }
-
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryValueArray4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
-                              MhsVal mhs,
-                              Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs,
-                              Accessor<OutVal, 4, uint32_t, TRAITS> out,
-                              uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
-
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        const auto lhs_ = lhs[gid[0]][gid[1]];
-        const auto rhs_ = rhs[gid[0]][gid[1]];
-        const auto out_ = out[gid[0]][gid[1]];
-
-        #pragma unroll
-        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
-            #pragma unroll
-            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
-                const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
-                const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
-                if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs, rhs_(ik, il)));
-            }
-        }
-    }
-
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp,
-             int VEC_SIZE, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArray1D_(Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs,
-                         Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs,
-                         Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs,
-                         Accessor<OutVal, 2, uint32_t, TRAITS> out,
-                         uint32_t elements, TrinaryOp trinary_op) {
-        constexpr uint32_t BLOCK_SIZE = TrinaryConfig::BLOCK_SIZE;
-        constexpr uint32_t BLOCK_WORK_SIZE = TrinaryConfig::BLOCK_WORK_SIZE;
-        constexpr uint32_t EPT = TrinaryConfig::ELEMENTS_PER_THREAD;
-
-        const uint32_t batch = blockIdx.y;
-        const uint32_t base = BLOCK_WORK_SIZE * blockIdx.x;
-        const auto lhs_ = lhs[batch];
-        const auto mhs_ = mhs[batch];
-        const auto rhs_ = rhs[batch];
-        const auto out_ = out[batch];
-
-        if constexpr (VEC_SIZE == 1) {
-            #pragma unroll
-            for (uint32_t i = 0; i < EPT; ++i) {
-                const uint32_t gid = base + BLOCK_SIZE * i + threadIdx.x;
-                if (gid < elements)
-                    out_[gid] = static_cast<OutVal>(trinary_op(lhs_[gid], mhs_[gid], rhs_[gid]));
-            }
-        } else {
-            NOA_ASSERT(lhs_.stride(0) == 1 && mhs_.stride(0) == 1 &&
-                       rhs_.stride(0) == 1 && out_.stride(0) == 1);
-            using lptr_t = typename decltype(lhs)::pointer_type;
-            using mptr_t = typename decltype(mhs)::pointer_type;
-            using rptr_t = typename decltype(rhs)::pointer_type;
-            using optr_t = typename decltype(out)::pointer_type;
-            lptr_t lhs_ptr = lhs_.get() + base;
-            mptr_t mhs_ptr = mhs_.get() + base;
-            rptr_t rhs_ptr = rhs_.get() + base;
-            optr_t out_ptr = out_.get() + base;
-
-            const uint32_t remaining = elements - base;
-            if (remaining < BLOCK_WORK_SIZE) {
-                #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i) {
-                    const uint32_t offset = BLOCK_SIZE * i + threadIdx.x;
-                    if (offset < remaining) {
-                        out_ptr[offset] = static_cast<OutVal>(trinary_op(
-                                lhs_ptr[offset], mhs_ptr[offset], rhs_ptr[offset]));
-                    }
-                }
-            } else {
-                LhsVal ilhs[EPT];
-                MhsVal imhs[EPT];
-                RhsVal irhs[EPT];
-                OutVal results[EPT];
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(lhs_ptr, ilhs, threadIdx.x);
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(mhs_ptr, imhs, threadIdx.x);
-                block::vectorizedLoad<BLOCK_SIZE, EPT, VEC_SIZE>(rhs_ptr, irhs, threadIdx.x);
-                #pragma unroll
-                for (uint32_t i = 0; i < EPT; ++i)
-                    results[i] = static_cast<OutVal>(trinary_op(ilhs[i], imhs[i], irhs[i]));
-                block::vectorizedStore<BLOCK_SIZE, EPT, VEC_SIZE>(results, out_ptr, threadIdx.x);
-            }
-        }
-    }
-
-    template<typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp, AccessorTraits TRAITS>
-    __global__ __launch_bounds__(TrinaryConfig::BLOCK_SIZE)
-    void trinaryArray4D_(Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs,
-                         Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs,
-                         Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs,
-                         Accessor<OutVal, 4, uint32_t, TRAITS> out,
-                         uint2_t shape, TrinaryOp trinary_op, uint32_t blocks_x) {
-
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.y * index[0] + threadIdx.y,
-                          TrinaryConfig::BLOCK_WORK_SIZE_2D.x * index[1] + threadIdx.x};
-        const auto lhs_ = lhs[gid[0]][gid[1]];
-        const auto mhs_ = mhs[gid[0]][gid[1]];
-        const auto rhs_ = rhs[gid[0]][gid[1]];
-        const auto out_ = out[gid[0]][gid[1]];
-
-        #pragma unroll
-        for (uint32_t k = 0; k < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++k) {
-            #pragma unroll
-            for (uint32_t l = 0; l < TrinaryConfig::ELEMENTS_PER_THREAD_2D; ++l) {
-                const uint32_t ik = gid[2] + TrinaryConfig::BLOCK_SIZE_2D.y * k;
-                const uint32_t il = gid[3] + TrinaryConfig::BLOCK_SIZE_2D.x * l;
-                if (ik < shape[0] && il < shape[1])
-                    out_(ik, il) = static_cast<OutVal>(trinary_op(lhs_(ik, il), mhs_(ik, il), rhs_(ik, il)));
+                    output(ik, il) = static_cast<Output>(trinary_op(lhs(ik, il), mhs(ik, il), rhs(ik, il)));
             }
         }
     }
 }
 
-namespace noa::cuda::utils::ewise {
-    // Apply a trinary operator, element-wise.
-    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
-    // name:            Name of the function. Used for logging if kernel launch fails.
-    // lhs:             On the device. Left-hand side argument.
-    // lhs_strides:     Strides of lhs.
-    // mhs:             Middle-hand side argument.
-    // rhs:             Right-hand side argument.
-    // output:          On the device. Transformed array.
-    // output_strides:  Strides of output.
-    // shape:           Shape of lhs and output.
-    // swap_layout:     Swap the memory layout to optimize output writes.
-    //                  If false, assume rightmost order is the fastest order.
-    // stream:          Stream on which to enqueue this function.
-    // trinary_op:      Trinary operator. The output is explicitly cast to the output type.
+namespace noa::cuda::utils {
+    // Apply a unary operator op(Lhs, Mhs, Rhs) -> Output, element-wise.
     // This function is asynchronous relative to the host and may return before completion.
-    // One must make sure lhs and output stay valid until completion.
-    template<bool RESTRICT = false,
-             typename LhsVal, typename Mhs, typename Rhs,
-             typename OutVal, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::is_data_v<Mhs> && noa::traits::is_data_v<Rhs>>>
-    void trinary(const char* name,
-                 const LhsVal* lhs, dim4_t lhs_strides,
-                 Mhs mhs, Rhs rhs,
-                 OutVal* output, dim4_t output_strides,
-                 dim4_t shape, bool swap_layout, Stream& stream,
-                 TrinaryOp trinary_op) {
-        using namespace details;
-        using MhsVal = noa::traits::remove_ref_cv_t<Mhs>;
-        using RhsVal = noa::traits::remove_ref_cv_t<Rhs>;
-        constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
-        NOA_ASSERT_DEVICE_PTR(output, stream.device());
-
-        if (swap_layout) {
-            const auto order = indexing::order(output_strides, shape);
-            shape = indexing::reorder(shape, order);
-            output_strides = indexing::reorder(output_strides, order);
-            lhs_strides = indexing::reorder(lhs_strides, order);
-        }
-
-        const bool4_t is_contiguous = indexing::isContiguous(lhs_strides, shape) &&
-                                      indexing::isContiguous(output_strides, shape);
-        if (is_contiguous[1] && is_contiguous[2]) {
-            uint32_t elements, blocks_y;
-            if (!is_contiguous[0]) {
-                elements = safe_cast<uint32_t>(shape[1] * shape[2] * shape[3]);
-                blocks_y = shape[0];
-            } else {
-                elements = safe_cast<uint32_t>(shape.elements());
-                blocks_y = 1;
-            }
-            const dim3 blocks(noa::math::divideUp(elements, TrinaryConfig::BLOCK_WORK_SIZE), blocks_y);
-            const auto uint_lhs_strides = safe_cast<uint2_t>(dim2_t{lhs_strides[0], lhs_strides[3]});
-            const auto uint_output_strides = safe_cast<uint2_t>(dim2_t{output_strides[0], output_strides[3]});
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
-
-            uint32_t vec_size = is_contiguous[3] ? std::min(maxVectorCount(lhs), maxVectorCount(output)) : 1;
-            if (blocks.y > 1)
-                vec_size = uint_lhs_strides[0] % vec_size || uint_output_strides[0] % vec_size ? 1 : vec_size;
-
-            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
-
-            if (vec_size == 4) {
-                return stream.enqueue(
-                        name, trinaryValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
-                        config, lhs_accessor, mhs, rhs, output_accessor, elements, trinary_op);
-            } else if (vec_size == 2) {
-                return stream.enqueue(
-                        name, trinaryValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
-                        config, lhs_accessor, mhs, rhs, output_accessor, elements, trinary_op);
-            } else {
-                return stream.enqueue(
-                        name, trinaryValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
-                        config, lhs_accessor, mhs, rhs, output_accessor, elements, trinary_op);
-            }
-        } else {
-            const auto i_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
-            const uint32_t blocks_x = noa::math::divideUp(i_shape[1], TrinaryConfig::BLOCK_WORK_SIZE_2D.x);
-            const uint32_t blocks_y = noa::math::divideUp(i_shape[0], TrinaryConfig::BLOCK_WORK_SIZE_2D.y);
-            const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
-
-            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
-
-            stream.enqueue(name, trinaryValue4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>,
-                           config, lhs_accessor, mhs, rhs, output_accessor, i_shape, trinary_op, blocks_x);
-        }
-    }
-
-    // Apply a trinary operator, element-wise.
-    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
-    // name:            Name of the function. Used for logging if kernel launch fails.
-    // lhs:             On the device. Left-hand side argument.
-    // lhs_strides:     Strides of lhs.
-    // mhs:             On the device. Middle-hand side argument.
-    // mhs_strides:     Strides of mhs.
-    // rhs:             Right-hand side argument.
-    // output:          On the device. Transformed array.
-    // output_strides:  Strides of output.
-    // shape:           Shape of lhs, mhs and output.
-    // swap_layout:     Swap the memory layout to optimize output writes.
-    //                  If false, assume rightmost order is the fastest order.
-    // stream:          Stream on which to enqueue this function.
-    // trinary_op:      Trinary operator. The output is explicitly cast to the output type.
-    // This function is asynchronous relative to the host and may return before completion.
-    // One must make sure lhs, mhs and output stay valid until completion.
-    template<bool RESTRICT = false,
-             typename LhsVal, typename MhsVal, typename Rhs,
-             typename OutVal, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::is_data_v<Rhs>>>
-    void trinary(const char* name,
-                 const LhsVal* lhs, dim4_t lhs_strides,
-                 const MhsVal* mhs, dim4_t mhs_strides, Rhs rhs,
-                 OutVal* output, dim4_t output_strides,
-                 dim4_t shape, bool swap_layout, Stream& stream,
-                 TrinaryOp trinary_op) {
-        using namespace details;
-        using RhsVal = noa::traits::remove_ref_cv_t<Rhs>;
-        constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
-        NOA_ASSERT_DEVICE_PTR(mhs, stream.device());
-        NOA_ASSERT_DEVICE_PTR(output, stream.device());
-
-        if (swap_layout) {
-            const auto order = indexing::order(output_strides, shape);
-            shape = indexing::reorder(shape, order);
-            output_strides = indexing::reorder(output_strides, order);
-            lhs_strides = indexing::reorder(lhs_strides, order);
-            mhs_strides = indexing::reorder(mhs_strides, order);
-        }
-
-        const bool4_t is_contiguous = indexing::isContiguous(lhs_strides, shape) &&
-                                      indexing::isContiguous(mhs_strides, shape) &&
-                                      indexing::isContiguous(output_strides, shape);
-        if (is_contiguous[1] && is_contiguous[2]) {
-            uint32_t elements, blocks_y;
-            if (!is_contiguous[0]) {
-                elements = safe_cast<uint32_t>(shape[1] * shape[2] * shape[3]);
-                blocks_y = shape[0];
-            } else {
-                elements = safe_cast<uint32_t>(shape.elements());
-                blocks_y = 1;
-            }
-            const dim3 blocks(noa::math::divideUp(elements, TrinaryConfig::BLOCK_WORK_SIZE), blocks_y);
-            const auto uint_lhs_strides = safe_cast<uint2_t>(dim2_t{lhs_strides[0], lhs_strides[3]});
-            const auto uint_mhs_strides = safe_cast<uint2_t>(dim2_t{mhs_strides[0], mhs_strides[3]});
-            const auto uint_output_strides = safe_cast<uint2_t>(dim2_t{output_strides[0], output_strides[3]});
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
-
-            uint32_t vec_size = is_contiguous[3] ? std::min({maxVectorCount(lhs),
-                                                         maxVectorCount(mhs),
-                                                         maxVectorCount(output)}) : 1;
-            if (blocks.y > 1) {
-                vec_size = uint_lhs_strides[0] % vec_size ||
-                           uint_mhs_strides[0] % vec_size ||
-                           uint_output_strides[0] % vec_size ? 1 : vec_size;
-            }
-
-            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs_accessor(mhs, uint_mhs_strides);
-            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
-
-            if (vec_size == 4) {
-                return stream.enqueue(
-                        name, trinaryArrayValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
-                        config, lhs_accessor, mhs_accessor, rhs, output_accessor, elements, trinary_op);
-            } else if (vec_size == 2) {
-                return stream.enqueue(
-                        name, trinaryArrayValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
-                        config, lhs_accessor, mhs_accessor, rhs, output_accessor, elements, trinary_op);
-            } else {
-                return stream.enqueue(
-                        name, trinaryArrayValue1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
-                        config, lhs_accessor, mhs_accessor, rhs, output_accessor, elements, trinary_op);
-            }
-        } else {
-            const auto i_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
-            const uint32_t blocks_x = noa::math::divideUp(i_shape[1], TrinaryConfig::BLOCK_WORK_SIZE_2D.x);
-            const uint32_t blocks_y = noa::math::divideUp(i_shape[0], TrinaryConfig::BLOCK_WORK_SIZE_2D.y);
-            const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
-
-            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs_accessor(mhs, safe_cast<uint4_t>(mhs_strides));
-            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
-
-            stream.enqueue(name, trinaryArrayValue4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>,
-                           config, lhs_accessor, mhs_accessor, rhs, output_accessor, i_shape, trinary_op, blocks_x);
-        }
-    }
-
-    // Apply a trinary operator, element-wise.
-    // RESTRICT:        Whether the pointers can be accessed using the __restrict__ attribute.
-    // name:            Name of the function. Used for logging if kernel launch fails.
-    // lhs:             On the device. Left-hand side argument.
-    // lhs_strides:     Strides of lhs.
-    // mhs:             Middle-hand side argument.
-    // rhs:             On the device. Right-hand side argument.
-    // rhs_strides:     Strides of rhs.
-    // output:          On the device. Transformed array.
-    // output_strides:  Strides of output.
-    // shape:           Shape of lhs, rhs and output.
-    // swap_layout:     Swap the memory layout to optimize output writes.
-    //                  If false, assume rightmost order is the fastest order.
-    // stream:          Stream on which to enqueue this function.
-    // trinary_op:      Trinary operator. The output is explicitly cast to the output type.
-    // This function is asynchronous relative to the host and may return before completion.
-    // One must make sure lhs, rhs and output stay valid until completion.
-    template<bool RESTRICT = false,
-             typename LhsVal, typename Mhs, typename RhsVal,
-             typename OutVal, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::is_data_v<Mhs>>>
-    void trinary(const char* name,
-                 const LhsVal* lhs, dim4_t lhs_strides, Mhs mhs,
-                 const RhsVal* rhs, dim4_t rhs_strides,
-                 OutVal* output, dim4_t output_strides,
-                 dim4_t shape, bool swap_layout, Stream& stream,
-                 TrinaryOp trinary_op) {
-        using namespace details;
-        using MhsVal = noa::traits::remove_ref_cv_t<Mhs>;
-        constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
-        NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
-        NOA_ASSERT_DEVICE_PTR(output, stream.device());
-
-        if (swap_layout) {
-            const auto order = indexing::order(output_strides, shape);
-            shape = indexing::reorder(shape, order);
-            output_strides = indexing::reorder(output_strides, order);
-            lhs_strides = indexing::reorder(lhs_strides, order);
-            rhs_strides = indexing::reorder(rhs_strides, order);
-        }
-
-        const bool4_t is_contiguous = indexing::isContiguous(lhs_strides, shape) &&
-                                      indexing::isContiguous(rhs_strides, shape) &&
-                                      indexing::isContiguous(output_strides, shape);
-        if (is_contiguous[1] && is_contiguous[2]) {
-            uint32_t elements, blocks_y;
-            if (!is_contiguous[0]) {
-                elements = safe_cast<uint32_t>(shape[1] * shape[2] * shape[3]);
-                blocks_y = shape[0];
-            } else {
-                elements = safe_cast<uint32_t>(shape.elements());
-                blocks_y = 1;
-            }
-            const dim3 blocks(noa::math::divideUp(elements, TrinaryConfig::BLOCK_WORK_SIZE), blocks_y);
-            const auto uint_lhs_strides = safe_cast<uint2_t>(dim2_t{lhs_strides[0], lhs_strides[3]});
-            const auto uint_rhs_strides = safe_cast<uint2_t>(dim2_t{rhs_strides[0], rhs_strides[3]});
-            const auto uint_output_strides = safe_cast<uint2_t>(dim2_t{output_strides[0], output_strides[3]});
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
-
-            uint32_t vec_size = is_contiguous[3] ? std::min({maxVectorCount(lhs),
-                                                             maxVectorCount(rhs),
-                                                             maxVectorCount(output)}) : 1;
-            if (blocks.y > 1) {
-                vec_size = uint_lhs_strides[0] % vec_size ||
-                           uint_rhs_strides[0] % vec_size ||
-                           uint_output_strides[0] % vec_size ? 1 : vec_size;
-            }
-
-            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
-            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
-
-            if (vec_size == 4) {
-                return stream.enqueue(
-                        name, trinaryValueArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
-                        config, lhs_accessor, mhs, rhs_accessor, output_accessor, elements, trinary_op);
-            } else if (vec_size == 2) {
-                return stream.enqueue(
-                        name, trinaryValueArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
-                        config, lhs_accessor, mhs, rhs_accessor, output_accessor, elements, trinary_op);
-            } else {
-                return stream.enqueue(
-                        name, trinaryValueArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
-                        config, lhs_accessor, mhs, rhs_accessor, output_accessor, elements, trinary_op);
-            }
-        } else {
-            const auto i_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
-            const uint32_t blocks_x = noa::math::divideUp(i_shape[1], TrinaryConfig::BLOCK_WORK_SIZE_2D.x);
-            const uint32_t blocks_y = noa::math::divideUp(i_shape[0], TrinaryConfig::BLOCK_WORK_SIZE_2D.y);
-            const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
-
-            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
-            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
-
-            stream.enqueue(name, trinaryValueArray4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>,
-                           config, lhs_accessor, mhs, rhs_accessor, output_accessor, i_shape, trinary_op, blocks_x);
-        }
-    }
-
-    // Apply a trinary operator, element-wise.
-    // RESTRICT:    Whether the pointers can be accessed using the __restrict__ attribute.
-    // name:        Name of the function. Used for logging if kernel launch fails.
-    // lhs:         On the device. Left-hand side argument.
-    // lhs_strides: Strides of lhs.
-    // mhs:         On the device. Middle-hand side argument.
-    // mhs_strides: Strides of mhs.
-    // rhs:         On the device. Right-hand side argument.
-    // rhs_strides: Strides of rhs.
-    // output:      On the device. Transformed array.
-    // shape:       Shape of lhs, mhs, rhs and output.
-    // swap_layout: Swap the memory layout to optimize output writes.
-    //              If false, assume rightmost order is the fastest order.
-    // stream:      Stream on which to enqueue this function. No synchronization is performed on the stream.
-    // trinary_op:  Trinary operator. The output is explicitly cast to the output type.
-    // This function is asynchronous relative to the host and may return before completion.
-    // One must make sure lhs, mhs, rhs and output stay valid until completion.
-    template<bool RESTRICT = false,
-             typename LhsVal, typename MhsVal, typename RhsVal,
-             typename OutVal, typename TrinaryOp>
-    void trinary(const char* name,
-                 const LhsVal* lhs, dim4_t lhs_strides,
-                 const MhsVal* mhs, dim4_t mhs_strides,
-                 const RhsVal* rhs, dim4_t rhs_strides,
-                 OutVal* output, dim4_t output_strides, dim4_t shape,
-                 bool swap_layout, Stream& stream,
-                 TrinaryOp trinary_op) {
-        using namespace details;
-        constexpr AccessorTraits TRAITS = RESTRICT ? AccessorTraits::RESTRICT : AccessorTraits::DEFAULT;
+    // The caller must make sure the input and output arrays stay valid until completion.
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED,
+             typename Config = EwiseStaticConfigDefault,
+             typename Lhs, typename Mhs, typename Rhs, typename Output,
+             typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       const Lhs* lhs, Strides4<Index> lhs_strides,
+                       const Mhs* mhs, Strides4<Index> mhs_strides,
+                       const Rhs* rhs, Strides4<Index> rhs_strides,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
         NOA_ASSERT_DEVICE_PTR(mhs, stream.device());
         NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        if (swap_layout) {
-            const auto order = indexing::order(output_strides, shape);
-            shape = indexing::reorder(shape, order);
-            output_strides = indexing::reorder(output_strides, order);
-            lhs_strides = indexing::reorder(lhs_strides, order);
-            mhs_strides = indexing::reorder(mhs_strides, order);
-            rhs_strides = indexing::reorder(rhs_strides, order);
+        shape = noa::indexing::effective_shape(shape, output_strides);
+        const auto order = noa::indexing::order(output_strides, shape);
+        if (noa::all(order != Vec4<Index>{0, 1, 2, 3})) {
+            shape = noa::indexing::reorder(shape, order);
+            lhs_strides = noa::indexing::reorder(lhs_strides, order);
+            mhs_strides = noa::indexing::reorder(mhs_strides, order);
+            rhs_strides = noa::indexing::reorder(rhs_strides, order);
+            output_strides = noa::indexing::reorder(output_strides, order);
         }
 
-        const bool4_t is_contiguous = indexing::isContiguous(lhs_strides, shape) &&
-                                      indexing::isContiguous(mhs_strides, shape) &&
-                                      indexing::isContiguous(rhs_strides, shape) &&
-                                      indexing::isContiguous(output_strides, shape);
-        if (is_contiguous[1] && is_contiguous[2]) {
-            const auto elements = safe_cast<uint32_t>(
-                    is_contiguous[0] ? shape.elements() : dim3_t(shape.get(1)).elements());
-            const dim3 blocks(noa::math::divideUp(elements, TrinaryConfig::BLOCK_WORK_SIZE),
-                              is_contiguous[0] ? 1 : shape[0]);
-            const auto uint_lhs_strides = safe_cast<uint2_t>(dim2_t{lhs_strides[0], lhs_strides[3]});
-            const auto uint_mhs_strides = safe_cast<uint2_t>(dim2_t{mhs_strides[0], mhs_strides[3]});
-            const auto uint_rhs_strides = safe_cast<uint2_t>(dim2_t{rhs_strides[0], rhs_strides[3]});
-            const auto uint_output_strides = safe_cast<uint2_t>(dim2_t{output_strides[0], output_strides[3]});
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE};
+        const auto is_contiguous =
+                noa::indexing::is_contiguous(lhs_strides, shape) &&
+                noa::indexing::is_contiguous(mhs_strides, shape) &&
+                noa::indexing::is_contiguous(rhs_strides, shape) &&
+                noa::indexing::is_contiguous(output_strides, shape);
+        if (is_contiguous[1] && is_contiguous[2]) { // 1D-like
+            // Keep batches separated in a different Grid.Y if they're not contiguous.
+            const bool batch_size = is_contiguous[0] ? 1 : shape[0];
+            const auto elements = is_contiguous[0] ? shape.elements() : shape.pop_front().elements();
+            const auto lhs_strides_2d = lhs_strides.filter(0, 3);
+            const auto mhs_strides_2d = mhs_strides.filter(0, 3);
+            const auto rhs_strides_2d = rhs_strides.filter(0, 3);
+            const auto output_strides_2d = output_strides.filter(0, 3);
 
-            uint32_t vec_size = is_contiguous[3] ? std::min({maxVectorCount(lhs), maxVectorCount(mhs),
-                                                             maxVectorCount(rhs), maxVectorCount(output)}) : 1;
-            if (blocks.y > 1) {
-                vec_size = uint_lhs_strides[0] % vec_size || uint_mhs_strides[0] % vec_size ||
-                           uint_rhs_strides[0] % vec_size || uint_output_strides[0] % vec_size ?
-                           1 : vec_size;
+            u32 vector_size = is_contiguous[3] ?
+                           std::min({max_vector_count(lhs), max_vector_count(mhs),
+                                     max_vector_count(rhs), max_vector_count(output), i64{8}}) : 1;
+            if (batch_size > 1) {
+                // Make sure the beginning of each batch preserves the alignment.
+                // If not, try with a lower vector size
+                for (; vector_size >= 2; vector_size /= 2) {
+                    if (!(lhs_strides_2d[0] % vector_size) &&
+                        !(mhs_strides_2d[0] % vector_size) &&
+                        !(rhs_strides_2d[0] % vector_size) &&
+                        !(output_strides_2d[0] % vector_size))
+                        break;
+                }
             }
 
-            const Accessor<const LhsVal, 2, uint32_t, TRAITS> lhs_accessor(lhs, uint_lhs_strides);
-            const Accessor<const MhsVal, 2, uint32_t, TRAITS> mhs_accessor(mhs, uint_mhs_strides);
-            const Accessor<const RhsVal, 2, uint32_t, TRAITS> rhs_accessor(rhs, uint_rhs_strides);
-            const Accessor<OutVal, 2, uint32_t, TRAITS> output_accessor(output, uint_output_strides);
+            const Index block_work_size = Config::BLOCK_SIZE * std::max(vector_size, Config::ELEMENTS_PER_THREAD);
+            const dim3 blocks(noa::math::divide_up(elements, block_work_size), batch_size);
+            const LaunchConfig config{blocks, Config::BLOCK_SIZE};
 
-            if (vec_size == 4) {
-                return stream.enqueue(
-                        name, trinaryArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 4, TRAITS>,
-                        config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
-            } else if (vec_size == 2) {
-                return stream.enqueue(
-                        name, trinaryArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 2, TRAITS>,
+            if (vector_size == 1) {
+                using lhs_accessor_t = Accessor<const Lhs, 2, Index, PointerTrait, StridesTrait>;
+                using mhs_accessor_t = Accessor<const Mhs, 2, Index, PointerTrait, StridesTrait>;
+                using rhs_accessor_t = Accessor<const Rhs, 2, Index, PointerTrait, StridesTrait>;
+                using output_accessor_t = Accessor<Output, 2, Index, PointerTrait, StridesTrait>;
+                const auto lhs_accessor = lhs_accessor_t(lhs, lhs_strides_2d);
+                const auto mhs_accessor = mhs_accessor_t(mhs, mhs_strides_2d);
+                const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides_2d);
+                const auto output_accessor = output_accessor_t(output, output_strides_2d);
+                return stream.enqueue(name,
+                        details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 1, PointerTrait, StridesTrait>,
                         config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
             } else {
-                return stream.enqueue(
-                        name, trinaryArray1D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, 1, TRAITS>,
-                        config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
+                using lhs_accessor_t = AccessorContiguous<const Lhs, 2, Index, PointerTrait>;
+                using mhs_accessor_t = AccessorContiguous<const Mhs, 2, Index, PointerTrait>;
+                using rhs_accessor_t = AccessorContiguous<const Rhs, 2, Index, PointerTrait>;
+                using output_accessor_t = AccessorContiguous<Output, 2, Index, PointerTrait>;
+                const auto lhs_accessor = lhs_accessor_t(lhs, lhs_strides_2d);
+                const auto mhs_accessor = mhs_accessor_t(mhs, mhs_strides_2d);
+                const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides_2d);
+                const auto output_accessor = output_accessor_t(output, output_strides_2d);
+                if (vector_size == 2) {
+                    return stream.enqueue(name,
+                            details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 2, PointerTrait, StridesTraits::CONTIGUOUS>,
+                            config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
+                } else if (vector_size == 4) {
+                    return stream.enqueue(name,
+                            details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 4, PointerTrait, StridesTraits::CONTIGUOUS>,
+                            config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
+                } else {
+                    return stream.enqueue(name,
+                            details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 8, PointerTrait, StridesTraits::CONTIGUOUS>,
+                            config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
+                }
             }
         } else {
-            const auto i_shape = safe_cast<uint2_t>(dim2_t(shape.get(2)));
-            const uint32_t blocks_x = noa::math::divideUp(i_shape[1], TrinaryConfig::BLOCK_WORK_SIZE_2D.x);
-            const uint32_t blocks_y = noa::math::divideUp(i_shape[0], TrinaryConfig::BLOCK_WORK_SIZE_2D.y);
+            const Index blocks_x = noa::math::divide_up(shape[3], static_cast<Index>(Config::BLOCK_WORK_SIZE_2D.x));
+            const Index blocks_y = noa::math::divide_up(shape[2], static_cast<Index>(Config::BLOCK_WORK_SIZE_2D.y));
             const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
-            const LaunchConfig config{blocks, TrinaryConfig::BLOCK_SIZE_2D};
+            const LaunchConfig config{blocks, Config::BLOCK_SIZE_2D};
 
-            const Accessor<const LhsVal, 4, uint32_t, TRAITS> lhs_accessor(lhs, safe_cast<uint4_t>(lhs_strides));
-            const Accessor<const MhsVal, 4, uint32_t, TRAITS> mhs_accessor(mhs, safe_cast<uint4_t>(mhs_strides));
-            const Accessor<const RhsVal, 4, uint32_t, TRAITS> rhs_accessor(rhs, safe_cast<uint4_t>(rhs_strides));
-            const Accessor<OutVal, 4, uint32_t, TRAITS> output_accessor(output, safe_cast<uint4_t>(output_strides));
+            using lhs_accessor_t = Accessor<const Lhs, 4, Index, PointerTrait, StridesTrait>;
+            using mhs_accessor_t = Accessor<const Mhs, 4, Index, PointerTrait, StridesTrait>;
+            using rhs_accessor_t = Accessor<const Rhs, 4, Index, PointerTrait, StridesTrait>;
+            using output_accessor_t = Accessor<Output, 4, Index, PointerTrait, StridesTrait>;
+            const auto lhs_accessor = lhs_accessor_t(lhs, lhs_strides);
+            const auto mhs_accessor = mhs_accessor_t(mhs, mhs_strides);
+            const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides);
+            const auto output_accessor = output_accessor_t(output, output_strides);
 
             stream.enqueue(name,
-                           trinaryArray4D_<LhsVal, MhsVal, RhsVal, OutVal, TrinaryOp, TRAITS>, config,
-                           lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, i_shape, trinary_op, blocks_x);
+                    details::ewise_trinary_4d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, PointerTrait, StridesTrait>,
+                    config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, shape.filter(2, 3), trinary_op, blocks_x);
         }
+    }
+
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED,
+             typename Config = EwiseStaticConfigDefault,
+             typename Lhs, typename Mhs, typename Rhs, typename Output,
+             typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       const Lhs* lhs, Strides4<Index> lhs_strides,
+                       Mhs mhs,
+                       Rhs rhs,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
+        ewise_unary<PointerTrait, StridesTrait>(
+                name, lhs, lhs_strides, output, output_strides, shape, stream,
+                [=] NOA_DEVICE(Lhs lhs_value) { return trinary_op(lhs_value, mhs, rhs); });
+    }
+
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+            StridesTraits StridesTrait = StridesTraits::STRIDED,
+            typename Config = EwiseStaticConfigDefault,
+            typename Lhs, typename Mhs, typename Rhs, typename Output,
+            typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       Lhs lhs,
+                       const Mhs* mhs, Strides4<Index> mhs_strides,
+                       Rhs rhs,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
+        ewise_unary<PointerTrait, StridesTrait>(
+                name, mhs, mhs_strides, output, output_strides, shape, stream,
+                [=] NOA_DEVICE(Mhs mhs_value) { return trinary_op(lhs, mhs_value, rhs); });
+    }
+
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+            StridesTraits StridesTrait = StridesTraits::STRIDED,
+            typename Config = EwiseStaticConfigDefault,
+            typename Lhs, typename Mhs, typename Rhs, typename Output,
+            typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       Lhs lhs,
+                       Mhs mhs,
+                       const Rhs* rhs, Strides4<Index> rhs_strides,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
+        ewise_unary<PointerTrait, StridesTrait>(
+                name, rhs, rhs_strides, output, output_strides, shape, stream,
+                [=] NOA_DEVICE(Rhs rhs_value) { return trinary_op(lhs, mhs, rhs_value); });
+    }
+
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED,
+             typename Config = EwiseStaticConfigDefault,
+             typename Lhs, typename Mhs, typename Rhs, typename Output,
+             typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       const Lhs* lhs, Strides4<Index> lhs_strides,
+                       const Mhs* mhs, Strides4<Index> mhs_strides,
+                       Rhs rhs,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
+        ewise_binary<PointerTrait, StridesTrait>(
+                name, lhs, lhs_strides, mhs, mhs_strides, output, output_strides, shape, stream,
+                [=] NOA_DEVICE(Lhs lhs_value, Mhs mhs_value) { return trinary_op(lhs_value, mhs_value, rhs); });
+    }
+
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+            StridesTraits StridesTrait = StridesTraits::STRIDED,
+            typename Config = EwiseStaticConfigDefault,
+            typename Lhs, typename Mhs, typename Rhs, typename Output,
+            typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       const Lhs* lhs, Strides4<Index> lhs_strides,
+                       Mhs mhs,
+                       const Rhs* rhs, Strides4<Index> rhs_strides,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
+        ewise_binary<PointerTrait, StridesTrait>(
+                name, lhs, lhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
+                [=] NOA_DEVICE(Lhs lhs_value, Rhs rhs_value) { return trinary_op(lhs_value, mhs, rhs_value); });
+    }
+
+    template<PointerTraits PointerTrait = PointerTraits::DEFAULT,
+             StridesTraits StridesTrait = StridesTraits::STRIDED,
+             typename Config = EwiseStaticConfigDefault,
+             typename Lhs, typename Mhs, typename Rhs, typename Output,
+             typename Index, typename TrinaryOp>
+    void ewise_trinary(const char* name,
+                       Lhs lhs,
+                       const Mhs* mhs, Strides4<Index> mhs_strides,
+                       const Rhs* rhs, Strides4<Index> rhs_strides,
+                       Output* output, Strides4<Index> output_strides,
+                       Shape4<Index> shape, Stream& stream,
+                       TrinaryOp trinary_op) {
+        ewise_binary<PointerTrait, StridesTrait>(
+                name, mhs, mhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
+                [=] NOA_DEVICE(Mhs mhs_value, Rhs rhs_value) { return trinary_op(lhs, mhs_value, rhs_value); });
     }
 }

@@ -1,202 +1,214 @@
-#include "noa/common/Math.h"
+#include "noa/gpu/cuda/Sort.h"
 #include "noa/gpu/cuda/math/Reduce.h"
-#include "noa/gpu/cuda/math/Sort.h"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace noa::cuda::math {
-    template<typename T, typename>
-    T min(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        T output{};
-        T* null{};
-        utils::reduce(
+    template<typename Value, typename>
+    Value min(const Shared<Value[]>& input,
+              const Strides4<i64>& strides,
+              const Shape4<i64>& shape,
+              Stream& stream) {
+        Value output{};
+        utils::reduce_unary(
                 "math::min",
-                input.get(), strides, shape,
-                noa::math::copy_t{}, noa::math::min_t{}, noa::math::Limits<T>::max(),
-                &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
+                input.get(), strides, shape, &output, Strides1<i64>{1},
+                noa::math::Limits<Value>::max(),
+                {}, noa::min_t{}, {}, true, true, stream);
         stream.synchronize();
         return output;
     }
 
-    template<typename T, typename>
-    T max(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        T output{};
-        T* null{};
-        utils::reduce(
-                "math::max",
-                input.get(), strides, shape,
-                noa::math::copy_t{}, noa::math::max_t{}, noa::math::Limits<T>::lowest(),
-                &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
+    template<typename Value, typename>
+    Value max(const Shared<Value[]>& input,
+              const Strides4<i64>& strides,
+              const Shape4<i64>& shape,
+              Stream& stream) {
+        Value output{};
+        utils::reduce_unary(
+                "math::min",
+                input.get(), strides, shape, &output, Strides1<i64>{1},
+                noa::math::Limits<Value>::lowest(),
+                {}, noa::max_t{}, {}, true, true, stream);
         stream.synchronize();
         return output;
     }
 
-    template<typename T, typename>
-    T median(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
-             bool overwrite, Stream& stream) {
-        NOA_ASSERT(all(shape > 0));
-        // Make it in rightmost order.
-        const dim4_t order = indexing::order(strides, shape);
-        strides = indexing::reorder(strides, order);
-        shape = indexing::reorder(shape, order);
 
-        const dim_t elements = shape.elements();
-        const shared_t<T[]>* to_sort;
-        shared_t<T[]> buffer;
-        if (overwrite && indexing::areContiguous(strides, shape)) {
+    template<typename Value, typename>
+    Value sum(const Shared<Value[]>& input,
+              const Strides4<i64>& strides,
+              const Shape4<i64>& shape,
+              Stream& stream) {
+        Value output{};
+        utils::reduce_unary(
+                "math::sum",
+                input.get(), strides, shape, &output, Strides1<i64>{1}, Value{0},
+                {}, noa::plus_t{}, {}, true, true, stream);
+        stream.synchronize();
+        return output;
+    }
+
+    template<typename Value, typename>
+    Value mean(const Shared<Value[]>& input,
+               const Strides4<i64>& strides,
+               const Shape4<i64>& shape,
+               Stream& stream) {
+        Value output{};
+        utils::reduce_unary(
+                "math::mean",
+                input.get(), strides, shape, &output, Strides1<i64>{1}, Value{0},
+                {}, noa::plus_t{}, {}, true, true, stream);
+        stream.synchronize();
+        return output / static_cast<Value>(shape.elements());
+    }
+
+    template<typename Input, typename Output, typename>
+    Output var(const Shared<Input[]>& input,
+               const Strides4<i64>& strides,
+               const Shape4<i64>& shape,
+               i64 ddof, Stream& stream) {
+        Output output;
+        utils::reduce_variance<false>(
+                "math::var", input.get(), strides, shape, &output, Strides1<i64>{1},
+                ddof, true, true, stream);
+        stream.synchronize();
+        return output;
+    }
+
+    template<typename Input, typename Output, typename _>
+    auto mean_var(const Shared<Input[]>& input,
+                  const Strides4<i64>& strides,
+                  const Shape4<i64>& shape,
+                  i64 ddof, Stream& stream
+    ) -> std::pair<Input, Output> {
+        // Get the sum and mean:
+        Input output_sum;
+        utils::reduce_unary(
+                "math::mean_var",
+                input.get(), strides, shape, &output_sum, Strides1<i64>{1}, Input{0},
+                {}, noa::plus_t{}, {}, true, true, stream);
+
+        stream.synchronize();
+        const auto elements = shape.elements();
+        Input output_mean = output_sum / static_cast<Output>(elements);
+
+        // Get the variance and stddev:
+        const auto count = static_cast<Output>(elements - ddof);
+        Input mean = output_sum / count;
+        auto preprocess_op = [mean]__device__(Input value) -> Output {
+                if constexpr (noa::traits::is_complex_v<Input>) {
+                    const Output distance = noa::math::abs(value - mean);
+                    return distance * distance;
+                } else {
+                    const Output distance = value - mean;
+                    return distance * distance;
+                }
+                return Output{0}; // unreachable
+        };
+        Output output_dist2;
+        utils::reduce_unary(
+                "math::statistics",
+                input.get(), strides, shape,
+                 &output_dist2, Strides1<i64>{1}, Output{0},
+                preprocess_op, noa::plus_t{}, {}, true, true, stream);
+        stream.synchronize();
+        Output output_var = output_dist2 / count;
+
+        return std::pair{output_mean, output_var};
+    }
+
+    template<typename Input, typename Output, typename>
+    Output std(const Shared<Input[]>& input,
+               const Strides4<i64>& strides,
+               const Shape4<i64>& shape,
+               i64 ddof, Stream& stream) {
+        Output output;
+        utils::reduce_variance<true>(
+                "math::var", input.get(), strides, shape, &output, Strides1<i64>{1},
+                ddof, true, true, stream);
+        stream.synchronize();
+        return output;
+    }
+
+    template<typename Value, typename>
+    Value median(const Shared<Value[]>& input,
+                 Strides4<i64> strides,
+                 Shape4<i64> shape,
+                 bool overwrite,
+                 Stream& stream) {
+        NOA_ASSERT(noa::all(shape > 0));
+
+        const auto order = noa::indexing::order(strides, shape);
+        strides = noa::indexing::reorder(strides, order);
+        shape = noa::indexing::reorder(shape, order);
+
+        const auto elements = shape.elements();
+        const Shared<Value[]>* to_sort;
+        Shared<Value[]> buffer;
+        if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
             to_sort = &input;
         } else {
-            buffer = memory::PtrDevice<T>::alloc(elements, stream);
-            memory::copy(input, strides, buffer, shape.strides(), shape, stream);
+            buffer = noa::cuda::memory::PtrDevice<Value>::alloc(elements, stream);
+            noa::cuda::memory::copy(input, strides, buffer, shape.strides(), shape, stream);
             to_sort = &buffer;
         }
 
         // Sort the entire contiguous array.
-        const dim4_t shape_1d{1, 1, 1, elements};
-        sort(*to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
+        const auto shape_1d = Shape4<i64>{1, 1, 1, elements};
+        noa::cuda::sort(*to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
 
         // Retrieve the median.
         const bool is_even = !(elements % 2);
-        T out[2];
+        Value out[2];
         memory::copy(to_sort->get() + (elements - is_even) / 2, out, 1 + is_even, stream);
         stream.synchronize();
 
         if (is_even)
-            return (out[0] + out[1]) / T{2};
+            return (out[0] + out[1]) / Value{2};
         else
             return out[0];
     }
 
-    template<typename T, typename>
-    T sum(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        T output{};
-        T* null{};
-        utils::reduce(
-                "math::sum",
-                input.get(), strides, shape,
-                noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                &output, 1, noa::math::copy_t{}, null, 0, noa::math::copy_t{}, true, true, stream);
-        stream.synchronize();
-        return output;
-    }
+    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                                      \
+    template T min<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
+    template T max<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
+    template T median<T,void>(const Shared<T[]>&, Strides4<i64>, Shape4<i64>, bool, Stream&)
 
-    template<typename T, typename U>
-    T mean(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        using real_t = noa::traits::value_type_t<T>;
-        T output{};
-        T* null{};
-        const auto inv_count = static_cast<real_t>(shape.elements());
-        auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v / inv_count; };
-        utils::reduce(
-                "math::mean",
-                input.get(), strides, shape,
-                noa::math::copy_t{}, noa::math::plus_t{}, T(0),
-                &output, 1, sum_to_mean_op, null, 0, noa::math::copy_t{}, true, true, stream);
-        stream.synchronize();
-        return output;
-    }
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f16);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f32);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f64);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u16);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u32);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u64);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i16);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i32);
+    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i64);
 
-    template<typename T, typename U, typename>
-    U var(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int32_t ddof, Stream& stream) {
-        U output;
-        utils::reduceVar<false>(
-                "math::var", input.get(), strides, shape, &output, 1,
-                ddof, true, true, stream);
-        stream.synchronize();
-        return output;
-    }
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                                                     \
+    template T sum<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
+    template T mean<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
-    template<typename T, typename U, typename>
-    U std(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int32_t ddof, Stream& stream) {
-        U output;
-        utils::reduceVar<true>(
-                "math::std", input.get(), strides, shape, &output, 1,
-                ddof, true, true, stream);
-        stream.synchronize();
-        return output;
-    }
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(f32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(f64);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(u32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(u64);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(i32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(i64);
 
-    template<typename T, typename U, typename V>
-    std::tuple<T, T, U, U> statistics(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
-                                      int32_t ddof, Stream& stream) {
-        // Get the sum and mean:
-        T output_sum, output_mean;
-        const U inv_count = U(1) / static_cast<U>(shape.elements());
-        auto sum_to_mean_op = [inv_count]__device__(T v) -> T { return v * inv_count; };
-        utils::reduce(
-                "math::statistics",
-                input.get(), strides, shape,
-                noa::math::copy_t{}, noa::math::plus_t{}, T{0},
-                &output_sum, 1, noa::math::copy_t{}, &output_mean, 0, sum_to_mean_op,
-                true, true, stream);
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                                                       \
+    template T sum<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
+    template T mean<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
-        stream.synchronize();
-        T mean = output_sum / static_cast<U>(shape.elements() - ddof);
+    NOA_INSTANTIATE_REDUCE_COMPLEX(c32);
+    NOA_INSTANTIATE_REDUCE_COMPLEX(c64);
 
-        // Get the variance and stddev:
-        auto transform_op = [mean]__device__(T value) -> U {
-            if constexpr (noa::traits::is_complex_v<T>) {
-                const U distance = noa::math::abs(value - mean);
-                return distance * distance;
-            } else {
-                const U distance = value - mean;
-                return distance * distance;
-            }
-            return U(0); // unreachable
-        };
-        auto dist2_to_var = [inv_count]__device__(U v) -> U { return v * inv_count; };
-        auto var_to_std = []__device__(U v) -> U { return noa::math::sqrt(v); };
+    #define NOA_INSTANTIATE_VAR_(T,U)                                                                       \
+    template U var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);   \
+    template U std<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);   \
+    template std::pair<T, U> mean_var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
 
-        U output_var, output_std;
-        utils::reduce(
-                "math::statistics",
-                input.get(), strides, shape,
-                transform_op, noa::math::plus_t{}, U{0},
-                &output_var, 1, dist2_to_var, &output_std, 0, var_to_std,
-                true, true, stream);
-        stream.synchronize();
-        return {output_sum, output_mean, output_var, output_std};
-    }
-
-    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                              \
-    template T min<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template T max<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template T median<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&)
-
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(half_t);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(float);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(double);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(uint16_t);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(uint32_t);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(uint64_t);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(int16_t);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(int32_t);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(int64_t);
-
-    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                             \
-    template T sum<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template T mean<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
-
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(float);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(double);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(uint32_t);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(uint64_t);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(int32_t);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(int64_t);
-
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                               \
-    template T sum<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template T mean<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
-
-    NOA_INSTANTIATE_REDUCE_COMPLEX(cfloat_t);
-    NOA_INSTANTIATE_REDUCE_COMPLEX(cdouble_t);
-
-    #define NOA_INSTANTIATE_VAR_(T,U)                                                   \
-    template U var<T,U,void>(const shared_t<T[]>&, dim4_t, dim4_t, int32_t, Stream&);   \
-    template U std<T,U,void>(const shared_t<T[]>&, dim4_t, dim4_t, int32_t, Stream&);   \
-    template std::tuple<T, T, U, U> statistics<T,U,void>(const shared_t<T[]>&, dim4_t, dim4_t, int32_t, Stream&)
-
-    NOA_INSTANTIATE_VAR_(float, float);
-    NOA_INSTANTIATE_VAR_(double, double);
-    NOA_INSTANTIATE_VAR_(cfloat_t, float);
-    NOA_INSTANTIATE_VAR_(cdouble_t, double);
+    NOA_INSTANTIATE_VAR_(f32, f32);
+    NOA_INSTANTIATE_VAR_(f64, f64);
+    NOA_INSTANTIATE_VAR_(c32, f32);
+    NOA_INSTANTIATE_VAR_(c64, f64);
 }

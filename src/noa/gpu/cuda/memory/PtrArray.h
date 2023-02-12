@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <utility>      // std::exchange
 
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
@@ -23,26 +23,30 @@
 
 // Add specialization for our complex types.
 // Used for CUDA arrays and textures.
-template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::cfloat_t>() { return cudaCreateChannelDesc<float2>(); }
-template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::chalf_t>() { return cudaCreateChannelDesc<half2>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::f16>() { return cudaCreateChannelDesc<half>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { return cudaCreateChannelDesc<half2>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
 
 namespace noa::cuda::memory {
-    // A ND CUDA array of integers (excluding (u)int64_t), float or cfloat_t.
-    // cfloat_t has the same channel descriptor as the CUDA built-in vector float2.
-    template<typename value_t>
+    struct PtrArrayDeleter {
+        void operator()(cudaArray* array) const noexcept {
+            [[maybe_unused]] const cudaError_t err = cudaFreeArray(array);
+            NOA_ASSERT(err == cudaSuccess);
+        }
+    };
+
+    // A ND CUDA array of integers (excluding u64, i64), f32 or c32.
+    template<typename Value>
     class PtrArray {
     public:
-        using value_type = value_t;
-
-        struct Deleter {
-            void operator()(cudaArray* array) noexcept {
-                [[maybe_unused]] const cudaError_t err = cudaFreeArray(array);
-                NOA_ASSERT(err == cudaSuccess);
-            }
-        };
+        static_assert(traits::is_any_v<Value, i32, u32, f32, c32>);
+        using value_type = Value;
+        using shared_type = Shared<cudaArray>;
+        using deleter_type = PtrArrayDeleter;
+        using unique_type = Unique<cudaArray, deleter_type>;
 
     public: // static functions
-        static cudaExtent shape2extent(dim4_t shape, bool is_layered) {
+        static cudaExtent shape2extent(Shape4<i64> shape, bool is_layered) {
             // Special case: treat column vectors as row vectors.
             if (shape[2] >= 1 && shape[3] == 1)
                 std::swap(shape[2], shape[3]);
@@ -53,13 +57,12 @@ namespace noa::cuda::memory {
             // 1D:          111W  -> 00W
             // 2D layered:  B1HW  -> DHW
             // 1D layered:  B11W  -> D0W
-            NOA_CHECK(all(shape > 0) && shape[is_layered] == 1,
+            NOA_CHECK(noa::all(shape > 0) && shape[is_layered] == 1,
                       "The input shape cannot be converted to a CUDA array extent. "
                       "Dimensions with a size of 0 are not allowed, and the {} should be 1. Shape: {}",
                       is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
 
-            const auto u_shape = safe_cast<size4_t>(shape);
-            dim3_t shape_3d{u_shape[!is_layered], u_shape[2], u_shape[3]};
+            auto shape_3d = shape.filter(static_cast<i64>(!is_layered), 2, 3).as_safe<size_t>();
 
             // Set empty dimensions to 0. If layered, leave extent.depth to the batch value.
             if (!is_layered)
@@ -68,38 +71,38 @@ namespace noa::cuda::memory {
             return {shape_3d[2], shape_3d[1], shape_3d[0]};
         }
 
-        static dim4_t extent2shape(cudaExtent extent, bool is_layered) noexcept {
-            size3_t u_extent{extent.depth, extent.height, extent.width};
-            u_extent += size3_t(u_extent == 0); // set empty dimensions to 1
+        static Shape4<i64> extent2shape(cudaExtent extent, bool is_layered) noexcept {
+            auto u_extent = Shape3<size_t>{extent.depth, extent.height, extent.width};
+            u_extent += Shape3<size_t>(u_extent == 0); // set empty dimensions to 1
 
             // Column vectors are "lost" in the conversion.
             // 1D extents are interpreted as row vectors.
-            size4_t shape{1, 1, u_extent[1], u_extent[2]};
-            shape[!is_layered] = u_extent[0];
-            return {shape};
+            auto shape = Shape4<i64>{1, 1, u_extent[1], u_extent[2]};
+            shape[!is_layered] = static_cast<i64>(u_extent[0]);
+            return shape;
         }
 
         static auto info(cudaArray* array) {
             cudaChannelFormatDesc desc{};
             cudaExtent extent{};
-            uint32_t flags{};
+            u32 flags{};
             NOA_THROW_IF(cudaArrayGetInfo(&desc, &extent, &flags, array));
-            return std::tuple<cudaChannelFormatDesc, cudaExtent, uint32_t>(desc, extent, flags);
+            return std::tuple<cudaChannelFormatDesc, cudaExtent, u32>(desc, extent, flags);
         }
 
-        static bool isLayered(cudaArray* array) {
+        static bool is_layered(cudaArray* array) {
             const auto [desc_, extent_, flags] = info(array);
             // Not sure whether the flags are mutually exclusive, so just check the bit for layered textures.
             return flags & cudaArrayLayered;
         }
 
-        static std::unique_ptr<cudaArray, Deleter> alloc(dim4_t shape, uint32_t flag = cudaArrayDefault) {
+        static unique_type alloc(const Shape4<i64>& shape, u32 flag = cudaArrayDefault) {
             const cudaExtent extent = shape2extent(shape, flag & cudaArrayLayered);
 
-            cudaArray* ptr;
+            cudaArray* ptr{};
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<value_type>();
             NOA_THROW_IF(cudaMalloc3DArray(&ptr, &desc, extent, flag));
-            return {ptr, Deleter{}};
+            return unique_type{ptr};
         }
 
     public: // member functions
@@ -108,16 +111,17 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrArray(std::nullptr_t) {}
 
         // Allocates a CUDA array with a given BDHW shape on the current device using cudaMalloc3DArray.
-        explicit PtrArray(dim4_t shape, uint32_t flags = cudaArrayDefault)
+        explicit PtrArray(const Shape4<i64>& shape, u32 flags = cudaArrayDefault)
                 : m_ptr(alloc(shape, flags)), m_shape(shape) {}
 
     public:
-        // Returns the CUDA array pointer.
         [[nodiscard]] constexpr cudaArray* get() const noexcept { return m_ptr.get(); }
         [[nodiscard]] constexpr cudaArray* data() const noexcept { return m_ptr.get(); }
-
-        // Returns a reference of the shared object.
-        [[nodiscard]] constexpr const std::shared_ptr<cudaArray>& share() const noexcept { return m_ptr; }
+        [[nodiscard]] constexpr const shared_type& share() const noexcept { return m_ptr; }
+        [[nodiscard]] constexpr const Shape4<i64>& shape() const noexcept { return m_shape; }
+        [[nodiscard]] bool is_layered() const noexcept { return is_layered(get()); }
+        [[nodiscard]] constexpr bool is_empty() const noexcept { return m_ptr == nullptr; }
+        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !is_empty(); }
 
         // Attach the lifetime of the managed object with an alias.
         // Constructs a shared_ptr which shares ownership information with the managed object,
@@ -127,24 +131,16 @@ namespace noa::cuda::memory {
         // return a copy of alias. It is the responsibility of the programmer to make sure that
         // alias remains valid as long as the managed object exists.
         template<typename T>
-        [[nodiscard]] constexpr std::shared_ptr<T[]> attach(T* alias) const noexcept { return {m_ptr, alias}; }
-
-        [[nodiscard]] constexpr dim4_t shape() const noexcept { return m_shape; }
-        [[nodiscard]] bool isLayered() const noexcept { return isLayered(get()); }
-
-        // Whether the managed object points to some data.
-        [[nodiscard]] constexpr bool empty() const noexcept { return m_ptr == nullptr; }
-        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] constexpr Shared<T[]> attach(T* alias) const noexcept { return {m_ptr, alias}; }
 
         // Releases the ownership of the managed array, if any.
-        std::shared_ptr<cudaArray> release() noexcept {
+        shared_type release() noexcept {
             m_shape = 0;
             return std::exchange(m_ptr, nullptr);
         }
 
     private:
-        static_assert(traits::is_any_v<value_type, int32_t, uint32_t, float, cfloat_t>);
-        std::shared_ptr<cudaArray> m_ptr{nullptr};
-        dim4_t m_shape{};
+        shared_type m_ptr{nullptr};
+        Shape4<i64> m_shape{};
     };
 }

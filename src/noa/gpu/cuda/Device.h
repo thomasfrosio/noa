@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "noa/common/Definitions.h"
-#include "noa/common/string/Format.h"
-#include "noa/common/string/Parse.h"
+#include "noa/core/Definitions.hpp"
+#include "noa/core/string/Format.hpp"
+#include "noa/core/string/Parse.hpp"
 
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
@@ -25,27 +25,29 @@ namespace noa::cuda {
         Device() : m_id(Device::current().m_id) {}
 
         // Creates a CUDA device from an ID.
-        constexpr explicit Device(int id, bool unsafe = false) : m_id(id) {
+        template<typename Int = i64, typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
+        constexpr explicit Device(Int id, bool unsafe = false) : m_id(static_cast<i32>(id)) {
             if (!unsafe)
                 validate_(m_id);
-        };
+        }
 
         // Creates a CUDA device from a name.
         // The device name should be of the form, "cuda:N", where N is a device ID.
         explicit Device(std::string_view name, bool unsafe = false) {
-            std::string str_ = string::lower(string::trim(name));
+            std::string str_ = noa::string::lower(noa::string::trim(name));
 
-            if (!string::startsWith(str_, "cuda"))
+            if (!noa::string::starts_with(str_, "cuda"))
                 NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
 
             const size_t length = str_.length();
             if (length == 4) {
                 m_id = 0;
             } else if (length >= 6 && str_[4] == ':') {
-                int error;
-                m_id = string::parse<int>(std::string{str_.data() + 5}, error);
+                i32 error{};
+                m_id = noa::string::parse<i32>(std::string{str_.data() + 5}, error);
                 if (error)
-                    NOA_THROW("Failed to parse the CUDA device ID. {}", string::parseErrorMessage<int>(str_, error));
+                    NOA_THROW("Failed to parse the CUDA device ID. {}",
+                              noa::string::parse_error_message<i32>(str_, error));
             } else {
                 NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
             }
@@ -65,10 +67,10 @@ namespace noa::cuda {
         // increase the performance of CPU threads performing work in parallel with the device. Spinning is the
         // other way around.
         void synchronize() const {
-            Device previous_current = Device::current();
-            Device::current(*this);
+            const Device previous_current = Device::current();
+            Device::set_current(*this);
             NOA_THROW_IF(cudaDeviceSynchronize());
-            Device::current(previous_current);
+            Device::set_current(previous_current);
         }
 
         // Explicitly synchronizes, destroys and cleans up all resources associated with the current device in the
@@ -114,57 +116,58 @@ namespace noa::cuda {
         [[nodiscard]] DeviceMemory memory() const {
             size_t mem_free, mem_total;
 
-            Device previous_current = Device::current();
-            Device::current(*this);
+            const Device previous_current = Device::current();
+            Device::set_current(*this);
             NOA_THROW_IF(cudaMemGetInfo(&mem_free, &mem_total));
-            Device::current(previous_current);
+            Device::set_current(previous_current);
             return {mem_free, mem_total};
         }
 
         // Retrieves a summary of the device. This is quite an "expensive" operation.
         [[nodiscard]] std::string summary() const {
-            cudaDeviceProp prop = properties();
-            DeviceMemory mem = memory();
-            auto version_formatter = [](int version) -> std::pair<int, int> {
-                int major = version / 1000;
-                int minor = version / 10 - major * 100;
+            const cudaDeviceProp prop = properties();
+            const DeviceMemory mem = memory();
+            const auto version_formatter = [](int version) -> std::pair<int, int> {
+                const int major = version / 1000;
+                const int minor = version / 10 - major * 100;
                 return {major, minor};
             };
-            auto[runtime_major, runtime_minor] = version_formatter(versionRuntime());
-            auto[driver_major, driver_minor] = version_formatter(versionDriver());
+            const auto[runtime_major, runtime_minor] = version_formatter(version_runtime());
+            const auto[driver_major, driver_minor] = version_formatter(version_driver());
 
-            return string::format("cuda:{}:\n"
-                                  "    Name: {}\n"
-                                  "    Memory: {}MB / {}MB\n"
-                                  "    Capabilities: {}.{}\n"
-                                  "    Runtime version: {}.{}\n"
-                                  "    Driver version: {}.{}",
-                                  id(), prop.name,
-                                  (mem.total - mem.free) / 1048576, mem.total / 1048576,
-                                  prop.major, prop.minor,
-                                  runtime_major, runtime_minor,
-                                  driver_major, driver_minor);
+            return noa::string::format(
+                    "cuda:{}:\n"
+                    "    Name: {}\n"
+                    "    Memory: {}MB / {}MB\n"
+                    "    Capabilities: {}.{}\n"
+                    "    Runtime version: {}.{}\n"
+                    "    Driver version: {}.{}",
+                    id(), prop.name,
+                    (mem.total - mem.free) / 1048576, mem.total / 1048576,
+                    prop.major, prop.minor,
+                    runtime_major, runtime_minor,
+                    driver_major, driver_minor);
         }
 
         // Gets resource limits for the current device.
         [[nodiscard]] size_t limit(cudaLimit resource_limit) const {
             size_t limit;
-            Device previous_current = Device::current();
-            Device::current(*this);
+            const Device previous_current = Device::current();
+            Device::set_current(*this);
             NOA_THROW_IF(cudaDeviceGetLimit(&limit, resource_limit));
-            Device::current(previous_current);
+            Device::set_current(previous_current);
             return limit;
         }
 
-        [[nodiscard]] int get() const noexcept { return m_id; }
-        [[nodiscard]] int id() const noexcept { return m_id; }
+        [[nodiscard]] i32 get() const noexcept { return m_id; }
+        [[nodiscard]] i32 id() const noexcept { return m_id; }
 
     public: // Static functions
         // Returns the number of compute-capable devices.
-        static dim_t count() {
+        static i32 count() {
             int count{};
             NOA_THROW_IF(cudaGetDeviceCount(&count));
-            return static_cast<dim_t>(count);
+            return count;
         }
 
         // Whether there's any CUDA capable device.
@@ -174,10 +177,10 @@ namespace noa::cuda {
 
         // Returns the number of compute-capable devices.
         static std::vector<Device> all() {
-            std::vector<Device> devices;
-            const dim_t count = Device::count();
+            std::vector<Device> devices{};
+            const auto count = static_cast<size_t>(Device::count());
             devices.reserve(count);
-            for (int id = 0; id < static_cast<int>(count); ++id)
+            for (size_t id = 0; id < count; ++id)
                 devices.emplace_back(id);
             return devices;
         }
@@ -198,12 +201,12 @@ namespace noa::cuda {
         // This call may be made from any host thread, to any device, and at any time. This function will do
         // no synchronization with the previous or new device, and should be considered a very low overhead
         // call".
-        static void current(Device device) {
+        static void set_current(Device device) {
             NOA_THROW_IF(cudaSetDevice(device.m_id));
         }
 
         // Gets the device with the most free memory available for allocation.
-        static Device mostFree() {
+        static Device most_free() {
             Device most_free(0, true);
             size_t available_mem{0};
             for (auto& device: all()) {
@@ -217,11 +220,11 @@ namespace noa::cuda {
         }
 
     private:
-        int m_id{};
+        i32 m_id{};
 
-        static void validate_(int id) {
-            const dim_t count = Device::count();
-            if (static_cast<dim_t>(id) + 1 > count)
+        static void validate_(i32 id) {
+            const i64 count = Device::count();
+            if (id + 1 > count)
                 NOA_THROW("Invalid device ID. Got ID:{}, count:{}", id, count);
         }
     };
@@ -238,11 +241,11 @@ namespace noa::cuda {
         explicit DeviceGuard(Args&& ...args)
                 : Device(std::forward<Args>(args)...),
                   m_previous_current(Device::current()) {
-            Device::current(*static_cast<Device*>(this));
+            Device::set_current(*static_cast<Device*>(this));
         }
 
         ~DeviceGuard() {
-            Device::current(m_previous_current);
+            Device::set_current(m_previous_current);
         }
 
     private:

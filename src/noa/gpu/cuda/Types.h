@@ -4,7 +4,7 @@
 #include <cuComplex.h>
 #include <cuda_fp16.h>
 
-#include "noa/common/Types.h"
+#include "noa/core/Types.hpp"
 
 namespace noa::cuda {
     struct LaunchConfig {
@@ -14,16 +14,19 @@ namespace noa::cuda {
         bool cooperative{};
     };
 
+    struct Constant {
+        static constexpr u32 WARP_SIZE = 32;
+    };
+
     struct Limits {
-        static constexpr uint32_t WARP_SIZE = 32;
-        static constexpr uint32_t MAX_THREADS = 1024;
-        static constexpr uint32_t MAX_X_BLOCKS = (1U << 31) - 1U;
-        static constexpr uint32_t MAX_YZ_BLOCKS = 65535;
+        static constexpr u32 MAX_THREADS = 1024;
+        static constexpr u32 MAX_X_BLOCKS = (1U << 31) - 1U;
+        static constexpr u32 MAX_YZ_BLOCKS = 65535;
     };
 
     template<typename T>
     struct Texture {
-        std::shared_ptr<cudaArray> array{nullptr};
-        std::shared_ptr<cudaTextureObject_t> texture{};
+        Shared<cudaArray> array{nullptr};
+        Shared<cudaTextureObject_t> texture{};
     };
 }

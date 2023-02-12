@@ -6,7 +6,7 @@
 #include <condition_variable>
 #include <atomic>
 
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
@@ -24,9 +24,9 @@ namespace noa::cuda::details {
     class StreamMemoryRegistry {
     private:
         std::mutex m_mutex;
-        std::vector<std::pair<int, std::shared_ptr<const void>>> m_registry;
+        std::vector<std::pair<i32, std::shared_ptr<const void>>> m_registry;
     public:
-        std::atomic<int> callback_count{0};
+        std::atomic<i32> callback_count{0};
 
     public:
         // Adds one or multiple shared_ptr to the back of the registry.
@@ -36,7 +36,7 @@ namespace noa::cuda::details {
         void insert(Args&& ... args) {
             std::scoped_lock lock(m_mutex);
 
-            int count = callback_count.load();
+            i32 count = callback_count.load();
             while (count != 0 && callback_count.compare_exchange_weak(count, count - 1)) {
                 update_();
                 --count;
@@ -50,7 +50,7 @@ namespace noa::cuda::details {
         // Removes from the registry the shared_ptr(s) flagged as unused.
         // The shared_ptr reference count is decreased by one, thus their deleter can be called.
         void clear(bool force = false) {
-            std::scoped_lock lock(m_mutex);
+            const std::scoped_lock lock(m_mutex);
             clear_(force);
             callback_count.store(0);
         }
@@ -60,7 +60,7 @@ namespace noa::cuda::details {
         // This function needs to make sure to take the "first in", excluding the elements already marked as unused
         // that haven't been cleared yet.
         void update_() {
-            int key = -1;
+            i32 key = -1;
             for (auto& p: m_registry) {
                 if (key == -1 && p.first != -1)
                     key = p.first;
@@ -99,14 +99,14 @@ namespace noa::cuda::details {
                 }
                 // Additionally, we need to reset the keys to make sure they stay unique.
                 size_t count = 0;
-                int old_key = m_registry[0].first;
-                int new_key = 0;
+                i32 old_key = m_registry[0].first;
+                i32 new_key = 0;
                 for (; count < m_registry.size(); ++count) {
                     if (!m_registry[count].second)
                         break;
 
                     if (m_registry[count].first != old_key)
-                        new_key = static_cast<int>(count);
+                        new_key = static_cast<i32>(count);
                     old_key = std::exchange(m_registry[count].first, new_key);
                 }
                 m_registry.resize(count);
@@ -114,7 +114,7 @@ namespace noa::cuda::details {
         }
 
         template<typename T>
-        void pushBack_(int key, const std::shared_ptr<T>& ptr) {
+        void pushBack_(i32 key, const std::shared_ptr<T>& ptr) {
             // TODO When moving to C++20, use std::forward to remove extra copy if original shared_ptr is a rvalue.
             m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
         }
@@ -122,6 +122,18 @@ namespace noa::cuda::details {
 }
 
 namespace noa::cuda {
+    enum class StreamMode : u32 {
+        // Work running in the created stream is implicitly synchronized with the NULL stream.
+        SERIAL = cudaStreamDefault,
+
+        // Work running in the created stream may run concurrently with work in stream 0 (the
+        // NULL stream) and there is no implicit synchronization performed between it and stream 0.
+        ASYNC = cudaStreamNonBlocking,
+
+        // Default (NULL) stream.
+        DEFAULT = 2
+    };
+
     // A CUDA stream (and its associated device).
     class Stream {
     public:
@@ -130,7 +142,7 @@ namespace noa::cuda {
             cudaStream_t handle{};
 
             ~Core() {
-                [[maybe_unused]] cudaError_t err;
+                [[maybe_unused]] cudaError_t err{};
                 err = cudaStreamSynchronize(handle);
                 NOA_ASSERT(err == cudaSuccess);
                 registry.clear(/*force*/ true);
@@ -142,32 +154,19 @@ namespace noa::cuda {
         };
 
     public:
-        enum Mode : uint {
-            // Work running in the created stream is implicitly synchronized with the NULL stream.
-            SERIAL = cudaStreamDefault,
-
-            // Work running in the created stream may run concurrently with work in stream 0 (the
-            // NULL stream) and there is no implicit synchronization performed between it and stream 0.
-            ASYNC = cudaStreamNonBlocking,
-
-            // Default (NULL) stream.
-            DEFAULT = 2
-        };
-
-    public:
         // Creates a new stream on the current device.
-        explicit Stream(Mode mode = Stream::ASYNC)
+        explicit Stream(StreamMode mode = StreamMode::ASYNC)
                 : m_core(std::make_shared<Core>()), m_device(Device::current()) {
-            if (mode != Stream::DEFAULT)
-                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
+            if (mode != StreamMode::DEFAULT)
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode2u32_(mode)));
         }
 
         // Creates a new stream on a given device.
-        explicit Stream(Device device, Mode mode = Stream::ASYNC)
+        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC)
                 : m_core(std::make_shared<Core>()), m_device(device) {
-            if (mode != Stream::DEFAULT) {
-                DeviceGuard guard(m_device);
-                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode));
+            if (mode != StreamMode::DEFAULT) {
+                const DeviceGuard guard(m_device);
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode2u32_(mode)));
             }
         }
 
@@ -187,14 +186,14 @@ namespace noa::cuda {
             #else
             NOA_ASSERT(m_core);
             // Cooperative kernels are not supported by the triple-chevron syntax.
-            DeviceGuard guard(m_device);
+            const DeviceGuard guard(m_device);
             if (config.cooperative) {
                 NOA_THROW("Cooperative kernels are not supported yet");
             } else {
                 kernel<<<config.blocks, config.threads, config.bytes_shared_memory, m_core->handle>>>(::std::forward<Args>(args)...);
                 const auto err = cudaGetLastError();
                 if (err)
-                    NOA_THROW_FUNC(kernel_name, "Failed to launch the kernel, with message: {}", toString(err));
+                    NOA_THROW_FUNC(kernel_name, "Failed to launch the kernel, with message: {}", error2string(err));
             }
             #endif
         }
@@ -212,22 +211,22 @@ namespace noa::cuda {
         }
 
         // Whether the stream has completed all operations.
-        [[nodiscard]] bool busy() const {
+        [[nodiscard]] bool is_busy() const {
             NOA_ASSERT(m_core);
-            DeviceGuard guard(m_device);
-            cudaError_t status = cudaStreamQuery(m_core->handle);
+            const DeviceGuard guard(m_device);
+            const cudaError_t status = cudaStreamQuery(m_core->handle);
             if (status == cudaError_t::cudaSuccess)
                 return false;
             else if (status == cudaError_t::cudaErrorNotReady)
                 return true;
             else
-                NOA_THROW(toString(status));
+                NOA_THROW(error2string(status));
         }
 
         // Blocks until the stream has completed all operations. See Device::synchronize().
         void synchronize() const {
             NOA_ASSERT(m_core);
-            DeviceGuard guard(m_device);
+            const DeviceGuard guard(m_device);
             NOA_THROW_IF(cudaStreamSynchronize(m_core->handle));
             clear(true);
         }
@@ -248,9 +247,11 @@ namespace noa::cuda {
 
         [[nodiscard]] cudaStream_t id() const noexcept { return get(); }
         [[nodiscard]] Device device() const noexcept { return m_device; }
-        [[nodiscard]] bool empty() const noexcept { return m_core == nullptr; }
+        [[nodiscard]] bool is_empty() const noexcept { return m_core == nullptr; }
 
     private:
+        static u32 mode2u32_(StreamMode mode) { return static_cast<std::underlying_type_t<StreamMode>>(mode); }
+
         // We need to make sure this callback:
         // 1) doesn't call the CUDA API. https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
         // 2) doesn't lock the StreamMemoryRegistry.

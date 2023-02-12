@@ -1,14 +1,14 @@
-#include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
-#include "noa/common/io/IO.h"
-#include "noa/common/io/TextFile.h"
-#include "noa/common/OS.h"
-#include "noa/common/string/Format.h"
-#include "noa/common/string/Parse.h"
-#include "noa/cpu/Device.h"
+#include "noa/core/Definitions.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/io/IO.hpp"
+#include "noa/core/io/TextFile.hpp"
+#include "noa/core/OS.hpp"
+#include "noa/core/string/Format.hpp"
+#include "noa/core/string/Parse.hpp"
+#include "noa/cpu/Device.hpp"
 
 // Internal data to reset:
-#include "noa/cpu/fft/Plan.h"
+//#include "noa/cpu/fft/Plan.h"
 
 // TODO maybe use something a bit more robust like pytorch/cpuinfo?
 // FIXME should this be in noa/common ?
@@ -19,7 +19,7 @@
 using namespace noa;
 // From https://github.dev/ThePhD/infoware/tree/main/include/infoware
 namespace {
-    cpu::DeviceMemory getMemoryInfoWindows() {
+    cpu::DeviceMemory get_memory_info_windows() {
         cpu::DeviceMemory out{};
         MEMORYSTATUSEX mem;
         mem.dwLength = sizeof(mem);
@@ -30,7 +30,7 @@ namespace {
         return out;
     }
 
-    std::string getCPUNameWindows() {
+    std::string get_cpu_name_windows() {
         HKEY hkey;
         if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, R"(HARDWARE\DESCRIPTION\System\CentralProcessor\0)", 0, KEY_READ, &hkey))
             return {};
@@ -55,7 +55,7 @@ namespace {
         return buffer;
     }
 
-    cpu::DeviceCore getCPUCoreCountWindows() {
+    cpu::DeviceCore get_cpu_core_count_windows() {
         cpu::DeviceCore out{};
         for (auto&& info: getCPUInfoBuffer()) {
             if (info.Relationship == RelationProcessorCore) {
@@ -68,7 +68,7 @@ namespace {
         return out;
     }
 
-    cpu::DeviceCache getCPUCacheWindows(int level) {
+    cpu::DeviceCache get_cpu_cache_windows(int level) {
         for (auto&& info: getCPUInfoBuffer()) {
             if (info.Relationship == RelationCache) {
                 // Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache.
@@ -84,33 +84,33 @@ namespace {
 namespace {
     using namespace noa;
 
-    size_t parseSizeFromLine(const std::string& line) {
+    size_t parse_size_from_line(const std::string& line) {
         const size_t colon_id = line.find_first_of(':');
         std::string value{line.c_str() + colon_id + 1};
         return string::parse<size_t>(value);
     }
 
-    cpu::DeviceMemory getMemoryInfoLinux() {
+    cpu::DeviceMemory get_memory_info_linux() {
         cpu::DeviceMemory ret{};
 
         std::string line;
         io::TextFile<std::ifstream> mem_info("/proc/meminfo", io::READ);
-        while (mem_info.getLine(line)) {
-            if (string::startsWith(line, "MemTotal"))
-                ret.total = parseSizeFromLine(line) * 1024; // in bytes
-            else if (string::startsWith(line, "MemAvailable"))
-                ret.free = parseSizeFromLine(line) * 1024; // in bytes
+        while (mem_info.get_line(line)) {
+            if (string::starts_with(line, "MemTotal"))
+                ret.total = parse_size_from_line(line) * 1024; // in bytes
+            else if (string::starts_with(line, "MemAvailable"))
+                ret.free = parse_size_from_line(line) * 1024; // in bytes
         }
         if (mem_info.bad())
             NOA_THROW("Error while reading {}", mem_info.path());
         return ret;
     }
 
-    std::string getCPUNameLinux() {
+    std::string get_cpu_name_linux() {
         io::TextFile<std::ifstream> cpu_info("/proc/cpuinfo", io::READ);
         std::string line;
-        while (cpu_info.getLine(line)) {
-            if (string::startsWith(line, "model name")) {
+        while (cpu_info.get_line(line)) {
+            if (string::starts_with(line, "model name")) {
                 const size_t colon_id = line.find_first_of(':');
                 const size_t nonspace_id = line.find_first_not_of(" \t", colon_id + 1);
                 return line.c_str() + nonspace_id; // assume right trimmed
@@ -119,18 +119,18 @@ namespace {
         NOA_THROW("Could not retrieve CPU name from {}", cpu_info.path());
     }
 
-    cpu::DeviceCore getCPUCoreCountLinux() {
+    cpu::DeviceCore get_cpu_core_count_linux() {
         cpu::DeviceCore out{};
         bool got_logical{}, got_physical{};
 
         io::TextFile<std::ifstream> cpu_info("/proc/cpuinfo", io::READ);
         std::string line;
-        while (cpu_info.getLine(line)) {
-            if (!got_logical && string::startsWith(line, "siblings")) {
-                out.logical = parseSizeFromLine(line);
+        while (cpu_info.get_line(line)) {
+            if (!got_logical && string::starts_with(line, "siblings")) {
+                out.logical = parse_size_from_line(line);
                 got_logical = true;
-            } else if (!got_physical && string::startsWith(line, "cpu cores")) {
-                out.physical = parseSizeFromLine(line);
+            } else if (!got_physical && string::starts_with(line, "cpu cores")) {
+                out.physical = parse_size_from_line(line);
                 got_physical = true;
             }
             if (got_logical && got_physical)
@@ -142,14 +142,14 @@ namespace {
         return out;
     }
 
-    cpu::DeviceCache getCPUCacheLinux(int level) {
+    cpu::DeviceCache get_cpu_cache_linux(int level) {
         cpu::DeviceCache out{};
         io::TextFile<std::ifstream> cache_info;
-        const path_t prefix = string::format("/sys/devices/system/cpu/cpu0/cache/index{}", level);
+        const Path prefix = string::format("/sys/devices/system/cpu/cpu0/cache/index{}", level);
         // FIXME index1 is the instruction L1 cache on my machine...
 
-        path_t cache_size_path = prefix / "size";
-        if (os::existsFile(cache_size_path)) {
+        Path cache_size_path = prefix / "size";
+        if (os::is_file(cache_size_path)) {
             cache_info.open(cache_size_path, io::READ);
             char suffix;
             cache_info.fstream() >> out.size >> suffix;
@@ -166,7 +166,7 @@ namespace {
         }
 
         cache_size_path = prefix / "coherency_line_size";
-        if (os::existsFile(cache_size_path)) {
+        if (os::is_file(cache_size_path)) {
             cache_info.open(cache_size_path, io::READ);
             cache_info.fstream() >> out.line_size;
         }
@@ -179,9 +179,9 @@ namespace {
 namespace noa::cpu {
     DeviceMemory Device::memory() {
         #if defined(NOA_PLATFORM_LINUX)
-        return getMemoryInfoLinux();
+        return get_memory_info_linux();
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return getMemoryInfoWindows();
+        return get_memory_info_windows();
         #else
         return {};
         #endif
@@ -189,9 +189,9 @@ namespace noa::cpu {
 
     DeviceCore Device::cores() {
         #if defined(NOA_PLATFORM_LINUX)
-        return getCPUCoreCountLinux();
+        return get_cpu_core_count_linux();
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return getCPUCoreCountWindows();
+        return get_cpu_core_count_windows();
         #else
         return {};
         #endif
@@ -199,9 +199,9 @@ namespace noa::cpu {
 
     DeviceCache Device::cache(int level) {
         #if defined(NOA_PLATFORM_LINUX)
-        return getCPUCacheLinux(level);
+        return get_cpu_cache_linux(level);
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return getCPUCacheWindows(level);
+        return get_cpu_cache_windows(level);
         #else
         return {};
         #endif
@@ -209,9 +209,9 @@ namespace noa::cpu {
 
     std::string Device::name() {
         #if defined(NOA_PLATFORM_LINUX)
-        return std::string(string::trim(getCPUNameLinux()));
+        return std::string(string::trim(get_cpu_name_linux()));
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return std::string{string::trim(getCPUNameWindows())};
+        return std::string{string::trim(get_cpu_name_windows())};
         #else
         return {};
         #endif
@@ -238,12 +238,12 @@ namespace noa::cpu {
                               cache2.size / 1024, cache2.line_size,
                               cache3.size / 1024, cache3.line_size,
                               (sysmem.total - sysmem.free) / 1048576, sysmem.total / 1048576,
-                              io::isBigEndian() ? "big" : "little");
+                              io::is_big_endian() ? "big" : "little");
     }
 
     void Device::reset() {
         // Reset all internal data created and managed automatically by the CPU backend:
-        fft::Plan<float>::cleanup();
-        fft::Plan<double>::cleanup();
+//        fft::Plan<float>::cleanup();
+//        fft::Plan<double>::cleanup();
     }
 }

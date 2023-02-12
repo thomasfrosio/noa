@@ -1,52 +1,36 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
-#include "noa/common/Types.h"
-#include "noa/cpu/Stream.h"
+#include "noa/core/Definitions.hpp"
+#include "noa/core/Types.hpp"
+#include "noa/cpu/Stream.hpp"
 
 namespace noa::cpu::math::details {
-    using namespace ::noa::traits;
     template<typename T, typename U>
-    constexpr bool is_valid_random_v
-            = is_any_v<T, int16_t, int32_t, int64_t, uint16_t, uint32_t, uint64_t, half_t, float, double, chalf_t, cfloat_t, cdouble_t> &&
-              (std::is_same_v<value_type_t<T>, U> || std::is_same_v<T, U> ||
-              (std::is_same_v<T, half_t> && is_float_v<U>) || (std::is_same_v<T, chalf_t> && is_float_v<value_type_t<U>>));
+    constexpr bool is_valid_random_v =
+            noa::traits::is_any_v<T, i16, i32, i64, u16, u32, u64, f16, f32, f64, c16, c32, c64> &&
+            (std::is_same_v<noa::traits::value_type_t<T>, U> || std::is_same_v<T, U> ||
+             (std::is_same_v<T, f16> && noa::traits::is_real_v<U>) ||
+             (std::is_same_v<T, c16> && noa::traits::is_real_v<noa::traits::value_type_t<U>>));
 }
 
 namespace noa::cpu::math {
-    // Randomizes an array with uniform random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim_t elements, U min, U max, Stream& stream);
-
-    // Randomizes an array with normal random values.
-    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim_t elements, U mean, U stddev, Stream& stream);
-
-    // Randomizes an array with log-normal random values.
-    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim_t elements, U mean, U stddev, Stream& stream);
-
-    // Randomizes an array with poisson random values.
-    template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim_t elements, float lambda, Stream& stream);
-
-    // Randomizes an array with uniform random values.
-    template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
+    void randomize(noa::math::uniform_t, const Shared<T[]>& output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
                    U min, U max, Stream& stream);
 
-    // Randomizes an array with normal random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
+    void randomize(noa::math::normal_t, const Shared<T[]>& output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
                    U mean, U stddev, Stream& stream);
 
-    // Randomizes an array with log-normal random values.
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
+    void randomize(noa::math::log_normal_t, const Shared<T[]>& output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
                    U mean, U stddev, Stream& stream);
 
-    // Randomizes an array with poisson random values.
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
+    void randomize(noa::math::poisson_t, const Shared<T[]>& output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
                    float lambda, Stream& stream);
 }

@@ -1,706 +1,485 @@
-#include "noa/common/Math.h"
+#include "noa/core/Math.hpp"
+#include "noa/algorithms/math/AccurateSum.hpp"
 
 #include "noa/cpu/math/Reduce.h"
-#include "noa/cpu/memory/Copy.h"
-#include "noa/cpu/memory/Set.h"
-#include "noa/cpu/memory/PtrHost.h"
+#include "noa/cpu/memory/Copy.hpp"
+#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/utils/ReduceUnary.hpp"
 
-// Reduce a 4D array to one element:
 namespace {
     using namespace noa;
 
-    constexpr dim_t NOA_OMP_THRESHOLD_ = 262144;
+    enum class ReductionMode {
+        MIN, MAX, SUM, MEAN, VAR, STD
+    };
 
-    template<typename T>
-    void reduceMin_(const T* input, dim4_t strides, dim4_t shape, T* output, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
+    template<ReductionMode MODE, typename Input>
+    struct ReduceAll {
+    public:
+        static constexpr auto execute(
+                const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+                i64 threads, i64 ddof = 0, const Input* sum_ptr = nullptr
+        ) {
+            constexpr bool IS_SUM_OR_MEAN = MODE == ReductionMode::SUM || MODE == ReductionMode::MEAN;
+            if constexpr (MODE == ReductionMode::MIN) {
+                Input output{};
+                noa::cpu::utils::reduce_unary_4d(
+                        input, strides, shape, &output, Strides1<i64>{1},
+                        noa::math::Limits<Input>::max(), {}, noa::min_t{}, {}, threads);
+                return output;
 
-        const dim_t elements = shape.elements();
-        using value_t = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
-        value_t min_value = math::Limits<value_t>::max();
+            } else if constexpr (MODE == ReductionMode::MAX) {
+                Input output{};
+                noa::cpu::utils::reduce_unary_4d(
+                        input, strides, shape, &output, Strides1<i64>{1},
+                        noa::math::Limits<Input>::min(), {}, noa::max_t{}, {}, threads);
+                return output;
 
-        #pragma omp parallel for if (elements > NOA_OMP_THRESHOLD_) \
-        collapse(4) num_threads(threads) reduction(min:min_value) default(none) \
-        shared(input, strides, shape)
+            } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_int_v<Input>) {
+                Input output;
+                noa::cpu::utils::reduce_unary_4d(
+                        input, strides, shape, &output, Strides1<i64>{1},
+                        Input{0}, {}, noa::plus_t{}, {}, threads);
+                if constexpr (MODE == ReductionMode::MEAN)
+                    output /= static_cast<Input>(shape.elements());
+                return output;
 
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-                        const dim_t offset = indexing::at(i, j, k, l, strides);
-                        const auto val = static_cast<value_t>(input[offset]);
-                        min_value = val < min_value ? val : min_value;
-                    }
+            } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_real_v<Input>) {
+                f64 global_error{0};
+                f64 global_sum{0};
+                noa::cpu::utils::reduce_unary_4d(
+                        input, strides, shape, &global_sum, Strides1<i64>{1},
+                        f64{0}, [](Input v) { return static_cast<f64>(v); },
+                        noa::algorithm::math::AccuratePlusReal{&global_error}, {}, threads);
+                global_sum += global_error;
+                if constexpr (MODE == ReductionMode::MEAN)
+                    global_sum /= static_cast<f64>(shape.elements());
+                return static_cast<Input>(global_sum);
+
+            } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_complex_v<Input>) {
+                c64 global_error{0};
+                c64 global_sum{0};
+                noa::cpu::utils::reduce_unary_4d(
+                        input, strides, shape, &global_sum, Strides1<i64>{1},
+                        c64{0}, [](Input v) { return static_cast<c64>(v); },
+                        noa::algorithm::math::AccuratePlusComplex{&global_error}, {}, threads);
+                global_sum += global_error;
+                if constexpr (MODE == ReductionMode::MEAN)
+                    global_sum /= static_cast<f64>(shape.elements());
+                return static_cast<Input>(global_sum);
+
+            } else if constexpr (MODE == ReductionMode::VAR || MODE == ReductionMode::STD) {
+                using mean_t = std::conditional_t<noa::traits::is_complex_v<Input>, c64, f64>;
+                const auto count = static_cast<f64>(shape.elements() - ddof);
+                noa::algorithm::math::AccurateVariance<mean_t> transform_op{0};
+                if (sum_ptr) {
+                    transform_op.mean = static_cast<mean_t>(*sum_ptr) / count;
+                } else {
+                    using sum_reduction_t = ReduceAll<ReductionMode::SUM, Input>;
+                    const auto sum = sum_reduction_t::execute(input, strides, shape, threads);
+                    transform_op.mean = static_cast<mean_t>(sum) / count;
                 }
+
+                f64 variance{};
+                noa::cpu::utils::reduce_unary_4d(
+                        input, strides, shape, &variance, Strides1<i64>{1},
+                        f64{0}, transform_op, noa::plus_t{}, {}, threads);
+                variance /= count;
+                if constexpr (MODE == ReductionMode::STD)
+                    variance = noa::math::sqrt(variance);
+                return static_cast<noa::traits::value_type_t<Input>>(variance);
             }
         }
-        *output = static_cast<T>(min_value);
-    }
-
-    template<typename T>
-    void reduceMax_(const T* input, dim4_t strides, dim4_t shape, T* output, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
-
-        const dim_t elements = shape.elements();
-        using value_t = std::conditional_t<std::is_same_v<half_t, T>, float, T>;
-        value_t max_value = math::Limits<value_t>::lowest();
-
-        #pragma omp parallel for if (elements > NOA_OMP_THRESHOLD_)             \
-        collapse(4) num_threads(threads) reduction(max:max_value) default(none) \
-        shared(input, strides, shape)
-
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-                        const dim_t offset = indexing::at(i, j, k, l, strides);
-                        const auto val = static_cast<value_t>(input[offset]);
-                        max_value = max_value < val  ? val : max_value;
-                    }
-                }
-            }
-        }
-        *output = static_cast<T>(max_value);
-    }
-
-    template<typename T>
-    void reduceSum_(const T* input, dim4_t strides, dim4_t shape, T* output, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
-
-        const dim_t elements = shape.elements();
-        T sum = 0;
-
-        #pragma omp parallel for if (elements > NOA_OMP_THRESHOLD_)     \
-        collapse(4) num_threads(threads) reduction(+:sum) default(none) \
-        shared(input, strides, shape)
-
-        for (dim_t i = 0; i < shape[0]; ++i)
-            for (dim_t j = 0; j < shape[1]; ++j)
-                for (dim_t k = 0; k < shape[2]; ++k)
-                    for (dim_t l = 0; l < shape[3]; ++l)
-                        sum += input[indexing::at(i, j, k, l, strides)];
-        *output = sum;
-    }
-
-    template<typename T>
-    void reduceAccurateSum_(const T* input, dim4_t strides, dim4_t shape, T* output, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
-
-        const dim_t elements = shape.elements();
-        double sum = 0, err = 0;
-
-        #pragma omp parallel for if (elements > NOA_OMP_THRESHOLD_)         \
-        collapse(4) num_threads(threads) reduction(+:sum, err) default(none)\
-        shared(input, strides, shape)
-
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-                        auto tmp = static_cast<double>(input[indexing::at(i, j, k, l, strides)]);
-                        auto t = sum + tmp;
-                        if (noa::math::abs(sum) >= noa::math::abs(tmp)) // Neumaier variation
-                            err += (sum - t) + tmp;
-                        else
-                            err += (tmp - t) + sum;
-                        sum = t;
-                    }
-                }
-            }
-        }
-        *output = static_cast<T>(sum + err);
-    }
-
-    template<typename T>
-    void reduceAccurateSumComplex_(const T* input, dim4_t strides, dim4_t shape, T* output, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
-
-        const dim_t elements = shape.elements();
-        double sum_real = 0, sum_imag = 0, err_real = 0, err_imag = 0;
-
-        #pragma omp parallel for if (elements > NOA_OMP_THRESHOLD_)                         \
-        collapse(4) num_threads(threads) reduction(+:sum_real, sum_imag, err_real, err_imag)\
-        default(none) shared(input, strides, shape)
-
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-                        auto tmp = static_cast<cdouble_t>(input[indexing::at(i, j, k, l, strides)]);
-
-                        auto t_real = sum_real + tmp.real;
-                        if (noa::math::abs(sum_real) >= noa::math::abs(tmp.real)) // Neumaier variation
-                            err_real += (sum_real - t_real) + tmp.real;
-                        else
-                            err_real += (tmp.real - t_real) + sum_real;
-                        sum_real = t_real;
-
-                        auto t_imag = sum_imag + tmp.imag;
-                        if (noa::math::abs(sum_imag) >= noa::math::abs(tmp.imag)) // Neumaier variation
-                            err_imag += (sum_imag - t_imag) + tmp.imag;
-                        else
-                            err_imag += (tmp.imag - t_imag) + sum_imag;
-                        sum_imag = t_imag;
-                    }
-                }
-            }
-        }
-        using real_t = traits::value_type_t<T>;
-        output->real = static_cast<real_t>(sum_real + err_real);
-        output->imag = static_cast<real_t>(sum_imag + err_imag);
-    }
-
-    template<typename T>
-    void reduceAccurateVariance_(const T* input, dim4_t strides, dim4_t shape, T mean, T* variance,
-                                 int ddof, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
-
-        const auto ddof_ = static_cast<dim_t>(ddof);
-        const auto count = static_cast<double>(shape.elements() - ddof_);
-        const auto tmp_mean = static_cast<double>(mean);
-        double tmp_variance = 0;
-
-        #pragma omp parallel for if (count > NOA_OMP_THRESHOLD_)                \
-        collapse(4) num_threads(threads) reduction(+:tmp_variance) default(none)\
-        shared(input, strides, shape, tmp_mean)
-
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-                        const auto tmp = static_cast<double>(input[indexing::at(i, j, k, l, strides)]);
-                        const auto distance = tmp - tmp_mean;
-                        tmp_variance += distance * distance;
-                    }
-                }
-            }
-        }
-        *variance = static_cast<T>(tmp_variance / count);
-    }
-
-    template<typename T>
-    void reduceAccurateVarianceComplex_(const Complex<T>* input, dim4_t strides, dim4_t shape,
-                                        Complex<T> mean, T* variance, int ddof, dim_t threads) {
-        const dim4_t order = indexing::order(strides, shape);
-        shape = indexing::reorder(shape, order);
-        strides = indexing::reorder(strides, order);
-
-        const auto ddof_ = static_cast<dim_t>(ddof);
-        const auto count = static_cast<double>(shape.elements() - ddof_);
-        const auto tmp_mean = static_cast<cdouble_t>(mean);
-        double tmp_variance = 0;
-
-        #pragma omp parallel for if (count > NOA_OMP_THRESHOLD_)                \
-        collapse(4) num_threads(threads) reduction(+:tmp_variance) default(none)\
-        shared(input, strides, shape, tmp_mean)
-
-        for (dim_t i = 0; i < shape[0]; ++i) {
-            for (dim_t j = 0; j < shape[1]; ++j) {
-                for (dim_t k = 0; k < shape[2]; ++k) {
-                    for (dim_t l = 0; l < shape[3]; ++l) {
-                        const auto tmp = static_cast<cdouble_t>(input[indexing::at(i, j, k, l, strides)]);
-                        double distance = math::abs(tmp - tmp_mean);
-                        distance *= distance;
-                        tmp_variance += distance;
-                    }
-                }
-            }
-        }
-        *variance = static_cast<T>(tmp_variance / count);
-    }
+    };
 }
 
-// Reduce one axis to one value:
 namespace {
-    using namespace noa;
+    template<ReductionMode MODE, typename Input, typename Output>
+    struct ReduceAxis {
+    public:
+        static constexpr void
+        execute(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                i64 threads, i64 ddof = 0
+        ) {
+            NOA_ASSERT(input && output && all(input_shape > 0) && all(output_shape > 0));
+            NOA_ASSERT(reinterpret_cast<std::uintptr_t>(input) != reinterpret_cast<std::uintptr_t>(output));
+            const auto axes_to_reduce = get_reduction_axis_mask_(input_shape, output_shape);
 
-    template<typename T>
-    double reduceAxisAccurateSum_(const T* input, dim_t strides, dim_t elements) {
-        double sum = 0, err = 0;
-        for (dim_t i = 0; i < elements; ++i) {
-            const auto tmp = static_cast<double>(input[i * strides]);
-            auto t = sum + tmp;
-            if (noa::math::abs(sum) >= noa::math::abs(tmp)) // Neumaier variation
-                err += (sum - t) + tmp;
-            else
-                err += (tmp - t) + sum;
-            sum = t;
-        }
-        return sum + err;
-    }
+            // No reduction.
+            if (!noa::any(axes_to_reduce)) {
+                if constexpr (noa::traits::is_complex_v<Input> && noa::traits::is_real_v<Output>) {
+                    return noa::cpu::utils::ewise_unary(
+                            input, input_strides, output, output_strides,
+                            output_shape, noa::abs_t{}, threads);
+                } else {
+                    return noa::cpu::memory::copy(input, input_strides, output, output_strides, output_shape);
+                }
+            }
 
-    template<typename T>
-    cdouble_t reduceAxisAccurateSum_(const Complex<T>* input, dim_t strides, dim_t elements) {
-        double sum_real = 0, sum_imag = 0, err_real = 0, err_imag = 0;
-        for (dim_t i = 0; i < elements; ++i) {
-            const auto tmp = static_cast<cdouble_t>(input[i * strides]);
-            auto t_real = sum_real + tmp.real;
-            if (noa::math::abs(sum_real) >= noa::math::abs(tmp.real))
-                err_real += (sum_real - t_real) + tmp.real;
-            else
-                err_real += (tmp.real - t_real) + sum_real;
-            sum_real = t_real;
+            // Reduce the input to one value or one value per batch.
+            const auto axes_empty_or_to_reduce = output_shape == 1 || axes_to_reduce;
+            if (axes_empty_or_to_reduce[1] && axes_empty_or_to_reduce[2] && axes_empty_or_to_reduce[3]) {
+                auto shape_to_reduce = input_shape;
+                if (axes_empty_or_to_reduce[0])
+                    shape_to_reduce[0] = 1;
+                for (i64 i = 0; i < output_shape[0]; ++i) {
+                    output[i * output_strides[0]] = ReduceAll<MODE, Input>::execute(
+                            input + i * input_strides[0], input_strides, shape_to_reduce, threads, ddof);
+                }
+                return;
+            }
 
-            auto t_imag = sum_imag + tmp.imag;
-            if (noa::math::abs(sum_imag) >= noa::math::abs(tmp.imag))
-                err_imag += (sum_imag - t_imag) + tmp.imag;
-            else
-                err_imag += (tmp.imag - t_imag) + sum_imag;
-            sum_imag = t_imag;
-        }
-        return {sum_real + err_real, sum_imag + err_imag};
-    }
-
-    template<typename T>
-    auto reduceAxisAccurateVariance_(const T* input, dim_t strides, dim_t elements, int ddof) {
-        const auto ddof_ = static_cast<dim_t>(ddof);
-        const auto count = static_cast<double>(elements - ddof_);
-        const auto mean = reduceAxisAccurateSum_(input, strides, elements) / count;
-        double variance = 0;
-        for (dim_t i = 0; i < elements; ++i) {
-            const auto tmp = static_cast<double>(input[i * strides]);
-            const double distance = tmp - mean;
-            variance += distance * distance;
-        }
-        return variance / count;
-    }
-
-    template<typename T>
-    auto reduceAxisAccurateVarianceComplex_(const T* input, dim_t strides, dim_t elements, int ddof) {
-        const auto ddof_ = static_cast<dim_t>(ddof);
-        const auto count = static_cast<double>(elements - ddof_);
-        const auto mean = reduceAxisAccurateSum_(input, strides, elements) / count;
-        double variance = 0;
-        for (dim_t i = 0; i < elements; ++i) {
-            const auto tmp = static_cast<cdouble_t>(input[i * strides]);
-            const double distance = math::abs(tmp - mean);
-            variance += distance * distance;
-        }
-        return variance / count;
-    }
-
-    template<int AXIS, typename T, typename U, typename ReduceOp>
-    inline void reduceAxis_(const T* input, dim4_t input_strides, dim4_t input_shape,
-                            U* output, dim4_t output_strides, ReduceOp reduce) {
-        if constexpr (AXIS == 0) {
-            for (dim_t j = 0; j < input_shape[1]; ++j)
-                for (dim_t k = 0; k < input_shape[2]; ++k)
-                    for (dim_t l = 0; l < input_shape[3]; ++l)
-                        output[indexing::at(0, j, k, l, output_strides)] =
-                                static_cast<U>(reduce(input + indexing::at(0, j, k, l, input_strides),
-                                                      input_strides[0], input_shape[0]));
-        } else if constexpr (AXIS == 1) {
-            for (dim_t i = 0; i < input_shape[0]; ++i)
-                for (dim_t k = 0; k < input_shape[2]; ++k)
-                    for (dim_t l = 0; l < input_shape[3]; ++l)
-                        output[indexing::at(i, 0, k, l, output_strides)] =
-                                static_cast<U>(reduce(input + indexing::at(i, 0, k, l, input_strides),
-                                                      input_strides[1], input_shape[1]));
-        } else if constexpr (AXIS == 2) {
-            for (dim_t i = 0; i < input_shape[0]; ++i)
-                for (dim_t j = 0; j < input_shape[1]; ++j)
-                    for (dim_t l = 0; l < input_shape[3]; ++l)
-                        output[indexing::at(i, j, 0, l, output_strides)] =
-                                static_cast<U>(reduce(input + indexing::at(i, j, 0, l, input_strides),
-                                                      input_strides[2], input_shape[2]));
-        } else if constexpr (AXIS == 3) {
-            for (dim_t i = 0; i < input_shape[0]; ++i)
-                for (dim_t j = 0; j < input_shape[1]; ++j)
-                    for (dim_t k = 0; k < input_shape[2]; ++k)
-                        output[indexing::at(i, j, k, output_strides)] =
-                                static_cast<U>(reduce(input + indexing::at(i, j, k, input_strides),
-                                                      input_strides[3], input_shape[3]));
-        }
-    }
-
-    template<typename T, typename U, typename ReduceOp>
-    inline void reduceAxis_(const char* func, cpu::Stream& stream,
-                            const shared_t<T[]> input, dim4_t input_strides, dim4_t input_shape,
-                            const shared_t<U[]> output, dim4_t output_strides, dim4_t output_shape,
-                            bool4_t mask, ReduceOp reduce) {
-        if (noa::math::sum(int4_t{mask}) > 1) {
-            NOA_THROW_FUNC(func, "Reducing more than one axis at a time is only supported if the reduction results in "
-                                 "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "
-                                 "Got input:{}, output:{}, reduce:{}", input_shape, output_shape, mask);
+            // Reduce one axis.
+            using input_accessor_t = AccessorRestrict<const Input, 3, i64>;
+            using output_accessor_t = AccessorRestrict<Output, 3, i64>;
+            if (axes_to_reduce[3]) {
+                const auto input_3d = input_accessor_t(input, input_strides.filter(0, 1, 2));
+                const auto output_3d = output_accessor_t(output, output_strides.filter(0, 1, 2));
+                const auto shape_3d = input_shape.filter(0, 1, 2);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[3], input_shape[3]);
+            } else if (axes_to_reduce[2]) {
+                const auto input_3d = input_accessor_t(input, input_strides.filter(0, 1, 3));
+                const auto output_3d = output_accessor_t(output, output_strides.filter(0, 1, 3));
+                const auto shape_3d = input_shape.filter(0, 1, 3);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[2], input_shape[2]);
+            } else if (axes_to_reduce[1]) {
+                const auto input_3d = input_accessor_t(input, input_strides.filter(0, 2, 3));
+                const auto output_3d = output_accessor_t(output, output_strides.filter(0, 2, 3));
+                const auto shape_3d = input_shape.filter(0, 2, 3);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[1], input_shape[1]);
+            } else if (axes_to_reduce[0]) {
+                const auto input_3d = input_accessor_t(input, input_strides.filter(1, 2, 3));
+                const auto output_3d = output_accessor_t(output, output_strides.filter(1, 2, 3));
+                const auto shape_3d = input_shape.filter(1, 2, 3);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[0], input_shape[0]);
+            }
         }
 
-        if (mask[3]) {
-            stream.enqueue([=]() {
-                reduceAxis_<3>(input.get(), input_strides, input_shape, output.get(), output_strides, reduce);
-            });
-        } else if (mask[2]) {
-            stream.enqueue([=]() {
-                reduceAxis_<2>(input.get(), input_strides, input_shape, output.get(), output_strides, reduce);
-            });
-        } else if (mask[1]) {
-            stream.enqueue([=]() {
-                reduceAxis_<1>(input.get(), input_strides, input_shape, output.get(), output_strides, reduce);
-            });
-        } else if (mask[0]) {
-            stream.enqueue([=]() {
-                reduceAxis_<0>(input.get(), input_strides, input_shape, output.get(), output_strides, reduce);
-            });
+        static constexpr auto get_reduction_axis_mask_(
+                const Shape4<i64>& input_shape,
+                const Shape4<i64>& output_shape
+        ) -> Vec4<bool> {
+            const auto mask = input_shape != output_shape;
+            if (noa::any(mask && (output_shape != 1))) {
+                NOA_THROW("Dimensions should match the input shape, or be 1, "
+                          "indicating the dimension should be reduced to one element. "
+                          "Got shape input:{}, output:{}", input_shape, output_shape);
+            } else if (noa::math::sum(mask.as<i32>()) > 1) {
+                NOA_THROW("Reducing more than one axis at a time is only supported if the reduction results in "
+                          "one value per batch, i.e. the DHW dimensions are empty after reduction. "
+                          "Got shape input:{}, output:{}, axis reduction:{}",
+                          input_shape, output_shape, mask);
+            }
+            return mask;
         }
-    }
 
-    bool4_t getMask_(const char* func, dim4_t input_shape, dim4_t output_shape) {
-        const bool4_t mask{input_shape != output_shape};
-        if (any(mask && (output_shape != 1))) {
-            NOA_THROW_FUNC(func, "Dimensions should match the input shape, or be 1, indicating the dimension should be "
-                                 "reduced to one element. Got input:{}, output:{}", input_shape, output_shape);
+        constexpr static void execute_axes(
+                const AccessorRestrict<const Input, 3, i64>& input,
+                const AccessorRestrict<Output, 3, i64>& output,
+                const Shape3<i64>& shape, i64 axis_stride, i64 axis_size) {
+            for (i64 j = 0; j < shape[0]; ++j) {
+                for (i64 k = 0; k < shape[1]; ++k) {
+                    for (i64 l = 0; l < shape[2]; ++l) {
+                        const auto* axis_ptr = input.offset_pointer(input.get(), j, k, l);
+                        output(j, k, l) = static_cast<Output>(execute_axis(axis_ptr, axis_stride, axis_size));
+                    }
+                }
+            }
         }
-        return mask;
-    }
+
+        constexpr static auto execute_axis(const Input* axis, i64 strides, i64 size, i64 ddof = 0) {
+            constexpr bool SUM_OR_MEAN = MODE == ReductionMode::SUM || MODE == ReductionMode::MEAN;
+            constexpr bool VAR_OR_STD = MODE == ReductionMode::VAR || MODE == ReductionMode::STD;
+
+            if constexpr (MODE == ReductionMode::MIN && noa::traits::is_scalar_v<Input>) {
+                Input min = noa::math::Limits<Input>::max();
+                for (i64 i = 0; i < size; ++i)
+                    min = noa::math::min(min, axis[i * strides]);
+                return min;
+
+            } else if constexpr (MODE == ReductionMode::MAX && noa::traits::is_scalar_v<Input>) {
+                Input max = noa::math::Limits<Input>::min();
+                for (i64 i = 0; i < size; ++i)
+                    max = noa::math::max(max, axis[i * strides]);
+                return max;
+
+            } else if constexpr (SUM_OR_MEAN && noa::traits::is_int_v<Input>) {
+                Input sum = 0;
+                for (i64 i = 0; i < size; ++i)
+                    sum += axis[i * strides];
+                if constexpr (MODE == ReductionMode::MEAN)
+                    sum /= static_cast<Input>(size);
+                return sum;
+
+            } else if constexpr (SUM_OR_MEAN && noa::traits::is_real_v<Input>) {
+                noa::algorithm::math::AccuratePlusReal reduction_op;
+                f64 sum = 0;
+                for (i64 i = 0; i < size; ++i) {
+                    const auto tmp = static_cast<f64>(axis[i * strides]);
+                    sum += reduction_op(sum, tmp);
+                }
+                sum += reduction_op.local_error;
+                if constexpr (MODE == ReductionMode::MEAN)
+                    sum /= static_cast<f64>(size);
+                return sum;
+
+            } else if constexpr (SUM_OR_MEAN && noa::traits::is_complex_v<Input>) {
+                noa::algorithm::math::AccuratePlusComplex reduction_op;
+                c64 sum{0};
+                for (i64 i = 0; i < size; ++i) {
+                    const auto tmp = static_cast<c64>(axis[i * strides]);
+                    sum += reduction_op(sum, tmp);
+                }
+                sum += reduction_op.local_error;
+                if constexpr (MODE == ReductionMode::MEAN)
+                    sum /= static_cast<f64>(size);
+                return sum;
+
+            } else if constexpr (VAR_OR_STD) {
+                const auto count = static_cast<f64>(size - ddof);
+                using mean_op_type = ReduceAxis<ReductionMode::SUM, Input, Output>;
+                using mean_type = std::conditional_t<noa::traits::is_complex_v<Input>, c64, f64>;
+                noa::algorithm::math::AccurateVariance<mean_type> transform_op{
+                    /*mean=*/ mean_op_type::execute_axis(axis, strides, size) / count};
+
+                f64 variance = 0;
+                for (i64 i = 0; i < size; ++i)
+                    variance += transform_op(axis[i * strides]);
+                variance /= count;
+                if constexpr (MODE == ReductionMode::STD)
+                    variance = noa::math::sqrt(variance);
+                return variance;
+
+            } else {
+                static_assert(noa::traits::always_false_v<Input>);
+            }
+        }
+    };
 }
 
 namespace noa::cpu::math {
-    template<typename T, typename>
-    T min(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input && all(shape > 0));
-        T output;
-        const dim_t threads = stream.threads();
-        stream.enqueue([=, &output](){ reduceMin_<T>(input.get(), strides, shape, &output, threads); });
+    template<typename Value, typename>
+    Value min(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
         stream.synchronize();
-        return output;
+        return ReduceAll<ReductionMode::MIN, Value>::execute(input.get(), strides, shape, stream.threads());
     }
 
-    template<typename T, typename>
-    T max(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input && all(shape > 0));
-        T output;
-        const dim_t threads = stream.threads();
-        stream.enqueue([=, &output](){ reduceMax_<T>(input.get(), strides, shape, &output, threads); });
+    template<typename Value, typename>
+    Value max(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
         stream.synchronize();
-        return output;
+        return ReduceAll<ReductionMode::MAX, Value>::execute(input.get(), strides, shape, stream.threads());
     }
 
-    template<typename T, typename>
-    T median(const shared_t<T[]>& input, dim4_t strides, dim4_t shape,
-             bool overwrite, Stream& stream) {
+    template<typename Value, typename>
+    Value sum(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
+        stream.synchronize();
+        return ReduceAll<ReductionMode::SUM, Value>::execute(input.get(), strides, shape, stream.threads());
+    }
+
+    template<typename Value, typename>
+    Value mean(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
+        stream.synchronize();
+        return ReduceAll<ReductionMode::MEAN, Value>::execute(input.get(), strides, shape, stream.threads());
+    }
+
+    template<typename Input, typename Output, typename>
+    Output var(const Shared<Input[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+               i64 ddof, Stream& stream) {
+        stream.synchronize();
+        return ReduceAll<ReductionMode::VAR, Input>::execute(
+                input.get(), strides, shape, stream.threads(), ddof);
+    }
+
+    template<typename Input, typename Output, typename>
+    auto mean_var(const Shared<Input[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+                  i64 ddof, Stream& stream) -> std::pair<Input, Output> {
+        stream.synchronize();
+        const auto threads = stream.threads();
+        const auto output_sum = ReduceAll<ReductionMode::SUM, Input>::execute(input.get(), strides, shape, threads);
+        const auto output_var = ReduceAll<ReductionMode::VAR, Input>::execute(input.get(), strides, shape, threads, ddof, &output_sum);
+        const auto output_mean = output_sum / static_cast<Output>(shape.elements());
+        return std::pair{output_mean, output_var};
+    }
+
+    template<typename Input, typename Output, typename>
+    Output std(const Shared<Input[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+               i64 ddof, Stream& stream) {
+        stream.synchronize();
+        return ReduceAll<ReductionMode::VAR, Input>::execute(
+                input.get(), strides, shape, stream.threads(), ddof);
+    }
+
+    template<typename Value, typename>
+    Value median(const Shared<Value[]>& input, Strides4<i64> strides, Shape4<i64> shape,
+                 bool overwrite, Stream& stream) {
         NOA_ASSERT(input && all(shape > 0));
-        using buffer_t = typename cpu::memory::PtrHost<T>::alloc_unique_t;
 
         // Make it in rightmost order.
-        const dim4_t order = indexing::order(strides, shape);
+        const auto order = indexing::order(strides, shape);
         strides = indexing::reorder(strides, order);
         shape = indexing::reorder(shape, order);
 
-        const dim_t elements = shape.elements();
-        T* to_sort;
+        // Allocate buffer only if necessary.
+        const auto elements = shape.elements();
+        Value* to_sort;
+        using buffer_t = typename noa::cpu::memory::PtrHost<Value>::alloc_unique_type ;
         buffer_t buffer;
-        if (overwrite && indexing::areContiguous(strides, shape)) {
+        if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
             stream.synchronize();
             to_sort = input.get();
         } else {
-            buffer = cpu::memory::PtrHost<T>::alloc(elements);
+            buffer = noa::cpu::memory::PtrHost<Value>::alloc(elements);
             stream.synchronize();
-            cpu::memory::copy(input.get(), strides, buffer.get(), shape.strides(), shape);
+            noa::cpu::memory::copy(input.get(), strides, buffer.get(), shape.strides(), shape);
             to_sort = buffer.get();
         }
 
         std::nth_element(to_sort, to_sort + elements / 2, to_sort + elements);
-        T half = to_sort[elements / 2];
+        Value half = to_sort[elements / 2];
         if (elements % 2) {
             return half;
         } else {
             std::nth_element(to_sort, to_sort + (elements - 1) / 2, to_sort + elements);
-            return T(to_sort[(elements - 1) / 2] + half) / T{2}; // cast to silence integer promotion
+            return static_cast<Value>(to_sort[(elements - 1) / 2] + half) / Value{2}; // cast to silence integer promotion
         }
-    }
-
-    template<typename T, typename>
-    T sum(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input && all(shape > 0));
-        T output;
-        const dim_t threads = stream.threads();
-        stream.enqueue([=, &output](){
-            if constexpr (noa::traits::is_float_v<T>) {
-                reduceAccurateSum_<T>(input.get(), strides, shape, &output, threads);
-            } else if constexpr (noa::traits::is_complex_v<T>) {
-                reduceAccurateSumComplex_<T>(input.get(), strides, shape, &output, threads);
-            } else {
-                reduceSum_<T>(input.get(), strides, shape, &output, threads);
-            }
-        });
-        stream.synchronize();
-        return output;
-    }
-
-    template<typename T, typename U, typename>
-    U var(const shared_t<T[]>& input, dim4_t strides, dim4_t shape, int ddof, Stream& stream) {
-        NOA_ASSERT(input && all(shape > 0));
-        U output;
-        const dim_t threads = stream.threads();
-        stream.enqueue([=, &output]() {
-            Stream current_stream(Stream::CURRENT);
-            current_stream.threads(threads);
-            T mean = sum(input, strides, shape, current_stream);
-            using value_t = noa::traits::value_type_t<T>;
-            const auto ddof_ = static_cast<dim_t>(ddof);
-            const auto count = static_cast<value_t>(shape.elements() - ddof_);
-            mean /= count;
-
-            if constexpr (noa::traits::is_float_v<T>) {
-                reduceAccurateVariance_(input.get(), strides, shape, mean, &output, ddof, threads);
-            } else if constexpr (noa::traits::is_complex_v<T>) {
-                reduceAccurateVarianceComplex_(input.get(), strides, shape, mean, &output, ddof, threads);
-            } else {
-                static_assert(traits::always_false_v<T>);
-            }
-        });
-        stream.synchronize();
-        return output;
     }
 }
 
 namespace noa::cpu::math {
-    template<typename T, typename>
-    void min(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-             const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
-        const bool4_t mask = getMask_("min", input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
-
-        if (!any(mask)) {
-            cpu::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
-
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            // Reduce the input to one value or one value per batch.
-            const dim_t threads = stream.threads();
-            stream.enqueue([=](){
-                const T* iptr = input.get();
-                T* optr = output.get();
-                const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                              input_shape[1], input_shape[2], input_shape[3]};
-                for (dim_t i = 0; i < output_shape[0]; ++i) {
-                    reduceMin_<T>(iptr + i * input_strides[0], input_strides, shape_to_reduce,
-                                  optr + i * output_strides[0], threads);
-                }
-            });
-        } else {
-            reduceAxis_("min", stream, input, input_strides, input_shape,
-                        output, output_strides, output_shape, mask,
-                        [](const T* axis, dim_t strides, dim_t elements) {
-                            T min = *axis;
-                            for (dim_t i = 0; i < elements; ++i)
-                                min = noa::math::min(min, axis[i * strides]);
-                            return min;
-                        });
-        }
+    template<typename Value, typename>
+    void min(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             Stream& stream) {
+        const auto threads = stream.threads();
+        stream.enqueue([=](){
+            ReduceAxis<ReductionMode::MIN, Value, Value>::execute(
+                    input.get(), input_strides, input_shape,
+                    output.get(), output_strides, output_shape,
+                    threads);
+        });
     }
 
-    template<typename T, typename>
-    void max(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-             const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
-        const bool4_t mask = getMask_("max", input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
-
-        if (!any(mask)) {
-            cpu::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
-
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            // Reduce the input to one value or one value per batch.
-            const dim_t threads = stream.threads();
-            stream.enqueue([=](){
-                const T* iptr = input.get();
-                T* optr = output.get();
-                const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                              input_shape[1], input_shape[2], input_shape[3]};
-                for (dim_t i = 0; i < output_shape[0]; ++i) {
-                    reduceMax_<T>(iptr + i * input_strides[0], input_strides, shape_to_reduce,
-                                  optr + i * output_strides[0], threads);
-                }
-            });
-        } else {
-            reduceAxis_("max", stream, input, input_strides, input_shape,
-                        output, output_strides, output_shape, mask,
-                        [](const T* axis, dim_t strides, dim_t elements) {
-                            T max = *axis;
-                            for (dim_t i = 0; i < elements; ++i)
-                                max = noa::math::max(max, axis[i * strides]);
-                            return max;
-                        });
-        }
+    template<typename Value, typename>
+    void max(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             Stream& stream) {
+        const auto threads = stream.threads();
+        stream.enqueue([=](){
+            ReduceAxis<ReductionMode::MAX, Value, Value>::execute(
+                    input.get(), input_strides, input_shape,
+                    output.get(), output_strides, output_shape,
+                    threads);
+        });
     }
 
-    #define NOA_INSTANTIATE_MIN_MAX_(T)                                     \
-    template T min<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template T max<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template T median<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, bool, Stream&); \
-    template void min<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void max<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
-
-    NOA_INSTANTIATE_MIN_MAX_(int16_t);
-    NOA_INSTANTIATE_MIN_MAX_(int32_t);
-    NOA_INSTANTIATE_MIN_MAX_(int64_t);
-    NOA_INSTANTIATE_MIN_MAX_(uint16_t);
-    NOA_INSTANTIATE_MIN_MAX_(uint32_t);
-    NOA_INSTANTIATE_MIN_MAX_(uint64_t);
-    NOA_INSTANTIATE_MIN_MAX_(half_t);
-    NOA_INSTANTIATE_MIN_MAX_(float);
-    NOA_INSTANTIATE_MIN_MAX_(double);
-
-
-    template<typename T, typename>
-    void sum(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-             const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
-        const bool4_t mask = getMask_("sum", input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
-
-        if (!any(mask)) {
-            cpu::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
-
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            // Reduce the input to one value or one value per batch.
-            const dim_t threads = stream.threads();
-            stream.enqueue([=]() mutable {
-                Stream current_stream(Stream::CURRENT);
-                current_stream.threads(threads);
-                T* optr = output.get();
-                const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                              input_shape[1], input_shape[2], input_shape[3]};
-                for (dim_t i = 0; i < output_shape[0]; ++i) {
-                    const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = sum(tmp, input_strides, shape_to_reduce, current_stream);
-                }
-            });
-        } else {
-            reduceAxis_("sum", stream, input, input_strides, input_shape, output, output_strides, output_shape, mask,
-                        [](const T* axis, dim_t strides, dim_t elements) {
-                            if constexpr (traits::is_complex_v<T> || traits::is_float_v<T>) {
-                                return reduceAxisAccurateSum_(axis, strides, elements);
-                            } else if constexpr (traits::is_int_v<T>) {
-                                T sum = 0;
-                                for (dim_t i = 0; i < elements; ++i)
-                                    sum += axis[i * strides];
-                                return sum;
-                            } else {
-                                static_assert(traits::always_false_v<T>);
-                            }
-                        });
-        }
+    template<typename Value, typename>
+    void sum(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             Stream& stream) {
+        const auto threads = stream.threads();
+        stream.enqueue([=](){
+            ReduceAxis<ReductionMode::SUM, Value, Value>::execute(
+                    input.get(), input_strides, input_shape,
+                    output.get(), output_strides, output_shape,
+                    threads);
+        });
     }
 
-    template<typename T, typename>
-    void mean(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT(input && output && input.get() != output.get() && all(input_shape > 0) && all(output_shape > 0));
-        const bool4_t mask = getMask_("mean", input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
-
-        if (!any(mask)) {
-            cpu::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
-
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            // Reduce the input to one value or one value per batch.
-            const dim_t threads = stream.threads();
-            stream.enqueue([=]() mutable {
-                Stream current_stream(Stream::CURRENT);
-                current_stream.threads(threads);
-                T* optr = output.get();
-                const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                              input_shape[1], input_shape[2], input_shape[3]};
-                for (dim_t i = 0; i < output_shape[0]; ++i) {
-                    const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = mean(tmp, input_strides, shape_to_reduce, current_stream);
-                }
-            });
-        } else {
-            reduceAxis_("mean", stream, input, input_strides, input_shape, output, output_strides, output_shape, mask,
-                        [](const T* axis, dim_t strides, dim_t elements) {
-                            if constexpr (traits::is_complex_v<T> || traits::is_float_v<T>) {
-                                const auto count = static_cast<double>(elements);
-                                return reduceAxisAccurateSum_(axis, strides, elements) / count;
-                            } else if constexpr (traits::is_int_v<T>) {
-                                T sum = 0;
-                                for (dim_t i = 0; i < elements; ++i)
-                                    sum += axis[i * strides];
-                                return sum / static_cast<T>(elements);
-                            } else {
-                                static_assert(traits::always_false_v<T>);
-                            }
-                        });
-        }
+    template<typename Value, typename>
+    void mean(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              Stream& stream) {
+        const auto threads = stream.threads();
+        stream.enqueue([=](){
+            ReduceAxis<ReductionMode::MEAN, Value, Value>::execute(
+                    input.get(), input_strides, input_shape,
+                    output.get(), output_strides, output_shape,
+                    threads);
+        });
     }
 
-    #define NOA_INSTANTIATE_SUM_MEAN_(T)                                        \
-    template T sum<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);     \
-    template T mean<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, Stream&);    \
-    template void sum<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void mean<T, void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
-
-    NOA_INSTANTIATE_SUM_MEAN_(int32_t);
-    NOA_INSTANTIATE_SUM_MEAN_(int64_t);
-    NOA_INSTANTIATE_SUM_MEAN_(uint32_t);
-    NOA_INSTANTIATE_SUM_MEAN_(uint64_t);
-    NOA_INSTANTIATE_SUM_MEAN_(float);
-    NOA_INSTANTIATE_SUM_MEAN_(double);
-    NOA_INSTANTIATE_SUM_MEAN_(cfloat_t);
-    NOA_INSTANTIATE_SUM_MEAN_(cdouble_t);
-
-
-    template<typename T, typename U, typename>
-    void var(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-             const shared_t<U[]>& output, dim4_t output_strides, dim4_t output_shape,
-             int ddof, Stream& stream) {
-        NOA_ASSERT(input && output && all(input_shape > 0) && all(output_shape > 0));
-        const bool4_t mask = getMask_("var", input_shape, output_shape);
-        const bool4_t is_or_should_reduce{output_shape == 1 || mask};
-
-        if (!any(mask)) {
-            if constexpr (noa::traits::is_complex_v<T>)
-                math::ewise(input, input_strides, output, output_strides, output_shape, noa::math::abs_t{}, stream);
-            else
-                memory::copy(input, input_strides, output, output_strides, output_shape, stream);
-
-        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            // Reduce the input to one value or one value per batch.
-            const dim_t threads = stream.threads();
-            stream.enqueue([=]() mutable {
-                Stream current_stream(Stream::CURRENT);
-                current_stream.threads(threads);
-                U* optr = output.get();
-                const dim4_t shape_to_reduce{is_or_should_reduce[0] ? input_shape[0] : 1,
-                                              input_shape[1], input_shape[2], input_shape[3]};
-                for (dim_t i = 0; i < output_shape[0]; ++i) {
-                    const shared_t<T[]> tmp{input, input.get() + i * input_strides[0]};
-                    optr[i * output_strides[0]] = var(tmp, input_strides, shape_to_reduce, ddof, current_stream);
-                }
-            });
-        } else {
-            reduceAxis_("var", stream, input, input_strides, input_shape, output, output_strides, output_shape, mask,
-                        [ddof](const T* axis, dim_t strides, dim_t elements) {
-                        if constexpr (traits::is_complex_v<T>) {
-                            return reduceAxisAccurateVarianceComplex_(axis, strides, elements, ddof);
-                        } else if constexpr (traits::is_float_v<T>) {
-                            return reduceAxisAccurateVariance_(axis, strides, elements, ddof);
-                        } else {
-                            static_assert(traits::always_false_v<T>);
-                        }
-                    });
-        }
+    template<typename Input, typename Output, typename>
+    void var(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, Stream& stream) {
+        const auto threads = stream.threads();
+        stream.enqueue([=](){
+            ReduceAxis<ReductionMode::VAR, Input, Output>::execute(
+                    input.get(), input_strides, input_shape,
+                    output.get(), output_strides, output_shape,
+                    threads, ddof);
+        });
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U)                                               \
-    template U var<T,U,void>(const shared_t<T[]>& , dim4_t, dim4_t, int, Stream&);  \
-    template void var<T,U,void>(const shared_t<T[]>& , dim4_t, dim4_t, const shared_t<U[]>&, dim4_t, dim4_t, int, Stream&)
+    template<typename Input, typename Output, typename>
+    void std(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, Stream& stream) {
+        const auto threads = stream.threads();
+        stream.enqueue([=](){
+            ReduceAxis<ReductionMode::STD, Input, Output>::execute(
+                    input.get(), input_strides, input_shape,
+                    output.get(), output_strides, output_shape,
+                    threads, ddof);
+        });
+    }
+}
 
-    NOA_INSTANTIATE_VAR_(float, float);
-    NOA_INSTANTIATE_VAR_(double, double);
-    NOA_INSTANTIATE_VAR_(cfloat_t, float);
-    NOA_INSTANTIATE_VAR_(cdouble_t, double);
+namespace noa::cpu::math {
+    #define NOA_INSTANTIATE_MIN_MAX_(T)                                                                         \
+    template T min<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);             \
+    template T max<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);             \
+    template T median<T, void>(const Shared<T[]>&, Strides4<i64>, Shape4<i64>, bool, Stream&);                  \
+    template void min<T, void>(                                                 \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
+    template void max<T, void>(                                                 \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+
+    NOA_INSTANTIATE_MIN_MAX_(i16);
+    NOA_INSTANTIATE_MIN_MAX_(i32);
+    NOA_INSTANTIATE_MIN_MAX_(i64);
+    NOA_INSTANTIATE_MIN_MAX_(u16);
+    NOA_INSTANTIATE_MIN_MAX_(u32);
+    NOA_INSTANTIATE_MIN_MAX_(u64);
+    NOA_INSTANTIATE_MIN_MAX_(f16);
+    NOA_INSTANTIATE_MIN_MAX_(f32);
+    NOA_INSTANTIATE_MIN_MAX_(f64);
+
+    #define NOA_INSTANTIATE_SUM_MEAN_(T)                                                                \
+    template T sum<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);     \
+    template T mean<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
+    template void sum<T, void>(                                                 \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
+    template void mean<T, void>(                                                \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+
+    NOA_INSTANTIATE_SUM_MEAN_(i32);
+    NOA_INSTANTIATE_SUM_MEAN_(i64);
+    NOA_INSTANTIATE_SUM_MEAN_(u32);
+    NOA_INSTANTIATE_SUM_MEAN_(u64);
+    NOA_INSTANTIATE_SUM_MEAN_(f32);
+    NOA_INSTANTIATE_SUM_MEAN_(f64);
+    NOA_INSTANTIATE_SUM_MEAN_(c32);
+    NOA_INSTANTIATE_SUM_MEAN_(c64);
+
+    #define NOA_INSTANTIATE_VAR_STD_(T,U)                                                                       \
+    template U var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);       \
+    template U std<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);       \
+    template std::pair<T,U> mean_var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);  \
+    template void var<T,U,void>(                                                    \
+        const Shared<T[]>& , const Strides4<i64>&, const Shape4<i64>&,              \
+        const Shared<U[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);\
+    template void std<T,U,void>(                                                    \
+        const Shared<T[]>& , const Strides4<i64>&, const Shape4<i64>&,              \
+        const Shared<U[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
+
+    NOA_INSTANTIATE_VAR_STD_(f32, f32);
+    NOA_INSTANTIATE_VAR_STD_(f64, f64);
+    NOA_INSTANTIATE_VAR_STD_(c32, f32);
+    NOA_INSTANTIATE_VAR_STD_(c64, f64);
 }

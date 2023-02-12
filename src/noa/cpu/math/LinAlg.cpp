@@ -2,9 +2,12 @@
 #define lapack_complex_double std::complex<double>
 #include <lapacke.h>
 
-#include "noa/cpu/memory/PtrHost.h"
-#include "noa/cpu/memory/Copy.h"
+#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/Copy.hpp"
 #include "noa/cpu/math/LinAlg.h"
+
+// Using Eigen is much cleaner and flexible than the old lapacke... It is also easier to package.
+// Unfortunately, the SVD in Eigen takes >2min to compile, which is just not OK in my book.
 
 namespace {
     using namespace noa;
@@ -14,26 +17,31 @@ namespace {
     template<typename T>
     class LinearLeastSquareSolver {
     public:
-        using input_t = T;
-        using real_t = traits::value_type_t<T>;
-        using lapack_complex_t = std::conditional_t<sizeof(real_t) <= 4, lapack_complex_float, lapack_complex_double>;
-        using lapack_compute_t = std::conditional_t<traits::is_complex_v<input_t>, lapack_complex_t, input_t>;
+        using input_type = T;
+        using real_type = traits::value_type_t<T>;
+        using lapack_complex_type = std::conditional_t<sizeof(real_type) <= 4, lapack_complex_float, lapack_complex_double>;
+        using lapack_compute_type = std::conditional_t<traits::is_complex_v<input_type>, lapack_complex_type, input_type>;
 
-        using work_unique_t = typename cpu::memory::PtrHost<input_t>::alloc_unique_t;
-        using rwork_unique_t = typename cpu::memory::PtrHost<real_t>::alloc_unique_t;
-        using jpvt_unique_t = typename cpu::memory::PtrHost<int>::calloc_unique_t;
-        using iwork_unique_t = typename cpu::memory::PtrHost<int>::alloc_unique_t;
+        using work_unique_type = typename cpu::memory::PtrHost<input_type>::alloc_unique_type;
+        using rwork_unique_type = typename cpu::memory::PtrHost<real_type>::alloc_unique_type;
+        using jpvt_unique_type = typename cpu::memory::PtrHost<i32>::calloc_unique_type;
+        using iwork_unique_type = typename cpu::memory::PtrHost<i32>::alloc_unique_type;
 
     public:
-        LinearLeastSquareSolver(LAPACKDriver driver, int matrix_layout,
-                                int m, int n, int nrhs, int lda, int ldb, float rcond)
-                : m_driver(driver), m_matrix_layout(matrix_layout), m_m(m), m_n(n), m_nrhs(nrhs),
-                  m_lda(lda), m_ldb(ldb), m_rcond(rcond <= 0 ? math::Limits<float>::epsilon() : rcond) {
+        LinearLeastSquareSolver(
+                LAPACKDriver driver, i32 matrix_layout,
+                i32 m, i32 n, i32 nrhs,
+                i32 lda, i32 ldb, f32 rcond)
+                : m_driver(driver),
+                  m_matrix_layout(matrix_layout),
+                  m_m(m), m_n(n), m_nrhs(nrhs),
+                  m_lda(lda), m_ldb(ldb),
+                  m_rcond(rcond <= 0 ? noa::math::Limits<f32>::epsilon() : rcond) {
             LAPACKE_set_nancheck(0); // probably unused
         }
 
-        int solve(input_t* a, input_t* b, real_t* svd = nullptr) {
-            int rank;
+        i32 solve(input_type* a, input_type* b, real_type* svd = nullptr) {
+            i32 rank{};
 
             // Check workspaces are allocated:
             if (m_driver == GELSY && !m_jpvt)
@@ -43,38 +51,38 @@ namespace {
                 T work_query;
 
                 if (m_driver == GELSY) {
-                    const int info = gelsy_(
+                    const i32 info = gelsy_(
                             m_matrix_layout, m_m, m_n, m_nrhs, a, m_lda, b, m_ldb,
                             m_jpvt.get(), m_rcond, &rank, &work_query, m_lwork, m_rwork.get());
                     if (info)
                         NOA_THROW_FUNC("lstsq-gelsy",
                                        "Invalid value in the {}-th argument during workspace initialization", -info);
                 } else if (m_driver == GELSD) {
-                    int iwork_query;
-                    const int info = gelsd_(
+                    i32 iwork_query;
+                    const i32 info = gelsd_(
                             m_matrix_layout, m_m, m_n, m_nrhs, a, m_lda, b, m_ldb,
                             svd, m_rcond, &rank, &work_query, m_lwork, m_rwork.get(), &iwork_query);
                     if (info)
                         NOA_THROW_FUNC("lstsq-gelsd",
                                        "Invalid value in the {}-th argument during workspace initialization", -info);
-                    m_iwork = cpu::memory::PtrHost<int>::alloc(std::max(1, iwork_query));
+                    m_iwork = cpu::memory::PtrHost<i32>::alloc(std::max(1, iwork_query));
                 }
-                m_lwork = std::max(1, static_cast<int>(*reinterpret_cast<real_t*>(&work_query)));
+                m_lwork = std::max(1, static_cast<i32>(*reinterpret_cast<real_type*>(&work_query)));
                 m_work = cpu::memory::PtrHost<T>::alloc(m_lwork);
             }
 
             if (traits::is_complex_v<T> && !m_rwork)
-                m_rwork = cpu::memory::PtrHost<real_t>::alloc(std::max(1, 2 * m_n));
+                m_rwork = cpu::memory::PtrHost<real_type>::alloc(std::max(1, 2 * m_n));
 
             // Decompose and solve:
             if (m_driver == GELSY) {
-                const int info = gelsy_(
+                const i32 info = gelsy_(
                         m_matrix_layout, m_m, m_n, m_nrhs, a, m_lda, b, m_ldb,
                         m_jpvt.get(), m_rcond, &rank, m_work.get(), m_lwork, m_rwork.get());
                 if (info < 0)
                     NOA_THROW_FUNC("lstsq-gelsy", "Invalid value in the {}-th argument", -info);
             } else if (m_driver == GELSD) {
-                const int info = gelsd_(
+                const i32 info = gelsd_(
                         m_matrix_layout, m_m, m_n, m_nrhs, a, m_lda, b, m_ldb,
                         svd, m_rcond, &rank, m_work.get(), m_lwork, m_rwork.get(), m_iwork.get());
                 if (info < 0)
@@ -86,72 +94,74 @@ namespace {
         }
 
     private:
-        int gelsy_(int layout, int m, int n, int nrhs,
-                   input_t* a, int lda, input_t* b, int ldb, int* jpvt, float rcond, int* rank,
-                   input_t* work, int lwork, real_t* rwork) {
-            auto* a_ = reinterpret_cast<lapack_compute_t*>(a);
-            auto* b_ = reinterpret_cast<lapack_compute_t*>(b);
-            auto* work_ = reinterpret_cast<lapack_compute_t*>(work);
-            const auto rcond_ = static_cast<real_t>(rcond);
+        i32 gelsy_(i32 layout, i32 m, i32 n, i32 nrhs,
+                   input_type* a, i32 lda, input_type* b, i32 ldb,
+                   i32* jpvt, f32 rcond, i32* rank,
+                   input_type* work, i32 lwork, real_type* rwork) {
+            auto* a_ = reinterpret_cast<lapack_compute_type*>(a);
+            auto* b_ = reinterpret_cast<lapack_compute_type*>(b);
+            auto* work_ = reinterpret_cast<lapack_compute_type*>(work);
+            const auto rcond_ = static_cast<real_type>(rcond);
 
-            if constexpr(std::is_same_v<T, float>)
+            if constexpr(std::is_same_v<T, f32>)
                 return LAPACKE_sgelsy_work(layout, m, n, nrhs, a_, lda, b_, ldb, jpvt, rcond_, rank, work_, lwork);
-            else if constexpr(std::is_same_v<T, double>)
+            else if constexpr(std::is_same_v<T, f64>)
                 return LAPACKE_dgelsy_work(layout, m, n, nrhs, a_, lda, b_, ldb, jpvt, rcond_, rank, work_, lwork);
-            else if constexpr(std::is_same_v<T, cfloat_t>)
+            else if constexpr(std::is_same_v<T, c32>)
                 return LAPACKE_cgelsy_work(layout, m, n, nrhs, a_, lda, b_, ldb, jpvt, rcond_, rank, work_, lwork, rwork);
-            else if constexpr(std::is_same_v<T, cdouble_t>)
+            else if constexpr(std::is_same_v<T, c64>)
                 return LAPACKE_zgelsy_work(layout, m, n, nrhs, a_, lda, b_, ldb, jpvt, rcond_, rank, work_, lwork, rwork);
         }
 
-        int gelsd_(int layout, int m, int n, int nrhs,
-                   input_t* a, int lda, input_t* b, int ldb, real_t* svd, float rcond, int* rank,
-                   input_t* work, int lwork, real_t* rwork, int* iwork) {
-            auto* a_ = reinterpret_cast<lapack_compute_t*>(a);
-            auto* b_ = reinterpret_cast<lapack_compute_t*>(b);
-            auto* work_ = reinterpret_cast<lapack_compute_t*>(work);
-            const auto rcond_ = static_cast<real_t>(rcond);
+        int gelsd_(i32 layout, i32 m, i32 n, i32 nrhs,
+                   input_type* a, i32 lda, input_type* b, i32 ldb,
+                   real_type* svd, f32 rcond, i32* rank,
+                   input_type* work, i32 lwork, real_type* rwork, int* iwork) {
+            auto* a_ = reinterpret_cast<lapack_compute_type*>(a);
+            auto* b_ = reinterpret_cast<lapack_compute_type*>(b);
+            auto* work_ = reinterpret_cast<lapack_compute_type*>(work);
+            const auto rcond_ = static_cast<real_type>(rcond);
 
-            if constexpr(std::is_same_v<T, float>)
+            if constexpr(std::is_same_v<T, f32>)
                 return LAPACKE_sgelsd_work(layout, m, n, nrhs, a_, lda, b_, ldb, svd, rcond_, rank, work_, lwork, iwork);
-            else if constexpr(std::is_same_v<T, double>)
+            else if constexpr(std::is_same_v<T, f64>)
                 return LAPACKE_dgelsd_work(layout, m, n, nrhs, a_, lda, b_, ldb, svd, rcond_, rank, work_, lwork, iwork);
-            else if constexpr(std::is_same_v<T, cfloat_t>)
+            else if constexpr(std::is_same_v<T, c32>)
                 return LAPACKE_cgelsd_work(layout, m, n, nrhs, a_, lda, b_, ldb, svd, rcond_, rank, work_, lwork, rwork, iwork);
-            else if constexpr(std::is_same_v<T, cdouble_t>)
+            else if constexpr(std::is_same_v<T, c64>)
                 return LAPACKE_zgelsd_work(layout, m, n, nrhs, a_, lda, b_, ldb, svd, rcond_, rank, work_, lwork, rwork, iwork);
         }
 
     private:
-        work_unique_t m_work{};
-        rwork_unique_t m_rwork{};
-        jpvt_unique_t m_jpvt{};
-        iwork_unique_t m_iwork{};
-        int m_lwork{-1};
+        work_unique_type m_work{};
+        rwork_unique_type m_rwork{};
+        jpvt_unique_type m_jpvt{};
+        iwork_unique_type m_iwork{};
+        i32 m_lwork{-1};
 
         LAPACKDriver m_driver;
-        int m_matrix_layout;
-        int m_m, m_n, m_nrhs;
-        int m_lda, m_ldb;
-        float m_rcond;
+        i32 m_matrix_layout;
+        i32 m_m, m_n, m_nrhs;
+        i32 m_lda, m_ldb;
+        f32 m_rcond;
     };
 
     template<LAPACKDriver DRIVER, typename T>
     class SurfaceFitter {
     public:
-        using unique_t = typename cpu::memory::PtrHost<T>::alloc_unique_t;
+        using unique_type = typename cpu::memory::PtrHost<T>::alloc_unique_type;
 
     public:
-        SurfaceFitter(const T* input, dim4_t input_strides, dim4_t input_shape, int order)
-                : m_shape(input_shape[2], input_shape[3]),
+        SurfaceFitter(const T* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 order)
+                : m_shape(shape.filter(2, 3)),
                   m_m(m_shape.elements()),
-                  m_n(nbParameters_(order)),
-                  m_nrhs(input_shape[0]) {
-            NOA_ASSERT(input_shape[1] == 1);
+                  m_n(number_of_parameters_(order)),
+                  m_nrhs(shape[0]) {
+            NOA_ASSERT(shape[1] == 1);
 
             // Compute the column-major m-by-n matrix representing the regular grid of the data:
             m_A = cpu::memory::PtrHost<T>::alloc(m_m * m_n);
-            computeRegularGrid_();
+            compute_regular_grid_();
 
             // Prepare the F-contiguous target column vector(s):
             // TODO The input is "transformed" into this column vector in the row-major order.
@@ -160,31 +170,33 @@ namespace {
             //      i.e. p[0] + p[1]*x + p[2]*y + ...
             //      For now, the cpu::memory::copy will enforce the current row-major layout, which results
             //      in a permutation if the input is passed as column-major.
-            m_b = cpu::memory::PtrHost <T>::alloc(m_m * m_nrhs);
-            cpu::memory::copy(input, input_strides, m_b.get(), input_shape.strides(), input_shape);
+            m_b = cpu::memory::PtrHost<T>::alloc(m_m * m_nrhs);
+            cpu::memory::copy(input, strides, m_b.get(), shape.strides(), shape);
 
             // Solve x by minimizing (A @ x - b):
-            const int m = static_cast<int>(m_m);
-            const int n = static_cast<int>(m_n);
-            const int nrhs = static_cast<int>(m_nrhs);
+            const i32 m = static_cast<i32>(m_m);
+            const i32 n = static_cast<i32>(m_n);
+            const i32 nrhs = static_cast<i32>(m_nrhs);
             LinearLeastSquareSolver<T> solver(DRIVER, LAPACK_COL_MAJOR, m, n, nrhs, m, m, 0);
             solver.solve(m_A.get(), m_b.get(), nullptr);
         }
 
-        void saveParameters(T* parameters) {
-            const dim4_t b_strides{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
-            const dim4_t x_shape{1, 1, m_n, m_nrhs};
-            const dim4_t x_strides{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
+        void save_parameters(T* parameters) {
+            const auto b_strides = Strides4<i64>{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
+            const auto x_shape = Shape4<i64>{1, 1, m_n, m_nrhs};
+            const auto x_strides = Strides4<i64>{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
             cpu::memory::copy(m_b.get(), b_strides, parameters, x_strides, x_shape);
         }
 
-        void computeSurface(T* input, dim4_t input_strides,
-                            T* output, dim4_t output_strides, dim4_t shape) {
-            dim2_t output_strides_2d(output_strides.get(2));
-            dim2_t input_strides_2d(input_strides.get(2));
+        void compute_surface(T* input, const Strides4<i64>& input_strides,
+                             T* output, const Strides4<i64>& output_strides,
+                             Shape4<i64> shape) {
+            auto output_strides_2d = output_strides.filter(2, 3);
+            auto input_strides_2d = input_strides.filter(2, 3);
 
             // If arrays are column-major, make sure to loop in the column major order.
-            const bool swap = indexing::isColMajor(output_strides) && (!input || indexing::isColMajor(input_strides));
+            const bool swap = indexing::is_column_major(output_strides) &&
+                              (!input || indexing::is_column_major(input_strides));
             if (swap) {
                 std::swap(shape[2], shape[3]);
                 std::swap(input_strides_2d[0], input_strides_2d[1]);
@@ -192,11 +204,11 @@ namespace {
             }
 
             std::array<T, 10> p{};
-            for (dim_t batch = 0; batch < shape[0]; ++batch) {
+            for (i64 batch = 0; batch < shape[0]; ++batch) {
                 T* output_ptr = output + output_strides[0] * batch;
                 T* input_ptr = input + input_strides[0] * batch;
 
-                const int order = order_();
+                const i64 order = order_();
                 std::copy(m_b.get() + batch * m_m, m_b.get() + batch * m_m + m_n, p.data());
                 if (swap) {
                     std::swap(p[1], p[2]);
@@ -206,8 +218,8 @@ namespace {
                 }
 
                 T surface;
-                for (dim_t iy = 0; iy < shape[2]; ++iy) {
-                    for (dim_t ix = 0; ix < shape[3]; ++ix) {
+                for (i64 iy = 0; iy < shape[2]; ++iy) {
+                    for (i64 ix = 0; ix < shape[3]; ++ix) {
                         const T y = static_cast<T>(iy);
                         const T x = static_cast<T>(ix);
 
@@ -217,26 +229,27 @@ namespace {
                         if (order == 3)
                             surface += x * x * y * p[6] + x * y * y * p[7] + x * x * x * p[8] + y * y * y * p[9];
 
-                        output_ptr[indexing::at(iy, ix, output_strides_2d)] =
-                                input ? input_ptr[indexing::at(iy, ix, input_strides_2d)] - surface : surface;
+                        const auto input_offset = noa::indexing::at(iy, ix, input_strides_2d);
+                        const auto output_offset = noa::indexing::at(iy, ix, output_strides_2d);
+                        output_ptr[output_offset] = input ? input_ptr[input_offset] - surface : surface;
                     }
                 }
             }
         }
 
     private:
-        void computeRegularGrid_() {
+        void compute_regular_grid_() {
             T* matrix = m_A.get();
-            for (dim_t y = 0; y < m_shape[0]; ++y) {
-                for (dim_t x = 0; x < m_shape[1]; ++x) {
+            for (i64 y = 0; y < m_shape[0]; ++y) {
+                for (i64 x = 0; x < m_shape[1]; ++x) {
                     matrix[m_m * 0 + y * m_shape[1] + x] = T{1};
                     matrix[m_m * 1 + y * m_shape[1] + x] = static_cast<T>(x);
                     matrix[m_m * 2 + y * m_shape[1] + x] = static_cast<T>(y);
                 }
             }
             if (order_() >= 2) {
-                for (dim_t y = 0; y < m_shape[0]; ++y) {
-                    for (dim_t x = 0; x < m_shape[1]; ++x) {
+                for (i64 y = 0; y < m_shape[0]; ++y) {
+                    for (i64 x = 0; x < m_shape[1]; ++x) {
                         matrix[m_m * 3 + y * m_shape[1] + x] = static_cast<T>(x * y);
                         matrix[m_m * 4 + y * m_shape[1] + x] = static_cast<T>(x * x);
                         matrix[m_m * 5 + y * m_shape[1] + x] = static_cast<T>(y * y);
@@ -244,8 +257,8 @@ namespace {
                 }
             }
             if (order_() == 3) {
-                for (dim_t y = 0; y < m_shape[0]; ++y) {
-                    for (dim_t x = 0; x < m_shape[1]; ++x) {
+                for (i64 y = 0; y < m_shape[0]; ++y) {
+                    for (i64 x = 0; x < m_shape[1]; ++x) {
                         matrix[m_m * 6 + y * m_shape[1] + x] = static_cast<T>(x * x * y);
                         matrix[m_m * 7 + y * m_shape[1] + x] = static_cast<T>(x * y * y);
                         matrix[m_m * 8 + y * m_shape[1] + x] = static_cast<T>(x * x * x);
@@ -255,50 +268,50 @@ namespace {
             }
         }
 
-        static dim_t nbParameters_(int order) {
-            return order == 3 ? 10 : static_cast<dim_t>(order * 3);
+        static i64 number_of_parameters_(i64 order) {
+            return order == 3 ? 10 : order * 3;
         }
 
-        int order_() {
+        i64 order_() {
             return m_n == 3 ? 1 : m_n == 6 ? 2 : 3;
         }
 
     private:
-        unique_t m_A{};
-        unique_t m_b{};
-        dim2_t m_shape;
-        dim_t m_m, m_n, m_nrhs;
+        unique_type m_A{};
+        unique_type m_b{};
+        Shape2<i64> m_shape;
+        i64 m_m, m_n, m_nrhs;
     };
 }
 
 namespace noa::cpu::math {
     template<typename T, typename U, typename>
-    void lstsq(const shared_t<T[]>& a, dim4_t a_strides, dim4_t a_shape,
-               const shared_t<T[]>& b, dim4_t b_strides, dim4_t b_shape,
-               float cond, const shared_t<U[]>& svd,
+    void lstsq(const Shared<T[]>& a, const Strides4<i64>& a_strides, const Shape4<i64>& a_shape,
+               const Shared<T[]>& b, const Strides4<i64>& b_strides, const Shape4<i64>& b_shape,
+               f32 cond, const Shared<U[]>& svd,
                Stream& stream) {
-        NOA_ASSERT(a && b && all(a_shape > 0) && all(b_shape > 0));
+        NOA_ASSERT(a && b && noa::all(a_shape > 0) && noa::all(b_shape > 0));
         NOA_ASSERT(a_shape[0] == b_shape[0]);
         NOA_ASSERT(a_shape[1] == 1 && b_shape[1] == 1);
-        const dim_t batches = a_shape[0];
+        const i64 batches = a_shape[0];
 
-        const auto a_shape_ = safe_cast<int2_t>(dim2_t(a_shape.get(2)));
-        const auto b_shape_ = safe_cast<int2_t>(dim2_t(b_shape.get(2)));
-        const auto a_strides_ = safe_cast<int2_t>(dim2_t(a_strides.get(2)));
-        const auto b_strides_ = safe_cast<int2_t>(dim2_t(b_strides.get(2)));
+        const auto a_shape_ = a_shape.filter(2, 3).as_safe<i32>();
+        const auto b_shape_ = b_shape.filter(2, 3).as_safe<i32>();
+        const auto a_strides_ = a_strides.filter(2, 3).as_safe<i32>();
+        const auto b_strides_ = b_strides.filter(2, 3).as_safe<i32>();
 
         // Ax = b, where A is m-by-n, x is n-by-nrhs and b is m-by-nrhs. Most often, nrhs is 1.
-        const int m = a_shape_[0];
-        const int n = a_shape_[1];
-        const int mn_max = std::max({1, m, n});
-        const int mn_min = std::min(m, n);
-        const int nrhs = b_shape_[1];
+        const i32 m = a_shape_[0];
+        const i32 n = a_shape_[1];
+        const i32 mn_max = std::max({1, m, n});
+        const i32 mn_min = std::min(m, n);
+        const i32 nrhs = b_shape_[1];
         NOA_ASSERT(m > 0 && n > 0 && nrhs > 0);
 
         // Check memory layout of a. Since most LAPACKE implementations are using column major and simply transposing
         // the row major matrices before and after decomposition, it is beneficial to detect the column major case
         // instead of assuming it's always row major.
-        const bool is_row_major = indexing::isRowMajor(a_strides_);
+        const bool is_row_major = indexing::is_row_major(a_strides_);
         const int matrix_layout = is_row_major ? LAPACK_ROW_MAJOR : LAPACK_COL_MAJOR;
         const int lda = a_strides_[!is_row_major];
         const int ldb = b_strides_[!is_row_major];
@@ -306,15 +319,15 @@ namespace noa::cpu::math {
         // Check the size of the problem makes sense and that the innermost dimension of the matrices is contiguous.
         // Note that the second-most dimension can be padded (i.e. lda and ldb).
         NOA_ASSERT(is_row_major ?
-                   (lda >= n && ldb >= nrhs && a_strides_[1] == 1 && indexing::isRowMajor(b_strides_)) :
-                   (lda >= m && ldb >= mn_max && a_strides_[0] == 1 && indexing::isColMajor(b_strides_)));
+                   (lda >= n && ldb >= nrhs && a_strides_[1] == 1 && indexing::is_row_major(b_strides_)) :
+                   (lda >= m && ldb >= mn_max && a_strides_[0] == 1 && indexing::is_column_major(b_strides_)));
         NOA_ASSERT(b_strides_[is_row_major] == 1 && b_shape_[0] == mn_max);
         (void) mn_max;
 
         stream.enqueue([=]() {
             const LAPACKDriver driver = svd ? GELSD : GELSY;
             LinearLeastSquareSolver<T> solver(driver, matrix_layout, m, n, nrhs, lda, ldb, cond);
-            for (dim_t batch = 0; batch < batches; ++batch) {
+            for (i64 batch = 0; batch < batches; ++batch) {
                 solver.solve(a.get() + a_strides[0] * batch,
                              b.get() + b_strides[0] * batch,
                              svd.get() + mn_min);
@@ -323,9 +336,9 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename>
-    void surface(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, bool subtract,
-                 int order, const shared_t<T[]>& parameters, Stream& stream) {
+    void surface(const Shared<T[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                 const Shared<T[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                 bool subtract, i32 order, const Shared<T[]>& parameters, Stream& stream) {
         NOA_ASSERT(input && all(input_shape > 0));
         if (!output && !parameters)
             return;
@@ -335,27 +348,32 @@ namespace noa::cpu::math {
         stream.enqueue([=]() {
             SurfaceFitter<GELSY, T> surface(input.get(), input_strides, input_shape, order);
             if (parameters)
-                surface.saveParameters(parameters.get());
+                surface.save_parameters(parameters.get());
             if (output) {
                 NOA_ASSERT(all(output_shape > 0));
-                surface.computeSurface(subtract ? input.get() : nullptr, input_strides,
+                surface.compute_surface(subtract ? input.get() : nullptr, input_strides,
                                        output.get(), output_strides, output_shape);
             }
         });
     }
 
-    #define NOA_INSTANTIATE_LSTSQ_(T, U) \
-    template void lstsq<T,U,void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float, const shared_t<U[]>&, Stream&)
+    #define NOA_INSTANTIATE_LSTSQ_(T, U)                                \
+    template void lstsq<T,U,void>(                                      \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
+        f32, const Shared<U[]>&, Stream&)
 
-    NOA_INSTANTIATE_LSTSQ_(float, float);
-    NOA_INSTANTIATE_LSTSQ_(double, double);
-    NOA_INSTANTIATE_LSTSQ_(cfloat_t, float);
-    NOA_INSTANTIATE_LSTSQ_(cdouble_t, double);
+    NOA_INSTANTIATE_LSTSQ_(f32, f32);
+    NOA_INSTANTIATE_LSTSQ_(f64, f64);
+    NOA_INSTANTIATE_LSTSQ_(c32, f32);
+    NOA_INSTANTIATE_LSTSQ_(c64, f64);
 
-    #define NOA_INSTANTIATE_SURFACE_(T) \
-    template void surface<T,void>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, bool, \
-                                  int, const shared_t<T[]>&, Stream&)
+    #define NOA_INSTANTIATE_SURFACE_(T)                                 \
+    template void surface<T,void>(                                      \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
+        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
+        bool, i32, const Shared<T[]>&, Stream&)
 
-    NOA_INSTANTIATE_SURFACE_(float);
-    NOA_INSTANTIATE_SURFACE_(double);
+    NOA_INSTANTIATE_SURFACE_(f32);
+    NOA_INSTANTIATE_SURFACE_(f64);
 }

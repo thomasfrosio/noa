@@ -1,7 +1,6 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
-#include "noa/common/traits/BaseTypes.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.h"
 #include "noa/gpu/cuda/Exception.h"
 
@@ -28,23 +27,32 @@
 //      -- Data in the bounded CUDA array can be updated but texture cache is unchanged until a new kernel is launched.
 //      -- The device pointer or a CUDA array should not be freed while the texture is being used.
 //
-// TODO(TF) Add the other BorderMode, especially BORDER_VALUE by doing the addressing ourselves. This could be done by
+// TODO(TF) Add the other BorderMode, especially BorderMode::VALUE by doing the addressing ourselves. This could be done by
 //          passing the BorderMode to the texture functions. Normalization of the coordinates will be done by these
-//          functions when required (e.g. INTERP_LINEAR and BORDER_MIRROR).
+//          functions when required (e.g. InterpMode::LINEAR and BorderMode::MIRROR).
 
 namespace noa::cuda::memory {
+    struct PtrTextureDeleter {
+        void operator()(const cudaTextureObject_t* handle) const noexcept {
+            [[maybe_unused]] const cudaError_t err = cudaDestroyTextureObject(*handle);
+            NOA_ASSERT(err == cudaSuccess);
+            delete handle;
+        }
+    };
+
     // Manages a 1D, 2D or 3D texture object.
     // Can be created from CUDA arrays, padded memory (2D only) and linear memory (1D only).
-    // Currently supported components (either 1 or 2 per elements) are either signed or unsigned 8-, 16-, or
-    // 32-bit integers, 16-bit floats, or 32-bit floats.
+    // Currently supported components (either 1 or 2 per elements) are either signed or
+    // unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
     class PtrTexture {
     public:
         template<typename T>
-        static constexpr bool is_valid_type_v =
-                std::bool_constant<traits::is_valid_ptr_type_v<T> &&
-                                   traits::is_int_v<T> || traits::is_float_v<T> || traits::is_complex_v<T> &&
-                                   !std::is_same_v<T, uint64_t> && !std::is_same_v<T, int64_t> &&
-                                   !std::is_same_v<T, double> && !std::is_same_v<T, cdouble_t>>::value;
+        static constexpr bool is_valid_type_v = noa::traits::is_any_v<T, i8, i16, i32, u8, u16, u32, f16, f32, c16, c32>;
+
+        using value_type = cudaTextureObject_t;
+        using deleter_type = PtrTextureDeleter;
+        using unique_type = Unique<cudaTextureObject_t, deleter_type>;
+        using shared_type = Shared<cudaTextureObject_t>;
 
     public: // Texture utilities
         // Returns a texture object's texture descriptor.
@@ -68,73 +76,71 @@ namespace noa::cuda::memory {
         }
 
         // Whether texture is using normalized coordinates.
-        static bool hasNormalizedCoordinates(cudaTextureObject_t texture) {
+        static bool has_normalized_coordinates(cudaTextureObject_t texture) {
             return description(texture).normalizedCoords;
         }
 
         // Sets the underlying texture filter and coordinate mode according to interp and border.
         // The interpolation functions in ::noa expect the texture to be set as follows:
-        // - 1) BORDER_MIRROR and BORDER_PERIODIC requires normalized coordinates.
-        // - 2) The accurate methods use nearest lookups, while the fast methods use linear lookups.
-        // - 3) INTERP_NEAREST and INTERP_LINEAR_FAST are the only modes supporting normalized coordinates,
-        //      thus they are the only modes supporting BORDER_MIRROR and BORDER_PERIODIC.
-        // Throws if interp and border are incompatible or not supported.
-        // See transform::tex1D(), transform::tex2D() and transform::tex3D() for more details.
-        static void description(InterpMode interp, BorderMode border,
-                                cudaTextureFilterMode* filter_mode,
-                                cudaTextureAddressMode* address_mode,
-                                bool* normalized_coordinates) {
-            switch (interp) {
-                case INTERP_NEAREST:
-                case INTERP_LINEAR:
-                case INTERP_COSINE:
-                case INTERP_CUBIC:
-                case INTERP_CUBIC_BSPLINE:
-                    *filter_mode = cudaFilterModePoint;
+        // - 1) BorderMode::MIRROR and BorderMode::PERIODIC requires normalized coordinates.
+        // - 2) The accurate modes use nearest lookups, while the fast methods use linear lookups.
+        // - 3) InterpMode::NEAREST and InterpMode::LINEAR_FAST are the only modes supporting normalized coordinates,
+        //      thus they are the only modes supporting BorderMode::MIRROR and BorderMode::PERIODIC.
+        static auto convert_to_description(
+                InterpMode interp_mode,
+                BorderMode border_mode
+        ) -> std::tuple<cudaTextureFilterMode, cudaTextureAddressMode, bool> {
+            cudaTextureFilterMode filter_mode{};
+            cudaTextureAddressMode address_mode{};
+            bool normalized_coordinates{};
+
+            switch (interp_mode) {
+                case InterpMode::NEAREST:
+                case InterpMode::LINEAR:
+                case InterpMode::COSINE:
+                case InterpMode::CUBIC:
+                case InterpMode::CUBIC_BSPLINE:
+                    filter_mode = cudaFilterModePoint;
                     break;
-                case INTERP_LINEAR_FAST:
-                case INTERP_COSINE_FAST:
-                case INTERP_CUBIC_BSPLINE_FAST:
-                    *filter_mode = cudaFilterModeLinear;
+                case InterpMode::LINEAR_FAST:
+                case InterpMode::COSINE_FAST:
+                case InterpMode::CUBIC_BSPLINE_FAST:
+                    filter_mode = cudaFilterModeLinear;
                     break;
             }
 
-            // Ensure BorderMode and InterpMode are compatible
-            // with cudaTextureAddressMode and cudaTextureFilterMode.
-            static_assert(BORDER_PERIODIC == static_cast<int>(cudaAddressModeWrap));
-            static_assert(BORDER_CLAMP == static_cast<int>(cudaAddressModeClamp));
-            static_assert(BORDER_MIRROR == static_cast<int>(cudaAddressModeMirror));
-            static_assert(BORDER_ZERO == static_cast<int>(cudaAddressModeBorder));
-            static_assert(INTERP_NEAREST == static_cast<int>(cudaFilterModePoint));
-            static_assert(INTERP_LINEAR == static_cast<int>(cudaFilterModeLinear));
+            // Ensure BorderMode and InterpMode are compatible with
+            // cudaTextureAddressMode and cudaTextureFilterMode.
+            static_assert(noa::traits::to_underlying(BorderMode::PERIODIC) == static_cast<i32>(cudaAddressModeWrap));
+            static_assert(noa::traits::to_underlying(BorderMode::CLAMP) == static_cast<i32>(cudaAddressModeClamp));
+            static_assert(noa::traits::to_underlying(BorderMode::MIRROR) == static_cast<i32>(cudaAddressModeMirror));
+            static_assert(noa::traits::to_underlying(BorderMode::ZERO) == static_cast<i32>(cudaAddressModeBorder));
+            static_assert(noa::traits::to_underlying(InterpMode::NEAREST) == static_cast<i32>(cudaFilterModePoint));
+            static_assert(noa::traits::to_underlying(InterpMode::LINEAR) == static_cast<i32>(cudaFilterModeLinear));
 
-            // BorderMode is compatible with cudaTextureAddressMode
-            if (border == BORDER_PERIODIC || border == BORDER_MIRROR) {
-                *address_mode = static_cast<cudaTextureAddressMode>(border);
-                *normalized_coordinates = true;
-                if (interp != INTERP_LINEAR_FAST && interp != INTERP_NEAREST)
-                    NOA_THROW("{} is not supported with {}", border, interp);
-            } else if (border == BORDER_ZERO || border == BORDER_CLAMP) {
-                *address_mode = static_cast<cudaTextureAddressMode>(border);
-                *normalized_coordinates = false;
+            if (border_mode == BorderMode::PERIODIC || border_mode == BorderMode::MIRROR) {
+                address_mode = static_cast<cudaTextureAddressMode>(border_mode);
+                normalized_coordinates = true;
+                if (interp_mode != InterpMode::LINEAR_FAST && interp_mode != InterpMode::NEAREST)
+                    NOA_THROW("{} is not supported with {}", border_mode, interp_mode);
+            } else if (border_mode == BorderMode::ZERO || border_mode == BorderMode::CLAMP) {
+                address_mode = static_cast<cudaTextureAddressMode>(border_mode);
+                normalized_coordinates = false;
             } else {
-                NOA_THROW("{} is not supported", border);
+                NOA_THROW("{} is not supported", border_mode);
             }
+            return {filter_mode, address_mode, normalized_coordinates};
         }
 
     public: // Generic alloc functions
         // Creates a 1D, 2D or 3D texture from a CUDA array.
-        // array:                       CUDA array. Its lifetime should exceed the life of this new object.
-        //                              It is directly passed to the returned texture, i.e. its type doesn't
-        //                              have to match T.
+        // array:                       CUDA array. Its lifetime should exceed the lifetime of this new object.
         // interp_mode:                 Filter mode, either cudaFilterModePoint or cudaFilterModeLinear.
         // border_mode:                 Address mode, either cudaAddressModeWrap, cudaAddressModeClamp,
         //                              cudaAddressModeMirror or cudaAddressModeBorder.
         // normalized_coordinates:      Whether the coordinates are normalized when fetching.
         // normalized_reads_to_float:   Whether 8-, 16-integer data should be converted to float when fetching.
         //                              Either cudaReadModeElementType or cudaReadModeNormalizedFloat.
-        //
-        // NOTE: cudaFilterModePoint is only supported for integers.
         // NOTE: cudaAddressModeMirror and cudaAddressModeWrap are only available with normalized coordinates.
         //       If normalized_coordinates is false, border_mode is switched (internally by CUDA) to cudaAddressModeClamp.
         static cudaTextureObject_t alloc(const cudaArray* array,
@@ -166,7 +172,7 @@ namespace noa::cuda::memory {
 
         // Creates a 2D texture from a padded memory layout.
         // array:                       On the device. Its lifetime should exceed the life of this new object.
-        // pitch:                       Pitch, in elements, of array.
+        // pitch:                       Pitch, in elements, of the array.
         // shape:                       DHW shape of array.
         // interp_mode:                 Filter mode, either cudaFilterModePoint or cudaFilterModeLinear.
         // border_mode:                 Address mode, either cudaAddressModeWrap, cudaAddressModeClamp,
@@ -180,7 +186,7 @@ namespace noa::cuda::memory {
         // NOTE: cudaDeviceProp::textureAlignment is satisfied by cudaMalloc* and cudaDeviceProp::texturePitchAlignment
         //       is satisfied by cudaMalloc3D/Pitch. Care should be taken about offsets when working on subregions.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static cudaTextureObject_t alloc(const T* array, dim_t pitch, dim3_t shape,
+        static cudaTextureObject_t alloc(const T* array, i64 pitch, const Shape3<i64>& shape,
                                          cudaTextureFilterMode interp_mode,
                                          cudaTextureAddressMode border_mode,
                                          cudaTextureReadMode normalized_reads_to_float,
@@ -213,7 +219,7 @@ namespace noa::cuda::memory {
 
         // Creates a 1D texture from linear memory.
         // array:                       On the device. Its lifetime should exceed the life of this new object.
-        // elements:                    Size, in elements, of array.
+        // elements:                    Size, in elements, of the array.
         // normalized_coordinates:      Whether the coordinates are normalized when fetching.
         // normalized_reads_to_float:   Whether 8-, 16-integer data should be converted to float when fetching.
         //                              Either cudaReadModeElementType or cudaReadModeNormalizedFloat.
@@ -223,7 +229,7 @@ namespace noa::cuda::memory {
         // NOTE: cudaDeviceProp::textureAlignment is satisfied by cudaMalloc*.
         //       Care should be taken about offsets when working on subregions.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static cudaTextureObject_t alloc(const T* array, dim_t elements,
+        static cudaTextureObject_t alloc(const T* array, i64 elements,
                                          cudaTextureReadMode normalized_reads_to_float,
                                          bool normalized_coordinates) {
             cudaResourceDesc res_desc{};
@@ -246,41 +252,24 @@ namespace noa::cuda::memory {
         }
 
     public: // noa alloc functions
-        struct Deleter {
-            void operator()(const cudaTextureObject_t* handle) noexcept {
-                [[maybe_unused]] const cudaError_t err = cudaDestroyTextureObject(*handle);
-                NOA_ASSERT(err == cudaSuccess);
-                delete handle;
-            }
-        };
-
         // Creates a 1D, 2D or 3D texture from a CUDA array.
         // The CUDA array lifetime should exceed the life of this new object.
-        // border_mode is limited to BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-        // See PtrTexture::description() for more details.
-        static std::unique_ptr<cudaTextureObject_t, Deleter>
-        alloc(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
-            cudaTextureFilterMode filter{};
-            cudaTextureAddressMode address{};
-            bool normalized_coords;
-            description(interp_mode, border_mode, &filter, &address, &normalized_coords);
+        // border_mode is limited to BorderMode::ZERO, BorderMode::CLAMP, BorderMode::PERIODIC or BorderMode::MIRROR.
+        static unique_type alloc(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode) {
+            const auto [filter, address, normalized_coords] = convert_to_description(interp_mode, border_mode);
             auto tex = alloc(array, filter, address, cudaReadModeElementType, normalized_coords);
-            return {new cudaTextureObject_t(tex), Deleter{}};
+            return {new cudaTextureObject_t(tex), {}};
         }
 
         // Creates a 2D texture from a padded memory layout.
         // The device array lifetime should exceed the life of this new object.
-        // border_mode is limited to BORDER_ZERO, BORDER_CLAMP, BORDER_PERIODIC or BORDER_MIRROR.
-        // See PtrTexture::description() for more details.
+        // border_mode is limited to BorderMode::ZERO, BorderMode::CLAMP, BorderMode::PERIODIC or BorderMode::MIRROR.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        static std::unique_ptr<cudaTextureObject_t, Deleter>
-        alloc(const T* array, dim_t pitch, dim3_t shape, InterpMode interp_mode, BorderMode border_mode) {
-            cudaTextureFilterMode filter{};
-            cudaTextureAddressMode address{};
-            bool normalized_coords;
-            description(interp_mode, border_mode, &filter, &address, &normalized_coords);
+        static unique_type alloc(const T* array, i64 pitch, const Shape3<i64>& shape,
+                                 InterpMode interp_mode, BorderMode border_mode) {
+            const auto [filter, address, normalized_coords] = convert_to_description(interp_mode, border_mode);
             const auto tex = alloc(array, pitch, shape, filter, address, cudaReadModeElementType, normalized_coords);
-            return {new cudaTextureObject_t(tex), Deleter{}};
+            return {new cudaTextureObject_t(tex), {}};
         }
 
     public: // Constructors, destructor
@@ -289,33 +278,30 @@ namespace noa::cuda::memory {
         constexpr /*implicit*/ PtrTexture(std::nullptr_t) {}
 
         // Creates a 1D, 2D or 3D texture from a CUDA array.
-        PtrTexture(const cudaArray* array, InterpMode interp_mode, BorderMode border_mode)
+        PtrTexture(const cudaArray* array,
+                   InterpMode interp_mode, BorderMode border_mode)
                 : m_texture(alloc(array, interp_mode, border_mode)) {}
 
         // Creates a 2D texture from a padded memory layout.
         template<typename T, typename = std::enable_if_t<is_valid_type_v<T>>>
-        PtrTexture(const T* array, dim_t pitch, dim3_t shape, InterpMode interp_mode, BorderMode border_mode)
+        PtrTexture(const T* array, i64 pitch, const Shape3<i64>& shape,
+                   InterpMode interp_mode, BorderMode border_mode)
                 : m_texture(alloc(array, pitch, shape, interp_mode, border_mode)) {}
 
     public:
-        // Returns the texture handle.
         [[nodiscard]] cudaTextureObject_t get() const noexcept { return *m_texture; }
         [[nodiscard]] cudaTextureObject_t id() const noexcept { return *m_texture; }
         [[nodiscard]] cudaTextureObject_t handle() const noexcept { return *m_texture; }
-
-        // Returns a reference of the shared object.
-        [[nodiscard]] constexpr const std::shared_ptr<cudaTextureObject_t>& share() const noexcept { return m_texture; }
-
-        // Whether the object manages a texture.
-        [[nodiscard]] bool empty() const noexcept { return m_texture == nullptr; }
-        [[nodiscard]] explicit operator bool() const noexcept { return !empty(); }
+        [[nodiscard]] constexpr const shared_type& share() const noexcept { return m_texture; }
+        [[nodiscard]] bool is_empty() const noexcept { return m_texture == nullptr; }
+        [[nodiscard]] explicit operator bool() const noexcept { return !is_empty(); }
 
         // Releases the ownership of the managed texture, if any.
-        std::shared_ptr<cudaTextureObject_t> release() noexcept {
+        shared_type release() noexcept {
             return std::exchange(m_texture, nullptr);
         }
 
     private:
-        std::shared_ptr<cudaTextureObject_t> m_texture{};
+        shared_type m_texture{};
     };
 }
