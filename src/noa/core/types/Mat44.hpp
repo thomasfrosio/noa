@@ -34,9 +34,7 @@ namespace noa {
 }
 
 namespace noa {
-    /// A 4x4 floating-point matrix.
-    /// \note The indexing is "row-first" (as opposed to "column-first", like in OpenGL Math),
-    ///       i.e. M[r][c] with r = row index and c = column index. All indexes starts from 0.
+    // A 4x4 floating-point matrix.
     template<typename Real>
     class Mat44 {
     public: // Type definitions

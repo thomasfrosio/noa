@@ -14,11 +14,7 @@ namespace noa {
     template<typename T>
     class Mat33;
 
-    /// A 3x4 floating-point matrix.
-    /// \note The indexing is "row-first" (as opposed to "column-first", like in OpenGL Math),
-    ///       i.e. M[r][c] with r = row index and c = column index. All indexes starts from 0.
-    /// \note These matrices are quite limited compared to the squared ones and they're mostly here
-    ///       to pre-multiple column vectors for 3D affine transforms.
+    // A 3x4 floating-point matrix.
     template<typename Real>
     class Mat34 {
     public: // Type definitions
@@ -60,37 +56,37 @@ namespace noa {
                         row_type(0, 0, s, 0)} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat34(Vec4<U> v) noexcept
+        NOA_HD constexpr explicit Mat34(const Vec4<U>& v) noexcept
                 : m_row{row_type(v[0], 0, 0, 0),
                         row_type(0, v[1], 0, 0),
                         row_type(0, 0, v[2], 0)} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat34(Vec3<U> v) noexcept
+        NOA_HD constexpr explicit Mat34(const Vec3<U>& v) noexcept
                 : m_row{row_type(v[0], 0, 0, 0),
                         row_type(0, v[1], 0, 0),
                         row_type(0, 0, v[2], 0)} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat34(Mat44<U> m) noexcept
+        NOA_HD constexpr explicit Mat34(const Mat44<U>& m) noexcept
                 : m_row{row_type(m[0]),
                         row_type(m[1]),
                         row_type(m[2])} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat34(Mat34<U> m) noexcept
+        NOA_HD constexpr explicit Mat34(const Mat34<U>& m) noexcept
                 : m_row{row_type(m[0]),
                         row_type(m[1]),
                         row_type(m[2])} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat34(Mat33<U> m) noexcept
+        NOA_HD constexpr explicit Mat34(const Mat33<U>& m) noexcept
                 : m_row{row_type(m[0][0], m[0][1], m[0][2], 0),
                         row_type(m[1][0], m[1][1], m[1][2], 0),
                         row_type(m[2][0], m[2][1], m[2][2], 0)} {}
 
         template<typename U, typename V>
-        NOA_HD constexpr explicit Mat34(Mat33<U> m, Vec3<V> v) noexcept
+        NOA_HD constexpr explicit Mat34(const Mat33<U>& m, const Vec3<V>& v) noexcept
                 : m_row{row_type(m[0][0], m[0][1], m[0][2], v[0]),
                         row_type(m[1][0], m[1][1], m[1][2], v[1]),
                         row_type(m[2][0], m[2][1], m[2][2], v[2])} {}
@@ -112,22 +108,22 @@ namespace noa {
                         row_type(ptr[8], ptr[9], ptr[10], ptr[11])} {}
 
         template<typename V0, typename V1, typename V2>
-        NOA_HD constexpr Mat34(Vec4<V0> r0,
-                               Vec4<V1> r1,
-                               Vec4<V2> r2) noexcept
+        NOA_HD constexpr Mat34(const Vec4<V0>& r0,
+                               const Vec4<V1>& r1,
+                               const Vec4<V2>& r2) noexcept
                 : m_row{row_type(r0),
                         row_type(r1),
                         row_type(r2)} {}
 
     public: // Assignment operators
-        NOA_HD constexpr Mat34& operator+=(Mat34 m) noexcept {
+        NOA_HD constexpr Mat34& operator+=(const Mat34& m) noexcept {
             m_row[0] += m[0];
             m_row[1] += m[1];
             m_row[2] += m[2];
             return *this;
         }
 
-        NOA_HD constexpr Mat34& operator-=(Mat34 m) noexcept {
+        NOA_HD constexpr Mat34& operator-=(const Mat34& m) noexcept {
             m_row[0] -= m[0];
             m_row[1] -= m[1];
             m_row[2] -= m[2];
@@ -164,73 +160,73 @@ namespace noa {
 
     public: // Assignment operators
         // -- Unary operators --
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(const Mat34& m) noexcept {
             return m;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(const Mat34& m) noexcept {
             return Mat34(-m[0], -m[1], -m[2]);
         }
 
         // -- Binary arithmetic operators --
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(const Mat34& m1, const Mat34& m2) noexcept {
             return Mat34(m1[0] + m2[0], m1[1] + m2[1], m1[2] + m2[2]);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(value_type s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(value_type s, const Mat34& m) noexcept {
             return Mat34(s + m[0], s + m[1], s + m[2]);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(Mat34 m, value_type s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator+(const Mat34& m, value_type s) noexcept {
             return Mat34(m[0] + s, m[1] + s, m[2] + s);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(const Mat34& m1, const Mat34& m2) noexcept {
             return Mat34(m1[0] - m2[0], m1[1] - m2[1], m1[2] - m2[2]);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(value_type s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(value_type s, const Mat34& m) noexcept {
             return Mat34(s - m[0], s - m[1], s - m[2]);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(Mat34 m, value_type s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator-(const Mat34& m, value_type s) noexcept {
             return Mat34(m[0] - s, m[1] - s, m[2] - s);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator*(value_type s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator*(value_type s, const Mat34& m) noexcept {
             return Mat34(m[0] * s, m[1] * s, m[2] * s);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator*(Mat34 m, value_type s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator*(const Mat34& m, value_type s) noexcept {
             return Mat34(m[0] * s, m[1] * s, m[2] * s);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr vec3_type operator*(Mat34 m, const vec4_type& column) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr vec3_type operator*(const Mat34& m, const vec4_type& column) noexcept {
             return vec3_type(noa::math::dot(m[0], column),
                              noa::math::dot(m[1], column),
                              noa::math::dot(m[2], column));
         }
 
-        [[nodiscard]] friend NOA_HD constexpr vec4_type operator*(const vec3_type& row, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr vec4_type operator*(const vec3_type& row, const Mat34& m) noexcept {
             return vec4_type(noa::math::dot(vec3_type(m[0][0], m[1][0], m[2][0]), row),
                              noa::math::dot(vec3_type(m[0][1], m[1][1], m[2][1]), row),
                              noa::math::dot(vec3_type(m[0][2], m[1][2], m[2][2]), row),
                              noa::math::dot(vec3_type(m[0][3], m[1][3], m[2][3]), row));
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator/(value_type s, Mat34 m) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator/(value_type s, const Mat34& m) noexcept {
             return Mat34(s / m[0], s / m[1], s / m[2]);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Mat34 operator/(Mat34 m, value_type s) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr Mat34 operator/(const Mat34& m, value_type s) noexcept {
             return Mat34(m[0] / s, m[1] / s, m[2] / s);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator==(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator==(const Mat34& m1, const Mat34& m2) noexcept {
             return noa::all(m1[0] == m2[0]) && noa::all(m1[1] == m2[1]) && noa::all(m1[2] == m2[2]);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr bool operator!=(Mat34 m1, Mat34 m2) noexcept {
+        [[nodiscard]] friend NOA_HD constexpr bool operator!=(const Mat34& m1, const Mat34& m2) noexcept {
             return noa::any(m1[0] != m2[0]) || noa::any(m1[1] != m2[1]) || noa::any(m1[2] != m2[2]);
         }
 
@@ -261,7 +257,8 @@ namespace noa::math {
     }
 
     template<int32_t ULP = 2, typename T>
-    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(Mat34<T> m1, Mat34<T> m2, T epsilon = 1e-6f) noexcept {
+    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(
+            const Mat34<T>& m1, const Mat34<T>& m2, T epsilon = 1e-6f) noexcept {
         return noa::all(are_almost_equal<ULP>(m1[0], m2[0], epsilon)) &&
                noa::all(are_almost_equal<ULP>(m1[1], m2[1], epsilon)) &&
                noa::all(are_almost_equal<ULP>(m1[2], m2[2], epsilon));

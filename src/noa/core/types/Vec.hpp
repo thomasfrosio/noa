@@ -12,11 +12,11 @@
 #include "noa/core/utils/Sort.hpp"
 
 namespace noa::details {
-    template<typename Value, size_t NDIM>
+    template<typename Value, size_t N>
     struct VecAlignment {
     private:
         static constexpr size_t MAX_ALIGNMENT = 16;
-        static constexpr size_t SIZE_OF = sizeof(Value) * NDIM;
+        static constexpr size_t SIZE_OF = sizeof(Value) * N;
         static constexpr size_t ALIGN_OF = alignof(Value);
 
     public:
@@ -40,15 +40,16 @@ namespace noa {
         static constexpr int64_t SSIZE = N;
         static constexpr size_t SIZE = N;
 
-    public: // Default constructors
+    public:
+        // Zero-initialized.
         constexpr Vec() noexcept = default;
 
-        // Explicit element-wise conversion constructor.
+        // Element-wise conversion constructor.
         template<typename... Ts,
                  typename = std::enable_if_t<
                         sizeof...(Ts) == SSIZE && (sizeof...(Ts) > 1) &&
                         noa::traits::are_numeric_v<Ts...>>>
-        NOA_HD constexpr Vec(Ts... ts) noexcept : m_data{static_cast<value_type>(ts)...} {
+        NOA_HD constexpr /*implicit*/ Vec(Ts... ts) noexcept : m_data{static_cast<value_type>(ts)...} {
             for (auto& e: m_data) {
                 NOA_ASSERT(is_safe_cast<value_type>(e));
                 (void) e;
@@ -74,7 +75,7 @@ namespace noa {
         }
 
         // Explicit construction from a pointer.
-        // This is not ideal (because it can segfault), but is truly useful in some cases.
+        // This is not ideal (because this can segfault), but is truly useful in some cases.
         NOA_HD constexpr explicit Vec(const value_type* values) noexcept {
             for (int64_t i = 0; i < SSIZE; ++i)
                 m_data[i] = values[i];
@@ -99,8 +100,9 @@ namespace noa {
             return m_data[i];
         }
 
-        template<int I>
-        [[nodiscard]] NOA_HD constexpr const auto& get() const noexcept { return m_data[I]; } // structure binding support
+        // Structure binding support.
+        template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return m_data[I]; }
+        template<int I> [[nodiscard]] NOA_HD constexpr value_type& get() noexcept { return m_data[I]; }
 
         [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_data; }
         [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_data; }
@@ -466,10 +468,10 @@ namespace noa {
         }
 
         template<typename T, std::enable_if_t<noa::traits::is_numeric_v<T>, bool> = true>
-        constexpr auto as_safe() const {
+        [[nodiscard]] constexpr auto as_safe() const {
             Vec<T, SIZE> output;
             for (size_t i = 0; i < SIZE; ++i)
-                output[i] = safe_cast<T>(m_data[i]);
+                output[i] = safe_cast<T>(m_data[i]); // can throw
             return output;
         }
 
@@ -520,9 +522,10 @@ namespace noa {
             return output;
         }
 
-        template<typename... Ts, typename = std::enable_if_t<sizeof...(Ts) <= N && noa::traits::are_restricted_int_v<Ts...>>>
-        [[nodiscard]] NOA_HD constexpr auto filter(Ts... ts) const noexcept {
-            return Vec<value_type, sizeof...(Ts)>((*this)[ts]...);
+        template<typename... Indexes, typename = std::enable_if_t<noa::traits::are_restricted_int_v<Indexes...>>>
+        [[nodiscard]] NOA_HD constexpr auto filter(Indexes... indexes) const noexcept {
+            // TODO This can do a lot more than "filter" based on indexes. Rename?
+            return Vec<value_type, sizeof...(Indexes)>((*this)[indexes]...);
         }
 
         [[nodiscard]] NOA_HD constexpr Vec flip() const noexcept {
@@ -543,8 +546,7 @@ namespace noa {
 
         // Circular shifts the vector by a given amount.
         // If "count" is positive, shift to the right, otherwise, shift to the left.
-        template<typename Int, typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
-        [[nodiscard]] NOA_HD constexpr Vec circular_shift(Int count) {
+        [[nodiscard]] NOA_HD constexpr Vec circular_shift(int64_t count) {
             if constexpr (SIZE == 1)
                 return *this;
 
@@ -559,13 +561,14 @@ namespace noa {
             return out;
         }
 
-    public: // Support for noa::string::human<Vec>();
+    public:
+        // Support for noa::string::human<Vec>();
         [[nodiscard]] static std::string name() {
             return noa::string::format("Vec<{},{}>", noa::string::human<value_type>(), SIZE);
         }
 
     private:
-        Value m_data[N]{0};
+        Value m_data[N]{};
     };
 }
 
@@ -583,7 +586,7 @@ namespace noa {
     template<typename T, size_t N>
     inline std::ostream& operator<<(std::ostream& os, const Vec<T, N>& v) {
         if constexpr (noa::traits::is_real_or_complex_v<T>)
-            os << string::format("{::.3f}", v);
+            os << string::format("{::.3f}", v); // {fmt} ranges
         else
             os << string::format("{}", v);
         return os;
@@ -1112,7 +1115,7 @@ namespace noa::math {
             auto* alias0 = reinterpret_cast<__half2*>(&lhs);
             auto* alias1 = reinterpret_cast<__half2*>(&rhs);
             for (size_t i = 0; i < N / 2; ++i)
-                alias0[i] = noa::math::min(alias0[i], alias1[i]);
+                alias0[i] = __hmin2(alias0[i], alias1[i]);
             return lhs;
         }
         #endif
@@ -1164,7 +1167,7 @@ namespace noa::math {
             auto* alias0 = reinterpret_cast<__half2*>(&lhs);
             auto* alias1 = reinterpret_cast<__half2*>(&rhs);
             for (size_t i = 0; i < N / 2; ++i)
-                alias0[i] = noa::math::max(alias0[i], alias1[i]);
+                alias0[i] = __hmax2(alias0[i], alias1[i]);
             return lhs;
         }
         #endif
@@ -1245,25 +1248,25 @@ namespace noa::math {
 
 // Sort:
 namespace noa {
-    template<typename T, size_t N, typename Comparison, typename std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N <= 4), bool> = true>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         small_stable_sort<N>(vector.data(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, typename Comparison, typename std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N <= 4), bool> = true>
     [[nodiscard]] NOA_IHD constexpr auto sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         small_stable_sort<N>(vector.data(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, typename std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, std::enable_if_t<(N <= 4), bool> = true>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Vec<T, N> vector) noexcept {
         small_stable_sort<N>(vector.data(), [](const T& a, const T& b) { return a < b; });
         return vector;
     }
 
-    template<typename T, size_t N, typename std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, std::enable_if_t<(N <= 4), bool> = true>
     [[nodiscard]] NOA_IHD constexpr auto sort(Vec<T, N> vector) noexcept {
         small_stable_sort<N>(vector.data(), [](const T& a, const T& b) { return a < b; });
         return vector;
@@ -1271,25 +1274,25 @@ namespace noa {
 
     // -- CPU only --
 
-    template<typename T, size_t N, typename Comparison, typename std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N > 4), bool> = true>
     [[nodiscard]] auto stable_sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         std::stable_sort(vector.begin(), vector.end(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, typename Comparison, typename std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N > 4), bool> = true>
     [[nodiscard]] auto sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         std::sort(vector.begin(), vector.end(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, typename std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, std::enable_if_t<(N > 4), bool> = true>
     [[nodiscard]] auto stable_sort(Vec<T, N> vector) noexcept {
         std::stable_sort(vector.begin(), vector.end());
         return vector;
     }
 
-    template<typename T, size_t N, typename std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, std::enable_if_t<(N > 4), bool> = true>
     [[nodiscard]] auto sort(Vec<T, N> vector) noexcept {
         std::sort(vector.begin(), vector.end());
         return vector;
