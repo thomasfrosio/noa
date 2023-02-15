@@ -7,6 +7,7 @@
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/traits/Numerics.hpp"
 #include "noa/core/traits/Utilities.hpp"
+#include "noa/core/traits/Vec.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"

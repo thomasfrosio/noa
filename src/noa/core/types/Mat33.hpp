@@ -3,7 +3,7 @@
 #include "noa/core/Assert.hpp"
 #include "noa/core/Definitions.hpp"
 #include "noa/core/Math.hpp"
-#include "noa/core/traits/MatrixTypes.hpp"
+#include "noa/core/traits/Matrix.hpp"
 #include "noa/core/traits/Numerics.hpp"
 #include "noa/core/types/Vec.hpp"
 

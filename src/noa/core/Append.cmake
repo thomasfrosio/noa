@@ -31,12 +31,13 @@ set(NOA_CORE_HEADERS
         core/string/Split.hpp
 
         core/Traits.hpp
-        core/traits/MatrixTypes.hpp
+        core/traits/ArrayOrView.hpp
+        core/traits/Matrix.hpp
         core/traits/Numerics.hpp
         core/traits/Shape.hpp
         core/traits/String.hpp
         core/traits/Utilities.hpp
-        core/traits/VecTypes.hpp
+        core/traits/Vec.hpp
 
         core/Types.hpp
         core/types/Accessor.hpp
