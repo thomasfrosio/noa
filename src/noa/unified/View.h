@@ -1,228 +1,329 @@
 #pragma once
 
-#include "noa/common/Assert.h"
-#include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
-#include "noa/common/Indexing.h"
-#include "noa/common/types/Accessor.h"
-#include "noa/common/types/Vec.h"
-#include "noa/common/types/Shape.h"
+#include "noa/core/Exception.hpp"
+#include "noa/core/Types.hpp"
+#include "noa/core/utils/Indexing.hpp"
+
+#include "noa/unified/ArrayOption.h"
+#include "noa/unified/Stream.h"
+#include "noa/unified/memory/Copy.h"
+#include "noa/unified/memory/Permute.h"
 
 namespace noa {
-    /// View over a 4-dimensional array.
-    /// \details This class is meant to provide a simple 4D shaped representation of some memory region.
-    ///          It keeps track of a pointer and the size and stride of each dimension.
-    ///          As such, indexing is bound-checked (only in Debug builds).
-    ///          It is similar to the Array class, but is non-owning and the data type can be const-qualified.
-    template<typename T, typename I>
+    template<typename T>
+    class Array;
+
+    /// View of an Array or memory region.
+    /// \details
+    ///   It behaves like an Array, but its value type can be const-qualified. More importantly, it does not own
+    ///   the memory region it points to. This makes it more lightweight than an Array, but is slightly more
+    ///   difficult to use correctly.\n
+    /// - \b Deferred-destruction: As opposed to Arrays, when passing Views to a function, the stream cannot keep
+    ///   a reference of the input/output memory-regions, because Views are not reference-counted (this is what
+    ///   makes them more lightweight than Arrays). As such, users should make sure that the memory-regions
+    ///   are not destructed while being used. Fortunately, this can be easily achieved by synchronizing the stream
+    ///   (e.g. using View::eval()) before destructing the original Arrays. Note that if an exception is thrown,
+    ///   Arrays will synchronize the current stream if needed, making sure any potential use of their managed region
+    ///   via Views is completed before destruction.
+    template<typename T>
     class View {
     public:
-        using shape_type = Shape<I, N>;
-        using accessor_type = Accessor<T, N, I, PointerTrait, StridesTrait>;
+        using shape_type = Shape<i64, 4>;
+        using accessor_type = Accessor<T, 4, i64>;
         using pointer_type = typename accessor_type::pointer_type;
         using value_type = typename accessor_type::value_type;
         using index_type = typename accessor_type::index_type;
         using strides_type = typename accessor_type::strides_type;
 
-        static constexpr index_type COUNT = N;
-        static constexpr size_t SIZE = N;
-        static constexpr int64_t SSIZE = N;
-        static constexpr bool IS_RESTRICT = PointerTrait == PointerTraits::RESTRICT;
-        static constexpr bool IS_CONTIGUOUS = StridesTrait == StridesTraits::CONTIGUOUS;
+        static_assert(!std::is_pointer_v<value_type>);
+        static_assert(!std::is_reference_v<value_type>);
+        static_assert(traits::is_numeric_v<value_type> ||
+                      traits::is_vecX_v<value_type> ||
+                      traits::is_matXX_v<value_type>);
 
     public: // Constructors
         // Creates an empty view.
         NOA_HD constexpr View() = default;
 
+        // Creates a view of a contiguous row-vector.
+        NOA_HD constexpr View(T* data, index_type elements, ArrayOption options = {})
+                : m_accessor(data, strides_type{elements, elements, elements, 1}),
+                  m_shape{1, 1, 1, elements}, m_options(options) {}
+
         // Creates a view.
-        NOA_HD constexpr View(
-                T* data,
-                const shape_type& shape,
-                const Strides<index_type, SIZE>& strides)
-                : m_accessor(data, strides), m_shape(shape) {}
+        NOA_HD constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options = {})
+                : m_accessor(data, strides), m_shape(shape), m_options(options) {}
 
-        // Creates a contiguous view, thus assuming the innermost dimension has a stride of 1.
-        template<typename Void,
-                 typename = std::enable_if_t<
-                         (SIZE > 1) && IS_CONTIGUOUS && std::is_void_v<Void>>>
-        NOA_HD constexpr View(
-                pointer_type pointer,
-                const shape_type& shape,
-                const Strides<index_type, SIZE - 1>& strides) noexcept
-                : m_accessor(pointer, strides), m_shape(shape) {}
-
-        // Creates a contiguous 1D view, thus assuming the stride is 1.
-        template<typename Void,
-                 typename = std::enable_if_t<
-                         (SIZE == 1) && IS_CONTIGUOUS && std::is_void_v<Void>>>
-        NOA_HD constexpr View(
-                pointer_type pointer,
-                const shape_type& shape) noexcept
-                : m_accessor(pointer), m_shape(shape) {}
+        // Creates a view, assuming the data is C-contiguous.
+        NOA_HD constexpr View(T* data, const shape_type& shape, ArrayOption options = {})
+                : m_accessor(data, shape.strides()), m_shape(shape), m_options(options) {}
 
         // Creates a const view from an existing non-const view.
         template<typename U, typename = std::enable_if_t<details::is_mutable_value_type_v<U, value_type>>>
-        NOA_HD constexpr /* implicit */ View(const View<U, N, I>& view)
-                : m_accessor(view.data(), view.strides()), m_shape(view.shape()) {}
+        NOA_HD constexpr /*implicit*/ View(const View<U>& view)
+                : m_accessor(view.data(), view.strides()), m_shape(view.shape()), m_options(view.options()) {}
+
+        // Creates a view from an Array.
+        template<typename U, typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type>>>
+        constexpr explicit View(const Array<U>& array)
+                : m_accessor(array.get(), array.strides()), m_shape(array.shape()), m_options(array.options()) {}
 
     public: // Getters
-        [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_accessor.get(); }
-        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_accessor.data(); }
-        [[nodiscard]] NOA_HD constexpr shape_type& shape() noexcept { return m_shape; }
-        [[nodiscard]] NOA_HD constexpr const shape_type& shape() const noexcept { return m_shape; }
-        [[nodiscard]] NOA_HD constexpr strides_type& strides() noexcept { return m_accessor.strides(); }
-        [[nodiscard]] NOA_HD constexpr const strides_type& strides() const noexcept { return m_accessor.strides(); }
-        [[nodiscard]] NOA_HD constexpr index_type elements() const noexcept { return m_shape.elements(); }
+        /// Returns the options used to create the viewed array.
+        [[nodiscard]] NOA_HD constexpr const ArrayOption& options() const noexcept { return m_options; }
+
+        /// Returns the device used to create the viewed array.
+        [[nodiscard]] NOA_HD constexpr Device device() const noexcept { return options().device(); }
+
+        /// Returns the memory resource used to create the viewed array.
+        [[nodiscard]] NOA_HD constexpr Allocator allocator() const noexcept { return options().allocator(); }
+
+        /// Whether the managed data can be accessed by CPU threads.
+        [[nodiscard]] NOA_HD constexpr bool is_dereferenceable() const noexcept { return options().is_dereferenceable(); }
+
+        /// Returns the BDHW shape of the viewed array.
+        [[nodiscard]] NOA_HD const shape_type& shape() const noexcept { return m_shape; }
+
+        /// Returns the BDHW strides of the viewed array.
+        [[nodiscard]] NOA_HD const strides_type& strides() const noexcept { return m_accessor.strides(); }
+
+        /// Returns the number of elements in the viewed array.
+        [[nodiscard]] NOA_HD constexpr index_type elements() const noexcept { return shape().elements(); }
         [[nodiscard]] NOA_HD constexpr index_type size() const noexcept { return elements(); }
 
         template<char ORDER = 'C'>
         [[nodiscard]] NOA_HD constexpr bool are_contiguous() const noexcept {
-            return noa::indexing::are_contiguous<ORDER>(m_accessor.strides(), m_shape);
+            return noa::indexing::are_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
         template<char ORDER = 'C'>
         [[nodiscard]] NOA_HD constexpr bool is_contiguous() const noexcept {
-            return noa::indexing::is_contiguous<ORDER>(m_accessor.strides(), m_shape);
+            return noa::indexing::is_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
         /// Whether the view is empty. A View is empty if not initialized,
         /// or if the viewed data is null, or if one of its dimension is 0.
-        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept {
-            return !m_ptr || noa::any(m_shape == 0);
+        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return !get() || noa::any(shape() == 0); }
+
+    public: // Accessors
+        /// Synchronizes the current stream of the view's device.
+        /// \details It guarantees safe access to the memory region using get(), data(), operator(...), and accessor().
+        ///          Note that stream-ordered access (i.e. passing this to the library API) is safe and doesn't need
+        ///          synchronization.
+        const View& eval() const {
+            Stream::current(device()).synchronize();
+            return *this;
         }
 
-    public: // Data reinterpretation
-        /// Returns a ND Accessor.
+        /// Returns the pointer to the data.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may be illegal or create a data race.
+        [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_accessor.get(); }
+
+        /// Returns the pointer to the data.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may be illegal or create a data race.
+        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_accessor.data(); }
+
+        /// Returns the pointer to the data.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may be illegal or create a data race.
+        [[nodiscard]] NOA_HD constexpr const pointer_type& share() const noexcept { return get(); }
+
+        /// Retrieve the underlying accessor.
+        [[nodiscard]] NOA_HD constexpr const accessor_type& accessor() const { return m_accessor; }
+        [[nodiscard]] NOA_HD constexpr accessor_type& accessor() { return m_accessor; }
+
+        /// Returns a new Accessor and its corresponding size/shape.
+        /// \details While constructing the accessor, this function can also reinterpret the current value type.
+        ///          This is only well defined in cases where View::as<U>() is well defined.
+        ///          If N < 4, the outer-dimensions are stacked together.
+        template<typename U, size_t N, typename I = index_type,
+                PointerTraits PointerTrait = PointerTraits::DEFAULT,
+                StridesTraits StridesTrait = StridesTraits::STRIDED>
         [[nodiscard]] constexpr auto accessor() const {
-            using output_t = Accessor<T, N, index_type, AccessorTraits::DEFAULT>;
-            return output_t(m_ptr, m_strides);
-        }
-
-        /// Returns a new View<NewT, NewN, NewI, NewTraits>.
-        /// \details While constructing the accessor, this function can also reinterpret the current view.
-        ///          This is only well defined in cases where View::as<T0>() is well defined. If N < 4,
-        ///          the outer-dimensions are stacked together.
-        template<typename NewT, int NewN, typename NewI = index_type,
-                AccessorTraits NewTraits = AccessorTraits::DEFAULT>
-        [[nodiscard]] constexpr auto view() const {
-
-        }
-
-        /// Returns an Accessor and its corresponding size/shape.
-        /// \details While constructing the accessor, this function can also reinterpret the current view.
-        ///          This is only well defined in cases where View::as<T0>() is well defined. If N < 4,
-        ///          the outer-dimensions are stacked together.
-        template<typename T0, int NDIM, typename I0 = index_type,
-                 AccessorTraits NEW_TRAITS = AccessorTraits::DEFAULT>
-        [[nodiscard]] constexpr auto as() const {
-            using output_shape_t = Vec<I0, NDIM>;
-            using output_accessor_t = Accessor<T0, N, I0, NEW_TRAITS>;
+            using output_shape_t = Shape<I, N>;
+            using output_strides_t = Strides<I, N>;
+            using output_accessor_t = Accessor<U, N, I, PointerTrait, StridesTrait>;
             using output_t = std::pair<output_accessor_t, output_shape_t>;
 
-            const auto reinterpreted = indexing::Reinterpret<value_type, I0>(
-                    m_shape, m_strides, get()).template as<T0>();
+            const auto reinterpreted = noa::indexing::Reinterpret(shape(), strides(), get()).template as<U>();
 
-            constexpr I0 STRIDES_OFFSET = 4 - N;
             if constexpr (N == 4) {
-                return output_t{output_accessor_t(reinterpreted.ptr, reinterpreted.strides.get(STRIDES_OFFSET)),
-                                output_shape_t(reinterpreted.shape.get(STRIDES_OFFSET))};
+                return output_t{output_accessor_t(reinterpreted.ptr, reinterpreted.strides.template as_safe<I>()),
+                                reinterpreted.shape.template as_safe<I>()};
             } else {
-                Vec4<I0> new_shape{1};
+                // Construct the new shape by stacking the outer dimensions together.
+                constexpr I OFFSET = 4 - N;
+                Shape4<i64> new_shape{1};
                 for (index_type i = 0; i < 4; ++i)
-                    new_shape[math::max(i, STRIDES_OFFSET)] *= reinterpreted.shape[i];
+                    new_shape[noa::math::max(i, OFFSET)] *= reinterpreted.shape[i];
 
-                Vec4<I0> new_stride{};
-                if (!indexing::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride))
-                    NOA_THROW("A view of shape {} and stride {} cannot be reshaped to a view of shape {}",
+                // Reshape.
+                Strides4<i64> new_stride{};
+                if (!noa::indexing::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride))
+                    NOA_THROW("A view of shape {} and strides {} cannot be reshaped to shape {}",
                               reinterpreted.shape, reinterpreted.strides, new_shape);
 
-                output_shape_t output_shape;
-                if constexpr (N == 1)
-                    output_shape = new_shape[3];
-                else
-                    output_shape = output_shape_t(new_shape.get(STRIDES_OFFSET));
-
-                return output_t{output_accessor_t(reinterpreted.ptr, new_stride.get(STRIDES_OFFSET)),
+                // Ignore the outer empty dimensions.
+                output_shape_t output_shape(new_shape.template pop_front<OFFSET>().template as_safe<I>());
+                output_strides_t output_strides(new_stride.template pop_front<OFFSET>().template as_safe<I>());
+                return output_t{output_accessor_t(reinterpreted.ptr, output_strides),
                                 output_shape};
             }
         }
 
-        /// Reinterpret the managed array of \p T as an array of \p T0.
-        /// \note This is only well defined in cases where reinterpret_cast<T0*>(T*) is well defined, for instance,
-        ///       when \p T0 is a unsigned char or std::byte to represent any data type as an array of bytes,
-        ///       or to switch between complex and real floating-point numbers with the same precision.
-        template<typename NewT, typename NewI = index_type>
-        View<NewT, N, NewI> as() const {
-            const auto out = indexing::Reinterpret<T, NewI>(m_shape, m_strides, get()).template as<T0>();
-            return {out.ptr, out.shape, out.strides};
+    public: // Deep copy
+        /// Performs a deep copy of the view to \p output.
+        /// \details Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
+        ///          also true for pitched layouts, colum or row vectors, or any layout that can be reordered and/or
+        ///          reshaped to the aforementioned layouts. However, other non-contiguous memory layouts can only
+        ///          be copied if the source and destination are both on the same GPU or on the CPU.
+        /// \param[out] output  Destination. It should not overlap with this view.
+        template<typename Output,
+                 typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output> &&
+                                             noa::traits::have_almost_same_value_type_v<View, Output>>>
+        void to(const Output& output) const {
+            memory::copy(*this, output);
         }
 
-        /// Reshapes the view.
-        /// \param shape New shape. Must contain the same number of elements as the current shape.
-        View reshape(const index4_type& shape) const {
-            index4_type new_stride;
-            if (!indexing::reshape(m_shape, m_strides, shape, new_stride))
+        /// Performs a deep copy of the view according \p option.
+        /// \details The returned array is completely independent from the original one and is C-contiguous.
+        ///          Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
+        ///          also true for pitched layouts, colum or row vectors, or any layout that can be reordered and/or
+        ///          reshaped to the aforementioned layouts. However, other non-contiguous memory layouts can only
+        ///          be copied if the source and destination are both on the same GPU or on the CPU.
+        /// \param option   Output device and resource to perform the allocation of the new array.
+        ///                 The current stream for that device is used to perform the copy.
+        [[nodiscard]] Array<value_type> to(ArrayOption option) const {
+            Array out(shape(), option);
+            to(out);
+            return out;
+        }
+
+        /// Performs a deep copy of the view preserving the view's options.
+        [[nodiscard]] Array<value_type> copy() const {
+            return to(options());
+        }
+
+    public: // Data reinterpretation
+        /// Reinterprets the value type.
+        /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
+        ///       when \p U is a unsigned char or std::byte to represent any data type as an array of bytes,
+        ///       or to switch between complex and real floating-point numbers with the same precision.
+        template<typename U>
+        [[nodiscard]] View<U> as() const {
+            const auto out = noa::indexing::Reinterpret(shape(), strides(), get()).template as<U>();
+            return View<U>(out.ptr, out.shape, out.strides, options());
+        }
+
+        /// Changes the device type (CPU<->GPU) on which the memory should be accessed.
+        /// \details If the memory resource can be accessed by the CPU and/or a GPU, this function returns a new view
+        ///          with the new device. This is used to control whether PINNED or MANAGED memory should be accessed
+        ///          by the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the
+        ///          current GPU is used in that case.
+        [[nodiscard]] View as(DeviceType type) const {
+            const Allocator alloc = m_options.allocator();
+            if (device().is_gpu() && type == DeviceType::CPU) { // GPU -> CPU
+                NOA_CHECK(alloc == Allocator::PINNED ||
+                          alloc == Allocator::MANAGED ||
+                          alloc == Allocator::MANAGED_GLOBAL,
+                          "GPU memory-region with the allocator {} cannot be reinterpreted as a CPU memory-region. "
+                          "This is only supported for pinned and managed memory-regions", alloc);
+                return View(get(), shape(), strides(), ArrayOption(m_options).device(Device(type)));
+
+            } else if (device().is_cpu() && type == DeviceType::GPU) { // CPU -> GPU
+                NOA_CHECK(Device::any(DeviceType::GPU), "No GPU detected");
+                NOA_CHECK(alloc == Allocator::PINNED ||
+                          alloc == Allocator::MANAGED ||
+                          alloc == Allocator::MANAGED_GLOBAL,
+                          "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
+                          "This is only supported for pinned and managed memory-regions", alloc);
+                Device gpu;
+                #ifdef NOA_ENABLE_CUDA
+                if (alloc == Allocator::PINNED || alloc == Allocator::MANAGED) {
+                    // NOTE: CUDA doesn't document what the attr.device is for managed memory.
+                    //       Hopefully this is the device against which the allocation was performed
+                    //       and not the current device.
+                    // NOTE: With "stream-attached" managed memory, it is up to the user to know what
+                    //       stream was used to perform the allocation.
+                    const cudaPointerAttributes attr = cuda::utils::pointer_attributes(get());
+                    gpu = Device(DeviceType::GPU, attr.device, Device::DeviceUnchecked{});
+                    NOA_ASSERT((alloc == Allocator::PINNED && attr.type == cudaMemoryTypeHost) ||
+                               (alloc == Allocator::MANAGED && attr.type == cudaMemoryTypeManaged));
+                    // TODO Add cudaPrefetchAsync when it is added to cuda::PtrManaged.
+
+                } else if (alloc == Allocator::MANAGED_GLOBAL) {
+                    // NOTE: This can be accessed from any stream and any GPU. It seems to be better to return the
+                    //       current device and not the original device against which the allocation was performed.
+                    gpu = Device::current(DeviceType::GPU);
+                }
+                #else
+                NOA_THROW("No GPU backend detected");
+                #endif
+                return View(get(), shape(), strides(), ArrayOption(m_options).device(gpu));
+            } else {
+                return *this;
+            }
+        }
+
+        /// Reshapes the view (must have the same number of elements as the current view).
+        [[nodiscard]] View reshape(const shape_type& new_shape) const {
+            strides_type new_stride;
+            if (!noa::indexing::reshape(shape(), strides(), new_shape, new_stride)) {
                 NOA_THROW("A view of shape {} and stride {} cannot be reshaped to a view of shape {}",
-                          m_shape, m_strides, shape);
-            return {m_ptr, shape, new_stride};
+                          shape(), strides(), shape);
+            }
+            return View(get(), new_shape, new_stride, options());
         }
 
         /// Reshapes the array in a vector along a particular axis.
-        /// Returns a row vector by default.
-        View flat(int axis) const {
-            index4_type output_shape(1);
-            output_shape[axis] = m_shape.elements();
+        /// Returns a row vector by default (axis = 3).
+        [[nodiscard]] View flat(i32 axis = 3) const {
+            strides_type output_shape(1);
+            output_shape[axis] = shape().elements();
             return reshape(output_shape);
         }
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        View permute(const index4_type& permutation) const {
-            return {m_ptr,
-                    indexing::reorder(m_shape, permutation),
-                    indexing::reorder(m_strides, permutation)};
+        [[nodiscard]] NOA_HD constexpr View permute(const Vec4<i64>& permutation) const {
+            return View(get(),
+                        noa::indexing::reorder(shape(), permutation),
+                        noa::indexing::reorder(strides(), permutation),
+                        options());
         }
 
-    public: // Loop-like indexing
-        /// Returns a reference at the specified memory \p offset.
-        template<typename I0, typename = std::enable_if_t<traits::is_int_v<I0>>>
-        [[nodiscard]] NOA_HD constexpr T& operator[](I0 offset) const noexcept {
-            NOA_ASSERT(!empty() && static_cast<index_type>(offset) <= indexing::at(m_shape - 1, m_strides));
-            return m_ptr[offset];
+        [[nodiscard]] Array<value_type> permute_copy(const Vec4<i64>& permutation) const {
+            return memory::permute_copy(*this, permutation);
         }
 
-        /// Returns a reference at the beginning of the specified batch index.
+    public: // Assignment operators
+        /// Clears the view. Equivalent to assigning *this with an empty view.
+        View& operator=(std::nullptr_t) {
+            *this = View{};
+            return *this;
+        }
+
+    public: // Indexing & Subregion
         template<typename I0>
-        [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(i0) < m_shape[0]);
-            return accessor_reference_type(m_ptr, m_strides.get())(i0);
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0) const noexcept {
+            return m_accessor(i0);
         }
 
-        /// Returns a reference at the beginning of the specified batch and depth indexes.
         template<typename I0, typename I1>
-        [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(i0) < m_shape[0] &&
-                       static_cast<index_type>(i1) < m_shape[1]);
-            return accessor_reference_type(m_ptr, m_strides.get())(i0, i1);
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1) const noexcept {
+            return m_accessor(i0, i1);
         }
 
-        /// Returns a reference at the beginning of the specified batch, depth and height indexes.
         template<typename I0, typename I1, typename I2>
-        [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(i0) < m_shape[0] &&
-                       static_cast<index_type>(i1) < m_shape[1] &&
-                       static_cast<index_type>(i2) < m_shape[2]);
-            return accessor_reference_type(m_ptr, m_strides.get())(i0, i1, i2);
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
+            return m_accessor(i0, i1, i2);
         }
 
-        /// Returns a reference at the beginning of the specified batch, depth, height and width indexes.
         template<typename I0, typename I1, typename I2, typename I3>
-        [[nodiscard]] NOA_HD constexpr T& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
-            NOA_ASSERT(static_cast<index_type>(i0) < m_shape[0] &&
-                       static_cast<index_type>(i1) < m_shape[1] &&
-                       static_cast<index_type>(i2) < m_shape[2] &&
-                       static_cast<index_type>(i3) < m_shape[3]);
-            return accessor_reference_type(m_ptr, m_strides.get())(i0, i1, i2, i3);
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
+            return m_accessor(i0, i1, i2, i3);
         }
 
     public: // Subregion
@@ -231,35 +332,40 @@ namespace noa {
                  typename C = indexing::full_extent_t,
                  typename D = indexing::full_extent_t,
                  typename = std::enable_if_t<indexing::Subregion::are_indexer_v<A, B, C, D>>>
-        constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
-            const auto indexer = indexing::Subregion(m_shape, m_strides).extract(i0, i1, i2, i3);
-            return {m_ptr + indexer.offset(), indexer.shape(), indexer.strides()};
+        [[nodiscard]] constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
+            const auto indexer = indexing::Subregion(shape(), strides()).extract(i0, i1, i2, i3);
+            return View(get() + indexer.offset, indexer.shape, indexer.strides, options());
         }
 
-        constexpr View subregion(indexing::ellipsis_t) const {
+        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t) const {
             return *this;
         }
 
         template<typename A,
                  typename = std::enable_if_t<indexing::Subregion::is_indexer_v<A>>>
-        constexpr View subregion(indexing::ellipsis_t, A&& i3) const {
+        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t, A&& i3) const {
             return subregion(indexing::full_extent_t{}, indexing::full_extent_t{}, indexing::full_extent_t{}, i3);
         }
 
         template<typename A, typename B,
                  typename = std::enable_if_t<indexing::Subregion::are_indexer_v<A, B>>>
-        constexpr View subregion(indexing::ellipsis_t, A&& i2, B&& i3) const {
+        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t, A&& i2, B&& i3) const {
             return subregion(indexing::full_extent_t{}, indexing::full_extent_t{}, i2, i3);
         }
 
         template<typename A, typename B, typename C,
                  typename = std::enable_if_t<indexing::Subregion::are_indexer_v<A, B, C>>>
-        constexpr View subregion(indexing::ellipsis_t, A&& i1, B&& i2, C&& i3) const {
+        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t, A&& i1, B&& i2, C&& i3) const {
             return subregion(indexing::full_extent_t{}, i1, i2, i3);
         }
 
     private:
         accessor_type m_accessor;
-        shape_type m_shape{};
+        shape_type m_shape;
+        ArrayOption m_options;
     };
+}
+
+namespace noa::traits {
+    template<typename T> struct proclaim_is_view<View<T>> : std::true_type {};
 }

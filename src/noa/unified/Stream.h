@@ -1,9 +1,9 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 #include "noa/unified/Device.h"
 
-#include "noa/cpu/Stream.h"
+#include "noa/cpu/Stream.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Stream.h"
@@ -19,6 +19,14 @@ namespace noa::gpu {
 }
 
 namespace noa {
+    /// Stream mode. DEFAULT refers to the NULL stream. ASYNC creates an actual asynchronous queue.
+    /// On the CPU, ASYNC launches a new thread which waits to execute work. On the GPU, ASYNC launches
+    /// a new "concurrent" stream which is not implicitly synchronized with the NULL stream.
+    enum class StreamMode {
+        DEFAULT,
+        ASYNC
+    };
+
     /// Unified stream, i.e. (asynchronous) dispatch queue, and its associated device.
     /// \details
     ///   - Streams are reference counted. While they can be moved and copied around, the actual
@@ -33,14 +41,6 @@ namespace noa {
     ///     or querying a stream, or any of its references, should be done in a thread-safe manner.
     class Stream {
     public:
-        /// Stream mode. DEFAULT refers to the NULL stream. ASYNC creates an actual asynchronous queue.
-        /// On the CPU, ASYNC launches a new thread which waits to execute work. On the GPU, ASYNC launches
-        /// a new "concurrent" stream which is not implicitly synchronized with the NULL stream.
-        enum Mode {
-            DEFAULT,
-            ASYNC
-        };
-
         template<typename T>
         static constexpr bool is_valid_stream_v =
                 std::bool_constant<std::is_same_v<T, cpu::Stream> ||
@@ -55,11 +55,11 @@ namespace noa {
         /// \note If the previous current stream was created by current(), any reference of it becomes invalidated.
         ///       However, since streams are reference counted, if the reference was copied into a new instance,
         ///       this instance will still be valid.
-        static void current(Stream& stream);
+        static void set_current(Stream& stream);
 
     public:
         /// Creates a new stream on the given device.
-        explicit Stream(Device device, Mode mode = Stream::ASYNC);
+        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC);
 
         /// Encapsulates (i.e. move) the given stream.
         template<typename T, typename = std::enable_if_t<is_valid_stream_v<T>>>
@@ -72,7 +72,7 @@ namespace noa {
 
         /// Whether or not the stream is busy.
         /// \note This function may also return error codes from previous, asynchronous launches.
-        bool busy();
+        bool is_busy();
 
         /// Gets the underlying device.
         [[nodiscard]] Device device() const noexcept;
@@ -95,17 +95,17 @@ namespace noa {
             virtual const void* addr() const noexcept = 0;
             virtual void* addr() noexcept = 0;
             virtual void synchronize() = 0;
-            virtual bool busy() = 0;
+            virtual bool is_busy() = 0;
         };
 
         template<typename T>
         struct StreamModel : public StreamConcept {
             T stream;
             explicit StreamModel(T value) noexcept : stream(std::move(value)) {};
-            const void* addr() const noexcept override;
+            [[nodiscard]] const void* addr() const noexcept override;
             void* addr() noexcept override;
             void synchronize() override;
-            bool busy() override;
+            bool is_busy() override;
         };
 
     private: // Small buffer optimization
@@ -121,7 +121,7 @@ namespace noa {
 
         public:
             StreamConcept* stream() noexcept;
-            const StreamConcept* stream() const noexcept;
+            [[nodiscard]] const StreamConcept* stream() const noexcept;
             void clear() noexcept;
 
             template<typename T, typename... Args>
@@ -150,11 +150,11 @@ namespace noa {
         explicit StreamGuard(Args&& ...args)
                 : Stream(std::forward<Args>(args)...),
                   m_previous_current(Stream::current(this->device())) {
-            Stream::current(*static_cast<Stream*>(this));
+            Stream::set_current(*static_cast<Stream*>(this));
         }
 
         ~StreamGuard() {
-            Stream::current(m_previous_current);
+            Stream::set_current(m_previous_current);
         }
 
     private:

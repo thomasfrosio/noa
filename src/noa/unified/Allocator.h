@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ostream>
-#include "noa/common/Definitions.h"
+#include "noa/core/Definitions.hpp"
 
 namespace noa {
     /// Memory allocators.

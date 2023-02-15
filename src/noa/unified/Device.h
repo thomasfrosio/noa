@@ -2,14 +2,14 @@
 
 #include <string_view>
 
-#include "noa/common/Assert.h"
-#include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
-#include "noa/common/utils/Irange.h"
-#include "noa/common/string/Format.h"
-#include "noa/common/string/Parse.h"
+#include "noa/core/Assert.hpp"
+#include "noa/core/Definitions.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/utils/Irange.hpp"
+#include "noa/core/string/Format.hpp"
+#include "noa/core/string/Parse.hpp"
 
-#include "noa/cpu/Device.h"
+#include "noa/cpu/Device.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Device.h"
@@ -19,29 +19,28 @@
 namespace noa {
     struct DeviceMemory { size_t total; size_t free; };
 
+    enum class DeviceType { CPU, GPU };
+
     /// Unified device/workers. Can either point to a CPU or a GPU.
     class Device {
     public:
-        enum Type {
-            CPU, GPU
-        };
-
+        struct DeviceUnchecked {};
     public:
         /// Creates the CPU device.
         Device() = default;
 
         /// Creates a device.
-        /// \param type     Whether it is CPU or a GPU.
-        /// \param id       Device ID. This is ignored for CPU devices.
-        /// \param unsafe   Whether the device should checks that the corresponding device
-        ///                 exists on the system. This is ignored for CPU devices.
-        constexpr explicit Device(Type type, int id = 0, bool unsafe = false);
+        /// \param type     CPU or GPU.
+        /// \param id       Device ID. This is ignored for the CPU device.
+        constexpr explicit Device(DeviceType type, i32 id = 0);
 
         /// Creates a device.
         /// \param name     Device type and ID. Either "cpu", "gpu", "gpu:N", where N is the ID.
-        /// \param unsafe   Whether the device should checks that the corresponding device
-        ///                 exists on the system. This is ignored for CPU devices.
-        explicit Device(std::string_view name, bool unsafe = false);
+        explicit Device(std::string_view name);
+
+        /// Creates a device, but don't check that the corresponding device exists on the system.
+        constexpr explicit Device(DeviceType type, i32 id, DeviceUnchecked);
+        explicit Device(std::string_view name, DeviceUnchecked);
 
     public:
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
@@ -53,7 +52,7 @@ namespace noa {
         /// current process. The current stream for that device is synchronized and reset to the default stream.
         /// \warning for CUDA devices: It is the caller's responsibility to ensure that resources in all host threads
         ///          (streams and pinned|device arrays) attached to that device are destructed before calling this
-        ///          function. The library's internal data will be handled automatically, e.g. FFT plans or textures.
+        ///          function. The library's internal data will be handled automatically, e.g. FFT plans.
         void reset() const;
 
         /// Returns a brief printable summary about the device.
@@ -61,33 +60,33 @@ namespace noa {
 
         /// Returns the memory capacity of the device.
         /// If CPU, returns system memory capacity.
-        [[nodiscard]] DeviceMemory memory() const;
+        [[nodiscard]] DeviceMemory memory_capacity() const;
 
         /// Sets the amount of reserved memory in bytes by the device memory pool to hold onto before trying to
         /// release memory back to the OS. Defaults to 0 bytes (i.e. stream synchronization frees the cached memory).
         /// \note This has no effect on the CPU.
-        void memoryThreshold(size_t threshold_bytes) const;
+        void set_cache_threshold(size_t threshold_bytes) const;
 
         /// Releases memory back to the OS until the device memory pool contains fewer than \p bytes_to_keep
         /// reserved bytes, or there is no more memory that the allocator can safely release. The allocator cannot
         /// release OS allocations that back outstanding asynchronous allocations.
         /// \note This has no effect on the CPU.
-        void memoryTrim(size_t bytes_to_keep) const;
+        void trim_cache(size_t bytes_to_keep) const;
 
         /// Returns the type of device this instance is pointing to.
-        [[nodiscard]] constexpr Type type() const noexcept {
-            return m_id == -1 ? Type::CPU : Type::GPU;
+        [[nodiscard]] constexpr DeviceType type() const noexcept {
+            return m_id == -1 ? DeviceType::CPU : DeviceType::GPU;
         }
 
         /// Whether this device is the CPU.
-        [[nodiscard]] constexpr bool cpu() const noexcept { return m_id == -1; }
+        [[nodiscard]] constexpr bool is_cpu() const noexcept { return m_id == -1; }
 
         /// Whether this device is a GPU.
-        [[nodiscard]] constexpr bool gpu() const noexcept { return m_id != -1; }
+        [[nodiscard]] constexpr bool is_gpu() const noexcept { return m_id != -1; }
 
         /// Returns the device ID. The ID is always -1 for the CPU.
         /// Otherwise it matches the actual index of the GPU in the system.
-        [[nodiscard]] constexpr int id() const noexcept { return m_id; }
+        [[nodiscard]] constexpr i32 id() const noexcept { return m_id; }
 
     public: // Static functions
         /// Gets the current device of the calling thread.
@@ -95,41 +94,42 @@ namespace noa {
         ///          If \p type is GPU, this function returns the current GPU for the calling host thread.
         ///          If \p type is CPU, this function is not very useful since it simply returns the CPU,
         ///          as would do the default Device constructor.
-        [[nodiscard]] static Device current(Type type);
+        [[nodiscard]] static Device current(DeviceType type);
 
         /// Sets \p device as the current device for the calling thread.
         /// \details The underlying state is "thread local", thus thread-safe.
         ///          If this is a GPU, this function set the current GPU for the calling host thread.
         ///          If this is a CPU, this function does nothing
-        static void current(Device device);
+        static void set_current(Device device);
 
         /// Gets the number of devices of a given type.
         /// Always returns 1 if \p type is CPU.
-        [[nodiscard]] static size_t count(Type type);
+        [[nodiscard]] static i32 count(DeviceType type);
 
         /// Whether there's any device available of this type.
         /// Always returns true if \p type is CPU.
-        [[nodiscard]] static bool any(Type type);
+        [[nodiscard]] static bool any(DeviceType type);
 
         /// Gets all devices of a given type.
         /// Always returns a single device if \p type is CPU.
-        [[nodiscard]] static std::vector<Device> all(Type type);
+        [[nodiscard]] static std::vector<Device> all(DeviceType type);
 
         /// Gets the device of this type with the most free memory.
-        [[nodiscard]] static Device mostFree(Type type);
+        [[nodiscard]] static Device most_free(DeviceType type);
 
     private:
-        static void validate_(Type type, int id);
+        static std::pair<DeviceType, i32> parse_type_and_id_(std::string_view name);
+        static void validate_(DeviceType type, i32 id);
 
     private:
-        int m_id{-1}; // cpu
+        i32 m_id{-1}; // cpu
     };
 
     inline bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
     inline bool operator!=(Device lhs, Device rhs) { return lhs.id() != rhs.id(); }
 
     inline std::ostream& operator<<(std::ostream& os, Device device) {
-        if (device.cpu())
+        if (device.is_cpu())
             return os << "cpu";
         else
             os << "gpu" << ':' << device.id();
@@ -148,11 +148,11 @@ namespace noa {
         explicit DeviceGuard(Args&& ...args)
                 : Device(std::forward<Args>(args)...),
                   m_previous_current(Device::current(this->type())) {
-            Device::current(*static_cast<Device*>(this));
+            Device::set_current(*static_cast<Device*>(this));
         }
 
         ~DeviceGuard() {
-            Device::current(m_previous_current);
+            Device::set_current(m_previous_current);
         }
 
     private:
@@ -166,7 +166,7 @@ namespace noa {
     inline bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 
     inline std::ostream& operator<<(std::ostream& os, const DeviceGuard& device) {
-        if (device.cpu())
+        if (device.is_cpu())
             return os << "cpu";
         else
             os << "gpu" << ':' << device.id();

@@ -25,12 +25,12 @@ namespace noa {
     }
 
     template<typename T>
-    inline bool Stream::StreamModel<T>::busy() {
+    inline bool Stream::StreamModel<T>::is_busy() {
         if constexpr (std::is_same_v<T, cpu::Stream>)
-            return stream.busy();
+            return stream.is_busy();
         else {
             #ifdef NOA_ENABLE_CUDA
-            return stream.busy();
+            return stream.is_busy();
             #endif
         }
         return false;
@@ -123,14 +123,14 @@ namespace noa {
 }
 
 namespace noa {
-    inline Stream::Stream(Device device, Mode mode) : m_device(device) {
-        if (m_device.cpu()) {
-            const auto cpu_mode = mode == Stream::Mode::ASYNC ? cpu::Stream::ASYNC : cpu::Stream::DEFAULT;
+    inline Stream::Stream(Device device, StreamMode mode) : m_device(device) {
+        if (m_device.is_cpu()) {
+            const auto cpu_mode = mode == StreamMode::ASYNC ? cpu::StreamMode::ASYNC : cpu::StreamMode::DEFAULT;
             m_storage.emplace<StreamModel<cpu::Stream>>(cpu::Stream(cpu_mode));
         } else {
             #ifdef NOA_ENABLE_CUDA
             cuda::Device cuda_device(m_device.id());
-            const auto cuda_mode = mode == Stream::Mode::ASYNC ? cuda::Stream::ASYNC : cuda::Stream::DEFAULT;
+            const auto cuda_mode = mode == StreamMode::ASYNC ? cuda::StreamMode::ASYNC : cuda::StreamMode::DEFAULT;
             m_storage.emplace<StreamModel<cuda::Stream>>(cuda::Stream(cuda_device, cuda_mode));
             #else
             NOA_THROW("No GPU backend detected");
@@ -147,8 +147,8 @@ namespace noa {
         m_storage.stream()->synchronize();
     }
 
-    inline bool Stream::busy() {
-        return m_storage.stream()->busy();
+    inline bool Stream::is_busy() {
+        return m_storage.stream()->is_busy();
     }
 
     inline Device Stream::device() const noexcept {
@@ -156,7 +156,7 @@ namespace noa {
     }
 
     inline cpu::Stream& Stream::cpu() {
-        if (!m_device.cpu())
+        if (!m_device.is_cpu())
             NOA_THROW("The stream is not a CPU stream");
 
         StreamConcept* tmp = m_storage.stream();
@@ -173,7 +173,7 @@ namespace noa {
     }
 
     inline cuda::Stream& Stream::cuda() {
-        if (!m_device.gpu())
+        if (!m_device.is_gpu())
             NOA_THROW("The stream is not a GPU stream");
 
         #ifdef NOA_ENABLE_CUDA

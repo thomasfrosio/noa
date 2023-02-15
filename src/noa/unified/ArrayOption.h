@@ -28,8 +28,14 @@ namespace noa {
             return *this;
         }
 
-        [[nodiscard]] constexpr bool dereferenceable() const noexcept {
-            return m_device.cpu() || m_allocator == Allocator::PINNED ||
+        /// Whether the allocated data can be accessed by CPU threads.
+        /// \note While it indicates whether the managed data can be read/written on the CPU, it does not indicate
+        ///       how the managed data is used. This choice is purely made on the device currently associated with
+        ///       the allocated data. For instance, pinned memory can be dereferenced by the CPU, so this function will
+        ///       returned true, but if the device is a GPU, the library will refer to the memory region as a
+        ///       GPU-own region and will therefore prioritizing GPU access.
+        [[nodiscard]] constexpr bool is_dereferenceable() const noexcept {
+            return m_device.is_cpu() || m_allocator == Allocator::PINNED ||
                    m_allocator == Allocator::MANAGED || m_allocator == Allocator::MANAGED_GLOBAL;
         }
 
