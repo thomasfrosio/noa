@@ -181,8 +181,8 @@ namespace {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename UnaryOp>
     auto extract_unary_wrapper(
-            const Shared<Input[]>& input, Strides4<i64> input_strides,
-            const Shared<Lhs[]>& lhs, Strides4<i64> lhs_strides, Shape4<i64> shape,
+            const Input* input, Strides4<i64> input_strides,
+            const Lhs* lhs, Strides4<i64> lhs_strides, Shape4<i64> shape,
             UnaryOp unary_op, bool extract_values, bool extract_offsets, cuda::Stream& stream)
     -> cuda::memory::Extracted<ExtractedValue, ExtractedOffset> {
 
@@ -201,17 +201,17 @@ namespace {
         const auto binary_map = noa::cuda::memory::PtrDevice<i32>::alloc(elements, stream);
         noa::cuda::utils::ewise_unary<PointerTraits::RESTRICT>(
                 "extract",
-                lhs.get(), lhs_strides,
+                lhs, lhs_strides,
                 binary_map.get(), shape.strides(),
                 shape, stream, unary_op);
 
         // Extract the elements (values and/or offset).
         // cub is limited to i32, so safe_cast here to make sure the input shape isn't too large.
         auto extracted = extract_elements_<ExtractedValue, ExtractedOffset>(
-                input.get(), input_strides.as_safe<i32>(),
+                input, input_strides.as_safe<i32>(),
                 shape.as<i32>(), safe_cast<i32>(elements),
                 binary_map.get(), extract_values, extract_offsets, stream);
-        stream.attach(input, lhs, extracted.values, extracted.offsets);
+        stream.enqueue_attach(extracted.values, extracted.offsets);
         return extracted;
     }
 }
@@ -222,8 +222,8 @@ namespace noa::cuda::memory {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename UnaryOp, typename>
     auto extract_unary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& shape,
+            const Input* input, const Strides4<i64>& input_strides,
+            const Lhs* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& shape,
             UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset> {
         return extract_unary_wrapper<ExtractedValue, ExtractedOffset>(
@@ -233,8 +233,7 @@ namespace noa::cuda::memory {
 
     #define INSTANTIATE_EXTRACT_UNARY_BASE_(T, O)                               \
     template Extracted<T, O> extract_unary<T,O,T,T,::noa::logical_not_t,void>(  \
-        const Shared<T[]>&, const Strides4<i64>&,                               \
-        const Shared<T[]>&, const Strides4<i64>&,                               \
+        const T*, const Strides4<i64>&, const T*, const Strides4<i64>&,         \
         const Shape4<i64>&, ::noa::logical_not_t, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_UNARY_(T)       \
@@ -254,9 +253,9 @@ namespace noa::cuda::memory {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename Rhs, typename BinaryOp, typename>
     auto extract_binary(
-            const Shared<Input[]>& input, Strides4<i64> input_strides,
-            const Shared<Lhs[]>& lhs, Strides4<i64> lhs_strides,
-            const Shared<Rhs[]>& rhs, Strides4<i64> rhs_strides, Shape4<i64> shape,
+            const Input* input, Strides4<i64> input_strides,
+            const Lhs* lhs, Strides4<i64> lhs_strides,
+            const Rhs* rhs, Strides4<i64> rhs_strides, Shape4<i64> shape,
             BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset> {
 
@@ -275,26 +274,26 @@ namespace noa::cuda::memory {
         const auto binary_map = noa::cuda::memory::PtrDevice<i32>::alloc(elements, stream);
         noa::cuda::utils::ewise_binary<PointerTraits::RESTRICT>(
                 "extract",
-                lhs.get(), lhs_strides,
-                rhs.get(), rhs_strides,
+                lhs, lhs_strides,
+                rhs, rhs_strides,
                 binary_map.get(), shape.strides(),
                 shape, stream, binary_op);
 
         // Extract the elements (values and/or offset).
         // cub is limited to i32, so safe_cast here to make sure the input shape isn't too large.
         auto extracted = extract_elements_<ExtractedValue, ExtractedOffset>(
-                input.get(), input_strides.as_safe<i32>(),
+                input, input_strides.as_safe<i32>(),
                 shape.as<i32>(), safe_cast<i32>(elements),
                 binary_map.get(), extract_values, extract_offsets, stream);
-        stream.attach(input, lhs, rhs, extracted.values, extracted.offsets);
+        stream.enqueue_attach(extracted.values, extracted.offsets);
         return extracted;
     }
 
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename Rhs, typename BinaryOp, typename _>
     auto extract_binary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides, Rhs rhs,
+            const Input* input, const Strides4<i64>& input_strides,
+            const Lhs* lhs, const Strides4<i64>& lhs_strides, Rhs rhs,
             const Shape4<i64>& shape, BinaryOp binary_op,
             bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset> {
@@ -309,8 +308,8 @@ namespace noa::cuda::memory {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename Rhs, typename BinaryOp, typename _>
     auto extract_binary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            Lhs lhs, const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
+            const Input* input, const Strides4<i64>& input_strides,
+            Lhs lhs, const Rhs* rhs, const Strides4<i64>& rhs_strides,
             const Shape4<i64>& shape, BinaryOp binary_op,
             bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset> {
@@ -324,19 +323,19 @@ namespace noa::cuda::memory {
 
     #define INSTANTIATE_EXTRACT_BINARY_BASE0_(T, I, BINARY)         \
     template Extracted<T,I> extract_binary<T,I,T,T,T,BINARY,void>(  \
-        const Shared<T[]>&, Strides4<i64>,                          \
-        const Shared<T[]>&, Strides4<i64>,                          \
-        const Shared<T[]>&, Strides4<i64>,                          \
+        const T*, Strides4<i64>,                                    \
+        const T*, Strides4<i64>,                                    \
+        const T*, Strides4<i64>,                                    \
         Shape4<i64>, BINARY, bool, bool, Stream&);                  \
     template Extracted<T,I> extract_binary<T,I,T,T,T,BINARY,void>(  \
-        const Shared<T[]>&, const Strides4<i64>&,                   \
-        const Shared<T[]>&, const Strides4<i64>&,                   \
+        const T*, const Strides4<i64>&,                             \
+        const T*, const Strides4<i64>&,                             \
         T,                                                          \
         const Shape4<i64>&, BINARY, bool, bool, Stream&);           \
     template Extracted<T,I> extract_binary<T,I,T,T,T,BINARY,void>(  \
-        const Shared<T[]>&, const Strides4<i64>&,                   \
+        const T*, const Strides4<i64>&,                             \
         T,                                                          \
-        const Shared<T[]>&, const Strides4<i64>&,                   \
+        const T*, const Strides4<i64>&,                             \
         const Shape4<i64>&, BINARY, bool, bool, Stream&)
 
     #define INSTANTIATE_EXTRACT_BINARY_BASE2_(T, I)             \
@@ -363,26 +362,26 @@ namespace noa::cuda::memory {
 
     template<typename Input, typename Offset, typename Output, typename>
     void extract_elements(
-            const Shared<Input[]>& input,
-            const Shared<Offset[]>& offsets,
-            const Shared<Output[]>& output,
+            const Input* input,
+            const Offset* offsets,
+            Output* output,
             i64 elements, Stream& stream) {
-        auto kernel = ExtractFromOffsets<Input, Output, Offset>{input.get(), offsets.get(), output.get()};
+        auto kernel = ExtractFromOffsets<Input, Output, Offset>{input, offsets, output};
         noa::cuda::utils::iwise_1d("extract", elements, kernel, stream);
     }
 
     template<typename ExtractedValue, typename ExtractedOffset, typename Output, typename>
     void insert_elements(
             const Extracted<ExtractedValue, ExtractedOffset>& extracted,
-            const Shared<Output[]>& output, Stream& stream) {
+            Output* output, Stream& stream) {
         auto kernel = InsertSequence<ExtractedValue, Output, ExtractedOffset>{
-                extracted.values.get(), extracted.offsets.get(), output.get()};
+                extracted.values.get(), extracted.offsets.get(), output};
         noa::cuda::utils::iwise_1d("extract", extracted.count, kernel, stream);
     }
 
-    #define INSTANTIATE_INSERT_BASE_(T, I)                                                                                  \
-    template void extract_elements<T,I,T,void>(const Shared<T[]>&, const Shared<I[]>&, const Shared<T[]>&, i64, Stream&);   \
-    template void insert_elements<T,I,T,void>(const Extracted<T, I>&, const Shared<T[]>&, Stream&)
+    #define INSTANTIATE_INSERT_BASE_(T, I)                                              \
+    template void extract_elements<T,I,T,void>(const T*, const I*, T*, i64, Stream&);   \
+    template void insert_elements<T,I,T,void>(const Extracted<T, I>&, T*, Stream&)
 
     #define INSTANTIATE_INSERT_(T)      \
     INSTANTIATE_INSERT_BASE_(T, i32);   \

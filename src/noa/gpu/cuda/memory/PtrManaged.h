@@ -33,7 +33,7 @@ namespace noa::cuda::memory {
         std::weak_ptr<Stream::Core> stream{};
 
         void operator()(void* ptr) const noexcept {
-            const std::shared_ptr<Stream::Core> stream_ = stream.lock();
+            const Shared<Stream::Core> stream_ = stream.lock();
             [[maybe_unused]] cudaError_t err;
             if (stream_) {
                 err = cudaStreamSynchronize(stream_->handle);
@@ -123,7 +123,7 @@ namespace noa::cuda::memory {
         // alias remains valid as long as the managed object exists. This functions performs no
         // heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename T>
-        [[nodiscard]] constexpr std::shared_ptr<T[]> attach(T* alias) const noexcept { return {m_ptr, alias}; }
+        [[nodiscard]] constexpr Shared<T[]> attach(T* alias) const noexcept { return {m_ptr, alias}; }
 
         // Returns the stream handle used to allocate the managed data.
         // If the data was created synchronously (without a stream), returns the NULL stream.

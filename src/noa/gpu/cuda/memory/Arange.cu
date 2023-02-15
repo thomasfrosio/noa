@@ -5,31 +5,28 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename>
-    void arange(const Shared<T[]>& src, i64 elements, T start, T step, Stream& stream) {
+    void arange(T* src, i64 elements, T start, T step, Stream& stream) {
         if (!elements)
             return;
 
-        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
-        const auto kernel = noa::algorithm::memory::arange_1d<i64, i64>(src.get(), start, step);
+        NOA_ASSERT_DEVICE_PTR(src, stream.device());
+        const auto kernel = noa::algorithm::memory::arange_1d<i64, i64>(src, start, step);
         noa::cuda::utils::iwise_1d("arange", elements, kernel, stream);
-        stream.attach(src);
     }
 
     template<typename T, typename>
-    void arange(const Shared<T[]>& src, const Strides4<i64>& strides, const Shape4<i64>& shape,
-                T start, T step, Stream& stream) {
+    void arange(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, T start, T step, Stream& stream) {
         if (!shape.elements())
             return;
 
-        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
-        const auto kernel = noa::algorithm::memory::arange_4d<i64, i64>(src.get(), strides, shape, start, step);
+        NOA_ASSERT_DEVICE_PTR(src, stream.device());
+        const auto kernel = noa::algorithm::memory::arange_4d<i64, i64>(src, strides, shape, start, step);
         noa::cuda::utils::iwise_4d("arange", shape, kernel, stream);
-        stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_ARANGE_(T)                                      \
-    template void arange<T, void>(const Shared<T[]>&, i64, T, T, Stream&);  \
-    template void arange<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, T, T, Stream&)
+    #define NOA_INSTANTIATE_ARANGE_(T)                      \
+    template void arange<T, void>(T*, i64, T, T, Stream&);  \
+    template void arange<T, void>(T*, const Strides4<i64>&, const Shape4<i64>&, T, T, Stream&)
 
     NOA_INSTANTIATE_ARANGE_(i8);
     NOA_INSTANTIATE_ARANGE_(i16);

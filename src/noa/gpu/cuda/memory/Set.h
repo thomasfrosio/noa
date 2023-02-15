@@ -15,7 +15,7 @@ namespace noa::cuda::memory::details {
     void set(T* src, i64 elements, T value, Stream& stream);
 
     template<typename T, typename = std::enable_if_t<traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool>>>
-    void set(const Shared<T[]>& src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, Stream& stream);
+    void set(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, Stream& stream);
 }
 
 // TODO Add nvrtc to support any type.
@@ -42,14 +42,7 @@ namespace noa::cuda::memory {
 
     // Sets an array with a given value.
     template<typename T, typename = std::enable_if_t<details::is_valid_set_v<T>>>
-    void set(const Shared<T[]>& src, i64 elements, T value, Stream& stream) {
-        set(src.get(), elements, value, stream);
-        stream.attach(src);
-    }
-
-    // Sets an array with a given value.
-    template<typename T, typename = std::enable_if_t<details::is_valid_set_v<T>>>
-    void set(const Shared<T[]>& src, Strides4<i64> strides, Shape4<i64> shape, T value, Stream& stream) {
+    void set(T* src, Strides4<i64> strides, Shape4<i64> shape, T value, Stream& stream) {
         const auto order = noa::indexing::order(strides, shape);
         shape = noa::indexing::reorder(shape, order);
         strides = noa::indexing::reorder(strides, order);

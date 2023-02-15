@@ -66,7 +66,7 @@ namespace {
     // If there's a lot of rows to sort, sort_batched_ should be faster.
     template<typename T>
     void sort_iterative_(
-            const Shared<T[]>& values, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            T* values, const Strides4<i64>& strides, const Shape4<i64>& shape,
             i32 dim, bool ascending, cuda::Stream& stream) {
         NOA_ASSERT(strides[dim] > 0); // nothing to sort if dim is broadcast
 
@@ -116,7 +116,7 @@ namespace {
                 for (i64 k = 0; k < iter_shape[2]; ++k) {
 
                     const i64 offset = noa::indexing::at(i, j, k, iter_strides);
-                    T* values_iter = values.get() + offset;
+                    T* values_iter = values + offset;
 
                     // (Re)set the buffers.
                     keys.selector = 0;
@@ -152,7 +152,6 @@ namespace {
                 }
             }
         }
-        stream.attach(values);
     }
 
     // Sort any dimension [0..3] of the input array, in-place.
@@ -160,7 +159,7 @@ namespace {
     // Basically allocates x2 the shape...
     template<typename T>
     void sort_batched_(
-            const Shared<T[]>& values, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            T* values, const Strides4<i64>& strides, const Shape4<i64>& shape,
             i32 dim, bool ascending, cuda::Stream& stream) {
         const bool contiguous = noa::indexing::are_contiguous(strides, shape);
         const auto elements = safe_cast<i32>(shape.elements());
@@ -168,26 +167,28 @@ namespace {
         // Prepare the keys.
         Vec4<i64> tile = shape.vec();
         tile[dim] = 1; // mark elements with their original axis.
-        const Shared<u32[]> key_buffer = cuda::memory::PtrDevice<u32>::alloc(elements, stream);
+        const auto key_buffer = cuda::memory::PtrDevice<u32>::alloc(elements, stream);
         const auto key_buffer_alt = cuda::memory::PtrDevice<u32>::alloc(elements, stream);
-        cuda::memory::iota(key_buffer, shape.strides(), shape, tile, stream);
+        cuda::memory::iota(key_buffer.get(), shape.strides(), shape, tile, stream);
 
         // Prepare the values.
         using unique_t = typename cuda::memory::PtrDevice<T>::unique_type;
-        Shared<T[]> val_buffer;
+        unique_t val_buffer;
         unique_t val_buffer_alt;
+        T* val_ptr;
         if (contiguous) {
-            val_buffer = values;
+            val_ptr = values;
             val_buffer_alt = cuda::memory::PtrDevice<T>::alloc(elements, stream);
         } else {
             val_buffer = cuda::memory::PtrDevice<T>::alloc(elements, stream);
+            val_ptr = val_buffer.get();
             val_buffer_alt = cuda::memory::PtrDevice<T>::alloc(elements, stream);
-            cuda::memory::copy(values.get(), strides, val_buffer.get(), shape.strides(), shape, stream);
+            cuda::memory::copy(values, strides, val_ptr, shape.strides(), shape, stream);
         }
 
         // Gather them in the cub interface.
         cub::DoubleBuffer<u32> cub_keys(key_buffer.get(), key_buffer_alt.get());
-        cub::DoubleBuffer<T> cub_values(val_buffer.get(), val_buffer_alt.get());
+        cub::DoubleBuffer<T> cub_values(val_ptr, val_buffer_alt.get());
 
         // Allocates for the small tmp storage.
         // The documentation says this should be a small value and is relative to the input size.
@@ -227,28 +228,27 @@ namespace {
         // contiguous, it means the result is already in "values" but with a possible permutation. In this case,
         // we have to permute in the alternate buffer and then copy the result back to "values"...
         const auto current_strides_permuted = noa::indexing::reorder(input_shape.strides(), permutation);
-        if (values.get() == cub_values.Current() && !noa::all(permutation == Vec4<i32>{0, 1, 2, 3})) {
-            cuda::memory::copy(values.get(), current_strides_permuted,
+        if (values == cub_values.Current() && !noa::all(permutation == Vec4<i32>{0, 1, 2, 3})) {
+            cuda::memory::copy(values, current_strides_permuted,
                                val_buffer_alt.get(), shape.strides(),
                                shape, stream);
             cuda::memory::copy(val_buffer_alt.get(), shape.strides(),
-                               values.get(), strides,
+                               values, strides,
                                shape, stream);
         } else {
-            cuda::memory::copy(cub_values.selector == 0 ? val_buffer.get() : val_buffer_alt.get(),
+            cuda::memory::copy(cub_values.selector == 0 ? val_ptr : val_buffer_alt.get(),
                                current_strides_permuted,
-                               values.get(), strides, shape, stream);
+                               values, strides, shape, stream);
         }
-        stream.attach(values);
     }
 }
 
 namespace noa::cuda {
     template<typename T, typename>
-    void sort(const Shared<T[]>& array, const Strides4<i64>& strides, const Shape4<i64>& shape,
+    void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape,
               bool ascending, i32 dim, Stream& stream) {
         NOA_ASSERT(noa::all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(array.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(array, stream.device());
 
         // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
         if (dim == -1)
@@ -271,7 +271,7 @@ namespace noa::cuda {
     }
 
     #define NOA_INSTANTIATE_SORT_(T) \
-    template void sort<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, bool, i32, Stream&)
+    template void sort<T,void>(T*, const Strides4<i64>&, const Shape4<i64>&, bool, i32, Stream&)
 
     NOA_INSTANTIATE_SORT_(i8);
     NOA_INSTANTIATE_SORT_(i16);

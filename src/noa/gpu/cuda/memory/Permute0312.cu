@@ -54,11 +54,11 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute0312(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                     const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute0312(const T* input, const Strides4<i64>& input_strides,
+                     T* output, const Strides4<i64>& output_strides,
                      const Shape4<i64>& shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(2, 3);
         const bool are_multiple_tile = all((shape_2d % TILE_DIM) == 0);
@@ -67,8 +67,8 @@ namespace noa::cuda::memory::details {
         const u32 blocks_y = noa::math::divide_up(shape_2d[0], TILE_DIM);
         const dim3 blocks(blocks_x * blocks_y, u_shape[1], u_shape[0]);
 
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input.get(), input_strides.as_safe<u32>());
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output.get(), output_strides.as_safe<u32>());
+        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>());
         const auto swapped_output = output_accessor.swap_dimensions(1, 2);
 
         if (are_multiple_tile) {
@@ -78,13 +78,12 @@ namespace noa::cuda::memory::details {
             stream.enqueue("memory::permute0312", permute_0312_<T, false>, {blocks, BLOCK_SIZE},
                            input_accessor, swapped_output, shape_2d, blocks_x);
         }
-        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_TRANSPOSE_(T)           \
-    template void permute0312<T>(                   \
-        const Shared<T[]>&, const Strides4<i64>&,   \
-        const Shared<T[]>&, const Strides4<i64>&,   \
+    #define NOA_INSTANTIATE_TRANSPOSE_(T)   \
+    template void permute0312<T>(           \
+        const T*, const Strides4<i64>&,     \
+        T*, const Strides4<i64>&,           \
         const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_TRANSPOSE_(bool);
@@ -103,5 +102,3 @@ namespace noa::cuda::memory::details {
     NOA_INSTANTIATE_TRANSPOSE_(c32);
     NOA_INSTANTIATE_TRANSPOSE_(c64);
 }
-
-

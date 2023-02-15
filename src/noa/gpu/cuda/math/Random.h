@@ -15,22 +15,22 @@ namespace noa::cuda::math::details {
 
 namespace noa::cuda::math {
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::uniform_t, const Shared<T[]>& output,
+    void randomize(noa::math::uniform_t, T* output,
                    const Strides4<i64>& strides, const Shape4<i64>& shape,
                    U min, U max, Stream& stream);
 
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::normal_t, const Shared<T[]>& output,
+    void randomize(noa::math::normal_t, T* output,
                    const Strides4<i64>& strides, const Shape4<i64>& shape,
                    U mean, U stddev, Stream& stream);
 
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_random_v<T, U>>>
-    void randomize(noa::math::log_normal_t, const Shared<T[]>& output,
+    void randomize(noa::math::log_normal_t, T* output,
                    const Strides4<i64>& strides, const Shape4<i64>& shape,
                    U mean, U stddev, Stream& stream);
 
     template<typename T, typename = std::enable_if_t<details::is_valid_random_v<T, traits::value_type_t<T>>>>
-    void randomize(noa::math::poisson_t, const Shared<T[]>& output,
+    void randomize(noa::math::poisson_t, T* output,
                    const Strides4<i64>& strides, const Shape4<i64>& shape,
                    float lambda, Stream& stream);
 }

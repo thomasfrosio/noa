@@ -82,13 +82,6 @@ namespace noa::cuda::memory {
         NOA_THROW_IF(cudaMemcpyAsync(dst, src, count, cudaMemcpyDefault, stream.id()));
     }
 
-    template<typename T>
-    inline void copy(const Shared<T[]>& src, const Shared<T[]>& dst, i64 elements, Stream& stream) {
-        const auto count = static_cast<size_t>(elements) * sizeof(T);
-        NOA_THROW_IF(cudaMemcpyAsync(dst.get(), src.get(), count, cudaMemcpyDefault, stream.id()));
-        stream.attach(src, dst);
-    }
-
     // Copies asynchronously pitched memory from one region to another. These can point to host or device memory.
     // If a stream is passed, copy is enqueued to the stream. In this case, passing raw pointers one must make
     // sure the memory stay valid until completion. Copies between host and device can execute concurrently only
@@ -100,15 +93,6 @@ namespace noa::cuda::memory {
                      const Shape4<i64>& shape, Stream& stream) {
         const auto params = details::to_copy_parameters(src, src_pitch, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-    }
-
-    template<typename T>
-    inline void copy(const Shared<T[]>& src, i64 src_pitch,
-                     const Shared<T[]>& dst, i64 dst_pitch,
-                     const Shape4<i64>& shape, Stream& stream) {
-        const auto params = details::to_copy_parameters(src.get(), src_pitch, dst.get(), dst_pitch, shape);
-        NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-        stream.attach(src, dst);
     }
 
     // Copies asynchronously regions of (strided/padded) memory.
@@ -259,15 +243,6 @@ namespace noa::cuda::memory {
                       "contiguous buffer");
         }
     }
-
-    // Same as above, but making sure the memory regions stay valid until completion.
-    template<typename T>
-    void copy(const Shared<T[]>& src, const Strides4<i64>& src_strides,
-              const Shared<T[]>& dst, const Strides4<i64>& dst_strides,
-              const Shape4<i64>& shape, Stream& stream) {
-        copy(src.get(), src_strides, dst.get(), dst_strides, shape, stream);
-        stream.attach(src, dst);
-    }
 }
 
 // -- CUDA arrays -- //
@@ -294,21 +269,6 @@ namespace noa::cuda::memory {
     inline void copy(const cudaArray* src, T* dst, i64 dst_pitch, const Shape3<i64>& shape, Stream& stream) {
         cudaMemcpy3DParms params = details::to_copy_parameters(src, dst, dst_pitch, shape);
         NOA_THROW_IF(cudaMemcpy3DAsync(&params, stream.id()));
-    }
-
-    template<typename T>
-    inline void copy(const Shared<T[]>& src, i64 src_pitch,
-                     const Shared<cudaArray>& dst, const Shape3<i64>& shape, Stream& stream) {
-        copy(src.get(), src_pitch, dst.get(), shape, stream);
-        stream.attach(src, dst);
-    }
-
-    template<typename T>
-    inline void copy(const Shared<cudaArray>& src,
-                     const Shared<T[]>& dst, i64 dst_pitch,
-                     const Shape3<i64>& shape, Stream& stream) {
-        copy(src.get(), dst.get(), dst_pitch, shape, stream);
-        stream.attach(src, dst);
     }
 
     // Copy an array into a CUDA array.
@@ -351,13 +311,6 @@ namespace noa::cuda::memory {
     }
 
     template<typename T>
-    void copy(const Shared<T[]>& src, const Strides4<i64>& src_strides,
-              const Shared<cudaArray>& dst, const Shape4<i64>& shape, Stream& stream) {
-        copy(src.get(), src_strides, dst.get(), shape, stream);
-        stream.attach(src, dst);
-    }
-
-    template<typename T>
     void copy(cudaArray* src, T* dst, const Strides4<i64>& dst_strides, const Shape4<i64>& shape, Stream& stream) {
         const auto[desc_, actual_extent, flags] = PtrArray<T>::info(src);
         const bool is_layered = flags & cudaArrayLayered;
@@ -388,13 +341,5 @@ namespace noa::cuda::memory {
                   is_layered ? "batch" : "depth", shape, dst_strides);
 
         copy(src, dst, dst_strides[2], shape_3d, stream);
-    }
-
-    template<typename T>
-    void copy(const Shared<cudaArray>& src,
-              const Shared<T[]>& dst, const Strides4<i64>& dst_strides,
-              const Shape4<i64>& shape, Stream& stream) {
-        copy(src.get(), dst.get(), dst_strides, shape, stream);
-        stream.attach(src, dst);
     }
 }

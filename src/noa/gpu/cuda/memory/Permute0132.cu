@@ -124,11 +124,11 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute_0132(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute_0132(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(2, 3);
         const bool are_multiple_tile = noa::all((shape_2d % TILE_DIM) == 0);
@@ -136,8 +136,8 @@ namespace noa::cuda::memory::details {
         const u32 blocks_y = noa::math::divide_up(shape_2d[0], TILE_DIM);
         const u32 blocks_x = noa::math::divide_up(shape_2d[1], TILE_DIM);
         const dim3 blocks(blocks_y * blocks_x, u_shape[1], u_shape[0]);
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input.get(), input_strides.as_safe<u32>());
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output.get(), output_strides.as_safe<u32>());
+        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>());
 
         if (are_multiple_tile) {
             stream.enqueue("memory::permute0132", permute_0132_<T, true>, {blocks, BLOCK_SIZE},
@@ -146,14 +146,13 @@ namespace noa::cuda::memory::details {
             stream.enqueue("memory::permute0132", permute_0132_<T, false>, {blocks, BLOCK_SIZE},
                            input_accessor, output_accessor, shape_2d, blocks_x);
         }
-        stream.attach(input, output);
     }
 
     template<typename T>
     void permute_0132_inplace(
-            const Shared<T[]>& output, const Strides4<i64>& output_strides,
+            T* output, const Strides4<i64>& output_strides,
             const Shape4<i64>& shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
         if (shape[3] != shape[2])
             NOA_THROW("For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape:{}", shape);
 
@@ -162,7 +161,7 @@ namespace noa::cuda::memory::details {
 
         const u32 blocks_x = noa::math::divide_up(u_shape[3], TILE_DIM); // blocks_y == blocks_x
         const dim3 blocks(blocks_x * blocks_x, shape[1], shape[0]); // about less than half will be idle blocks.
-        const auto accessor = Accessor<T, 4, u32>(output.get(), output_strides.as_safe<u32>());
+        const auto accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>());
 
         if (is_multiple_tile) {
             stream.enqueue(
@@ -173,16 +172,15 @@ namespace noa::cuda::memory::details {
                     "memory::permute0132_inplace", permute_0132_inplace_<T, false>, {blocks, BLOCK_SIZE},
                     accessor, u_shape[3], blocks_x);
         }
-        stream.attach(output);
     }
 
-    #define NOA_INSTANTIATE_TRANSPOSE_(T)           \
-    template void permute_0132<T>(                  \
-        const Shared<T[]>&, const Strides4<i64>&,   \
-        const Shared<T[]>&, const Strides4<i64>&,   \
-        const Shape4<i64>&, Stream&);               \
-    template void permute_0132_inplace<T>(          \
-        const Shared<T[]>&, const Strides4<i64>&,   \
+    #define NOA_INSTANTIATE_TRANSPOSE_(T)   \
+    template void permute_0132<T>(          \
+        const T*, const Strides4<i64>&,     \
+        T*, const Strides4<i64>&,           \
+        const Shape4<i64>&, Stream&);       \
+    template void permute_0132_inplace<T>(  \
+        T*, const Strides4<i64>&,           \
         const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_TRANSPOSE_(bool);

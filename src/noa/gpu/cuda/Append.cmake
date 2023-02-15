@@ -82,8 +82,6 @@ set(NOA_CUDA_HEADERS
 
 set(NOA_CUDA_SOURCES
         gpu/cuda/Device.cpp
-        gpu/cuda/utils/test.cu
-        gpu/cuda/utils/test1.cpp
 
         gpu/cuda/EwiseBinaryArithmetic.cu
         gpu/cuda/EwiseBinaryComparison.cu

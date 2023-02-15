@@ -4,14 +4,14 @@
 
 namespace noa::cuda::math {
     template<typename Value, typename>
-    Value min(const Shared<Value[]>& input,
+    Value min(const Value* input,
               const Strides4<i64>& strides,
               const Shape4<i64>& shape,
               Stream& stream) {
         Value output{};
         utils::reduce_unary(
                 "math::min",
-                input.get(), strides, shape, &output, Strides1<i64>{1},
+                input, strides, shape, &output, Strides1<i64>{1},
                 noa::math::Limits<Value>::max(),
                 {}, noa::min_t{}, {}, true, true, stream);
         stream.synchronize();
@@ -19,14 +19,14 @@ namespace noa::cuda::math {
     }
 
     template<typename Value, typename>
-    Value max(const Shared<Value[]>& input,
+    Value max(const Value* input,
               const Strides4<i64>& strides,
               const Shape4<i64>& shape,
               Stream& stream) {
         Value output{};
         utils::reduce_unary(
                 "math::min",
-                input.get(), strides, shape, &output, Strides1<i64>{1},
+                input, strides, shape, &output, Strides1<i64>{1},
                 noa::math::Limits<Value>::lowest(),
                 {}, noa::max_t{}, {}, true, true, stream);
         stream.synchronize();
@@ -35,48 +35,48 @@ namespace noa::cuda::math {
 
 
     template<typename Value, typename>
-    Value sum(const Shared<Value[]>& input,
+    Value sum(const Value* input,
               const Strides4<i64>& strides,
               const Shape4<i64>& shape,
               Stream& stream) {
         Value output{};
         utils::reduce_unary(
                 "math::sum",
-                input.get(), strides, shape, &output, Strides1<i64>{1}, Value{0},
+                input, strides, shape, &output, Strides1<i64>{1}, Value{0},
                 {}, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
         return output;
     }
 
     template<typename Value, typename>
-    Value mean(const Shared<Value[]>& input,
+    Value mean(const Value* input,
                const Strides4<i64>& strides,
                const Shape4<i64>& shape,
                Stream& stream) {
         Value output{};
         utils::reduce_unary(
                 "math::mean",
-                input.get(), strides, shape, &output, Strides1<i64>{1}, Value{0},
+                input, strides, shape, &output, Strides1<i64>{1}, Value{0},
                 {}, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
         return output / static_cast<Value>(shape.elements());
     }
 
     template<typename Input, typename Output, typename>
-    Output var(const Shared<Input[]>& input,
+    Output var(const Input* input,
                const Strides4<i64>& strides,
                const Shape4<i64>& shape,
                i64 ddof, Stream& stream) {
         Output output;
         utils::reduce_variance<false>(
-                "math::var", input.get(), strides, shape, &output, Strides1<i64>{1},
+                "math::var", input, strides, shape, &output, Strides1<i64>{1},
                 ddof, true, true, stream);
         stream.synchronize();
         return output;
     }
 
     template<typename Input, typename Output, typename _>
-    auto mean_var(const Shared<Input[]>& input,
+    auto mean_var(const Input* input,
                   const Strides4<i64>& strides,
                   const Shape4<i64>& shape,
                   i64 ddof, Stream& stream
@@ -85,7 +85,7 @@ namespace noa::cuda::math {
         Input output_sum;
         utils::reduce_unary(
                 "math::mean_var",
-                input.get(), strides, shape, &output_sum, Strides1<i64>{1}, Input{0},
+                input, strides, shape, &output_sum, Strides1<i64>{1}, Input{0},
                 {}, noa::plus_t{}, {}, true, true, stream);
 
         stream.synchronize();
@@ -108,7 +108,7 @@ namespace noa::cuda::math {
         Output output_dist2;
         utils::reduce_unary(
                 "math::statistics",
-                input.get(), strides, shape,
+                input, strides, shape,
                  &output_dist2, Strides1<i64>{1}, Output{0},
                 preprocess_op, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
@@ -118,20 +118,20 @@ namespace noa::cuda::math {
     }
 
     template<typename Input, typename Output, typename>
-    Output std(const Shared<Input[]>& input,
+    Output std(const Input* input,
                const Strides4<i64>& strides,
                const Shape4<i64>& shape,
                i64 ddof, Stream& stream) {
         Output output;
         utils::reduce_variance<true>(
-                "math::var", input.get(), strides, shape, &output, Strides1<i64>{1},
+                "math::var", input, strides, shape, &output, Strides1<i64>{1},
                 ddof, true, true, stream);
         stream.synchronize();
         return output;
     }
 
     template<typename Value, typename>
-    Value median(const Shared<Value[]>& input,
+    Value median(Value* input,
                  Strides4<i64> strides,
                  Shape4<i64> shape,
                  bool overwrite,
@@ -143,24 +143,25 @@ namespace noa::cuda::math {
         shape = noa::indexing::reorder(shape, order);
 
         const auto elements = shape.elements();
-        const Shared<Value[]>* to_sort;
-        Shared<Value[]> buffer;
+        using unique_t = typename noa::cuda::memory::PtrDevice<Value>::unique_type;
+        unique_t buffer;
+        Value* to_sort{};
         if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
-            to_sort = &input;
+            to_sort = input;
         } else {
             buffer = noa::cuda::memory::PtrDevice<Value>::alloc(elements, stream);
-            noa::cuda::memory::copy(input, strides, buffer, shape.strides(), shape, stream);
-            to_sort = &buffer;
+            to_sort = buffer.get();
+            noa::cuda::memory::copy(input, strides, to_sort, shape.strides(), shape, stream);
         }
 
         // Sort the entire contiguous array.
         const auto shape_1d = Shape4<i64>{1, 1, 1, elements};
-        noa::cuda::sort(*to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
+        noa::cuda::sort(to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
 
         // Retrieve the median.
         const bool is_even = !(elements % 2);
         Value out[2];
-        memory::copy(to_sort->get() + (elements - is_even) / 2, out, 1 + is_even, stream);
+        memory::copy(to_sort + (elements - is_even) / 2, out, 1 + is_even, stream);
         stream.synchronize();
 
         if (is_even)
@@ -169,10 +170,10 @@ namespace noa::cuda::math {
             return out[0];
     }
 
-    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                                      \
-    template T min<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
-    template T max<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
-    template T median<T,void>(const Shared<T[]>&, Strides4<i64>, Shape4<i64>, bool, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                              \
+    template T min<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
+    template T max<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
+    template T median<T,void>(T*, Strides4<i64>, Shape4<i64>, bool, Stream&)
 
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(f16);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(f32);
@@ -184,9 +185,9 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(i32);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(i64);
 
-    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                                                     \
-    template T sum<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
-    template T mean<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                                             \
+    template T sum<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
+    template T mean<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(f32);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(f64);
@@ -195,17 +196,17 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(i32);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_(i64);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                                                       \
-    template T sum<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);  \
-    template T mean<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                                               \
+    template T sum<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
+    template T mean<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_REDUCE_COMPLEX(c32);
     NOA_INSTANTIATE_REDUCE_COMPLEX(c64);
 
-    #define NOA_INSTANTIATE_VAR_(T,U)                                                                       \
-    template U var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);   \
-    template U std<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);   \
-    template std::pair<T, U> mean_var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U)                                                               \
+    template U var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);     \
+    template U std<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);     \
+    template std::pair<T, U> mean_var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
 
     NOA_INSTANTIATE_VAR_(f32, f32);
     NOA_INSTANTIATE_VAR_(f64, f64);

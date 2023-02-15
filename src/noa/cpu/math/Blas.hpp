@@ -15,32 +15,32 @@ namespace noa::cpu::math::details {
 namespace noa::cpu::math {
     // Returns the vector-vector dot product.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
-    T dot(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-          const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-          Stream& stream);
+    T dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+          const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+          i64 threads);
 
     // Computes the (batched) vector-vector dot product.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
-    void dot(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-             const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-             const Shared<T[]>& output, Stream& stream);
+    void dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+             const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+             T* output, i64 threads);
 
     // Computes a scalar-matrix-matrix product and add the result to a scalar-matrix product, with general matrices.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
-    void matmul(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-                const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+    void matmul(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+                const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-                const Shared<T[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                Stream& stream);
+                T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                i64 threads);
 
     // Computes a matrix-matrix product with general matrices.
     template<typename T, typename = std::enable_if_t<details::is_valid_matmul_t<T>>>
-    void matmul(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-                const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-                const Shared<T[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                Stream& stream) {
+    void matmul(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+                const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+                T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                i64 threads) {
         matmul(lhs, lhs_strides, lhs_shape, rhs, rhs_strides, rhs_shape,
                T{1}, T{0}, false, false,
-               output, output_strides, output_shape, stream);
+               output, output_strides, output_shape, threads);
     }
 }

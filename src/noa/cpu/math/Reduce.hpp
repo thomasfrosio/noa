@@ -24,86 +24,85 @@ namespace noa::cpu::math::details {
 
 namespace noa::cpu::math {
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
-    [[nodiscard]] Value min(const Shared<Value[]>& input,
+    [[nodiscard]] Value min(const Value* input,
                             const Strides4<i64>& strides,
                             const Shape4<i64>& shape,
-                            Stream& stream);
+                            i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
-    [[nodiscard]] Value max(const Shared<Value[]>& input,
+    [[nodiscard]] Value max(const Value* input,
                             const Strides4<i64>& strides,
                             const Shape4<i64>& shape,
-                            Stream& stream);
+                            i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_sum_mean_v<Value>>>
-    [[nodiscard]] Value sum(const Shared<Value[]>& input,
+    [[nodiscard]] Value sum(const Value* input,
                             const Strides4<i64>& strides,
                             const Shape4<i64>& shape,
-                            Stream& stream);
+                            i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_sum_mean_v<Value>>>
-    [[nodiscard]] Value mean(const Shared<Value[]>& input,
+    [[nodiscard]] Value mean(const Value* input,
                             const Strides4<i64>& strides,
                             const Shape4<i64>& shape,
-                            Stream& stream);
+                            i64 threads);
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    [[nodiscard]] Output var(const Shared<Input[]>& input,
+    [[nodiscard]] Output var(const Input* input,
                              const Strides4<i64>& strides,
                              const Shape4<i64>& shape,
-                             i64 ddof, Stream& stream);
+                             i64 ddof, i64 threads);
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    [[nodiscard]] auto mean_var(const Shared<Input[]>& input,
+    [[nodiscard]] auto mean_var(const Input* input,
                                 const Strides4<i64>& strides,
                                 const Shape4<i64>& shape,
-                                i64 ddof, Stream& stream) -> std::pair<Input, Output>;
+                                i64 ddof, i64 threads) -> std::pair<Input, Output>;
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    [[nodiscard]] Output std(const Shared<Input[]>& input,
+    [[nodiscard]] Output std(const Input* input,
                              const Strides4<i64>& strides,
                              const Shape4<i64>& shape,
-                             i64 ddof, Stream& stream);
+                             i64 ddof, i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
-    [[nodiscard]] Value median(const Shared<Value[]>& input,
+    [[nodiscard]] Value median(Value* input,
                                Strides4<i64> strides,
                                Shape4<i64> shape,
-                               bool overwrite,
-                               Stream& stream);
+                               bool overwrite);
 }
 
 namespace noa::cpu::math {
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
-    void min(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             Stream& stream);
+    void min(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
-    void max(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             Stream& stream);
+    void max(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_sum_mean_v<Value>>>
-    void sum(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             Stream& stream);
+    void sum(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 threads);
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_sum_mean_v<Value>>>
-    void mean(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-              const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-              Stream& stream);
+    void mean(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              i64 threads);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    void var(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream);
+    void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, i64 threads);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    void std(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream);
+    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, i64 threads);
 }

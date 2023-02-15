@@ -171,7 +171,7 @@ namespace {
             //      For now, the cpu::memory::copy will enforce the current row-major layout, which results
             //      in a permutation if the input is passed as column-major.
             m_b = cpu::memory::PtrHost<T>::alloc(m_m * m_nrhs);
-            cpu::memory::copy(input, strides, m_b.get(), shape.strides(), shape);
+            cpu::memory::copy(input, strides, m_b.get(), shape.strides(), shape, 1);
 
             // Solve x by minimizing (A @ x - b):
             const i32 m = static_cast<i32>(m_m);
@@ -185,7 +185,7 @@ namespace {
             const auto b_strides = Strides4<i64>{m_m * m_nrhs, m_m * m_nrhs, 1, m_m};
             const auto x_shape = Shape4<i64>{1, 1, m_n, m_nrhs};
             const auto x_strides = Strides4<i64>{m_n * m_nrhs, m_n * m_nrhs, 1, m_n};
-            cpu::memory::copy(m_b.get(), b_strides, parameters, x_strides, x_shape);
+            cpu::memory::copy(m_b.get(), b_strides, parameters, x_strides, x_shape, 1);
         }
 
         void compute_surface(T* input, const Strides4<i64>& input_strides,
@@ -195,8 +195,8 @@ namespace {
             auto input_strides_2d = input_strides.filter(2, 3);
 
             // If arrays are column-major, make sure to loop in the column major order.
-            const bool swap = indexing::is_column_major(output_strides) &&
-                              (!input || indexing::is_column_major(input_strides));
+            const bool swap = noa::indexing::is_column_major(output_strides) &&
+                              (!input || noa::indexing::is_column_major(input_strides));
             if (swap) {
                 std::swap(shape[2], shape[3]);
                 std::swap(input_strides_2d[0], input_strides_2d[1]);
@@ -286,10 +286,9 @@ namespace {
 
 namespace noa::cpu::math {
     template<typename T, typename U, typename>
-    void lstsq(const Shared<T[]>& a, const Strides4<i64>& a_strides, const Shape4<i64>& a_shape,
-               const Shared<T[]>& b, const Strides4<i64>& b_strides, const Shape4<i64>& b_shape,
-               f32 cond, const Shared<U[]>& svd,
-               Stream& stream) {
+    void lstsq(T* a, const Strides4<i64>& a_strides, const Shape4<i64>& a_shape,
+               T* b, const Strides4<i64>& b_strides, const Shape4<i64>& b_shape,
+               f32 cond, U* svd) {
         NOA_ASSERT(a && b && noa::all(a_shape > 0) && noa::all(b_shape > 0));
         NOA_ASSERT(a_shape[0] == b_shape[0]);
         NOA_ASSERT(a_shape[1] == 1 && b_shape[1] == 1);
@@ -311,7 +310,7 @@ namespace noa::cpu::math {
         // Check memory layout of a. Since most LAPACKE implementations are using column major and simply transposing
         // the row major matrices before and after decomposition, it is beneficial to detect the column major case
         // instead of assuming it's always row major.
-        const bool is_row_major = indexing::is_row_major(a_strides_);
+        const bool is_row_major = noa::indexing::is_row_major(a_strides_);
         const int matrix_layout = is_row_major ? LAPACK_ROW_MAJOR : LAPACK_COL_MAJOR;
         const int lda = a_strides_[!is_row_major];
         const int ldb = b_strides_[!is_row_major];
@@ -319,60 +318,56 @@ namespace noa::cpu::math {
         // Check the size of the problem makes sense and that the innermost dimension of the matrices is contiguous.
         // Note that the second-most dimension can be padded (i.e. lda and ldb).
         NOA_ASSERT(is_row_major ?
-                   (lda >= n && ldb >= nrhs && a_strides_[1] == 1 && indexing::is_row_major(b_strides_)) :
-                   (lda >= m && ldb >= mn_max && a_strides_[0] == 1 && indexing::is_column_major(b_strides_)));
+                   (lda >= n && ldb >= nrhs && a_strides_[1] == 1 && noa::indexing::is_row_major(b_strides_)) :
+                   (lda >= m && ldb >= mn_max && a_strides_[0] == 1 && noa::indexing::is_column_major(b_strides_)));
         NOA_ASSERT(b_strides_[is_row_major] == 1 && b_shape_[0] == mn_max);
         (void) mn_max;
 
-        stream.enqueue([=]() {
-            const LAPACKDriver driver = svd ? GELSD : GELSY;
-            LinearLeastSquareSolver<T> solver(driver, matrix_layout, m, n, nrhs, lda, ldb, cond);
-            for (i64 batch = 0; batch < batches; ++batch) {
-                solver.solve(a.get() + a_strides[0] * batch,
-                             b.get() + b_strides[0] * batch,
-                             svd.get() + mn_min);
-            }
-        });
+        const LAPACKDriver driver = svd ? GELSD : GELSY;
+        LinearLeastSquareSolver<T> solver(driver, matrix_layout, m, n, nrhs, lda, ldb, cond);
+        for (i64 batch = 0; batch < batches; ++batch) {
+            solver.solve(a + a_strides[0] * batch,
+                         b + b_strides[0] * batch,
+                         svd + mn_min);
+        }
     }
 
     template<typename T, typename>
-    void surface(const Shared<T[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                 const Shared<T[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                 bool subtract, i32 order, const Shared<T[]>& parameters, Stream& stream) {
+    void surface(T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                 T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                 bool subtract, i32 order, T* parameters) {
         NOA_ASSERT(input && all(input_shape > 0));
         if (!output && !parameters)
             return;
 
         NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
         NOA_ASSERT(order >= 1 && order <= 3);
-        stream.enqueue([=]() {
-            SurfaceFitter<GELSY, T> surface(input.get(), input_strides, input_shape, order);
-            if (parameters)
-                surface.save_parameters(parameters.get());
-            if (output) {
-                NOA_ASSERT(all(output_shape > 0));
-                surface.compute_surface(subtract ? input.get() : nullptr, input_strides,
-                                       output.get(), output_strides, output_shape);
-            }
-        });
+        SurfaceFitter<GELSY, T> surface(input, input_strides, input_shape, order);
+        if (parameters)
+            surface.save_parameters(parameters);
+        if (output) {
+            NOA_ASSERT(all(output_shape > 0));
+            surface.compute_surface(subtract ? input : nullptr, input_strides,
+                                    output, output_strides, output_shape);
+        }
     }
 
-    #define NOA_INSTANTIATE_LSTSQ_(T, U)                                \
-    template void lstsq<T,U,void>(                                      \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        f32, const Shared<U[]>&, Stream&)
+    #define NOA_INSTANTIATE_LSTSQ_(T, U)                \
+    template void lstsq<T,U,void>(                      \
+        T*, const Strides4<i64>&, const Shape4<i64>&,   \
+        T*, const Strides4<i64>&, const Shape4<i64>&,   \
+        f32, U*)
 
     NOA_INSTANTIATE_LSTSQ_(f32, f32);
     NOA_INSTANTIATE_LSTSQ_(f64, f64);
     NOA_INSTANTIATE_LSTSQ_(c32, f32);
     NOA_INSTANTIATE_LSTSQ_(c64, f64);
 
-    #define NOA_INSTANTIATE_SURFACE_(T)                                 \
-    template void surface<T,void>(                                      \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        bool, i32, const Shared<T[]>&, Stream&)
+    #define NOA_INSTANTIATE_SURFACE_(T)                 \
+    template void surface<T,void>(                      \
+        T*, const Strides4<i64>&, const Shape4<i64>&,   \
+        T*, const Strides4<i64>&, const Shape4<i64>&,   \
+        bool, i32, T*)
 
     NOA_INSTANTIATE_SURFACE_(f32);
     NOA_INSTANTIATE_SURFACE_(f64);

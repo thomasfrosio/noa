@@ -6,6 +6,5 @@
 namespace noa::cpu {
     // Sorts an array, in-place.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_scalar_v<T>>>
-    void sort(const Shared<T[]>& array, const Strides4<i64>& strides, const Shape4<i64>& shape,
-              bool ascending, i32 dim, Stream& stream);
+    void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape, bool ascending, i32 dim);
 }

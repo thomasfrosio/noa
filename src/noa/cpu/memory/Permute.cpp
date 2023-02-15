@@ -9,11 +9,11 @@ namespace noa::cpu::memory::details {
     template<typename T>
     void permute(const T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
                  T* output, const Strides4<i64>& output_strides,
-                 const Vec4<i64>& permutation) {
+                 const Vec4<i64>& permutation, i64 threads) {
         NOA_ASSERT(input != output);
         const auto output_shape = noa::indexing::reorder(input_shape, permutation);
         const auto input_strides_permuted = noa::indexing::reorder(input_strides, permutation);
-        noa::cpu::memory::copy(input, input_strides_permuted, output, output_strides, output_shape);
+        noa::cpu::memory::copy(input, input_strides_permuted, output, output_strides, output_shape, threads);
     }
 
     template<typename T>
@@ -69,7 +69,7 @@ namespace noa::cpu::memory::details {
     #define NOA_INSTANTIATE_TRANSPOSE_(T)                   \
     template void permute<T>(                               \
         const T*, const Strides4<i64>&, const Shape4<i64>&, \
-        T*, const Strides4<i64>&, const Vec4<i64>&);        \
+        T*, const Strides4<i64>&, const Vec4<i64>&, i64);   \
     template void permute_inplace_0213<T>(                  \
         T*, const Strides4<i64>&, const Shape4<i64>&);      \
     template void permute_inplace_0132<T>(                  \

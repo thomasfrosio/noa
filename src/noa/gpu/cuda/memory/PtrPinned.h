@@ -103,7 +103,7 @@ namespace noa::cuda::memory {
         // alias remains valid as long as the managed object exists. This functions performs no
         // heap allocation, but increases the (atomic) reference count of the managed object.
         template<typename U>
-        [[nodiscard]] constexpr std::shared_ptr<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
+        [[nodiscard]] constexpr Shared<U[]> attach(U* alias) const noexcept { return {m_ptr, alias}; }
 
     public:
         // Releases the ownership of the managed pointer, if any.

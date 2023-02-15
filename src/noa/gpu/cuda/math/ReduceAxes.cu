@@ -207,8 +207,8 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename Value, typename>
-    void min(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+    void min(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              Stream& stream) {
         const char* name = "math::min";
         const auto mask = get_mask_(name, input_shape, output_shape);
@@ -218,23 +218,22 @@ namespace noa::cuda::math {
             return cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            utils::reduce_unary(name, input.get(), input_strides, input_shape,
-                                output.get(), output_strides.filter(0), noa::math::Limits<Value>::max(),
+            utils::reduce_unary(name, input, input_strides, input_shape,
+                                output, output_strides.filter(0), noa::math::Limits<Value>::max(),
                                 noa::copy_t{}, noa::min_t{}, noa::copy_t{},
                                 is_or_should_reduce[0], true, stream);
         } else {
             reduce_axis_(name,
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
-                        mask, noa::math::Limits<Value>::max(),
-                        noa::copy_t{}, noa::min_t{}, noa::copy_t{}, stream);
+                         input, input_strides, input_shape,
+                         output, output_strides, output_shape,
+                         mask, noa::math::Limits<Value>::max(),
+                         noa::copy_t{}, noa::min_t{}, noa::copy_t{}, stream);
         }
-        stream.attach(input, output);
     }
 
     template<typename Value, typename>
-    void max(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+    void max(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              Stream& stream) {
         const char* name = "math::max";
         const auto mask = get_mask_(name, input_shape, output_shape);
@@ -244,23 +243,22 @@ namespace noa::cuda::math {
             return cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            utils::reduce_unary(name, input.get(), input_strides, input_shape,
-                                output.get(), output_strides.filter(0), noa::math::Limits<Value>::lowest(),
+            utils::reduce_unary(name, input, input_strides, input_shape,
+                                output, output_strides.filter(0), noa::math::Limits<Value>::lowest(),
                                 noa::copy_t{}, noa::max_t{}, noa::copy_t{},
                                 is_or_should_reduce[0], true, stream);
         } else {
             reduce_axis_(name,
-                         input.get(), input_strides, input_shape,
-                         output.get(), output_strides, output_shape,
+                         input, input_strides, input_shape,
+                         output, output_strides, output_shape,
                          mask, noa::math::Limits<Value>::max(),
                          noa::copy_t{}, noa::max_t{}, noa::copy_t{}, stream);
         }
-        stream.attach(input, output);
     }
 
     template<typename Value, typename>
-    void sum(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+    void sum(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              Stream& stream) {
         const char* name = "math::sum";
         const auto mask = get_mask_(name, input_shape, output_shape);
@@ -270,23 +268,22 @@ namespace noa::cuda::math {
             return cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            utils::reduce_unary(name, input.get(), input_strides, input_shape,
-                                output.get(), output_strides.filter(0), Value{0},
+            utils::reduce_unary(name, input, input_strides, input_shape,
+                                output, output_strides.filter(0), Value{0},
                                 noa::copy_t{}, noa::plus_t{}, noa::copy_t{},
                                 is_or_should_reduce[0], true, stream);
         } else {
             reduce_axis_(name,
-                         input.get(), input_strides, input_shape,
-                         output.get(), output_strides, output_shape,
+                         input, input_strides, input_shape,
+                         output, output_strides, output_shape,
                          mask, Value{0},
                          noa::copy_t{}, noa::plus_t{}, noa::copy_t{}, stream);
         }
-        stream.attach(input, output);
     }
 
     template<typename Value, typename _>
-    void mean(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-              const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+    void mean(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
               Stream& stream) {
         const char* name = "math::mean";
         const auto mask = get_mask_(name, input_shape, output_shape);
@@ -303,35 +300,34 @@ namespace noa::cuda::math {
             const real_t inv_count = real_t{1} / static_cast<real_t>(element_per_batch);
             auto sum_to_mean_op = [inv_count]__device__(Value v) -> Value { return v * inv_count; };
 
-            utils::reduce_unary(name, input.get(), input_strides, input_shape,
-                                output.get(), output_strides.filter(0), Value{0},
+            utils::reduce_unary(name, input, input_strides, input_shape,
+                                output, output_strides.filter(0), Value{0},
                                 noa::copy_t{}, noa::plus_t{}, sum_to_mean_op,
                                 is_or_should_reduce[0], true, stream);
         } else {
             const real_t inv_count = real_t{1} / static_cast<real_t>(noa::math::sum(input_shape * Shape4<i64>(mask)));
             auto sum_to_mean_op = [inv_count]__device__(Value v) -> Value { return v * inv_count; };
             reduce_axis_(name,
-                         input.get(), input_strides, input_shape,
-                         output.get(), output_strides, output_shape,
+                         input, input_strides, input_shape,
+                         output, output_strides, output_shape,
                          mask, Value{0},
                          noa::copy_t{}, noa::plus_t{}, sum_to_mean_op, stream);
         }
-        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_REDUCE_(T)                                          \
-    template void min<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void max<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void sum<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void mean<T, void>(                                                \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_(T)                          \
+    template void min<T, void>(                                 \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T*, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
+    template void max<T, void>(                                 \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T*, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
+    template void sum<T, void>(                                 \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T*, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
+    template void mean<T, void>(                                \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_REDUCE_(f32);
     NOA_INSTANTIATE_REDUCE_(f64);
@@ -340,13 +336,13 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_(i32);
     NOA_INSTANTIATE_REDUCE_(i64);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                                  \
-    template void sum<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void mean<T, void>(                                                \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_(T)                  \
+    template void sum<T, void>(                                 \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T*, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
+    template void mean<T, void>(                                \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
     NOA_INSTANTIATE_REDUCE_COMPLEX_(c32);
     NOA_INSTANTIATE_REDUCE_COMPLEX_(c64);

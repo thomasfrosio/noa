@@ -14,12 +14,12 @@ namespace noa::cuda::memory::details {
 
 namespace noa::cuda::memory {
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_cast_v<T, U>>>
-    void cast(const Shared<T[]>& input,
-              const Shared<U[]>& output,
+    void cast(const T* input,
+              U* output,
               i64 elements, bool clamp, Stream& stream);
 
     template<typename T, typename U, typename = std::enable_if_t<details::is_valid_cast_v<T, U>>>
-    void cast(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-              const Shared<U[]>& output, const Strides4<i64>& output_strides,
+    void cast(const T* input, const Strides4<i64>& input_strides,
+              U* output, const Strides4<i64>& output_strides,
               const Shape4<i64>& shape, bool clamp, Stream& stream);
 }

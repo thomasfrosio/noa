@@ -104,8 +104,8 @@ namespace noa::cuda::math::details {
 
 namespace noa::cuda::math {
     template<typename T, typename>
-    T dot(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-          const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+    T dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+          const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
           Stream& stream) {
         NOA_ASSERT(all(lhs_shape > 0) && all(rhs_shape > 0));
 
@@ -120,8 +120,8 @@ namespace noa::cuda::math {
         T output{};
         using real_t = traits::value_type_t<T>;
         if constexpr (traits::is_real_v<T>) {
-            NOA_ASSERT_DEVICE_PTR(lhs.get(), stream.device());
-            NOA_ASSERT_DEVICE_PTR(rhs.get(), stream.device());
+            NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+            NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
 
             cublasHandle_t handle = cublas_cache_handle_(stream.device().id())->handle;
             CUBLAS_THROW_IF_(cublasSetStream_v2(handle, stream.id()));
@@ -132,18 +132,18 @@ namespace noa::cuda::math {
             const auto incx = safe_cast<i32>(lhs_s);
             const auto incy = safe_cast<i32>(rhs_s);
             if constexpr (std::is_same_v<T, f32>) {
-                err = cublasSdot_v2(handle, n, lhs.get(), incx, rhs.get(), incy, &output);
+                err = cublasSdot_v2(handle, n, lhs, incx, rhs, incy, &output);
             } else if constexpr (std::is_same_v<T, f64>) {
-                err = cublasDdot_v2(handle, n, lhs.get(), incx, rhs.get(), incy, &output);
+                err = cublasDdot_v2(handle, n, lhs, incx, rhs, incy, &output);
             } else if constexpr (std::is_same_v<T, c32>) {
                 err = cublasCdotu_v2(handle, n,
-                                     reinterpret_cast<const cuComplex*>(lhs.get()), incx,
-                                     reinterpret_cast<const cuComplex*>(rhs.get()), incy,
+                                     reinterpret_cast<const cuComplex*>(lhs), incx,
+                                     reinterpret_cast<const cuComplex*>(rhs), incy,
                                      reinterpret_cast<cuComplex*>(&output));
             } else if constexpr (std::is_same_v<T, c64>) {
                 err = cublasZdotu_v2(handle, n,
-                                     reinterpret_cast<const cuDoubleComplex*>(lhs.get()), incx,
-                                     reinterpret_cast<const cuDoubleComplex*>(rhs.get()), incy,
+                                     reinterpret_cast<const cuDoubleComplex*>(lhs), incx,
+                                     reinterpret_cast<const cuDoubleComplex*>(rhs), incy,
                                      reinterpret_cast<cuDoubleComplex*>(&output));
             }
             // These functions block the host thread until completion, so no need to sync the stream.
@@ -151,8 +151,8 @@ namespace noa::cuda::math {
         } else {
             cuda::utils::reduce_binary( // sum(lhs * rhs)
                     "dot",
-                    lhs.get(), Strides4<i64>{lhs_s},
-                    rhs.get(), Strides4<i64>{rhs_s},
+                    lhs, Strides4<i64>{lhs_s},
+                    rhs, Strides4<i64>{rhs_s},
                     Shape4<i64>{1, 1, 1, lhs_n},
                     &output, Strides1<i64>{1}, T{0},
                     noa::multiply_t{}, noa::plus_t{}, {},
@@ -163,9 +163,9 @@ namespace noa::cuda::math {
     }
 
     template<typename T, typename>
-    void dot(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-             const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-             const Shared<T[]>& output, Stream& stream) {
+    void dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+             const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+             T* output, Stream& stream) {
         NOA_ASSERT(all(lhs_shape > 0) && all(rhs_shape > 0));
         NOA_ASSERT(lhs_shape[0] == rhs_shape[0] && lhs_shape[1] == 1 && rhs_shape[1] == 1);
 
@@ -183,23 +183,22 @@ namespace noa::cuda::math {
         const auto rhs_strides_4d = Strides4<i64>{rhs_strides[0], rhs_strides[0], rhs_strides[0], rhs_s};
         cuda::utils::reduce_binary(
                 "dot", // sum(lhs * rhs)
-                lhs.get(), lhs_strides_4d,
-                rhs.get(), rhs_strides_4d,
+                lhs, lhs_strides_4d,
+                rhs, rhs_strides_4d,
                 Shape4<i64>{batches, 1, 1, lhs_n},
-                output.get(), Strides1<i64>{1}, T{0},
+                output, Strides1<i64>{1}, T{0},
                 noa::multiply_t{}, noa::plus_t{}, {},
                 false, false, stream);
-        stream.attach(lhs, rhs, output);
     }
 
-    #define INSTANTIATE_DOT_(T)                                                 \
-    template T dot<T, void>(                                                    \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void dot<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-         const Shared<T[]>&, Stream&)
+    #define INSTANTIATE_DOT_(T)                                         \
+    template T dot<T, void>(                                            \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,             \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);   \
+    template void dot<T, void>(                                         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,             \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,             \
+        T*, Stream&)
 
     INSTANTIATE_DOT_(i32);
     INSTANTIATE_DOT_(u32);
@@ -211,15 +210,15 @@ namespace noa::cuda::math {
     INSTANTIATE_DOT_(c64);
 
     template<typename T, typename>
-    void matmul(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-                const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+    void matmul(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+                const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-                const Shared<T[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
                 Stream& stream) {
         NOA_ASSERT(noa::all(lhs_shape > 0) && noa::all(rhs_shape > 0));
-        NOA_ASSERT_DEVICE_PTR(lhs.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(rhs.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
         // Get the shape: MxK @ KxN = MxN
         const auto m = lhs_shape[2 + lhs_transpose];
@@ -251,16 +250,15 @@ namespace noa::cuda::math {
 
         cublas_gemm_(is_col, handle, lhs_transpose, rhs_transpose,
                      mnk, labc.as_safe<i32>(), sabc, output_shape[0], alpha, beta,
-                     lhs.get(), rhs.get(), output.get());
-        stream.attach(lhs, rhs, output);
+                     lhs, rhs, output);
     }
 
-    #define INSTANTIATE_GEMM_(T)                                        \
-    template void matmul<T, void>(                                      \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        T, T, bool, bool,                                               \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
+    #define INSTANTIATE_GEMM_(T)                                \
+    template void matmul<T, void>(                              \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        T, T, bool, bool,                                       \
+        T*, const Strides4<i64>&, const Shape4<i64>&,           \
         Stream&)
 
     INSTANTIATE_GEMM_(f32);

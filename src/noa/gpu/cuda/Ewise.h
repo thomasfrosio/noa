@@ -59,86 +59,86 @@ namespace noa::cuda {
     // Element-wise transformation using a unary operator()(In) -> Out
     template<typename In, typename Out, typename UnaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_unary_v<In, Out, UnaryOp>>>
-    void ewise_unary(const Shared<In[]>& input, const Strides4<i64>& input_strides,
-                     const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+    void ewise_unary(const In* input, const Strides4<i64>& input_strides,
+                     Out* output, const Strides4<i64>& output_strides,
                      const Shape4<i64>& shape, UnaryOp unary_op, Stream& stream);
 
     // Element-wise transformation using a binary operator()(Lhs, Rhs) -> Out
     template<typename Lhs, typename Rhs, typename Out, typename BinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_binary_v<Lhs, Rhs, Out, BinaryOp>>>
-    void ewise_binary(const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
-                      const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
-                      const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+    void ewise_binary(const Lhs* lhs, const Strides4<i64>& lhs_strides,
+                      const Rhs* rhs, const Strides4<i64>& rhs_strides,
+                      Out* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream);
 
     template<typename Lhs, typename Rhs, typename Out, typename BinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_binary_v<Lhs, Rhs, Out, BinaryOp>>>
-    void ewise_binary(const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
+    void ewise_binary(const Lhs* lhs, const Strides4<i64>& lhs_strides,
                       Rhs rhs,
-                      const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                      Out* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream);
 
     template<typename Lhs, typename Rhs, typename Out, typename BinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_binary_v<Lhs, Rhs, Out, BinaryOp>>>
     void ewise_binary(Lhs lhs,
-                      const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
-                      const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                      const Rhs* rhs, const Strides4<i64>& rhs_strides,
+                      Out* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream);
 
     // Element-wise transformation using a trinary operator()(Lhs, Mhs, Rhs) -> Out
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
-    void ewise_trinary(const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
-                       const Shared<Mhs[]>& mhs, const Strides4<i64>& mhs_strides,
-                       const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
     void ewise_trinary(Lhs lhs,
-                       const Shared<Mhs[]>& mhs, const Strides4<i64>& mhs_strides,
-                       const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
-    void ewise_trinary(const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,
                        Mhs mhs,
-                       const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
-    void ewise_trinary(const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
-                       const Shared<Mhs[]>& mhs, const Strides4<i64>& mhs_strides,
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,
                        Rhs rhs,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
-    void ewise_trinary(const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,
                        Mhs mhs,
                        Rhs rhs,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
     void ewise_trinary(Lhs lhs,
-                       const Shared<Mhs[]>& mhs, const Strides4<i64>& mhs_strides,
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,
                        Rhs rhs,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp,
              typename = std::enable_if_t<details::is_valid_ewise_trinary_v<Lhs, Mhs, Rhs, Out, TrinaryOp>>>
     void ewise_trinary(Lhs lhs,
                        Mhs mhs,
-                       const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
-                       const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,
+                       Out* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream);
 }

@@ -8,47 +8,46 @@
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute_0213(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute_0213(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, Stream& stream);
     template<typename T>
-    void permute_0132(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute_0132(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, Stream& stream);
     template<typename T>
-    void permute_0312(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute_0312(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, Stream& stream);
     template<typename T>
-    void permute_0231(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute_0231(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, Stream& stream);
     template<typename T>
-    void permute_0321(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-                      const Shared<T[]>& output, const Strides4<i64>& output_strides,
+    void permute_0321(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
                       const Shape4<i64>& shape, Stream& stream);
 
     template<typename T>
     void permute_0213_inplace(
-            const Shared<T[]>& output, const Strides4<i64>& output_strides,
+            T* output, const Strides4<i64>& output_strides,
             const Shape4<i64>& shape, Stream& stream);
     template<typename T>
     void permute_0132_inplace(
-            const Shared<T[]>& output, const Strides4<i64>& output_strides,
+            T* output, const Strides4<i64>& output_strides,
             const Shape4<i64>& shape, Stream& stream);
     template<typename T>
     void permute_0321_inplace(
-            const Shared<T[]>& output, const Strides4<i64>& output_strides,
+            T* output, const Strides4<i64>& output_strides,
             const Shape4<i64>& shape, Stream& stream);
 }
 
 namespace noa::cuda::memory {
     // Permutes, in memory, the axes of an array.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_numeric_v<T>>>
-    void permute(const Shared<T[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                 const Shared<T[]>& output, const Strides4<i64>& output_strides,
-                 const Vec4<i64>& permutation,
-                 Stream& stream) {
+    void permute(const T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                 T* output, const Strides4<i64>& output_strides,
+                 const Vec4<i64>& permutation, Stream& stream) {
         if (noa::any(permutation > 3) || noa::math::sum(permutation) != 6)
             NOA_THROW("Permutation {} is not valid", permutation);
 

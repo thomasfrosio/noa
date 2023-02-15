@@ -80,9 +80,9 @@ namespace {
 
 namespace noa::cpu::math {
     template<typename T, typename>
-    T dot(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-          const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-          Stream& stream) {
+    T dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+          const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+          i64 threads) {
         NOA_ASSERT(lhs && rhs && all(lhs_shape > 0) && all(rhs_shape > 0));
 
         // Get vector shape:
@@ -93,14 +93,13 @@ namespace noa::cpu::math {
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
-        stream.synchronize();
-        return cblas_dot_(lhs_n, lhs.get(), lhs_s, rhs.get(), rhs_s, stream.threads());
+        return cblas_dot_(lhs_n, lhs, lhs_s, rhs, rhs_s, threads);
     }
 
     template<typename T, typename>
-    void dot(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-             const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-             const Shared<T[]>& output, Stream& stream) {
+    void dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+             const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+             T* output, i64 threads) {
         NOA_ASSERT(lhs && rhs && output && all(lhs_shape > 0) && all(rhs_shape > 0));
         NOA_ASSERT(lhs_shape[0] == rhs_shape[0] && lhs_shape[1] == 1 && rhs_shape[1] == 1);
         const auto batches = lhs_shape[0];
@@ -114,29 +113,25 @@ namespace noa::cpu::math {
 
         const auto lhs_batch_strides = lhs_strides[0];
         const auto rhs_batch_strides = rhs_strides[0];
-        const auto threads = stream.threads();
-        stream.enqueue([=]() {
-            T* ptr = output.get();
-            // If there's a lot of batches, reduce_binary might be faster.
-            // Also, Intel's MKL might have a batched version.
-            for (i64 batch = 0; batch < batches; ++batch) {
-                ptr[batch] = cblas_dot_(
-                        lhs_n,
-                        lhs.get() + lhs_batch_strides * batch, lhs_s,
-                        rhs.get() + rhs_batch_strides * batch, rhs_s,
-                        threads);
-            }
-        });
+        // If there's a lot of batches, reduce_binary might be faster.
+        // Also, Intel's MKL might have a batched version.
+        for (i64 batch = 0; batch < batches; ++batch) {
+            output[batch] = cblas_dot_(
+                    lhs_n,
+                    lhs + lhs_batch_strides * batch, lhs_s,
+                    rhs + rhs_batch_strides * batch, rhs_s,
+                    threads);
+        }
     }
 
-    #define INSTANTIATE_DOT_(T)                                                 \
-    template T dot<T, void>(                                                    \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void dot<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-         const Shared<T[]>&, Stream&)
+    #define INSTANTIATE_DOT_(T)                                     \
+    template T dot<T, void>(                                        \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
+    template void dot<T, void>(                                     \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,         \
+        T*, i64)
 
     INSTANTIATE_DOT_(i32);
     INSTANTIATE_DOT_(u32);
@@ -150,11 +145,11 @@ namespace noa::cpu::math {
 
 namespace noa::cpu::math {
     template<typename T, typename>
-    void matmul(const Shared<T[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-                const Shared<T[]>& rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+    void matmul(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+                const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
                 T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-                const Shared<T[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                Stream& stream) {
+                T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                i64 threads) {
         NOA_ASSERT(lhs && rhs && output && all(lhs_shape > 0) && all(rhs_shape > 0));
 
         // Get the shape: MxK @ KxN = MxN
@@ -169,7 +164,7 @@ namespace noa::cpu::math {
         // dot is faster than gemm:
         if (m == 1 && n == 1 && alpha == T{1} && beta == T{0} &&
             noa::indexing::is_contiguous(output_strides, output_shape)[0]) {
-            return dot(lhs, lhs_strides, lhs_shape, rhs, rhs_strides, rhs_shape, output, stream);
+            return dot(lhs, lhs_strides, lhs_shape, rhs, rhs_strides, rhs_shape, output, threads);
         }
 
         // Select an order:
@@ -183,24 +178,22 @@ namespace noa::cpu::math {
         NOA_ASSERT(all(ld >= Vec3<i64>{lhs_shape[3 - is_col], rhs_shape[3 - is_col], output_shape[3 - is_col]}));
         NOA_ASSERT(lhs_strides[3 - is_col] == 1 && rhs_strides[3 - is_col] == 1 && output_strides[3 - is_col] == 1);
 
-        stream.enqueue([=](){
-            // TODO Intel MKL has gemm_batch...
-            for (i64 batch = 0; batch < output_shape[0]; ++batch) {
-                cblas_gemm_(order, lhs_transpose, rhs_transpose, mnk, ld.as_safe<blasint>(), alpha, beta,
-                            lhs.get() + lhs_strides[0] * batch,
-                            rhs.get() + rhs_strides[0] * batch,
-                            output.get() + output_strides[0] * batch);
-            }
-        });
+        // TODO Intel MKL has gemm_batch...
+        for (i64 batch = 0; batch < output_shape[0]; ++batch) {
+            cblas_gemm_(order, lhs_transpose, rhs_transpose, mnk, ld.as_safe<blasint>(), alpha, beta,
+                        lhs + lhs_strides[0] * batch,
+                        rhs + rhs_strides[0] * batch,
+                        output + output_strides[0] * batch);
+        }
     }
 
-    #define INSTANTIATE_GEMM_(T)                                        \
-    template void matmul<T, void>(                                      \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        T, T, bool, bool,                                               \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        Stream&)
+    #define INSTANTIATE_GEMM_(T)                            \
+    template void matmul<T, void>(                          \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        T, T, bool, bool,                                   \
+        T*, const Strides4<i64>&, const Shape4<i64>&,       \
+        i64)
 
     INSTANTIATE_GEMM_(f32);
     INSTANTIATE_GEMM_(f64);

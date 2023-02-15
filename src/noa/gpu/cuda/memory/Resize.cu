@@ -8,16 +8,16 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename>
-    void resize(const Shared<T[]>& input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+    void resize(const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
                 Vec4<i64> border_left, Vec4<i64> border_right,
-                const Shared<T[]>& output, Strides4<i64> output_strides,
+                T* output, Strides4<i64> output_strides,
                 BorderMode border_mode, T border_value, Stream& stream) {
 
         if (noa::all(border_left == 0) && noa::all(border_right == 0))
             return copy(input, input_strides, output, output_strides, input_shape, stream);
 
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
         auto output_shape = Shape4<i64>(input_shape.vec() + border_left + border_right);
         NOA_ASSERT(noa::all(output_shape >= 1));
 
@@ -41,55 +41,55 @@ namespace noa::cuda::memory {
                                 input_strides, input_shape,
                                 output_strides, output_shape,
                                 border_left, border_right);
-                copy(input.get() + cropped_input.offset, cropped_input.strides,
-                     output.get() + cropped_output.offset, cropped_output.strides,
+                copy(input + cropped_input.offset, cropped_input.strides,
+                     output + cropped_output.offset, cropped_output.strides,
                      cropped_output.shape, stream);
                 break;
             }
             case BorderMode::ZERO: {
                 const auto kernel = noa::algorithm::memory::resize<BorderMode::ZERO, i64, i64>(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
+                        input, input_strides, input_shape,
+                        output, output_strides, output_shape,
                         border_left, border_right);
                 noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
                 break;
             }
             case BorderMode::VALUE: {
                 const auto kernel = noa::algorithm::memory::resize<BorderMode::VALUE, i64, i64>(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
+                        input, input_strides, input_shape,
+                        output, output_strides, output_shape,
                         border_left, border_right, border_value);
                 noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
                 break;
             }
             case BorderMode::CLAMP: {
                 const auto kernel = noa::algorithm::memory::resize<BorderMode::CLAMP, i64, i64>(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
+                        input, input_strides, input_shape,
+                        output, output_strides, output_shape,
                         border_left, border_right);
                 noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
                 break;
             }
             case BorderMode::PERIODIC: {
                 const auto kernel = noa::algorithm::memory::resize<BorderMode::PERIODIC, i64, i64>(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
+                        input, input_strides, input_shape,
+                        output, output_strides, output_shape,
                         border_left, border_right);
                 noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
                 break;
             }
             case BorderMode::REFLECT: {
                 const auto kernel = noa::algorithm::memory::resize<BorderMode::REFLECT, i64, i64>(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
+                        input, input_strides, input_shape,
+                        output, output_strides, output_shape,
                         border_left, border_right);
                 noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
                 break;
             }
             case BorderMode::MIRROR: {
                 const auto kernel = noa::algorithm::memory::resize<BorderMode::MIRROR, i64, i64>(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output_strides, output_shape,
+                        input, input_strides, input_shape,
+                        output, output_strides, output_shape,
                         border_left, border_right);
                 noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
                 break;
@@ -97,14 +97,13 @@ namespace noa::cuda::memory {
             default:
                 NOA_THROW("BorderMode not supported. Got: {}", border_mode);
         }
-        stream.attach(input, output);
     }
 
-    #define NOA_INSTANTIATE_RESIZE_(T)                  \
-    template void resize<T, void>(                      \
-        const Shared<T[]>&, Strides4<i64>, Shape4<i64>, \
-        Vec4<i64>, Vec4<i64>,                           \
-        const Shared<T[]>&, Strides4<i64>,              \
+    #define NOA_INSTANTIATE_RESIZE_(T)          \
+    template void resize<T, void>(              \
+        const T*, Strides4<i64>, Shape4<i64>,   \
+        Vec4<i64>, Vec4<i64>,                   \
+        T*, Strides4<i64>,                      \
         BorderMode, T, Stream&)
 
     NOA_INSTANTIATE_RESIZE_(i8);

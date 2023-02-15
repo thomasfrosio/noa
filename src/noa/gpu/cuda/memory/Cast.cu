@@ -5,44 +5,42 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename U, typename _>
-    void cast(const Shared<T[]>& input, const Shared<U[]>& output,
+    void cast(const T* input, U* output,
               i64 elements, bool clamp, Stream& stream) {
         if constexpr (std::is_same_v<T, U>) {
             copy(input, output, elements, stream);
         } else {
-            NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-            NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+            NOA_ASSERT_DEVICE_PTR(input, stream.device());
+            NOA_ASSERT_DEVICE_PTR(output, stream.device());
             const auto shape = Shape4<i64>{1, 1, 1, elements};
             const auto strides = shape.strides();
             ::noa::cuda::utils::ewise_unary(
-                    "memory::cast", input.get(), strides, output.get(), strides, shape, stream,
+                    "memory::cast", input, strides, output, strides, shape, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
-            stream.attach(input, output);
         }
     }
 
     template<typename T, typename U, typename _>
-    void cast(const Shared<T[]>& input, const Strides4<i64>& input_strides,
-              const Shared<U[]>& output, const Strides4<i64>& output_strides,
+    void cast(const T* input, const Strides4<i64>& input_strides,
+              U* output, const Strides4<i64>& output_strides,
               const Shape4<i64>& shape, bool clamp, Stream& stream) {
         if constexpr (std::is_same_v<T, U>) {
             copy(input, input_strides, output, output_strides, shape, stream);
         } else {
-            NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-            NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+            NOA_ASSERT_DEVICE_PTR(input, stream.device());
+            NOA_ASSERT_DEVICE_PTR(output, stream.device());
             ::noa::cuda::utils::ewise_unary(
-                    "memory::cast", input.get(), input_strides, output.get(), output_strides, shape, stream,
+                    "memory::cast", input, input_strides, output, output_strides, shape, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
-            stream.attach(input, output);
         }
     }
 
-    #define NOA_INSTANTIATE_CAST_(T, U)                             \
-    template void cast<T, U, void>(                                 \
-    const Shared<T[]>&, const Shared<U[]>&, i64, bool, Stream&);    \
-    template void cast<T, U, void>(                                 \
-        const Shared<T[]>&, const Strides4<i64>&,                   \
-        const Shared<U[]>&, const Strides4<i64>&,                   \
+    #define NOA_INSTANTIATE_CAST_(T, U)     \
+    template void cast<T, U, void>(         \
+        const T*, U*, i64, bool, Stream&);  \
+    template void cast<T, U, void>(         \
+        const T*, const Strides4<i64>&,     \
+        U*, const Strides4<i64>&,           \
         const Shape4<i64>&, bool, Stream&)
 
     #define NOA_INSTANTIATE_CAST_TO_ALL_SCALAR_(T) \

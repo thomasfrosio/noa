@@ -113,7 +113,7 @@ namespace {
                             input, input_strides, output, output_strides,
                             output_shape, noa::abs_t{}, threads);
                 } else {
-                    return noa::cpu::memory::copy(input, input_strides, output, output_strides, output_shape);
+                    return noa::cpu::memory::copy(input, input_strides, output, output_strides, output_shape, threads);
                 }
             }
 
@@ -260,59 +260,46 @@ namespace {
 
 namespace noa::cpu::math {
     template<typename Value, typename>
-    Value min(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
-        stream.synchronize();
-        return ReduceAll<ReductionMode::MIN, Value>::execute(input.get(), strides, shape, stream.threads());
+    Value min(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
+        return ReduceAll<ReductionMode::MIN, Value>::execute(input, strides, shape, threads);
     }
 
     template<typename Value, typename>
-    Value max(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
-        stream.synchronize();
-        return ReduceAll<ReductionMode::MAX, Value>::execute(input.get(), strides, shape, stream.threads());
+    Value max(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
+        return ReduceAll<ReductionMode::MAX, Value>::execute(input, strides, shape, threads);
     }
 
     template<typename Value, typename>
-    Value sum(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
-        stream.synchronize();
-        return ReduceAll<ReductionMode::SUM, Value>::execute(input.get(), strides, shape, stream.threads());
+    Value sum(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
+        return ReduceAll<ReductionMode::SUM, Value>::execute(input, strides, shape, threads);
     }
 
     template<typename Value, typename>
-    Value mean(const Shared<Value[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape, Stream& stream) {
-        stream.synchronize();
-        return ReduceAll<ReductionMode::MEAN, Value>::execute(input.get(), strides, shape, stream.threads());
+    Value mean(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
+        return ReduceAll<ReductionMode::MEAN, Value>::execute(input, strides, shape, threads);
     }
 
     template<typename Input, typename Output, typename>
-    Output var(const Shared<Input[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-               i64 ddof, Stream& stream) {
-        stream.synchronize();
-        return ReduceAll<ReductionMode::VAR, Input>::execute(
-                input.get(), strides, shape, stream.threads(), ddof);
+    Output var(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 ddof, i64 threads) {
+        return ReduceAll<ReductionMode::VAR, Input>::execute(input, strides, shape, threads, ddof);
     }
 
     template<typename Input, typename Output, typename>
-    auto mean_var(const Shared<Input[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-                  i64 ddof, Stream& stream) -> std::pair<Input, Output> {
-        stream.synchronize();
-        const auto threads = stream.threads();
-        const auto output_sum = ReduceAll<ReductionMode::SUM, Input>::execute(input.get(), strides, shape, threads);
-        const auto output_var = ReduceAll<ReductionMode::VAR, Input>::execute(input.get(), strides, shape, threads, ddof, &output_sum);
+    auto mean_var(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+                  i64 ddof, i64 threads) -> std::pair<Input, Output> {
+        const auto output_sum = ReduceAll<ReductionMode::SUM, Input>::execute(input, strides, shape, threads);
+        const auto output_var = ReduceAll<ReductionMode::VAR, Input>::execute(input, strides, shape, threads, ddof, &output_sum);
         const auto output_mean = output_sum / static_cast<Output>(shape.elements());
         return std::pair{output_mean, output_var};
     }
 
     template<typename Input, typename Output, typename>
-    Output std(const Shared<Input[]>& input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-               i64 ddof, Stream& stream) {
-        stream.synchronize();
-        return ReduceAll<ReductionMode::VAR, Input>::execute(
-                input.get(), strides, shape, stream.threads(), ddof);
+    Output std(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 ddof, i64 threads) {
+        return ReduceAll<ReductionMode::VAR, Input>::execute(input, strides, shape, threads, ddof);
     }
 
     template<typename Value, typename>
-    Value median(const Shared<Value[]>& input, Strides4<i64> strides, Shape4<i64> shape,
-                 bool overwrite, Stream& stream) {
+    Value median(Value* input, Strides4<i64> strides, Shape4<i64> shape, bool overwrite) {
         NOA_ASSERT(input && all(shape > 0));
 
         // Make it in rightmost order.
@@ -322,16 +309,14 @@ namespace noa::cpu::math {
 
         // Allocate buffer only if necessary.
         const auto elements = shape.elements();
-        Value* to_sort;
+        Value* to_sort{};
         using buffer_t = typename noa::cpu::memory::PtrHost<Value>::alloc_unique_type ;
         buffer_t buffer;
         if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
-            stream.synchronize();
-            to_sort = input.get();
+            to_sort = input;
         } else {
             buffer = noa::cpu::memory::PtrHost<Value>::alloc(elements);
-            stream.synchronize();
-            noa::cpu::memory::copy(input.get(), strides, buffer.get(), shape.strides(), shape);
+            noa::cpu::memory::copy(input, strides, buffer.get(), shape.strides(), shape, 1);
             to_sort = buffer.get();
         }
 
@@ -348,95 +333,77 @@ namespace noa::cpu::math {
 
 namespace noa::cpu::math {
     template<typename Value, typename>
-    void min(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             Stream& stream) {
-        const auto threads = stream.threads();
-        stream.enqueue([=](){
-            ReduceAxis<ReductionMode::MIN, Value, Value>::execute(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
-                    threads);
-        });
+    void min(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 threads) {
+        ReduceAxis<ReductionMode::MIN, Value, Value>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                threads);
     }
 
     template<typename Value, typename>
-    void max(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             Stream& stream) {
-        const auto threads = stream.threads();
-        stream.enqueue([=](){
-            ReduceAxis<ReductionMode::MAX, Value, Value>::execute(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
-                    threads);
-        });
+    void max(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 threads) {
+        ReduceAxis<ReductionMode::MAX, Value, Value>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                threads);
     }
 
     template<typename Value, typename>
-    void sum(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             Stream& stream) {
-        const auto threads = stream.threads();
-        stream.enqueue([=](){
-            ReduceAxis<ReductionMode::SUM, Value, Value>::execute(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
-                    threads);
-        });
+    void sum(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 threads) {
+        ReduceAxis<ReductionMode::SUM, Value, Value>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                threads);
     }
 
     template<typename Value, typename>
-    void mean(const Shared<Value[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-              const Shared<Value[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-              Stream& stream) {
-        const auto threads = stream.threads();
-        stream.enqueue([=](){
-            ReduceAxis<ReductionMode::MEAN, Value, Value>::execute(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
-                    threads);
-        });
+    void mean(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              i64 threads) {
+        ReduceAxis<ReductionMode::MEAN, Value, Value>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                threads);
     }
 
     template<typename Input, typename Output, typename>
-    void var(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream) {
-        const auto threads = stream.threads();
-        stream.enqueue([=](){
-            ReduceAxis<ReductionMode::VAR, Input, Output>::execute(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
-                    threads, ddof);
-        });
+    void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, i64 threads) {
+        ReduceAxis<ReductionMode::VAR, Input, Output>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                threads, ddof);
     }
 
     template<typename Input, typename Output, typename>
-    void std(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream) {
-        const auto threads = stream.threads();
-        stream.enqueue([=](){
-            ReduceAxis<ReductionMode::STD, Input, Output>::execute(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
-                    threads, ddof);
-        });
+    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, i64 threads) {
+        ReduceAxis<ReductionMode::STD, Input, Output>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                threads, ddof);
     }
 }
 
 namespace noa::cpu::math {
-    #define NOA_INSTANTIATE_MIN_MAX_(T)                                                                         \
-    template T min<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);             \
-    template T max<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);             \
-    template T median<T, void>(const Shared<T[]>&, Strides4<i64>, Shape4<i64>, bool, Stream&);                  \
-    template void min<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void max<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_MIN_MAX_(T)                                                 \
+    template T min<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
+    template T max<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
+    template T median<T, void>(T*, Strides4<i64>, Shape4<i64>, bool);                   \
+    template void min<T, void>(                                                         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
+        T*, const Strides4<i64>&, const Shape4<i64>&, i64);                             \
+    template void max<T, void>(                                                         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
+        T*, const Strides4<i64>&, const Shape4<i64>&, i64)
 
     NOA_INSTANTIATE_MIN_MAX_(i16);
     NOA_INSTANTIATE_MIN_MAX_(i32);
@@ -448,15 +415,15 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_MIN_MAX_(f32);
     NOA_INSTANTIATE_MIN_MAX_(f64);
 
-    #define NOA_INSTANTIATE_SUM_MEAN_(T)                                                                \
-    template T sum<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);     \
-    template T mean<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
-    template void sum<T, void>(                                                 \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&); \
-    template void mean<T, void>(                                                \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,           \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_SUM_MEAN_(T)                                                \
+    template T sum<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
+    template T mean<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);  \
+    template void sum<T, void>(                                                         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
+        T*, const Strides4<i64>&, const Shape4<i64>&, i64);                             \
+    template void mean<T, void>(                                                        \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
+        T*, const Strides4<i64>&, const Shape4<i64>&, i64)
 
     NOA_INSTANTIATE_SUM_MEAN_(i32);
     NOA_INSTANTIATE_SUM_MEAN_(i64);
@@ -467,16 +434,17 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_SUM_MEAN_(c32);
     NOA_INSTANTIATE_SUM_MEAN_(c64);
 
-    #define NOA_INSTANTIATE_VAR_STD_(T,U)                                                                       \
-    template U var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);       \
-    template U std<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);       \
-    template std::pair<T,U> mean_var<T,U,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);  \
-    template void var<T,U,void>(                                                    \
-        const Shared<T[]>& , const Strides4<i64>&, const Shape4<i64>&,              \
-        const Shared<U[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);\
-    template void std<T,U,void>(                                                    \
-        const Shared<T[]>& , const Strides4<i64>&, const Shape4<i64>&,              \
-        const Shared<U[]>&, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
+    #define NOA_INSTANTIATE_VAR_STD_(T,U)                                                   \
+    template U var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64); \
+    template U std<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64); \
+    template std::pair<T,U> mean_var<T,U,void>(                                             \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64);                      \
+    template void var<T,U,void>(                                                            \
+        const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
+        U*, const Strides4<i64>&, const Shape4<i64>&, i64, i64);                            \
+    template void std<T,U,void>(                                                            \
+        const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
+        U*, const Strides4<i64>&, const Shape4<i64>&, i64, i64)
 
     NOA_INSTANTIATE_VAR_STD_(f32, f32);
     NOA_INSTANTIATE_VAR_STD_(f64, f64);

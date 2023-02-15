@@ -16,9 +16,9 @@ namespace {
 namespace noa::cuda::math {
     template<typename ReduceOp, typename Value, typename Offset, typename _>
     void find_offsets(
-            ReduceOp reduce_op, const Shared<Value[]>& input,
+            ReduceOp reduce_op, const Value* input,
             const Strides4<i64>& strides, const Shape4<i64>& shape,
-            const Shared<Offset[]>& offsets, bool reduce_batch, bool swap_layout, Stream& stream
+            Offset* offsets, bool reduce_batch, bool swap_layout, Stream& stream
     ) {
         const auto preprocess_op = []__device__(Value value, i64 offset) { return Pair{value, offset}; };
         const auto postprocess_op = []__device__(const Pair<Value, i64>& pair) { return static_cast<Offset>(pair.second); };
@@ -26,16 +26,15 @@ namespace noa::cuda::math {
         const Value INITIAL_REDUCE = get_initial_reduce<ReduceOp, Value>();
         noa::cuda::utils::reduce_unary(
                 "find_offsets",
-                input.get(), strides, shape,
-                offsets.get(), Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
+                input, strides, shape,
+                offsets, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,
                 reduce_batch, swap_layout, stream);
-        stream.attach(input, offsets);
     }
 
     template<typename ReduceOp, typename Value, typename _>
     i64 find_offset(
-            ReduceOp reduce_op, const Shared<Value[]>& input,
+            ReduceOp reduce_op, const Value* input,
             const Strides4<i64>& strides, const Shape4<i64>& shape,
             bool swap_layout, Stream& stream
     ) {
@@ -46,7 +45,7 @@ namespace noa::cuda::math {
         i64 offset{};
         noa::cuda::utils::reduce_unary(
                 "find_offset",
-                input.get(), strides, shape,
+                input, strides, shape,
                 &offset, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,
                 true, swap_layout, stream);
@@ -55,15 +54,15 @@ namespace noa::cuda::math {
     }
 
     template<typename ReduceOp, typename Value, typename _>
-    i64 find_offset(ReduceOp reduce_op, const Shared<Value[]>& input, i64 elements, Stream& stream) {
+    i64 find_offset(ReduceOp reduce_op, const Value* input, i64 elements, Stream& stream) {
         const auto shape = Shape4<i64>{1, 1, 1, elements};
         return find_offset(reduce_op, input, shape.strides(), shape, true, stream);
     }
 
-    #define NOA_INSTANTIATE_FIND_OFFSETS(R, T, U)                           \
-    template void find_offsets<R, T, U, void>(                              \
-        R, const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,    \
-        const Shared<U[]>&, bool, bool, Stream&)
+    #define NOA_INSTANTIATE_FIND_OFFSETS(R, T, U)               \
+    template void find_offsets<R, T, U, void>(                  \
+        R, const T*, const Strides4<i64>&, const Shape4<i64>&,  \
+        U*, bool, bool, Stream&)
 
     #define NOA_INSTANTIATE_FIND_OFFSETS_ALL_(R, T) \
     NOA_INSTANTIATE_FIND_OFFSETS(R, T, u32);        \
@@ -71,12 +70,12 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_FIND_OFFSETS(R, T, i32);        \
     NOA_INSTANTIATE_FIND_OFFSETS(R, T, i64)
 
-    #define NOA_INSTANTIATE_FIND_OFFSET(R, T)                               \
-    template i64 find_offset<R, T, void>(                                   \
-        R, const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,    \
-        bool, Stream&);                                                     \
-    template i64 find_offset<R, T, void>(                                   \
-        R, const Shared<T[]>&, i64, Stream&)
+    #define NOA_INSTANTIATE_FIND_OFFSET(R, T)                   \
+    template i64 find_offset<R, T, void>(                       \
+        R, const T*, const Strides4<i64>&, const Shape4<i64>&,  \
+        bool, Stream&);                                         \
+    template i64 find_offset<R, T, void>(                       \
+        R, const T*, i64, Stream&)
 
     #define NOA_INSTANTIATE_FIND_(T)                        \
     NOA_INSTANTIATE_FIND_OFFSETS_ALL_(noa::first_max_t, T); \

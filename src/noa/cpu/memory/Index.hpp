@@ -39,9 +39,9 @@ namespace noa::cpu::memory {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename UnaryOp>
     auto extract_unary(
-            const Shared<Input[]>& input, Strides4<i64> input_strides,
-            const Shared<Lhs[]>& lhs, Strides4<i64> lhs_strides, Shape4<i64> shape,
-            UnaryOp&& unary_op, bool extract_values, bool extract_offsets, Stream& stream)
+            const Input* input, Strides4<i64> input_strides,
+            const Lhs* lhs, Strides4<i64> lhs_strides, Shape4<i64> shape,
+            UnaryOp&& unary_op, bool extract_values, bool extract_offsets)
     -> Extracted<ExtractedValue, ExtractedOffset> {
 
         NOA_ASSERT((input || !extract_values) && lhs && all(shape > 0 ));
@@ -53,11 +53,10 @@ namespace noa::cpu::memory {
             shape = noa::indexing::reorder(shape, order);
         }
 
-        const auto input_accessor = AccessorContiguous<const Input, 1, i64>(input.get());
-        const auto lhs_accessor = Accessor<const Lhs, 4, i64>(lhs.get(), lhs_strides);
+        const auto input_accessor = AccessorContiguous<const Input, 1, i64>(input);
+        const auto lhs_accessor = Accessor<const Lhs, 4, i64>(lhs, lhs_strides);
         std::vector<ExtractedValue> values;
         std::vector<ExtractedOffset> offsets;
-        stream.synchronize();
 
         for (i64 i = 0; i < shape[0]; ++i) {
             for (i64 j = 0; j < shape[1]; ++j) {
@@ -80,10 +79,10 @@ namespace noa::cpu::memory {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename Rhs, typename BinaryOp>
     auto extract_binary(
-            const Shared<Input[]>& input, Strides4<i64> input_strides,
-            const Shared<Lhs[]>& lhs, Strides4<i64> lhs_strides,
-            const Shared<Rhs[]>& rhs, Strides4<i64> rhs_strides, Shape4<i64> shape,
-            BinaryOp&& binary_op, bool extract_values, bool extract_offsets, Stream& stream)
+            const Input* input, Strides4<i64> input_strides,
+            const Lhs* lhs, Strides4<i64> lhs_strides,
+            const Rhs* rhs, Strides4<i64> rhs_strides, Shape4<i64> shape,
+            BinaryOp&& binary_op, bool extract_values, bool extract_offsets)
     -> Extracted<ExtractedValue, ExtractedOffset> {
 
         NOA_ASSERT((input || !extract_values) && lhs && rhs && all(shape > 0 ));
@@ -96,12 +95,11 @@ namespace noa::cpu::memory {
             shape = noa::indexing::reorder(shape, order);
         }
 
-        const auto input_accessor = AccessorContiguous<const Input, 1, i64>(input.get());
-        const auto lhs_accessor = Accessor<const Lhs, 4, i64>(lhs.get(), lhs_strides);
-        const auto rhs_accessor = Accessor<const Rhs, 4, i64>(rhs.get(), rhs_strides);
+        const auto input_accessor = AccessorContiguous<const Input, 1, i64>(input);
+        const auto lhs_accessor = Accessor<const Lhs, 4, i64>(lhs, lhs_strides);
+        const auto rhs_accessor = Accessor<const Rhs, 4, i64>(rhs, rhs_strides);
         std::vector<ExtractedValue> values;
         std::vector<ExtractedOffset> offsets;
-        stream.synchronize();
 
         for (i64 i = 0; i < shape[0]; ++i) {
             for (i64 j = 0; j < shape[1]; ++j) {
@@ -124,61 +122,49 @@ namespace noa::cpu::memory {
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename Rhs, typename BinaryOp>
     auto extract_binary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides, Rhs rhs,
+            const Input* input, const Strides4<i64>& input_strides,
+            const Lhs* lhs, const Strides4<i64>& lhs_strides,
+            Rhs rhs,
             const Shape4<i64>& shape, BinaryOp&& binary_op,
-            bool extract_values, bool extract_offsets, Stream& stream) {
+            bool extract_values, bool extract_offsets) {
         auto unary_op = [=, op = std::forward<BinaryOp>(binary_op)](Lhs lhs_value) {
             return binary_op(lhs_value, rhs);
         };
         return extract_unary<ExtractedValue, ExtractedOffset>(
                 input, input_strides, lhs, lhs_strides, shape,
-                unary_op, extract_values, extract_offsets, stream);
+                unary_op, extract_values, extract_offsets);
     }
 
     template<typename ExtractedValue, typename ExtractedOffset,
              typename Input, typename Lhs, typename Rhs, typename BinaryOp>
     auto extract_binary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            Lhs lhs, const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
+            const Input* input, const Strides4<i64>& input_strides,
+            Lhs lhs,
+            const Rhs* rhs, const Strides4<i64>& rhs_strides,
             const Shape4<i64>& shape, BinaryOp&& binary_op,
-            bool extract_values, bool extract_offsets, Stream& stream) {
+            bool extract_values, bool extract_offsets) {
         auto unary_op = [=, op = std::forward<BinaryOp>(binary_op)](Rhs rhs_value) {
             return binary_op(lhs, rhs_value);
         };
         return extract_unary<ExtractedValue, ExtractedOffset>(
                 input, input_strides, rhs, rhs_strides, shape,
-                unary_op, extract_values, extract_offsets, stream);
+                unary_op, extract_values, extract_offsets);
     }
 
     // TODO Add to unified API.
     template<typename Input, typename Offset, typename Output>
-    void extract_elements(
-            const Shared<Input[]>& input,
-            const Shared<Offset[]>& offsets,
-            const Shared<Output[]>& output,
-            i64 elements, Stream& stream) {
+    void extract_elements(const Input* input, const Offset* offsets, Output* output, i64 elements) {
         NOA_ASSERT(input && output && offsets);
-        stream.enqueue([=]() {
-            const auto* input_ptr = input.get();
-            const auto* offsets_ptr = offsets.get();
-            auto* output_ptr = output.get();
-            for (i64 idx = 0; idx < elements; ++idx, ++offsets_ptr, ++output_ptr)
-                *output_ptr = static_cast<Output>(input_ptr[*offsets_ptr]);
-        });
+        for (i64 idx = 0; idx < elements; ++idx, ++offsets, ++output)
+            *output = static_cast<Output>(input[*offsets]);
     }
 
     template<typename ExtractedValue, typename ExtractedOffset, typename Output>
-    void insert_elements(
-            const Extracted<ExtractedValue, ExtractedOffset>& extracted,
-            const Shared<Output[]>& output, Stream& stream) {
+    void insert_elements(const Extracted<ExtractedValue, ExtractedOffset>& extracted, Output* output) {
         NOA_ASSERT(extracted.values && extracted.offsets && output);
-        stream.enqueue([=]() {
-            const auto* extracted_values = extracted.values.get();
-            const auto* extracted_offsets = extracted.offsets.get();
-            auto* output_ptr = output.get();
-            for (i64 idx = 0; idx < extracted.count; ++idx, ++extracted_values, ++extracted_offsets)
-                output_ptr[*extracted_offsets] = static_cast<Output>(*extracted_values);
-        });
+        const auto* extracted_values = extracted.values.get();
+        const auto* extracted_offsets = extracted.offsets.get();
+        for (i64 idx = 0; idx < extracted.count; ++idx, ++extracted_values, ++extracted_offsets)
+            output[*extracted_offsets] = static_cast<Output>(*extracted_values);
     }
 }

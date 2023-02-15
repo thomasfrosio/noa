@@ -15,17 +15,17 @@ namespace noa::cpu::details {
 namespace noa::cpu {
     template<typename ReduceOp, typename Value, typename Offset,
              typename = std::enable_if_t<details::is_valid_find_v<ReduceOp, Value, Offset>>>
-    void find_offsets(ReduceOp reduce_op, const Shared<Value[]>& input,
+    void find_offsets(ReduceOp reduce_op, const Value* input,
                       const Strides4<i64>& strides, const Shape4<i64>& shape,
-                      const Shared<Offset[]>& offsets, bool reduce_batch, bool swap_layout, Stream& stream);
+                      Offset* offsets, bool reduce_batch, bool swap_layout, i64 threads);
 
     template<typename ReduceOp, typename Value,
              typename = std::enable_if_t<details::is_valid_find_v<ReduceOp, Value, i64>>>
-    i64 find_offset(ReduceOp reduce_op, const Shared<Value[]>& input,
+    i64 find_offset(ReduceOp reduce_op, const Value* input,
                     const Strides4<i64>& strides, const Shape4<i64>& shape,
-                    bool swap_layout, Stream& stream);
+                    bool swap_layout, i64 threads);
 
     template<typename ReduceOp, typename Value,
              typename = std::enable_if_t<details::is_valid_find_v<ReduceOp, Value, i64>>>
-    i64 find_offset(ReduceOp reduce_op, const Shared<Value[]>& input, i64 elements, Stream& stream);
+    i64 find_offset(ReduceOp reduce_op, const Value* input, i64 elements, i64 threads);
 }

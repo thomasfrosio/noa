@@ -148,28 +148,27 @@ namespace noa::cpu::details {
 }
 
 namespace noa::cpu {
+    enum StreamMode {
+        // Uses the current thread as working thread. Task-execution is synchronous. Creating a stream with
+        // this mode is trivial, doesn't require any dynamic allocation, and doesn't spawn any thread.
+        CURRENT = 0,
+        DEFAULT = 0, // deprecated
+
+        // Spawns a new thread when the stream is created. Enqueued tasks are sent to this thread.
+        // This mode is more expensive, but allows asynchronous execution of enqueued tasks.
+        // The same thread is reused throughout the lifetime of the stream and order of execution
+        // is of course guaranteed. The stream is automatically synchronized when destructed,
+        // but potential captured exceptions are ignored. To properly rethrow exceptions, it is
+        // then best to explicitly synchronize the stream before the destructor being called.
+        ASYNC = 1
+    };
+
     // (A)synchronous dispatch queue.
     class Stream {
     public:
-        enum ThreadMode {
-            // Uses the current thread as working thread. Task-execution is synchronous. Creating a stream with
-            // this mode is trivial, doesn't require any dynamic allocation, and doesn't spawn any thread.
-            CURRENT = 0,
-            DEFAULT = 0, // deprecated
-
-            // Spawns a new thread when the stream is created. Enqueued tasks are sent to this thread.
-            // This mode is more expensive, but allows asynchronous execution of enqueued tasks.
-            // The same thread is reused throughout the lifetime of the stream and order of execution
-            // is of course guaranteed. The stream is automatically synchronized when destructed,
-            // but potential captured exceptions are ignored. To properly rethrow exceptions, it is
-            // then best to explicitly synchronize the stream before the destructor being called.
-            ASYNC = 1
-        };
-
-    public:
         // Creates a stream.
-        explicit Stream(ThreadMode mode = ThreadMode::ASYNC) : m_omp_thread_count(Session::threads()) {
-            if (mode == ThreadMode::ASYNC)
+        explicit Stream(StreamMode mode = StreamMode::ASYNC) : m_omp_thread_count(Session::threads()) {
+            if (mode == StreamMode::ASYNC)
                 m_worker = std::make_shared<details::AsyncDispatchQueue>();
         }
 

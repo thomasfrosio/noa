@@ -21,40 +21,28 @@ namespace noa::cuda {
     // A CUDA device.
     class Device {
     public:
+        struct DeviceUnchecked{};
+
+    public:
         // Creates the current device.
         Device() : m_id(Device::current().m_id) {}
 
         // Creates a CUDA device from an ID.
         template<typename Int = i64, typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
-        constexpr explicit Device(Int id, bool unsafe = false) : m_id(static_cast<i32>(id)) {
-            if (!unsafe)
-                validate_(m_id);
+        constexpr explicit Device(Int id) : m_id(static_cast<i32>(id)) {
+            validate_(m_id);
         }
 
         // Creates a CUDA device from a name.
         // The device name should be of the form, "cuda:N", where N is a device ID.
-        explicit Device(std::string_view name, bool unsafe = false) {
-            std::string str_ = noa::string::lower(noa::string::trim(name));
+        explicit Device(std::string_view name) : m_id(parse_id_(name)) {
+            validate_(m_id);
+        }
 
-            if (!noa::string::starts_with(str_, "cuda"))
-                NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
+        template<typename Int = i64, typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
+        constexpr explicit Device(Int id, DeviceUnchecked) : m_id(static_cast<i32>(id)) {}
 
-            const size_t length = str_.length();
-            if (length == 4) {
-                m_id = 0;
-            } else if (length >= 6 && str_[4] == ':') {
-                i32 error{};
-                m_id = noa::string::parse<i32>(std::string{str_.data() + 5}, error);
-                if (error)
-                    NOA_THROW("Failed to parse the CUDA device ID. {}",
-                              noa::string::parse_error_message<i32>(str_, error));
-            } else {
-                NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
-            }
-
-            if (!unsafe)
-                validate_(m_id);
-        };
+        explicit Device(std::string_view name, DeviceUnchecked) : m_id(parse_id_(name)) {}
 
     public:
         // Suspends execution until all previously-scheduled tasks on the specified device (all contexts and streams)
@@ -188,7 +176,7 @@ namespace noa::cuda {
         // Returns the device on which the active host thread executes the device code.
         // The default device is the first device, i.e. device with ID=0.
         static Device current() {
-            Device device(0, true);
+            Device device(0, DeviceUnchecked{});
             NOA_THROW_IF(cudaGetDevice(&device.m_id));
             return device;
         }
@@ -207,7 +195,7 @@ namespace noa::cuda {
 
         // Gets the device with the most free memory available for allocation.
         static Device most_free() {
-            Device most_free(0, true);
+            Device most_free(0, DeviceUnchecked{});
             size_t available_mem{0};
             for (auto& device: all()) {
                 const size_t dev_available_mem = device.memory().free;
@@ -220,13 +208,36 @@ namespace noa::cuda {
         }
 
     private:
-        i32 m_id{};
+        static i32 parse_id_(std::string_view name) {
+            std::string str_ = noa::string::lower(noa::string::trim(name));
+
+            if (!noa::string::starts_with(str_, "cuda"))
+                NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
+
+            i32 id{};
+            const size_t length = str_.length();
+            if (length == 4) {
+                id = 0;
+            } else if (length >= 6 && str_[4] == ':') {
+                i32 error{};
+                id = noa::string::parse<i32>(std::string{str_.data() + 5}, error);
+                if (error)
+                    NOA_THROW("Failed to parse the CUDA device ID. {}",
+                              noa::string::parse_error_message<i32>(str_, error));
+            } else {
+                NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
+            }
+            return id;
+        }
 
         static void validate_(i32 id) {
             const i64 count = Device::count();
             if (id + 1 > count)
                 NOA_THROW("Invalid device ID. Got ID:{}, count:{}", id, count);
         }
+
+    private:
+        i32 m_id{};
     };
 
     inline bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }

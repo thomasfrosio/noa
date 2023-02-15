@@ -16,20 +16,19 @@ namespace noa::cuda::memory::details {
     }
 
     template<typename T, typename _>
-    void set(const Shared<T[]>& src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, Stream& stream) {
+    void set(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, Stream& stream) {
         if (!shape.elements())
             return;
 
-        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(src, stream.device());
         auto set_op = [value]__device__(T) { return value; };
         noa::cuda::utils::ewise_unary<StridesTraits::CONTIGUOUS>(
-                "memory::copy", src.get(), strides, shape, stream, set_op);
-        stream.attach(src);
+                "memory::copy", src, strides, shape, stream, set_op);
     }
 
     #define NOA_INSTANTIATE_SET_(T)                     \
     template void set<T, void>(T*, i64, T, Stream&);    \
-    template void set<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, T, Stream&)
+    template void set<T, void>(T*, const Strides4<i64>&, const Shape4<i64>&, T, Stream&)
 
     NOA_INSTANTIATE_SET_(bool);
     NOA_INSTANTIATE_SET_(i8);

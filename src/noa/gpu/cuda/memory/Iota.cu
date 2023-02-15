@@ -6,32 +6,29 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename>
-    void iota(const Shared<T[]>& src, i64 elements, i64 tile, Stream& stream) {
+    void iota(T* src, i64 elements, i64 tile, Stream& stream) {
         if (tile == elements)
             return arange(src, elements, T{0}, T{1}, stream);
 
-        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
-        const auto kernel = noa::algorithm::memory::iota_1d<i64, i64>(src.get(), tile);
+        NOA_ASSERT_DEVICE_PTR(src, stream.device());
+        const auto kernel = noa::algorithm::memory::iota_1d<i64, i64>(src, tile);
         noa::cuda::utils::iwise_1d("iota", elements, kernel, stream);
-        stream.attach(src);
     }
 
     template<typename T, typename>
-    void iota(const Shared<T[]>& src, const Strides4<i64>& strides, const Shape4<i64>& shape,
-              const Vec4<i64>& tile, Stream& stream) {
+    void iota(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, const Vec4<i64>& tile, Stream& stream) {
         if (noa::all(tile == shape.vec()))
             return arange(src, strides, shape, T{0}, T{1}, stream);
 
         NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(src.get(), stream.device());
-        const auto kernel = noa::algorithm::memory::iota_4d<i64, i64>(src.get(), strides, shape, tile);
+        NOA_ASSERT_DEVICE_PTR(src, stream.device());
+        const auto kernel = noa::algorithm::memory::iota_4d<i64, i64>(src, strides, shape, tile);
         noa::cuda::utils::iwise_4d("iota", shape, kernel, stream);
-        stream.attach(src);
     }
 
-    #define NOA_INSTANTIATE_IOTA_(T)                                    \
-    template void iota<T, void>(const Shared<T[]>&, i64, i64, Stream&); \
-    template void iota<T, void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, const Vec4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_IOTA_(T)                    \
+    template void iota<T, void>(T*, i64, i64, Stream&); \
+    template void iota<T, void>(T*, const Strides4<i64>&, const Shape4<i64>&, const Vec4<i64>&, Stream&)
 
     NOA_INSTANTIATE_IOTA_(i8);
     NOA_INSTANTIATE_IOTA_(i16);

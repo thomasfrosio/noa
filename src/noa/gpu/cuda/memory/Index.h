@@ -44,8 +44,8 @@ namespace noa::cuda::memory {
              typename = std::enable_if_t<details::is_valid_extract_unary_v<
                      Input, Lhs, UnaryOp, ExtractedValue, ExtractedOffset>>>
     auto extract_unary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& shape,
+            const Input* input, const Strides4<i64>& input_strides,
+            const Lhs* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& shape,
             UnaryOp unary_op, bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset>;
 
@@ -55,9 +55,9 @@ namespace noa::cuda::memory {
              typename = std::enable_if_t<details::is_valid_extract_binary_v<
                      Input, Lhs, Rhs, BinaryOp, ExtractedValue, ExtractedOffset>>>
     auto extract_binary(
-            const Shared<Input[]>& input, Strides4<i64> input_strides,
-            const Shared<Lhs[]>& lhs, Strides4<i64> lhs_strides,
-            const Shared<Rhs[]>& rhs, Strides4<i64> rhs_strides, Shape4<i64> shape,
+            const Input* input, Strides4<i64> input_strides,
+            const Lhs* lhs, Strides4<i64> lhs_strides,
+            const Rhs* rhs, Strides4<i64> rhs_strides, Shape4<i64> shape,
             BinaryOp binary_op, bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset>;
 
@@ -66,8 +66,8 @@ namespace noa::cuda::memory {
              typename = std::enable_if_t<details::is_valid_extract_binary_v<
                      Input, Lhs, Rhs, BinaryOp, ExtractedValue, ExtractedOffset>>>
     auto extract_binary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
-            const Shared<Lhs[]>& lhs, const Strides4<i64>& lhs_strides,
+            const Input* input, const Strides4<i64>& input_strides,
+            const Lhs* lhs, const Strides4<i64>& lhs_strides,
             Rhs rhs,
             const Shape4<i64>& shape, BinaryOp binary_op,
             bool extract_values, bool extract_offsets, Stream& stream)
@@ -78,9 +78,9 @@ namespace noa::cuda::memory {
              typename = std::enable_if_t<details::is_valid_extract_binary_v<
                      Input, Lhs, Rhs, BinaryOp, ExtractedValue, ExtractedOffset>>>
     auto extract_binary(
-            const Shared<Input[]>& input, const Strides4<i64>& input_strides,
+            const Input* input, const Strides4<i64>& input_strides,
             Lhs lhs,
-            const Shared<Rhs[]>& rhs, const Strides4<i64>& rhs_strides,
+            const Rhs* rhs, const Strides4<i64>& rhs_strides,
             const Shape4<i64>& shape, BinaryOp binary_op,
             bool extract_values, bool extract_offsets, Stream& stream)
     -> Extracted<ExtractedValue, ExtractedOffset>;
@@ -89,14 +89,14 @@ namespace noa::cuda::memory {
     template<typename Input, typename Offset, typename Output,
              typename = std::enable_if_t<details::is_valid_insert_v<Input, Offset, Output>>>
     void extract_elements(
-            const Shared<Input[]>& input,
-            const Shared<Offset[]>& offsets,
-            const Shared<Output[]>& output,
+            const Input* input,
+            const Offset* offsets,
+            Output* output,
             i64 elements, Stream& stream);
 
     template<typename ExtractedValue, typename ExtractedOffset, typename Output,
              typename = std::enable_if_t<details::is_valid_insert_v<ExtractedValue, ExtractedOffset, Output>>>
     void insert_elements(
             const Extracted<ExtractedValue, ExtractedOffset>& extracted,
-            const Shared<Output[]>& output, Stream& stream);
+            Output* output, Stream& stream);
 }

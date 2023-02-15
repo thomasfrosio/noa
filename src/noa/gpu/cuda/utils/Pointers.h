@@ -40,7 +40,7 @@ namespace noa::cuda::utils {
 
     // Aligned array that generates vectorized load/store in CUDA.
     // It seems that the maximum load size is 16 bytes.
-    template<typename T, i64 VECTOR_SIZE>
+    template<typename T, size_t VECTOR_SIZE>
     struct alignas(sizeof(T) * VECTOR_SIZE) AlignedVector {
         T data[VECTOR_SIZE];
     };

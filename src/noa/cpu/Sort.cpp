@@ -171,8 +171,7 @@ namespace {
 
 namespace noa::cpu {
     template<typename T, typename>
-    void sort(const Shared<T[]>& array, const Strides4<i64>& strides, const Shape4<i64>& shape,
-              bool ascending, i32 dim, Stream& stream) {
+    void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape, bool ascending, i32 dim) {
         NOA_ASSERT(array && all(shape > 0));
 
         // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
@@ -186,19 +185,17 @@ namespace noa::cpu {
         // If there's not a lot of axes to sort, use the iterative version which uses less memory
         // and does a single sort per axis. Otherwise, use the batched version which uses more memory
         // but uses 2 sorts (1 being a stable sort), and a permutation/copy, for the entire array.
-        stream.enqueue([=]() {
-            auto shape_4d = shape;
-            shape_4d[dim] = 1;
-            const auto iterations = shape_4d.elements();
-            if (iterations < 100)
-                sort_iterative_(array.get(), strides, shape, dim, ascending);
-            else
-                sort_batched_(array.get(), strides, shape, dim, ascending);
-        });
+        auto shape_4d = shape;
+        shape_4d[dim] = 1;
+        const auto iterations = shape_4d.elements();
+        if (iterations < 100)
+            sort_iterative_(array, strides, shape, dim, ascending);
+        else
+            sort_batched_(array, strides, shape, dim, ascending);
     }
 
     #define NOA_INSTANTIATE_SORT_(T) \
-    template void sort<T,void>(const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&, bool, i32, Stream&)
+    template void sort<T,void>(T*, const Strides4<i64>&, const Shape4<i64>&, bool, i32)
 
     NOA_INSTANTIATE_SORT_(i8);
     NOA_INSTANTIATE_SORT_(i16);

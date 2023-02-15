@@ -3,20 +3,20 @@
 
 namespace noa::cuda {
     template<typename In, typename Out, typename UnaryOp, typename>
-    void ewise_unary(const Shared<In[]>& input, const Strides4<i64>& input_strides,
-                     const Shared<Out[]>& output, const Strides4<i64>& output_strides,
+    void ewise_unary(const In* input, const Strides4<i64>& input_strides,
+                     Out* output, const Strides4<i64>& output_strides,
                      const Shape4<i64>& shape, UnaryOp unary_op, Stream& stream) {
         cuda::utils::ewise_unary(
-                "math::ewise", input.get(), input_strides,
-                output.get(), output_strides,
+                "math::ewise",
+                input, input_strides,
+                output, output_strides,
                 shape, stream, unary_op);
-        stream.attach(input, output);
     }
 
     #define NOA_INSTANTIATE_EWISE_UNARY(T,U,UNARY)  \
     template void ewise_unary<T,U,UNARY,void>(      \
-        const Shared<T[]>&, const Strides4<i64>&,   \
-        const Shared<U[]>&, const Strides4<i64>&,   \
+        const T*, const Strides4<i64>&,             \
+        U*, const Strides4<i64>&,                   \
         const Shape4<i64>&, UNARY, Stream&)
 
     #define NOA_INSTANTIATE_EWISE_UNARY_INT(T,U)        \

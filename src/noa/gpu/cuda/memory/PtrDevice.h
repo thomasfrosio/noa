@@ -34,7 +34,7 @@ namespace noa::cuda::memory {
             const std::shared_ptr<Stream::Core> stream_ = stream.lock();
             [[maybe_unused]] cudaError_t err{};
             if (!stream_) {
-                // The memory was allocated 1) with cudaMalloc, so cudaFree sync the device,
+                // The memory was allocated 1) with cudaMalloc, so cudaFree syncs the device,
                 // or 2) with cudaMallocAsync but the stream was deleted, so cudaFree instead.
                 err = cudaFree(ptr);
             } else {

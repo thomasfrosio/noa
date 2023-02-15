@@ -8,7 +8,7 @@
 namespace noa::cpu::memory {
     // Sets an array to a given value.
     template<typename T>
-    inline void set(T* first, T* last, T value) {
+    void set(T* first, T* last, T value) {
         // the cast is not necessary for basic types, but for Complex<> or VecX<>, it could help...
         if constexpr (traits::is_complex_v<T> || traits::is_intX_v<T> ||
                       traits::is_realX_v<T> || traits::is_matXX_v<T>) {
@@ -22,27 +22,14 @@ namespace noa::cpu::memory {
 
     // Sets an array to a given value.
     template<typename T>
-    inline void set(T* src, i64 elements, T value) {
+    void set(T* src, i64 elements, T value) {
         NOA_ASSERT(src || !elements);
         set(src, src + elements, value);
     }
 
     // Sets an array to a given value.
-    template<typename T>
-    void set(const Shared<T[]>& src, i64 elements, T value, Stream& stream) {
-        stream.enqueue([=]() { return set(src.get(), elements, value); });
-    }
-
-    // Sets an array to a given value.
     template<typename Value>
-    void set(Value* src, const Strides4<i64>& strides, const Shape4<i64>& shape, Value value) {
-        cpu::utils::ewise_unary(src, strides, src, strides, shape, [=](auto) { return value; });
-    }
-
-    // Sets an array to a given value.
-    template<typename T>
-    void set(const Shared<T[]>& src, const Strides4<i64>& strides, const Shape4<i64>& shape,
-             T value, Stream& stream) {
-        stream.enqueue([=]() { return set(src.get(), strides, shape, value); });
+    void set(Value* src, const Strides4<i64>& strides, const Shape4<i64>& shape, Value value, i64 threads) {
+        cpu::utils::ewise_unary(src, strides, src, strides, shape, [=](auto) { return value; }, threads);
     }
 }

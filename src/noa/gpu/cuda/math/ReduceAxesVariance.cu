@@ -58,7 +58,7 @@ namespace {
                 reduced_dist2 += distance * distance;
             }
         }
-        Output* s_data_real = reinterpret_cast<Output*>(s_data);
+        auto* s_data_real = reinterpret_cast<Output*>(s_data);
         s_data_real[tid] = reduced_dist2;
         utils::block_synchronize();
         Output var = utils::block_reduce_shared<BLOCK_DIM_X>(
@@ -121,7 +121,7 @@ namespace {
                 reduced_dist2 += distance * distance;
             }
         }
-        Output* s_data_real = reinterpret_cast<Output*>(s_data);
+        auto* s_data_real = reinterpret_cast<Output*>(s_data);
         Output* s_data_real_tid = s_data_real + tid;
         *s_data_real_tid = reduced_dist2;
         utils::block_synchronize();
@@ -144,9 +144,9 @@ namespace {
 
     template<bool STDDEV, typename Input, typename Output>
     void reduce_variance_axis_(const char* name,
-                             const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                             const Vec4<bool>& mask, int32_t ddof, Stream& stream) {
+                               const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                               Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                               const Vec4<bool>& mask, int32_t ddof, Stream& stream) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
@@ -224,8 +224,8 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename Input, typename Output, typename>
-    void var(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+    void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 ddof, Stream& stream) {
         const char* name = "math::var";
         const auto mask = get_mask_(name, input_shape, output_shape);
@@ -239,23 +239,21 @@ namespace noa::cuda::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             utils::reduce_variance<false>(
-                    name, input.get(), input_strides, input_shape,
-                    output.get(), output_strides.filter(0),
+                    name, input, input_strides, input_shape,
+                    output, output_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
-            stream.attach(input, output);
         } else {
             reduce_variance_axis_<false>(
                     name,
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
+                    input, input_strides, input_shape,
+                    output, output_strides, output_shape,
                     mask, ddof, stream);
-            stream.attach(input, output);
         }
     }
 
     template<typename Input, typename Output, typename>
-    void std(const Shared<Input[]>& input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             const Shared<Output[]>& output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 ddof, Stream& stream) {
         const char* name = "math::std";
         const auto mask = get_mask_(name, input_shape, output_shape);
@@ -269,28 +267,26 @@ namespace noa::cuda::math {
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             utils::reduce_variance<true>(
-                    name, input.get(), input_strides, input_shape,
-                    output.get(), output_strides.filter(0),
+                    name, input, input_strides, input_shape,
+                    output, output_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
-            stream.attach(input, output);
         } else {
             reduce_variance_axis_<true>(
                     name,
-                    input.get(), input_strides, input_shape,
-                    output.get(), output_strides, output_shape,
+                    input, input_strides, input_shape,
+                    output, output_strides, output_shape,
                     mask, ddof, stream);
-            stream.attach(input, output);
         }
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U)                                   \
-    template void var<T,U,void>(                                        \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        const Shared<U[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        i64, Stream&);                                                  \
-    template void std<T,U,void>(                                        \
-        const Shared<T[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
-        const Shared<U[]>&, const Strides4<i64>&, const Shape4<i64>&,   \
+    #define NOA_INSTANTIATE_VAR_(T,U)                       \
+    template void var<T,U,void>(                            \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        U*, const Strides4<i64>&, const Shape4<i64>&,       \
+        i64, Stream&);                                      \
+    template void std<T,U,void>(                            \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        U*, const Strides4<i64>&, const Shape4<i64>&,       \
         i64, Stream&)
 
     NOA_INSTANTIATE_VAR_(f32, f32);
