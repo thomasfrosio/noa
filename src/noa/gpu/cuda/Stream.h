@@ -11,7 +11,16 @@
 #include "noa/gpu/cuda/Exception.h"
 #include "noa/gpu/cuda/Device.h"
 
+// TODO cudaFree(Async) is synchronizing the device/stream or is stream-ordered, so this shouldn't be necessary
+//      for CUDA-managed memory. For unregistered memory that the stream depends on (e.g. CPU<->GPU copies), this
+//      should be useful. Update the documentation to reflex that?
+
 namespace noa::cuda::details {
+    template<typename T> struct proclaim_is_shared_ptr : std::false_type {};
+    template<typename T> struct proclaim_is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
+    template<typename T> constexpr bool is_shared_ptr_v = std::bool_constant<proclaim_is_shared_ptr<noa::traits::remove_ref_cv_t<T>>::value>::value;
+    template<typename... Ts> constexpr bool is_any_shared_ptr_v = noa::traits::bool_or<is_shared_ptr_v<Ts>...>::value;
+
     // Registry to attach a stream and a shared_ptr, using a FIFO buffer.
     // Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
     // kernel is running and when it's done, so that we can make sure the device memory used by this kernel
@@ -33,18 +42,23 @@ namespace noa::cuda::details {
         // The shared_ptr reference count is increased by one.
         // This function also deletes the registry from unused shared_ptr.
         template<typename ...Args>
-        void insert(Args&& ... args) {
-            std::scoped_lock lock(m_mutex);
+        bool insert(Args&& ... args) {
+            if constexpr (is_any_shared_ptr_v<Args...>) {
+                const std::scoped_lock lock(m_mutex);
 
-            i32 count = callback_count.load();
-            while (count != 0 && callback_count.compare_exchange_weak(count, count - 1)) {
-                update_();
-                --count;
+                i32 count = callback_count.load();
+                while (count != 0 && callback_count.compare_exchange_weak(count, count - 1)) {
+                    update_();
+                    --count;
+                }
+                clear_();
+
+                const auto key = static_cast<i32>(m_registry.size());
+                ([&key, this](auto&& input) { this->pushBack_(key, input); }(std::forward<Args>(args)), ...);
+                return true;
+            } else {
+                return false;
             }
-            clear_();
-
-            const auto key = static_cast<int>(m_registry.size());
-            ([&key, this](auto&& input) { this->pushBack_(key, input); }(std::forward<Args>(args)), ...);
         }
 
         // Removes from the registry the shared_ptr(s) flagged as unused.
@@ -118,6 +132,9 @@ namespace noa::cuda::details {
             // TODO When moving to C++20, use std::forward to remove extra copy if original shared_ptr is a rvalue.
             m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
         }
+
+        template<typename T>
+        void pushBack_(i32, T&&) { /* there is nothing to do */ }
     };
 }
 
@@ -198,16 +215,18 @@ namespace noa::cuda {
             #endif
         }
 
-        // Attach some shared_ptr to the stream. By incrementing the reference count this function guarantees
-        // that the memory managed by the shared_ptr(s) can be accessed by kernels until the stream reaches this point.
-        // The attached memory is implicitly released by synchronize() or next attach() calls, but it can also be
-        // explicitly cleared with clear();
+        // Attach some shared_ptr to the stream. Anything that is not a std::shared_ptr is ignored.
+        // By incrementing the reference count this function guarantees that the memory managed by the shared_ptr(s)
+        // stays valid until the stream reaches this point. The attached memory is implicitly released by
+        // synchronize() or next attach() calls, but it can also be explicitly cleared with clear();
         template<typename ...Args>
-        void attach(Args&& ... args) {
+        void enqueue_attach(Args&& ... args) {
             NOA_ASSERT(m_core);
-            m_core->registry.insert(std::forward<Args>(args)...);
-            void (*fun_ptr)(void*) = &updateRegistryCallback_;
-            NOA_THROW_IF(cudaLaunchHostFunc(m_core->handle, fun_ptr, &m_core->registry));
+            if (m_core->registry.insert(std::forward<Args>(args)...)) {
+                // Something was inserted, so enqueue a "cleaning" callback.
+                void (* fun_ptr)(void*) = &updateRegistryCallback_;
+                NOA_THROW_IF(cudaLaunchHostFunc(m_core->handle, fun_ptr, &m_core->registry));
+            }
         }
 
         // Whether the stream has completed all operations.
@@ -265,6 +284,6 @@ namespace noa::cuda {
 
     private:
         std::shared_ptr<Core> m_core{};
-        Device m_device{0, true};
+        Device m_device{0, Device::DeviceUnchecked{}};
     };
 }
