@@ -8,11 +8,11 @@ namespace noa::cpu::utils::details {
     // Parallelization is expensive. Turn it on only for large arrays.
     constexpr i64 EWISE_TRINARY_PARALLEL_THRESHOLD = 16'777'216; // 4096x4096
 
-    template<bool PARALLEL, typename Lhs, typename Rhs,
+    template<bool PARALLEL, typename Lhs, typename Mhs, typename Rhs,
              typename Output, typename Index, typename Operator>
     void ewise_trinary_4d(
             Accessor<Lhs, 4, Index> lhs,
-            Accessor<Rhs, 4, Index> mhs,
+            Accessor<Mhs, 4, Index> mhs,
             Accessor<Rhs, 4, Index> rhs,
             Accessor<Output, 4, Index> output,
             Shape4<Index> shape, Operator&& op, i64 threads) {
@@ -147,8 +147,8 @@ namespace noa::cpu::utils {
             }
         } else {
             const auto lhs_accessor = Accessor<Lhs, 4, Index>(lhs, lhs_strides);
-            const auto mhs_accessor = Accessor<Lhs, 4, Index>(mhs, mhs_strides);
-            const auto rhs_accessor = Accessor<Lhs, 4, Index>(rhs, rhs_strides);
+            const auto mhs_accessor = Accessor<Mhs, 4, Index>(mhs, mhs_strides);
+            const auto rhs_accessor = Accessor<Rhs, 4, Index>(rhs, rhs_strides);
             const auto output_accessor = Accessor<Output, 4, Index>(output, output_strides);
             if (threads_omp <= 1) {
                 details::ewise_trinary_4d<false>(
