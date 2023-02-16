@@ -2,6 +2,7 @@
 
 #include <ostream>
 #include "noa/core/Definitions.hpp"
+#include "noa/core/string/Format.hpp"
 
 namespace noa {
     /// Memory allocators.
@@ -77,22 +78,27 @@ namespace noa {
     inline std::ostream& operator<<(std::ostream& os, Allocator resource) {
         switch (resource) {
             case Allocator::NONE:
-                return os << "NONE";
+                return os << "Allocator::NONE";
             case Allocator::DEFAULT:
-                return os << "DEFAULT";
+                return os << "Allocator::DEFAULT";
             case Allocator::DEFAULT_ASYNC:
-                return os << "DEFAULT_ASYNC";
+                return os << "Allocator::DEFAULT_ASYNC";
             case Allocator::PITCHED:
-                return os << "PITCHED";
+                return os << "Allocator::PITCHED";
             case Allocator::PINNED:
-                return os << "PINNED";
+                return os << "Allocator::PINNED";
             case Allocator::MANAGED:
-                return os << "MANAGED";
+                return os << "Allocator::MANAGED";
             case Allocator::MANAGED_GLOBAL:
-                return os << "MANAGED_GLOBAL";
+                return os << "Allocator::MANAGED_GLOBAL";
             case Allocator::CUDA_ARRAY:
-                return os << "CUDA_ARRAY";
+                return os << "Allocator::CUDA_ARRAY";
         }
         return os;
     }
+}
+
+// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator (operator<<))
+namespace fmt {
+    template<> struct formatter<noa::Allocator> : ostream_formatter {};
 }

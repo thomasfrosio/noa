@@ -59,35 +59,80 @@ namespace noa {
 
     public:
         /// Creates a new stream on the given device.
-        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC);
+        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC) : m_device(device) {
+            if (m_device.is_cpu()) {
+                const auto cpu_mode = mode == StreamMode::ASYNC ? cpu::StreamMode::ASYNC : cpu::StreamMode::DEFAULT;
+                m_storage.emplace<StreamModel<cpu::Stream>>(cpu::Stream(cpu_mode));
+            } else {
+                #ifdef NOA_ENABLE_CUDA
+                cuda::Device cuda_device(m_device.id());
+                const auto cuda_mode = mode == StreamMode::ASYNC ? cuda::StreamMode::ASYNC : cuda::StreamMode::DEFAULT;
+                m_storage.emplace<StreamModel<cuda::Stream>>(cuda::Stream(cuda_device, cuda_mode));
+                #else
+                NOA_THROW("No GPU backend detected");
+                #endif
+            }
+        }
 
         /// Encapsulates (i.e. move) the given stream.
         template<typename T, typename = std::enable_if_t<is_valid_stream_v<T>>>
-        explicit Stream(T&& stream);
+        explicit Stream(T&& stream) {
+            m_storage.emplace<StreamModel<T>>(std::forward<T>(stream));
+        }
 
     public:
         /// Blocks until the stream has completed all operations.
         /// \note This function may also return error codes from previous, asynchronous launches.
-        void synchronize();
+        void synchronize() {
+            m_storage.stream()->synchronize();
+        }
 
         /// Whether or not the stream is busy.
         /// \note This function may also return error codes from previous, asynchronous launches.
-        bool is_busy();
+        bool is_busy() {
+            return m_storage.stream()->is_busy();
+        }
 
         /// Gets the underlying device.
-        [[nodiscard]] Device device() const noexcept;
+        [[nodiscard]] Device device() const noexcept {
+            return m_device;
+        }
 
         /// Gets the underlying stream, assuming it is a CPU stream (i.e. device is CPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] cpu::Stream& cpu();
+        [[nodiscard]] cpu::Stream& cpu() {
+            if (!m_device.is_cpu())
+                NOA_THROW("The stream is not a CPU stream");
+
+            StreamConcept* tmp = m_storage.stream();
+            auto* d = static_cast<StreamModel<cpu::Stream>*>(tmp); // dynamic_cast?
+            return *reinterpret_cast<cpu::Stream*>(d->addr());
+        }
 
         /// Gets the underlying stream, assuming it is a GPU stream (i.e. device is GPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] gpu::Stream& gpu();
+        [[nodiscard]] gpu::Stream& gpu() {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda();
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
 
         /// Gets the underlying stream, assuming it is a CUDA stream (i.e. device is a CUDA-capable GPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] cuda::Stream& cuda();
+        [[nodiscard]] cuda::Stream& cuda() {
+            if (!m_device.is_gpu())
+                NOA_THROW("The stream is not a GPU stream");
+
+            #ifdef NOA_ENABLE_CUDA
+            StreamConcept* tmp = m_storage.stream();
+            auto* d = static_cast<StreamModel<cuda::Stream>*>(tmp); // dynamic_cast?
+            return *reinterpret_cast<cuda::Stream*>(d->addr());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
 
     private: // Type erasure
         struct StreamConcept {
@@ -102,10 +147,29 @@ namespace noa {
         struct StreamModel : public StreamConcept {
             T stream;
             explicit StreamModel(T value) noexcept : stream(std::move(value)) {};
-            [[nodiscard]] const void* addr() const noexcept override;
-            void* addr() noexcept override;
-            void synchronize() override;
-            bool is_busy() override;
+            [[nodiscard]] const void* addr() const noexcept override { return &stream; }
+            void* addr() noexcept override { return &stream; }
+
+            void synchronize() override {
+                if constexpr (std::is_same_v<T, cpu::Stream>)
+                    stream.synchronize();
+                else {
+                    #ifdef NOA_ENABLE_CUDA
+                    stream.synchronize();
+                    #endif
+                }
+            }
+
+            bool is_busy() override  {
+                if constexpr (std::is_same_v<T, cpu::Stream>)
+                    return stream.is_busy();
+                else {
+                    #ifdef NOA_ENABLE_CUDA
+                    return stream.is_busy();
+                    #endif
+                }
+                return false;
+            }
         };
 
     private: // Small buffer optimization
@@ -113,19 +177,79 @@ namespace noa {
         class alignas(A) StreamStorage {
         public:
             StreamStorage() = default;
-            StreamStorage(const StreamStorage<N, A>& src);
-            StreamStorage(StreamStorage<N, A>&& src) noexcept;
-            StreamStorage& operator=(const StreamStorage<N, A>& src);
-            StreamStorage& operator=(StreamStorage<N, A>&& src) noexcept;
-            ~StreamStorage();
+
+            StreamStorage(const StreamStorage<N, A>& src) {
+                if (!src.is_allocated)
+                    return;
+
+                // FIXME Is there a better way of doing this?
+                const StreamConcept* tmp = src.stream();
+                if (const auto* ptr = dynamic_cast<const StreamModel<cpu::Stream>*>(tmp)) {
+                    const cpu::Stream& src_stream = *reinterpret_cast<const cpu::Stream*>(ptr->addr());
+                    this->emplace<StreamModel<cpu::Stream>>(src_stream); // copy
+                    return;
+                }
+                if (const auto* ptr = dynamic_cast<const StreamModel<cuda::Stream>*>(tmp)) {
+                    const cuda::Stream& src_stream = *reinterpret_cast<const cuda::Stream*>(ptr->addr());
+                    this->emplace<StreamModel<cuda::Stream>>(src_stream); // copy
+                    return;
+                }
+            }
+
+            StreamStorage(StreamStorage<N, A>&& src) noexcept {
+                if (src.is_allocated) {
+                    std::copy(src.storage, src.storage + N, storage);
+                    src.is_allocated = false;
+                    is_allocated = true;
+                }
+            }
+
+            StreamStorage& operator=(const StreamStorage<N, A>& src) {
+                if (this != &src)
+                    *this = StreamStorage(src); // move
+                return *this;
+            }
+
+            StreamStorage& operator=(StreamStorage<N, A>&& src) noexcept {
+                if (this != &src) {
+                    clear();
+                    if (src.is_allocated) {
+                        std::copy(src.storage, src.storage + N, storage);
+                        src.is_allocated = false;
+                        is_allocated = true;
+                    }
+                }
+                return *this;
+            }
+
+            ~StreamStorage() {
+                clear();
+            }
 
         public:
-            StreamConcept* stream() noexcept;
-            [[nodiscard]] const StreamConcept* stream() const noexcept;
-            void clear() noexcept;
+            StreamConcept* stream() noexcept {
+                return reinterpret_cast<StreamConcept*>(&storage);
+            }
+
+            [[nodiscard]] const StreamConcept* stream() const noexcept {
+                return reinterpret_cast<const StreamConcept*>(&storage);
+            }
+
+            void clear() noexcept {
+                if (is_allocated) {
+                    stream()->~StreamConcept();
+                    is_allocated = false;
+                }
+            }
 
             template<typename T, typename... Args>
-            void emplace(Args&& ... args);
+            void emplace(Args&& ... args) {
+                static_assert(sizeof(T) <= N);
+                static_assert(alignof(T) <= A);
+                clear();
+                new(this->stream()) T(std::forward<Args>(args)...);
+                is_allocated = true;
+            }
 
         private:
             std::byte storage[N]{};
@@ -161,7 +285,3 @@ namespace noa {
         Stream m_previous_current;
     };
 }
-
-#define NOA_UNIFIED_STREAM_
-#include "noa/unified/Stream.inl"
-#undef NOA_UNIFIED_STREAM_

@@ -34,7 +34,7 @@ namespace noa::memory {
              typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output> &&
                                          noa::traits::have_almost_same_value_type_v<Input, Output>>>
     void permute_copy(const Input& input, const Output& output, const Vec4<i64>& permutation) {
-        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
 
         // To enable broadcasting, we need to permute the input.
         auto input_strides = input.strides();
@@ -56,10 +56,9 @@ namespace noa::memory {
                   input.device(), device);
 
         Stream& stream = Stream::current(device);
-        const auto& input_handle = noa::details::get_handle(input);
-        const auto& output_handle = noa::details::get_handle(output);
-
         if (device.is_cpu()) {
+            const auto& input_handle = noa::details::get_handle(input);
+            const auto& output_handle = noa::details::get_handle(output);
             noa::cpu::Stream& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=](){
@@ -75,7 +74,7 @@ namespace noa::memory {
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(),
                     permutation, cuda_stream);
-            cuda_stream.enqueue_attach(input_handle, output_handle);
+            cuda_stream.enqueue_attach(input.share(), output.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -87,9 +86,9 @@ namespace noa::memory {
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
     template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_of_numeric_v<Input>>>
     auto permute_copy(const Input& input, const Vec4<i64>& permutation) {
-        using value_type = noa::traits::value_type_t<Input>;
+        using mutable_value_type = std::remove_const_t<noa::traits::value_type_t<Input>>;
         const auto permuted_shape = noa::indexing::reorder(input.shape(), permutation);
-        auto output = Array<value_type>(permuted_shape, input.options());
+        auto output = Array<mutable_value_type>(permuted_shape, input.options());
         permute_copy(input, output, permutation);
         return output;
     }

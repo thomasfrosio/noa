@@ -34,6 +34,7 @@ namespace noa {
         using value_type = typename accessor_type::value_type;
         using index_type = typename accessor_type::index_type;
         using strides_type = typename accessor_type::strides_type;
+        using mutable_value_type = std::remove_const_t<value_type>;
 
         static_assert(!std::is_pointer_v<value_type>);
         static_assert(!std::is_reference_v<value_type>);
@@ -128,7 +129,7 @@ namespace noa {
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] NOA_HD constexpr const pointer_type& share() const noexcept { return get(); }
+        [[nodiscard]] NOA_HD constexpr pointer_type share() const noexcept { return get(); }
 
         /// Retrieve the underlying accessor.
         [[nodiscard]] NOA_HD constexpr const accessor_type& accessor() const { return m_accessor; }
@@ -154,9 +155,9 @@ namespace noa {
                                 reinterpreted.shape.template as_safe<I>()};
             } else {
                 // Construct the new shape by stacking the outer dimensions together.
-                constexpr I OFFSET = 4 - N;
+                constexpr i64 OFFSET = 4 - N;
                 Shape4<i64> new_shape{1};
-                for (index_type i = 0; i < 4; ++i)
+                for (i64 i = 0; i < 4; ++i)
                     new_shape[noa::math::max(i, OFFSET)] *= reinterpreted.shape[i];
 
                 // Reshape.
@@ -195,14 +196,14 @@ namespace noa {
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param option   Output device and resource to perform the allocation of the new array.
         ///                 The current stream for that device is used to perform the copy.
-        [[nodiscard]] Array<value_type> to(ArrayOption option) const {
-            Array out(shape(), option);
+        [[nodiscard]] Array<mutable_value_type> to(ArrayOption option) const {
+            Array<mutable_value_type> out(shape(), option);
             to(out);
             return out;
         }
 
         /// Performs a deep copy of the view preserving the view's options.
-        [[nodiscard]] Array<value_type> copy() const {
+        [[nodiscard]] Array<mutable_value_type> copy() const {
             return to(options());
         }
 
@@ -294,7 +295,7 @@ namespace noa {
                         options());
         }
 
-        [[nodiscard]] Array<value_type> permute_copy(const Vec4<i64>& permutation) const {
+        [[nodiscard]] Array<mutable_value_type> permute_copy(const Vec4<i64>& permutation) const {
             return memory::permute_copy(*this, permutation);
         }
 
@@ -308,21 +309,25 @@ namespace noa {
     public: // Indexing & Subregion
         template<typename I0>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return m_accessor(i0);
         }
 
         template<typename I0, typename I1>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return m_accessor(i0, i1);
         }
 
         template<typename I0, typename I1, typename I2>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return m_accessor(i0, i1, i2);
         }
 
         template<typename I0, typename I1, typename I2, typename I3>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return m_accessor(i0, i1, i2, i3);
         }
 

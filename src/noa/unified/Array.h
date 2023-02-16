@@ -204,7 +204,7 @@ namespace noa {
 
         /// Returns an accessor mapping this array.
         [[nodiscard]] constexpr accessor_type accessor() const noexcept {
-            return accessor_type(m_shared, strides());
+            return accessor_type(get(), strides());
         }
 
         /// Returns a new Accessor and its corresponding size/shape.
@@ -330,21 +330,25 @@ namespace noa {
     public: // Indexing & Subregion
         template<typename I0>
         [[nodiscard]] constexpr value_type& operator()(I0 i0) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return accessor_reference_type(get(), strides().data())(i0);
         }
 
         template<typename I0, typename I1>
         [[nodiscard]] constexpr value_type& operator()(I0 i0, I1 i1) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return accessor_reference_type(get(), strides().data())(i0, i1);
         }
 
         template<typename I0, typename I1, typename I2>
         [[nodiscard]] constexpr value_type& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return accessor_reference_type(get(), strides().data())(i0, i1, i2);
         }
 
         template<typename I0, typename I1, typename I2, typename I3>
         [[nodiscard]] constexpr value_type& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
+            NOA_ASSERT(is_dereferenceable());
             return accessor_reference_type(get(), strides().data())(i0, i1, i2, i3);
         }
 
@@ -551,36 +555,4 @@ namespace noa {
 
 namespace noa::traits {
     template<typename T> struct proclaim_is_array<Array<T>> : std::true_type {};
-}
-
-namespace noa::indexing {
-    /// Broadcasts an array to a given shape.
-    template<typename T>
-    [[nodiscard]] Array<T> broadcast(const Array<T>& input, const Shape4<i64>& shape) {
-        auto strides = input.strides();
-        if (!broadcast(input.shape(), strides, shape))
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}", input.shape(), shape);
-        return Array<T>(input.share(), shape, strides, input.options());
-    }
-
-    /// Whether \p lhs and \p rhs overlap in memory.
-    template<typename T, typename U>
-    [[nodiscard]] bool are_overlapped(const Array<T>& lhs, const Array<U>& rhs) {
-        if (lhs.empty() || rhs.empty())
-            return false;
-        return are_overlapped(reinterpret_cast<uintptr_t>(lhs.get()),
-                              reinterpret_cast<uintptr_t>(lhs.get() + at(lhs.shape() - 1, lhs.strides())),
-                              reinterpret_cast<uintptr_t>(rhs.get()),
-                              reinterpret_cast<uintptr_t>(rhs.get() + at(rhs.shape() - 1, rhs.strides())));
-    }
-
-    /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
-    /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
-    template<typename T>
-    [[nodiscard]] constexpr Vec4<i64> offset2index(i64 offset, const Array<T>& array) {
-        NOA_CHECK(!any(array.strides() == 0),
-                  "Cannot retrieve the 4D index from a broadcast array. Got strides:{}",
-                  array.strides());
-        return offset2index(offset, array.strides(), array.shape());
-    }
 }

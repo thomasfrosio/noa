@@ -8,10 +8,9 @@ set(NOA_UNIFIED_HEADERS
         unified/Array.h
         unified/ArrayOption.h
         unified/Device.h
-        unified/Device.inl
         unified/Handle.hpp
+        unified/Indexing.hpp
         unified/Stream.h
-        unified/Stream.inl
 #        unified/Texture.h
 #        unified/Texture.inl
         unified/View.h

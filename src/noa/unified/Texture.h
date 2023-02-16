@@ -2,7 +2,6 @@
 
 #include <variant>
 
-#include "noa/common/Types.h"
 #include "noa/unified/Array.h"
 #include "noa/unified/ArrayOption.h"
 #include "noa/unified/geometry/Prefilter.h"

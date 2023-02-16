@@ -4,6 +4,7 @@
 #include "noa/core/utils/Indexing.hpp"
 #include "noa/unified/Stream.h"
 #include "noa/unified/Handle.hpp"
+#include "noa/unified/Indexing.hpp"
 
 #include "noa/cpu/memory/Copy.hpp"
 #ifdef NOA_ENABLE_CUDA
@@ -17,8 +18,10 @@ namespace noa::memory {
     ///          layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
-    template<typename ArrayOrView, typename = std::enable_if_t<noa::traits::is_array_or_view_v<ArrayOrView>>>
-    void copy(const ArrayOrView& input, const ArrayOrView& output) {
+    template<typename Input, typename Output,
+             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Input, Output> &&
+                                         noa::traits::have_almost_same_value_type_v<Input, Output>>>
+    void copy(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output should not overlap");
 
@@ -30,12 +33,11 @@ namespace noa::memory {
 
         const Device input_device = input.device();
         const Device output_device = output.device();
-        const auto& input_handle = noa::details::get_handle(input);
-        const auto& output_handle = noa::details::get_handle(output);
-
         if (input_device.is_cpu() && output_device.is_cpu()) {
             auto& cpu_stream = Stream::current(input_device).cpu();
             const auto threads = cpu_stream.threads();
+            const auto& input_handle = noa::details::get_handle(input);
+            const auto& output_handle = noa::details::get_handle(output);
             cpu_stream.enqueue([=](){
                 cpu::memory::copy(input_handle.get(), input_strides,
                                   output_handle.get(), output.strides(),
@@ -45,10 +47,10 @@ namespace noa::memory {
             #ifdef NOA_ENABLE_CUDA
             Stream::current(output_device).synchronize();
             auto& cuda_stream = Stream::current(input_device).cuda();
-            cuda::memory::copy(input_handle.get(), input_strides,
-                               output_handle.get(), output.strides(),
+            cuda::memory::copy(input.get(), input_strides,
+                               output.get(), output.strides(),
                                output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input_handle, output_handle);
+            cuda_stream.enqueue_attach(input.share(), output.share());
             cuda_stream.synchronize();
             #else
             NOA_THROW("No GPU backend detected");
@@ -58,10 +60,10 @@ namespace noa::memory {
             if (input_device != output_device)
                 Stream::current(input_device).synchronize(); // wait for the input
             auto& cuda_stream = Stream::current(output_device).cuda();
-            cuda::memory::copy(input_handle.get(), input_strides,
-                               output_handle.get(), output.strides(),
+            cuda::memory::copy(input.get(), input_strides,
+                               output.get(), output.strides(),
                                output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input_handle, output_handle);
+            cuda_stream.enqueue_attach(input.share(), output.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
