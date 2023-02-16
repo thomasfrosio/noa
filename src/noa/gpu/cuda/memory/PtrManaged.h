@@ -62,7 +62,7 @@ namespace noa::cuda::memory {
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMallocManaged(
                     &tmp, static_cast<size_t>(elements) * sizeof(value_type), cudaMemAttachGlobal));
-            return {static_cast<value_type*>(tmp)};
+            return unique_type(static_cast<value_type*>(tmp));
         }
 
         // Allocates managed memory using cudaMallocManaged.
@@ -82,10 +82,10 @@ namespace noa::cuda::memory {
             if (elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            NOA_THROW_IF(cudaMallocManaged(&tmp, elements * sizeof(value_type), cudaMemAttachHost));
+            NOA_THROW_IF(cudaMallocManaged(&tmp, static_cast<size_t>(elements) * sizeof(value_type), cudaMemAttachHost));
             NOA_THROW_IF(cudaStreamAttachMemAsync(stream.id(), tmp));
             stream.synchronize(); // FIXME is this necessary since cudaMemAttachHost is used?
-            return {static_cast<value_type*>(tmp), deleter_type{stream.core()}};
+            return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
         }
 
     public:

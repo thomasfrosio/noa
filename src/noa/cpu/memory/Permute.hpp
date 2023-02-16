@@ -32,11 +32,11 @@ namespace noa::cpu::memory {
                 case 123:
                     return;
                 case 213:
-                    details::permute_inplace_0213<Value>(output, output_strides, input_shape);
+                    return details::permute_inplace_0213<Value>(output, output_strides, input_shape);
                 case 132:
-                    details::permute_inplace_0132<Value>(output, output_strides, input_shape);
+                    return details::permute_inplace_0132<Value>(output, output_strides, input_shape);
                 case 321:
-                    details::permute_inplace_0321<Value>(output, output_strides, input_shape);
+                    return details::permute_inplace_0321<Value>(output, output_strides, input_shape);
                 default:
                     NOA_THROW("The in-place permutation {} is not supported", permutation);
             }

@@ -75,7 +75,7 @@ namespace noa::cuda::memory {
                 NOA_THROW("DEV: pitch is not divisible by sizeof({}): {} % {} != 0",
                           string::human<value_type>(), pitched_ptr.pitch, sizeof(value_type));
             }
-            return std::pair{unique_type{static_cast<value_type*>(pitched_ptr.ptr)},
+            return std::pair{unique_type(static_cast<value_type*>(pitched_ptr.ptr)),
                              pitched_ptr.pitch / sizeof(value_type)};
         }
 

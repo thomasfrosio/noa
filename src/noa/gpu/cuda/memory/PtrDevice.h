@@ -71,7 +71,7 @@ namespace noa::cuda::memory {
             const DeviceGuard guard(device);
             void* tmp{nullptr}; // X** to void** is not allowed
             NOA_THROW_IF(cudaMalloc(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
-            return {static_cast<value_type*>(tmp)};
+            return unique_type(static_cast<value_type*>(tmp));
         }
 
         // Allocates device memory asynchronously using cudaMallocAsync, with an alignment of at least 256 bytes.
@@ -81,11 +81,11 @@ namespace noa::cuda::memory {
             void* tmp{nullptr}; // X** to void** is not allowed
             #if CUDART_VERSION >= 11020
             NOA_THROW_IF(cudaMallocAsync(&tmp, static_cast<size_t>(elements) * sizeof(value_type), stream.id()));
-            return {static_cast<value_type*>(tmp), deleter_type{stream.core()}};
+            return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
             #else
             DeviceGuard device(stream.device());
             NOA_THROW_IF(cudaMalloc(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
-            return {static_cast<value_type*>(tmp), deleter_type{stream.core()}};
+            return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
             #endif
         }
 

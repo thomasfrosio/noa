@@ -70,7 +70,7 @@ namespace noa::cuda::memory {
                 return {};
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
             NOA_THROW_IF(cudaMallocHost(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
-            return unique_type{static_cast<value_type*>(tmp)};
+            return unique_type(static_cast<value_type*>(tmp));
         }
 
     public:
