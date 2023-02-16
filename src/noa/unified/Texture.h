@@ -2,8 +2,8 @@
 
 #include <variant>
 
-#include "noa/unified/Array.h"
-#include "noa/unified/ArrayOption.h"
+#include "noa/unified/Array.hpp"
+#include "noa/unified/ArrayOption.hpp"
 #include "noa/unified/geometry/Prefilter.h"
 
 #ifdef NOA_ENABLE_CUDA

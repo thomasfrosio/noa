@@ -4,10 +4,10 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Indexing.hpp"
 
-#include "noa/unified/ArrayOption.h"
-#include "noa/unified/Stream.h"
-#include "noa/unified/memory/Copy.h"
-#include "noa/unified/memory/Permute.h"
+#include "noa/unified/ArrayOption.hpp"
+#include "noa/unified/Stream.hpp"
+#include "noa/unified/memory/Copy.hpp"
+#include "noa/unified/memory/Permute.hpp"
 
 namespace noa {
     template<typename T>

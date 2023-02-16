@@ -1,7 +1,7 @@
 #pragma once
 
-#include "noa/unified/Allocator.h"
-#include "noa/unified/Device.h"
+#include "noa/unified/Allocator.hpp"
+#include "noa/unified/Device.hpp"
 
 namespace noa {
     /// Options for Array(s).

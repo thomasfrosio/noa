@@ -2,7 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Indexing.hpp"
-#include "noa/unified/Stream.h"
+#include "noa/unified/Stream.hpp"
 #include "noa/unified/Handle.hpp"
 
 #include "noa/cpu/memory/Permute.hpp"

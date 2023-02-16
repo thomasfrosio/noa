@@ -1,5 +1,5 @@
-#include "noa/unified/Device.h"
-#include "noa/unified/Stream.h"
+#include "noa/unified/Device.hpp"
+#include "noa/unified/Stream.hpp"
 #include "noa/cpu/Device.hpp"
 
 namespace noa {

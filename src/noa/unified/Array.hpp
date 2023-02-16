@@ -15,11 +15,11 @@
 #include "noa/gpu/cuda/utils/Pointers.h"
 #endif
 
-#include "noa/unified/ArrayOption.h"
-#include "noa/unified/Stream.h"
-#include "noa/unified/View.h"
-#include "noa/unified/memory/Copy.h"
-#include "noa/unified/memory/Permute.h"
+#include "noa/unified/ArrayOption.hpp"
+#include "noa/unified/Stream.hpp"
+#include "noa/unified/View.hpp"
+#include "noa/unified/memory/Copy.hpp"
+#include "noa/unified/memory/Permute.hpp"
 
 namespace noa {
     /// 4-dimensional owning array.

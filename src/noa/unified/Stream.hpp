@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/unified/Device.h"
+#include "noa/unified/Device.hpp"
 
 #include "noa/cpu/Stream.hpp"
 

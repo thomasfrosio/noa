@@ -1,6 +1,6 @@
 #include <forward_list>
 
-#include "Stream.h"
+#include "Stream.hpp"
 
 namespace {
     // Adding, removing and moving the elements within the list does not invalidate
