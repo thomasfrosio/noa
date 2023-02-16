@@ -1,5 +1,5 @@
 #include "noa/core/types/Functors.hpp"
-#include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::memory::details {

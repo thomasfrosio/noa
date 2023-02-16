@@ -1,9 +1,9 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Device.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Device.hpp"
 
 // Memory pools: (since CUDA 11.2)
 //  - When called without an explicit pool argument, each call to cudaMallocAsync infers the device from the

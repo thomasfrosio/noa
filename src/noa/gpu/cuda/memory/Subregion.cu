@@ -1,5 +1,5 @@
 #include "noa/gpu/cuda/memory/Subregion.hpp"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/algorithms/memory/ExtractInsert.hpp"
 

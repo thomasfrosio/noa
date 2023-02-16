@@ -1,6 +1,6 @@
 #include <cublas_v2.h>
 
-#include "noa/gpu/cuda/math/Blas.h"
+#include "noa/gpu/cuda/math/Blas.hpp"
 #include "noa/gpu/cuda/utils/ReduceBinary.cuh"
 
 // TODO Add cublasStatus_t support for NOA_THROW_IF?

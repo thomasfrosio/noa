@@ -1,11 +1,11 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
-#include "noa/gpu/cuda/memory/PtrArray.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
+#include "noa/gpu/cuda/memory/PtrArray.hpp"
 
 // TODO Add nvrtc to support any type.
 

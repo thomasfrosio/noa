@@ -1,8 +1,8 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::memory {
     template<typename T, typename = std::enable_if_t<noa::traits::is_restricted_scalar_v<T>>>

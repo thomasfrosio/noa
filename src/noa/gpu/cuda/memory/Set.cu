@@ -1,6 +1,6 @@
-#include "noa/gpu/cuda/memory/Set.h"
+#include "noa/gpu/cuda/memory/Set.hpp"
 #include "noa/gpu/cuda/utils/EwiseUnary.cuh"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 
 namespace noa::cuda::memory::details {
     template<typename T, typename _>

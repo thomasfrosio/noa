@@ -1,6 +1,6 @@
-#include "noa/gpu/cuda/memory/Arange.h"
+#include "noa/gpu/cuda/memory/Arange.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/algorithms/memory/Arange.hpp"
 
 namespace noa::cuda::memory {

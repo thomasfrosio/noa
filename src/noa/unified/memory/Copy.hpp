@@ -8,7 +8,7 @@
 
 #include "noa/cpu/memory/Copy.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/memory/Copy.hpp"
 #endif
 
 namespace noa::memory {

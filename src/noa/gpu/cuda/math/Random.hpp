@@ -2,7 +2,7 @@
 
 #include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::math::details {
     template<typename T, typename U>

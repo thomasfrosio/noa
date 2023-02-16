@@ -12,8 +12,8 @@
 #include "noa/cpu/Device.hpp"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/Device.h"
-#include "noa/gpu/cuda/memory/MemoryPool.h"
+#include "noa/gpu/cuda/Device.hpp"
+#include "noa/gpu/cuda/memory/MemoryPool.hpp"
 #endif
 
 namespace noa {

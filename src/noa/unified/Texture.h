@@ -7,10 +7,10 @@
 #include "noa/unified/geometry/Prefilter.h"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/memory/PtrArray.h"
-#include "noa/gpu/cuda/memory/PtrTexture.h"
-#include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/memory/PtrArray.hpp"
+#include "noa/gpu/cuda/memory/PtrTexture.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
 #else
 namespace noa::cuda {
     template<typename T>

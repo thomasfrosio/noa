@@ -4,10 +4,10 @@
 // so use the radix sort for everything...
 #include <cub/device/device_radix_sort.cuh>
 
-#include "noa/gpu/cuda/Sort.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/Iota.h"
+#include "noa/gpu/cuda/Sort.hpp"
+#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/memory/Iota.hpp"
 
 namespace {
     using namespace ::noa;

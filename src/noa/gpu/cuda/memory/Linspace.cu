@@ -1,6 +1,6 @@
-#include "noa/gpu/cuda/memory/Linspace.h"
-#include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/memory/Linspace.hpp"
+#include "noa/gpu/cuda/memory/Set.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/algorithms/memory/Linspace.hpp"
 

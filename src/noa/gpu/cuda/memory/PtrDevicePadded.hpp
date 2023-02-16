@@ -4,9 +4,9 @@
 
 #include "noa/core/Definitions.hpp"
 #include "noa/core/string/Format.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Device.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Device.hpp"
 
 // PtrDevicePadded's shared ownership
 //  - PtrDevicePadded can decouple its lifetime and the lifetime of the managed device pointer.

@@ -3,9 +3,9 @@
 #include <utility> // std::exchange
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
 // Unified memory:
 //  - Managed memory is interoperable and interchangeable with device-specific allocations, such as those created

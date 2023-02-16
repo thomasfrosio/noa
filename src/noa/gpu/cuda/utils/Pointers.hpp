@@ -2,8 +2,8 @@
 
 #include "noa/core/Definitions.hpp"
 #include "noa/core/Exception.hpp"
-#include "noa/gpu/cuda/Device.h"
-#include "noa/gpu/cuda/Types.h"
+#include "noa/gpu/cuda/Device.hpp"
+#include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda::utils {
     // Returns the pointer attributes of ptr.

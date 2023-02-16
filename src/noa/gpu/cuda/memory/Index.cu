@@ -1,11 +1,11 @@
 #include <cub/device/device_scan.cuh>
 
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/Index.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/memory/Index.hpp"
+#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 #include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 #include "noa/gpu/cuda/utils/Iwise.cuh"

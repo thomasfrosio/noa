@@ -7,9 +7,9 @@
 #include <atomic>
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Device.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Device.hpp"
 
 // TODO cudaFree(Async) is synchronizing the device/stream or is stream-ordered, so this shouldn't be necessary
 //      for CUDA-managed memory. For unregistered memory that the stream depends on (e.g. CPU<->GPU copies), this

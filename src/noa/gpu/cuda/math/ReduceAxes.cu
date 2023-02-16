@@ -1,7 +1,7 @@
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/math/Reduce.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/math/Reduce.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace {

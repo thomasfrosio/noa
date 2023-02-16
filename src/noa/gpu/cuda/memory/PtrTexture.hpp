@@ -1,8 +1,8 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
 
 // CUDA textures:
 //  -   Address mode: How out of range coordinates are handled. This can be specified for each coordinates (although

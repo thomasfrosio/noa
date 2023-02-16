@@ -4,8 +4,8 @@
 #include <utility>      // std::exchange
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
 
 // CUDA arrays:
 //  -   Data resides in global memory. The host can cudaMemcpy to it and the device can only access it through texture

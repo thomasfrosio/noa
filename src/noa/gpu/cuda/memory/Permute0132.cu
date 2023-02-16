@@ -1,6 +1,6 @@
 #include "noa/core/math/Generic.hpp"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/memory/Permute.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/memory/Permute.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
 
 // Logic from:

@@ -1,5 +1,5 @@
 #include "noa/core/utils/Pair.hpp"
-#include "noa/gpu/cuda/Find.h"
+#include "noa/gpu/cuda/Find.hpp"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace {

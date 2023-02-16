@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda {
     // Sorts an array, in-place.

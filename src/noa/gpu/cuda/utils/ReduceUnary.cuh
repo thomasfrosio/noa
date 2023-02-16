@@ -1,11 +1,11 @@
 #pragma once
 
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/memory/PtrPinned.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/memory/PtrPinned.hpp"
 
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
 
 // These reduction kernels are adapted from different sources, but the main logic comes from:

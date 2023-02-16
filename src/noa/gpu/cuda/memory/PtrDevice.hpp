@@ -3,9 +3,9 @@
 #include <utility> // std::exchange
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
 // PtrDevice's shared ownership
 //  - PtrDevice can decouple its lifetime and the lifetime of the managed device pointer.

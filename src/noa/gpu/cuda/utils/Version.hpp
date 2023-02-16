@@ -1,8 +1,8 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/Types.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda {
     // Gets the latest version of CUDA supported by the driver. Format 1000 * major + 10 * minor.

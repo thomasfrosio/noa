@@ -1,4 +1,4 @@
-#include "noa/gpu/cuda/Ewise.h"
+#include "noa/gpu/cuda/Ewise.hpp"
 #include "noa/gpu/cuda/utils/EwiseTrinary.cuh"
 
 namespace noa::cuda {

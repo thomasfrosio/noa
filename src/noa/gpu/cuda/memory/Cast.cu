@@ -1,6 +1,6 @@
-#include "noa/gpu/cuda/memory/Cast.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/memory/Cast.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/EwiseUnary.cuh"
 
 namespace noa::cuda::memory {

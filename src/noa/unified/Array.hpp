@@ -7,12 +7,12 @@
 #include "noa/cpu/memory/PtrHost.hpp"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/memory/Permute.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/memory/PtrDevicePadded.h"
-#include "noa/gpu/cuda/memory/PtrManaged.h"
-#include "noa/gpu/cuda/memory/PtrPinned.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/memory/Permute.hpp"
+#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/memory/PtrDevicePadded.hpp"
+#include "noa/gpu/cuda/memory/PtrManaged.hpp"
+#include "noa/gpu/cuda/memory/PtrPinned.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #endif
 
 #include "noa/unified/ArrayOption.hpp"

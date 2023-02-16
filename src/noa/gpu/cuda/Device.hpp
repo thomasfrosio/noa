@@ -10,9 +10,9 @@
 #include "noa/core/string/Format.hpp"
 #include "noa/core/string/Parse.hpp"
 
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/utils/Version.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/utils/Version.hpp"
 
 namespace noa::cuda {
     struct DeviceMemory { size_t free; size_t total; }; // bytes

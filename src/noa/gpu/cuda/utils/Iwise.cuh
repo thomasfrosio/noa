@@ -3,8 +3,8 @@
 #include "noa/core/Definitions.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/utils/Indexing.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::utils {
     template<u32 THREADS_X, u32 THREADS_Y,

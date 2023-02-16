@@ -1,10 +1,10 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 
 // -- Unary -- //
 namespace noa::cuda::utils {

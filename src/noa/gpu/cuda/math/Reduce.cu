@@ -1,5 +1,5 @@
-#include "noa/gpu/cuda/Sort.h"
-#include "noa/gpu/cuda/math/Reduce.h"
+#include "noa/gpu/cuda/Sort.hpp"
+#include "noa/gpu/cuda/math/Reduce.hpp"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace noa::cuda::math {

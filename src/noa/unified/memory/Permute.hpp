@@ -7,7 +7,7 @@
 
 #include "noa/cpu/memory/Permute.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/memory/Permute.h"
+#include "noa/gpu/cuda/memory/Permute.hpp"
 #endif
 
 namespace noa::memory {

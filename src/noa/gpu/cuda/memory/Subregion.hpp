@@ -2,7 +2,7 @@
 
 #include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::memory {
     // Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.

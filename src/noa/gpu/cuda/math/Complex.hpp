@@ -1,8 +1,8 @@
 #pragma once
 
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/cuda/Ewise.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
+#include "noa/gpu/cuda/Ewise.hpp"
 
 namespace noa::cuda::math {
     // Extracts the real and imaginary part of complex numbers.

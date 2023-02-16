@@ -1,4 +1,4 @@
-#include "noa/gpu/cuda/math/Complex.h"
+#include "noa/gpu/cuda/math/Complex.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/EwiseBinary.cuh"

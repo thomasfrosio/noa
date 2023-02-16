@@ -1,6 +1,6 @@
-#include "noa/gpu/cuda/Ewise.h"
-#include "noa/gpu/cuda/math/Reduce.h"
-#include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/Ewise.hpp"
+#include "noa/gpu/cuda/math/Reduce.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 

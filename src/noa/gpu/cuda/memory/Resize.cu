@@ -1,9 +1,9 @@
 #include "noa/core/Assert.hpp"
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/memory/Resize.h"
-#include "noa/gpu/cuda/memory/Copy.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/memory/Resize.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/algorithms/memory/Resize.hpp"
 
 namespace noa::cuda::memory {

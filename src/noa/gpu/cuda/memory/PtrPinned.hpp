@@ -6,8 +6,8 @@
 #include <cstddef>      // size_t
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Exception.h"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
 
 // Notes on the page-locked memory and the implementation in PtrPinned.
 // ====================================================================

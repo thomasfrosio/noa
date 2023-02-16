@@ -3,7 +3,7 @@
 #include <cuda_fp16.h>
 
 #include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.h"
+#include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda::utils::details {
     template<typename T>

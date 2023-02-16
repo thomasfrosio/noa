@@ -6,8 +6,8 @@
 #include "noa/cpu/Stream.hpp"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/Stream.h"
-#include "noa/gpu/Backend.h"
+#include "noa/gpu/cuda/Stream.hpp"
+#include "noa/gpu/Backend.hpp"
 #else
 namespace noa::cuda {
     class Stream {};
