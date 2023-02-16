@@ -66,7 +66,7 @@ namespace noa::cpu::utils::details {
         auto final_reduce = initial_reduce;
 
         #pragma omp parallel default(none) num_threads(threads) \
-        shared(lhs, rhs, size, initial_reduce, final_reduce) \
+        shared(lhs, rhs, size, initial_reduce, final_reduce)    \
         firstprivate(reduce_op, pre_process_op)
         {
             const i64 thread_id = omp_get_thread_num();
@@ -216,7 +216,7 @@ namespace noa::cpu::utils {
                 Rhs* rhs_ptr = rhs + noa::indexing::at(i, rhs_strides);
                 Output* output_ptr = output + noa::indexing::at(i, output_stride);
                 const auto lhs_accessor = Accessor<Lhs, 4, Index>(lhs_ptr, lhs_strides);
-                const auto rhs_accessor = Accessor<Lhs, 4, Index>(rhs_ptr, rhs_strides);
+                const auto rhs_accessor = Accessor<Rhs, 4, Index>(rhs_ptr, rhs_strides);
                 if (parallel) {
                     *output_ptr = static_cast<Output>(
                             noa::cpu::utils::details::reduce_binary_4d_parallel(
