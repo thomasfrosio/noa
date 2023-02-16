@@ -5,14 +5,14 @@ endif ()
 
 set(NOA_CUDA_HEADERS
         # noa::cuda
-        gpu/cuda/Device.h
-        gpu/cuda/Event.h
-        gpu/cuda/Ewise.h
-        gpu/cuda/Exception.h
-        gpu/cuda/Find.h
-        gpu/cuda/Sort.h
-        gpu/cuda/Stream.h
-        gpu/cuda/Types.h
+        gpu/cuda/Device.hpp
+        gpu/cuda/Event.hpp
+        gpu/cuda/Ewise.hpp
+        gpu/cuda/Exception.hpp
+        gpu/cuda/Find.hpp
+        gpu/cuda/Sort.hpp
+        gpu/cuda/Stream.hpp
+        gpu/cuda/Types.hpp
 
         # noa::cuda::utils
         gpu/cuda/utils/Block.cuh
@@ -20,29 +20,29 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/utils/EwiseTrinary.cuh
         gpu/cuda/utils/EwiseUnary.cuh
         gpu/cuda/utils/Iwise.cuh
-        gpu/cuda/utils/Pointers.h
+        gpu/cuda/utils/Pointers.hpp
         gpu/cuda/utils/ReduceUnary.cuh
         gpu/cuda/utils/ReduceBinary.cuh
-        gpu/cuda/utils/Version.h
+        gpu/cuda/utils/Version.hpp
         gpu/cuda/utils/Warp.cuh
 
         # noa::cuda::memory
-        gpu/cuda/memory/Arange.h
-        gpu/cuda/memory/Cast.h
-        gpu/cuda/memory/Copy.h
-        gpu/cuda/memory/Index.h
-        gpu/cuda/memory/Iota.h
-        gpu/cuda/memory/Linspace.h
-        gpu/cuda/memory/MemoryPool.h
-        gpu/cuda/memory/Permute.h
-        gpu/cuda/memory/PtrArray.h
-        gpu/cuda/memory/PtrDevice.h
-        gpu/cuda/memory/PtrDevicePadded.h
-        gpu/cuda/memory/PtrManaged.h
-        gpu/cuda/memory/PtrPinned.h
-        gpu/cuda/memory/PtrTexture.h
-        gpu/cuda/memory/Resize.h
-        gpu/cuda/memory/Set.h
+        gpu/cuda/memory/Arange.hpp
+        gpu/cuda/memory/Cast.hpp
+        gpu/cuda/memory/Copy.hpp
+        gpu/cuda/memory/Index.hpp
+        gpu/cuda/memory/Iota.hpp
+        gpu/cuda/memory/Linspace.hpp
+        gpu/cuda/memory/MemoryPool.hpp
+        gpu/cuda/memory/Permute.hpp
+        gpu/cuda/memory/PtrArray.hpp
+        gpu/cuda/memory/PtrDevice.hpp
+        gpu/cuda/memory/PtrDevicePadded.hpp
+        gpu/cuda/memory/PtrManaged.hpp
+        gpu/cuda/memory/PtrPinned.hpp
+        gpu/cuda/memory/PtrTexture.hpp
+        gpu/cuda/memory/Resize.hpp
+        gpu/cuda/memory/Set.hpp
         gpu/cuda/memory/Subregion.hpp
 
 #        # noa::cuda::fft
@@ -53,10 +53,10 @@ set(NOA_CUDA_HEADERS
 #        gpu/cuda/fft/Transforms.h
 #
 #        # noa::cuda::math
-        gpu/cuda/math/Blas.h
-        gpu/cuda/math/Complex.h
-        gpu/cuda/math/Random.h
-        gpu/cuda/math/Reduce.h
+        gpu/cuda/math/Blas.hpp
+        gpu/cuda/math/Complex.hpp
+        gpu/cuda/math/Random.hpp
+        gpu/cuda/math/Reduce.hpp
 
 #        # noa::cuda::signal
 #        gpu/cuda/signal/fft/Bandpass.h

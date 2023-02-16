@@ -7,7 +7,7 @@ namespace noa::cuda {
                      Out* output, const Strides4<i64>& output_strides,
                      const Shape4<i64>& shape, UnaryOp unary_op, Stream& stream) {
         cuda::utils::ewise_unary(
-                "math::ewise",
+                "ewise_unary",
                 input, input_strides,
                 output, output_strides,
                 shape, stream, unary_op);
@@ -26,6 +26,7 @@ namespace noa::cuda {
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::negate_t);   \
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::one_minus_t)
 
+    NOA_INSTANTIATE_EWISE_UNARY_INT(i8, i8);
     NOA_INSTANTIATE_EWISE_UNARY_INT(i16, i16);
     NOA_INSTANTIATE_EWISE_UNARY_INT(i32, i32);
     NOA_INSTANTIATE_EWISE_UNARY_INT(i64, i64);
@@ -34,6 +35,7 @@ namespace noa::cuda {
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::copy_t); \
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::square_t)
 
+    NOA_INSTANTIATE_EWISE_UNARY_UINT(u8, u8);
     NOA_INSTANTIATE_EWISE_UNARY_UINT(u16, u16);
     NOA_INSTANTIATE_EWISE_UNARY_UINT(u32, u32);
     NOA_INSTANTIATE_EWISE_UNARY_UINT(u64, u64);
@@ -42,15 +44,19 @@ namespace noa::cuda {
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::nonzero_t);  \
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::logical_not_t)
 
+    NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i8, i8);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i16, i16);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i32, i32);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i64, i64);
+    NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u8, u8);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u16, u16);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u32, u32);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u64, u64);
+    NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i8, bool);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i16, bool);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i32, bool);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(i64, bool);
+    NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u8, bool);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u16, bool);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u32, bool);
     NOA_INSTANTIATE_EWISE_UNARY_TO_BOOL(u64, bool);
