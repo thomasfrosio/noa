@@ -4,16 +4,17 @@ if (NOT NOA_ENABLE_UNIFIED)
 endif ()
 
 set(NOA_UNIFIED_HEADERS
-        unified/Allocator.h
-        unified/Array.h
-        unified/ArrayOption.h
-        unified/Device.h
+        unified/Allocator.hpp
+        unified/Array.hpp
+        unified/ArrayOption.hpp
+        unified/Device.hpp
         unified/Handle.hpp
         unified/Indexing.hpp
-        unified/Stream.h
+        unified/Stream.hpp
 #        unified/Texture.h
 #        unified/Texture.inl
-        unified/View.h
+        unified/View.hpp
+        unified/Ewise.hpp
 
 #        # noa::io
 #        unified/io/ImageFile.h
@@ -59,12 +60,12 @@ set(NOA_UNIFIED_HEADERS
 #        # noa::memory
 #        unified/memory/Cast.h
 #        unified/memory/Cast.inl
-        unified/memory/Copy.h
+        unified/memory/Copy.hpp
 #        unified/memory/Factory.h
 #        unified/memory/Factory.inl
 #        unified/memory/Index.h
 #        unified/memory/Index.inl
-        unified/memory/Permute.h
+        unified/memory/Permute.hpp
 #        unified/memory/Resize.h
 #        unified/memory/Resize.inl
 #
@@ -73,8 +74,6 @@ set(NOA_UNIFIED_HEADERS
 #        unified/math/Blas.inl
 #        unified/math/Complex.h
 #        unified/math/Complex.inl
-#        unified/math/Ewise.h
-#        unified/math/Ewise.inl
 #        unified/math/Find.h
 #        unified/math/Find.inl
 #        unified/math/LinAlg.h
