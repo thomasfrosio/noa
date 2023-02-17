@@ -372,16 +372,17 @@ namespace noa::cuda::memory {
 
     template<typename ExtractedValue, typename ExtractedOffset, typename Output, typename>
     void insert_elements(
-            const Extracted<ExtractedValue, ExtractedOffset>& extracted,
-            Output* output, Stream& stream) {
+            const ExtractedValue* extracted_values,
+            const ExtractedOffset* extracted_offsets,
+            i64 elements, Output* output, Stream& stream) {
         auto kernel = InsertSequence<ExtractedValue, Output, ExtractedOffset>{
-                extracted.values.get(), extracted.offsets.get(), output};
-        noa::cuda::utils::iwise_1d("extract", extracted.count, kernel, stream);
+                extracted_values, extracted_offsets, output};
+        noa::cuda::utils::iwise_1d("extract", elements, kernel, stream);
     }
 
     #define INSTANTIATE_INSERT_BASE_(T, I)                                              \
     template void extract_elements<T,I,T,void>(const T*, const I*, T*, i64, Stream&);   \
-    template void insert_elements<T,I,T,void>(const Extracted<T, I>&, T*, Stream&)
+    template void insert_elements<T,I,T,void>(const T*, const I*, i64, T*, Stream&)
 
     #define INSTANTIATE_INSERT_(T)      \
     INSTANTIATE_INSERT_BASE_(T, i32);   \

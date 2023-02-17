@@ -3,7 +3,6 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Indexing.hpp"
 #include "noa/unified/Stream.hpp"
-#include "noa/unified/Handle.hpp"
 #include "noa/unified/Indexing.hpp"
 
 #include "noa/cpu/memory/Copy.hpp"
@@ -20,7 +19,7 @@ namespace noa::memory {
     /// \param[out] output  Destination. It should not overlap with \p input.
     template<typename Input, typename Output,
              typename = std::enable_if_t<noa::traits::are_array_or_view_v<Input, Output> &&
-                                         noa::traits::have_almost_same_value_type_v<Input, Output>>>
+                                         noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void copy(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output should not overlap");
@@ -36,11 +35,9 @@ namespace noa::memory {
         if (input_device.is_cpu() && output_device.is_cpu()) {
             auto& cpu_stream = Stream::current(input_device).cpu();
             const auto threads = cpu_stream.threads();
-            const auto& input_handle = noa::details::get_handle(input);
-            const auto& output_handle = noa::details::get_handle(output);
             cpu_stream.enqueue([=](){
-                cpu::memory::copy(input_handle.get(), input_strides,
-                                  output_handle.get(), output.strides(),
+                cpu::memory::copy(input.get(), input_strides,
+                                  output.get(), output.strides(),
                                   output.shape(), threads);
             });
         } else if (output_device.is_cpu()) { // gpu -> cpu

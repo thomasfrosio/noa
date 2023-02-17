@@ -97,6 +97,7 @@ namespace noa::cuda::memory {
     template<typename ExtractedValue, typename ExtractedOffset, typename Output,
              typename = std::enable_if_t<details::is_valid_insert_v<ExtractedValue, ExtractedOffset, Output>>>
     void insert_elements(
-            const Extracted<ExtractedValue, ExtractedOffset>& extracted,
-            Output* output, Stream& stream);
+            const ExtractedValue* extracted_values,
+            const ExtractedOffset* extracted_offsets,
+            i64 elements, Output* output, Stream& stream);
 }

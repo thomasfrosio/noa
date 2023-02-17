@@ -239,7 +239,7 @@ namespace noa {
         /// \param[out] output  Destination. It should not overlap with this array.
         template<typename Output,
                  typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output> &&
-                                             noa::traits::have_almost_same_value_type_v<Array, Output>>>
+                                             noa::traits::are_almost_same_value_type_v<Array, Output>>>
         void to(const Output& output) const {
             memory::copy(*this, output);
         }

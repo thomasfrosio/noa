@@ -8,13 +8,14 @@ set(NOA_UNIFIED_HEADERS
         unified/Array.hpp
         unified/ArrayOption.hpp
         unified/Device.hpp
-        unified/Handle.hpp
         unified/Indexing.hpp
         unified/Stream.hpp
 #        unified/Texture.h
 #        unified/Texture.inl
         unified/View.hpp
         unified/Ewise.hpp
+        unified/Sort.hpp
+        unified/Find.hpp
 
 #        # noa::io
 #        unified/io/ImageFile.h
@@ -56,19 +57,16 @@ set(NOA_UNIFIED_HEADERS
 #        unified/geometry/Prefilter.h
 #        unified/geometry/Prefilter.inl
 #        unified/geometry/Transform.h
-#
-#        # noa::memory
-#        unified/memory/Cast.h
-#        unified/memory/Cast.inl
+
+        # noa::memory
+        unified/memory/Cast.hpp
         unified/memory/Copy.hpp
-#        unified/memory/Factory.h
-#        unified/memory/Factory.inl
-#        unified/memory/Index.h
-#        unified/memory/Index.inl
+        unified/memory/Factory.hpp
+        unified/memory/Index.hpp
         unified/memory/Permute.hpp
-#        unified/memory/Resize.h
-#        unified/memory/Resize.inl
-#
+        unified/memory/Resize.hpp
+        unified/memory/Subregion.hpp
+
 #        # noa::math
 #        unified/math/Blas.h
 #        unified/math/Blas.inl

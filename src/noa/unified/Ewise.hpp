@@ -6,7 +6,6 @@
 #endif
 
 #include "noa/unified/Array.hpp"
-#include "noa/unified/Handle.hpp"
 
 namespace noa {
     /// Element-wise transformation using a unary \c operator()(input)->output.
@@ -54,13 +53,11 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& input_handle = details::get_handle(input);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<UnaryOp>(unary_op)]() {
-                cpu::ewise_unary(input_handle.get(), input_strides,
-                                 output_handle.get(), output.strides(), output.shape(),
+                cpu::ewise_unary(input.get(), input_strides,
+                                 output.get(), output.strides(), output.shape(),
                                  op, threads);
             });
         } else {
@@ -151,15 +148,12 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& lhs_handle = details::get_handle(lhs);
-            const auto& rhs_handle = details::get_handle(rhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<BinaryOp>(binary_op)]() {
-                cpu::ewise_binary(lhs_handle.get(), lhs_strides,
-                                  rhs_handle.get(), rhs_strides,
-                                  output_handle.get(), output.strides(), output.shape(),
+                cpu::ewise_binary(lhs.get(), lhs_strides,
+                                  rhs.get(), rhs_strides,
+                                  output.get(), output.strides(), output.shape(),
                                   op, threads);
             });
         } else {
@@ -211,14 +205,12 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& lhs_handle = details::get_handle(lhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<BinaryOp>(binary_op)]() {
-                cpu::ewise_binary(lhs_handle.get(), lhs_strides,
+                cpu::ewise_binary(lhs.get(), lhs_strides,
                                   rhs,
-                                  output_handle.get(), output.strides(), output.shape(),
+                                  output.get(), output.strides(), output.shape(),
                                   op, threads);
             });
         } else {
@@ -270,14 +262,12 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& rhs_handle = details::get_handle(rhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<BinaryOp>(binary_op)]() {
                 cpu::ewise_binary(lhs,
-                                  rhs_handle.get(), rhs_strides,
-                                  output_handle.get(), output.strides(), output.shape(),
+                                  rhs.get(), rhs_strides,
+                                  output.get(), output.strides(), output.shape(),
                                   op, threads);
             });
         } else {
@@ -391,17 +381,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& lhs_handle = details::get_handle(lhs);
-            const auto& mhs_handle = details::get_handle(mhs);
-            const auto& rhs_handle = details::get_handle(rhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
-                cpu::ewise_trinary(lhs_handle.get(), lhs_strides,
-                                   mhs_handle.get(), mhs_strides,
-                                   rhs_handle.get(), rhs_strides,
-                                   output_handle.get(), output.strides(), output.shape(),
+                cpu::ewise_trinary(lhs.get(), lhs_strides,
+                                   mhs.get(), mhs_strides,
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {
@@ -461,16 +447,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& lhs_handle = details::get_handle(lhs);
-            const auto& mhs_handle = details::get_handle(mhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
-                cpu::ewise_trinary(lhs_handle.get(), lhs_strides,
-                                   mhs_handle.get(), mhs_strides,
+                cpu::ewise_trinary(lhs.get(), lhs_strides,
+                                   mhs.get(), mhs_strides,
                                    rhs,
-                                   output_handle.get(), output.strides(), output.shape(),
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {
@@ -530,16 +513,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& lhs_handle = details::get_handle(lhs);
-            const auto& rhs_handle = details::get_handle(rhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
-                cpu::ewise_trinary(lhs_handle.get(), lhs_strides,
+                cpu::ewise_trinary(lhs.get(), lhs_strides,
                                    mhs,
-                                   rhs_handle.get(), rhs_strides,
-                                   output_handle.get(), output.strides(), output.shape(),
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {
@@ -599,16 +579,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& mhs_handle = details::get_handle(mhs);
-            const auto& rhs_handle = details::get_handle(rhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
                 cpu::ewise_trinary(lhs,
-                                   mhs_handle.get(), mhs_strides,
-                                   rhs_handle.get(), rhs_strides,
-                                   output_handle.get(), output.strides(), output.shape(),
+                                   mhs.get(), mhs_strides,
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {
@@ -663,15 +640,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& lhs_handle = details::get_handle(lhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
-                cpu::ewise_trinary(lhs_handle.get(), lhs_strides,
+                cpu::ewise_trinary(lhs.get(), lhs_strides,
                                    mhs,
                                    rhs,
-                                   output_handle.get(), output.strides(), output.shape(),
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {
@@ -726,15 +701,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& mhs_handle = details::get_handle(mhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
                 cpu::ewise_trinary(lhs,
-                                   mhs_handle.get(), mhs_strides,
+                                   mhs.get(), mhs_strides,
                                    rhs,
-                                   output_handle.get(), output.strides(), output.shape(),
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {
@@ -789,15 +762,13 @@ namespace noa {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& rhs_handle = details::get_handle(rhs);
-            const auto& output_handle = details::get_handle(output);
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=, op = std::forward<TrinaryOp>(trinary_op)]() {
                 cpu::ewise_trinary(lhs,
                                    mhs,
-                                   rhs_handle.get(), rhs_strides,
-                                   output_handle.get(), output.strides(), output.shape(),
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output.strides(), output.shape(),
                                    op, threads);
             });
         } else {

@@ -160,11 +160,12 @@ namespace noa::cpu::memory {
     }
 
     template<typename ExtractedValue, typename ExtractedOffset, typename Output>
-    void insert_elements(const Extracted<ExtractedValue, ExtractedOffset>& extracted, Output* output) {
-        NOA_ASSERT(extracted.values && extracted.offsets && output);
-        const auto* extracted_values = extracted.values.get();
-        const auto* extracted_offsets = extracted.offsets.get();
-        for (i64 idx = 0; idx < extracted.count; ++idx, ++extracted_values, ++extracted_offsets)
+    void insert_elements(const ExtractedValue* extracted_values,
+                         const ExtractedOffset* extracted_offsets,
+                         i64 elements,
+                         Output* output) {
+        NOA_ASSERT(extracted_values && extracted_offsets && output);
+        for (i64 idx = 0; idx < elements; ++idx, ++extracted_values, ++extracted_offsets)
             output[*extracted_offsets] = static_cast<Output>(*extracted_values);
     }
 }

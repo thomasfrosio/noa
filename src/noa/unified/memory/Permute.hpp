@@ -32,7 +32,7 @@ namespace noa::memory {
     ///       Anything else calls copy(), which is slower.
     template<typename Input, typename Output,
              typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output> &&
-                                         noa::traits::have_almost_same_value_type_v<Input, Output>>>
+                                         noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void permute_copy(const Input& input, const Output& output, const Vec4<i64>& permutation) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -57,14 +57,12 @@ namespace noa::memory {
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            const auto& input_handle = noa::details::get_handle(input);
-            const auto& output_handle = noa::details::get_handle(output);
             noa::cpu::Stream& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=](){
                 noa::cpu::memory::permute(
-                        input_handle.get(), input.strides(), input.shape(),
-                        output_handle.get(), output.strides(),
+                        input.get(), input.strides(), input.shape(),
+                        output.get(), output.strides(),
                         permutation, threads);
             });
         } else {
