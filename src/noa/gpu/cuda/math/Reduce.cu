@@ -33,7 +33,6 @@ namespace noa::cuda::math {
         return output;
     }
 
-
     template<typename Value, typename>
     Value sum(const Value* input,
               const Strides4<i64>& strides,

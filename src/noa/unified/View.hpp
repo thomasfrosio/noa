@@ -202,6 +202,11 @@ namespace noa {
             return out;
         }
 
+        /// Performs a deep copy of the array to the CPU.
+        [[nodiscard]] Array<mutable_value_type> to_cpu() const {
+            return to(Device{});
+        }
+
         /// Performs a deep copy of the view preserving the view's options.
         [[nodiscard]] Array<mutable_value_type> copy() const {
             return to(options());
@@ -273,7 +278,7 @@ namespace noa {
             strides_type new_stride;
             if (!noa::indexing::reshape(shape(), strides(), new_shape, new_stride)) {
                 NOA_THROW("A view of shape {} and stride {} cannot be reshaped to a view of shape {}",
-                          shape(), strides(), shape);
+                          shape(), strides(), new_shape);
             }
             return View(get(), new_shape, new_stride, options());
         }

@@ -250,7 +250,7 @@ namespace noa::cpu::math {
     template<typename T, typename>
     void randomize(noa::math::poisson_t, T* output,
                    const Strides4<i64>& strides, const Shape4<i64>& shape,
-                   float lambda, i64 threads) {
+                   f32 lambda, i64 threads) {
         NOA_ASSERT(output && all(shape > 0));
 
         if constexpr (noa::traits::is_complex_v<T>) {
@@ -289,7 +289,7 @@ namespace noa::cpu::math {
     INSTANTIATE_RANDOM_(c64, c64);
 
     #define INSTANTIATE_RANDOM_POISSON_(T) \
-    template void randomize<T, void>(noa::math::poisson_t, T*, const Strides4<i64>&, const Shape4<i64>&, float, i64)
+    template void randomize<T, void>(noa::math::poisson_t, T*, const Strides4<i64>&, const Shape4<i64>&, f32, i64)
 
     INSTANTIATE_RANDOM_POISSON_(f16);
     INSTANTIATE_RANDOM_POISSON_(f32);

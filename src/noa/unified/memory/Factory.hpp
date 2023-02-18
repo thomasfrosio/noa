@@ -211,7 +211,7 @@ namespace noa::memory {
             NOA_THROW("No GPU backend detected");
             #endif
         }
-        auto[a_, b_, step] = noa::algorithm::memory::linspace_step(output.shape(), start, stop, endpoint);
+        auto[a_, b_, step] = noa::algorithm::memory::linspace_step(output.shape().elements(), start, stop, endpoint);
         return step;
     }
 

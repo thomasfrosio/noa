@@ -258,6 +258,11 @@ namespace noa {
             return out;
         }
 
+        /// Performs a deep copy of the array to the CPU.
+        [[nodiscard]] Array to_cpu() const {
+            return to(Device{});
+        }
+
         /// Performs a deep copy of the array preserving the array's options.
         [[nodiscard]] Array copy() const {
             return to(options());
@@ -292,9 +297,9 @@ namespace noa {
             strides_type new_stride;
             if (!noa::indexing::reshape(shape(), strides(), new_shape, new_stride)) {
                 NOA_THROW("An array of shape {} and stride {} cannot be reshaped to an array of shape {}",
-                          shape(), strides(), shape);
+                          shape(), strides(), new_shape);
             }
-            return Array(get(), new_shape, new_stride, options());
+            return Array(share(), new_shape, new_stride, options());
         }
 
         /// Reshapes the array in a vector along a particular axis.

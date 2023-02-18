@@ -17,10 +17,9 @@ set(NOA_UNIFIED_HEADERS
         unified/Sort.hpp
         unified/Find.hpp
 
-#        # noa::io
-#        unified/io/ImageFile.h
-#        unified/io/ImageFile.inl
-#
+        # noa::io
+        unified/io/ImageFile.hpp
+
 #        # noa::fft
 #        unified/fft/Factory.h
 #        unified/fft/Factory.inl
@@ -72,16 +71,10 @@ set(NOA_UNIFIED_HEADERS
 #        unified/math/Blas.inl
 #        unified/math/Complex.h
 #        unified/math/Complex.inl
-#        unified/math/Find.h
-#        unified/math/Find.inl
 #        unified/math/LinAlg.h
 #        unified/math/LinAlg.inl
-#        unified/math/Random.h
-#        unified/math/Random.inl
-#        unified/math/Reduce.h
-#        unified/math/Reduce.inl
-#        unified/math/Sort.h
-#        unified/math/Sort.inl
+        unified/math/Random.hpp
+        unified/math/Reduce.hpp
         )
 
 set(NOA_UNIFIED_SOURCES

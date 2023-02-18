@@ -18,8 +18,8 @@ namespace noa::details {
 namespace noa {
     /// Returns the memory offset(s) of a particular kind of value(s).
     /// \tparam ReduceOp    Any of {first|last}_{min|max}_t.
-    /// \tparam Input       i32, i64, u32, u64, f16, f32, f64.
-    /// \tparam Offset      i32, i64, u32, u64.
+    /// \tparam Input       Array or View of i32, i64, u32, u64, f16, f32, f64.
+    /// \tparam Offset      Array or View of i32, i64, u32, u64.
     /// \param reduce_op    Search functor.
     /// \param[in] input    Input array.
     /// \param[out] offsets Contiguous vector where the memory offset(s) are saved.
@@ -73,7 +73,7 @@ namespace noa {
 
     /// Returns the memory offset of a particular kind of value.
     /// \tparam ReduceOp    Any of {first|last}_{min|max}_t.
-    /// \tparam Input       i32, i64, u32, u64, f16, f32, f64.
+    /// \tparam Input       Array or View of i32, i64, u32, u64, f16, f32, f64.
     /// \param reduce_op    Search functor.
     /// \param[in] input    Input array.
     /// \param swap_layout  Whether the function is allowed to reorder the input for fastest search.

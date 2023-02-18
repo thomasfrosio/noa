@@ -26,10 +26,10 @@ namespace noa {
 
     namespace math {
         template<typename T>
-        NOA_IHD constexpr Mat33<T> transpose(Mat33<T> m) noexcept;
+        NOA_IHD constexpr Mat33<T> transpose(const Mat33<T>& m) noexcept;
 
         template<typename T>
-        NOA_IHD constexpr Mat33<T> inverse(Mat33<T> m) noexcept;
+        NOA_IHD constexpr Mat33<T> inverse(const Mat33<T>& m) noexcept;
     }
 }
 

@@ -49,6 +49,7 @@ namespace noa {
         constexpr explicit Device(DeviceType type, i32 id, DeviceUnchecked)
                 : m_id(type == DeviceType::CPU ? -1 : id) {}
 
+        /// Creates a device, but don't check that the corresponding device exists on the system.
         explicit Device(std::string_view name, DeviceUnchecked) {
             const auto [type, id] = parse_type_and_id_(name);
             m_id = id;

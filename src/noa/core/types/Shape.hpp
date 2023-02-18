@@ -72,8 +72,8 @@ namespace noa {
         template<typename Void = void, typename = std::enable_if_t<N >= 2 && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr const value_type& height() const noexcept { return m_vec[N - 2]; }
 
-        [[nodiscard]] NOA_HD constexpr value_type& row() noexcept { return m_vec[N - 1]; }
-        [[nodiscard]] NOA_HD constexpr const value_type& row() const noexcept { return m_vec[N - 1]; }
+        [[nodiscard]] NOA_HD constexpr value_type& width() noexcept { return m_vec[N - 1]; }
+        [[nodiscard]] NOA_HD constexpr const value_type& width() const noexcept { return m_vec[N - 1]; }
 
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return m_vec[I]; }
@@ -556,8 +556,8 @@ namespace noa {
         template<typename Void = void, typename = std::enable_if_t<N >= 2 && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr const value_type& height() const noexcept { return m_vec[N - 2]; }
 
-        [[nodiscard]] NOA_HD constexpr value_type& row() noexcept { return m_vec[N - 1]; }
-        [[nodiscard]] NOA_HD constexpr const value_type& row() const noexcept { return m_vec[N - 1]; }
+        [[nodiscard]] NOA_HD constexpr value_type& width() noexcept { return m_vec[N - 1]; }
+        [[nodiscard]] NOA_HD constexpr const value_type& width() const noexcept { return m_vec[N - 1]; }
 
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return m_vec[I]; }

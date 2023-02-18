@@ -291,8 +291,7 @@ namespace noa::memory {
         const i64 elements = values.elements();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            cpu_stream.enqueue([=]() {
+            stream.cpu().enqueue([=]() {
                 cpu::memory::insert_elements(
                         values.get(), offsets.get(),
                         elements, output.share());
