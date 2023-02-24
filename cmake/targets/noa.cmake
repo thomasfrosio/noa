@@ -31,7 +31,8 @@ if (NOA_ENABLE_CPU)
 
     if (NOA_CPU_OPENMP)
         find_package(OpenMP 4.5 REQUIRED)
-        target_link_libraries(noa_private_libraries INTERFACE OpenMP::OpenMP_CXX)
+        # OpenMP pragmas are included in the source files of the user, so use public visibility.
+        target_link_libraries(noa_public_libraries INTERFACE OpenMP::OpenMP_CXX)
     endif ()
 
     include(${PROJECT_SOURCE_DIR}/cmake/ext/fftw.cmake)
