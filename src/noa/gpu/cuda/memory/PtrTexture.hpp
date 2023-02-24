@@ -164,9 +164,7 @@ namespace noa::cuda::memory {
 
             cudaTextureObject_t texture{};
             if (cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr))
-                NOA_THROW("Creating the texture object from a CUDA array failed, "
-                          "with normalized={}, filter={}, addressing={}, reads_to_float={}",
-                          normalized_coordinates, interp_mode, border_mode, normalized_reads_to_float);
+                NOA_THROW("Creating the texture object from a CUDA array failed");
             return texture;
         }
 
@@ -211,9 +209,7 @@ namespace noa::cuda::memory {
 
             cudaTextureObject_t texture{};
             if (cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr))
-                NOA_THROW("Creating the texture object from a CUDA array failed, "
-                          "with normalized={}, filter={}, addressing={}, reads_to_float={}",
-                          normalized_coordinates, interp_mode, border_mode, normalized_reads_to_float);
+                NOA_THROW("Creating the texture object from a CUDA array failed");
             return texture;
         }
 

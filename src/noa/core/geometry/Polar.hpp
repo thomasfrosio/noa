@@ -114,7 +114,7 @@ namespace noa::geometry {
     [[nodiscard]] NOA_IHD T cartesian2phi(Vec2<T> coordinate) {
         T angle = noa::math::atan2(coordinate[0], coordinate[1]); // [-pi,pi]
         if (OFFSET && angle < 0)
-            angle += noa::math::Constant<T>::PI2; // [0,2pi]
+            angle += noa::math::Constant<T>::PI * 2; // [0,2pi]
         return angle;
     }
 
@@ -124,7 +124,7 @@ namespace noa::geometry {
     [[nodiscard]] NOA_IHD T cartesian2phi(Vec3<T> coordinate) {
         T angle = noa::math::atan2(coordinate[1], coordinate[2]); // [-pi,pi]
         if (OFFSET && angle < 0)
-            angle += noa::math::Constant<T>::PI2; // [0,2pi]
+            angle += noa::math::Constant<T>::PI * 2; // [0,2pi]
         return angle;
     }
 

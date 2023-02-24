@@ -1,13 +1,13 @@
 #include <deque>
 
-#include "noa/gpu/cuda/fft/Plan.h"
-#include "noa/common/string/Format.h"
+#include "noa/gpu/cuda/fft/Plan.hpp"
+#include "noa/core/string/Format.hpp"
 
 namespace {
     using namespace ::noa;
 
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
-    constexpr uint32_t sizes_even_cufft_[315] = {
+    constexpr u32 sizes_even_cufft_[315] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 48, 50, 54, 56, 60, 64, 70, 72, 80, 84,
             90, 96, 98, 100, 108, 112, 120, 126, 128, 140, 144, 150, 160, 162, 168, 180, 192, 196, 200, 210, 216,
             224, 240, 250, 252, 256, 270, 280, 288, 294, 300, 320, 324, 336, 350, 360, 378, 384, 392, 400, 420, 432,
@@ -32,8 +32,9 @@ namespace {
     public:
         CufftCache() = default;
 
-        void limit(dim_t size) noexcept {
-            m_max_size = size;
+        void limit(i32 size) noexcept {
+            NOA_ASSERT(size > 0);
+            m_max_size = static_cast<size_t>(size);
             while (m_queue.size() > m_max_size)
                 m_queue.pop_back();
         }
@@ -43,10 +44,10 @@ namespace {
                 m_queue.pop_back();
         }
 
-        [[nodiscard]] dim_t limit() const noexcept { return m_max_size; }
+        [[nodiscard]] i32 limit() const noexcept { return static_cast<i32>(m_max_size); }
 
-        [[nodiscard]] std::shared_ptr<cufftHandle> find(const std::string& key) const noexcept {
-            std::shared_ptr<cufftHandle> res;
+        [[nodiscard]] Shared<cufftHandle> find(const std::string& key) const noexcept {
+            Shared<cufftHandle> res;
             for (const auto& i: m_queue) {
                 if (key == i.first) {
                     res = i.second;
@@ -56,7 +57,7 @@ namespace {
             return res;
         }
 
-        std::shared_ptr<cufftHandle>& push(std::string&& key, cufftHandle plan) {
+        Shared<cufftHandle>& push(std::string&& key, cufftHandle plan) {
             auto deleter = [](const cufftHandle* ptr) {
                 cufftDestroy(*ptr);
                 delete ptr;
@@ -64,24 +65,23 @@ namespace {
 
             if (m_queue.size() >= m_max_size)
                 m_queue.pop_back();
-            m_queue.emplace_front(std::move(key),
-                                  std::shared_ptr<cufftHandle>(new cufftHandle{plan}, deleter));
+            m_queue.emplace_front(std::move(key), Shared<cufftHandle>(new cufftHandle{plan}, deleter));
             return m_queue.front().second;
         }
 
     private:
-        using plan_pair_t = typename std::pair<std::string, std::shared_ptr<cufftHandle>>;
-        std::deque<plan_pair_t> m_queue;
-        dim_t m_max_size{4};
+        using plan_pair_type = typename std::pair<std::string, Shared<cufftHandle>>;
+        std::deque<plan_pair_type> m_queue;
+        size_t m_max_size{4};
     };
 
     // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-host-thread cache.
     // Each GPU has its own cache of course.
-    CufftCache& getCache_(int32_t device) {
-        constexpr dim_t MAX_DEVICES = 16;
-        thread_local std::unique_ptr<CufftCache> g_cache[MAX_DEVICES];
+    CufftCache& get_cache_(i32 device) {
+        constexpr i32 MAX_DEVICES = 16;
+        thread_local Unique<CufftCache> g_cache[MAX_DEVICES];
 
-        std::unique_ptr<CufftCache>& cache = g_cache[device];
+        Unique<CufftCache>& cache = g_cache[device];
         if (!cache)
             cache = std::make_unique<CufftCache>();
         return *cache;
@@ -89,129 +89,135 @@ namespace {
 }
 
 namespace noa::cuda::fft::details {
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, dim4_t shape, int32_t device) {
-        const auto batch = static_cast<int32_t>(shape[0]);
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
+    auto get_plan(cufftType_t type, const Shape4<i64>& shape, i32 device) -> Shared<cufftHandle> {
+        const auto s_shape = shape.as_safe<i32>();
+        const auto batch = s_shape[0];
+        auto shape_3d = s_shape.pop_front();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
 
-        using enum_type = std::underlying_type_t<cufftType_t>;
-        const auto type_ = static_cast<enum_type>(type);
+        const auto i_type = noa::traits::to_underlying(type);
         std::string hash;
         if (rank == 2)
-            hash = string::format("{}:{},{}:{}:{}", rank, s_shape[1], s_shape[2], type_, batch);
+            hash = noa::string::format("{}:{},{}:{}:{}", rank, shape_3d[1], shape_3d[2], i_type, batch);
         else if (rank == 3)
-            hash = string::format("{}:{},{},{}:{}:{}", rank, s_shape[0], s_shape[1], s_shape[2], type_, batch);
-        else
-            hash = string::format("{}:{}:{}:{}", rank, s_shape[2], type_, batch);
+            hash = noa::string::format("{}:{},{},{}:{}:{}", rank, shape_3d[0], shape_3d[1], shape_3d[2], i_type, batch);
+        else // 1
+            hash = noa::string::format("{}:{}:{}:{}", rank, shape_3d[2], i_type, batch);
 
         // Look for a cached plan:
-        CufftCache& cache = getCache_(device);
-        std::shared_ptr<cufftHandle> handle_ptr = cache.find(hash);
+        CufftCache& cache = get_cache_(device);
+        Shared<cufftHandle> handle_ptr = cache.find(hash);
         if (handle_ptr)
             return handle_ptr;
 
         // Create and cache the plan:
         cufftHandle plan{};
-        for (dim_t i = 0; i < 2; ++i) {
-            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(3 - rank),
-                                             nullptr, 1, 0, nullptr, 1, 0,
-                                             type, batch);
+        for (i32 i = 0; i < 2; ++i) {
+            const auto err = ::cufftPlanMany(
+                    &plan, rank, shape_3d.data() + 3 - rank,
+                    nullptr, 1, 0, nullptr, 1, 0,
+                    type, batch);
             if (err == CUFFT_SUCCESS)
                 break;
             // It may have failed because of not enough memory,
             // so clear cache and try again.
             if (i)
-                NOA_THROW("Failed to create a cuFFT plan. {}", toString(err));
+                NOA_THROW("Failed to create a cuFFT plan. {}", to_string(err));
             else
                 cache.clear();
         }
         return cache.push(std::move(hash), plan);
     }
 
-    std::shared_ptr<cufftHandle> getPlan(cufftType_t type, dim4_t input_strides, dim4_t output_strides,
-                                         dim4_t shape, int32_t device) {
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
+    auto get_plan(
+            cufftType_t type,
+            Strides4<i64> input_strides, Strides4<i64> output_strides,
+            const Shape4<i64>& shape, i32 device
+    ) -> Shared<cufftHandle> {
+        auto s_shape = shape.as_safe<i32>();
+        const auto batch = s_shape[0];
+        auto shape_3d = s_shape.pop_front();
+        const i32 rank = shape_3d.ndim();
+
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) { // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
             std::swap(input_strides[2], input_strides[3]);
             std::swap(output_strides[2], output_strides[3]);
         }
 
-        const auto i_strides = safe_cast<int4_t>(input_strides);
-        const auto o_strides = safe_cast<int4_t>(output_strides);
-        int3_t i_pitch(i_strides.pitches());
-        int3_t o_pitch(o_strides.pitches());
-        const auto batch = static_cast<int32_t>(shape[0]);
-        const int32_t offset = 3 - rank;
+        const auto i_strides = input_strides.as<i32>();
+        const auto o_strides = output_strides.as<i32>();
+        Shape3<i32> i_pitch = i_strides.physical_shape();
+        Shape3<i32> o_pitch = o_strides.physical_shape();
+        const i32 offset = 3 - rank;
 
-        using enum_type = std::underlying_type_t<cufftType_t>;
-        const auto type_ = static_cast<enum_type>(type);
+        const auto i_type = noa::traits::to_underlying(type);
         std::string hash;
         {
             static std::ostringstream tmp;
             tmp.seekp(0); // clear
 
             tmp << rank << ':';
-            for (int32_t i = 0; i < rank; ++i)
-                tmp << s_shape[offset + i] << ',';
+            for (i32 i = 0; i < rank; ++i)
+                tmp << shape_3d[offset + i] << ',';
 
-            for (int32_t i = 0; i < rank; ++i)
+            for (i32 i = 0; i < rank; ++i)
                 tmp << i_pitch[offset + i] << ',';
             tmp << i_strides[3] << ':';
             tmp << i_strides[0] << ':';
 
-            for (int32_t i = 0; i < rank; ++i)
+            for (i32 i = 0; i < rank; ++i)
                 tmp << o_pitch[offset + i] << ',';
             tmp << o_strides[3] << ':';
             tmp << o_strides[0] << ':';
 
-            tmp << type_ << ':';
+            tmp << i_type << ':';
             tmp << batch;
             hash = tmp.str();
         }
 
         // Look for a cached plan:
-        CufftCache& cache = getCache_(device);
-        std::shared_ptr<cufftHandle> handle_ptr = cache.find(hash);
+        CufftCache& cache = get_cache_(device);
+        Shared<cufftHandle> handle_ptr = cache.find(hash);
         if (handle_ptr)
             return handle_ptr;
 
         // Create and cache the plan:
-        cufftHandle plan;
-        for (dim_t i = 0; i < 2; ++i) {
-            const auto err = ::cufftPlanMany(&plan, rank, s_shape.get(offset),
-                                             i_pitch.get(offset), i_strides[3], i_strides[0],
-                                             o_pitch.get(offset), o_strides[3], o_strides[0],
-                                             type, batch);
+        cufftHandle plan{};
+        for (i32 i = 0; i < 2; ++i) {
+            const auto err = ::cufftPlanMany(
+                    &plan, rank, s_shape.data() + offset,
+                    i_pitch.data() + offset, i_strides[3], i_strides[0],
+                    o_pitch.data() + offset, o_strides[3], o_strides[0],
+                    type, batch);
             if (err == CUFFT_SUCCESS)
                 break;
-            if (i)
-                NOA_THROW("Failed to create a cuFFT plan. {}", toString(err));
+            if (i == 1)
+                NOA_THROW("Failed to create a cuFFT plan. {}", to_string(err));
             else
                 cache.clear();
         }
         return cache.push(std::move(hash), plan);
     }
 
-    void cacheClear(int32_t device) noexcept {
-        getCache_(device).clear();
+    void cache_clear(i32 device) noexcept {
+        get_cache_(device).clear();
     }
 
-    void cacheLimit(int32_t device, dim_t count) noexcept {
-        getCache_(device).limit(count);
+    void cache_set_limit(i32 device, i32 count) noexcept {
+        get_cache_(device).limit(count);
     }
 }
 
 namespace noa::cuda::fft {
     // cuFFT has stronger requirements compared FFTW.
-    dim_t fastSize(dim_t size) {
+    i64 fast_size(i64 size) {
         for (auto nice_size: sizes_even_cufft_) {
-            const auto tmp = static_cast<dim_t>(nice_size);
+            const auto tmp = static_cast<i64>(nice_size);
             if (size < tmp)
                 return tmp;
         }

@@ -7,16 +7,16 @@
 
 #if defined(__CUDA_ARCH__)
 namespace noa::cuda::details {
-    NOA_FD int atomic_add(int* address, int val) {
+    NOA_FD int32_t atomic_add(int32_t* address, int32_t val) {
         return ::atomicAdd(address, val);
     }
 
-    NOA_FD uint atomic_add(uint* address, uint val) {
+    NOA_FD uint32_t atomic_add(uint32_t* address, uint32_t val) {
         return ::atomicAdd(address, val);
     }
 
-    NOA_FD unsigned long long atomic_add(unsigned long long* address, unsigned long long val) {
-        return ::atomicAdd(address, val);
+    NOA_FD uint64_t atomic_add(uint64_t* address, uint64_t val) {
+        return ::atomicAdd(reinterpret_cast<unsigned long long*>(address), val);
     }
 
     #if __CUDA_ARCH__ >= 700
@@ -33,7 +33,7 @@ namespace noa::cuda::details {
 
     NOA_ID double atomic_add(double* address, double val) {
         #if __CUDA_ARCH__ < 600
-        using ull = unsigned long long int;
+        using ull = unsigned long long;
         auto* address_as_ull = (ull*) address;
         ull old = *address_as_ull;
         ull assumed;
@@ -75,7 +75,9 @@ namespace noa::cpu::details {
 namespace noa::details {
     // Atomic add for CUDA and OpenMP.
     template<typename Pointer, typename Value,
-             typename = std::enable_if_t<std::is_pointer_v<Pointer> && noa::traits::is_numeric_v<Value>>>
+             typename = std::enable_if_t<
+                     std::is_pointer_v<Pointer> && noa::traits::is_numeric_v<Value> &&
+                     noa::traits::is_almost_same_v<std::remove_pointer_t<Pointer>, Value>>>
     NOA_FHD void atomic_add(Pointer pointer, Value value) {
         #if defined(__CUDA_ARCH__)
         ::noa::cuda::details::atomic_add(pointer, value);
@@ -84,55 +86,15 @@ namespace noa::details {
         #endif
     }
 
-    template<typename Value,
-             typename Offset,
-             typename Index,
-             PointerTraits PointerTrait,
-             StridesTraits StridesTrait,
-             typename = std::enable_if_t<noa::traits::is_int_v<Index> && noa::traits::is_numeric_v<Value>>>
-    NOA_FHD void atomic_add(const Accessor<Value, 1, Offset, PointerTrait, StridesTrait>& accessor,
-                            Index i,
-                            Value value) {
-        auto* pointer = accessor.offset_pointer(accessor.get(), i);
-        atomic_add(pointer, value);
-    }
-
-    template<typename Value,
-             typename Offset,
-             typename Index,
-             PointerTraits PointerTrait,
-             StridesTraits StridesTrait,
-             typename = std::enable_if_t<noa::traits::is_int_v<Index> && noa::traits::is_numeric_v<Value>>>
-    NOA_FHD void atomic_add(const Accessor<Value, 2, Offset, PointerTrait, StridesTrait>& accessor,
-                            Index i, Index j,
-                            Value value) {
-        auto* pointer = accessor.offset_pointer(accessor.get(), i, j);
-        atomic_add(pointer, value);
-    }
-
-    template<typename Value,
-             typename Offset,
-             typename Index,
-             PointerTraits PointerTrait,
-             StridesTraits StridesTrait,
-             typename = std::enable_if_t<noa::traits::is_int_v<Index> && noa::traits::is_numeric_v<Value>>>
-    NOA_FHD void atomic_add(const Accessor<Value, 3, Offset, PointerTrait, StridesTrait>& accessor,
-                            Index i, Index j, Index k,
-                            Value value) {
-        auto* pointer = accessor.offset_pointer(accessor.get(), i, j, k);
-        atomic_add(pointer, value);
-    }
-
-    template<typename Value,
-             typename Offset,
-             typename Index,
-             PointerTraits PointerTrait,
-             StridesTraits StridesTrait,
-             typename = std::enable_if_t<noa::traits::is_int_v<Index> && noa::traits::is_numeric_v<Value>>>
-    NOA_FHD void atomic_add(const Accessor<Value, 4, Offset, PointerTrait, StridesTrait>& accessor,
-                            Index i, Index j, Index k, Index l,
-                            Value value) {
-        auto* pointer = accessor.offset_pointer(accessor.get(), i, j, k, l);
+    template<size_t N, typename Value, typename Offset, typename... Indexes,
+             PointerTraits PointerTrait, StridesTraits StridesTrait,
+             typename = std::enable_if_t<
+                sizeof...(Indexes) == N &&
+                noa::traits::are_int_v<Indexes...> &&
+                noa::traits::is_numeric_v<Value>>>
+    NOA_FHD void atomic_add(const Accessor<Value, N, Offset, PointerTrait, StridesTrait>& accessor,
+                            Value value, Indexes... indexes) {
+        auto pointer = accessor.offset_pointer(accessor.get(), indexes...);
         atomic_add(pointer, value);
     }
 }

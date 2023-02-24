@@ -33,8 +33,8 @@
 //     the strides, specially with AccessorReference. In practice, this rarely (never?) happens.
 
 namespace noa {
-    enum class PointerTraits { DEFAULT, RESTRICT };
-    enum class StridesTraits { STRIDED, CONTIGUOUS };
+    enum class PointerTraits { DEFAULT, RESTRICT }; // TODO ATOMIC?
+    enum class StridesTraits { STRIDED, CONTIGUOUS }; // TODO EMPTY?
 
     // Empty type used to emulate the stride of a contiguous dimension.
     template<typename I>

@@ -1,428 +1,154 @@
-#include "noa/common/Assert.h"
-#include "noa/common/Math.h"
-#include "noa/gpu/cuda/fft/Exception.h"
-#include "noa/gpu/cuda/fft/Remap.h"
+#include "noa/algorithms/fft/Remap.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/fft/Exception.hpp"
+#include "noa/gpu/cuda/fft/Remap.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/utils/Iwise.cuh"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 
 namespace {
     using namespace noa;
+    using Remap = ::noa::fft::Remap;
     constexpr uint32_t MAX_THREADS = 256;
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void hc2h_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output,
-               uint3_t shape_fft) {
-
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::FFTShift(gid[0], shape_fft[0]);
-        const uint32_t iy = math::FFTShift(gid[1], shape_fft[1]);
-        const auto input_row = input[batch][iz][iy];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
-            output_row[x] = input_row[x];
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void h2hc_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output, uint3_t shape_fft) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::iFFTShift(gid[0], shape_fft[0]);
-        const uint32_t iy = math::iFFTShift(gid[1], shape_fft[1]);
-        const auto input_row = input[batch][iz][iy];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
-            output_row[x] = input_row[x];
-    }
 
     // In-place, Y and Z dimensions have both an even number of elements.
     template<typename T>
     __global__ __launch_bounds__(MAX_THREADS)
-    void h2hcInPlace_(Accessor<T, 4, uint32_t> output, uint3_t shape_fft) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::iFFTShift(gid[0], shape_fft[0]);
-        const uint32_t iy = math::iFFTShift(gid[1], shape_fft[1]);
+    void h2hc_inplace_(Accessor<T, 4, u32> output, Shape3<u32> shape_fft) {
+        const u32 batch = blockIdx.z;
+        const Vec2<u32> gid{blockIdx.y, blockIdx.x};
+        const u32 iz = noa::math::ifft_shift(gid[0], shape_fft[0]);
+        const u32 iy = noa::math::ifft_shift(gid[1], shape_fft[1]);
         const auto input_row = output[batch][iz][iy];
         const auto output_row = output[batch][gid[0]][gid[1]];
 
-        T* shared = cuda::utils::block::dynamicSharedResource<T>();
-        int32_t count = 0;
-        for (uint32_t x = threadIdx.x; x < shape_fft[2]; x += blockDim.x, ++count) {
+        T* shared = cuda::utils::block_dynamic_shared_resource<T>();
+        u32 count = 0;
+        for (u32 x = threadIdx.x; x < shape_fft[2]; x += blockDim.x, ++count) {
             shared[x - count * blockDim.x] = output_row[x];
             output_row[x] = input_row[x];
             input_row[x] = shared[x - count * blockDim.x];
         }
     }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void f2fc_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output, uint3_t shape) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::iFFTShift(gid[0], shape[0]);
-        const uint32_t iy = math::iFFTShift(gid[1], shape[1]);
-        const auto input_row = input[batch][iz][iy];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape[2]; x += blockDim.x)
-            output_row[x] = input_row[math::iFFTShift(x, shape[2])];
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void fc2f_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output, uint3_t shape) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::FFTShift(gid[0], shape[0]);
-        const uint32_t iy = math::FFTShift(gid[1], shape[1]);
-        const auto input_row = input[batch][iz][iy];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape[2]; x += blockDim.x)
-            output_row[x] = input_row[math::FFTShift(x, shape[2])];
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void f2h_(AccessorRestrict<const T, 4, uint32_t> input,
-              AccessorRestrict<T, 4, uint32_t> output, uint3_t shape_fft) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const auto input_row = input[batch][gid[0]][gid[1]];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
-            output_row[x] = input_row[x];
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void h2f_(AccessorRestrict<const T, 4, uint32_t> input,
-              AccessorRestrict<T, 4, uint32_t> output, uint3_t shape) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t half = shape[2] / 2 + 1;
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        // Copy first half:
-        auto input_row = input[batch][gid[0]][gid[1]];
-        for (uint32_t x = threadIdx.x; x < half; x += blockDim.x)
-            output_row[x] = input_row[x];
-
-        // Rebase to the symmetric row in the non-redundant array corresponding to the redundant elements.
-        // Then copy in reverse order.
-        const uint32_t idx_z = gid[0] ? shape[0] - gid[0] : gid[0];
-        const uint32_t idx_y = gid[1] ? shape[1] - gid[1] : gid[1];
-        input_row = input[batch][idx_z][idx_y];
-        for (uint32_t x = half + threadIdx.x; x < shape[2]; x += blockDim.x) {
-            if constexpr (traits::is_complex_v<T>)
-                output_row[x] = math::conj(input_row[(shape[2] - x)]);
-            else
-                output_row[x] = input_row[(shape[2] - x)];
-        }
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void f2hc_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output, uint3_t shape_fft) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::iFFTShift(gid[0], shape_fft[0]);
-        const uint32_t iy = math::iFFTShift(gid[1], shape_fft[1]);
-        const auto input_row = input[batch][iz][iy];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape_fft[2]; x += blockDim.x)
-            output_row[x] = input_row[x];
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void hc2f_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output, uint3_t shape) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t half = shape[2] / 2 + 1;
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        // Copy first half:
-        uint32_t idx_z = math::FFTShift(gid[0], shape[0]);
-        uint32_t idx_y = math::FFTShift(gid[1], shape[1]);
-        auto input_row = input[batch][idx_z][idx_y];
-        for (uint32_t x = threadIdx.x; x < half; x += blockDim.x)
-            output_row[x] = input_row[x];
-
-        // Rebase to the symmetric row in the non-redundant array corresponding to the redundant elements.
-        // Then copy in reverse order.
-        idx_z = math::FFTShift(gid[0] ? shape[0] - gid[0] : gid[0], shape[0]);
-        idx_y = math::FFTShift(gid[1] ? shape[1] - gid[1] : gid[1], shape[1]);
-        input_row = input[batch][idx_z][idx_y];
-        for (uint32_t x = half + threadIdx.x; x < shape[2]; x += blockDim.x) {
-            if constexpr (traits::is_complex_v<T>)
-                output_row[x] = math::conj(input_row[(shape[2] - x)]);
-            else
-                output_row[x] = input_row[(shape[2] - x)];
-        }
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void fc2h_(AccessorRestrict<const T, 4, uint32_t> input,
-               AccessorRestrict<T, 4, uint32_t> output, uint3_t shape) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const uint32_t iz = math::FFTShift(gid[0], shape[0]);
-        const uint32_t iy = math::FFTShift(gid[1], shape[1]);
-        const auto input_row = input[batch][iz][iy];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape[2] / 2 + 1; x += blockDim.x)
-            output_row[x] = input_row[math::FFTShift(x, shape[2])];
-    }
-
-    template<typename T>
-    __global__ __launch_bounds__(MAX_THREADS)
-    void fc2hc_(AccessorRestrict<const T, 4, uint32_t> input,
-                AccessorRestrict<T, 4, uint32_t> output, uint3_t shape) {
-        const uint32_t batch = blockIdx.z;
-        const uint2_t gid{blockIdx.y, blockIdx.x};
-        const auto input_row = input[batch][gid[0]][gid[1]];
-        const auto output_row = output[batch][gid[0]][gid[1]];
-
-        for (uint32_t x = threadIdx.x; x < shape[2] / 2 + 1; x += blockDim.x)
-            output_row[x] = input_row[math::FFTShift(x, shape[2])];
-    }
 }
 
-namespace noa::cuda::fft::details {
-    template<typename T>
-    void hc2h(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+namespace noa::cuda::fft {
+    template<typename T, typename>
+    void remap(Remap remap,
+               const T* input, Strides4<i64> input_strides,
+               T* output, Strides4<i64> output_strides,
+               Shape4<i64> shape, Stream& stream) {
+        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
-        const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
+        // Reordering is only possible for some remaps... and this
+        // entirely depends on the algorithm we use. Regardless, the
+        // batch dimension cannot be reordered.
+        if (remap == noa::fft::FC2F || remap == noa::fft::F2FC ||
+            remap == noa::fft::FC2H || remap == noa::fft::F2H) {
+            const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
+            if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
+                const auto order = (order_3d + 1).push_front(0);
+                input_strides = input_strides.reorder(order);
+                output_strides = output_strides.reorder(order);
+                shape = shape.reorder(order);
+            }
+        }
 
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
+        switch (remap) {
+            case Remap::H2H:
+            case Remap::HC2HC:
+                if (input != output)
+                    noa::cuda::memory::copy(input, input_strides, output, output_strides, shape.fft(), stream);
+                break;
+            case Remap::F2F:
+            case Remap::FC2FC:
+                if (input != output)
+                    noa::cuda::memory::copy(input, input_strides, output, output_strides, shape, stream);
+                break;
+            case Remap::H2HC: {
+                if (input == output) {
+                    NOA_ASSERT((shape[2] == 1 || !(shape[2] % 2)) && (shape[1] == 1 || !(shape[1] % 2)));
+                    NOA_ASSERT(noa::all(input_strides == output_strides));
 
-        stream.enqueue("hc2h_", hc2h_<T>, {blocks, threads}, input_, output_, shape_fft);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void h2hc(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
-
-        if (input == output) {
-            NOA_ASSERT((shape[2] == 1 || !(shape[2] % 2)) && (shape[1] == 1 || !(shape[1] % 2)));
-            NOA_ASSERT(all(input_strides == output_strides));
-
-            const dim3 blocks(noa::math::max(shape_fft[1] / 2, 1U), shape_fft[0], shape[0]);
-            const Accessor<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-            stream.enqueue("h2hcInPlace_", h2hcInPlace_<T>, {blocks, threads, threads * sizeof(T)}, output_, shape_fft);
-            stream.attach(output);
-        } else {
-            const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
-            const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-            const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-            stream.enqueue("h2hc_", h2hc_<T>, {blocks, threads}, input_, output_, shape_fft);
-            stream.attach(input, output);
+                    const auto shape_fft = shape.pop_front().as_safe<u32>().fft();
+                    const u32 threads = std::min(MAX_THREADS, noa::math::next_multiple_of(shape_fft[2], Constant::WARP_SIZE));
+                    const dim3 blocks(std::max(shape_fft[1] / 2, 1u), shape_fft[0], shape[0]);
+                    const auto output_accessor = Accessor<T, 4, uint32_t>(output, output_strides.as_safe<u32>());
+                    const auto config = LaunchConfig{blocks, threads, threads * sizeof(T)};
+                    stream.enqueue("h2hc_inplace_", h2hc_inplace_<T>, config, output_accessor, shape_fft);
+                } else {
+                    const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2HC>(
+                            input, input_strides, output, output_strides, shape);
+                    return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                }
+            }
+            case Remap::HC2H: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2H>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::H2F: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2F>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::F2H: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::F2H>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::F2FC: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::F2FC>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::FC2F: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::FC2F>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::HC2F: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2F>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::F2HC: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::F2HC>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::FC2H: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::FC2H>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case Remap::FC2HC: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::FC2HC>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case noa::fft::Remap::HC2FC: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2FC>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
+            case noa::fft::Remap::H2FC: {
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2FC>(
+                        input, input_strides, output, output_strides, shape);
+                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+            }
         }
     }
 
-    template<typename T>
-    void f2fc(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+    #define NOA_INSTANTIATE_RESIZE_(T) \
+    template void remap<T, void>(Remap, const T*, Strides4<i64>, T*, Strides4<i64>, Shape4<i64>, Stream&)
 
-        if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
-            std::swap(shape[2], shape[3]);
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-        }
-
-        const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2], Limits::WARP_SIZE));
-        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("f2fc_", f2fc_<T>, {blocks, threads}, input_, output_, shape_full);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void fc2f(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
-            std::swap(shape[2], shape[3]);
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-        }
-
-        const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2], Limits::WARP_SIZE));
-        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("fc2f_", fc2f_<T>, {blocks, threads}, input_, output_, shape_full);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void f2h(const shared_t<T[]>& input, dim4_t input_strides,
-             const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
-        const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("f2h_", f2h_<T>, {blocks, threads}, input_, output_, shape_fft);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void h2f(const shared_t<T[]>& input, dim4_t input_strides,
-             const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
-        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("h2f_", h2f_<T>, {blocks, threads}, input_, output_, shape_full);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void f2hc(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_fft = safe_cast<uint3_t>(dim3_t(shape.fft().get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_fft[2], Limits::WARP_SIZE));
-        const dim3 blocks(shape_fft[1], shape_fft[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("f2hc_", f2hc_<T>, {blocks, threads}, input_, output_, shape_fft);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void hc2f(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
-        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("hc2f_", hc2f_<T>, {blocks, threads}, input_, output_, shape_full);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void fc2h(const shared_t<T[]>& input, dim4_t input_strides,
-              const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
-        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("fc2h_", fc2h_<T>, {blocks, threads}, input_, output_, shape_full);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void fc2hc(const shared_t<T[]>& input, dim4_t input_strides,
-               const shared_t<T[]>& output, dim4_t output_strides, dim4_t shape, Stream& stream) {
-        NOA_ASSERT(input.get() != output.get() && all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        const auto shape_full = safe_cast<uint3_t>(dim3_t(shape.get(1)));
-        const uint32_t threads = math::min(MAX_THREADS, math::nextMultipleOf(shape_full[2] / 2 + 1, Limits::WARP_SIZE));
-        const dim3 blocks(shape_full[1], shape_full[0], shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("fc2hc_", fc2hc_<T>, {blocks, threads}, input_, output_, shape_full);
-        stream.attach(input, output);
-    }
-
-    #define NOA_INSTANTIATE_REMAPS_(T)                                                                  \
-    template void hc2h<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void h2hc<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void f2fc<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void fc2f<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void f2h<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template void h2f<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template void f2hc<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void hc2f<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void fc2h<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&); \
-    template void fc2hc<T>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
-
-    NOA_INSTANTIATE_REMAPS_(half_t);
-    NOA_INSTANTIATE_REMAPS_(float);
-    NOA_INSTANTIATE_REMAPS_(double);
-    NOA_INSTANTIATE_REMAPS_(chalf_t);
-    NOA_INSTANTIATE_REMAPS_(cfloat_t);
-    NOA_INSTANTIATE_REMAPS_(cdouble_t);
+    NOA_INSTANTIATE_RESIZE_(f16);
+    NOA_INSTANTIATE_RESIZE_(f32);
+    NOA_INSTANTIATE_RESIZE_(f64);
+    NOA_INSTANTIATE_RESIZE_(c16);
+    NOA_INSTANTIATE_RESIZE_(c32);
+    NOA_INSTANTIATE_RESIZE_(c64);
 }

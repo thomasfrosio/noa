@@ -1,224 +1,111 @@
-#include "noa/common/Math.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/fft/Exception.h"
-#include "noa/gpu/cuda/fft/Resize.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/algorithms/fft/Resize.hpp"
+#include "noa/gpu/cuda/fft/Resize.hpp"
+#include "noa/gpu/cuda/memory/Resize.hpp"
+#include "noa/gpu/cuda/memory/Set.hpp"
+#include "noa/gpu/cuda/utils/Iwise.cuh"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 
-namespace {
-    using namespace noa;
-    constexpr uint32_t MAX_THREADS = 512;
-    constexpr uint32_t ELEMENTS_PER_THREAD_X = 2;
-    constexpr dim3 BLOCK_SIZE(32, MAX_THREADS / 32);
-    constexpr dim3 BLOCK_WORK_SIZE(BLOCK_SIZE.x * ELEMENTS_PER_THREAD_X, BLOCK_SIZE.y);
-
-    template<class T>
-    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void cropH2H_(AccessorRestrict<const T, 4, uint32_t> input, uint3_t input_shape,
-                  AccessorRestrict<T, 4, uint32_t> output, uint3_t output_shape, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
-                          BLOCK_WORK_SIZE.x * index[1] + threadIdx.x};
-        if (gid[2] >= output_shape[1])
-            return;
-
-        const uint32_t iz = gid[1] < (output_shape[0] + 1) / 2 ? gid[1] : gid[1] + input_shape[0] - output_shape[0];
-        const uint32_t iy = gid[2] < (output_shape[1] + 1) / 2 ? gid[2] : gid[2] + input_shape[1] - output_shape[1];
-        const auto input_row = input[gid[0]][iz][iy];
-        const auto output_row = output[gid[0]][gid[1]][gid[2]];
-
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
-            const uint32_t x = gid[3] + BLOCK_SIZE.x * i;
-            if (x < output_shape[2] / 2 + 1)
-                output_row[x] = input_row[x];
+namespace noa::cuda::fft {
+    template<noa::fft::Remap REMAP, typename T, typename>
+    void resize(const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+                T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
+                Stream& stream) {
+        // For centered layouts, use the memory::resize instead.
+        if constexpr (REMAP == noa::fft::HC2HC) {
+            auto [border_left, border_right] = noa::algorithm::memory::borders(input_shape.fft(), output_shape.fft());
+            border_right[3] += std::exchange(border_left[3], 0); // for width, padding goes to the right side only
+            return noa::cuda::memory::resize(
+                    input, input_strides, input_shape.fft(),
+                    border_left, border_right,
+                    output, output_strides,
+                    BorderMode::ZERO, T{0}, stream);
+        } else if constexpr (REMAP == noa::fft::FC2FC) {
+            return noa::cuda::memory::resize(
+                    input, input_strides, input_shape,
+                    output, output_strides, output_shape,
+                    BorderMode::ZERO, T{0}, stream);
         }
-    }
 
-    template<class T>
-    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void cropF2F_(AccessorRestrict<const T, 4, uint32_t> input, uint3_t input_shape,
-                  AccessorRestrict<T, 4, uint32_t> output, uint3_t output_shape, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
-                          BLOCK_WORK_SIZE.x * index[1] + threadIdx.x};
-        if (gid[2] >= output_shape[1])
-            return;
+        NOA_ASSERT(input != output && noa::all(input_shape > 0) && noa::all(input_shape > 0));
+        NOA_ASSERT(input_shape.batch() == output_shape.batch());
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        const uint32_t iz = gid[1] < (output_shape[0] + 1) / 2 ? gid[1] : gid[1] + input_shape[0] - output_shape[0];
-        const uint32_t iy = gid[2] < (output_shape[1] + 1) / 2 ? gid[2] : gid[2] + input_shape[1] - output_shape[1];
-        const auto input_row = input[gid[0]][iz][iy];
-        const auto output_row = output[gid[0]][gid[1]][gid[2]];
-
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
-            const uint32_t ox = gid[3] + BLOCK_SIZE.x * i;
-            const uint32_t ix = ox < (output_shape[2] + 1) / 2 ? ox : ox + input_shape[2] - output_shape[2];
-            if (ox < output_shape[2])
-                output_row[ox] = input_row[ix];
+        // For the full layout, we can reorder the DHW dimensions if necessary.
+        if (REMAP == noa::fft::F2F) {
+            const auto order_3d = noa::indexing::order(output_strides.pop_front(), output_shape.pop_front());
+            if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
+                const auto order = (order_3d + 1).push_front(0);
+                input_strides = input_strides.reorder(order);
+                output_strides = output_strides.reorder(order);
+                input_shape = input_shape.reorder(order);
+                output_shape = output_shape.reorder(order);
+            }
         }
-    }
 
-    template<class T>
-    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void padH2H_(AccessorRestrict<const T, 4, uint32_t> input, uint3_t input_shape,
-                 AccessorRestrict<T, 4, uint32_t> output, uint3_t output_shape, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
-                          BLOCK_WORK_SIZE.x * index[1] + threadIdx.x};
-        if (gid[2] >= input_shape[1])
-            return;
+        noa::algorithm::fft::ResizeMode mode{};
+        if (noa::all(input_shape >= output_shape)) {
+            if constexpr (REMAP == noa::fft::H2H)
+                mode = noa::algorithm::fft::ResizeMode::CROP_H2H;
+            else if constexpr (REMAP == noa::fft::F2F)
+                mode = noa::algorithm::fft::ResizeMode::CROP_F2F;
 
-        const uint32_t oz = gid[1] < (input_shape[0] + 1) / 2 ? gid[1] : gid[1] + output_shape[0] - input_shape[0];
-        const uint32_t oy = gid[2] < (input_shape[1] + 1) / 2 ? gid[2] : gid[2] + output_shape[1] - input_shape[1];
-        const auto input_row = input[gid[0]][gid[1]][gid[2]];
-        const auto output_row = output[gid[0]][oz][oy];
+        } else if (noa::all(input_shape <= output_shape)) {
+            // The way the padding is currently implemented requires the output
+            // padded elements to be set to 0, so do it here, on the entire array.
+            if constexpr (REMAP == noa::fft::H2H) {
+                mode = noa::algorithm::fft::ResizeMode::PAD_H2H;
+                noa::cuda::memory::set(output, output_strides, output_shape.fft(), T{0}, stream);
+            } else if constexpr (REMAP == noa::fft::F2F) {
+                mode = noa::algorithm::fft::ResizeMode::PAD_F2F;
+                noa::cuda::memory::set(output, output_strides, output_shape, T{0}, stream);
+            }
 
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
-            const uint32_t x = gid[3] + BLOCK_SIZE.x * i;
-            if (x < input_shape[2] / 2 + 1)
-                output_row[x] = input_row[x];
+        } else {
+            NOA_THROW("Cannot crop and pad at the same time with layout {}", REMAP);
         }
-    }
 
-    template<class T>
-    __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void padF2F_(AccessorRestrict<const T, 4, uint32_t> input, uint3_t input_shape,
-                 AccessorRestrict<T, 4, uint32_t> output, uint3_t output_shape, uint32_t blocks_x) {
-        const uint2_t index = indexing::indexes(blockIdx.x, blocks_x);
-        const uint4_t gid{blockIdx.z,
-                          blockIdx.y,
-                          BLOCK_WORK_SIZE.y * index[0] + threadIdx.y,
-                          BLOCK_WORK_SIZE.x * index[1] + threadIdx.x};
-        if (gid[2] >= input_shape[1])
-            return;
-
-        const uint32_t oz = gid[1] < (input_shape[0] + 1) / 2 ? gid[1] : gid[1] + output_shape[0] - input_shape[0];
-        const uint32_t oy = gid[2] < (input_shape[1] + 1) / 2 ? gid[2] : gid[2] + output_shape[1] - input_shape[1];
-        const auto input_row = input[gid[0]][gid[1]][gid[2]];
-        const auto output_row = output[gid[0]][oz][oy];
-
-        for (int32_t i = 0; i < ELEMENTS_PER_THREAD_X; ++i) {
-            const uint32_t ix = gid[3] + BLOCK_SIZE.x * i;
-            if (ix < input_shape[2]) {
-                const uint32_t ox = ix < (input_shape[2] + 1) / 2 ? ix : ix + output_shape[2] - input_shape[2];
-                output_row[ox] = input_row[ix];
+        switch (mode) {
+            case noa::algorithm::fft::ResizeMode::PAD_H2H: {
+                constexpr auto MODE = noa::algorithm::fft::ResizeMode::PAD_H2H;
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
+                        input, input_strides, input_shape, output, output_strides, output_shape);
+                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+            }
+            case noa::algorithm::fft::ResizeMode::PAD_F2F: {
+                constexpr auto MODE = noa::algorithm::fft::ResizeMode::PAD_F2F;
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
+                        input, input_strides, input_shape, output, output_strides, output_shape);
+                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+            }
+            case noa::algorithm::fft::ResizeMode::CROP_H2H: {
+                constexpr auto MODE = noa::algorithm::fft::ResizeMode::CROP_H2H;
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
+                        input, input_strides, input_shape, output, output_strides, output_shape);
+                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+            }
+            case noa::algorithm::fft::ResizeMode::CROP_F2F: {
+                constexpr auto MODE = noa::algorithm::fft::ResizeMode::CROP_F2F;
+                const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
+                        input, input_strides, input_shape, output, output_strides, output_shape);
+                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
             }
         }
     }
-}
 
-namespace noa::cuda::fft::details {
-    template<typename T>
-    void cropH2H(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+    #define NOA_INSTANTIATE_RESIZE_(R, T) \
+    template void resize<R, T, void>(const T*, Strides4<i64>, Shape4<i64>, T*, Strides4<i64>, Shape4<i64>, Stream&)
 
-        if (all(input_shape == output_shape))
-            return memory::copy(input, input_strides, output, output_strides, input_shape.fft(), stream);
+    #define NOA_INSTANTIATE_RESIZE_ALL(T)           \
+    NOA_INSTANTIATE_RESIZE_(noa::fft::HC2HC, T);    \
+    NOA_INSTANTIATE_RESIZE_(noa::fft::FC2FC, T);    \
+    NOA_INSTANTIATE_RESIZE_(noa::fft::H2H, T);      \
+    NOA_INSTANTIATE_RESIZE_(noa::fft::F2F, T)
 
-        const auto old_shape = safe_cast<uint3_t>(dim3_t(input_shape.get(1)));
-        const auto new_shape = safe_cast<uint3_t>(dim3_t(output_shape.get(1)));
-        const uint32_t blocks_x = math::divideUp(new_shape[2] / 2 + 1, BLOCK_WORK_SIZE.x);
-        const uint32_t blocks_y = math::divideUp(new_shape[1], BLOCK_WORK_SIZE.y);
-        const dim3 blocks(blocks_x * blocks_y, new_shape[0], output_shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("cropH2H_", cropH2H_<T>, {blocks, BLOCK_SIZE},
-                       input_, old_shape, output_, new_shape, blocks_x);
-        stream.attach(input, output);
-    }
-
-    template<typename T>
-    void cropF2F(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                 const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        if (all(input_shape == output_shape))
-            return memory::copy(input, input_strides, output, output_strides, input_shape, stream);
-
-        const auto old_shape = safe_cast<uint3_t>(dim3_t(input_shape.get(1)));
-        const auto new_shape = safe_cast<uint3_t>(dim3_t(output_shape.get(1)));
-        const uint32_t blocks_x = math::divideUp(new_shape[2], BLOCK_WORK_SIZE.x);
-        const uint32_t blocks_y = math::divideUp(new_shape[1], BLOCK_WORK_SIZE.y);
-        const dim3 blocks(blocks_x * blocks_y, new_shape[0], output_shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("cropF2F_", cropF2F_<T>, {blocks, BLOCK_SIZE},
-                       input_, old_shape, output_, new_shape, blocks_x);
-        stream.attach(input, output);
-    }
-
-    // TODO(TF) Replace memset with a single kernel that loops through padded regions as well.
-    template<typename T>
-    void padH2H(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        if (all(input_shape == output_shape))
-            return memory::copy(input, input_strides, output, output_strides, input_shape.fft(), stream);
-
-        memory::set(output, output_strides, output_shape.fft(), T{0}, stream);
-        const auto old_shape = safe_cast<uint3_t>(dim3_t(input_shape.get(1)));
-        const auto new_shape = safe_cast<uint3_t>(dim3_t(output_shape.get(1)));
-        const uint32_t blocks_x = math::divideUp(old_shape[2] / 2 + 1, BLOCK_WORK_SIZE.x);
-        const uint32_t blocks_y = math::divideUp(old_shape[1], BLOCK_WORK_SIZE.y);
-        const dim3 blocks(blocks_x * blocks_y, old_shape[0], output_shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("padH2H_", padH2H_<T>, {blocks, BLOCK_SIZE},
-                       input_, old_shape, output_, new_shape, blocks_x);
-        stream.attach(input, output);
-    }
-
-    // TODO(TF) Replace memset with a single kernel that loops through padded regions as well.
-    template<typename T>
-    void padF2F(const shared_t<T[]>& input, dim4_t input_strides, dim4_t input_shape,
-                const shared_t<T[]>& output, dim4_t output_strides, dim4_t output_shape, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-
-        if (all(input_shape == output_shape))
-            return memory::copy(input, input_strides, output, output_strides, input_shape, stream);
-
-        memory::set(output, output_strides, output_shape, T{0}, stream);
-        const auto old_shape = safe_cast<uint3_t>(dim3_t(input_shape.get(1)));
-        const auto new_shape = safe_cast<uint3_t>(dim3_t(output_shape.get(1)));
-        const uint32_t blocks_x = math::divideUp(old_shape[2], BLOCK_WORK_SIZE.x);
-        const uint32_t blocks_y = math::divideUp(old_shape[1], BLOCK_WORK_SIZE.y);
-        const dim3 blocks(blocks_x * blocks_y, old_shape[0], output_shape[0]);
-
-        const AccessorRestrict<const T, 4, uint32_t> input_(input.get(), safe_cast<uint4_t>(input_strides));
-        const AccessorRestrict<T, 4, uint32_t> output_(output.get(), safe_cast<uint4_t>(output_strides));
-
-        stream.enqueue("padF2F_", padF2F_<T>, {blocks, BLOCK_SIZE},
-                       input_, old_shape, output_, new_shape, blocks_x);
-        stream.attach(input, output);
-    }
-
-    #define NOA_INSTANTIATE_CROP_(T)                                                                                \
-    template void cropH2H<T>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template void cropF2F<T>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&);  \
-    template void padH2H<T>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&);   \
-    template void padF2F<T>(const shared_t<T[]>&, dim4_t, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Stream&)
-
-    NOA_INSTANTIATE_CROP_(half_t);
-    NOA_INSTANTIATE_CROP_(float);
-    NOA_INSTANTIATE_CROP_(double);
-    NOA_INSTANTIATE_CROP_(chalf_t);
-    NOA_INSTANTIATE_CROP_(cfloat_t);
-    NOA_INSTANTIATE_CROP_(cdouble_t);
+    NOA_INSTANTIATE_RESIZE_ALL(f16);
+    NOA_INSTANTIATE_RESIZE_ALL(f32);
+    NOA_INSTANTIATE_RESIZE_ALL(f64);
+    NOA_INSTANTIATE_RESIZE_ALL(c16);
+    NOA_INSTANTIATE_RESIZE_ALL(c32);
+    NOA_INSTANTIATE_RESIZE_ALL(c64);
 }

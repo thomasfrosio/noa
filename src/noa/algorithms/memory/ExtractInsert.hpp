@@ -18,7 +18,7 @@ namespace noa::algorithm::memory {
         using offset_type = Offset;
         using index4_type = Vec4<Index>;
         using shape4_type = Shape4<Index>;
-        using value_or_empty_type = std::conditional_t<MODE == BorderMode::VALUE, Value, traits::Empty>;
+        using value_or_empty_type = std::conditional_t<MODE == BorderMode::VALUE, Value, Empty>;
 
         using input_accessor_type = AccessorRestrict<const value_type, 4, offset_type>;
         using subregion_accessor_type = AccessorRestrict<value_type, 4, offset_type>;

@@ -413,9 +413,10 @@ namespace noa {
         }
 
         // Returns the shape of the non-redundant FFT, in elements,
-        template<typename Void = void, typename = std::enable_if_t<SIZE == 4 && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr Shape fft() const noexcept {
-            return {m_vec[0], m_vec[1], m_vec[2], m_vec[3] / 2 + 1};
+            Shape output = *this;
+            output[SIZE - 1] = output[SIZE - 1] / 2 + 1;
+            return output;
         }
 
         // Whether the shape describes vector.
@@ -441,7 +442,7 @@ namespace noa {
         template<typename Void = void, std::enable_if_t<SIZE <= 3 && std::is_void_v<Void>, bool> = true>
         [[nodiscard]] NOA_FHD constexpr bool is_vector() const noexcept {
             int non_empty_dimension = 0;
-            for (int i = 0; i < SIZE; ++i) {
+            for (size_t i = 0; i < SIZE; ++i) {
                 if (m_vec[i] == 0)
                     return false; // empty/invalid shape
                 if (m_vec[i] > 1)

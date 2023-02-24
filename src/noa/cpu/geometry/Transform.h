@@ -1,67 +1,68 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
-#include "noa/common/Types.h"
-#include "noa/common/geometry/Euler.h"
-#include "noa/common/geometry/Symmetry.h"
-#include "noa/common/geometry/Transform.h"
-#include "noa/cpu/Stream.h"
+#include "noa/core/Types.hpp"
+#include "noa/core/geometry/Euler.hpp"
+#include "noa/core/geometry/Symmetry.hpp"
+#include "noa/core/geometry/Transform.hpp"
 
 namespace noa::cpu::geometry::details {
-    template<int NDIM, typename Value, typename Matrix>
+    template<i32 NDIM, typename Value, typename Matrix>
     constexpr bool is_valid_transform_v =
-            traits::is_any_v<Value, float, double, cfloat_t, cdouble_t> &&
-            ((NDIM == 2 && traits::is_any_v<Matrix, float23_t, float33_t, shared_t<float23_t[]>, shared_t<float33_t[]>>) ||
-             (NDIM == 3 && traits::is_any_v<Matrix, float34_t, float44_t, shared_t<float34_t[]>, shared_t<float44_t[]>>));
+            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            ((NDIM == 2 && noa::traits::is_any_v<Matrix, Float23, Float33, const Float23*, const Float33*>) ||
+             (NDIM == 3 && noa::traits::is_any_v<Matrix, Float34, Float44, const Float34*, const Float44*>));
 }
 
 namespace noa::cpu::geometry {
     // Applies one or multiple 2D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<2, Value, Matrix>>>
-    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
-                     Value cvalue, bool prefilter, Stream& stream);
+    void transform_2d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                      const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
+                      Value cvalue, i64 threads);
 
     // Applies one or multiple 3D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<3, Value, Matrix>>>
-    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
-                     Value cvalue, bool prefilter, Stream& stream);
+    void transform_3d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                      const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
+                      Value cvalue, i64 threads);
 }
 
-// -- Apply symmetry -- //
 namespace noa::cpu::geometry {
     using Symmetry = ::noa::geometry::Symmetry;
 
     // Shifts, then rotates/scales and applies the symmetry on the 2D input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
-    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
-                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void transform_and_symmetrize_2d(
+            const Value* input, Strides4 <i64> input_strides, Shape4<i64> input_shape,
+            Value* output, const Strides4 <i64>& output_strides, const Shape4<i64>& output_shape,
+            const Vec2<f32>& shift, const Float22& inv_matrix,
+            const Symmetry& symmetry, const Vec2<f32>& center,
+            InterpMode interp_mode, bool normalize, i64 threads);
 
     // Shifts, then rotates/scales and applies the symmetry on the 3D input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
-    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float3_t shift, float33_t inv_matrix, const Symmetry& symmetry, float3_t center,
-                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void transform_and_symmetrize_3d(
+            const Value* input, Strides4 <i64> input_strides, Shape4<i64> input_shape,
+            Value* output, const Strides4 <i64>& output_strides, const Shape4<i64>& output_shape,
+            const Vec3<f32>& shift, const Float33& inv_matrix,
+            const Symmetry& symmetry, const Vec3<f32>& center,
+            InterpMode interp_mode, bool normalize, i64 threads);
 
     // Symmetrizes the 2D (batched) input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
-    void symmetrize2D(const shared_t<Value[]>& input, dim4_t input_strides,
-                      const shared_t<Value[]>& output, dim4_t output_strides,
-                      dim4_t shape, const Symmetry& symmetry, float2_t center,
-                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
+                       Value* output, const Strides4<i64>& output_strides,
+                       const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
+                       InterpMode interp_mode, bool normalize, i64 threads);
 
     // Symmetrizes the 3D (batched) input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double, cfloat_t, cdouble_t>>>
-    void symmetrize3D(const shared_t<Value[]>& input, dim4_t input_strides,
-                      const shared_t<Value[]>& output, dim4_t output_strides,
-                      dim4_t shape, const Symmetry& symmetry, float3_t center,
-                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
+                       Value* output, const Strides4<i64>& output_strides,
+                       const Shape4<i64>& shape, const Symmetry& symmetry, const Vec3<f32>& center,
+                       InterpMode interp_mode, bool normalize, i64 threads);
 }

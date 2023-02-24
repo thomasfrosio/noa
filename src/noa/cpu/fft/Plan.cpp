@@ -1,13 +1,13 @@
 #include <mutex>
 
-#include "noa/common/Exception.h"
-#include "noa/cpu/fft/Plan.h"
+#include "noa/core/Exception.hpp"
+#include "noa/cpu/fft/Plan.hpp"
 
 namespace {
     using namespace ::noa;
 
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d) * (11^e) * (13^f), with e + f = 0 or 1.
-    constexpr uint16_t sizes_even_fftw_[] = {
+    constexpr u16 sizes_even_fftw_[] = {
             2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40, 42, 44, 48, 50, 52, 54, 56, 60, 64,
             66, 70, 72, 78, 80, 84, 88, 90, 96, 98, 100, 104, 108, 110, 112, 120, 126, 128, 130, 132, 140, 144, 150,
             154, 156, 160, 162, 168, 176, 180, 182, 192, 196, 198, 200, 208, 210, 216, 220, 224, 234, 240, 250, 252,
@@ -46,9 +46,11 @@ namespace {
     // (e.g. the planners) should only be called from one thread at a time. Thus, to make our API thread-safe,
     // calls to FFTW should be protected by this mutex.
     std::mutex g_noa_fftw3_mutex_;
+}
 
 #ifdef NOA_FFTW_THREADS
-    // To call once before anything
+namespace {
+    // To call once before anything.
     template<bool IS_SINGLE_PRECISION>
     void initialize_() {
         static bool is_initialized = false;
@@ -65,23 +67,23 @@ namespace {
 
     // Gets the number of threads given a shape, batches and rank. From IMOD/libfft/fftw_wrap.c.
     // FFTW3 seems to be quite sensitive. If too many threads, the plan creation is just too slow...
-    int32_t getThreads_(int3_t shape, int32_t batches, int32_t rank) {
-        double geom_size;
-        if (rank == 1)
-            geom_size = (math::sqrt(static_cast<double>(shape[2] * batches)) + static_cast<double>(batches)) / 2.;
-        else
-            geom_size = math::pow(static_cast<double>(shape.elements()), 1. / static_cast<double>(rank));
-        auto threads = static_cast<int32_t>((math::log(geom_size) / math::log(2.) - 5.95) * 2.);
-        return math::clamp(threads, 1, all(cpu::fft::fastShape(shape) == shape) ? 8 : 4);
+    i32 get_threads_(const Shape3<i32>& shape, i32 batches, i32 rank) {
+        const f64 geom_size =
+                rank == 1 ?
+                (noa::math::sqrt(static_cast<f64>(shape[2] * batches)) + static_cast<f64>(batches)) / 2. :
+                noa::math::pow(static_cast<f64>(shape.elements()), 1. / static_cast<f64>(rank));
+
+        const auto threads = static_cast<i32>((noa::math::log(geom_size) / noa::math::log(2.) - 5.95) * 2.);
+        return noa::math::clamp(threads, 1, noa::all(noa::cpu::fft::fast_shape(shape) == shape) ? 8 : 4);
     }
 
     // All subsequent plans will use this number of threads.
     template<bool IS_SINGLE_PRECISION>
-    void setThreads_(int3_t shape, int32_t batches, dim_t max_threads) {
+    void set_threads_(const Shape3<i32>& shape, i32 batches, i64 max_threads) {
         initialize_<IS_SINGLE_PRECISION>();
         if (max_threads > 1) {
-            const int32_t threads = math::min(getThreads_(shape, batches, shape.ndim()),
-                                              static_cast<int32_t>(max_threads));
+            const i32 threads = math::min(get_threads_(shape, batches, shape.ndim()),
+                                          static_cast<i32>(max_threads));
             if constexpr (IS_SINGLE_PRECISION)
                 fftwf_plan_with_nthreads(threads);
             else
@@ -93,13 +95,319 @@ namespace {
                 fftw_plan_with_nthreads(1);
         }
     }
+}
 #endif
+
+namespace {
+    template<typename Plan>
+    void add_to_cache_(Plan plan, bool clear) {
+        static_assert(noa::traits::is_any_v<Plan, fftwf_plan, fftw_plan>);
+
+        // FFTW accumulates a "wisdom" automatically. This circular buffer is here
+        // in case fftw_destroy_plan destructs that wisdom.
+        static constexpr size_t MAX_SIZE = 6;
+        static std::array<Plan, MAX_SIZE> s_bin{nullptr};
+        static size_t s_index{0};
+        auto destruct_plan = [](Plan plan_) {
+            if (plan_) {
+                if constexpr (std::is_same_v<Plan, fftwf_plan>)
+                    fftwf_destroy_plan(plan_);
+                else
+                    fftw_destroy_plan(plan_);
+            }
+        };
+
+        if (clear) {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            for (auto& i_plan: s_bin)
+                destruct_plan(std::exchange(i_plan, nullptr));
+        }
+        if (plan) {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            destruct_plan(std::exchange(s_bin[s_index], plan));
+            s_index = (s_index + 1) % MAX_SIZE;
+        }
+    }
+
+    template<typename T>
+    auto get_r2c_(T* input, Complex<T>* output, const Shape4<i64>& shape,
+                  u32 flag, [[maybe_unused]] i64 threads) {
+        auto shape_3d = shape.pop_front().as_safe<i32>();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
+
+        const auto how_many = static_cast<i32>(shape[0]);
+        const i32 odist = shape_3d.fft().elements();
+        const i32 idist = input == reinterpret_cast<T*>(output) ? odist * 2 : shape_3d.elements();
+
+        constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
+        using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        plan_t plan;
+        {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            #ifdef NOA_FFTW_THREADS
+            set_threads_<IS_SINGLE_PRECISION>(shape_3d, how_many, threads);
+            #endif
+            if constexpr (IS_SINGLE_PRECISION) {
+                plan = fftwf_plan_many_dft_r2c(
+                        rank, shape_3d.data() + 3 - rank, how_many, input, nullptr, 1, idist,
+                        reinterpret_cast<fftwf_complex*>(output), nullptr, 1, odist, flag);
+            } else {
+                plan = fftw_plan_many_dft_r2c(
+                        rank, shape_3d.data() + 3 - rank, how_many, input, nullptr, 1, idist,
+                        reinterpret_cast<fftw_complex*>(output), nullptr, 1, odist, flag);
+            }
+        }
+
+        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
+        // configuration supporting a restricted set of transforms.
+        if (!plan)
+            NOA_THROW("Failed to create the R2C plan, with shape:{}", shape_3d);
+        return plan;
+    }
+
+    template<typename T>
+    auto get_r2c_(T* input, Strides4<i64> input_strides,
+                  Complex<T>* output, Strides4<i64> output_strides,
+                  const Shape4<i64>& shape, u32 flag,
+                  [[maybe_unused]] i64 threads) {
+        auto shape_3d = shape.pop_front().as_safe<i32>();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) { // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const auto i_strides = input_strides.as_safe<i32>();
+        const auto o_strides = output_strides.as_safe<i32>();
+        const auto inembed = i_strides.physical_shape();
+        const auto onembed = o_strides.physical_shape();
+        const auto how_many = static_cast<i32>(shape[0]);
+        const i32 off = 3 - rank;
+
+        constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
+        using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        plan_t plan;
+        {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            #ifdef NOA_FFTW_THREADS
+            set_threads_<IS_SINGLE_PRECISION>(shape_3d, how_many, threads);
+            #endif
+
+            if constexpr (IS_SINGLE_PRECISION) {
+                plan = fftwf_plan_many_dft_r2c(
+                        rank, shape_3d.data() + off, how_many, input, inembed.data() + off, i_strides[3], i_strides[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0], flag);
+            } else {
+                plan = fftw_plan_many_dft_r2c(
+                        rank, shape_3d.data() + off, how_many, input, inembed.data() + off, i_strides[3], i_strides[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0], flag);
+            }
+        }
+        if (!plan)
+            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                      shape_3d, input_strides, output_strides);
+        return plan;
+    }
+
+    template<typename T>
+    auto get_c2r_(Complex<T>* input, T* output,
+                  const Shape4<i64>& shape, u32 flag,
+                  [[maybe_unused]] i64 threads) {
+        auto shape_3d = shape.pop_front().as_safe<i32>();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
+        const i32 idist = shape_3d.fft().elements();
+        const i32 odist = reinterpret_cast<T*>(input) == output ? idist * 2 : shape_3d.elements();
+        const auto how_many = static_cast<i32>(shape[0]);
+
+        constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
+        using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        plan_t plan;
+        {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            #ifdef NOA_FFTW_THREADS
+            set_threads_<IS_SINGLE_PRECISION>(shape_3d, how_many, threads);
+            #endif
+            if constexpr (IS_SINGLE_PRECISION) {
+                plan = fftwf_plan_many_dft_c2r(
+                        rank, shape_3d.data() + 3 - rank, how_many,
+                        reinterpret_cast<fftwf_complex*>(input), nullptr, 1, idist,
+                        output, nullptr, 1, odist, flag);
+            } else {
+                plan = fftw_plan_many_dft_c2r(
+                        rank, shape_3d.data() + 3 - rank, how_many,
+                        reinterpret_cast<fftw_complex*>(input), nullptr, 1, idist,
+                        output, nullptr, 1, odist, flag);
+            }
+        }
+        if (!plan)
+            NOA_THROW("Failed to create the C2R plan, with shape:{}", shape_3d);
+        return plan;
+    }
+
+    template<typename T>
+    auto get_c2r_(Complex<T>* input, Strides4<i64> input_strides,
+                  T* output, Strides4<i64> output_strides,
+                  const Shape4<i64>& shape, u32 flag,
+                  [[maybe_unused]] i64 threads) {
+        auto shape_3d = shape.pop_front().as_safe<i32>();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) { // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const auto i_strides = input_strides.as_safe<i32>();
+        const auto o_strides = output_strides.as_safe<i32>();
+        const auto inembed = i_strides.physical_shape();
+        const auto onembed = o_strides.physical_shape();
+        const i32 off = 3 - rank;
+        const auto how_many = static_cast<i32>(shape[0]);
+
+        constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
+        using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        plan_t plan;
+        {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            #ifdef NOA_FFTW_THREADS
+            set_threads_<IS_SINGLE_PRECISION>(shape_3d, how_many, threads);
+            #endif
+            if constexpr (IS_SINGLE_PRECISION) {
+                plan = fftwf_plan_many_dft_c2r(
+                        rank, shape_3d.data() + off, how_many,
+                        reinterpret_cast<fftwf_complex*>(input), inembed.data() + off, i_strides[3], i_strides[0],
+                        output, onembed.data() + off, o_strides[3], o_strides[0], flag);
+            } else {
+                plan = fftw_plan_many_dft_c2r(
+                        rank, shape_3d.data() + off, how_many,
+                        reinterpret_cast<fftw_complex*>(input), inembed.data() + off, i_strides[3], i_strides[0],
+                        output, onembed.data() + off, o_strides[3], o_strides[0], flag);
+            }
+        }
+        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
+        // configuration supporting a restricted set of transforms or with the PRESERVE_INPUT flag
+        // with a multidimensional out-of-place c2r transform.
+        if (!plan)
+            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                      shape_3d, input_strides, output_strides);
+        return plan;
+    }
+
+    template<typename T>
+    auto get_c2c_(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
+                  noa::fft::Sign sign, u32 flag,
+                  [[maybe_unused]] i64 threads) {
+        static_assert(noa::traits::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
+        static_assert(noa::traits::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
+
+        auto shape_3d = shape.pop_front().as_safe<i32>();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
+            std::swap(shape_3d[1], shape_3d[2]);
+        const auto how_many = static_cast<i32>(shape[0]);
+        const i32 dist = shape_3d.elements();
+
+        constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
+        using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        plan_t plan;
+        {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            #ifdef NOA_FFTW_THREADS
+            set_threads_<IS_SINGLE_PRECISION>(shape_3d, how_many, threads);
+            #endif
+
+            if constexpr (IS_SINGLE_PRECISION) {
+                plan = fftwf_plan_many_dft(
+                        rank, shape_3d.data() + 3 - rank, how_many,
+                        reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
+                        reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
+                        noa::traits::to_underlying(sign), flag);
+            } else {
+                plan = fftw_plan_many_dft(
+                        rank, shape_3d.data() + 3 - rank, how_many,
+                        reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
+                        reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
+                        noa::traits::to_underlying(sign), flag);
+            }
+        }
+        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
+        // configuration supporting a restricted set of transforms.
+        if (!plan)
+            NOA_THROW("Failed to create the C2C plan, with shape:{}", shape_3d);
+        return plan;
+    }
+
+    template<typename T>
+    auto get_c2c_(Complex<T>* input, Strides4<i64> input_strides,
+                  Complex<T>* output, Strides4<i64> output_strides,
+                  const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag,
+                  [[maybe_unused]] i64 threads) {
+        static_assert(noa::traits::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
+        static_assert(noa::traits::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
+
+        auto shape_3d = shape.pop_front().as_safe<i32>();
+        if (indexing::is_column_major(input_strides) && indexing::is_column_major(output_strides)) {
+            // column major -> row major
+            std::swap(shape_3d[1], shape_3d[2]);
+            std::swap(input_strides[2], input_strides[3]);
+            std::swap(output_strides[2], output_strides[3]);
+        }
+
+        const auto i_strides = input_strides.as_safe<i32>();
+        const auto o_strides = output_strides.as_safe<i32>();
+        const auto inembed = i_strides.physical_shape();
+        const auto onembed = o_strides.physical_shape();
+        const i32 rank = shape_3d.ndim();
+        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        const auto how_many = static_cast<i32>(shape[0]);
+        const i32 off = 3 - rank;
+
+        constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
+        using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
+        plan_t plan;
+        {
+            const std::scoped_lock lock(g_noa_fftw3_mutex_);
+            #ifdef NOA_FFTW_THREADS
+            set_threads_<IS_SINGLE_PRECISION>(shape_3d, how_many, threads);
+            #endif
+
+            if constexpr (IS_SINGLE_PRECISION) {
+                plan = fftwf_plan_many_dft(
+                        rank, shape_3d.data() + off, how_many,
+                        reinterpret_cast<fftwf_complex*>(input), inembed.data() + off, i_strides[3], i_strides[0],
+                        reinterpret_cast<fftwf_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0],
+                        noa::traits::to_underlying(sign), flag);
+            } else {
+                plan = fftw_plan_many_dft(
+                        rank, shape_3d.data() + off, how_many,
+                        reinterpret_cast<fftw_complex*>(input), inembed.data() + off, i_strides[3], i_strides[0],
+                        reinterpret_cast<fftw_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0],
+                        noa::traits::to_underlying(sign), flag);
+            }
+        }
+        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
+        // configuration supporting a restricted set of transforms.
+        if (!plan)
+            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                      shape_3d, input_strides, output_strides);
+        return plan;
+    }
 }
 
 namespace noa::cpu::fft {
-    dim_t fastSize(dim_t size) {
-        for (uint16_t nice_size: sizes_even_fftw_) {
-            const auto tmp = static_cast<dim_t>(nice_size);
+    i64 fast_size(i64 size) {
+        for (u16 nice_size: sizes_even_fftw_) {
+            const auto tmp = static_cast<i64>(nice_size);
             if (size < tmp)
                 return tmp;
         }
@@ -109,107 +417,47 @@ namespace noa::cpu::fft {
 
 namespace noa::cpu::fft {
     template<typename T>
-    Plan<T>::Plan(T* input, Complex<T>* output, dim4_t shape, uint32_t flag, dim_t max_threads)
-            : m_plan{Plan<T>::getR2C_(input, output, shape, flag, max_threads)} {}
+    Plan<T>::Plan(T* input, Complex<T>* output, const Shape4<i64>& shape, u32 flag, i64 max_threads)
+            : m_plan{get_r2c_(input, output, shape, flag, max_threads)} {}
 
     template<typename T>
-    Plan<T>::Plan(const shared_t<T[]>& input, const shared_t<Complex<T>[]>& output,
-                  dim4_t shape, uint32_t flag, Stream& stream) {
-        const dim_t max_threads = stream.threads();
-        stream.enqueue([=]() {
-            this->m_plan = Plan<T>::getR2C_(input.get(), output.get(), shape, flag, max_threads);
-        });
-    }
+    Plan<T>::Plan(T* input, const Strides4<i64>& input_strides,
+                  Complex<T>* output, const Strides4<i64>& output_strides,
+                  const Shape4<i64>& shape, u32 flag, i64 max_threads)
+            : m_plan{get_r2c_(input, input_strides, output, output_strides, shape, flag, max_threads)} {}
 
     template<typename T>
-    Plan<T>::Plan(T* input, dim4_t input_strides, Complex<T>* output, dim4_t output_strides,
-                  dim4_t shape, uint32_t flag, dim_t max_threads)
-            : m_plan{Plan<T>::getR2C_(input, input_strides, output, output_strides, shape, flag, max_threads)} {}
+    Plan<T>::Plan(Complex<T>* input, T* output, const Shape4<i64>& shape, u32 flag, i64 max_threads)
+            : m_plan{get_c2r_(input, output, shape, flag, max_threads)} {}
 
     template<typename T>
-    Plan<T>::Plan(const shared_t<T[]>& input, dim4_t input_strides,
-                  const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-                  dim4_t shape, uint32_t flag, Stream& stream) {
-        const dim_t max_threads = stream.threads();
-        stream.enqueue([=]() {
-            this->m_plan = Plan<T>::getR2C_(
-                    input.get(), input_strides, output.get(), output_strides, shape, flag, max_threads);
-        });
-    }
+    Plan<T>::Plan(Complex<T>* input, const Strides4<i64>& input_strides,
+                  T* output, const Strides4<i64>& output_strides,
+                  const Shape4<i64>& shape, u32 flag, i64 max_threads)
+            : m_plan{get_c2r_(input, input_strides, output, output_strides,
+                              shape, flag, max_threads)} {}
 
     template<typename T>
-    Plan<T>::Plan(Complex<T>* input, T* output, dim4_t shape, uint32_t flag, dim_t max_threads)
-            : m_plan{Plan<T>::getC2R_(input, output, shape, flag, max_threads)} {}
+    Plan<T>::Plan(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
+                  noa::fft::Sign sign, u32 flag, i64 max_threads)
+            : m_plan{get_c2c_(input, output, shape, sign, flag, max_threads)} {}
 
     template<typename T>
-    Plan<T>::Plan(const shared_t<Complex<T>[]>& input, const shared_t<T[]>& output,
-                  dim4_t shape, uint32_t flag, Stream& stream) {
-        const dim_t max_threads = stream.threads();
-        stream.enqueue([=]() {
-            this->m_plan = Plan<T>::getC2R_(input.get(), output.get(), shape, flag, max_threads);
-        });
-    }
-
-    template<typename T>
-    Plan<T>::Plan(Complex<T>* input, dim4_t input_strides,
-                  T* output, dim4_t output_strides,
-                  dim4_t shape, uint32_t flag, dim_t max_threads)
-            : m_plan{Plan<T>::getC2R_(input, input_strides, output, output_strides,
-                                      shape, flag, max_threads)} {}
-
-    template<typename T>
-    Plan<T>::Plan(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
-                  const shared_t<T[]>& output, dim4_t output_strides,
-                  dim4_t shape, uint32_t flag, Stream& stream) {
-        const dim_t max_threads = stream.threads();
-        stream.enqueue([=]() {
-            this->m_plan = Plan<T>::getC2R_(
-                    input.get(), input_strides, output.get(), output_strides, shape, flag, max_threads);
-        });
-    }
-
-    template<typename T>
-    Plan<T>::Plan(Complex<T>* input, Complex<T>* output, dim4_t shape,
-                  Sign sign, uint32_t flag, dim_t max_threads)
-            : m_plan{Plan<T>::getC2C_(input, output, shape, sign, flag, max_threads)} {}
-
-    template<typename T>
-    Plan<T>::Plan(const shared_t<Complex<T>[]>& input,
-                  const shared_t<Complex<T>[]>& output, dim4_t shape,
-                  Sign sign, uint32_t flag, Stream& stream) {
-        const dim_t max_threads = stream.threads();
-        stream.enqueue([=]() {
-            this->m_plan = Plan<T>::getC2C_(input.get(), output.get(), shape, sign, flag, max_threads);
-        });
-    }
-
-    template<typename T>
-    Plan<T>::Plan(Complex<T>* input, dim4_t input_strides,
-                  Complex<T>* output, dim4_t output_strides,
-                  dim4_t shape, Sign sign, uint32_t flag, dim_t max_threads)
-            : m_plan{Plan<T>::getC2C_(input, input_strides, output, output_strides,
-                                      shape, sign, flag, max_threads)} {}
-
-    template<typename T>
-    Plan<T>::Plan(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
-                  const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-                  dim4_t shape, Sign sign, uint32_t flag, Stream& stream) {
-        const dim_t max_threads = stream.threads();
-        stream.enqueue([=]() {
-            this->m_plan = Plan<T>::getC2C_(input.get(), input_strides, output.get(), output_strides,
-                                            shape, sign, flag, max_threads);
-        });
-    }
+    Plan<T>::Plan(Complex<T>* input, const Strides4<i64>& input_strides,
+                  Complex<T>* output, const Strides4<i64>& output_strides,
+                  const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, i64 max_threads)
+            : m_plan{get_c2c_(input, input_strides, output, output_strides,
+                              shape, sign, flag, max_threads)} {}
 
     template<typename T>
     Plan<T>::~Plan() {
-        cache_(std::exchange(m_plan, nullptr), false);
+        add_to_cache_(std::exchange(m_plan, nullptr), false);
     }
 
     template<typename T>
     void Plan<T>::cleanup() {
-        cache_(nullptr, true);
-        std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
+        add_to_cache_<fftw_plan_type>(nullptr, true);
+        const std::scoped_lock lock(g_noa_fftw3_mutex_);
         if constexpr (IS_SINGLE_PRECISION)
             fftwf_cleanup();
         else
@@ -222,291 +470,6 @@ namespace noa::cpu::fft {
         #endif
     }
 
-    template<typename T>
-    void Plan<T>::cache_(fftw_plan_t plan, bool clear) {
-        // FFTW accumulates a "wisdom" automatically. This circular buffer is here
-        // in case fftw_destroy_plan destructs that wisdom.
-        static constexpr dim_t MAX_SIZE = 6;
-        static std::array<fftw_plan_t, MAX_SIZE> s_bin{nullptr};
-        static dim_t s_index{0};
-        auto destruct_plan = [](fftw_plan_t plan_) {
-            if (plan_) {
-                if constexpr (IS_SINGLE_PRECISION)
-                    fftwf_destroy_plan(plan_);
-                else
-                    fftw_destroy_plan(plan_);
-            }
-        };
-
-        if (clear) {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            for (auto& i_plan: s_bin)
-                destruct_plan(std::exchange(i_plan, nullptr));
-        }
-        if (plan) {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            destruct_plan(std::exchange(s_bin[s_index], plan));
-            s_index = (s_index + 1) % MAX_SIZE;
-        }
-    }
-
-    template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, Complex<T>* output, dim4_t shape,
-                                                   uint32_t flag, [[maybe_unused]] dim_t threads) {
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
-
-        const auto how_many = static_cast<int32_t>(shape[0]);
-        const int32_t odist = s_shape.fft().elements();
-        const int32_t idist = input == reinterpret_cast<T*>(output) ? odist * 2 : s_shape.elements();
-        fftw_plan_t plan;
-        {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_THREADS
-            setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
-            #endif
-            if constexpr (IS_SINGLE_PRECISION) {
-                plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get(3 - rank), how_many, input, nullptr, 1, idist,
-                        reinterpret_cast<fftwf_complex*>(output), nullptr, 1, odist, flag);
-            } else {
-                plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get(3 - rank), how_many, input, nullptr, 1, idist,
-                        reinterpret_cast<fftw_complex*>(output), nullptr, 1, odist, flag);
-            }
-        }
-
-        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
-        // configuration supporting a restricted set of transforms.
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}", s_shape);
-        return plan;
-    }
-
-    template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getR2C_(T* input, dim4_t input_strides,
-                                                   Complex<T>* output, dim4_t output_strides,
-                                                   dim4_t shape, uint32_t flag,
-                                                   [[maybe_unused]] dim_t threads) {
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-        }
-
-        const auto i_strides = safe_cast<int4_t>(input_strides);
-        const auto o_strides = safe_cast<int4_t>(output_strides);
-        const int3_t inembed(i_strides.pitches());
-        const int3_t onembed(o_strides.pitches());
-        const auto how_many = static_cast<int32_t>(shape[0]);
-        const int32_t off = 3 - rank;
-        fftw_plan_t plan;
-        {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_THREADS
-            setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
-            #endif
-
-            if constexpr (IS_SINGLE_PRECISION) {
-                plan = fftwf_plan_many_dft_r2c(
-                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_strides[3], i_strides[0],
-                        reinterpret_cast<fftwf_complex*>(output), onembed.get(off), o_strides[3], o_strides[0], flag);
-            } else {
-                plan = fftw_plan_many_dft_r2c(
-                        rank, s_shape.get(off), how_many, input, inembed.get(off), i_strides[3], i_strides[0],
-                        reinterpret_cast<fftw_complex*>(output), onembed.get(off), o_strides[3], o_strides[0], flag);
-            }
-        }
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
-                      s_shape, input_strides, output_strides);
-        return plan;
-    }
-
-    template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, T* output,
-                                                   dim4_t shape, uint32_t flag,
-                                                   [[maybe_unused]] dim_t threads) {
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
-        const int32_t idist = s_shape.fft().elements();
-        const int32_t odist = reinterpret_cast<T*>(input) == output ? idist * 2 : s_shape.elements();
-        const auto how_many = static_cast<int32_t>(shape[0]);
-        fftw_plan_t plan;
-        {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_THREADS
-            setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
-            #endif
-            if constexpr (IS_SINGLE_PRECISION) {
-                plan = fftwf_plan_many_dft_c2r(
-                        rank, s_shape.get() + 3 - rank, how_many,
-                        reinterpret_cast<fftwf_complex*>(input), nullptr, 1, idist,
-                        output, nullptr, 1, odist, flag);
-            } else {
-                plan = fftw_plan_many_dft_c2r(
-                        rank, s_shape.get() + 3 - rank, how_many,
-                        reinterpret_cast<fftw_complex*>(input), nullptr, 1, idist,
-                        output, nullptr, 1, odist, flag);
-            }
-        }
-        if (!plan)
-            NOA_THROW("Failed to create the C2R plan, with shape:{}", s_shape);
-        return plan;
-    }
-
-    template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2R_(Complex<T>* input, dim4_t input_strides,
-                                                   T* output, dim4_t output_strides,
-                                                   dim4_t shape, uint32_t flag,
-                                                   [[maybe_unused]] dim_t threads) {
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) { // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-        }
-
-        const auto i_strides = safe_cast<int4_t>(input_strides);
-        const auto o_strides = safe_cast<int4_t>(output_strides);
-        const int3_t inembed(i_strides.pitches());
-        const int3_t onembed(o_strides.pitches());
-        const int32_t off = 3 - rank;
-        const auto how_many = static_cast<int32_t>(shape[0]);
-        fftw_plan_t plan;
-        {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_THREADS
-            setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
-            #endif
-            if constexpr (IS_SINGLE_PRECISION) {
-                plan = fftwf_plan_many_dft_c2r(
-                        rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
-                        output, onembed.get() + off, o_strides[3], o_strides[0], flag);
-            } else {
-                plan = fftw_plan_many_dft_c2r(
-                        rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
-                        output, onembed.get() + off, o_strides[3], o_strides[0], flag);
-            }
-        }
-        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
-        // configuration supporting a restricted set of transforms or with the PRESERVE_INPUT flag
-        // with a multidimensional out-of-place c2r transform.
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
-                      s_shape, input_strides, output_strides);
-        return plan;
-    }
-
-    template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, Complex<T>* output, dim4_t shape,
-                                                   Sign sign, uint32_t flag,
-                                                   [[maybe_unused]] dim_t threads) {
-        static_assert(Sign::FORWARD == FFTW_FORWARD);
-        static_assert(Sign::BACKWARD == FFTW_BACKWARD);
-
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        if (rank == 1 && s_shape[2] == 1) // column vector -> row vector
-            std::swap(s_shape[1], s_shape[2]);
-        const auto how_many = static_cast<int32_t>(shape[0]);
-        const int32_t dist = s_shape.elements();
-        fftw_plan_t plan;
-        {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_THREADS
-            setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
-            #endif
-
-            if constexpr (IS_SINGLE_PRECISION) {
-                plan = fftwf_plan_many_dft(rank, s_shape.get() + 3 - rank, how_many,
-                                           reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
-                                           reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
-                                           sign, flag);
-            } else {
-                plan = fftw_plan_many_dft(rank, s_shape.get() + 3 - rank, how_many,
-                                          reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
-                                          reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
-                                          sign, flag);
-            }
-        }
-        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
-        // configuration supporting a restricted set of transforms.
-        if (!plan)
-            NOA_THROW("Failed to create the C2C plan, with shape:{}", s_shape);
-        return plan;
-    }
-
-    template<typename T>
-    typename Plan<T>::fftw_plan_t Plan<T>::getC2C_(Complex<T>* input, dim4_t input_strides,
-                                                   Complex<T>* output, dim4_t output_strides,
-                                                   dim4_t shape, Sign sign, uint32_t flag,
-                                                   [[maybe_unused]] dim_t threads) {
-        static_assert(Sign::FORWARD == FFTW_FORWARD);
-        static_assert(Sign::BACKWARD == FFTW_BACKWARD);
-
-        auto s_shape = safe_cast<int3_t>(dim3_t(shape.get(1)));
-        if (indexing::isColMajor(input_strides) && indexing::isColMajor(output_strides)) {
-            // column major -> row major
-            std::swap(s_shape[1], s_shape[2]);
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-        }
-
-        const auto i_strides = safe_cast<int4_t>(input_strides);
-        const auto o_strides = safe_cast<int4_t>(output_strides);
-        const int3_t inembed(i_strides.pitches());
-        const int3_t onembed(o_strides.pitches());
-        const int32_t rank = s_shape.ndim();
-        NOA_ASSERT(rank == 1 || !indexing::isVector(s_shape));
-        const auto how_many = static_cast<int32_t>(shape[0]);
-        const int32_t off = 3 - rank;
-        fftw_plan_t plan;
-        {
-            std::lock_guard<std::mutex> lock(g_noa_fftw3_mutex_);
-            #ifdef NOA_FFTW_THREADS
-            setThreads_<IS_SINGLE_PRECISION>(s_shape, how_many, threads);
-            #endif
-
-            if constexpr (IS_SINGLE_PRECISION) {
-                plan = fftwf_plan_many_dft(
-                        rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftwf_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
-                        reinterpret_cast<fftwf_complex*>(output), onembed.get() + off, o_strides[3], o_strides[0],
-                        sign, flag);
-            } else {
-                plan = fftw_plan_many_dft(
-                        rank, s_shape.get() + off, how_many,
-                        reinterpret_cast<fftw_complex*>(input), inembed.get() + off, i_strides[3], i_strides[0],
-                        reinterpret_cast<fftw_complex*>(output), onembed.get() + off, o_strides[3], o_strides[0],
-                        sign, flag);
-            }
-        }
-        // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
-        // configuration supporting a restricted set of transforms.
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
-                      s_shape, input_strides, output_strides);
-        return plan;
-    }
-
-    template
-    class Plan<float>;
-
-    template
-    class Plan<double>;
+    template class Plan<f32>;
+    template class Plan<f64>;
 }

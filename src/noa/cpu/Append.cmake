@@ -21,11 +21,11 @@ set(NOA_CPU_HEADERS
         cpu/utils/ReduceUnary.hpp
         cpu/utils/ReduceBinary.hpp
 
-#        # noa::cpu::fft
-#        cpu/fft/Plan.h
-#        cpu/fft/Remap.h
-#        cpu/fft/Resize.h
-#        cpu/fft/Transforms.h
+        # noa::cpu::fft
+        cpu/fft/Plan.hpp
+        cpu/fft/Remap.hpp
+        cpu/fft/Resize.hpp
+        cpu/fft/Transforms.hpp
 
         # noa::cpu::math
         cpu/math/Blas.hpp
@@ -45,7 +45,7 @@ set(NOA_CPU_HEADERS
 #        cpu/signal/Convolve.h
 #        cpu/signal/Median.h
 #        cpu/signal/Shape.h
-#
+
         # noa::cpu::memory
         cpu/memory/Arange.hpp
         cpu/memory/Cast.hpp
@@ -59,13 +59,13 @@ set(NOA_CPU_HEADERS
         cpu/memory/Set.hpp
         cpu/memory/Subregion.hpp
 
-#        # noa::cpu::geometry
-#        cpu/geometry/fft/Polar.h
-#        cpu/geometry/fft/Project.h
-#        cpu/geometry/fft/Transform.h
-#        cpu/geometry/Polar.h
-#        cpu/geometry/Prefilter.h
-#        cpu/geometry/Transform.h
+        # noa::cpu::geometry
+        cpu/geometry/fft/Polar.h
+        cpu/geometry/fft/Project.h
+        cpu/geometry/fft/Transform.h
+        cpu/geometry/Polar.h
+        cpu/geometry/Prefilter.h
+        cpu/geometry/Transform.h
 
         )
 
@@ -75,11 +75,11 @@ set(NOA_CPU_SOURCES
         cpu/Find.cpp
         cpu/Sort.cpp
 
-#        # noa::cpu::fft
-#        cpu/fft/Plan.cpp
-#        cpu/fft/Remap.cpp
-#        cpu/fft/Resize.cpp
-#
+        # noa::cpu::fft
+        cpu/fft/Plan.cpp
+        cpu/fft/Remap.cpp
+        cpu/fft/Resize.cpp
+
         # noa::cpu::math
         cpu/math/Blas.cpp
         cpu/math/Random.cpp
@@ -96,19 +96,19 @@ set(NOA_CPU_SOURCES
 #        cpu/signal/fft/Standardize.cpp
 #        cpu/signal/Convolve.cpp
 #        cpu/signal/Median.cpp
-#
+
         # noa::cpu::memory
         cpu/memory/Permute.cpp
         cpu/memory/Resize.cpp
         cpu/memory/Subregion.cpp
-#
-#        # noa::cpu::geometry
-#        cpu/geometry/fft/Polar.cpp
-#        cpu/geometry/fft/Project.cpp
-#        cpu/geometry/fft/Transform.cpp
-#        cpu/geometry/Polar.cpp
-#        cpu/geometry/Prefilter.cpp
-#        cpu/geometry/Transform.cpp
+
+        # noa::cpu::geometry
+        cpu/geometry/fft/Polar.cpp
+        cpu/geometry/fft/Project.cpp
+        cpu/geometry/fft/Transform.cpp
+        cpu/geometry/Polar.cpp
+        cpu/geometry/Prefilter.cpp
+        cpu/geometry/Transform.cpp
 
         )
 

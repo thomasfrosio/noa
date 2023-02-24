@@ -9,14 +9,15 @@ set(NOA_ALGO_HEADERS
 
         algorithms/math/AccurateSum.hpp
 
-#        algorithms/geometry/FourierProjections.hpp
-#        algorithms/geometry/LinearTransform2D.hpp
-#        algorithms/geometry/LinearTransform2DFourier.hpp
-#        algorithms/geometry/LinearTransform3D.hpp
-#        algorithms/geometry/LinearTransform3DFourier.hpp
-#        algorithms/geometry/PolarTransform.hpp
-#        algorithms/geometry/PolarTransformFourier.hpp
-#        algorithms/geometry/Utilities.hpp
+        algorithms/fft/Remap.hpp
+        algorithms/fft/Resize.hpp
+
+        algorithms/geometry/PolarTransform.hpp
+        algorithms/geometry/PolarTransformRFFT.hpp
+        algorithms/geometry/ProjectionsFFT.hpp
+        algorithms/geometry/Transform.hpp
+        algorithms/geometry/TransformRFFT.hpp
+        algorithms/geometry/Utilities.hpp
 
 #        algorithms/signal/Shape.hpp
 #        algorithms/signal/FourierCorrelationPeak.hpp

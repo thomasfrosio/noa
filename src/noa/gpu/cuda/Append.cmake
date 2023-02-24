@@ -45,14 +45,14 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/memory/Set.hpp
         gpu/cuda/memory/Subregion.hpp
 
-#        # noa::cuda::fft
-#        gpu/cuda/fft/Exception.h
-#        gpu/cuda/fft/Plan.h
-#        gpu/cuda/fft/Remap.h
-#        gpu/cuda/fft/Resize.h
-#        gpu/cuda/fft/Transforms.h
-#
-#        # noa::cuda::math
+        # noa::cuda::fft
+        gpu/cuda/fft/Exception.hpp
+        gpu/cuda/fft/Plan.hpp
+        gpu/cuda/fft/Remap.hpp
+        gpu/cuda/fft/Resize.hpp
+        gpu/cuda/fft/Transforms.hpp
+
+        # noa::cuda::math
         gpu/cuda/math/Blas.hpp
         gpu/cuda/math/Complex.hpp
         gpu/cuda/math/Random.hpp
@@ -68,15 +68,15 @@ set(NOA_CUDA_HEADERS
 #        gpu/cuda/signal/Convolve.h
 #        gpu/cuda/signal/Median.h
 #        gpu/cuda/signal/Shape.h
-#
-#        # noa::cuda::geometry
-#        gpu/cuda/geometry/fft/Polar.h
-#        gpu/cuda/geometry/fft/Project.h
-#        gpu/cuda/geometry/fft/Transform.h
-#        gpu/cuda/geometry/Interpolator.h
-#        gpu/cuda/geometry/Polar.h
-#        gpu/cuda/geometry/Prefilter.h
-#        gpu/cuda/geometry/Transform.h
+
+        # noa::cuda::geometry
+        gpu/cuda/geometry/fft/Polar.h
+        gpu/cuda/geometry/fft/Project.h
+        gpu/cuda/geometry/fft/Transform.h
+        gpu/cuda/geometry/Interpolator.h
+        gpu/cuda/geometry/Polar.h
+        gpu/cuda/geometry/Prefilter.h
+        gpu/cuda/geometry/Transform.h
 
         )
 
@@ -96,11 +96,11 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/FindMax.cu
         gpu/cuda/Sort.cu
 
-#        # noa::cuda::fft
-#        gpu/cuda/fft/Exception.cpp
-#        gpu/cuda/fft/Plan.cpp
-#        gpu/cuda/fft/Remap.cu
-#        gpu/cuda/fft/Resize.cu
+        # noa::cuda::fft
+        gpu/cuda/fft/Exception.cpp
+        gpu/cuda/fft/Plan.cpp
+        gpu/cuda/fft/Remap.cu
+        gpu/cuda/fft/Resize.cu
 
         # noa::cuda::memory
         gpu/cuda/memory/Arange.cu
@@ -140,16 +140,16 @@ set(NOA_CUDA_SOURCES
 #        gpu/cuda/signal/Convolve3.cu
 #        gpu/cuda/signal/ConvolveSeparable.cu
 #        gpu/cuda/signal/Median.cu
-#
-#        # noa::cuda::geometry
-#        gpu/cuda/geometry/fft/Polar.cu
-#        gpu/cuda/geometry/fft/Project.cu
-#        gpu/cuda/geometry/fft/Transform.cu
-#        gpu/cuda/geometry/fft/TransformTexture.cu
-#        gpu/cuda/geometry/Polar.cu
-#        gpu/cuda/geometry/Prefilter.cu
-#        gpu/cuda/geometry/Transform.cu
-#        gpu/cuda/geometry/TransformTexture.cu
+
+        # noa::cuda::geometry
+        gpu/cuda/geometry/fft/Polar.cu
+        gpu/cuda/geometry/fft/Project.cu
+        gpu/cuda/geometry/fft/Transform.cu
+        gpu/cuda/geometry/fft/TransformTexture.cu
+        gpu/cuda/geometry/Polar.cu
+        gpu/cuda/geometry/Prefilter.cu
+        gpu/cuda/geometry/Transform.cu
+        gpu/cuda/geometry/TransformTexture.cu
 
         )
 

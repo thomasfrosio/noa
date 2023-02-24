@@ -54,9 +54,9 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute0312(const T* input, const Strides4<i64>& input_strides,
-                     T* output, const Strides4<i64>& output_strides,
-                     const Shape4<i64>& shape, Stream& stream) {
+    void permute_0312(const T* input, const Strides4<i64>& input_strides,
+                      T* output, const Strides4<i64>& output_strides,
+                      const Shape4<i64>& shape, Stream& stream) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         const auto u_shape = shape.as_safe<u32>();
@@ -81,7 +81,7 @@ namespace noa::cuda::memory::details {
     }
 
     #define NOA_INSTANTIATE_TRANSPOSE_(T)   \
-    template void permute0312<T>(           \
+    template void permute_0312<T>(          \
         const T*, const Strides4<i64>&,     \
         T*, const Strides4<i64>&,           \
         const Shape4<i64>&, Stream&)

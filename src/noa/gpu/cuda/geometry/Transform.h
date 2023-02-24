@@ -1,125 +1,128 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
-#include "noa/common/geometry/Euler.h"
-#include "noa/common/geometry/Symmetry.h"
-#include "noa/common/geometry/Transform.h"
-#include "noa/gpu/cuda/Types.h"
-#include "noa/gpu/cuda/Stream.h"
+#include "noa/core/Definitions.hpp"
+#include "noa/core/geometry/Euler.hpp"
+#include "noa/core/geometry/Symmetry.hpp"
+#include "noa/core/geometry/Transform.hpp"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::geometry::details {
     template<int NDIM, typename T, typename M>
     constexpr bool is_valid_transform_v =
-            traits::is_any_v<T, float, cfloat_t, double, cdouble_t> &&
-            ((NDIM == 2 && traits::is_any_v<M, float23_t, float33_t, shared_t<float23_t[]>, shared_t<float33_t[]>>) ||
-             (NDIM == 3 && traits::is_any_v<M, float34_t, float44_t, shared_t<float34_t[]>, shared_t<float44_t[]>>));
+            noa::traits::is_any_v<T, f32, f64, c32, c64> &&
+            ((NDIM == 2 && noa::traits::is_any_v<M, Float23, Float33, const Float23*, const Float33*>) ||
+             (NDIM == 3 && noa::traits::is_any_v<M, Float34, Float44, const Float34*, const Float44*>));
 
     template<int NDIM, typename T, typename M>
     constexpr bool is_valid_transform_texture_v =
-            traits::is_any_v<T, float, cfloat_t> &&
-            ((NDIM == 2 && traits::is_any_v<M, float23_t, float33_t, shared_t<float23_t[]>, shared_t<float33_t[]>>) ||
-             (NDIM == 3 && traits::is_any_v<M, float34_t, float44_t, shared_t<float34_t[]>, shared_t<float44_t[]>>));
+            noa::traits::is_any_v<T, f32, c32> &&
+            ((NDIM == 2 && noa::traits::is_any_v<M, Float23, Float33, const Float23*, const Float33*>) ||
+             (NDIM == 3 && noa::traits::is_any_v<M, Float34, Float44, const Float34*, const Float44*>));
 }
 
 namespace noa::cuda::geometry {
     // Applies one or multiple 2D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<2, Value, Matrix>>>
-    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
-                     Value cvalue, bool prefilter, Stream& stream);
+    void transform_2d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                      const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
+                      Value cvalue, Stream& stream);
 
     // Applies one or multiple 3D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<3, Value, Matrix>>>
-    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
-                     Value cvalue, bool prefilter, Stream& stream);
+    void transform_3d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                      const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
+                      Value cvalue, Stream& stream);
 
     // Applies one or multiple 2D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<2, Value, Matrix>>>
-    void transform2D(const shared_t<cudaArray>& array,
-                     const shared_t<cudaTextureObject_t>& texture, dim4_t texture_shape,
-                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& inv_matrices, Stream& stream);
+    void transform_2d(cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
+                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                      const Matrix& inv_matrices, Stream& stream);
 
     // Applies one or multiple 3D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<3, Value, Matrix>>>
-    void transform3D(const shared_t<cudaArray>& array,
-                     const shared_t<cudaTextureObject_t>& texture, dim4_t texture_shape,
-                     InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     const Matrix& inv_matrices, Stream& stream);
+    void transform_3d(cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
+                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                      const Matrix& inv_matrices, Stream& stream);
 }
 
-// -- Symmetry -- //
 namespace noa::cuda::geometry {
     using Symmetry = noa::geometry::Symmetry;
 
     // Shifts, then rotates/scales and applies the symmetry on the 2D input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t, double, cdouble_t>>>
-    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
-                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void transform_and_symmetrize_2d(
+            const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Vec2<f32>& shift, const Float22& inv_matrix,
+            const Symmetry& symmetry, const Vec2<f32>& center,
+            InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Shifts, then rotates/scales and applies the symmetry on the 3D input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t, double, cdouble_t>>>
-    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides, dim4_t input_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float3_t shift, float33_t inv_matrix, const Symmetry& symmetry, float3_t center,
-                     InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void transform_and_symmetrize_3d(
+            const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Vec3<f32>& shift, const Float33& inv_matrix,
+            const Symmetry& symmetry, const Vec3<f32>& center,
+            InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Symmetrizes the 2D (batched) input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t, double, cdouble_t>>>
-    void symmetrize2D(const shared_t<Value[]>& input, dim4_t input_strides,
-                      const shared_t<Value[]>& output, dim4_t output_strides,
-                      dim4_t shape, const Symmetry& symmetry, float2_t center,
-                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
+                       Value* output, const Strides4<i64>& output_strides,
+                       const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
+                       InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Symmetrizes the 3D (batched) input array.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t, double, cdouble_t>>>
-    void symmetrize3D(const shared_t<Value[]>& input, dim4_t input_strides,
-                      const shared_t<Value[]>& output, dim4_t output_strides,
-                      dim4_t shape, const Symmetry& symmetry, float3_t center,
-                      InterpMode interp_mode, bool prefilter, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
+    void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
+                       Value* output, const Strides4<i64>& output_strides,
+                       const Shape4<i64>& shape, const Symmetry& symmetry, const Vec3<f32>& center,
+                       InterpMode interp_mode, bool normalize, Stream& stream);
 
     // Shifts, then rotates/scales and applies the symmetry on the 2D texture.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t>>>
-    void transform2D(const shared_t<cudaArray>& array,
-                     const shared_t<cudaTextureObject_t>& texture,
-                     InterpMode texture_interp_mode, dim4_t texture_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float2_t shift, float22_t inv_matrix, const Symmetry& symmetry, float2_t center,
-                     bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
+    void transform_and_symmetrize_2d(
+            cudaArray* array, cudaTextureObject_t texture,
+            InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Vec2<f32>& shift, const Float22& inv_matrix,
+            const Symmetry& symmetry, const Vec2<f32>& center,
+            bool normalize, Stream& stream);
 
     // Shifts, then rotates/scales and applies the symmetry on the 3D texture.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t>>>
-    void transform3D(const shared_t<cudaArray>& array,
-                     const shared_t<cudaTextureObject_t>& texture,
-                     InterpMode texture_interp_mode, dim4_t texture_shape,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                     float3_t shift, float33_t inv_matrix, const Symmetry& symmetry, float3_t center,
-                     bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
+    void transform_and_symmetrize_3d(
+            cudaArray* array,cudaTextureObject_t texture,
+            InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Vec3<f32>& shift, const Float33& inv_matrix,
+            const Symmetry& symmetry, const Vec3<f32>& center,
+            bool normalize, Stream& stream);
 
     // Symmetrizes the 2D texture.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t>>>
-    void symmetrize2D(const shared_t<cudaArray>& array,
-                      const shared_t<cudaTextureObject_t>& texture,
-                      InterpMode texture_interp_mode, dim4_t texture_shape,
-                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                      const Symmetry& symmetry, float2_t center, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
+    void symmetrize_2d(cudaArray* array,
+                       cudaTextureObject_t texture,
+                       InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
+                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                       const Symmetry& symmetry, const Vec2<f32>& center, bool normalize, Stream& stream);
 
     // Symmetrizes the 3D texture.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, cfloat_t>>>
-    void symmetrize3D(const shared_t<cudaArray>& array,
-                      const shared_t<cudaTextureObject_t>& texture,
-                      InterpMode texture_interp_mode, dim4_t texture_shape,
-                      const shared_t<Value[]>& output, dim4_t output_strides, dim4_t output_shape,
-                      const Symmetry& symmetry, float3_t center, bool normalize, Stream& stream);
+    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
+    void symmetrize_3d(cudaArray* array,
+                       cudaTextureObject_t texture,
+                       InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
+                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                       const Symmetry& symmetry, const Vec3<f32>& center, bool normalize, Stream& stream);
 }

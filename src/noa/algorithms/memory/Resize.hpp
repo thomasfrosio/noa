@@ -26,12 +26,12 @@ namespace noa::algorithm::memory {
         using offset_type = Offset;
         using index4_type = Vec4<Index>;
         using shape4_type = Shape4<Index>;
-        using value_or_empty_type = std::conditional_t<MODE == BorderMode::VALUE, Value, traits::Empty>;
+        using value_or_empty_type = std::conditional_t<MODE == BorderMode::VALUE, Value, Empty>;
         using input_accessor_type = AccessorRestrict<const value_type, 4, offset_type>;
         using output_accessor_type = AccessorRestrict<value_type, 4, offset_type>;
 
         static constexpr bool IS_BOUNDLESS = MODE != BorderMode::VALUE && MODE != BorderMode::ZERO;
-        using index4_or_empty_type = std::conditional_t<IS_BOUNDLESS, traits::Empty, index4_type>;
+        using index4_or_empty_type = std::conditional_t<IS_BOUNDLESS, Empty, index4_type>;
 
     public:
         Resize(const input_accessor_type& input_accessor,

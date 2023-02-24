@@ -3,10 +3,9 @@
 #include "noa/core/geometry/Polar.hpp"
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
-#include "noa/core/types/Float2.h"
-#include "noa/core/types/Float3.h"
+#include "noa/core/types/Vec.hpp"
 
-namespace noa::signal {
+namespace noa::geometry {
     /// Line defined by a center and radius.
     /// \tparam INVERT  Whether the line should be filled with zeros instead of ones.
     /// \tparam ICoord  Input, storage and computation type.
@@ -56,7 +55,7 @@ namespace noa::signal {
             coord -= m_center;
             const auto dst = math::abs(coord);
 
-            constexpr auto PI = math::Constants<compute_type>::PI;
+            constexpr auto PI = math::Constant<compute_type>::PI;
             if (dst > m_radius + m_edge_size) {
                 return static_cast<value_type>(INVERT) * m_cvalue;
             } else if (dst <= m_radius) {
@@ -88,7 +87,7 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector_type = std::conditional_t<NDIM == 2, Float2<compute_type>, Float3<compute_type>>;
+        using vector_type = Vec<compute_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
@@ -97,7 +96,7 @@ namespace noa::signal {
                 : m_center(center), m_radius_sqd(radius * radius), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -110,7 +109,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, const affine_type& inv_transform) const noexcept {
-            using affine_vector_t = std::conditional_t<NDIM == 2, Float3<compute_type>, Float4<compute_type>>;
+            using affine_vector_t = Vec<compute_type, NDIM + 1>;
             affine_vector_t affine_coords{1}; // {y, x, 1} or {z, y, x, 1}
             for (size_t i = 0; i < vector_type::COUNT; ++i)
                 affine_coords[i] = coords[i];
@@ -141,17 +140,24 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector_type = std::conditional_t<NDIM == 2, Float2<compute_type>, Float3<compute_type>>;
+        using vector_type = std::conditional_t<NDIM == 2, Vec2<compute_type>, Vec3<compute_type>>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
-        constexpr NOA_IHD SphereSmooth(vector_type center, compute_type radius, compute_type edge_size,
-                                       value_type cvalue = value_type{1}) noexcept
-                : m_center(center), m_radius(radius), m_radius_sqd(radius * radius), m_edge_size(edge_size),
-                  m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)), m_cvalue(cvalue) {}
+        constexpr NOA_IHD SphereSmooth(
+                vector_type center,
+                compute_type radius,
+                compute_type edge_size,
+                value_type cvalue = value_type{1}) noexcept
+                : m_center(center),
+                  m_radius(radius),
+                  m_radius_sqd(radius * radius),
+                  m_edge_size(edge_size),
+                  m_radius_edge_sqd((radius + edge_size) * (radius + edge_size)),
+                  m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -164,7 +170,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, const affine_type& inv_transform) const noexcept {
-            using affine_vector_t = std::conditional_t<NDIM == 2, Float3<compute_type>, Float4<compute_type>>;
+            using affine_vector_t = std::conditional_t<NDIM == 2, Vec3<compute_type>, Vec4<compute_type>>;
             affine_vector_t affine_coords{1}; // {y, x, 1} or {z, y, x, 1}
             for (size_t i = 0; i < vector_type::COUNT; ++i)
                 affine_coords[i] = coords[i];
@@ -173,7 +179,7 @@ namespace noa::signal {
 
     private:
         [[nodiscard]] constexpr NOA_IHD value_type get_(vector_type coords) const noexcept {
-            constexpr auto PI = math::Constants<compute_type>::PI;
+            constexpr auto PI = math::Constant<compute_type>::PI;
             const auto dst_sqd = math::dot(coords, coords);
             if (dst_sqd > m_radius_edge_sqd) {
                 return static_cast<value_type>(INVERT) * m_cvalue;
@@ -209,8 +215,8 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector3_type = Float3<compute_type>;
-        using vector2_type = Float2<compute_type>;
+        using vector3_type = Vec3<compute_type>;
+        using vector2_type = Vec2<compute_type>;
         using rotation_type = Mat33<compute_type>;
         using affine_type = Mat34<compute_type>;
 
@@ -229,7 +235,7 @@ namespace noa::signal {
         }
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector3_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector3_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -242,7 +248,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector3_type coords, const affine_type& inv_transform) const noexcept {
-            Float4<compute_type> affine_coords{coords[0], coords[1], coords[2], 1};
+            Vec4<compute_type> affine_coords{coords[0], coords[1], coords[2], 1};
             return get_(inv_transform * affine_coords - m_center);
         }
 
@@ -274,8 +280,8 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector3_type = Float3<compute_type>;
-        using vector2_type = Float2<compute_type>;
+        using vector3_type = Vec3<compute_type>;
+        using vector2_type = Vec2<compute_type>;
         using rotation_type = Mat33<compute_type>;
         using affine_type = Mat34<compute_type>;
 
@@ -298,7 +304,7 @@ namespace noa::signal {
         }
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector3_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector3_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -311,7 +317,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector3_type coords, const affine_type& inv_transform) const noexcept {
-            Float4<compute_type> affine_coords{coords[0], coords[1], coords[2], 1};
+            Vec4<compute_type> affine_coords{coords[0], coords[1], coords[2], 1};
             return get_(inv_transform * affine_coords - m_center);
         }
 
@@ -324,7 +330,7 @@ namespace noa::signal {
             if (dst_z > m_length_edge || dst_yx_sqd > m_radius_edge_sqd) {
                 return static_cast<value_type>(INVERT) * m_cvalue;
             } else {
-                constexpr auto PI = math::Constants<compute_type>::PI;
+                constexpr auto PI = math::Constant<compute_type>::PI;
                 compute_type mask;
                 if (dst_yx_sqd <= m_radius_sqd) {
                     mask = compute_type{1};
@@ -368,7 +374,7 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector_type = std::conditional_t<NDIM == 2, Float2<compute_type>, Float3<compute_type>>;
+        using vector_type = std::conditional_t<NDIM == 2, Vec2<compute_type>, Vec3<compute_type>>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
@@ -377,7 +383,7 @@ namespace noa::signal {
                 : m_center(center), m_radius(radius), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -390,7 +396,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, const affine_type& inv_transform) const noexcept {
-            using affine_vector_t = std::conditional_t<NDIM == 2, Float3<compute_type>, Float4<compute_type>>;
+            using affine_vector_t = std::conditional_t<NDIM == 2, Vec3<compute_type>, Vec4<compute_type>>;
             affine_vector_t affine_coords{1}; // {y, x, 1} or {z, y, x, 1}
             for (size_t i = 0; i < vector_type::COUNT; ++i)
                 affine_coords[i] = coords[i];
@@ -421,7 +427,7 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector_type = std::conditional_t<NDIM == 2, Float2<compute_type>, Float3<compute_type>>;
+        using vector_type = std::conditional_t<NDIM == 2, Vec2<compute_type>, Vec3<compute_type>>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
@@ -431,7 +437,7 @@ namespace noa::signal {
                   m_edge_size(edge_size), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -444,7 +450,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, const affine_type& inv_transform) const noexcept {
-            using affine_vector_t = std::conditional_t<NDIM == 2, Float3<compute_type>, Float4<compute_type>>;
+            using affine_vector_t = std::conditional_t<NDIM == 2, Vec3<compute_type>, Vec4<compute_type>>;
             affine_vector_t affine_coords{1}; // {y, x, 1} or {z, y, x, 1}
             for (size_t i = 0; i < vector_type::COUNT; ++i)
                 affine_coords[i] = coords[i];
@@ -461,9 +467,9 @@ namespace noa::signal {
                 return static_cast<value_type>(!INVERT) * m_cvalue;
             } else {
                 compute_type mask_value{1};
-                for (dim_t i = 0; i < NDIM; ++i) {
+                for (int i = 0; i < NDIM; ++i) {
                     if (m_radius[i] < coords[i] && coords[i] <= m_radius_edge[i]) {
-                        constexpr auto PI = math::Constants<compute_type>::PI;
+                        constexpr auto PI = math::Constant<compute_type>::PI;
                         const auto distance = (coords[i] - m_radius[i]) / m_edge_size;
                         mask_value *= (compute_type{1} + math::cos(PI * distance)) * compute_type{0.5};
                     }
@@ -494,7 +500,7 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector_type = std::conditional_t<NDIM == 2, Float2<compute_type>, Float3<compute_type>>;
+        using vector_type = std::conditional_t<NDIM == 2, Vec2<compute_type>, Vec3<compute_type>>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
@@ -503,7 +509,7 @@ namespace noa::signal {
                 : m_center(center), m_radius(radius), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -516,7 +522,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, const affine_type& inv_transform) const noexcept {
-            using affine_vector_t = std::conditional_t<NDIM == 2, Float3<compute_type>, Float4<compute_type>>;
+            using affine_vector_t = std::conditional_t<NDIM == 2, Vec3<compute_type>, Vec4<compute_type>>;
             affine_vector_t affine_coords{1}; // {y, x, 1} or {z, y, x, 1}
             for (size_t i = 0; i < vector_type::COUNT; ++i)
                 affine_coords[i] = coords[i];
@@ -548,7 +554,7 @@ namespace noa::signal {
     public:
         using value_type = OCoord;
         using compute_type = ICoord;
-        using vector_type = std::conditional_t<NDIM == 2, Float2<compute_type>, Float3<compute_type>>;
+        using vector_type = std::conditional_t<NDIM == 2, Vec2<compute_type>, Vec3<compute_type>>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<compute_type>, Mat33<compute_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<compute_type>, Mat34<compute_type>>;
 
@@ -557,7 +563,7 @@ namespace noa::signal {
                 : m_center(center), m_radius(radius * radius), m_edge_size(edge_size), m_cvalue(cvalue) {}
 
         [[nodiscard]] constexpr NOA_IHD value_type
-        operator()(vector_type coords, empty_t = empty_t{}) const noexcept {
+        operator()(vector_type coords, traits::Empty = traits::Empty{}) const noexcept {
             return get_(coords - m_center);
         }
 
@@ -570,7 +576,7 @@ namespace noa::signal {
 
         [[nodiscard]] constexpr NOA_IHD value_type
         operator()(vector_type coords, const affine_type& inv_transform) const noexcept {
-            using affine_vector_t = std::conditional_t<NDIM == 2, Float3<compute_type>, Float4<compute_type>>;
+            using affine_vector_t = std::conditional_t<NDIM == 2, Vec3<compute_type>, Vec4<compute_type>>;
             affine_vector_t affine_coords{1}; // {y, x, 1} or {z, y, x, 1}
             for (size_t i = 0; i < vector_type::COUNT; ++i)
                 affine_coords[i] = coords[i];
@@ -604,7 +610,7 @@ namespace noa::signal {
                                                     cos2theta / m_radius[0]);
             }
 
-            constexpr compute_type PI = math::Constants<compute_type>::PI;
+            constexpr compute_type PI = math::Constant<compute_type>::PI;
             if (irho > erho + m_edge_size) {
                 return static_cast<value_type>(INVERT) * m_cvalue;
             } else if (irho <= erho) {

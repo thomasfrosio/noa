@@ -35,7 +35,7 @@ namespace noa::cuda::memory {
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, static_cast<size_t>(elements) * sizeof(T), stream.id()));
             } else {
                 NOA_THROW("Setting an array of {} with a value other than {} is not currently allowed",
-                          string::human<T>(), T{0});
+                          noa::string::human<T>(), T{0});
             }
         }
     }
@@ -49,7 +49,7 @@ namespace noa::cuda::memory {
 
         if constexpr (!traits::is_restricted_numeric_v<T> && !std::is_same_v<T, bool>) {
             NOA_CHECK(noa::indexing::are_contiguous(strides, shape),
-                      "Setting a non-contiguous array of {} is currently not allowed", string::human<T>());
+                      "Setting a non-contiguous array of {} is currently not allowed", noa::string::human<T>());
             return set(src, shape.elements(), value, stream);
         } else {
             if (noa::indexing::are_contiguous(strides, shape))

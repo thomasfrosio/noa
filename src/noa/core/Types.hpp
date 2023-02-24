@@ -69,6 +69,8 @@ namespace noa {
     static_assert(alignof(c32) == 8);
     static_assert(alignof(c64) == 16);
 
+    using Empty = noa::traits::Empty;
+
     template<typename T>
     using Shared = std::shared_ptr<T>;
 

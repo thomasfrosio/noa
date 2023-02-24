@@ -44,4 +44,7 @@ namespace noa::traits {
 
     template<typename T, typename... Ts> struct are_almost_same_value_type : std::bool_constant<(is_almost_same_v<value_type_t<T>, value_type_t<Ts>> && ...)> {};
     template<typename T, typename... Ts> constexpr bool are_almost_same_value_type_v = are_almost_same_value_type<T, Ts...>::value;
+
+    template<typename T, typename... Ts> struct are_same_value_type : std::bool_constant<(std::is_same_v<value_type_t<T>, value_type_t<Ts>> && ...)> {};
+    template<typename T, typename... Ts> constexpr bool are_same_value_type_v = are_same_value_type<T, Ts...>::value;
 }
