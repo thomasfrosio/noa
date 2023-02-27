@@ -5,7 +5,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/cpu/Stream.hpp"
 #include "noa/cpu/fft/Plan.hpp"
-#include "noa/cpu/Ewise.hpp"
+#include "noa/cpu/utils/EwiseBinary.hpp"
 
 namespace noa::cpu::fft {
     using Norm = noa::fft::Norm;
@@ -13,7 +13,7 @@ namespace noa::cpu::fft {
 
 namespace noa::cpu::fft::details {
     template<bool HALF, typename T>
-    void normalize(const T* array, const Strides4<i64>& strides, const Shape4<i64>& shape,
+    void normalize(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape,
                    noa::fft::Sign sign, Norm norm, i64 threads) {
         using real_t = noa::traits::value_type_t<T>;
         const auto count = static_cast<real_t>(noa::math::product(shape.pop_front()));
@@ -21,12 +21,14 @@ namespace noa::cpu::fft::details {
 
         if (sign == noa::fft::Sign::FORWARD &&
             (norm == noa::fft::Norm::FORWARD || norm == noa::fft::Norm::ORTHO)) {
-            ewise_binary(array, strides, 1 / scale, array, strides,
-                         HALF ? shape.fft() : shape, noa::multiply_t{}, threads);
+            noa::cpu::utils::ewise_binary(
+                    array, strides, 1 / scale, array, strides,
+                    HALF ? shape.fft() : shape, noa::multiply_t{}, threads);
         } else if (sign == noa::fft::Sign::BACKWARD &&
                    (norm == noa::fft::Norm::BACKWARD || norm == noa::fft::Norm::ORTHO)) {
-            ewise_binary(array, strides, 1 / scale, array, strides,
-                         shape, noa::multiply_t{}, threads);
+            noa::cpu::utils::ewise_binary(
+                    array, strides, 1 / scale, array, strides,
+                    shape, noa::multiply_t{}, threads);
         }
     }
 }
