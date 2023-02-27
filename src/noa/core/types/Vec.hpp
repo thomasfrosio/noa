@@ -1085,7 +1085,7 @@ namespace noa::math {
     }
 
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr auto min(Vec<T, N> vector) noexcept {
+    [[nodiscard]] NOA_FHD constexpr T min(Vec<T, N> vector) noexcept {
         if constexpr (N == 1)
             return vector[0];
 
@@ -1137,7 +1137,7 @@ namespace noa::math {
     }
 
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr auto max(Vec<T, N> vector) noexcept {
+    [[nodiscard]] NOA_FHD constexpr T max(Vec<T, N> vector) noexcept {
         if constexpr (N == 1)
             return vector[0];
 
@@ -1205,7 +1205,7 @@ namespace noa::math {
     [[nodiscard]] NOA_IHD constexpr auto
     are_almost_equal(const Vec<Real, N>& lhs,
                      const Vec<Real, N>& rhs,
-                     Real epsilon = Real{1e-6}) {
+                     Real epsilon = static_cast<Real>(1e-6)) {
         Vec<bool, N> output;
         for (size_t i = 0; i < N; ++i)
             output[i] = are_almost_equal<ULP>(lhs[i], rhs[i], epsilon);
@@ -1217,7 +1217,7 @@ namespace noa::math {
     [[nodiscard]] NOA_IHD constexpr auto
     are_almost_equal(const Vec<Real, N>& lhs,
                      Real rhs,
-                     Real epsilon = Real{1e-6}) {
+                     Real epsilon = static_cast<Real>(1e-6)) {
         return are_almost_equal<ULP>(lhs, Vec<Real, N>(rhs), epsilon);
     }
 
@@ -1226,7 +1226,7 @@ namespace noa::math {
     [[nodiscard]] NOA_IHD constexpr auto
     are_almost_equal(Real lhs,
                      const Vec<Real, N>& rhs,
-                     Real epsilon = Real{1e-6}) {
+                     Real epsilon = static_cast<Real>(1e-6)) {
         return are_almost_equal<ULP>(Vec<Real, N>(lhs), rhs, epsilon);
     }
 
