@@ -1,8 +1,6 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
 #include "noa/cpu/memory/Copy.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
 

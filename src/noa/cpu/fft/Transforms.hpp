@@ -3,7 +3,6 @@
 #include <fftw3.h>
 
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
 #include "noa/cpu/fft/Plan.hpp"
 #include "noa/cpu/utils/EwiseBinary.hpp"
 

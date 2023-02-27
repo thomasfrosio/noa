@@ -1,11 +1,9 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/algorithms/memory/Iota.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
 #include "noa/cpu/memory/Arange.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
-#include "noa/algorithms/memory/Iota.hpp"
 
 namespace noa::cpu::memory {
     // Returns a tiled sequence [0, elements).

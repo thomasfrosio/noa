@@ -1,10 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-
-#include "noa/cpu/Stream.hpp"
-#include "noa/cpu/Ewise.hpp"
+#include "noa/cpu/utils/EwiseUnary.hpp"
+#include "noa/cpu/utils/EwiseBinary.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace noa::cpu::math {
@@ -42,7 +40,7 @@ namespace noa::cpu::math {
     void real(const Complex<T>* input, const Strides4<i64>& input_strides,
               T* real, const Strides4<i64>& real_strides,
               const Shape4<i64>& shape, i64 threads) {
-        cpu::ewise_unary(input, input_strides, real, real_strides, shape, noa::real_t{}, threads);
+        noa::cpu::utils::ewise_unary(input, input_strides, real, real_strides, shape, noa::real_t{}, threads);
     }
 
     // Extracts the imaginary part of complex numbers.
@@ -50,7 +48,7 @@ namespace noa::cpu::math {
     void imag(const Complex<T>* input, const Strides4<i64>& input_strides,
               T* imag, const Strides4<i64>& imag_strides,
               const Shape4<i64>& shape, i64 threads) {
-        cpu::ewise_unary(input, input_strides, imag, imag_strides, shape, noa::imag_t{}, threads);
+        noa::cpu::utils::ewise_unary(input, input_strides, imag, imag_strides, shape, noa::imag_t{}, threads);
     }
 
     // Fuses the real and imaginary components.
@@ -59,7 +57,7 @@ namespace noa::cpu::math {
                  const T* imag, const Strides4<i64>& imag_strides,
                  Complex<T>* output, const Strides4<i64>& output_strides,
                  const Shape4<i64>& shape, i64 threads) {
-        return cpu::ewise_binary(real, real_strides, imag, imag_strides, output, output_strides, shape,
-                                 [](const T& r, const T& i) { return noa::Complex<T>(r, i); }, threads);
+        return noa::cpu::utils::ewise_binary(real, real_strides, imag, imag_strides, output, output_strides, shape,
+                                             [](const T& r, const T& i) { return noa::Complex<T>(r, i); }, threads);
     }
 }

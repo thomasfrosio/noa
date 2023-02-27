@@ -1,10 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
-#include "noa/cpu/utils/Iwise.hpp"
 #include "noa/algorithms/memory/Linspace.hpp"
+#include "noa/core/Types.hpp"
+#include "noa/cpu/utils/Iwise.hpp"
 
 namespace noa::cpu::memory {
     // Returns evenly spaced values within a given interval.

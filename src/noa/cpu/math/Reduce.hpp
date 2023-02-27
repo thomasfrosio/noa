@@ -2,10 +2,7 @@
 
 #include <algorithm>
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/core/Math.hpp"
-#include "noa/cpu/Stream.hpp"
 
 namespace noa::cpu::math::details {
     template<typename T>
@@ -14,12 +11,12 @@ namespace noa::cpu::math::details {
 
     template<typename T>
     constexpr bool is_valid_sum_mean_v =
-            traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
+            noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
 
     template<typename T, typename U>
     constexpr bool is_valid_var_std_v =
-            traits::is_any_v<T, f32, f64, c32, c64> &&
-            std::is_same_v<U, traits::value_type_t<T>>;
+            noa::traits::is_any_v<T, f32, f64, c32, c64> &&
+            std::is_same_v<U, noa::traits::value_type_t<T>>;
 }
 
 namespace noa::cpu::math {

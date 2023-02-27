@@ -2,9 +2,7 @@
 
 #include <fftw3.h>
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
 
 namespace noa::cpu::fft {
     // Returns the optimum even size, greater or equal than "size".

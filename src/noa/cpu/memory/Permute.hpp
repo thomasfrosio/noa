@@ -1,9 +1,7 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
 
 namespace noa::cpu::memory::details {
     template<typename T>
