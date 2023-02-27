@@ -22,7 +22,6 @@ namespace noa::cuda::geometry::details {
 }
 
 namespace noa::cuda::geometry {
-    // Applies one or multiple 2D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<2, Value, Matrix>>>
     void transform_2d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
@@ -30,7 +29,6 @@ namespace noa::cuda::geometry {
                       const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
                       Value cvalue, Stream& stream);
 
-    // Applies one or multiple 3D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<3, Value, Matrix>>>
     void transform_3d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
@@ -38,7 +36,6 @@ namespace noa::cuda::geometry {
                       const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
                       Value cvalue, Stream& stream);
 
-    // Applies one or multiple 2D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<2, Value, Matrix>>>
     void transform_2d(cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
@@ -46,7 +43,6 @@ namespace noa::cuda::geometry {
                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
                       const Matrix& inv_matrices, Stream& stream);
 
-    // Applies one or multiple 3D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<3, Value, Matrix>>>
     void transform_3d(cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
@@ -58,7 +54,6 @@ namespace noa::cuda::geometry {
 namespace noa::cuda::geometry {
     using Symmetry = noa::geometry::Symmetry;
 
-    // Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_2d(
             const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
@@ -67,7 +62,6 @@ namespace noa::cuda::geometry {
             const Symmetry& symmetry, const Vec2<f32>& center,
             InterpMode interp_mode, bool normalize, Stream& stream);
 
-    // Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_3d(
             const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
@@ -76,21 +70,18 @@ namespace noa::cuda::geometry {
             const Symmetry& symmetry, const Vec3<f32>& center,
             InterpMode interp_mode, bool normalize, Stream& stream);
 
-    // Symmetrizes the 2D (batched) input array.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
                        Value* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
                        InterpMode interp_mode, bool normalize, Stream& stream);
 
-    // Symmetrizes the 3D (batched) input array.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
                        Value* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, const Symmetry& symmetry, const Vec3<f32>& center,
                        InterpMode interp_mode, bool normalize, Stream& stream);
 
-    // Shifts, then rotates/scales and applies the symmetry on the 2D texture.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
     void transform_and_symmetrize_2d(
             cudaArray* array, cudaTextureObject_t texture,
@@ -100,7 +91,6 @@ namespace noa::cuda::geometry {
             const Symmetry& symmetry, const Vec2<f32>& center,
             bool normalize, Stream& stream);
 
-    // Shifts, then rotates/scales and applies the symmetry on the 3D texture.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
     void transform_and_symmetrize_3d(
             cudaArray* array,cudaTextureObject_t texture,
@@ -110,7 +100,6 @@ namespace noa::cuda::geometry {
             const Symmetry& symmetry, const Vec3<f32>& center,
             bool normalize, Stream& stream);
 
-    // Symmetrizes the 2D texture.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
     void symmetrize_2d(cudaArray* array,
                        cudaTextureObject_t texture,
@@ -118,7 +107,6 @@ namespace noa::cuda::geometry {
                        Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
                        const Symmetry& symmetry, const Vec2<f32>& center, bool normalize, Stream& stream);
 
-    // Symmetrizes the 3D texture.
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
     void symmetrize_3d(cudaArray* array,
                        cudaTextureObject_t texture,

@@ -9,8 +9,8 @@
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
 #include "noa/gpu/cuda/memory/PtrTexture.hpp"
 
-#include "noa/gpu/cuda/geometry/Interpolator.h"
-#include "noa/gpu/cuda/geometry/Transform.h"
+#include "noa/gpu/cuda/geometry/Interpolator.hpp"
+#include "noa/gpu/cuda/geometry/Transform.hpp"
 
 namespace {
     using namespace ::noa;

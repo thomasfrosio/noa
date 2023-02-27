@@ -1,7 +1,7 @@
 #include "noa/gpu/cuda/memory/Subregion.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
-#include "noa/algorithms/memory/ExtractInsert.hpp"
+#include "noa/algorithms/memory/Subregion.hpp"
 
 namespace noa::cuda::memory {
     template<typename Value, typename>

@@ -2,8 +2,8 @@
 #include "noa/core/geometry/Interpolator.hpp"
 #include "noa/algorithms/geometry/PolarTransformRFFT.hpp"
 
-#include "noa/gpu/cuda/geometry/fft/Polar.h"
-#include "noa/gpu/cuda/geometry/Interpolator.h"
+#include "noa/gpu/cuda/geometry/fft/Polar.hpp"
+#include "noa/gpu/cuda/geometry/Interpolator.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/PtrArray.hpp"
 #include "noa/gpu/cuda/memory/PtrTexture.hpp"
@@ -155,7 +155,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT_DEVICE_PTR(polar, stream.device());
 
         const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(array);
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(*cartesian) == array);
+        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(cartesian) == array);
 
         if (is_layered) {
             launch_cartesian2polar_rfft_<true>(

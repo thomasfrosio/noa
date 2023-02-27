@@ -2,8 +2,8 @@
 #include "noa/core/geometry/Interpolator.hpp"
 #include "noa/algorithms/geometry/PolarTransform.hpp"
 
-#include "noa/gpu/cuda/geometry/Interpolator.h"
-#include "noa/gpu/cuda/geometry/Polar.h"
+#include "noa/gpu/cuda/geometry/Interpolator.hpp"
+#include "noa/gpu/cuda/geometry/Polar.hpp"
 #include "noa/gpu/cuda/memory/PtrArray.hpp"
 #include "noa/gpu/cuda/memory/PtrTexture.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
@@ -162,9 +162,9 @@ namespace noa::cuda::geometry {
                          Value* polar, Strides4<i64> polar_strides, Shape4<i64> polar_shape,
                          Vec2<f32> cartesian_center, const Vec2<f32>& radius_range, const Vec2<f32>& angle_range,
                          bool log, InterpMode interp_mode, Stream& stream) {
-        NOA_ASSERT(cartesian.get() != polar.get() && all(cartesian_shape > 0) && all(polar_shape > 0));
-        NOA_ASSERT_DEVICE_PTR(cartesian.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
+        NOA_ASSERT(cartesian != polar && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
+        NOA_ASSERT_DEVICE_PTR(cartesian, stream.device());
+        NOA_ASSERT_DEVICE_PTR(polar, stream.device());
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
 
@@ -247,11 +247,11 @@ namespace noa::cuda::geometry {
                          const Vec2<f32>& cartesian_center, const Vec2<f32>& radius_range, const Vec2<f32>& angle_range,
                          bool log, Stream& stream) {
         NOA_ASSERT(array && cartesian && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
-        NOA_ASSERT_DEVICE_PTR(polar.get(), stream.device());
-        NOA_ASSERT(memory::PtrTexture::array(cartesian) == array);
+        NOA_ASSERT_DEVICE_PTR(polar, stream.device());
+        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(cartesian) == array);
         NOA_ASSERT(polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[1] == 1);
-        const bool is_layered = cuda::memory::PtrArray<Value>::is_layered(array);
+        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(array);
 
         if (is_layered) {
             NOA_ASSERT(cartesian_shape[0] == polar_shape[0]);

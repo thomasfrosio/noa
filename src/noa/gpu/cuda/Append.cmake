@@ -70,13 +70,13 @@ set(NOA_CUDA_HEADERS
 #        gpu/cuda/signal/Shape.h
 
         # noa::cuda::geometry
-        gpu/cuda/geometry/fft/Polar.h
-        gpu/cuda/geometry/fft/Project.h
-        gpu/cuda/geometry/fft/Transform.h
-        gpu/cuda/geometry/Interpolator.h
-        gpu/cuda/geometry/Polar.h
-        gpu/cuda/geometry/Prefilter.h
-        gpu/cuda/geometry/Transform.h
+        gpu/cuda/geometry/fft/Polar.hpp
+        gpu/cuda/geometry/fft/Project.hpp
+        gpu/cuda/geometry/fft/Transform.hpp
+        gpu/cuda/geometry/Interpolator.hpp
+        gpu/cuda/geometry/Polar.hpp
+        gpu/cuda/geometry/Prefilter.hpp
+        gpu/cuda/geometry/Transform.hpp
 
         )
 

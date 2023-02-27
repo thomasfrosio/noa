@@ -2,7 +2,7 @@
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
-#include "noa/gpu/cuda/geometry/Prefilter.h"
+#include "noa/gpu/cuda/geometry/Prefilter.hpp"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // See licences/CubicInterpolationCUDA.txt

@@ -43,7 +43,6 @@ namespace noa::cuda::geometry::fft::details {
 namespace noa::cuda::geometry::fft {
     using Remap = noa::fft::Remap;
 
-    // Rotates/scales a non-redundant 2D (batched) FFT.
     template<noa::fft::Remap REMAP, typename Value, typename Matrix, typename Shift,
              typename = std::enable_if_t<details::is_valid_transform_v<2, REMAP, Value, Matrix, Shift>>>
     void transform_2d(const Value* input, const Strides4<i64>& input_strides,
@@ -51,7 +50,6 @@ namespace noa::cuda::geometry::fft {
                       const Matrix& inv_matrices, const Shift& shifts,
                       f32 cutoff, InterpMode interp_mode, Stream& stream);
 
-    // Rotates/scales a non-redundant 3D (batched) FFT.
     template<noa::fft::Remap REMAP, typename Value, typename Matrix, typename Shift,
              typename = std::enable_if_t<details::is_valid_transform_v<3, REMAP, Value, Matrix, Shift>>>
     void transform_3d(const Value* input, const Strides4<i64>& input_strides,
@@ -59,16 +57,12 @@ namespace noa::cuda::geometry::fft {
                       const Matrix& inv_matrices, const Shift& shifts,
                       f32 cutoff, InterpMode interp_mode, Stream& stream);
 
-    // Rotates/scales a non-redundant 2D (batched) FFT.
-    // Input texture should be bound to a CUDA array, with un-normalized coordinates.
     template<noa::fft::Remap REMAP, typename Value, typename Matrix, typename Shift,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<2, REMAP, Value, Matrix, Shift>>>
     void transform_2d(cudaArray* array, cudaTextureObject_t texture, InterpMode texture_interp_mode,
                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                       const Matrix& inv_matrices, const Shift& shifts, f32 cutoff, Stream& stream);
 
-    // Rotates/scales a non-redundant 3D (batched) FFT.
-    // Input texture should be bound to a CUDA array, with un-normalized coordinates.
     template<noa::fft::Remap REMAP, typename Value, typename Matrix, typename Shift,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<3, REMAP, Value, Matrix, Shift>>>
     void transform_3d(cudaArray* array, cudaTextureObject_t texture, InterpMode texture_interp_mode,
@@ -79,7 +73,6 @@ namespace noa::cuda::geometry::fft {
 namespace noa::cuda::geometry::fft {
     using Symmetry = ::noa::geometry::Symmetry;
 
-    // Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform_and_symmetrize_2d(
@@ -88,7 +81,6 @@ namespace noa::cuda::geometry::fft {
             const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& shift,
             f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
-    // Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform_and_symmetrize_3d(
@@ -97,8 +89,6 @@ namespace noa::cuda::geometry::fft {
             const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& shift,
             f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream);
 
-    // Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
-    // Input texture should be bound to a CUDA array, with un-normalized coordinates.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_texture_v<REMAP, Value>>>
     void transform_and_symmetrize_2d(
@@ -107,8 +97,6 @@ namespace noa::cuda::geometry::fft {
             const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& shift,
             f32 cutoff, bool normalize, Stream& stream);
 
-    // Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
-    // Input texture should be bound to a CUDA array, with un-normalized coordinates.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_texture_v<REMAP, Value>>>
     void transform_and_symmetrize_3d(
@@ -117,7 +105,6 @@ namespace noa::cuda::geometry::fft {
             const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& shift,
             f32 cutoff, bool normalize, Stream& stream);
 
-    // Symmetrizes a non-redundant 2D (batched) FFT.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
@@ -128,7 +115,6 @@ namespace noa::cuda::geometry::fft {
                             shift, cutoff, interp_mode, normalize, stream);
     }
 
-    // Symmetrizes a non-redundant 3D (batched) FFT.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
     void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,

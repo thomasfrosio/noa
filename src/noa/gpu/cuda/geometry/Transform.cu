@@ -7,7 +7,7 @@
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/geometry/Transform.h"
+#include "noa/gpu/cuda/geometry/Transform.hpp"
 
 namespace {
     using namespace ::noa;

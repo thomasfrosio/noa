@@ -8,8 +8,8 @@
 #include "noa/gpu/cuda/memory/PtrArray.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
 #include "noa/gpu/cuda/memory/PtrTexture.hpp"
-#include "noa/gpu/cuda/geometry/Interpolator.h"
-#include "noa/gpu/cuda/geometry/fft/Transform.h"
+#include "noa/gpu/cuda/geometry/Interpolator.hpp"
+#include "noa/gpu/cuda/geometry/fft/Transform.hpp"
 
 namespace {
     using namespace ::noa;
@@ -394,7 +394,7 @@ namespace noa::cuda::geometry::fft {
             f32 cutoff, bool normalize, Stream& stream) {
         NOA_ASSERT(array && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
-        NOA_ASSERT(noa::memory::PtrTexture::array(texture) == array);
+        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(texture) == array);
         launch_transform_symmetry_rfft_3d_<REMAP>(
                 texture, texture_interp_mode,
                 output, output_strides,  shape,

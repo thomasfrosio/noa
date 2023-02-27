@@ -7,7 +7,7 @@
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/geometry/fft/Transform.h"
+#include "noa/gpu/cuda/geometry/fft/Transform.hpp"
 
 namespace {
     using namespace ::noa;

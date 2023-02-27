@@ -7,8 +7,8 @@
 #include "noa/gpu/cuda/memory/PtrTexture.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
-#include "noa/gpu/cuda/geometry/Interpolator.h"
-#include "noa/gpu/cuda/geometry/fft/Project.h"
+#include "noa/gpu/cuda/geometry/Interpolator.hpp"
+#include "noa/gpu/cuda/geometry/fft/Project.hpp"
 
 namespace {
     using namespace ::noa;
