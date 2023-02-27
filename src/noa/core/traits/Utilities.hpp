@@ -123,8 +123,8 @@ namespace noa::traits {
 
     // Predefined detection traits.
     template<class T> using has_name = decltype(T::name());
-    template<class T> using has_initialize = decltype(std::declval<T&>().initialize(std::declval<size_t>()));
-    template<class T> using has_closure = decltype(std::declval<T&>().closure(std::declval<size_t>()));
+    template<class T> using has_initialize = decltype(std::declval<T&>().initialize(std::declval<int64_t>()));
+    template<class T> using has_closure = decltype(std::declval<T&>().closure(std::declval<int64_t>()));
 
     template<typename Op, typename Lhs>
     using has_unary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>()));
