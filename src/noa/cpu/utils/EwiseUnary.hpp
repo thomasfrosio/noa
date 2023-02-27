@@ -46,20 +46,20 @@ namespace noa::cpu::utils::details {
 
         // We could use shared(op), but:
         // - We assume op is cheap to copy (often, it is empty), so the one-per-thread call to
-        //   the copy constructor with firstprivate(op) is assumed to be not-significant.
+        //   the copy constructor with firstprivate(op) is assumed to be non-significant.
         // - If op() is read-only, then shared(op) and firstprivate(op) should be exactly the
         //   same performance wise (other than the initial copy constructor with firstprivate).
-        //   If op() modifies its state, then shared(op) creates a false-share and invalids the cache,
+        //   If op() modifies its state, then shared(op) creates a false-share and invalidates the cache,
         //   resulting in worse performance. However, with firstprivate(op) it doesn't happen because
         //   each thread has its own copy of op.
-        // - firstprivate(op) allows more complex operation, because now op can have a per-thread
+        // - firstprivate(op) allows more complex operations, because op can have a per-thread
         //   state, which is correctly copy-initialized from the original op. This was originally
         //   developed for random number generation, where the op() call was writing to op member
         //   variable and needed to be initialized for every thread.
         #pragma omp parallel default(none) num_threads(threads) shared(input, output, shape) firstprivate(op)
         {
             if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
-                op.initialize(static_cast<i64>(omp_get_thread_num()));
+                op.initialize(omp_get_thread_num());
 
             #pragma omp for collapse(4)
             for (Index i = 0; i < shape[0]; ++i)
@@ -69,7 +69,7 @@ namespace noa::cpu::utils::details {
                             output(i, j, k, l) = static_cast<Output>(op(input(i, j, k, l)));
 
             if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
-                op.closure(static_cast<i64>(omp_get_thread_num()));
+                op.closure(omp_get_thread_num());
         }
     }
 
@@ -85,52 +85,94 @@ namespace noa::cpu::utils::details {
                 for (Index k = 0; k < shape[2]; ++k)
                     for (Index l = 0; l < shape[3]; ++l)
                         output(i, j, k, l) = static_cast<Output>(op(input(i, j, k, l)));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
     }
 
-    template<bool PARALLEL, typename Value, typename Index, typename Operator,
+    template<typename Value, typename Index, typename Operator,
              typename = std::enable_if_t<!std::is_const_v<Value>>>
-    void ewise_unary_1d(Value* input_output, Index size, Operator&& op, i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) num_threads(threads) shared(input_output, size, op)
+    void ewise_unary_1d_parallel(Value* input_output, Index size, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(input_output, size) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
             for (Index i = 0; i < size; ++i)
                 input_output[i] = static_cast<Value>(op(input_output[i]));
-        } else {
-            (void) threads;
-            for (Index i = 0; i < size; ++i)
-                input_output[i] = static_cast<Value>(op(input_output[i]));
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Input, typename Output, typename Index, typename Operator>
-    void ewise_unary_1d(
-            Input* input,
-            Output* output,
-            Index size, Operator&& op, i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) num_threads(threads) shared(input, output, size, op)
+    template<typename Value, typename Index, typename Operator,
+             typename = std::enable_if_t<!std::is_const_v<Value>>>
+    void ewise_unary_1d_serial(Value* input_output, Index size, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = 0; i < size; ++i)
+            input_output[i] = static_cast<Value>(op(input_output[i]));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
+    }
+
+    template<typename Input, typename Output, typename Index, typename Operator>
+    void ewise_unary_1d_parallel(Input* input, Output* output, Index size, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(input, output, size) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
             for (Index i = 0; i < size; ++i)
                 output[i] = static_cast<Output>(op(input[i]));
-        } else {
-            (void) threads;
-            for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<Output>(op(input[i]));
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Input, typename Output, typename Index, typename Operator>
-    void ewise_unary_1d_restrict(
+    template<typename Input, typename Output, typename Index, typename Operator>
+    void ewise_unary_1d_serial(Input* input, Output* output, Index size, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = 0; i < size; ++i)
+            output[i] = static_cast<Output>(op(input[i]));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
+    }
+
+    template<typename Input, typename Output, typename Index, typename Operator>
+    void ewise_unary_1d_restrict_parallel(
             Input* __restrict input,
             Output* __restrict output,
             Index size, Operator&& op, i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) num_threads(threads) shared(input, output, size, op)
+        #pragma omp parallel default(none) num_threads(threads) shared(input, output, size) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
             for (Index i = 0; i < size; ++i)
                 output[i] = static_cast<Output>(op(input[i]));
-        } else {
-            (void) threads;
-            for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<Output>(op(input[i]));
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
+    }
+
+    template<typename Input, typename Output, typename Index, typename Operator>
+    void ewise_unary_1d_restrict_serial(
+            Input* __restrict input,
+            Output* __restrict output,
+            Index size, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = 0; i < size; ++i)
+            output[i] = static_cast<Output>(op(input[i]));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
     }
 }
 
@@ -177,27 +219,27 @@ namespace noa::cpu::utils {
                 const bool are_equal = static_cast<const void*>(input) == static_cast<const void*>(output);
                 if (are_equal) {
                     if (serial) {
-                        details::ewise_unary_1d<false>(
-                                output, elements, std::forward<Operator>(op), 1);
+                        details::ewise_unary_1d_serial(
+                                output, elements, std::forward<Operator>(op));
                     } else {
-                        details::ewise_unary_1d<true>(
+                        details::ewise_unary_1d_parallel(
                                 output, elements, std::forward<Operator>(op), threads_omp);
                     }
                 } else {
                     if (serial) {
-                        details::ewise_unary_1d_restrict<false>(
-                                input, output, elements, std::forward<Operator>(op), 1);
+                        details::ewise_unary_1d_restrict_serial(
+                                input, output, elements, std::forward<Operator>(op));
                     } else {
-                        details::ewise_unary_1d_restrict<true>(
+                        details::ewise_unary_1d_restrict_parallel(
                                 input, output, elements, std::forward<Operator>(op), threads_omp);
                     }
                 }
             } else {
                 if (serial) {
-                    details::ewise_unary_1d<false>(
-                            input, output, elements, std::forward<Operator>(op), 1);
+                    details::ewise_unary_1d_serial(
+                            input, output, elements, std::forward<Operator>(op));
                 } else {
-                    details::ewise_unary_1d<true>(
+                    details::ewise_unary_1d_parallel(
                             input, output, elements, std::forward<Operator>(op), threads_omp);
                 }
             }

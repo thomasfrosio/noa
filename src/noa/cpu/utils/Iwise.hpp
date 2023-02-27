@@ -1,143 +1,165 @@
 #pragma once
 
+#include <omp.h>
 #include "noa/core/Types.hpp"
-
-// Very simple (and naive) set of index-wise nested loops.
-// The performance should be identical to using these loops in-place without operators.
-// Speaking of performance, it is apparently crucial to keep the serial version in a separate compile-time branch,
-// otherwise some compilers (e.g. g++) seem to merge the OpenMP and serial loops, which is bad for performance
-// because the OpenMP version collapses the loops so cannot do constant evaluated expressions to outer-loops.
-// For the OpenMP version, the nested loops are collapsed. Unfortunately, the collapse parameter needs to be a
-// constant-evaluated value (cannot be a template variable).
-// OpenMP has a if() option, but this is at runtime, so at this point, the loops will be collapsed and the
-// non-collapsed version will be faster in a single-thread scenario. As such, these functions below move this
-// if() option at compile time by instantiating both collapsed and uncollapsed versions. OpenMP is getting a lot
-// of improvements in the new compilers, so may be worth revisiting this at some point.
 
 namespace noa::cpu::utils::details {
     constexpr i64 IWISE_PARALLEL_THRESHOLD = 1'048'576; // 1024x1024
 
-    template<bool PARALLEL, typename Index, typename Operator>
-    void iwise_4d(
-            const Vec4<Index>& start,
-            const Vec4<Index>& end,
-            Operator&& op,
-            i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(4) num_threads(threads) shared(start, end, op)
+    template<typename Index, typename Operator>
+    void iwise_4d_parallel(const Vec4<Index>& start, const Vec4<Index>& end, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for collapse(4)
             for (Index i = start[0]; i < end[0]; ++i)
                 for (Index j = start[1]; j < end[1]; ++j)
                     for (Index k = start[2]; k < end[2]; ++k)
                         for (Index l = start[3]; l < end[3]; ++l)
                             op(i, j, k, l);
-        } else {
-            (void) threads;
-            for (Index i = start[0]; i < end[0]; ++i)
-                for (Index j = start[1]; j < end[1]; ++j)
-                    for (Index k = start[2]; k < end[2]; ++k)
-                        for (Index l = start[3]; l < end[3]; ++l)
-                            op(i, j, k, l);
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Index, typename Operator>
-    void iwise_4d(
-            const Shape4<Index>& shape,
-            Operator&& op,
-            i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(4) num_threads(threads) shared(shape, op)
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    for (Index k = 0; k < shape[2]; ++k)
-                        for (Index l = 0; l < shape[3]; ++l)
-                            op(i, j, k, l);
-        } else {
-            (void) threads;
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    for (Index k = 0; k < shape[2]; ++k)
-                        for (Index l = 0; l < shape[3]; ++l)
-                            op(i, j, k, l);
-        }
+    template<typename Index, typename Operator>
+    void iwise_4d_serial(const Vec4<Index>& start, const Vec4<Index>& end, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = start[0]; i < end[0]; ++i)
+            for (Index j = start[1]; j < end[1]; ++j)
+                for (Index k = start[2]; k < end[2]; ++k)
+                    for (Index l = start[3]; l < end[3]; ++l)
+                        op(i, j, k, l);
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
     }
 
-    template<bool PARALLEL, typename Index, typename Operator>
-    void iwise_3d(
-            const Vec3<Index>& start,
-            const Vec3<Index>& end,
-            Operator&& op,
-            i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(3) num_threads(threads) shared(start, end, op)
-            for (Index i = start[0]; i < end[0]; ++i)
-                for (Index j = start[1]; j < end[1]; ++j)
-                    for (Index k = start[2]; k < end[2]; ++k)
-                        op(i, j, k);
-        } else {
-            (void) threads;
+    template<typename Index, typename Operator>
+    void iwise_4d_parallel(const Shape4<Index>& shape,Operator&& op, i64 threads) {
+        iwise_4d_parallel(Vec4<Index>{0}, shape.vec(), std::forward<Operator>(op), threads);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_4d_serial(const Shape4<Index>& shape,Operator&& op) {
+        iwise_4d_serial(Vec4<Index>{0}, shape.vec(), std::forward<Operator>(op));
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_3d_parallel(const Vec3<Index>& start, const Vec3<Index>& end, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for collapse(3)
             for (Index i = start[0]; i < end[0]; ++i)
                 for (Index j = start[1]; j < end[1]; ++j)
                     for (Index k = start[2]; k < end[2]; ++k)
                         op(i, j, k);
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Index, typename Operator>
-    void iwise_3d(
-            const Shape3<Index>& shape,
-            Operator&& op,
-            i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(3) num_threads(threads) shared(shape, op)
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    for (Index k = 0; k < shape[2]; ++k)
-                        op(i, j, k);
-        } else {
-            (void) threads;
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    for (Index k = 0; k < shape[2]; ++k)
-                        op(i, j, k);
-        }
+    template<typename Index, typename Operator>
+    void iwise_3d_serial(const Vec3<Index>& start, const Vec3<Index>& end, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = start[0]; i < end[0]; ++i)
+            for (Index j = start[1]; j < end[1]; ++j)
+                for (Index k = start[2]; k < end[2]; ++k)
+                    op(i, j, k);
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
     }
 
-    template<bool PARALLEL, typename Index, typename Operator>
-    void iwise_2d(
-            const Vec2<Index>& start,
-            const Vec2<Index>& end,
-            Operator&& op,
-            i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(2) num_threads(threads) shared(start, end, op)
+    template<typename Index, typename Operator>
+    void iwise_3d_parallel(const Shape3<Index>& shape,Operator&& op, i64 threads) {
+        iwise_3d_parallel(Vec3<Index>{0}, shape.vec(), std::forward<Operator>(op), threads);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_3d_serial(const Shape3<Index>& shape,Operator&& op) {
+        iwise_3d_serial(Vec3<Index>{0}, shape.vec(), std::forward<Operator>(op));
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_2d_parallel(const Vec2<Index>& start, const Vec2<Index>& end, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for collapse(2)
             for (Index i = start[0]; i < end[0]; ++i)
                 for (Index j = start[1]; j < end[1]; ++j)
                     op(i, j);
-        } else {
-            (void) threads;
-            for (Index i = start[0]; i < end[0]; ++i)
-                for (Index j = start[1]; j < end[1]; ++j)
-                    op(i, j);
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Index, typename Operator>
-    void iwise_2d(
-            const Shape2<Index>& shape,
-            Operator&& op,
-            i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(2) num_threads(threads) shared(shape, op)
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    op(i, j);
-        } else {
-            (void) threads;
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    op(i, j);
+    template<typename Index, typename Operator>
+    void iwise_2d_serial(const Vec2<Index>& start, const Vec2<Index>& end, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = start[0]; i < end[0]; ++i)
+            for (Index j = start[1]; j < end[1]; ++j)
+                op(i, j);
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_2d_parallel(const Shape2<Index>& shape,Operator&& op, i64 threads) {
+        iwise_2d_parallel(Vec2<Index>{0}, shape.vec(), std::forward<Operator>(op), threads);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_2d_serial(const Shape2<Index>& shape,Operator&& op) {
+        iwise_2d_serial(Vec2<Index>{0}, shape.vec(), std::forward<Operator>(op));
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_1d_parallel(const Vec1<Index>& start, const Vec1<Index>& end, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
+            for (Index i = start[0]; i < end[0]; ++i)
+                op(i);
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_1d_serial(const Vec1<Index>& start, const Vec1<Index>& end, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = start[0]; i < end[0]; ++i)
+            op(i);
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_1d_parallel(const Shape1<Index>& shape,Operator&& op, i64 threads) {
+        iwise_1d_parallel(Vec1<Index>{0}, shape.vec(), std::forward<Operator>(op), threads);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_1d_serial(const Shape1<Index>& shape,Operator&& op) {
+        iwise_1d_serial(Vec1<Index>{0}, shape.vec(), std::forward<Operator>(op));
     }
 }
 
@@ -148,90 +170,83 @@ namespace noa::cpu::utils {
     // should ensure there's no data race. Furthermore, in the multithreading case, the operator is copied to every
     // thread, which can add a big performance cost if the operator has expensive copies.
 
-    template<typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int>>>
-    void iwise_4d(
-            const Vec4<Index>& start,
-            const Vec4<Index>& end,
-            Operator&& op,
-            Int threads = Int{1}) {
-        const i64 elements = (end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<i64>(threads);
-        if (threads_ <= 1)
-            details::iwise_4d<false>(start, end, std::forward<Operator>(op), threads_);
+    template<typename Index, typename Operator>
+    void iwise_4d(const Vec4<Index>& start, const Vec4<Index>& end, Operator&& op, i64 threads = 1) {
+        const i64 elements = Shape4<i64>(end.template as<i64>() - start.template as<i64>()).elements();
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_4d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_4d<true>(start, end, std::forward<Operator>(op), threads_);
+            details::iwise_4d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
-    template<typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int>>>
-    void iwise_4d(
-            const Shape4<Index>& shape,
-            Operator&& op,
-            Int threads = Int{1}) {
+    template<typename Index, typename Operator>
+    void iwise_4d(const Shape4<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<i64>(threads);
-        if (threads_ <= 1)
-            details::iwise_4d<false>(shape, std::forward<Operator>(op), threads_);
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_4d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_4d<true>(shape, std::forward<Operator>(op), threads_);
+            details::iwise_4d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 
-    template<typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int>>>
-    void iwise_3d(
-            const Vec3<Index>& start,
-            const Vec3<Index>& end,
-            Operator&& op,
-            Int threads = Int{1}) {
-        const i64 elements = (end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<i64>(threads);
-        if (threads_ <= 1)
-            details::iwise_3d<false>(start, end, std::forward<Operator>(op), threads_);
+    template<typename Index, typename Operator>
+    void iwise_3d(const Vec3<Index>& start, const Vec3<Index>& end, Operator&& op, i64 threads = 1) {
+        const i64 elements = Shape3<i64>(end.template as<i64>() - start.template as<i64>()).elements();
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_3d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_3d<true>(start, end, std::forward<Operator>(op), threads_);
+            details::iwise_3d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
-    template<typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int>>>
-    void iwise_3d(
-            const Shape3<Index>& shape,
-            Operator&& op,
-            Int threads = Int{1}) {
+    template<typename Index, typename Operator>
+    void iwise_3d(const Shape3<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<i64>(threads);
-        if (threads_ <= 1)
-            details::iwise_3d<false>(shape, std::forward<Operator>(op), threads_);
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_3d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_3d<true>(shape, std::forward<Operator>(op), threads_);
+            details::iwise_3d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 
-    template<typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int>>>
-    void iwise_2d(
-            const Vec2<Index>& start,
-            const Vec2<Index>& end,
-            Operator&& op,
-            Int threads = Int{1}) {
-        const i64 elements = (end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<i64>(threads);
-        if (threads_ <= 1)
-            details::iwise_2d<false>(start, end, std::forward<Operator>(op), threads_);
+    template<typename Index, typename Operator>
+    void iwise_2d(const Vec2<Index>& start, const Vec2<Index>& end, Operator&& op, i64 threads = 1) {
+        const i64 elements = Shape2<i64>(end.template as<i64>() - start.template as<i64>()).elements();
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_2d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_2d<true>(start, end, std::forward<Operator>(op), threads_);
+            details::iwise_2d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
-    template<typename Index, typename Operator, typename Int = i64,
-             typename = std::enable_if_t<std::is_integral_v<Int>>>
-    void iwise_2d(
-            const Shape2<Index>& shape,
-            Operator&& op,
-            Int threads = Int{1}) {
+    template<typename Index, typename Operator>
+    void iwise_2d(const Shape2<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 threads_ = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : clamp_cast<i64>(threads);
-        if (threads_ <= 1)
-            details::iwise_2d<false>(shape, std::forward<Operator>(op), threads_);
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_2d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_2d<true>(shape, std::forward<Operator>(op), threads_);
+            details::iwise_2d_parallel(shape, std::forward<Operator>(op), actual_threads);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_1d(const Vec1<Index>& start, const Vec1<Index>& end, Operator&& op, i64 threads = 1) {
+        const i64 elements = Shape1<i64>(end.template as<i64>() - start.template as<i64>()).elements();
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_1d_serial(start, end, std::forward<Operator>(op));
+        else
+            details::iwise_1d_parallel(start, end, std::forward<Operator>(op), actual_threads);
+    }
+
+    template<typename Index, typename Operator>
+    void iwise_1d(const Shape1<Index>& shape, Operator&& op, i64 threads = 1) {
+        const i64 elements = shape.template as<i64>().elements();
+        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        if (actual_threads <= 1)
+            details::iwise_1d_serial(shape, std::forward<Operator>(op));
+        else
+            details::iwise_1d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 }

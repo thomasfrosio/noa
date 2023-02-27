@@ -8,78 +8,116 @@ namespace noa::cpu::utils::details {
     // Parallelization is expensive. Turn it on only for large arrays.
     constexpr i64 EWISE_TRINARY_PARALLEL_THRESHOLD = 16'777'216; // 4096x4096
 
-    template<bool PARALLEL, typename Lhs, typename Mhs, typename Rhs,
+    template<typename Lhs, typename Mhs, typename Rhs,
              typename Output, typename Index, typename Operator>
-    void ewise_trinary_4d(
+    void ewise_trinary_4d_parallel(
             Accessor<Lhs, 4, Index> lhs,
             Accessor<Mhs, 4, Index> mhs,
             Accessor<Rhs, 4, Index> rhs,
             Accessor<Output, 4, Index> output,
             Shape4<Index> shape, Operator&& op, i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) collapse(4) num_threads(threads) \
-                    shared(lhs, mhs, rhs, output, shape, op)
+        #pragma omp parallel default(none) num_threads(threads) shared(lhs, mhs, rhs, output, shape) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
             for (Index i = 0; i < shape[0]; ++i)
                 for (Index j = 0; j < shape[1]; ++j)
                     for (Index k = 0; k < shape[2]; ++k)
                         for (Index l = 0; l < shape[3]; ++l)
-                            output(i, j, k, l) =
-                                    static_cast<Output>(
-                                            op(lhs(i, j, k, l),
-                                               mhs(i, j, k, l),
-                                               rhs(i, j, k, l)));
-        } else {
-            (void) threads;
-            for (Index i = 0; i < shape[0]; ++i)
-                for (Index j = 0; j < shape[1]; ++j)
-                    for (Index k = 0; k < shape[2]; ++k)
-                        for (Index l = 0; l < shape[3]; ++l)
-                            output(i, j, k, l) =
-                                    static_cast<Output>(
-                                            op(lhs(i, j, k, l),
-                                               mhs(i, j, k, l),
-                                               rhs(i, j, k, l)));
+                            output(i, j, k, l) = static_cast<Output>(op(lhs(i, j, k, l), mhs(i, j, k, l), rhs(i, j, k, l)));
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Lhs, typename Mhs, typename Rhs,
+    template<typename Lhs, typename Mhs, typename Rhs,
              typename Output, typename Index, typename Operator>
-    void ewise_trinary_1d(
-            Lhs* lhs,
-            Mhs* mhs,
-            Rhs* rhs,
-            Output* output,
-            Index size, Operator&& op, i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) num_threads(threads) \
-                    shared(lhs, mhs, rhs, output, size, op)
+    void ewise_trinary_4d_serial(
+            Accessor<Lhs, 4, Index> lhs,
+            Accessor<Mhs, 4, Index> mhs,
+            Accessor<Rhs, 4, Index> rhs,
+            Accessor<Output, 4, Index> output,
+            Shape4<Index> shape, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = 0; i < shape[0]; ++i)
+            for (Index j = 0; j < shape[1]; ++j)
+                for (Index k = 0; k < shape[2]; ++k)
+                    for (Index l = 0; l < shape[3]; ++l)
+                        output(i, j, k, l) = static_cast<Output>(op(lhs(i, j, k, l), mhs(i, j, k, l), rhs(i, j, k, l)));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
+    }
+
+    template<typename Lhs, typename Mhs, typename Rhs,
+             typename Output, typename Index, typename Operator>
+    void ewise_trinary_1d_parallel(Lhs* lhs, Mhs* mhs, Rhs* rhs, Output* output,
+                                   Index size, Operator&& op, i64 threads) {
+        #pragma omp parallel default(none) num_threads(threads) shared(lhs, mhs, rhs, output, size) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
             for (Index i = 0; i < size; ++i)
                 output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
-        } else {
-            (void) threads;
-            for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
     }
 
-    template<bool PARALLEL, typename Lhs, typename Mhs, typename Rhs,
+    template<typename Lhs, typename Mhs, typename Rhs,
              typename Output, typename Index, typename Operator>
-    void ewise_trinary_1d_restrict(
+    void ewise_trinary_1d_serial(Lhs* lhs, Mhs* mhs, Rhs* rhs, Output* output,
+                                 Index size, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = 0; i < size; ++i)
+            output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
+    }
+
+    template<typename Lhs, typename Mhs, typename Rhs,
+             typename Output, typename Index, typename Operator>
+    void ewise_trinary_1d_restrict_parallel(
             Lhs* __restrict lhs,
             Mhs* __restrict mhs,
             Rhs* __restrict rhs,
             Output* __restrict output,
             Index size, Operator&& op, i64 threads) {
-        if constexpr (PARALLEL) {
-            #pragma omp parallel for default(none) num_threads(threads) \
-                    shared(lhs, mhs, rhs, output, size, op)
+        #pragma omp parallel default(none) num_threads(threads) shared(lhs, mhs, rhs, output, size) firstprivate(op)
+        {
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+                op.initialize(omp_get_thread_num());
+
+            #pragma omp for
             for (Index i = 0; i < size; ++i)
                 output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
-        } else {
-            (void) threads;
-            for (Index i = 0; i < size; ++i)
-                output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
+
+            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+                op.closure(omp_get_thread_num());
         }
+    }
+
+    template<typename Lhs, typename Mhs, typename Rhs,
+             typename Output, typename Index, typename Operator>
+    void ewise_trinary_1d_restrict_serial(
+            Lhs* __restrict lhs,
+            Mhs* __restrict mhs,
+            Rhs* __restrict rhs,
+            Output* __restrict output,
+            Index size, Operator&& op) {
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            op.initialize(0);
+        for (Index i = 0; i < size; ++i)
+            output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
+        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            op.closure(0);
     }
 }
 
@@ -129,20 +167,20 @@ namespace noa::cpu::utils {
                                        static_cast<const void*>(rhs) == static_cast<const void*>(output);
                 if (!are_equal) {
                     if (serial) {
-                        details::ewise_trinary_1d_restrict<false>(
-                                lhs, mhs, rhs, output, elements, std::forward<Operator>(op), 1);
+                        details::ewise_trinary_1d_restrict_serial(
+                                lhs, mhs, rhs, output, elements, std::forward<Operator>(op));
                     } else {
-                        details::ewise_trinary_1d_restrict<true>(
+                        details::ewise_trinary_1d_restrict_parallel(
                                 lhs, mhs, rhs, output, elements, std::forward<Operator>(op), threads_omp);
                     }
                     return;
                 }
             }
             if (serial) {
-                details::ewise_trinary_1d<false>(
-                        lhs, mhs, rhs, output, elements, std::forward<Operator>(op), 1);
+                details::ewise_trinary_1d_serial(
+                        lhs, mhs, rhs, output, elements, std::forward<Operator>(op));
             } else {
-                details::ewise_trinary_1d<true>(
+                details::ewise_trinary_1d_parallel(
                         lhs, mhs, rhs, output, elements, std::forward<Operator>(op), threads_omp);
             }
         } else {
@@ -151,11 +189,11 @@ namespace noa::cpu::utils {
             const auto rhs_accessor = Accessor<Rhs, 4, Index>(rhs, rhs_strides);
             const auto output_accessor = Accessor<Output, 4, Index>(output, output_strides);
             if (threads_omp <= 1) {
-                details::ewise_trinary_4d<false>(
+                details::ewise_trinary_4d_serial(
                         lhs_accessor, mhs_accessor, rhs_accessor, output_accessor,
-                        shape, std::forward<Operator>(op), 1);
+                        shape, std::forward<Operator>(op));
             } else {
-                details::ewise_trinary_4d<true>(
+                details::ewise_trinary_4d_parallel(
                         lhs_accessor, mhs_accessor, rhs_accessor, output_accessor,
                         shape, std::forward<Operator>(op), threads_omp);
             }
