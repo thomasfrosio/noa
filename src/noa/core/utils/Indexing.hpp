@@ -90,8 +90,9 @@ namespace noa::indexing {
     /// \param i0           Index.
     /// \param strides      Strides associated with these indexes. Only the first value is used.
     template<typename Index, typename Strides,
-             typename std::enable_if_t<traits::is_int_v<Index> &&
-                                       (traits::is_stridesX_v<Strides> || traits::is_int_v<Strides>), bool> = true>
+             typename std::enable_if_t<
+                     traits::is_int_v<Index> &&
+                     (traits::is_stridesX_v<Strides> || traits::is_int_v<Strides>), bool> = true>
     NOA_FHD constexpr auto at(Index i0, Strides strides) noexcept {
         using offset_t = traits::value_type_t<Strides>;
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
@@ -102,6 +103,13 @@ namespace noa::indexing {
         } else {
             return static_cast<offset_t>(i0) * strides[0];
         }
+    }
+
+    /// Returns the memory offset corresponding to the given 3D indexes.
+    template<typename Index, typename Offset, size_t N,
+             typename std::enable_if_t<traits::is_int_v<Index> && (N >= 1), bool> = true>
+    NOA_FHD constexpr auto at(const Vec1<Index>& index, const Strides<Offset, N>& strides) noexcept {
+        return at(index[0], strides);
     }
 
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
