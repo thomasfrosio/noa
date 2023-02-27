@@ -3,7 +3,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Atomic.hpp"
 
-namespace noa::signal::fft::details {
+namespace noa::algorithm::signal {
     // Isotropic FSC implementation.
     // * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
     // * The frequencies are normalized, so rectangular volumes can be passed.

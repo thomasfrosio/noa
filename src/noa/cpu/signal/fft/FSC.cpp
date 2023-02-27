@@ -20,7 +20,7 @@ namespace noa::cpu::signal::fft {
         const auto denominator_lhs = noa::cpu::memory::PtrHost<Real>::alloc(batches * shell_count); // allocates
         const auto denominator_rhs = noa::cpu::memory::PtrHost<Real>::alloc(batches * shell_count); // allocates
 
-        const auto fsc_reduction = noa::signal::fft::details::isotropic_fsc<REMAP>(
+        const auto fsc_reduction = noa::algorithm::signal::isotropic_fsc<REMAP>(
                 lhs, lhs_strides,
                 rhs, rhs_strides,
                 fsc, denominator_lhs.get(), denominator_rhs.get(),
@@ -47,7 +47,7 @@ namespace noa::cpu::signal::fft {
         const auto denominator_lhs = noa::cpu::memory::PtrHost<Real>::alloc(buffer_size); // allocates
         const auto denominator_rhs = noa::cpu::memory::PtrHost<Real>::alloc(buffer_size); // allocates
 
-        const auto fsc_reduction = noa::signal::fft::details::anisotropic_fsc<REMAP>(
+        const auto fsc_reduction = noa::algorithm::signal::anisotropic_fsc<REMAP>(
                 lhs, lhs_strides,
                 rhs, rhs_strides,
                 fsc, denominator_lhs.get(), denominator_rhs.get(),
