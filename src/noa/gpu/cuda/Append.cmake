@@ -85,7 +85,8 @@ set(NOA_CUDA_SOURCES
 
         gpu/cuda/EwiseBinaryArithmetic.cu
         gpu/cuda/EwiseBinaryComparison.cu
-        gpu/cuda/EwiseTrinaryArithmetic.cu
+        gpu/cuda/EwiseTrinaryPlusMinus.cu
+        gpu/cuda/EwiseTrinaryMultiplyDivide.cu
         gpu/cuda/EwiseTrinaryComparison.cu
         gpu/cuda/EwiseTrinaryComplexDivide.cu
         gpu/cuda/EwiseTrinaryComplexMinus.cu

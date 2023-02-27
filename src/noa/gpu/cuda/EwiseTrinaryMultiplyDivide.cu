@@ -152,14 +152,6 @@ namespace noa::cuda {
         const Shape4<i64>&, O, Stream&)
 
     #define NOA_INSTANTIATE_EWISE_TRINARY_ARITHMETIC(T)               \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::plus_t);             \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::plus_minus_t);       \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::plus_multiply_t);    \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::plus_divide_t);      \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::minus_t);            \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::minus_plus_t);       \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::minus_multiply_t);   \
-    NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::minus_divide_t);     \
     NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::multiply_t);         \
     NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::multiply_plus_t);    \
     NOA_INSTANTIATE_EWISE_TRINARY(T,T,T,T,::noa::multiply_minus_t);   \
