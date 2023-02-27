@@ -14,7 +14,6 @@ namespace noa::cpu::geometry::details {
 }
 
 namespace noa::cpu::geometry {
-    // Applies one or multiple 2D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<2, Value, Matrix>>>
     void transform_2d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
@@ -22,7 +21,6 @@ namespace noa::cpu::geometry {
                       const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
                       Value cvalue, i64 threads);
 
-    // Applies one or multiple 3D affine transforms.
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<3, Value, Matrix>>>
     void transform_3d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
@@ -34,7 +32,6 @@ namespace noa::cpu::geometry {
 namespace noa::cpu::geometry {
     using Symmetry = ::noa::geometry::Symmetry;
 
-    // Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_2d(
             const Value* input, Strides4 <i64> input_strides, Shape4<i64> input_shape,
@@ -43,7 +40,6 @@ namespace noa::cpu::geometry {
             const Symmetry& symmetry, const Vec2<f32>& center,
             InterpMode interp_mode, bool normalize, i64 threads);
 
-    // Shifts, then rotates/scales and applies the symmetry on the 3D input array.
     template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_3d(
             const Value* input, Strides4 <i64> input_strides, Shape4<i64> input_shape,
@@ -52,14 +48,12 @@ namespace noa::cpu::geometry {
             const Symmetry& symmetry, const Vec3<f32>& center,
             InterpMode interp_mode, bool normalize, i64 threads);
 
-    // Symmetrizes the 2D (batched) input array.
     template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
                        Value* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
                        InterpMode interp_mode, bool normalize, i64 threads);
 
-    // Symmetrizes the 3D (batched) input array.
     template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
                        Value* output, const Strides4<i64>& output_strides,

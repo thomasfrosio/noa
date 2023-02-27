@@ -3,7 +3,7 @@
 #include "noa/core/geometry/Interpolator.hpp"
 #include "noa/algorithms/geometry/TransformRFFT.hpp"
 
-#include "noa/cpu/geometry/fft/Transform.h"
+#include "noa/cpu/geometry/fft/Transform.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace {

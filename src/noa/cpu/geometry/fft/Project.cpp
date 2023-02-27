@@ -4,7 +4,7 @@
 #include "noa/core/geometry/InterpolatorValue.hpp"
 #include "noa/algorithms/geometry/ProjectionsFFT.hpp"
 
-#include "noa/cpu/geometry/fft/Project.h"
+#include "noa/cpu/geometry/fft/Project.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace noa::cpu::geometry::fft {

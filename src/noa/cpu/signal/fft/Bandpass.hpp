@@ -1,0 +1,28 @@
+#pragma once
+
+#include "noa/core/Types.hpp"
+
+namespace noa::cpu::signal::fft::details {
+    using namespace ::noa::fft;
+    template<Remap REMAP, typename T>
+    constexpr bool is_valid_pass_v =
+            noa::traits::is_real_or_complex_v<T> &&
+            (REMAP == H2H || REMAP == H2HC || REMAP == HC2H || REMAP == HC2HC);
+}
+
+namespace noa::cpu::signal::fft {
+    template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
+    void lowpass(const T* input, const Strides4<i64>& input_strides,
+                 T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+                 f32 cutoff, f32 width, i64 threads);
+
+    template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
+    void highpass(const T* input, const Strides4<i64>& input_strides,
+                  T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+                  f32 cutoff, f32 width, i64 threads);
+
+    template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
+    void bandpass(const T* input, const Strides4<i64>& input_strides,
+                  T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+                  f32 cutoff1, f32 cutoff2, f32 width1, f32 width2, i64 threads);
+}

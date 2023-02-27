@@ -2,7 +2,7 @@
 #include "noa/core/geometry/Interpolator.hpp"
 #include "noa/algorithms/geometry/PolarTransform.hpp"
 
-#include "noa/cpu/geometry/Polar.h"
+#include "noa/cpu/geometry/Polar.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace noa::cpu::geometry {

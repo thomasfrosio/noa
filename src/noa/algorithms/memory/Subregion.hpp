@@ -11,7 +11,7 @@ namespace noa::algorithm::memory {
     //       rearranging before the index-wise transformation. Thus, we keep the "order" and rearrange the
     //       origin on-the-fly (instead of allocating a new "origins" vector).
     template<BorderMode MODE, typename Index,  typename Offset, typename Value>
-    class Extract {
+    class ExtractSubregion {
     public:
         using value_type = Value;
         using index_type = Index;
@@ -25,7 +25,7 @@ namespace noa::algorithm::memory {
         using subregion_origins_type = const Vec4<i64>*;
 
     public:
-        Extract(const input_accessor_type& input_accessor,
+        ExtractSubregion(const input_accessor_type& input_accessor,
                 const subregion_accessor_type& subregion_accessor,
                 const shape4_type& input_shape,
                 const subregion_origins_type& origins,
@@ -96,19 +96,19 @@ namespace noa::algorithm::memory {
     auto extract_subregion(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
                            Value* subregions, const Strides4<i64>& subregion_strides,
                            const Vec4 <i64>* origins, Vec4 <i64> order, Value cvalue = Value{}) {
-        return Extract<MODE, Index, Offset, Value>(
+        return ExtractSubregion<MODE, Index, Offset, Value>(
                 AccessorRestrict<const Value, 4, Offset>(input, input_strides.as_safe<Offset>()),
                 AccessorRestrict<Value, 4, Offset>(subregions, subregion_strides.as_safe<Offset>()),
                 input_shape.as_safe<Index>(), origins, cvalue, order);
     }
 
     // Insert subregions into one or multiple arrays.
-    // This works as expected and is similar to Extract.
+    // This works as expected and is similar to ExtractSubregion.
     // Subregions can be (partially) out of the output bounds.
     // The only catch here is that overlapped subregions are not allowed (data-race).
     // It is not clear what we want in these cases (add?), so for now, just rule it out.
     template<typename Index,  typename Offset, typename Value>
-    class Insert {
+    class InsertSubregion {
     public:
         using value_type = Value;
         using index_type = Index;
@@ -121,7 +121,7 @@ namespace noa::algorithm::memory {
         using subregion_origins_type = const Vec4<i64>*;
 
     public:
-        Insert(const subregion_accessor_type& subregion_accessor,
+        InsertSubregion(const subregion_accessor_type& subregion_accessor,
                const output_accessor_type& output_accessor,
                const shape4_type& output_shape,
                const subregion_origins_type& origins,
@@ -163,7 +163,7 @@ namespace noa::algorithm::memory {
     auto insert_subregion(const Value* subregions, const Strides4<i64>& subregion_strides,
                           Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
                           const Vec4<i64>* origins, Vec4<i64> order) {
-        return Insert<Index, Offset, Value>(
+        return InsertSubregion<Index, Offset, Value>(
                 AccessorRestrict<const Value, 4, Offset>(subregions, subregion_strides.as_safe<Offset>()),
                 AccessorRestrict<Value, 4, Offset>(output, output_strides.as_safe<Offset>()),
                 output_shape.as_safe<Index>(), origins, order);

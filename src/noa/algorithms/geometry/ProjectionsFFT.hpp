@@ -3,7 +3,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
 #include "noa/core/utils/Atomic.hpp"
-#include "noa/algorithms/geometry/Utilities.hpp"
+#include "noa/algorithms/Utilities.hpp"
 
 // Implementation for backward and forward projections using Fourier insertion and extraction.
 // Can be called from the CPU (serial/OpenMP) or CUDA backend.

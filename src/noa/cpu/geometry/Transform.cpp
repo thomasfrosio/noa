@@ -5,7 +5,7 @@
 #include "noa/algorithms/geometry/Transform.hpp"
 
 #include "noa/cpu/memory/Copy.hpp"
-#include "noa/cpu/geometry/Transform.h"
+#include "noa/cpu/geometry/Transform.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace {

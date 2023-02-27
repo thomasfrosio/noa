@@ -74,20 +74,6 @@ set(NOA_CORE_HEADERS
         core/io/TextFile.hpp
         core/io/TIFFFile.hpp
 
-#        core/memory/details/ExtractInsert.hpp
-#        core/geometry/details/FourierProjections.hpp
-#        core/geometry/details/LinearTransform2D.hpp
-#        core/geometry/details/LinearTransform2DFourier.hpp
-#        core/geometry/details/LinearTransform3D.hpp
-#        core/geometry/details/LinearTransform3DFourier.hpp
-#        core/geometry/details/PolarTransform.hpp
-#        core/geometry/details/PolarTransformFourier.hpp
-#        core/geometry/details/Utilities.hpp
-
-#        core/signal/details/Shape.hpp
-#        core/signal/details/FourierCorrelationPeak.hpp
-#        core/signal/details/FSC.hpp
-
         )
 
 set(NOA_CORE_SOURCES

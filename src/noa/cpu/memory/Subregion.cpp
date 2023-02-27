@@ -1,7 +1,7 @@
 #include "noa/core/Assert.hpp"
-#include "noa/cpu/memory/Index.hpp"
+#include "noa/cpu/memory/Subregion.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
-#include "noa/algorithms/memory/ExtractInsert.hpp"
+#include "noa/algorithms/memory/Subregion.hpp"
 
 namespace noa::cpu::memory {
     template<typename Value, typename>

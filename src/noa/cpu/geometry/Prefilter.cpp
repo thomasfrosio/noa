@@ -1,4 +1,4 @@
-#include "noa/cpu/geometry/Prefilter.h"
+#include "noa/cpu/geometry/Prefilter.hpp"
 
 // This is adapted from https://github.com/DannyRuijters/CubicInterpolationCUDA
 // Copyright (c) 2008-2013, Danny Ruijters. All rights reserved.

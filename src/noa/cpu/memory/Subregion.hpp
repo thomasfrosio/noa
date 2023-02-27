@@ -1,8 +1,6 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
 
 namespace noa::cpu::memory {
     // Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.

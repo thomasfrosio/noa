@@ -1,6 +1,6 @@
-#include "noa/core/geometry/Interpolator.hpp"
 #include "noa/algorithms/geometry/PolarTransformRFFT.hpp"
-#include "noa/cpu/geometry/fft/Polar.h"
+#include "noa/core/geometry/Interpolator.hpp"
+#include "noa/cpu/geometry/fft/Polar.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace noa::cpu::geometry::fft {

@@ -9,7 +9,6 @@ namespace noa::cpu::geometry::fft::details {
 }
 
 namespace noa::cpu::geometry::fft {
-    // Transforms 2D FFT(s) to (log-)polar coordinates.
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_polar_xform_v<REMAP, Value>>>
     void cartesian2polar(

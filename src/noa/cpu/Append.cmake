@@ -34,17 +34,14 @@ set(NOA_CPU_HEADERS
         cpu/math/Random.hpp
         cpu/math/Reduce.hpp
 
-#        # noa::cpu::signal
-#        cpu/signal/fft/Bandpass.h
-#        cpu/signal/fft/Correlate.h
-#        cpu/signal/fft/FSC.h
-#        cpu/signal/fft/FSC.cpp
-#        cpu/signal/fft/Shape.h
-#        cpu/signal/fft/Shift.h
-#        cpu/signal/fft/Standardize.h
-#        cpu/signal/Convolve.h
-#        cpu/signal/Median.h
-#        cpu/signal/Shape.h
+        # noa::cpu::signal
+        cpu/signal/fft/Bandpass.h
+        cpu/signal/fft/Correlate.h
+        cpu/signal/fft/FSC.h
+        cpu/signal/fft/PhaseShift.hpp
+        cpu/signal/fft/Standardize.h
+        cpu/signal/Convolve.h
+        cpu/signal/Median.h
 
         # noa::cpu::memory
         cpu/memory/Arange.hpp
@@ -60,12 +57,14 @@ set(NOA_CPU_HEADERS
         cpu/memory/Subregion.hpp
 
         # noa::cpu::geometry
-        cpu/geometry/fft/Polar.h
-        cpu/geometry/fft/Project.h
-        cpu/geometry/fft/Transform.h
-        cpu/geometry/Polar.h
-        cpu/geometry/Prefilter.h
-        cpu/geometry/Transform.h
+        cpu/geometry/fft/Polar.hpp
+        cpu/geometry/fft/Project.hpp
+        cpu/geometry/fft/Shape.hpp
+        cpu/geometry/fft/Transform.hpp
+        cpu/geometry/Polar.hpp
+        cpu/geometry/Prefilter.hpp
+        cpu/geometry/Shape.hpp
+        cpu/geometry/Transform.hpp
 
         )
 
@@ -86,16 +85,15 @@ set(NOA_CPU_SOURCES
         cpu/math/Reduce.cpp
         cpu/math/LinAlg.cpp
 
-#        # noa::cpu::signal
-#        cpu/signal/fft/Bandpass.cpp
-#        cpu/signal/fft/Correlate.cpp
-#        cpu/signal/fft/CorrelatePeak.cpp
-#        cpu/signal/fft/Shape2D.cpp
-#        cpu/signal/fft/Shape3D.cpp
-#        cpu/signal/fft/Shift.cpp
-#        cpu/signal/fft/Standardize.cpp
-#        cpu/signal/Convolve.cpp
-#        cpu/signal/Median.cpp
+        # noa::cpu::signal
+        cpu/signal/fft/Bandpass.cpp
+        cpu/signal/fft/Correlate.cpp
+        cpu/signal/fft/CorrelatePeak.cpp
+        cpu/signal/fft/FSC.cpp
+        cpu/signal/fft/PhaseShift.cpp
+        cpu/signal/fft/Standardize.cpp
+        cpu/signal/Convolve.cpp
+        cpu/signal/Median.cpp
 
         # noa::cpu::memory
         cpu/memory/Permute.cpp
@@ -105,6 +103,8 @@ set(NOA_CPU_SOURCES
         # noa::cpu::geometry
         cpu/geometry/fft/Polar.cpp
         cpu/geometry/fft/Project.cpp
+        cpu/geometry/fft/Shape2D.cpp
+        cpu/geometry/fft/Shape3D.cpp
         cpu/geometry/fft/Transform.cpp
         cpu/geometry/Polar.cpp
         cpu/geometry/Prefilter.cpp
