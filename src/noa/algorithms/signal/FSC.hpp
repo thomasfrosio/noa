@@ -264,7 +264,7 @@ namespace noa::algorithm::signal {
                        Real* denominator_rhs,
                        Shape3<Index> shape, Index shell_count) {
 
-        const auto shell_strides = Strides2<i64>{shell_count, 1};
+        const auto shell_strides = Strides2<Offset>{shell_count, 1};
         const auto lhs_accessor = AccessorRestrict<const Complex<Real>, 4, Offset>(lhs, lhs_strides);
         const auto rhs_accessor = AccessorRestrict<const Complex<Real>, 4, Offset>(rhs, rhs_strides);
         const auto numerator_accessor = AccessorRestrictContiguous<Real, 2, Offset>(numerator, shell_strides);
@@ -286,7 +286,7 @@ namespace noa::algorithm::signal {
                          const Vec3<Coord>* normalized_cone_directions,
                          Index cone_count, Coord cone_aperture) {
 
-        const auto fsc_strides = Strides3<i64>{cone_count * shell_count, shell_count, 1};
+        const auto fsc_strides = Strides3<Offset>{cone_count * shell_count, shell_count, 1};
         const auto lhs_accessor = AccessorRestrict<const Complex<Real>, 4, Offset>(lhs, lhs_strides);
         const auto rhs_accessor = AccessorRestrict<const Complex<Real>, 4, Offset>(rhs, rhs_strides);
         const auto numerator_accessor = AccessorRestrictContiguous<Real, 3, Offset>(numerator, fsc_strides);

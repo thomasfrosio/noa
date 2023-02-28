@@ -225,11 +225,11 @@ namespace noa::cuda::utils {
              typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename TrinaryOp>
     void ewise_trinary(const char* name,
-                       const Lhs* lhs, Strides4<Index> lhs_strides,
+                       const Lhs* lhs, const Strides4<Index>& lhs_strides,
                        Mhs mhs,
                        Rhs rhs,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
+                       Output* output, const Strides4<Index>& output_strides,
+                       const Shape4<Index>& shape, Stream& stream,
                        TrinaryOp trinary_op) {
         ewise_unary<PointerTrait, StridesTrait>(
                 name, lhs, lhs_strides, output, output_strides, shape, stream,
@@ -243,10 +243,10 @@ namespace noa::cuda::utils {
             typename Index, typename TrinaryOp>
     void ewise_trinary(const char* name,
                        Lhs lhs,
-                       const Mhs* mhs, Strides4<Index> mhs_strides,
+                       const Mhs* mhs, const Strides4<Index>& mhs_strides,
                        Rhs rhs,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
+                       Output* output, const Strides4<Index>& output_strides,
+                       const Shape4<Index>& shape, Stream& stream,
                        TrinaryOp trinary_op) {
         ewise_unary<PointerTrait, StridesTrait>(
                 name, mhs, mhs_strides, output, output_strides, shape, stream,
@@ -261,9 +261,9 @@ namespace noa::cuda::utils {
     void ewise_trinary(const char* name,
                        Lhs lhs,
                        Mhs mhs,
-                       const Rhs* rhs, Strides4<Index> rhs_strides,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
+                       const Rhs* rhs, const Strides4<Index>& rhs_strides,
+                       Output* output, const Strides4<Index>& output_strides,
+                       const Shape4<Index>& shape, Stream& stream,
                        TrinaryOp trinary_op) {
         ewise_unary<PointerTrait, StridesTrait>(
                 name, rhs, rhs_strides, output, output_strides, shape, stream,
@@ -276,11 +276,11 @@ namespace noa::cuda::utils {
              typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename TrinaryOp>
     void ewise_trinary(const char* name,
-                       const Lhs* lhs, Strides4<Index> lhs_strides,
-                       const Mhs* mhs, Strides4<Index> mhs_strides,
+                       const Lhs* lhs, const Strides4<Index>& lhs_strides,
+                       const Mhs* mhs, const Strides4<Index>& mhs_strides,
                        Rhs rhs,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
+                       Output* output, const Strides4<Index>& output_strides,
+                       const Shape4<Index>& shape, Stream& stream,
                        TrinaryOp trinary_op) {
         ewise_binary<PointerTrait, StridesTrait>(
                 name, lhs, lhs_strides, mhs, mhs_strides, output, output_strides, shape, stream,
@@ -293,11 +293,11 @@ namespace noa::cuda::utils {
             typename Lhs, typename Mhs, typename Rhs, typename Output,
             typename Index, typename TrinaryOp>
     void ewise_trinary(const char* name,
-                       const Lhs* lhs, Strides4<Index> lhs_strides,
+                       const Lhs* lhs, const Strides4<Index>& lhs_strides,
                        Mhs mhs,
-                       const Rhs* rhs, Strides4<Index> rhs_strides,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
+                       const Rhs* rhs, const Strides4<Index>& rhs_strides,
+                       Output* output, const Strides4<Index>& output_strides,
+                       const Shape4<Index>& shape, Stream& stream,
                        TrinaryOp trinary_op) {
         ewise_binary<PointerTrait, StridesTrait>(
                 name, lhs, lhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
@@ -311,10 +311,10 @@ namespace noa::cuda::utils {
              typename Index, typename TrinaryOp>
     void ewise_trinary(const char* name,
                        Lhs lhs,
-                       const Mhs* mhs, Strides4<Index> mhs_strides,
-                       const Rhs* rhs, Strides4<Index> rhs_strides,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
+                       const Mhs* mhs, const Strides4<Index>& mhs_strides,
+                       const Rhs* rhs, const Strides4<Index>& rhs_strides,
+                       Output* output, const Strides4<Index>& output_strides,
+                       const Shape4<Index>& shape, Stream& stream,
                        TrinaryOp trinary_op) {
         ewise_binary<PointerTrait, StridesTrait>(
                 name, mhs, mhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,

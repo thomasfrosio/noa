@@ -208,9 +208,9 @@ namespace noa::cuda::utils {
              typename Index, typename BinaryOp>
     void ewise_binary(const char* name,
                       Lhs lhs,
-                      const Rhs* rhs, Strides4<Index> rhs_strides,
-                      Output* output, Strides4<Index> output_strides,
-                      Shape4<Index> shape, Stream& stream,
+                      const Rhs* rhs, const Strides4<Index>& rhs_strides,
+                      Output* output, const Strides4<Index>& output_strides,
+                      const Shape4<Index>& shape, Stream& stream,
                       const BinaryOp& binary_op) {
         ewise_unary<PointerTrait, StridesTrait>(
                 name, rhs, rhs_strides, output, output_strides, shape, stream,
@@ -223,10 +223,10 @@ namespace noa::cuda::utils {
              typename Lhs, typename Rhs, typename Output,
              typename Index, typename BinaryOp>
     void ewise_binary(const char* name,
-                      const Lhs* lhs, Strides4<Index> lhs_strides,
+                      const Lhs* lhs, const Strides4<Index>& lhs_strides,
                       Rhs rhs,
-                      Output* output, Strides4<Index> output_strides,
-                      Shape4<Index> shape, Stream& stream,
+                      Output* output, const Strides4<Index>& output_strides,
+                      const Shape4<Index>& shape, Stream& stream,
                       const BinaryOp& binary_op) {
         ewise_unary<PointerTrait, StridesTrait>(
                 name, lhs, lhs_strides, output, output_strides, shape, stream,

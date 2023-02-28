@@ -560,13 +560,20 @@ namespace noa::indexing {
         return {i0, i1, i2, offset};
     }
 
-    /// Returns the 4D rightmost indexes corresponding to
-    /// the given memory offset in a contiguous layout.
-    /// \param offset   Linear memory offset.
-    /// \param shape    Physical DHW shape.
-    template<typename T>
-    NOA_FHD constexpr Vec4<T> offset2index(T offset, Shape3<T> shape) noexcept {
-        return offset2index(offset, shape[0], shape[1], shape[2]);
+    /// Returns the multidimensional indexes corresponding to a memory \p offset, assuming BDHW C-contiguity.
+    /// \param offset   Memory offset within the array.
+    /// \param shape    Shape of the array.
+    template<typename T, size_t N>
+    NOA_FHD constexpr Vec<T, N> offset2index(T offset, Shape<T, N> shape) noexcept {
+        if constexpr (N == 1) {
+            return Vec<T, N>{offset};
+        } else if constexpr (N == 2) {
+            return offset2index(offset, shape[1]);
+        } else if constexpr (N == 3) {
+            return offset2index(offset, shape[1], shape[2]);
+        } else {
+            return offset2index(offset, shape[1], shape[2], shape[3]);
+        }
     }
 
     /// Returns the multidimensional indexes corresponding to a memory \p offset.
@@ -576,21 +583,32 @@ namespace noa::indexing {
     /// \param offset   Memory offset within the array.
     /// \param strides  Strides of the array.
     /// \param shape    Shape of the array.
-    template<typename T, size_t N>
+    template<bool ASSUME_RIGHTMOST = false, typename T, size_t N>
     NOA_IHD constexpr auto offset2index(T offset, const Strides<T, N>& strides, const Shape<T, N>& shape) noexcept {
-        NOA_ASSERT(all(shape > 0));
-        const auto rightmost_order = indexing::order(strides, shape);
-
+        NOA_ASSERT(noa::all(shape > 0));
         Vec<T, N> out{0};
         T remain = offset;
-        for (size_t i = 0; i < N; ++i) {
-            const auto idx = rightmost_order[i];
-            if (shape[idx] > 1) { // if empty, ignore it.
-                NOA_ASSERT(strides[idx] > 0);
-                out[idx] = remain / strides[idx]; // single-divide optimization should kick in
-                remain %= strides[idx]; // or remain -= out[i] * stride
+
+        if constexpr (ASSUME_RIGHTMOST) {
+            for (size_t i = 0; i < N; ++i) {
+                if (shape[i] > 1) { // if empty, ignore it.
+                    NOA_ASSERT(strides[i] > 0);
+                    out[i] = remain / strides[i]; // single-divide optimization should kick in
+                    remain %= strides[i]; // or remain -= out[i] * stride
+                }
+            }
+        } else {
+            const auto rightmost_order = order(strides, shape);
+            for (size_t i = 0; i < N; ++i) {
+                const auto idx = rightmost_order[i];
+                if (shape[idx] > 1) {
+                    NOA_ASSERT(strides[idx] > 0);
+                    out[idx] = remain / strides[idx];
+                    remain %= strides[idx];
+                }
             }
         }
+
         NOA_ASSERT(remain == 0);
         return out;
     }

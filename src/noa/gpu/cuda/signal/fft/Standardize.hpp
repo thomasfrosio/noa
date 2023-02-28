@@ -1,8 +1,9 @@
 #pragma once
 
-#include "noa/core/Types.hpp"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
-namespace noa::cpu::signal::fft::details {
+namespace noa::cuda::signal::fft::details {
     using Remap = noa::fft::Remap;
     template<Remap REMAP, typename T>
     constexpr bool is_valid_std_v =
@@ -10,9 +11,9 @@ namespace noa::cpu::signal::fft::details {
             (REMAP == Remap::H2H || REMAP == Remap::HC2HC || REMAP == Remap::F2F || REMAP == Remap::FC2FC);
 }
 
-namespace noa::cpu::signal::fft {
+namespace noa::cuda::signal::fft {
     template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_std_v<REMAP, T>>>
     void standardize_ifft(const T* input, const Strides4<i64>& input_strides,
                           T* output, const Strides4<i64>& output_strides,
-                          const Shape4<i64>& shape, noa::fft::Norm norm, i64 threads);
+                          const Shape4<i64>& shape, noa::fft::Norm norm, Stream& stream);
 }

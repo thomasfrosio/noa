@@ -1,10 +1,8 @@
 #include "noa/algorithms/signal/CorrelationPeak.hpp"
 #include "noa/algorithms/Utilities.hpp"
-
 #include "noa/core/geometry/Shape.hpp"
 #include "noa/core/math/LeastSquare.hpp"
 #include "noa/cpu/geometry/fft/Shape.hpp"
-
 #include "noa/cpu/Find.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
 #include "noa/cpu/signal/fft/Correlate.hpp"
@@ -213,7 +211,7 @@ namespace noa::cpu::signal::fft {
             enforce_max_radius_inplace_1d_<REMAP>(xmap, strides, shape, xmap_ellipse_radius[0]);
 
         const auto peak_offsets = cpu::memory::PtrHost<i64>::alloc(shape[0]);
-        noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), true, true, threads);
+        noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, threads);
 
         const bool is_column = shape[3] == 1;
         NOA_ASSERT(strides[3 - is_column] > 0);
@@ -286,7 +284,7 @@ namespace noa::cpu::signal::fft {
         }
 
         const auto peak_offsets = cpu::memory::PtrHost<i64>::alloc(shape[0]);
-        noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), true, true, threads);
+        noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, threads);
 
         for (i64 batch = 0; batch < shape[0]; ++batch) {
             const auto peak_index = noa::indexing::offset2index(peak_offsets.get()[batch], strides_2d, shape_2d);
@@ -340,7 +338,7 @@ namespace noa::cpu::signal::fft {
         const auto shape_3d = shape.pop_front();
         const auto strides_3d = strides.pop_front();
 
-        if (any(xmap_ellipse_radius > 0)) {
+        if (noa::any(xmap_ellipse_radius > 0)) {
             const auto center = (shape_3d / 2).vec().as<f32>();
             const auto edge_size = static_cast<f32>(noa::math::max(shape_3d)) * 0.05f;
             const auto cvalue = Real{1};
@@ -351,7 +349,7 @@ namespace noa::cpu::signal::fft {
         }
 
         const auto peak_offsets = cpu::memory::PtrHost<i64>::alloc(shape[0]);
-        noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), true, true, threads);
+        noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, threads);
 
         for (i64 batch = 0; batch < shape[0]; ++batch) {
             const auto peak = indexing::offset2index(peak_offsets.get()[batch], strides_3d, shape_3d);

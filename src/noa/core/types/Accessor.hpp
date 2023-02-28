@@ -245,6 +245,12 @@ namespace noa {
             return *offset_pointer(m_ptr, i0, i1, i2, i3);
         }
 
+        template<typename Int, std::enable_if_t<(SIZE >= 1) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec1<Int>& i0) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0[0]);
+        }
+
         template<typename Int, std::enable_if_t<(SIZE >= 2) && std::is_integral_v<Int>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec2<Int>& i01) const noexcept {
             NOA_ASSERT(!is_empty());
@@ -422,6 +428,12 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1, i2, i3);
+        }
+
+        template<typename Int, std::enable_if_t<(SIZE >= 1) && std::is_integral_v<Int>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec1<Int>& i0) const noexcept {
+            NOA_ASSERT(!is_empty());
+            return *offset_pointer(m_ptr, i0[0]);
         }
 
         template<typename Int, std::enable_if_t<(SIZE >= 2) && std::is_integral_v<Int>, bool> = true>

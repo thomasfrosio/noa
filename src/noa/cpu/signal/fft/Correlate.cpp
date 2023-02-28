@@ -10,7 +10,6 @@ namespace noa::cpu::signal::fft {
               Real* output, const Strides4<i64>& output_strides,
               const Shape4<i64>& shape, CorrelationMode correlation_mode, Norm norm,
               Complex<Real>* tmp, Strides4<i64> tmp_strides, i64 threads) {
-
         if (!tmp) {
             tmp = rhs;
             tmp_strides = rhs_strides;
@@ -21,6 +20,7 @@ namespace noa::cpu::signal::fft {
         constexpr bool IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto shape_fft = IS_HALF ? shape.fft() : shape;
 
+        // TODO Identify auto-correlation case?
         switch (correlation_mode) {
             case CorrelationMode::CONVENTIONAL:
                 noa::cpu::utils::ewise_binary(
@@ -30,7 +30,7 @@ namespace noa::cpu::signal::fft {
             case CorrelationMode::PHASE:
                 noa::cpu::utils::ewise_binary(
                         lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.fft(),
-                        [](Complex<Real> l, Complex<Real> r) {
+                        [](const Complex<Real>& l, const Complex<Real>& r) {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Real magnitude = noa::math::abs(product);
                             return product / (magnitude + EPSILON);
@@ -41,7 +41,7 @@ namespace noa::cpu::signal::fft {
             case CorrelationMode::DOUBLE_PHASE:
                 noa::cpu::utils::ewise_binary(
                         lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.fft(),
-                        [](Complex<Real> l, Complex<Real> r) -> Complex<Real> {
+                        [](const Complex<Real>& l, const Complex<Real>& r) -> Complex<Real> {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Complex<Real> product_sqd = {product.real * product.real, product.imag * product.imag};
                             const Real magnitude = noa::math::sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
@@ -52,7 +52,7 @@ namespace noa::cpu::signal::fft {
             case CorrelationMode::MUTUAL:
                 noa::cpu::utils::ewise_binary(
                         lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape_fft,
-                        [](Complex<Real> l, Complex<Real> r) {
+                        [](const Complex<Real>& l, const Complex<Real>& r) {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Real magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));
                             return product / (magnitude_sqrt + EPSILON);

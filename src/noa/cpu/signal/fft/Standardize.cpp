@@ -27,8 +27,8 @@ namespace {
         noa::cpu::utils::reduce_unary(
                 input, input_strides, shape, &factor, Strides1<i64>{1},
                 T{0}, noa::abs_squared_t{}, noa::plus_t{}, {}, threads);
-        Complex<T> dc = input[noa::indexing::at(index_dc, input_strides)];
-        factor = 1 / math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale; // anticipate dc=0
+        const Complex<T> dc = input[noa::indexing::at(index_dc, input_strides)];
+        factor = 1 / noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale; // anticipate dc=0
 
         // Standardize.
         noa::cpu::utils::ewise_unary(
@@ -73,7 +73,7 @@ namespace {
                 input + subregion.offset, subregion.strides, subregion.shape,
                 &factor1, Strides1<i64>{1}, T{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {}, 1);
-        Complex<T> dc = input[noa::indexing::at(index_dc, input_strides)];
+        const Complex<T> dc = input[at(index_dc, input_strides)];
 
         T factor2{0};
         if (even) {
@@ -91,7 +91,7 @@ namespace {
         noa::cpu::utils::ewise_unary(
                 input, input_strides, output, output_strides, shape_fft,
                 [=](const Complex<T>& value) { return value * factor; }, threads);
-        output[indexing::at(index_dc, output_strides)] = 0;
+        output[at(index_dc, output_strides)] = 0;
     }
 }
 
@@ -100,7 +100,7 @@ namespace noa::cpu::signal::fft {
     void standardize_ifft(const T* input, const Strides4<i64>& input_strides,
                           T* output, const Strides4<i64>& output_strides,
                           const Shape4<i64>& shape, noa::fft::Norm norm, i64 threads) {
-        const auto shape_unbatched = shape.pop_front().push_front(0);
+        const auto shape_unbatched = shape.pop_front().push_front(1);
         const auto shape_unbatched_fft =
                 REMAP == noa::fft::F2F || REMAP == noa::fft::FC2FC ?
                 shape_unbatched : shape_unbatched.fft();
@@ -115,7 +115,7 @@ namespace noa::cpu::signal::fft {
                         input, input_strides, output, output_strides,
                         shape_unbatched, shape_unbatched_fft, norm, threads);
             } else {
-                static_assert(traits::always_false_v<T>);
+                static_assert(noa::traits::always_false_v<T>);
             }
         }
     }

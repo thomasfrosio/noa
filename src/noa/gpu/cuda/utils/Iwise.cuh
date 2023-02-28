@@ -7,13 +7,14 @@
 #include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::utils {
-    template<u32 THREADS_X, u32 THREADS_Y,
-             u32 ITERATIONS_X = 1, u32 ITERATIONS_Y = 1>
+    template<u32 BlockSizeX, u32 BlockSizeY,
+             u32 ElementsPerThreadX = 1,
+             u32 ElementsPerThreadY = 1>
     struct IwiseStaticConfig {
-        static constexpr u32 BLOCK_SIZE_X = THREADS_X;
-        static constexpr u32 BLOCK_SIZE_Y = THREADS_Y;
-        static constexpr u32 ELEMENTS_PER_THREAD_X = ITERATIONS_X;
-        static constexpr u32 ELEMENTS_PER_THREAD_Y = ITERATIONS_Y;
+        static constexpr u32 BLOCK_SIZE_X = BlockSizeX;
+        static constexpr u32 BLOCK_SIZE_Y = BlockSizeY;
+        static constexpr u32 ELEMENTS_PER_THREAD_X = ElementsPerThreadX;
+        static constexpr u32 ELEMENTS_PER_THREAD_Y = ElementsPerThreadY;
         static constexpr u32 BLOCK_WORK_SIZE_Y = BLOCK_SIZE_Y * ELEMENTS_PER_THREAD_Y;
         static constexpr u32 BLOCK_WORK_SIZE_X = BLOCK_SIZE_X * ELEMENTS_PER_THREAD_X;
 
@@ -199,8 +200,8 @@ namespace noa::cuda::utils {
             const auto[config, blocks_x] = details::iwise_4d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = shape.filter(2, 3).vec();
             stream.enqueue(name,
-                           details::iwise_4d_static<iwise_op_value_t, Index, noa::traits::Empty, Config>,
-                           config, std::forward<IwiseOp>(iwise_op), noa::traits::Empty{}, end_2d, blocks_x);
+                           details::iwise_4d_static<iwise_op_value_t, Index, Empty, Config>,
+                           config, std::forward<IwiseOp>(iwise_op), Empty{}, end_2d, blocks_x);
         }
     }
 
@@ -238,8 +239,8 @@ namespace noa::cuda::utils {
             const auto config = details::iwise_3d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = shape.pop_front().vec();
             stream.enqueue(name,
-                           details::iwise_3d_static<iwise_op_value_t, Index, noa::traits::Empty, Config>,
-                           config, std::forward<IwiseOp>(iwise_op), noa::traits::Empty{}, end_2d);
+                           details::iwise_3d_static<iwise_op_value_t, Index, Empty, Config>,
+                           config, std::forward<IwiseOp>(iwise_op), Empty{}, end_2d);
         }
     }
 
@@ -275,8 +276,8 @@ namespace noa::cuda::utils {
         } else {
             const auto config = details::iwise_2d_static_config<Config>(shape, bytes_shared_memory);
             stream.enqueue(name,
-                           details::iwise_2d_static<iwise_op_value_t, Index, noa::traits::Empty, Config>,
-                           config, std::forward<IwiseOp>(iwise_op), noa::traits::Empty{}, shape);
+                           details::iwise_2d_static<iwise_op_value_t, Index, Empty, Config>,
+                           config, std::forward<IwiseOp>(iwise_op), Empty{}, shape.vec());
         }
     }
 
@@ -312,8 +313,8 @@ namespace noa::cuda::utils {
         } else {
             const auto config = details::iwise_1d_static_config<Config>(size, bytes_shared_memory);
             stream.enqueue(name,
-                           details::iwise_1d_static<iwise_op_value_t, Index, noa::traits::Empty, Config>,
-                           config, std::forward<IwiseOp>(iwise_op), noa::traits::Empty{}, size);
+                           details::iwise_1d_static<iwise_op_value_t, Index, Empty, Config>,
+                           config, std::forward<IwiseOp>(iwise_op), Empty{}, size);
         }
     }
 }

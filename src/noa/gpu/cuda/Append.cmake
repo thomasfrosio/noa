@@ -59,11 +59,11 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Reduce.hpp
 
         # noa::cuda::signal
-        gpu/cuda/signal/fft/Bandpass.h
-#        gpu/cuda/signal/fft/Correlate.h
-#        gpu/cuda/signal/fft/FSC.h
+        gpu/cuda/signal/fft/Bandpass.hpp
+        gpu/cuda/signal/fft/Correlate.hpp
+        gpu/cuda/signal/fft/FSC.hpp
         gpu/cuda/signal/fft/PhaseShift.hpp
-#        gpu/cuda/signal/fft/Standardize.h
+        gpu/cuda/signal/fft/Standardize.hpp
         gpu/cuda/signal/Convolve.hpp
         gpu/cuda/signal/Median.hpp
 
@@ -129,11 +129,11 @@ set(NOA_CUDA_SOURCES
 
         # noa::cuda::signal
         gpu/cuda/signal/fft/Bandpass.cu
-#        gpu/cuda/signal/fft/Correlate.cu
-#        gpu/cuda/signal/fft/CorrelatePeak.cu
-#        gpu/cuda/signal/fft/FSC.cu
+        gpu/cuda/signal/fft/Correlate.cu
+        gpu/cuda/signal/fft/CorrelatePeak.cu
+        gpu/cuda/signal/fft/FSC.cu
         gpu/cuda/signal/fft/PhaseShift.cu
-#        gpu/cuda/signal/fft/Standardize.cu
+        gpu/cuda/signal/fft/Standardize.cu
         gpu/cuda/signal/Convolve1.cu
         gpu/cuda/signal/Convolve2.cu
         gpu/cuda/signal/Convolve3.cu

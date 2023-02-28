@@ -1,7 +1,7 @@
 #include "noa/algorithms/signal/Bandpass.hpp"
 #include "noa/core/Math.hpp"
 #include "noa/gpu/cuda/fft/Exception.hpp"
-#include "noa/gpu/cuda/signal/fft/Bandpass.h"
+#include "noa/gpu/cuda/signal/fft/Bandpass.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 
