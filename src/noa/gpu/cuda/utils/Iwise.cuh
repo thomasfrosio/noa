@@ -174,7 +174,7 @@ namespace noa::cuda::utils {
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
         using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
-        const auto shape = end - start;
+        const auto shape = Shape4<Index>(end - start);
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {
@@ -213,7 +213,7 @@ namespace noa::cuda::utils {
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
         using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
-        const auto shape = end - start;
+        const auto shape = Shape3<Index>(end - start);
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {
@@ -252,7 +252,7 @@ namespace noa::cuda::utils {
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
         using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
-        const auto shape = end - start;
+        const auto shape = Shape2<Index>(end - start);
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {

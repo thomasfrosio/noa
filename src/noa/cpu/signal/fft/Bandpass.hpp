@@ -24,5 +24,5 @@ namespace noa::cpu::signal::fft {
     template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
     void bandpass(const T* input, const Strides4<i64>& input_strides,
                   T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                  f32 cutoff1, f32 cutoff2, f32 width1, f32 width2, i64 threads);
+                  f32 cutoff_high, f32 cutoff_low, f32 width_high, f32 width_low, i64 threads);
 }

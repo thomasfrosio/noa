@@ -157,13 +157,19 @@ namespace {
     void launch_convolve_separable_(
             const T* input, const Strides4<i64>& input_strides,
             T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-            const U* filter, Shape1<i64> filter_shape, i64 threads) {
+            const U* filter, i64 filter_size, i64 threads) {
+
+        if (filter_size == 1) {
+            return noa::cpu::ewise_binary(
+                    input, input_strides, static_cast<T>(filter[0]),
+                    output, output_strides, shape,
+                    noa::multiply_t{}, threads);
+        }
 
         const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, i64>(output, output_strides);
-        const auto [filter_accessor, filter_buffer] = get_filter_(filter, filter_shape.elements());
+        const auto [filter_accessor, filter_buffer] = get_filter_(filter, filter_size);
         const auto dim_size = shape.filter(noa::traits::to_underlying(DIM))[0];
-        const auto filter_size = filter_shape[0];
 
         auto kernel = ConvolutionSeparable<T, DIM>(
                 input_accessor, output_accessor, filter_accessor, dim_size, filter_size);
@@ -241,11 +247,18 @@ namespace noa::cpu::signal {
     template<typename T, typename U, typename>
     void convolve_separable(const T* input, const Strides4<i64>& input_strides,
                             T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                            const U* filter_depth, Shape1<i64> filter_depth_size,
-                            const U* filter_height, Shape1<i64> filter_height_size,
-                            const U* filter_width, Shape1<i64> filter_width_size,
+                            const U* filter_depth, i64 filter_depth_size,
+                            const U* filter_height, i64 filter_height_size,
+                            const U* filter_width, i64 filter_width_size,
                             T* tmp, Strides4<i64> tmp_strides, i64 threads) {
         NOA_ASSERT(input != output && noa::all(shape > 0));
+
+        if (filter_depth_size <= 0)
+            filter_depth = nullptr;
+        if (filter_height_size <= 0)
+            filter_height = nullptr;
+        if (filter_width_size <= 0)
+            filter_width = nullptr;
 
         // Allocate temp buffer if necessary.
         i32 count = 0;
@@ -263,9 +276,9 @@ namespace noa::cpu::signal {
             tmp_strides = shape.strides();
         }
 
-        NOA_ASSERT(!filter_depth || filter_depth_size[0] % 2);
-        NOA_ASSERT(!filter_height || filter_height_size[0] % 2);
-        NOA_ASSERT(!filter_width || filter_width_size[0] % 2);
+        NOA_ASSERT(!filter_depth || filter_depth_size % 2);
+        NOA_ASSERT(!filter_height || filter_height_size % 2);
+        NOA_ASSERT(!filter_width || filter_width_size % 2);
 
         if (filter_depth && filter_height && filter_width) {
             launch_convolve_separable_<ConvolutionSeparableDim::DEPTH>(
@@ -331,15 +344,15 @@ namespace noa::cpu::signal {
             if (filter_shape[0] > 1) {
                 launch_convolve_separable_<ConvolutionSeparableDim::DEPTH>(
                         input, input_strides, output, output_strides, shape,
-                        filter, filter_shape.filter(0), threads);
+                        filter, filter_shape[0], threads);
             } else if (filter_shape[1] > 1) {
                 launch_convolve_separable_<ConvolutionSeparableDim::HEIGHT>(
                         input, input_strides, output, output_strides, shape,
-                        filter, filter_shape.filter(1), threads);
+                        filter, filter_shape[1], threads);
             } else {
                 launch_convolve_separable_<ConvolutionSeparableDim::WIDTH>(
                         input, input_strides, output, output_strides, shape,
-                        filter, filter_shape.filter(2), threads);
+                        filter, filter_shape[2], threads);
             }
         } else if (ndim == 2) {
             return convolve_2d(input, input_strides, output, output_strides,
@@ -347,6 +360,11 @@ namespace noa::cpu::signal {
         } else if (ndim == 3) {
             return convolve_3d(input, input_strides, output, output_strides,
                                shape, filter, filter_shape, threads);
+        } else if (noa::all(filter_shape == 1)) {
+            return noa::cpu::ewise_binary(
+                    input, input_strides, static_cast<T>(filter[0]),
+                    output, output_strides, shape,
+                    noa::multiply_t{}, threads);
         } else {
             NOA_THROW("DEV: unreachable");
         }
@@ -368,9 +386,7 @@ namespace noa::cpu::signal {
     template void convolve_separable<T, U, void>(       \
         const T*, const Strides4<i64>&,                 \
         T*, const Strides4<i64>&, const Shape4<i64>&,   \
-        const U*, Shape1<i64>,                          \
-        const U*, Shape1<i64>,                          \
-        const U*, Shape1<i64>,                          \
+        const U*, i64, const U*, i64, const U*, i64,    \
         T*, Strides4<i64>, i64);                        \
     template void convolve<T, U, void>(                 \
         const T*, const Strides4<i64>&,                 \

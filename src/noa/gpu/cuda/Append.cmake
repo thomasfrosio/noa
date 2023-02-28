@@ -58,24 +58,24 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/math/Random.hpp
         gpu/cuda/math/Reduce.hpp
 
-#        # noa::cuda::signal
-#        gpu/cuda/signal/fft/Bandpass.h
+        # noa::cuda::signal
+        gpu/cuda/signal/fft/Bandpass.h
 #        gpu/cuda/signal/fft/Correlate.h
 #        gpu/cuda/signal/fft/FSC.h
-#        gpu/cuda/signal/fft/Shape.h
-#        gpu/cuda/signal/fft/Shift.h
+        gpu/cuda/signal/fft/PhaseShift.hpp
 #        gpu/cuda/signal/fft/Standardize.h
-#        gpu/cuda/signal/Convolve.h
-#        gpu/cuda/signal/Median.h
-#        gpu/cuda/signal/Shape.h
+        gpu/cuda/signal/Convolve.hpp
+        gpu/cuda/signal/Median.hpp
 
         # noa::cuda::geometry
         gpu/cuda/geometry/fft/Polar.hpp
         gpu/cuda/geometry/fft/Project.hpp
+        gpu/cuda/geometry/fft/Shape.hpp
         gpu/cuda/geometry/fft/Transform.hpp
         gpu/cuda/geometry/Interpolator.hpp
         gpu/cuda/geometry/Polar.hpp
         gpu/cuda/geometry/Prefilter.hpp
+        gpu/cuda/geometry/Shape.hpp
         gpu/cuda/geometry/Transform.hpp
 
         )
@@ -127,24 +127,24 @@ set(NOA_CUDA_SOURCES
         gpu/cuda/math/ReduceAxes.cu
         gpu/cuda/math/ReduceAxesVariance.cu
 
-#        # noa::cuda::signal
-#        gpu/cuda/signal/fft/Bandpass.cu
+        # noa::cuda::signal
+        gpu/cuda/signal/fft/Bandpass.cu
 #        gpu/cuda/signal/fft/Correlate.cu
 #        gpu/cuda/signal/fft/CorrelatePeak.cu
 #        gpu/cuda/signal/fft/FSC.cu
-#        gpu/cuda/signal/fft/Shape2D.cu
-#        gpu/cuda/signal/fft/Shape3D.cu
-#        gpu/cuda/signal/fft/Shift.cu
+        gpu/cuda/signal/fft/PhaseShift.cu
 #        gpu/cuda/signal/fft/Standardize.cu
-#        gpu/cuda/signal/Convolve1.cu
-#        gpu/cuda/signal/Convolve2.cu
-#        gpu/cuda/signal/Convolve3.cu
-#        gpu/cuda/signal/ConvolveSeparable.cu
-#        gpu/cuda/signal/Median.cu
+        gpu/cuda/signal/Convolve1.cu
+        gpu/cuda/signal/Convolve2.cu
+        gpu/cuda/signal/Convolve3.cu
+        gpu/cuda/signal/ConvolveSeparable.cu
+        gpu/cuda/signal/Median.cu
 
         # noa::cuda::geometry
         gpu/cuda/geometry/fft/Polar.cu
         gpu/cuda/geometry/fft/Project.cu
+        gpu/cuda/geometry/fft/Shape2D.cu
+        gpu/cuda/geometry/fft/Shape3D.cu
         gpu/cuda/geometry/fft/Transform.cu
         gpu/cuda/geometry/fft/TransformTexture.cu
         gpu/cuda/geometry/Polar.cu

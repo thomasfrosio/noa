@@ -65,7 +65,7 @@ namespace {
     }
 }
 
-namespace noa::cpu::signal::fft {
+namespace noa::cpu::geometry::fft {
     template<noa::fft::Remap REMAP, typename Value, typename Matrix, typename Functor, typename CValue, typename>
     void ellipse(const Value* input, Strides4<i64> input_strides,
                  Value* output, Strides4<i64> output_strides, Shape4<i64> shape,

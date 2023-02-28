@@ -35,13 +35,13 @@ set(NOA_CPU_HEADERS
         cpu/math/Reduce.hpp
 
         # noa::cpu::signal
-        cpu/signal/fft/Bandpass.h
-        cpu/signal/fft/Correlate.h
-        cpu/signal/fft/FSC.h
+        cpu/signal/fft/Bandpass.hpp
+        cpu/signal/fft/Correlate.hpp
+        cpu/signal/fft/FSC.hpp
         cpu/signal/fft/PhaseShift.hpp
-        cpu/signal/fft/Standardize.h
-        cpu/signal/Convolve.h
-        cpu/signal/Median.h
+        cpu/signal/fft/Standardize.hpp
+        cpu/signal/Convolve.hpp
+        cpu/signal/Median.hpp
 
         # noa::cpu::memory
         cpu/memory/Arange.hpp

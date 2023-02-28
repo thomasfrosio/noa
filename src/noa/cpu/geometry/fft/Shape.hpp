@@ -17,7 +17,6 @@ namespace noa::cpu::geometry::fft::details {
 namespace noa::cpu::geometry::fft {
     using namespace ::noa::fft;
 
-    // Returns or applies an elliptical mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, REMAP, Value, Matrix, Functor, CValue>>>
@@ -26,7 +25,6 @@ namespace noa::cpu::geometry::fft {
                  Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
                  Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads);
 
-    // Returns or applies a 2D elliptical mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<2, REMAP, Value, Matrix, Functor, CValue>>>
@@ -35,7 +33,6 @@ namespace noa::cpu::geometry::fft {
                  Vec2<f32> center, Vec2<f32> radius, f32 edge_size,
                  Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads);
 
-    // Returns or applies a spherical mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, REMAP, Value, Matrix, Functor, CValue>>>
@@ -44,7 +41,6 @@ namespace noa::cpu::geometry::fft {
                 Vec3<f32> center, f32 radius, f32 edge_size,
                 Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads);
 
-    // Returns or applies a 2D spherical mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<2, REMAP, Value, Matrix, Functor, CValue>>>
@@ -53,7 +49,6 @@ namespace noa::cpu::geometry::fft {
                 Vec2<f32> center, f32 radius, f32 edge_size,
                 Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads);
 
-    // Returns or applies a rectangular mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, REMAP, Value, Matrix, Functor, CValue>>>
@@ -62,7 +57,6 @@ namespace noa::cpu::geometry::fft {
                    Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
                    Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads);
 
-    // Returns or applies a 2D rectangular mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<2, REMAP, Value, Matrix, Functor, CValue>>>
@@ -71,7 +65,6 @@ namespace noa::cpu::geometry::fft {
                    Vec2<f32> center, Vec2<f32> radius, f32 edge_size,
                    Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads);
 
-    // Returns or applies a cylindrical mask.
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, REMAP, Value, Matrix, Functor, CValue>>>
