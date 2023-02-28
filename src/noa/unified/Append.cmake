@@ -10,8 +10,7 @@ set(NOA_UNIFIED_HEADERS
         unified/Device.hpp
         unified/Indexing.hpp
         unified/Stream.hpp
-#        unified/Texture.h
-#        unified/Texture.inl
+        unified/Texture.hpp
         unified/View.hpp
         unified/Ewise.hpp
         unified/Sort.hpp
