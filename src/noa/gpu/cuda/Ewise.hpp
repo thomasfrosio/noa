@@ -34,15 +34,15 @@ namespace noa::cuda::details {
     constexpr bool is_valid_ewise_trinary_bool_v =
             traits::is_restricted_scalar_v<Lhs> &&
             (traits::are_all_same_v<Lhs, Mhs, Rhs, Out> || traits::are_all_same_v<Lhs, Mhs, Rhs> && std::is_same_v<Out, bool>)
-            && traits::is_any_v<Op, within_t, within_equal_t, clamp_t>;
+            && traits::is_any_v<Op, within_t, within_equal_t>;
 
     template<typename Op>
     constexpr bool is_valid_ewise_trinary_arithmetic_op_v =
             traits::is_any_v<Op,
-                     plus_t, plus_minus_t, plus_multiply_t, plus_divide_t,
-                     minus_t, minus_plus_t, minus_multiply_t, minus_divide_t,
-                     multiply_t, multiply_plus_t, multiply_minus_t, multiply_divide_t,
-                     divide_t, divide_plus_t, divide_minus_t, divide_multiply_t, divide_epsilon_t>;
+                    plus_t, plus_minus_t, plus_multiply_t, plus_divide_t,
+                    minus_t, minus_plus_t, minus_multiply_t, minus_divide_t,
+                    multiply_t, multiply_plus_t, multiply_minus_t, multiply_divide_t,
+                    divide_t, divide_plus_t, divide_minus_t, divide_multiply_t, divide_epsilon_t>;
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
     constexpr bool is_valid_ewise_trinary_arithmetic_v =
@@ -52,7 +52,12 @@ namespace noa::cuda::details {
               (traits::is_complex_v<Lhs> || traits::is_complex_v<Mhs> || traits::is_complex_v<Rhs>) && traits::is_complex_v<Out>));
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
-    constexpr bool is_valid_ewise_trinary_v = is_valid_ewise_trinary_bool_v<Lhs, Mhs, Rhs, Out, Op> || is_valid_ewise_trinary_arithmetic_v<Lhs, Mhs, Rhs, Out, Op>;
+    constexpr bool is_valid_ewise_trinary_v =
+            is_valid_ewise_trinary_bool_v<Lhs, Mhs, Rhs, Out, Op> ||
+            is_valid_ewise_trinary_arithmetic_v<Lhs, Mhs, Rhs, Out, Op> ||
+            (traits::is_restricted_scalar_v<Lhs> &&
+             traits::are_all_same_v<Lhs, Mhs, Rhs, Out> &&
+             std::is_same_v<Op, clamp_t>);
 }
 
 namespace noa::cuda {
