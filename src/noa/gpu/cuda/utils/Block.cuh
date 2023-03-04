@@ -211,7 +211,7 @@ namespace noa::cuda::utils {
                         // saved by chunks of VECTOR_SIZE. There are multiple chunks if
                         // ELEMENTS_PER_THREAD > VECTOR_SIZE. In this case, chunks are
                         // "separated" in the per_block_input by the BLOCK_SIZE.
-                        const auto block_offset = BLOCK_SIZE * i / VECTOR_SIZE;
+                        const auto block_offset = BLOCK_SIZE * (i / VECTOR_SIZE);
                         const auto thread_offset = (thread_index + block_offset) * VECTOR_SIZE + i % VECTOR_SIZE;
                         const auto offset = global_offset + thread_offset;
                         *reduced = reduce_op(*reduced, preprocess_op(values_to_reduce[i], offset));

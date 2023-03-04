@@ -124,7 +124,7 @@ namespace noa::cuda::utils {
                 noa::indexing::is_contiguous(output_strides, shape);
         if (is_contiguous[1] && is_contiguous[2]) { // 1D-like
             // Keep batches separated in a different Grid.Y if they're not contiguous.
-            const bool batch_size = is_contiguous[0] ? 1 : shape[0];
+            const auto batch_size = is_contiguous[0] ? 1 : shape[0];
             const auto elements = is_contiguous[0] ? shape.elements() : shape.pop_front().elements();
             const auto lhs_strides_2d = lhs_strides.filter(0, 3);
             const auto rhs_strides_2d = rhs_strides.filter(0, 3);
