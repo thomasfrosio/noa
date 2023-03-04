@@ -19,14 +19,15 @@ namespace noa::cuda {
             const Strides4<i64>& strides, const Shape4<i64>& shape,
             Offset* offsets, bool reduce_batch, bool swap_layout, Stream& stream
     ) {
-        const auto preprocess_op = []__device__(Value value, i64 offset) { return Pair{value, offset}; };
-        const auto postprocess_op = []__device__(const Pair<Value, i64>& pair) { return static_cast<Offset>(pair.second); };
+        const auto preprocess_op = []__device__(Value value, Offset offset) { return Pair{value, offset}; };
+        const auto postprocess_op = []__device__(const Pair<Value, Offset>& pair) { return pair.second; };
 
+        NOA_ASSERT(is_safe_cast<Offset>(noa::indexing::at((shape - 1).vec(), strides)));
         const Value INITIAL_REDUCE = get_initial_reduce<ReduceOp, Value>();
         noa::cuda::utils::reduce_unary(
                 "find_offsets",
                 input, strides, shape,
-                offsets, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
+                offsets, Strides1<i64>{1}, Pair<Value, Offset>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,
                 reduce_batch, swap_layout, stream);
     }

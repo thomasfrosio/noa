@@ -20,13 +20,14 @@ namespace noa::cpu {
             const Strides4<i64>& strides, const Shape4<i64>& shape,
             Offset* offsets, bool reduce_batch, bool swap_layout, i64 threads
     ) {
-        const auto preprocess_op = [](Value value, i64 offset) { return Pair{value, offset}; };
-        const auto postprocess_op = [](const Pair<Value, i64>& pair) { return static_cast<Offset>(pair.second); };
+        const auto preprocess_op = [](Value value, i64 offset) { return Pair{value, static_cast<Offset>(offset)}; };
+        const auto postprocess_op = [](const Pair<Value, Offset>& pair) { return pair.second; };
 
+        NOA_ASSERT(is_safe_cast<Offset>(noa::indexing::at((shape - 1).vec(), strides)));
         constexpr Value INITIAL_REDUCE = get_initial_reduce<ReduceOp, Value>();
         noa::cpu::utils::reduce_unary(
                 input, strides, shape,
-                offsets, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
+                offsets, Strides1<i64>{1}, Pair<Value, Offset>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,
                 threads, reduce_batch, swap_layout);
     }
