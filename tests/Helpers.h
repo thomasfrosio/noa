@@ -4,9 +4,9 @@
 #include <noa/core/Math.hpp>
 #include <noa/core/traits/Numerics.hpp>
 
-//#ifdef NOA_ENABLE_UNIFIED
-//#include <noa/Array.h>
-//#endif
+#ifdef NOA_ENABLE_UNIFIED
+#include <noa/unified/Array.hpp>
+#endif
 
 #include <random>
 #include <cstdlib>
@@ -57,98 +57,98 @@ namespace test {
         }
     };
 
-    inline noa::Shape4<noa::u64> get_random_shape4(size_t ndim) {
+    inline noa::Shape4<noa::i64> get_random_shape4(noa::i64 ndim) {
         if (ndim == 2) {
-            test::Randomizer<noa::u64> rand(32, 512);
-            return noa::Shape4<noa::u64>{1, 1, rand.get(), rand.get()};
+            test::Randomizer<noa::i64> rand(32, 512);
+            return noa::Shape4<noa::i64>{1, 1, rand.get(), rand.get()};
         } else if (ndim == 3) {
-            test::Randomizer<noa::u64> rand(32, 128);
-            return noa::Shape4<noa::u64>{1, rand.get(), rand.get(), rand.get()};
+            test::Randomizer<noa::i64> rand(32, 128);
+            return noa::Shape4<noa::i64>{1, rand.get(), rand.get(), rand.get()};
         } else if (ndim == 4) {
-            test::Randomizer<noa::u64> rand(32, 128);
-            return noa::Shape4<noa::u64>{test::Randomizer<noa::u64>(1, 3).get(),
+            test::Randomizer<noa::i64> rand(32, 128);
+            return noa::Shape4<noa::i64>{test::Randomizer<noa::i64>(1, 4).get(),
                                rand.get(), rand.get(), rand.get()};
         } else {
-            test::Randomizer<noa::u64> rand(32, 1024);
-            return noa::Shape4<noa::u64>{1, 1, 1, rand.get()};
+            test::Randomizer<noa::i64> rand(32, 1024);
+            return noa::Shape4<noa::i64>{1, 1, 1, rand.get()};
         }
     }
 
-    inline noa::Shape4<noa::u64> get_random_shape4_batched(size_t ndim) {
-        test::Randomizer<noa::u64> rand_batch(1, 3);
+    inline noa::Shape4<noa::i64> get_random_shape4_batched(noa::i64 ndim) {
+        test::Randomizer<noa::i64> rand_batch(1, 3);
         if (ndim == 2) {
-            test::Randomizer<noa::u64> randomizer(32, 512);
-            return noa::Shape4<noa::u64>{rand_batch.get(), 1,
+            test::Randomizer<noa::i64> randomizer(32, 512);
+            return noa::Shape4<noa::i64>{rand_batch.get(), 1,
                                randomizer.get(), randomizer.get()};
         } else if (ndim >= 3) {
-            test::Randomizer<noa::u64> randomizer(32, 128);
-            return noa::Shape4<noa::u64>{rand_batch.get(), randomizer.get(),
+            test::Randomizer<noa::i64> randomizer(32, 128);
+            return noa::Shape4<noa::i64>{rand_batch.get(), randomizer.get(),
                                randomizer.get(), randomizer.get()};
         } else {
-            test::Randomizer<noa::u64> randomizer(32, 1024);
-            return noa::Shape4<noa::u64>{rand_batch.get(), 1, 1, randomizer.get()};
+            test::Randomizer<noa::i64> randomizer(32, 1024);
+            return noa::Shape4<noa::i64>{rand_batch.get(), 1, 1, randomizer.get()};
         }
     }
 
-    inline noa::Shape4<noa::u64> get_random_shape4(size_t ndim, bool even) { // if even is false, return odd only
-        noa::Shape4<noa::u64> shape = get_random_shape4(ndim);
-        shape += noa::Shape4<noa::u64>{shape != 1} * // ignore empty dimensions
-                 ((shape % 2) * even + !even * noa::Shape4<noa::u64>{(shape % 2) == 0});
+    inline noa::Shape4<noa::i64> get_random_shape4(noa::i64 ndim, bool even) { // if even is false, return odd only
+        noa::Shape4<noa::i64> shape = get_random_shape4(ndim);
+        shape += noa::Shape4<noa::i64>{shape != 1} * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::Shape4<noa::i64>{(shape % 2) == 0});
         return shape;
     }
 
-    inline noa::Shape4<noa::u64> get_random_shape4_batched(size_t ndim, bool even) {
-        noa::Shape4<noa::u64> shape = get_random_shape4_batched(ndim);
-        shape += noa::Shape4<noa::u64>{shape != 1} * // ignore empty dimensions
-                 ((shape % 2) * even + !even * noa::Shape4<noa::u64>{(shape % 2) == 0});
+    inline noa::Shape4<noa::i64> get_random_shape4_batched(noa::i64 ndim, bool even) {
+        noa::Shape4<noa::i64> shape = get_random_shape4_batched(ndim);
+        shape += noa::Shape4<noa::i64>{shape != 1} * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::Shape4<noa::i64>{(shape % 2) == 0});
         return shape;
     }
 }
 
 namespace test {
     template<typename T, typename U>
-    inline void randomize(T* data, size_t elements, test::Randomizer<U>& randomizer) {
+    inline void randomize(T* data, noa::i64 elements, test::Randomizer<U>& randomizer) {
         if constexpr (std::is_same_v<T, U>) {
-            for (size_t idx = 0; idx < elements; ++idx)
+            for (noa::i64 idx = 0; idx < elements; ++idx)
                 data[idx] = randomizer.get();
         } else if constexpr (noa::traits::is_complex_v<T>) {
             using value_t = noa::traits::value_type_t<T>;
             randomize(reinterpret_cast<value_t*>(data), elements * 2, randomizer);
         } else {
-            for (size_t idx = 0; idx < elements; ++idx)
+            for (noa::i64 idx = 0; idx < elements; ++idx)
                 data[idx] = static_cast<T>(randomizer.get());
         }
     }
 
     template<typename T, typename U>
-    inline void memset(T* data, size_t elements, U value) {
+    inline void memset(T* data, noa::i64 elements, U value) {
         std::fill(data, data + elements, static_cast<T>(value));
     }
 
-    template<typename T, typename U = size_t>
-    inline void arange(T* data, size_t elements, U start = 0) {
-        for (size_t i = 0; i < elements; ++i, ++start)
+    template<typename T, typename U = noa::i64>
+    inline void arange(T* data, noa::i64 elements, U start = 0) {
+        for (noa::i64 i = 0; i < elements; ++i, ++start)
             data[i] = static_cast<T>(start);
     }
 
     template<typename T>
-    inline void copy(const T* src, T* dst, size_t elements) {
+    inline void copy(const T* src, T* dst, noa::i64 elements) {
         std::copy(src, src + elements, dst);
     }
 
     template<typename T, typename U>
-    inline void scale(T* array, size_t size, U scale) {
+    inline void scale(T* array, noa::i64 size, U scale) {
         std::transform(array, array + size, array, [scale](const T& a) { return a * scale; });
     }
 }
 
 namespace test {
     template<typename T>
-    inline T get_difference(const T* in, const T* out, size_t elements) {
+    inline T get_difference(const T* in, const T* out, noa::i64 elements) {
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
             T diff{0}, tmp;
-            for (size_t idx{0}; idx < elements; ++idx) {
+            for (noa::i64 idx{0}; idx < elements; ++idx) {
                 tmp = out[idx] - in[idx];
                 diff += T{tmp.real > real_t{0} ? tmp.real : -tmp.real,
                           tmp.imag > real_t{0} ? tmp.imag : -tmp.imag};
@@ -156,12 +156,12 @@ namespace test {
             return diff;
         } else if constexpr (std::is_integral_v<T>) {
             int64_t diff{0};
-            for (size_t idx{0}; idx < elements; ++idx)
+            for (noa::i64 idx{0}; idx < elements; ++idx)
                 diff += std::abs(static_cast<int64_t>(out[idx] - in[idx]));
             return noa::clamp_cast<T>(diff);
         } else {
             T diff{0}, tmp;
-            for (size_t idx{0}; idx < elements; ++idx) {
+            for (noa::i64 idx{0}; idx < elements; ++idx) {
                 tmp = out[idx] - in[idx];
                 diff += tmp > T{0} ? tmp : -tmp;
             }
@@ -187,9 +187,9 @@ namespace test {
 
         template<typename U>
         Matcher(CompType comparison,
-                const T* lhs, noa::Strides4<noa::u64> lhs_strides,
-                const T* rhs, noa::Strides4<noa::u64> rhs_strides,
-                noa::Shape4<noa::u64> shape, U epsilon) noexcept
+                const T* lhs, noa::Strides4<noa::i64> lhs_strides,
+                const T* rhs, noa::Strides4<noa::i64> rhs_strides,
+                noa::Shape4<noa::i64> shape, U epsilon) noexcept
                 : m_shape(shape),
                   m_lhs_strides(lhs_strides),
                   m_rhs_strides(rhs_strides),
@@ -208,9 +208,9 @@ namespace test {
 
         template<typename U>
         Matcher(CompType comparison,
-                const T* lhs, noa::Strides4<noa::u64> lhs_strides,
+                const T* lhs, noa::Strides4<noa::i64> lhs_strides,
                 const T rhs,
-                noa::Shape4<noa::u64> shape, U epsilon) noexcept
+                noa::Shape4<noa::i64> shape, U epsilon) noexcept
                 : m_shape(shape),
                   m_lhs_strides(lhs_strides),
                   m_lhs(lhs),
@@ -228,33 +228,33 @@ namespace test {
         }
 
         template<typename U>
-        Matcher(CompType comparison, const T* lhs, const T* rhs, size_t elements, U epsilon) noexcept
+        Matcher(CompType comparison, const T* lhs, const T* rhs, noa::i64 elements, U epsilon) noexcept
             : Matcher(comparison,
-                      lhs, noa::Shape4<noa::u64>{1, 1, 1, elements}.strides(),
-                      rhs, noa::Shape4<noa::u64>{1, 1, 1, elements}.strides(),
-                      noa::Shape4<noa::u64>{1, 1, 1, elements}, epsilon) {}
+                      lhs, noa::Shape4<noa::i64>{1, 1, 1, elements}.strides(),
+                      rhs, noa::Shape4<noa::i64>{1, 1, 1, elements}.strides(),
+                      noa::Shape4<noa::i64>{1, 1, 1, elements}, epsilon) {}
 
         template<typename U>
-        Matcher(CompType comparison, const T* lhs, T rhs, size_t elements, U epsilon) noexcept
+        Matcher(CompType comparison, const T* lhs, T rhs, noa::i64 elements, U epsilon) noexcept
                 : Matcher(comparison,
-                          lhs, noa::Shape4<noa::u64>{1, 1, 1, elements}.strides(),
+                          lhs, noa::Shape4<noa::i64>{1, 1, 1, elements}.strides(),
                           rhs,
-                          noa::Shape4<noa::u64>{1, 1, 1, elements}, epsilon) {}
+                          noa::Shape4<noa::i64>{1, 1, 1, elements}, epsilon) {}
 
-//        #ifdef NOA_ENABLE_UNIFIED
-//        template<typename U>
-//        Matcher(CompType comparison, const noa::Array<T>& lhs, const noa::Array<T>& rhs, U epsilon) noexcept
-//                : Matcher(comparison,
-//                          lhs.eval().get(), lhs.strides(),
-//                          rhs.eval().get(), rhs.strides(),
-//                          lhs.shape(), epsilon) {
-//            NOA_ASSERT(all(lhs.shape() == rhs.shape()));
-//        }
-//
-//        template<typename U>
-//        Matcher(CompType comparison, const noa::Array<T>& lhs, T rhs, U epsilon) noexcept
-//                : Matcher(comparison, lhs.eval().get(), lhs.strides(), rhs, lhs.shape(), epsilon) {}
-//        #endif
+        #ifdef NOA_ENABLE_UNIFIED
+        template<typename U>
+        Matcher(CompType comparison, const noa::Array<T>& lhs, const noa::Array<T>& rhs, U epsilon) noexcept
+                : Matcher(comparison,
+                          lhs.eval().get(), lhs.strides(),
+                          rhs.eval().get(), rhs.strides(),
+                          lhs.shape(), epsilon) {
+            NOA_ASSERT(all(lhs.shape() == rhs.shape()));
+        }
+
+        template<typename U>
+        Matcher(CompType comparison, const noa::Array<T>& lhs, T rhs, U epsilon) noexcept
+                : Matcher(comparison, lhs.eval().get(), lhs.strides(), rhs, lhs.shape(), epsilon) {}
+        #endif
 
         explicit operator bool() const noexcept {
             return m_match;
@@ -267,7 +267,7 @@ namespace test {
                 using namespace noa;
                 using namespace noa::indexing;
 
-                Vec4<u64> idx = matcher.m_index_failed;
+                Vec4<i64> idx = matcher.m_index_failed;
                 if (matcher.m_shape.ndim() == 1)
                     os << "Matcher: check failed at index=" << idx;
                 else
@@ -318,10 +318,10 @@ namespace test {
         void check_(F&& value_checker) noexcept {
             m_total_abs_diff = T{0};
             m_match = true;
-            for (u64 i = 0; i < m_shape[0]; ++i) {
-                for (u64 j = 0; j < m_shape[1]; ++j) {
-                    for (u64 k = 0; k < m_shape[2]; ++k) {
-                        for (u64 l = 0; l < m_shape[3]; ++l) {
+            for (i64 i = 0; i < m_shape[0]; ++i) {
+                for (i64 j = 0; j < m_shape[1]; ++j) {
+                    for (i64 k = 0; k < m_shape[2]; ++k) {
+                        for (i64 l = 0; l < m_shape[3]; ++l) {
                             const bool passed = value_checker(
                                     m_lhs[noa::indexing::at(i, j, k, l, m_lhs_strides)],
                                     m_rhs[noa::indexing::at(i, j, k, l, m_rhs_strides)],
@@ -405,10 +405,10 @@ namespace test {
         }
 
     private:
-        noa::Shape4<noa::u64> m_shape{};
-        noa::Strides4<noa::u64> m_lhs_strides{};
-        noa::Strides4<noa::u64> m_rhs_strides{};
-        noa::Vec4<noa::u64> m_index_failed{};
+        noa::Shape4<noa::i64> m_shape{};
+        noa::Strides4<noa::i64> m_lhs_strides{};
+        noa::Strides4<noa::i64> m_rhs_strides{};
+        noa::Vec4<noa::i64> m_index_failed{};
         const T* m_lhs{};
         const T* m_rhs{};
         T m_rhs_value{};

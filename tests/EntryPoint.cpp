@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
         return returnCode;
 
     noa::Session noa_session("tests", {}, noa::Logger::SILENT);
-    noa::Session::threads(std::min(noa::Session::threads(), size_t{8}));
+    noa::Session::set_threads(std::min(noa::Session::threads(), noa::i64{8}));
     int numFailed = catch_session.run();
     return numFailed;
 }

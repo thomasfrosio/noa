@@ -59,7 +59,7 @@ TEMPLATE_TEST_CASE("core::io::(de)serialize - real types", "[noa][core]",
             data[i] = math::clamp(data[i], min, max);
     }
 
-    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), size, 1e-6));
+    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), static_cast<i64>(size), 1e-6));
     std::error_code er;
     fs::remove_all(test_dir, er); // silence error
 }
@@ -103,7 +103,7 @@ TEMPLATE_TEST_CASE("core::io::(de)serialize - uint4", "[noa][core]", u8, i16, i3
             data[i] = math::clamp(data[i], min, max);
     }
 
-    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), size, 1e-6));
+    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), static_cast<i64>(size), 1e-6));
     std::error_code er;
     fs::remove_all(test_dir, er); // silence error
 }
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE("core::io::(de)serialize - complex", "[noa][core]", c16, c32,
         for (size_t i = 0; i < size; ++i)
             data[i] = static_cast<TestType>(static_cast<c16>(data[i])); // for half, mimic conversion on raw data
     }
-    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), size, 1e-6));
+    REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), static_cast<i64>(size), 1e-6));
     std::error_code er;
     fs::remove_all(test_dir, er); // silence error
 }

@@ -720,11 +720,11 @@ namespace noa::cuda::utils {
         stream.synchronize();
 
         // Get the variance:
-        const auto inv_count = Output{1} / static_cast<Output>(elements) - static_cast<Output>(ddof);
+        const auto inv_count = Output{1} / (static_cast<Output>(elements) - static_cast<Output>(ddof));
         auto post_process_op = [inv_count]__device__(Output dist2) -> Output {
-                if constexpr (STD)
-                    return noa::math::sqrt(dist2 * inv_count);
-                return dist2 * inv_count;
+            if constexpr (STD)
+                return noa::math::sqrt(dist2 * inv_count);
+            return dist2 * inv_count;
         };
 
         for (i64 batch = 0; batch < batches; ++batch) {

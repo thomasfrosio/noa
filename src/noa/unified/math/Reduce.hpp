@@ -11,15 +11,17 @@
 namespace noa::math::details {
     template<typename Input>
     constexpr bool is_valid_min_max_median_v =
-            noa::traits::is_any_v<noa::traits::value_type_t<Input>, i16, i32, i64, u16, u32, u64, f16, f32, f64>;
+            noa::traits::is_any_v<std::remove_const_t<noa::traits::value_type_t<Input>>,
+                                  i16, i32, i64, u16, u32, u64, f16, f32, f64>;
 
     template<typename Input>
     constexpr bool is_valid_sum_mean_v =
-            noa::traits::is_any_v<noa::traits::value_type_t<Input>, i32, i64, u32, u64, f32, f64, c32, c64>;
+            noa::traits::is_any_v<std::remove_const_t<noa::traits::value_type_t<Input>>,
+                                  i32, i64, u32, u64, f32, f64, c32, c64>;
 
     template<typename Input, typename Output>
     constexpr bool is_valid_var_std_v =
-            noa::traits::is_any_v<noa::traits::value_type_t<Input>, f32, f64, c32, c64> &&
+            noa::traits::is_any_v<std::remove_const_t<noa::traits::value_type_t<Input>>, f32, f64, c32, c64> &&
             std::is_same_v<noa::traits::value_type_t<Output>,
                            noa::traits::value_type_t<noa::traits::value_type_t<Input>>>;
 }
@@ -148,7 +150,7 @@ namespace noa::math {
     /// \param[in] array    Array to reduce.
     template<typename Input, typename = std::enable_if_t<
             noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, Input>>>
+            details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
     [[nodiscard]] auto var(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -176,7 +178,7 @@ namespace noa::math {
     /// \param[in] array    Array to reduce.
     template<typename Input, typename = std::enable_if_t<
             noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, Input>>>
+            details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
     [[nodiscard]] auto mean_var(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -204,7 +206,7 @@ namespace noa::math {
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename = std::enable_if_t<
             noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, Input>>>
+            details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
     [[nodiscard]] auto std(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();

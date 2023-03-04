@@ -295,7 +295,7 @@ namespace noa::cpu::math {
 
     template<typename Input, typename Output, typename>
     Output std(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 ddof, i64 threads) {
-        return ReduceAll<ReductionMode::VAR, Input>::execute(input, strides, shape, threads, ddof);
+        return ReduceAll<ReductionMode::STD, Input>::execute(input, strides, shape, threads, ddof);
     }
 
     template<typename Value, typename>

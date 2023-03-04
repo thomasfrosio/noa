@@ -123,7 +123,7 @@ namespace noa::cuda::math {
                i64 ddof, Stream& stream) {
         Output output;
         utils::reduce_variance<true>(
-                "math::var", input, strides, shape, &output, Strides1<i64>{1},
+                "math::std", input, strides, shape, &output, Strides1<i64>{1},
                 ddof, true, true, stream);
         stream.synchronize();
         return output;
