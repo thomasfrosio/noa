@@ -62,7 +62,9 @@ namespace noa {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::details::is_valid_ewise_unary_v<mutable_input_value_t, output_value_t, UnaryOp>) {
+            if constexpr (cuda::details::is_valid_ewise_unary_v<
+                    mutable_input_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<UnaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_unary(input.get(), input_strides,
                                   output.get(), output.strides(), output.shape(),
@@ -84,12 +86,12 @@ namespace noa {
     template<typename Output = void, typename Input, typename UnaryOp,
              typename = std::enable_if_t<noa::traits::is_array_or_view_v<Input> &&
                                          (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>)>>
-    auto ewise_unary(const Input& input, UnaryOp&& unary_op) {
+    [[nodiscard]] auto ewise_unary(const Input& input, UnaryOp&& unary_op) {
         using input_value_t = noa::traits::value_type_t<Input>;
         using return_value_t = std::conditional_t<
                 std::is_void_v<Output>, std::invoke_result_t<UnaryOp, input_value_t>, Output>;
         Array<return_value_t> output(input.shape(), input.options());
-        ewise_unary(input, output, unary_op);
+        ewise_unary(input, output, std::forward<UnaryOp>(unary_op));
         return output;
     }
 }
@@ -159,12 +161,13 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_binary_v<
-                    mutable_lhs_value_t, mutable_rhs_value_t, output_value_t, BinaryOp>) {
+                    mutable_lhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<BinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
-                cuda::ewise_unary(lhs.get(), lhs_strides,
-                                  rhs.get(), rhs_strides,
-                                  output.get(), output.strides(), output.shape(),
-                                  binary_op, cuda_stream);
+                cuda::ewise_binary(lhs.get(), lhs_strides,
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output.strides(), output.shape(),
+                                   binary_op, cuda_stream);
                 cuda_stream.enqueue_attach(lhs.share(), rhs.share(), output.share());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -216,12 +219,13 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_binary_v<
-                    mutable_lhs_value_t, mutable_rhs_value_t, output_value_t, BinaryOp>) {
+                    mutable_lhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<BinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
-                cuda::ewise_unary(lhs.get(), lhs_strides,
-                                  rhs,
-                                  output.get(), output.strides(), output.shape(),
-                                  binary_op, cuda_stream);
+                cuda::ewise_binary(lhs.get(), lhs_strides,
+                                   rhs,
+                                   output.get(), output.strides(), output.shape(),
+                                   binary_op, cuda_stream);
                 cuda_stream.enqueue_attach(lhs.share(), output.share());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -273,12 +277,13 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_binary_v<
-                    mutable_lhs_value_t, mutable_rhs_value_t, output_value_t, BinaryOp>) {
+                    mutable_lhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<BinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
-                cuda::ewise_unary(lhs,
-                                  rhs.get(), rhs_strides,
-                                  output.get(), output.strides(), output.shape(),
-                                  binary_op, cuda_stream);
+                cuda::ewise_binary(lhs,
+                                   rhs.get(), rhs_strides,
+                                   output.get(), output.strides(), output.shape(),
+                                   binary_op, cuda_stream);
                 cuda_stream.enqueue_attach(rhs.share(), output.share());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
@@ -298,7 +303,7 @@ namespace noa {
                      (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>) &&
                      (noa::traits::is_array_or_view_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
                      (noa::traits::is_array_or_view_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
-    auto ewise_binary(const Lhs& lhs, const Rhs& rhs, BinaryOp&& binary_op) {
+    [[nodiscard]] auto ewise_binary(const Lhs& lhs, const Rhs& rhs, BinaryOp&& binary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
         using rhs_value_t = noa::traits::value_type_t<Rhs>;
         using return_value_t = std::conditional_t<
@@ -329,7 +334,8 @@ namespace noa {
     /// \param trinary_op   Trinary operator. The output is explicitly cast to the \p output value type.
     /// \note On the GPU, supported operators and types are limited to the following list:
     ///     \b Integers and Floating-points:\n
-    ///       - \c (within|within_equal|clamp)_t(A,A,A)->A|bool\n
+    ///       - \c (within|within_equal)_t(A,A,A)->A|bool\n
+    ///       - \c clamp_t(A,A,A)->A\n
     ///       - \c (plus|plus_minus|plus_multiply|plus_divide)_t(A,A,A)->A\n
     ///       - \c (minus|minus_plus|minus_multiply|minus_divide)_t(A,A,A)->A\n
     ///       - \c (multiply|multiply_plus|multiply_minus|multiply_divide)_t(A,A,A)->A\n
@@ -393,7 +399,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs.get(), mhs_strides,
@@ -459,7 +466,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs.get(), mhs_strides,
@@ -525,7 +533,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs,
@@ -591,7 +600,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs,
                                     mhs.get(), mhs_strides,
@@ -652,7 +662,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs,
@@ -713,7 +724,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs,
                                     mhs.get(), mhs_strides,
@@ -774,7 +786,8 @@ namespace noa {
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
-                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t, TrinaryOp>) {
+                    mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
+                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs,
                                     mhs,
@@ -801,7 +814,7 @@ namespace noa {
                      (noa::traits::is_array_or_view_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
                      (noa::traits::is_array_or_view_v<Mhs> || noa::traits::is_numeric_v<Mhs>) &&
                      (noa::traits::is_array_or_view_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
-    auto ewise_trinary(const Lhs& lhs, const Mhs& mhs, const Rhs& rhs, TrinaryOp&& trinary_op) {
+    [[nodiscard]] auto ewise_trinary(const Lhs& lhs, const Mhs& mhs, const Rhs& rhs, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
         using mhs_value_t = noa::traits::value_type_t<Mhs>;
         using rhs_value_t = noa::traits::value_type_t<Rhs>;

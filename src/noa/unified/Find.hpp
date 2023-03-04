@@ -41,9 +41,15 @@ namespace noa {
     void find_offsets(ReduceOp reduce_op, const Input& input, const Offset& offsets,
                       bool reduce_batch = false, bool swap_layout = false) {
         NOA_CHECK(!input.is_empty() && !offsets.is_empty(), "Empty array detected");
+        NOA_CHECK(is_safe_cast<noa::traits::value_type_t<Offset>>(
+                  noa::indexing::at((input.shape() - 1).vec(), input.strides())),
+                  "The input is too large (shape:{}) for the desired offset type {}",
+                  input.shape(), noa::string::human<Offset>());
 
         [[maybe_unused]] const i64 required_size = reduce_batch ? 1 : input.shape()[0]; // TODO >=1 ?
-        NOA_CHECK(noa::indexing::is_vector(offsets.shape()) && offsets.is_contiguous() && offsets.size() == required_size,
+        NOA_CHECK(noa::indexing::is_vector(offsets.shape()) &&
+                  offsets.are_contiguous() &&
+                  offsets.size() == required_size,
                   "The output offsets should be specified as a contiguous vector of {} elements, "
                   "but got strides:{} and shape:{}", required_size, offsets.strides(), offsets.shape());
 
@@ -93,12 +99,15 @@ namespace noa {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.synchronize();
-            return cpu::find_offsets(reduce_op, input.get(), input.strides(), input.shape(),
-                              swap_layout, threads);
+            return cpu::find_offset(
+                    reduce_op, input.get(), input.strides(), input.shape(),
+                    swap_layout, threads);
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            return cuda::find_offset(reduce_op, input.get(), input.strides(), input.shape(), swap_layout, cuda_stream);
+            return cuda::find_offset(
+                    reduce_op, input.get(), input.strides(), input.shape(),
+                    swap_layout, cuda_stream);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
