@@ -98,7 +98,7 @@ namespace noa {
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] NOA_HD constexpr bool is_contiguous() const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto is_contiguous() const noexcept {
             return noa::indexing::is_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
@@ -131,24 +131,21 @@ namespace noa {
         ///          reading/writing to this pointer may be illegal or create a data race.
         [[nodiscard]] NOA_HD constexpr pointer_type share() const noexcept { return get(); }
 
-        /// Retrieve the underlying accessor.
-        [[nodiscard]] NOA_HD constexpr const accessor_type& accessor() const { return m_accessor; }
-        [[nodiscard]] NOA_HD constexpr accessor_type& accessor() { return m_accessor; }
-
-        /// Returns a new Accessor and its corresponding size/shape.
+        /// Returns a new Accessor and its corresponding shape.
         /// \details While constructing the accessor, this function can also reinterpret the current value type.
         ///          This is only well defined in cases where View::as<U>() is well defined.
         ///          If N < 4, the outer-dimensions are stacked together.
-        template<typename U, size_t N, typename I = index_type,
-                PointerTraits PointerTrait = PointerTraits::DEFAULT,
-                StridesTraits StridesTrait = StridesTraits::STRIDED>
-        [[nodiscard]] constexpr auto accessor() const {
+        template<typename U, size_t N = 4, typename I = index_type,
+                 PointerTraits PointerTrait = PointerTraits::DEFAULT,
+                 StridesTraits StridesTrait = StridesTraits::STRIDED>
+        [[nodiscard]] constexpr auto accessor_and_shape() const {
             using output_shape_t = Shape<I, N>;
             using output_strides_t = Strides<I, N>;
             using output_accessor_t = Accessor<U, N, I, PointerTrait, StridesTrait>;
             using output_t = std::pair<output_accessor_t, output_shape_t>;
 
             const auto reinterpreted = noa::indexing::Reinterpret(shape(), strides(), get()).template as<U>();
+            // FIXME If StridesTraits::CONTIGUOUS, assert(strides[3] == 1) ?
 
             if constexpr (N == 4) {
                 return output_t{output_accessor_t(reinterpreted.ptr, reinterpreted.strides.template as_safe<I>()),
@@ -172,6 +169,27 @@ namespace noa {
                 return output_t{output_accessor_t(reinterpreted.ptr, output_strides),
                                 output_shape};
             }
+        }
+
+        [[nodiscard]] NOA_HD constexpr const accessor_type& accessor() const { return m_accessor; }
+
+        template<typename U, size_t N = 4, typename I = index_type,
+                 PointerTraits PointerTrait = PointerTraits::DEFAULT,
+                 StridesTraits StridesTrait = StridesTraits::STRIDED>
+        [[nodiscard]] constexpr auto accessor() const {
+            return accessor_and_shape<U, N, I, PointerTrait, StridesTrait>().first;
+        }
+
+        template<typename U = value_type, size_t N = 4, typename I = index_type,
+                 PointerTraits PointerTrait = PointerTraits::DEFAULT>
+        [[nodiscard]] constexpr auto accessor_contiguous() const noexcept {
+            return accessor<U, N, I, PointerTrait, StridesTraits::CONTIGUOUS>();
+        }
+
+        template<typename U = value_type, typename I = index_type,
+                 PointerTraits PointerTrait = PointerTraits::DEFAULT>
+        [[nodiscard]] constexpr auto accessor_contiguous_1d() const noexcept {
+            return accessor_contiguous<U, 1, I, PointerTrait>();
         }
 
     public: // Deep copy
@@ -312,27 +330,13 @@ namespace noa {
         }
 
     public: // Indexing & Subregion
-        template<typename I0>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0) const noexcept {
-            NOA_ASSERT(is_dereferenceable());
-            return m_accessor(i0);
-        }
-
-        template<typename I0, typename I1>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1) const noexcept {
-            NOA_ASSERT(is_dereferenceable());
-            return m_accessor(i0, i1);
-        }
-
-        template<typename I0, typename I1, typename I2>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2) const noexcept {
-            NOA_ASSERT(is_dereferenceable());
-            return m_accessor(i0, i1, i2);
-        }
-
         template<typename I0, typename I1, typename I2, typename I3>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
             NOA_ASSERT(is_dereferenceable());
+            NOA_ASSERT(clamp_cast<i64>(i0) >= 0 && clamp_cast<i64>(i0) < shape()[0] &&
+                       clamp_cast<i64>(i1) >= 0 && clamp_cast<i64>(i1) < shape()[1] &&
+                       clamp_cast<i64>(i2) >= 0 && clamp_cast<i64>(i2) < shape()[2] &&
+                       clamp_cast<i64>(i3) >= 0 && clamp_cast<i64>(i3) < shape()[3]);
             return m_accessor(i0, i1, i2, i3);
         }
 
