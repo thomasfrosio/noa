@@ -297,16 +297,28 @@ namespace noa::cuda::math {
             const auto element_per_batch =
                     input_shape[1] * input_shape[2] * input_shape[3] *
                     (is_or_should_reduce[0] ? input_shape[0] : 1);
-            const real_t inv_count = real_t{1} / static_cast<real_t>(element_per_batch);
-            auto sum_to_mean_op = [inv_count]__device__(Value v) -> Value { return v * inv_count; };
+            const auto count = static_cast<real_t>(element_per_batch);
+            auto sum_to_mean_op = [count]__device__(Value v) -> Value {
+                if constexpr (noa::traits::is_int_v<real_t>) {
+                    return static_cast<real_t>(noa::math::round(static_cast<f64>(v) / static_cast<f64>(count)));
+                } else {
+                    return v / count;
+                }
+            };
 
             utils::reduce_unary(name, input, input_strides, input_shape,
                                 output, output_strides.filter(0), Value{0},
                                 noa::copy_t{}, noa::plus_t{}, sum_to_mean_op,
                                 is_or_should_reduce[0], true, stream);
         } else {
-            const real_t inv_count = real_t{1} / static_cast<real_t>(noa::math::sum(input_shape * Shape4<i64>(mask)));
-            auto sum_to_mean_op = [inv_count]__device__(Value v) -> Value { return v * inv_count; };
+            const auto count = static_cast<real_t>(noa::math::sum(input_shape * Shape4<i64>(mask)));
+            auto sum_to_mean_op = [count]__device__(Value v) -> Value {
+                if constexpr (noa::traits::is_int_v<real_t>) {
+                    return static_cast<real_t>(noa::math::round(static_cast<f64>(v) / static_cast<f64>(count)));
+                } else {
+                    return v / count;
+                }
+            };
             reduce_axis_(name,
                          input, input_strides, input_shape,
                          output, output_strides, output_shape,

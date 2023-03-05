@@ -41,7 +41,8 @@ namespace {
                         input, strides, shape, &output, Strides1<i64>{1},
                         Input{0}, {}, noa::plus_t{}, {}, threads);
                 if constexpr (MODE == ReductionMode::MEAN)
-                    output /= static_cast<Input>(shape.elements());
+                    output = static_cast<Input>(noa::math::round(
+                            static_cast<f64>(output) / static_cast<f64>(shape.elements())));
                 return output;
 
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_real_v<Input>) {
@@ -209,7 +210,7 @@ namespace {
                 for (i64 i = 0; i < size; ++i)
                     sum += axis[i * strides];
                 if constexpr (MODE == ReductionMode::MEAN)
-                    sum /= static_cast<Input>(size);
+                    sum = static_cast<Input>(noa::math::round(static_cast<f64>(sum) / static_cast<f64>(size)));
                 return sum;
 
             } else if constexpr (SUM_OR_MEAN && noa::traits::is_real_v<Input>) {

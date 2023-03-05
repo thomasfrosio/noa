@@ -324,9 +324,9 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced sums.
     template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::are_array_or_view_v<Input, Output> &&
-            details::is_valid_sum_mean_v<Input> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_sum_mean_v<Input> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void sum(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
@@ -410,9 +410,8 @@ namespace noa::math {
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::are_array_or_view_v<Input, Output> &&
-            details::is_valid_var_std_v<Input, Output> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_var_std_v<Input, Output>>>
     void var(const Input& input, const Output& output, i64 ddof = 0) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
@@ -459,9 +458,8 @@ namespace noa::math {
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::are_array_or_view_v<Input, Output> &&
-            details::is_valid_var_std_v<Input, Output> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_var_std_v<Input, Output>>>
     void std(const Input& input, const Output& output, i64 ddof = 0) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");

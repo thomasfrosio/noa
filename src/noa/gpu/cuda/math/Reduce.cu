@@ -58,7 +58,11 @@ namespace noa::cuda::math {
                 input, strides, shape, &output, Strides1<i64>{1}, Value{0},
                 {}, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
-        return output / static_cast<Value>(shape.elements());
+        if constexpr (noa::traits::is_int_v<Value>) {
+            return static_cast<Value>(noa::math::round(static_cast<f64>(output) / static_cast<f64>(shape.elements())));
+        } else {
+            return output / static_cast<Value>(shape.elements());
+        }
     }
 
     template<typename Input, typename Output, typename>
