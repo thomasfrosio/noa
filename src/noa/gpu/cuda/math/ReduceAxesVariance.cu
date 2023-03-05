@@ -16,7 +16,7 @@ namespace {
     // does exactly that...
     template<typename Input, typename Output, bool STDDEV, int32_t BLOCK_DIM_X>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void reduce_variance_rows_(
+    void reduce_variance_width_(
             AccessorRestrict<const Input, 4, u32> input, Shape2<u32> shape_hw,
             AccessorRestrict<Output, 3, u32> output, Output inv_count) {
         const u32 tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
@@ -30,7 +30,7 @@ namespace {
 
         // Get the mean:
         Input reduced{0};
-        for (u32 tidx = gid[3]; tidx < shape_hw[1] && is_valid_row; tidx += BLOCK_DIM_X) // compute entire row
+        for (u32 tidx = gid[3]; tidx < shape_hw[1] && is_valid_row; tidx += BLOCK_DIM_X) // compute entire width
             reduced += input_row[tidx]; // TODO Save input values to shared memory?
 
         // Each row in shared memory is reduced to one value.
@@ -48,7 +48,7 @@ namespace {
 
         // Now get the variance:
         Output reduced_dist2{0};
-        for (u32 tidx = gid[3]; tidx < shape_hw[1] && is_valid_row; tidx += BLOCK_DIM_X) {  // compute entire row
+        for (u32 tidx = gid[3]; tidx < shape_hw[1] && is_valid_row; tidx += BLOCK_DIM_X) { // compute entire width
             Input tmp = input_row[tidx];
             if constexpr (noa::traits::is_complex_v<Input>) {
                 Output distance = noa::math::abs(tmp - mean);
@@ -58,11 +58,15 @@ namespace {
                 reduced_dist2 += distance * distance;
             }
         }
+
+        // Make sure all threads in the block have read their mean before writing again.
+        utils::block_synchronize();
         auto* s_data_real = reinterpret_cast<Output*>(s_data);
         s_data_real[tid] = reduced_dist2;
         utils::block_synchronize();
         Output var = utils::block_reduce_shared<BLOCK_DIM_X>(
                 s_data_real + BLOCK_DIM_X * threadIdx.y, gid[3], noa::plus_t{});
+
         if (gid[3] == 0 && is_valid_row) {
             var *= inv_count;
             if constexpr (STDDEV)
@@ -78,7 +82,7 @@ namespace {
 
     template<typename Input, typename Output, bool STDDEV>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void reduce_variance_dim_(
+    void reduce_variance_height_(
             const Input* __restrict__ input, Strides4<u32> input_strides, Shape2<u32> shape,
             Output* __restrict__ output, Strides4<u32> output_strides, Output inv_count) {
         const u32 tid = threadIdx.y * blockDim.x + threadIdx.x;
@@ -88,11 +92,11 @@ namespace {
                             blockIdx.x * BLOCK_SIZE_2D.x + threadIdx.x};
         const bool is_valid_column = gid[3] < shape[1];
 
-        input += indexing::at(gid[0], gid[1], input_strides) + gid[3] * input_strides[3];
+        input += indexing::at(gid[0], gid[1], 0, gid[3], input_strides);
 
         // Get the sum:
         Input reduced_sum{0};
-        for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) // compute entire row
+        for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) // compute entire height
             reduced_sum += input[tidy * input_strides[2]]; // TODO Save input values to shared memory?
 
         Input* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
@@ -103,15 +107,15 @@ namespace {
         #pragma unroll
         for (u32 SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
-                *s_data_tid += s_data_tid[BLOCK_SIZE_2D.x * SIZE / 2];
+                *s_data_tid += s_data_tid[BLOCK_SIZE_2D.x * (SIZE / 2)];
             utils::block_synchronize();
         }
-        Input mean = s_data[threadIdx.x];
+        Input mean = s_data[threadIdx.x]; // bank-conflict
         mean *= inv_count;
 
         // Get the variance:
         Output reduced_dist2{0};
-        for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) {
+        for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) { // compute entire height
             Input tmp = input[tidy * input_strides[2]];
             if constexpr (noa::traits::is_complex_v<Input>) {
                 Output distance = noa::math::abs(tmp - mean);
@@ -121,6 +125,9 @@ namespace {
                 reduced_dist2 += distance * distance;
             }
         }
+
+        // Make sure all threads in the block have read their mean before writing again.
+        utils::block_synchronize();
         auto* s_data_real = reinterpret_cast<Output*>(s_data);
         Output* s_data_real_tid = s_data_real + tid;
         *s_data_real_tid = reduced_dist2;
@@ -129,16 +136,16 @@ namespace {
         #pragma unroll
         for (u32 SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
-                *s_data_real_tid += s_data_real_tid[BLOCK_SIZE_2D.x * SIZE / 2];
+                *s_data_real_tid += s_data_real_tid[BLOCK_SIZE_2D.x * (SIZE / 2)];
             utils::block_synchronize();
         }
 
         if (gid[2] == 0 && is_valid_column) {
-            Output var = *s_data_real_tid; // s_data[threadIdx.x]
+            Output var = s_data_real[threadIdx.x];
             var *= inv_count;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
-            output[indexing::at(gid[0], gid[1], output_strides) + gid[3] * output_strides[3]] = var;
+            output[indexing::at(gid[0], gid[1], 0, gid[3], output_strides)] = var;
         }
     }
 
@@ -171,13 +178,13 @@ namespace {
             const LaunchConfig config{blocks, threads, BLOCK_SIZE * sizeof(Input)};
 
             const AccessorRestrict<const Input, 4, u32> input_accessor(input, u_input_strides);
-            const AccessorRestrict<Output, 3, u32> output_accessor(output, u_output_strides.pop_front());
+            const AccessorRestrict<Output, 3, u32> output_accessor(output, u_output_strides.pop_back());
             if (threads.x == 256) {
-                stream.enqueue(name, reduce_variance_rows_<Input, Output, STDDEV, 256>, config,
+                stream.enqueue(name, reduce_variance_width_<Input, Output, STDDEV, 256>, config,
                                input_accessor, u_input_shape.pop_front<2>(),
                                output_accessor, inv_count);
             } else {
-                stream.enqueue(name, reduce_variance_rows_<Input, Output, STDDEV, 64>, config,
+                stream.enqueue(name, reduce_variance_width_<Input, Output, STDDEV, 64>, config,
                                input_accessor, u_input_shape.pop_front<2>(),
                                output_accessor, inv_count);
             }
@@ -187,7 +194,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[1], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
-            stream.enqueue(name, reduce_variance_dim_<Input, Output, STDDEV>, config,
+            stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides, u_input_shape.filter(2, 3),
                            output, u_output_strides, inv_count);
 
@@ -196,7 +203,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
-            stream.enqueue(name, reduce_variance_dim_<Input, Output, STDDEV>, config,
+            stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides.filter(0, 2, 1, 3), u_input_shape.filter(1, 3),
                            output, u_output_strides.filter(0, 2, 1, 3), inv_count);
 
@@ -205,7 +212,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[1]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
-            stream.enqueue(name, reduce_variance_dim_<Input, Output, STDDEV>, config,
+            stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides.filter(1, 2, 0, 3), u_input_shape.filter(0, 3),
                            output, u_output_strides.filter(1, 2, 0, 3), inv_count);
         }

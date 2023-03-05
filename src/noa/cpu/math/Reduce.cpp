@@ -121,7 +121,7 @@ namespace {
             const auto axes_empty_or_to_reduce = output_shape == 1 || axes_to_reduce;
             if (axes_empty_or_to_reduce[1] && axes_empty_or_to_reduce[2] && axes_empty_or_to_reduce[3]) {
                 auto shape_to_reduce = input_shape;
-                if (axes_empty_or_to_reduce[0])
+                if (output_shape[0] > 1)
                     shape_to_reduce[0] = 1;
                 for (i64 i = 0; i < output_shape[0]; ++i) {
                     output[i * output_strides[0]] = ReduceAll<MODE, Input>::execute(
@@ -165,7 +165,7 @@ namespace {
                 NOA_THROW("Dimensions should match the input shape, or be 1, "
                           "indicating the dimension should be reduced to one element. "
                           "Got shape input:{}, output:{}", input_shape, output_shape);
-            } else if (noa::math::sum(mask.as<i32>()) > 1) {
+            } else if (noa::math::sum(mask.as<i32>()) > 1 && !noa::all(mask == Vec4<bool>{0, 1, 1, 1})) {
                 NOA_THROW("Reducing more than one axis at a time is only supported if the reduction results in "
                           "one value per batch, i.e. the DHW dimensions are empty after reduction. "
                           "Got shape input:{}, output:{}, axis reduction:{}",
@@ -217,7 +217,7 @@ namespace {
                 f64 sum = 0;
                 for (i64 i = 0; i < size; ++i) {
                     const auto tmp = static_cast<f64>(axis[i * strides]);
-                    sum += reduction_op(sum, tmp);
+                    sum = reduction_op(sum, tmp);
                 }
                 sum += reduction_op.local_error;
                 if constexpr (MODE == ReductionMode::MEAN)
@@ -229,7 +229,7 @@ namespace {
                 c64 sum{0};
                 for (i64 i = 0; i < size; ++i) {
                     const auto tmp = static_cast<c64>(axis[i * strides]);
-                    sum += reduction_op(sum, tmp);
+                    sum = reduction_op(sum, tmp);
                 }
                 sum += reduction_op.local_error;
                 if constexpr (MODE == ReductionMode::MEAN)

@@ -21,14 +21,23 @@ namespace noa::math {
     // Since it is not currently used, remove it from device code.
 
     template<typename T>
+    constexpr bool is_valid_min_max_v =
+            noa::traits::is_scalar_v<T> ||
+            noa::traits::is_detected_convertible_v<bool, noa::traits::has_greater_operator, T>;
+
+    template<typename T, std::enable_if_t<is_valid_min_max_v<T>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
-    template<typename T>
+
+    template<typename T, std::enable_if_t<is_valid_min_max_v<T>, bool> = true>
     [[nodiscard]] NOA_IH constexpr T min(std::initializer_list<T> list) { return std::min(list); }
-    template<typename T>
+
+    template<typename T, std::enable_if_t<is_valid_min_max_v<T>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
-    template<typename T>
+
+    template<typename T, std::enable_if_t<is_valid_min_max_v<T>, bool> = true>
     [[nodiscard]] NOA_IH constexpr T max(std::initializer_list<T> list) { return std::max(list); }
-    template<typename T>
+
+    template<typename T, std::enable_if_t<is_valid_min_max_v<T>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr T clamp(T val, T low, T high) {
     #ifdef __CUDA_ARCH__
         return min(high, max(val, low));

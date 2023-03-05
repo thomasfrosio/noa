@@ -243,10 +243,10 @@ namespace noa::math {
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of minimum values.
-    template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::are_array_or_view_v<Input, Output> &&
-            details::is_valid_min_max_median_v<Input> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output, std::enable_if_t<
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_min_max_median_v<Input> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>, bool> = true>
     void min(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
@@ -282,10 +282,10 @@ namespace noa::math {
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of maximum values.
-    template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::are_array_or_view_v<Input, Output> &&
-            details::is_valid_min_max_median_v<Input> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output, std::enable_if_t<
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_min_max_median_v<Input> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>, bool> = true>
     void max(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");

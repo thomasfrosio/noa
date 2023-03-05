@@ -17,11 +17,11 @@ namespace {
              typename PreProcessOp, typename ReduceOp, typename PostProcess,
              u32 BLOCK_DIM_X, u32 VECTOR_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void reduce_rows_(AccessorRestrict<const Input, 4, Index> input,
-                      Shape2<Index> shape_hw, Reduced initial_reduce,
-                      AccessorRestrict<Output, 3, Index> output,
-                      PreProcessOp preprocess_op, ReduceOp reduce_op,
-                      PostProcess post_process_op) {
+    void reduce_width_(AccessorRestrict<const Input, 4, Index> input,
+                       Shape2<Index> shape_hw, Reduced initial_reduce,
+                       AccessorRestrict<Output, 3, Index> output,
+                       PreProcessOp preprocess_op, ReduceOp reduce_op,
+                       PostProcess post_process_op) {
 
         NOA_ASSERT(BLOCK_DIM_X == blockDim.x);
         constexpr Index EPT = noa::math::max(ELEMENTS_PER_THREAD, VECTOR_SIZE);
@@ -69,9 +69,9 @@ namespace {
     template<typename Input, typename Reduced, typename Output, typename Index,
              typename PreProcessor, typename ReduceOp, typename PostProcess>
     __global__ __launch_bounds__(BLOCK_SIZE)
-    void reduce_dim_(const Input* __restrict__ input, Strides4<Index> input_strides, Shape2<Index> shape,
-                     Reduced initial_reduce, Reduced* __restrict__ output, Strides4<Index> output_strides,
-                     PreProcessor pre_process_op, ReduceOp reduce_op, PostProcess post_process_op) {
+    void reduce_height_(const Input* __restrict__ input, Strides4<Index> input_strides, Shape2<Index> shape,
+                        Reduced initial_reduce, Reduced* __restrict__ output, Strides4<Index> output_strides,
+                        PreProcessor pre_process_op, ReduceOp reduce_op, PostProcess post_process_op) {
 
         const Vec4<Index> gid{blockIdx.z,
                               blockIdx.y,
@@ -155,16 +155,16 @@ namespace {
             const auto output_accessor = AccessorRestrict<Output, 3, u32>(output, u_output_strides.pop_back());
             if (threads.x == 256) {
                 stream.enqueue(name,
-                               vector_size == 4 ? reduce_rows_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 256, 4> :
-                               vector_size == 2 ? reduce_rows_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 256, 2> :
-                                                  reduce_rows_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 256, 1>,
+                               vector_size == 4 ? reduce_width_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 256, 4> :
+                               vector_size == 2 ? reduce_width_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 256, 2> :
+                                                  reduce_width_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 256, 1>,
                                config, input_accessor, u_input_shape.pop_front<2>(), initial_reduce,
                                output_accessor, pre_process_op, reduce_op, post_process_op);
             } else {
                 stream.enqueue(name,
-                               vector_size == 4 ? reduce_rows_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 64, 4> :
-                               vector_size == 2 ? reduce_rows_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 64, 2> :
-                                                  reduce_rows_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 64, 1>,
+                               vector_size == 4 ? reduce_width_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 64, 4> :
+                               vector_size == 2 ? reduce_width_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 64, 2> :
+                                                  reduce_width_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess, 64, 1>,
                                config, input_accessor, u_input_shape.pop_front<2>(), initial_reduce,
                                output_accessor, pre_process_op, reduce_op, post_process_op);
             }
@@ -172,7 +172,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[1], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Reduced)};
-            stream.enqueue(name, reduce_dim_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess>, config,
+            stream.enqueue(name, reduce_height_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess>, config,
                            input, u_input_strides, u_input_shape.pop_front<2>(), initial_reduce,
                            output, u_output_strides, pre_process_op, reduce_op, post_process_op);
 
@@ -180,7 +180,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Reduced)};
-            stream.enqueue(name, reduce_dim_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess>, config,
+            stream.enqueue(name, reduce_height_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess>, config,
                            input, u_input_strides.filter(0, 2, 1, 3), u_input_shape.filter(1, 3), initial_reduce,
                            output, u_output_strides.filter(0, 2, 1, 3), pre_process_op, reduce_op, post_process_op);
 
@@ -188,7 +188,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[1]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Reduced)};
-            stream.enqueue(name, reduce_dim_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess>, config,
+            stream.enqueue(name, reduce_height_<Input, Reduced, Output, u32, PreProcessOp, ReduceOp, PostProcess>, config,
                            input, u_input_strides.filter(1, 2, 0, 3), u_input_shape.filter(0, 3), initial_reduce,
                            output, u_output_strides.filter(1, 2, 0, 3), pre_process_op, reduce_op, post_process_op);
         }
@@ -251,7 +251,7 @@ namespace noa::cuda::math {
             reduce_axis_(name,
                          input, input_strides, input_shape,
                          output, output_strides, output_shape,
-                         mask, noa::math::Limits<Value>::max(),
+                         mask, noa::math::Limits<Value>::lowest(),
                          noa::copy_t{}, noa::max_t{}, noa::copy_t{}, stream);
         }
     }

@@ -134,4 +134,7 @@ namespace noa::traits {
 
     template<typename Op, typename Lhs, typename Mhs, typename Rhs>
     using has_trinary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>(), std::declval<Mhs>(), std::declval<Rhs>()));
+
+    template<typename T> using has_greater_operator = decltype(operator>(std::declval<const T&>(), std::declval<const T&>()));
+    template<typename T> using has_less_operator = decltype(operator<(std::declval<const T&>(), std::declval<const T&>()));
 }
