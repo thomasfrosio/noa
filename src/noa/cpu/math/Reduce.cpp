@@ -138,22 +138,22 @@ namespace {
                 const auto input_3d = input_accessor_t(input, input_strides.filter(0, 1, 2));
                 const auto output_3d = output_accessor_t(output, output_strides.filter(0, 1, 2));
                 const auto shape_3d = input_shape.filter(0, 1, 2);
-                execute_axes(input_3d, output_3d, shape_3d, input_strides[3], input_shape[3]);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[3], input_shape[3], ddof);
             } else if (axes_to_reduce[2]) {
                 const auto input_3d = input_accessor_t(input, input_strides.filter(0, 1, 3));
                 const auto output_3d = output_accessor_t(output, output_strides.filter(0, 1, 3));
                 const auto shape_3d = input_shape.filter(0, 1, 3);
-                execute_axes(input_3d, output_3d, shape_3d, input_strides[2], input_shape[2]);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[2], input_shape[2], ddof);
             } else if (axes_to_reduce[1]) {
                 const auto input_3d = input_accessor_t(input, input_strides.filter(0, 2, 3));
                 const auto output_3d = output_accessor_t(output, output_strides.filter(0, 2, 3));
                 const auto shape_3d = input_shape.filter(0, 2, 3);
-                execute_axes(input_3d, output_3d, shape_3d, input_strides[1], input_shape[1]);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[1], input_shape[1], ddof);
             } else if (axes_to_reduce[0]) {
                 const auto input_3d = input_accessor_t(input, input_strides.filter(1, 2, 3));
                 const auto output_3d = output_accessor_t(output, output_strides.filter(1, 2, 3));
                 const auto shape_3d = input_shape.filter(1, 2, 3);
-                execute_axes(input_3d, output_3d, shape_3d, input_strides[0], input_shape[0]);
+                execute_axes(input_3d, output_3d, shape_3d, input_strides[0], input_shape[0], ddof);
             }
         }
 
@@ -178,18 +178,18 @@ namespace {
         constexpr static void execute_axes(
                 const AccessorRestrict<const Input, 3, i64>& input,
                 const AccessorRestrict<Output, 3, i64>& output,
-                const Shape3<i64>& shape, i64 axis_stride, i64 axis_size) {
+                const Shape3<i64>& shape, i64 axis_stride, i64 axis_size, i64 ddof) {
             for (i64 j = 0; j < shape[0]; ++j) {
                 for (i64 k = 0; k < shape[1]; ++k) {
                     for (i64 l = 0; l < shape[2]; ++l) {
                         const auto* axis_ptr = input.offset_pointer(input.get(), j, k, l);
-                        output(j, k, l) = static_cast<Output>(execute_axis(axis_ptr, axis_stride, axis_size));
+                        output(j, k, l) = static_cast<Output>(execute_axis(axis_ptr, axis_stride, axis_size, ddof));
                     }
                 }
             }
         }
 
-        constexpr static auto execute_axis(const Input* axis, i64 strides, i64 size, i64 ddof = 0) {
+        constexpr static auto execute_axis(const Input* axis, i64 strides, i64 size, i64 ddof) {
             constexpr bool SUM_OR_MEAN = MODE == ReductionMode::SUM || MODE == ReductionMode::MEAN;
             constexpr bool VAR_OR_STD = MODE == ReductionMode::VAR || MODE == ReductionMode::STD;
 
@@ -200,7 +200,7 @@ namespace {
                 return min;
 
             } else if constexpr (MODE == ReductionMode::MAX && noa::traits::is_scalar_v<Input>) {
-                Input max = noa::math::Limits<Input>::min();
+                Input max = noa::math::Limits<Input>::lowest();
                 for (i64 i = 0; i < size; ++i)
                     max = noa::math::max(max, axis[i * strides]);
                 return max;
@@ -214,6 +214,9 @@ namespace {
                 return sum;
 
             } else if constexpr (SUM_OR_MEAN && noa::traits::is_real_v<Input>) {
+                // TODO Is it really useful to have the Kahan sum here, given that
+                //      the number of elements is supposedly quite small (<10'000)
+                //      and we already use double precision?
                 noa::algorithm::math::AccuratePlusReal reduction_op;
                 f64 sum = 0;
                 for (i64 i = 0; i < size; ++i) {
@@ -242,7 +245,7 @@ namespace {
                 using mean_op_type = ReduceAxis<ReductionMode::SUM, Input, Output>;
                 using mean_type = std::conditional_t<noa::traits::is_complex_v<Input>, c64, f64>;
                 noa::algorithm::math::AccurateVariance<mean_type> transform_op{
-                    /*mean=*/ mean_op_type::execute_axis(axis, strides, size) / count};
+                    /*mean=*/ mean_op_type::execute_axis(axis, strides, size, 0) / count};
 
                 f64 variance = 0;
                 for (i64 i = 0; i < size; ++i)

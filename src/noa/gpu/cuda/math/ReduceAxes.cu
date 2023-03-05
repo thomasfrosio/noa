@@ -70,7 +70,7 @@ namespace {
              typename PreProcessor, typename ReduceOp, typename PostProcess>
     __global__ __launch_bounds__(BLOCK_SIZE)
     void reduce_height_(const Input* __restrict__ input, Strides4<Index> input_strides, Shape2<Index> shape,
-                        Reduced initial_reduce, Reduced* __restrict__ output, Strides4<Index> output_strides,
+                        Reduced initial_reduce, Output* __restrict__ output, Strides4<Index> output_strides,
                         PreProcessor pre_process_op, ReduceOp reduce_op, PostProcess post_process_op) {
 
         const Vec4<Index> gid{blockIdx.z,
@@ -256,7 +256,7 @@ namespace noa::cuda::math {
         }
     }
 
-    template<typename Value, typename>
+    template<typename Value, typename _>
     void sum(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
              Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              Stream& stream) {
@@ -273,11 +273,15 @@ namespace noa::cuda::math {
                                 noa::copy_t{}, noa::plus_t{}, noa::copy_t{},
                                 is_or_should_reduce[0], true, stream);
         } else {
+            using reduce_t = std::conditional_t<noa::traits::is_complex_v<Value>, c64,
+                             std::conditional_t<noa::traits::is_real_v<Value>, f64, Value>>;
+            const auto pre_process_op = []__device__(const Value& value) { return static_cast<reduce_t>(value); };
+            const auto post_process_op = []__device__(const reduce_t& value) { return static_cast<Value>(value); };
             reduce_axis_(name,
                          input, input_strides, input_shape,
                          output, output_strides, output_shape,
-                         mask, Value{0},
-                         noa::copy_t{}, noa::plus_t{}, noa::copy_t{}, stream);
+                         mask, reduce_t{0},
+                         pre_process_op, noa::plus_t{}, post_process_op, stream);
         }
     }
 
@@ -288,7 +292,6 @@ namespace noa::cuda::math {
         const char* name = "math::mean";
         const auto mask = get_mask_(name, input_shape, output_shape);
         const auto is_or_should_reduce = output_shape == 1 || mask;
-        using real_t = noa::traits::value_type_t<Value>;
 
         if (!any(mask))
             return cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
@@ -297,6 +300,8 @@ namespace noa::cuda::math {
             const auto element_per_batch =
                     input_shape[1] * input_shape[2] * input_shape[3] *
                     (is_or_should_reduce[0] ? input_shape[0] : 1);
+
+            using real_t = noa::traits::value_type_t<Value>;
             const auto count = static_cast<real_t>(element_per_batch);
             auto sum_to_mean_op = [count]__device__(Value v) -> Value {
                 if constexpr (noa::traits::is_int_v<real_t>) {
@@ -311,19 +316,25 @@ namespace noa::cuda::math {
                                 noa::copy_t{}, noa::plus_t{}, sum_to_mean_op,
                                 is_or_should_reduce[0], true, stream);
         } else {
-            const auto count = static_cast<real_t>(noa::math::sum(input_shape * Shape4<i64>(mask)));
-            auto sum_to_mean_op = [count]__device__(Value v) -> Value {
-                if constexpr (noa::traits::is_int_v<real_t>) {
-                    return static_cast<real_t>(noa::math::round(static_cast<f64>(v) / static_cast<f64>(count)));
+            // Since there's parallelism here, use double precision to preserve good accuracy.
+            using reduce_t = std::conditional_t<noa::traits::is_complex_v<Value>, c64,
+                             std::conditional_t<noa::traits::is_real_v<Value>, f64, Value>>;
+            using reduce_real_t = noa::traits::value_type_t<reduce_t>;
+            const auto count = static_cast<reduce_real_t>(noa::math::sum(input_shape * Shape4<i64>(mask)));
+
+            const auto pre_process_op = []__device__(const Value& value) { return static_cast<reduce_t>(value); };
+            auto sum_to_mean_op = [count]__device__(reduce_t value) -> Value {
+                if constexpr (noa::traits::is_int_v<Value>) {
+                    return static_cast<Value>(noa::math::round(static_cast<f64>(value) / static_cast<f64>(count)));
                 } else {
-                    return v / count;
+                    return static_cast<Value>(value / count);
                 }
             };
             reduce_axis_(name,
                          input, input_strides, input_shape,
                          output, output_strides, output_shape,
-                         mask, Value{0},
-                         noa::copy_t{}, noa::plus_t{}, sum_to_mean_op, stream);
+                         mask, reduce_t{0},
+                         pre_process_op, noa::plus_t{}, sum_to_mean_op, stream);
         }
     }
 
