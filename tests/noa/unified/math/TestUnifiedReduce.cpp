@@ -242,7 +242,7 @@ TEMPLATE_TEST_CASE("unified::math:: batched reductions, cpu vs gpu", "[noa][unif
     const auto large = GENERATE(true, false);
     const auto subregion_shape =
             test::get_random_shape4_batched(3) +
-            (large ? Shape4 < i64 > {1, 164, 164, 164} : Shape4 < i64 > {});
+            (large ? Shape4<i64>{1, 164, 164, 164} : Shape4 < i64 > {});
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 10;
