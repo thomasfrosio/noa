@@ -273,9 +273,9 @@ namespace noa::memory {
     /// \note On the GPU:
     ///         - The values type should be one of i32, i64, u32, u64, f16, f32, f64.
     ///         - The offsets type should be one of i32, i64, u32, u64.
-    template<typename Value, typename Offset, typename Output,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Value, Offset, Output>>>
-    void insert(const Value& values, const Offset& offsets, const Output& output) {
+    template<typename Value, typename Offset, typename Output, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_of_restricted_numeric_v<Value, Offset, Output>>>
+    void insert_elements(const Value& values, const Offset& offsets, const Output& output) {
         NOA_CHECK(noa::all(values.shape() == offsets.shape()) &&
                   noa::indexing::is_vector(offsets.shape()) &&
                   values.contiguous() && offsets.contiguous(),

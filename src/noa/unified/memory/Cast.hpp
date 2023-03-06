@@ -12,11 +12,11 @@ namespace noa::memory {
     /// \param[in] input    Array to convert.
     /// \param[out] output  Array with the casted values.
     /// \param clamp        Whether the input values should be clamped to the output range before casting.
-    template<typename Input, typename Output,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output>>>
+    template<typename Input, typename Output, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output>>>
     void cast(const Input& input, const Output& output, bool clamp = false) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-        NOA_CHECK(!indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
+        NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
 
         auto input_strides = input.strides();
         if (!noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {

@@ -17,9 +17,9 @@ namespace noa::memory {
     ///          layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
-    template<typename Input, typename Output,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Input, Output> &&
-                                         noa::traits::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void copy(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output should not overlap");
@@ -69,8 +69,8 @@ namespace noa::memory {
 
     /// (Deep-)Copies arrays.
     template<typename Value, typename Vector>
-    void copy(const Array<Value>& input, const Array<Value>& output,
-              const Vector& batch_indexes) {
+    void copy_batches(const Array<Value>& input, const Array<Value>& output,
+                      const Vector& batch_indexes) {
         // If the batches to copy into output are next to each other,
         // this becomes a slice operation.
 

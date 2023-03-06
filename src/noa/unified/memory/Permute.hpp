@@ -29,9 +29,9 @@ namespace noa::memory {
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     /// \note On the GPU, the following permutations are optimized: 0123, 0132, 0312, 0321, 0213, 0231.
     ///       Anything else calls copy(), which is slower.
-    template<typename Input, typename Output,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output> &&
-                                         noa::traits::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void permute_copy(const Input& input, const Output& output, const Vec4<i64>& permutation) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
 

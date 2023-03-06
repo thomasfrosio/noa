@@ -21,13 +21,12 @@ namespace noa::memory {
     /// \param border_value     Constant value to use for out-of-bound conditions.
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     /// \note \p input and \p subregions should not overlap.
-    template<typename Input, typename Subregion, typename Origin, typename Value,
-             typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Subregion> &&
-                     noa::traits::is_array_or_view_v<Origin> &&
-                     noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<Origin>, Vec4<i64>>>>
+    template<typename Input, typename Subregion, typename Origin, typename Value, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Subregion> &&
+             noa::traits::is_array_or_view_v<Origin> &&
+             noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
+             noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value> &&
+             noa::traits::is_almost_same_v<noa::traits::value_type_t<Origin>, Vec4<i64>>>>
     void extract_subregions(const Input& input, const Subregion& subregions, const Origin& origins,
                             BorderMode border_mode = BorderMode::ZERO, Value border_value = Value{0}) {
         NOA_CHECK(!input.is_empty() && !subregions.is_empty(), "Empty array detected");
@@ -77,12 +76,11 @@ namespace noa::memory {
     ///                         and therefore the number of origins to enter. Note that this function assumes no
     ///                         overlap between subregions since there's no guarantee on the order of insertion.
     /// \note \p subregions and \p output should not overlap.
-    template<typename Subregion, typename Output, typename Origin,
-             typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_of_restricted_numeric_v<Output, Subregion> &&
-                     noa::traits::is_array_or_view_v<Origin> &&
-                     noa::traits::are_almost_same_value_type_v<Output, Subregion> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<Origin>, Vec4<i64>>>>
+    template<typename Subregion, typename Output, typename Origin, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_of_restricted_numeric_v<Output, Subregion> &&
+             noa::traits::is_array_or_view_v<Origin> &&
+             noa::traits::are_almost_same_value_type_v<Output, Subregion> &&
+             noa::traits::is_almost_same_v<noa::traits::value_type_t<Origin>, Vec4<i64>>>>
     void insert_subregions(const Subregion& subregions, const Output& output, const Origin& origins) {
         NOA_CHECK(!output.is_empty() && !subregions.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(output, subregions),

@@ -29,8 +29,8 @@ namespace noa::math::details {
 namespace noa::math {
     /// Returns the minimum value of the input array.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_min_max_median_v<Input>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_min_max_median_v<Input>>>
     [[nodiscard]] auto min(const Input& array) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -50,8 +50,8 @@ namespace noa::math {
 
     /// Returns the maximum value of the input array.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_min_max_median_v<Input>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_min_max_median_v<Input>>>
     [[nodiscard]] auto max(const Input& array) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -76,8 +76,8 @@ namespace noa::math {
     ///                         in an undefined state. Otherwise, array is unchanged and a temporary
     ///                         buffer is allocated.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_min_max_median_v<Input>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_min_max_median_v<Input>>>
     [[nodiscard]] auto median(const Input& array, bool overwrite = false) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -98,8 +98,8 @@ namespace noa::math {
     /// \note For (complex)-floating-point types, the CPU backend uses
     ///       a multi-threaded Kahan summation (with Neumaier variation).
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_sum_mean_v<Input>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_sum_mean_v<Input>>>
     [[nodiscard]] auto sum(const Input& array) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -121,8 +121,8 @@ namespace noa::math {
     /// \note For (complex)-floating-point types, the CPU backend uses
     ///       a multi-threaded Kahan summation (with Neumaier variation).
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_sum_mean_v<Input>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_sum_mean_v<Input>>>
     [[nodiscard]] auto mean(const Input& array) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -149,8 +149,8 @@ namespace noa::math {
     ///                     of the variance for normally distributed variables.
     /// \param[in] array    Array to reduce.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
     [[nodiscard]] auto var(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -177,8 +177,8 @@ namespace noa::math {
     ///                     of the variance for normally distributed variables.
     /// \param[in] array    Array to reduce.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
     [[nodiscard]] auto mean_var(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -205,8 +205,8 @@ namespace noa::math {
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
     [[nodiscard]] auto std(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -227,8 +227,8 @@ namespace noa::math {
     /// Normalizes (and standardizes) the input array in-place, by setting its mean to 0 and variance to 1.
     /// It also returns the mean and variance before normalization.
     template<typename Input, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_v<Input> &&
-            details::is_valid_var_std_v<Input, Input>>>
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, Input>>>
     auto normalize(const Input& array, i64 ddof = 0) {
         const auto [mean, var] = mean_var(array, ddof);
         ewise_trinary(array, mean, var, array, minus_divide_t{});
@@ -363,9 +363,9 @@ namespace noa::math {
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced means.
     template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::are_array_or_view_v<Input, Output> &&
-            details::is_valid_sum_mean_v<Input> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_sum_mean_v<Input> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void mean(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
@@ -458,8 +458,8 @@ namespace noa::math {
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Input, Output> &&
-             details::is_valid_var_std_v<Input, Output>>>
+              noa::traits::are_array_or_view_v<Input, Output> &&
+              details::is_valid_var_std_v<Input, Output>>>
     void std(const Input& input, const Output& output, i64 ddof = 0) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");

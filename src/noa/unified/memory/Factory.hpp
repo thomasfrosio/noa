@@ -19,9 +19,9 @@ namespace noa::memory {
     /// \tparam Value       Any data type.
     /// \param[out] output  Array with evenly spaced values.
     /// \param value        The value to assign.
-    template<typename Output, typename Value,
-             typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output> &&
-                                         std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
+    template<typename Output, typename Value, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_v<Output> &&
+             std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
     void fill(const Output& output, Value value) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -113,9 +113,9 @@ namespace noa::memory {
     /// \param[out] output  Array with evenly spaced values.
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
-    template<typename Output, typename Value,
-             typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output> &&
-                                         std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
+    template<typename Output, typename Value, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_v<Output> &&
+            std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
     void arange(const Output& output, Value start = Value{0}, Value step = Value{1}) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -182,9 +182,9 @@ namespace noa::memory {
     /// \param start        Start of interval.
     /// \param stop         The end value of the sequence, unless \p endpoint is false.
     /// \param endpoint     Whether the stop is the last simple. Otherwise, it is not included.
-    template<typename Output, typename Value,
-             typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output> &&
-                                         std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
+    template<typename Output, typename Value, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_v<Output> &&
+             std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
     Value linspace(const Output& output, Value start, Value stop, bool endpoint = true) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 

@@ -88,8 +88,7 @@ namespace noa {
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is created. See eval().
         template<typename ArrayOrView, typename = std::enable_if_t<
-                noa::traits::is_array_or_view_v<ArrayOrView> &&
-                std::is_same_v<noa::traits::value_type_t<ArrayOrView>, value_type>>>
+                 noa::traits::is_array_or_view_of_any_v<ArrayOrView, value_type>>>
         Texture(const ArrayOrView& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
                 value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true)
                 : m_shape(array.shape()), m_interp(interp_mode), m_border(border_mode) {
@@ -99,7 +98,7 @@ namespace noa {
             if (prefilter &&
                 (interp_mode == InterpMode::CUBIC_BSPLINE ||
                  interp_mode == InterpMode::CUBIC_BSPLINE_FAST)) {
-                noa::geometry::bspline::prefilter(array, array); // FIXME
+                noa::geometry::cubic_bspline_prefilter(array, array);
             }
 
             if (device_target.is_cpu()) {
@@ -210,8 +209,7 @@ namespace noa {
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is updated. See eval().
         template<typename ArrayOrView, typename = std::enable_if_t<
-                 noa::traits::is_array_or_view_v<ArrayOrView> &&
-                 std::is_same_v<noa::traits::value_type_t<ArrayOrView>, value_type>>>
+                 noa::traits::is_array_or_view_of_any_v<ArrayOrView, value_type>>>
         void update(const ArrayOrView& array, bool prefilter = true) {
             NOA_CHECK(!is_empty(), "Trying to update an empty texture is not allowed. Create a valid the texture first");
             NOA_CHECK(!array.is_empty(), "Empty array detected");
@@ -222,7 +220,7 @@ namespace noa {
             if (prefilter &&
                 (m_interp == InterpMode::CUBIC_BSPLINE ||
                  m_interp == InterpMode::CUBIC_BSPLINE_FAST)) {
-                noa::geometry::bspline::prefilter(array, array); // FIXME
+                noa::geometry::cubic_bspline_prefilter(array, array);
             }
 
             const Device device_target = device();
