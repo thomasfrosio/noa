@@ -61,9 +61,9 @@ namespace noa::cuda::utils::details {
     template<typename Config, typename Index>
     std::pair<LaunchConfig, u32>
     iwise_4d_static_config(const Shape4<Index>& shape, size_t bytes_shared_memory) {
-        const auto iwise_shape = shape.filter(2, 3).template as_safe<u32>();
-        const u32 blocks_x = noa::math::divide_up(iwise_shape[1], Config::BLOCK_WORK_SIZE_X);
-        const u32 blocks_y = noa::math::divide_up(iwise_shape[0], Config::BLOCK_WORK_SIZE_Y);
+        const auto iwise_shape = shape.template as_safe<u32>();
+        const u32 blocks_x = noa::math::divide_up(iwise_shape[3], Config::BLOCK_WORK_SIZE_X);
+        const u32 blocks_y = noa::math::divide_up(iwise_shape[2], Config::BLOCK_WORK_SIZE_Y);
         const dim3 blocks(blocks_x * blocks_y,
                           iwise_shape[1],
                           iwise_shape[0]);
