@@ -44,9 +44,9 @@ set(NOA_UNIFIED_HEADERS
 #        unified/signal/Shape.inl
 
         # noa::geometry
-#        unified/geometry/fft/Polar.h
-#        unified/geometry/fft/Project.h
-#        unified/geometry/fft/Transform.h
+        unified/geometry/fft/Polar.h
+        unified/geometry/fft/Project.h
+        unified/geometry/fft/Transform.h
         unified/geometry/Polar.h
         unified/geometry/Prefilter.h
         unified/geometry/Transform.h
