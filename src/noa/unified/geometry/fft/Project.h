@@ -1,41 +1,153 @@
 #pragma once
 
-#include "noa/common/geometry/Euler.h"
-#include "noa/common/geometry/Transform.h"
-#include "noa/unified/Array.h"
-#include "noa/unified/Texture.h"
+#include "noa/core/geometry/Euler.hpp"
+#include "noa/core/geometry/Transform.hpp"
+
+#include "noa/cpu/geometry/fft/Project.hpp"
+#ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/geometry/fft/Project.hpp"
+#endif
+
+#include "noa/unified/Array.hpp"
+#include "noa/unified/Texture.hpp"
 
 namespace noa::geometry::fft::details {
     using Remap = noa::fft::Remap;
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
-    constexpr bool is_valid_insert_v = traits::is_any_v<Value, float, double, cfloat_t, cdouble_t> &&
-                                       traits::is_any_v<Scale, Array<float22_t>, float22_t> &&
-                                       traits::is_any_v<Rotate, Array<float33_t>, float33_t> &&
-                                       (REMAP == Remap::H2H || REMAP == Remap::H2HC ||
-                                        REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
+    constexpr bool is_valid_insert_rasterize_v =
+            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            (noa::traits::is_any_v<Scale, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale, Float22>) &&
+            (noa::traits::is_any_v<Rotate, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate, Float33>) &&
+            (REMAP == Remap::H2H || REMAP == Remap::H2HC || REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
-    constexpr bool is_valid_insert_thick_v =
-            traits::is_any_v<Value, float, double, cfloat_t, cdouble_t> &&
-            traits::is_any_v<Scale, Array<float22_t>, float22_t> &&
-            traits::is_any_v<Rotate, Array<float33_t>, float33_t> &&
+    constexpr bool is_valid_insert_interpolate_v =
+            traits::is_any_v<Value, f32, f64, c32, c64> &&
+            (noa::traits::is_any_v<Scale, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale, Float22>) &&
+            (noa::traits::is_any_v<Rotate, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate, Float33>) &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
-    constexpr bool is_valid_extract_v = traits::is_any_v<Value, float, double, cfloat_t, cdouble_t> &&
-                                        traits::is_any_v<Scale, Array<float22_t>, float22_t> &&
-                                        traits::is_any_v<Rotate, Array<float33_t>, float33_t> &&
-                                        (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
+    constexpr bool is_valid_extract_v =
+            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            (noa::traits::is_any_v<Scale, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale, Float22>) &&
+            (noa::traits::is_any_v<Rotate, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate, Float33>) &&
+            (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1>
     constexpr bool is_valid_insert_insert_extract_v =
-            traits::is_any_v<Value, float, double, cfloat_t, cdouble_t> &&
-            traits::is_any_v<Scale0, Array<float22_t>, float22_t> &&
-            traits::is_any_v<Scale1, Array<float22_t>, float22_t> &&
-            traits::is_any_v<Rotate0, Array<float33_t>, float33_t> &&
-            traits::is_any_v<Rotate1, Array<float33_t>, float33_t> &&
+            traits::is_any_v<Value, f32, f64, c32, c64> &&
+            (noa::traits::is_any_v<Scale0, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale0, Float22>) &&
+            (noa::traits::is_any_v<Rotate0, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate0, Float33>) &&
+            (noa::traits::is_any_v<Scale1, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale1, Float22>) &&
+            (noa::traits::is_any_v<Rotate1, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate1, Float33>) &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
+
+    template<bool OPTIONAL, typename Matrix>
+    void project_check_matrix(const Matrix& matrix, i64 required_size, Device compute_device) {
+        if constexpr (OPTIONAL) {
+            if (matrix.is_empty())
+                return;
+        } else {
+            NOA_CHECK(!matrix.is_empty(), "The matrices should not be empty");
+        }
+
+        NOA_CHECK(noa::indexing::is_vector(matrix.shape()) &&
+                  matrix.elements() == required_size &&
+                  matrix.is_contiguous(),
+                  "The number of matrices, specified as a contiguous vector, "
+                  "should be equal to the number of slices, but got {} matrices and {} slices",
+                  matrix.elements(), required_size);
+
+        NOA_CHECK(matrix.device() == compute_device,
+                  "The transformation parameters should be on the compute device");
+    }
+
+    enum class ProjectionType { INSERT_RASTERIZE, INSERT_INTERPOLATE, EXTRACT, INSERT_EXTRACT };
+
+    template<ProjectionType DIRECTION, typename Input, typename Output,
+             typename Scale0, typename Rotate0,
+             typename Scale1 = Float22, typename Rotate1 = Float33>
+    void projection_check_parameters(const Input& input, const Shape4<i64>& input_shape,
+                                     const Output& output, const Shape4<i64>& output_shape,
+                                     const Shape4<i64>& target_shape,
+                                     const Scale0& input_scaling_matrix,
+                                     const Rotate0& input_rotation_matrix,
+                                     const Scale1& output_scaling_matrix = {},
+                                     const Rotate1& output_rotation_matrix = {}) {
+        const Device output_device = output.device();
+        if constexpr (!noa::traits::is_real_v<Input>) {
+            const Device input_device = input.device();
+
+            NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
+            if constexpr (noa::traits::is_array_or_view_v<Input>)
+                NOA_CHECK(!noa::indexing::are_overlapped(input, output), "Input and output arrays should not overlap");
+
+            NOA_CHECK(input_device == output_device,
+                      "The input and output should be on the same device but got input:{} and output:{}",
+                      input_device, output_device);
+
+            NOA_CHECK(noa::all(input.shape() == input_shape.fft()),
+                      "The shape of the non-redundant input does not match the expected shape. "
+                      "Got {} and expected {}", input.shape(), input_shape.fft());
+        }
+
+        NOA_CHECK(noa::all(output.shape() == output_shape.fft()),
+                  "The shape of the non-redundant output does not match the expected shape. Got {} and expected {}",
+                  output.shape(), output_shape.fft());
+
+        if constexpr (DIRECTION == ProjectionType::INSERT_RASTERIZE ||
+                      DIRECTION == ProjectionType::INSERT_INTERPOLATE) {
+            NOA_CHECK(input_shape[1] == 1,
+                      "2D input slices are expected but got shape {}", input_shape);
+            if (noa::any(target_shape == 0)) {
+                NOA_CHECK(output_shape[0] == 1 && !output_shape.is_batched(),
+                          "A single 3D output is expected but got shape {}", output_shape);
+            } else {
+                NOA_CHECK(output_shape[0] == 1 && target_shape[0] == 1 && !target_shape.is_batched(),
+                          "A single grid is expected, with a target shape describing a single 3D volume, "
+                          "but got output shape {} and target shape {}", output_shape, target_shape);
+            }
+        } else if constexpr (DIRECTION == ProjectionType::EXTRACT) {
+            NOA_CHECK(output_shape[1] == 1,
+                      "2D input slices are expected but got shape {}", output_shape);
+            if (noa::any(target_shape == 0)) {
+                NOA_CHECK(input_shape[0] == 1 && !input_shape.is_batched(),
+                          "A single 3D input is expected but got shape {}", input_shape);
+            } else {
+                NOA_CHECK(input_shape[0] == 1 && target_shape[0] == 1 && !target_shape.is_batched(),
+                          "A single grid is expected, with a target shape describing a single 3D volume, "
+                          "but got input shape {} and target shape {}", input_shape, target_shape);
+            }
+        } else { // INSERT_EXTRACT
+            NOA_CHECK(input_shape[1] == 1 && output_shape[1] == 1,
+                      "2D slices are expected but got shape input:{} and output:{}",
+                      input_shape, output_shape);
+        }
+
+        const auto required_matrix_count = DIRECTION == ProjectionType::EXTRACT ? output_shape[0] : input_shape[0];
+        if constexpr (!noa::traits::is_mat22_v<Scale0>)
+            project_check_matrix<true>(input_scaling_matrix, required_matrix_count, output_device);
+        if constexpr (!noa::traits::is_mat33_v<Rotate0>)
+            project_check_matrix<false>(input_rotation_matrix, required_matrix_count, output_device);
+
+        // Only for INSERT_EXTRACT.
+        if constexpr (!noa::traits::is_mat22_v<Scale1>)
+            project_check_matrix<true>(output_scaling_matrix, output_shape[0], output_device);
+        if constexpr (!noa::traits::is_mat33_v<Rotate1>)
+            project_check_matrix<false>(output_rotation_matrix, output_shape[0], output_device);
+    }
+
+    template<typename Matrix>
+    auto extract_matrix(const Matrix& matrix) {
+        if constexpr (traits::is_matXX_v<Matrix>) {
+            return matrix;
+        } else {
+            using ptr_t = const typename Matrix::value_type*;
+            return ptr_t(matrix.get());
+        }
+    }
 }
 
 namespace noa::geometry::fft {
@@ -45,17 +157,16 @@ namespace noa::geometry::fft {
     /// \details The slices are scaled and the EWS curvature is applied. Then, they are rotated and added to the
     ///          3D cartesian Fourier volume using tri-linear rasterization. This method, often referred to as
     ///          direct Fourier insertion, explicitly sets the "thickness" of the central slices as the width of
-    ///          the interpolation window (referred to as gridding kernel), which in this case is 1 voxel.
+    ///          the rasterization window (referred to as gridding kernel), which in this case is 1 voxel.
     ///          In practice, a density correction (i.e. normalization) is often required after this operation.
     ///          This can easily be achieved by inserting the per-slice weights into another volume to keep track
     ///          of what was inserted and where. Gridding correction can also be beneficial as post-processing
-    ///          one the real-space output (see griddingCorrection below).
+    ///          one the real-space output (see gridding_correction() below).
     ///
     /// \tparam REMAP                   Remapping from the slice to the grid layout.
     ///                                 Should be H2H, H2HC, HC2H or HC2HC.
-    /// \tparam Value                   float, double, cfloat_t, cdouble_t.
-    /// \tparam Scale                   Array<float22_t> or float22_t.
-    /// \tparam Rotate                  Array<float33_t> or float33_t.
+    /// \tparam Scale                   Float22 or an array/view of this type.
+    /// \tparam Rotate                  Float33 or an array/view of this type.
     /// \param[in] slice                Non-redundant 2D slice(s) to insert.
     /// \param slice_shape              BDHW logical shape of \p slice.
     /// \param[out] grid                Non-redundant 3D grid inside which the slices are inserted.
@@ -92,29 +203,105 @@ namespace noa::geometry::fft {
     /// \note The redundant line at x=0 is entirely inserted into the volume. If the projection has an in-plane
     ///       rotation, this results into having this line inserted twice. This emphasizes the need of normalizing
     ///       the output grid, or extracted slice(s), with the corresponding inserted weights, or extracted weights.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_insert_v<REMAP, Value, Scale, Rotate>>>
-    void insert3D(const Array<Value>& slice, dim4_t slice_shape,
-                  const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrix,
-                  const Rotate& fwd_rotation_matrix,
-                  float cutoff,
-                  dim4_t target_shape = {},
-                  float2_t ews_radius = {});
+    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             details::is_valid_insert_rasterize_v<REMAP, noa::traits::value_type_t<Output>, Scale, Rotate>>>
+    void insert_rasterize_3d(const Input& slice, const Shape4<i64> slice_shape,
+                             const Output& grid, const Shape4<i64> grid_shape,
+                             const Scale& inv_scaling_matrix,
+                             const Rotate& fwd_rotation_matrix,
+                             f32 cutoff = 0.5f,
+                             const Shape4<i64> target_shape = {},
+                             const Vec2<f32>& ews_radius = {}) {
+        details::projection_check_parameters<details::ProjectionType::INSERT_RASTERIZE>(
+                slice, slice_shape, grid, grid_shape, target_shape,
+                inv_scaling_matrix, fwd_rotation_matrix);
+
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=](){
+                cpu::geometry::fft::insert_rasterize_3d<REMAP>(
+                        slice.get(), slice.strides(), slice_shape,
+                        grid.get(), grid.strides(), grid_shape,
+                        details::extract_matrix(inv_scaling_matrix),
+                        details::extract_matrix(fwd_rotation_matrix),
+                        cutoff, target_shape, ews_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::insert_rasterize_3d<REMAP>(
+                    slice.get(), slice.strides(), slice_shape,
+                    grid.get(), grid.strides(), grid_shape,
+                    details::extract_matrix(inv_scaling_matrix),
+                    details::extract_matrix(fwd_rotation_matrix),
+                    cutoff, target_shape, ews_radius, cuda_stream);
+            cuda_stream.enqueue_attach(slice.share(), grid.share());
+            if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                cuda_stream.enqueue_attach(inv_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                cuda_stream.enqueue_attach(fwd_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using tri-linear rasterization.
     /// \details This function has the same features and limitations as the overload taking arrays,
-    ///          but the slice is represented by a single constant value. This is for example useful
+    ///          but the slice is represented by a single constant value. This can be useful
     ///          to keep track of the multiplicity of the Fourier insertion.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_insert_v<REMAP, Value, Scale, Rotate>>>
-    void insert3D(Value slice, dim4_t slice_shape,
-                  const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrix,
-                  const Rotate& fwd_rotation_matrix,
-                  float cutoff,
-                  dim4_t target_shape = {},
-                  float2_t ews_radius = {});
+    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Output, Input> &&
+             details::is_valid_insert_rasterize_v<REMAP, Input, Scale, Rotate>>>
+    void insert_rasterize_3d(Input slice, const Shape4<i64>& slice_shape,
+                             const Output& grid, const Shape4<i64>& grid_shape,
+                             const Scale& inv_scaling_matrix,
+                             const Rotate& fwd_rotation_matrix,
+                             f32 cutoff = 0.5f,
+                             const Shape4<i64>& target_shape = {},
+                             const Vec2<f32>& ews_radius = {}) {
+        details::projection_check_parameters<details::ProjectionType::INSERT_RASTERIZE>(
+                slice, slice_shape, grid, grid_shape, target_shape,
+                inv_scaling_matrix, fwd_rotation_matrix);
+
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=](){
+                cpu::geometry::fft::insert_rasterize_3d<REMAP>(
+                        slice, slice_shape,
+                        grid.get(), grid.strides(), grid_shape,
+                        details::extract_matrix(inv_scaling_matrix),
+                        details::extract_matrix(fwd_rotation_matrix),
+                        cutoff, target_shape, ews_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::insert_rasterize_3d<REMAP>(
+                    slice, slice_shape,
+                    grid.get(), grid.strides(), grid_shape,
+                    details::extract_matrix(inv_scaling_matrix),
+                    details::extract_matrix(fwd_rotation_matrix),
+                    cutoff, target_shape, ews_radius, cuda_stream);
+            cuda_stream.enqueue_attach(grid.share());
+            if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                cuda_stream.enqueue_attach(inv_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                cuda_stream.enqueue_attach(fwd_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using bi-linear interpolation and sinc-weighting.
     /// \details This function computes the inverse transformation compared to the overload above using rasterization,
@@ -128,9 +315,8 @@ namespace noa::geometry::fft {
     ///
     /// \tparam REMAP                   Remapping from the slice to the grid layout.
     ///                                 Should be HC2H or HC2HC.
-    /// \tparam Value                   float, double, cfloat_t, cdouble_t.
-    /// \tparam Scale                   Array<float22_t> or float22_t.
-    /// \tparam Rotate                  Array<float33_t> or float33_t.
+    /// \tparam Scale                   Float22 or an array/view of this type.
+    /// \tparam Rotate                  Float33 or an array/view of this type.
     /// \param[in] slice                Non-redundant 2D slice(s) to insert.
     /// \param slice_shape              BDHW logical shape of \p slice.
     /// \param[out] grid                Non-redundant 3D grid inside which the slices are inserted.
@@ -149,52 +335,170 @@ namespace noa::geometry::fft {
     /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                 If negative, the negative curve is computed.
     ///                                 If {0,0}, the slices are projections.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
-    void insert3D(const Array<Value>& slice, dim4_t slice_shape,
-                  const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& fwd_scaling_matrix,
-                  const Rotate& inv_rotation_matrix,
-                  float slice_z_radius,
-                  float cutoff,
-                  dim4_t target_shape = {},
-                  float2_t ews_radius = {});
+    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             details::is_valid_insert_interpolate_v<REMAP, noa::traits::value_type_t<Output>, Scale, Rotate>>>
+    void insert_interpolate_3d(const Input& slice, const Shape4<i64>& slice_shape,
+                               const Output& grid, const Shape4<i64>& grid_shape,
+                               const Scale& fwd_scaling_matrix,
+                               const Rotate& inv_rotation_matrix,
+                               f32 slice_z_radius,
+                               f32 cutoff = 0.5f,
+                               const Shape4<i64>& target_shape = {},
+                               const Vec2<f32>& ews_radius = {}) {
+        details::projection_check_parameters<details::ProjectionType::INSERT_INTERPOLATE>(
+                slice, slice_shape, grid, grid_shape, target_shape,
+                fwd_scaling_matrix, inv_rotation_matrix);
+
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::insert_interpolate_3d<REMAP>(
+                        slice.get(), slice.strides(), slice_shape,
+                        grid.get(), grid.strides(), grid_shape,
+                        details::extract_matrix(fwd_scaling_matrix),
+                        details::extract_matrix(inv_rotation_matrix),
+                        cutoff, target_shape, ews_radius,
+                        slice_z_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::insert_interpolate_3d<REMAP>(
+                    slice.get(), slice.strides(), slice_shape,
+                    grid.get(), grid.strides(), grid_shape,
+                    details::extract_matrix(fwd_scaling_matrix),
+                    details::extract_matrix(inv_rotation_matrix),
+                    cutoff, target_shape, ews_radius,
+                    slice_z_radius, cuda_stream);
+            cuda_stream.enqueue_attach(slice.share(), grid.share());
+            if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                cuda_stream.enqueue_attach(fwd_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                cuda_stream.enqueue_attach(inv_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Inserts 2D Fourier central slice(s) into a 3D Fourier volume, using bi-linear interpolation and sinc-weighting.
     /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
-    void insert3D(const Texture<Value>& slice, dim4_t slice_shape,
-                  const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& fwd_scaling_matrix,
-                  const Rotate& inv_rotation_matrix,
-                  float slice_z_radius,
-                  float cutoff,
-                  dim4_t target_shape = {},
-                  float2_t ews_radius = {});
+    template<Remap REMAP, typename Value, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             details::is_valid_insert_interpolate_v<REMAP, Value, Scale, Rotate>>>
+    void insert_interpolate_3d(const Texture<Value>& slice, const Shape4<i64>& slice_shape,
+                               const Output& grid, const Shape4<i64>& grid_shape,
+                               const Scale& fwd_scaling_matrix,
+                               const Rotate& inv_rotation_matrix,
+                               f32 slice_z_radius,
+                               f32 cutoff = 0.5f,
+                               const Shape4<i64>& target_shape = {},
+                               const Vec2<f32>& ews_radius = {}) {
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            const cpu::Texture<Value>& texture = slice.cpu();
+            const Array<Value> slice_array(texture.ptr, slice.shape(), texture.strides, slice.options());
+            insert_interpolate_3d<REMAP>(slice_array, slice_shape, grid, grid_shape,
+                                         fwd_scaling_matrix, inv_rotation_matrix,
+                                         slice_z_radius, cutoff, target_shape, ews_radius);
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (noa::traits::is_any_v<Value, f64, c64>) {
+                NOA_THROW("Double-precision floating-points are not supported by CUDA textures");
+            } else {
+                details::projection_check_parameters<details::ProjectionType::INSERT_INTERPOLATE>(
+                        slice, slice_shape, grid, grid_shape, target_shape,
+                        fwd_scaling_matrix, inv_rotation_matrix);
+
+                const cuda::Texture<Value>& texture = slice.cuda();
+                auto& cuda_stream = stream.cuda();
+                cuda::geometry::fft::insert_interpolate_3d<REMAP>(
+                        texture.array.get(), *texture.texture, slice.interp_mode(), slice_shape,
+                        grid.get(), grid.strides(), grid_shape,
+                        details::extract_matrix(fwd_scaling_matrix),
+                        details::extract_matrix(inv_rotation_matrix),
+                        cutoff, target_shape, ews_radius,
+                        slice_z_radius, cuda_stream);
+                cuda_stream.enqueue_attach(texture.array, texture.texture, grid.share());
+                if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                    cuda_stream.enqueue_attach(fwd_scaling_matrix.share());
+                if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                    cuda_stream.enqueue_attach(inv_rotation_matrix.share());
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// \details This function has the same features and limitations as the overload taking arrays,
     ///          but the slice is represented by a single constant value. This is for example useful
     ///          to keep track of the multiplicity of the Fourier insertion.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_insert_thick_v<REMAP, Value, Scale, Rotate>>>
-    void insert3D(Value slice, dim4_t slice_shape,
-                  const Array<Value>& grid, dim4_t grid_shape,
-                  const Scale& fwd_scaling_matrix,
-                  const Rotate& inv_rotation_matrix,
-                  float slice_z_radius,
-                  float cutoff,
-                  dim4_t target_shape = {},
-                  float2_t ews_radius = {});
+    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Output, Input> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             details::is_valid_insert_interpolate_v<REMAP, Input, Scale, Rotate>>>
+    void insert_interpolate_3d(Input slice, const Shape4<i64>& slice_shape,
+                               const Output& grid, const Shape4<i64>& grid_shape,
+                               const Scale& fwd_scaling_matrix,
+                               const Rotate& inv_rotation_matrix,
+                               f32 slice_z_radius,
+                               f32 cutoff = 0.5f,
+                               const Shape4<i64>& target_shape = {},
+                               const Vec2<f32>& ews_radius = {}) {
+        details::projection_check_parameters<details::ProjectionType::INSERT_INTERPOLATE>(
+                slice, slice_shape, grid, grid_shape, target_shape,
+                fwd_scaling_matrix, inv_rotation_matrix);
+
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::insert_interpolate_3d<REMAP>(
+                        slice, slice_shape,
+                        grid.get(), grid.strides(), grid_shape,
+                        details::extract_matrix(fwd_scaling_matrix),
+                        details::extract_matrix(inv_rotation_matrix),
+                        cutoff, target_shape, ews_radius,
+                        slice_z_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::insert_interpolate_3d<REMAP>(
+                    slice, slice_shape,
+                    grid.get(), grid.strides(), grid_shape,
+                    details::extract_matrix(fwd_scaling_matrix),
+                    details::extract_matrix(inv_rotation_matrix),
+                    cutoff, target_shape, ews_radius,
+                    slice_z_radius, cuda_stream);
+            cuda_stream.enqueue_attach(grid.share());
+            if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                cuda_stream.enqueue_attach(fwd_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                cuda_stream.enqueue_attach(inv_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
     /// \details This is the reverse operation of insert3D. The transformation itself is identical to the
     ///          transformation of insert3D using rasterization, so the same parameters can be used here.
     ///
     /// \tparam REMAP                   Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
-    /// \tparam Value                   float, double, cfloat_t, cdouble_t.
-    /// \tparam Slice                   Array<float22_t> or float22_t.
-    /// \tparam Rotate                  Array<float33_t> or float33_t.
+    /// \tparam Scale                   Float22 or an array/view of this type.
+    /// \tparam Rotate                  Float33 or an array/view of this type.
     /// \param[out] grid                Non-redundant centered 3D grid from which to extract the slices.
     /// \param grid_shape               BDHW logical shape of \p grid.
     /// \param[in] slice                Non-redundant 2D extracted slice(s).
@@ -210,41 +514,117 @@ namespace noa::geometry::fft {
     /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                 If negative, the negative curve is computed.
     ///                                 If {0,0}, the slices are projections.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_extract_v<REMAP, Value, Scale, Rotate>>>
-    void extract3D(const Array<Value>& grid, dim4_t grid_shape,
-                   const Array<Value>& slice, dim4_t slice_shape,
-                   const Scale& inv_scaling_matrix,
-                   const Rotate& fwd_rotation_matrix,
-                   float cutoff = 0.5f,
-                   dim4_t target_shape = {},
-                   float2_t ews_radius = {});
+    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             details::is_valid_extract_v<REMAP, noa::traits::value_type_t<Output>, Scale, Rotate>>>
+    void extract_3d(const Input& grid, const Shape4<i64>& grid_shape,
+                    const Output& slice, const Shape4<i64>& slice_shape,
+                    const Scale& inv_scaling_matrix,
+                    const Rotate& fwd_rotation_matrix,
+                    f32 cutoff = 0.5f,
+                    const Shape4<i64>& target_shape = {},
+                    const Vec2<f32>& ews_radius = {}) {
+
+        details::projection_check_parameters<details::ProjectionType::EXTRACT>(
+                grid, grid_shape, slice, slice_shape, target_shape,
+                inv_scaling_matrix, fwd_rotation_matrix);
+
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::extract_3d<REMAP>(
+                        grid.get(), grid.strides(), grid_shape,
+                        slice.get(), slice.strides(), slice_shape,
+                        details::extract_matrix(inv_scaling_matrix),
+                        details::extract_matrix(fwd_rotation_matrix),
+                        cutoff, target_shape, ews_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::extract_3d<REMAP>(
+                    grid.get(), grid.strides(), grid_shape,
+                    slice.get(), slice.strides(), slice_shape,
+                    details::extract_matrix(inv_scaling_matrix),
+                    details::extract_matrix(fwd_rotation_matrix),
+                    cutoff, target_shape, ews_radius, cuda_stream);
+            cuda_stream.enqueue_attach(grid.share(), slice.share());
+            if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                cuda_stream.enqueue_attach(inv_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                cuda_stream.enqueue_attach(fwd_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Extracts 2D Fourier slice(s) from a Fourier volume using tri-linear interpolation.
     /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
-    template<Remap REMAP, typename Value, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_extract_v<REMAP, Value, Scale, Rotate>>>
-    void extract3D(const Texture<Value>& grid, dim4_t grid_shape,
-                   const Array<Value>& slice, dim4_t slice_shape,
-                   const Scale& inv_scaling_matrix,
-                   const Rotate& fwd_rotation_matrix,
-                   float cutoff = 0.5f,
-                   dim4_t target_shape = {},
-                   float2_t ews_radius = {});
+    template<Remap REMAP, typename Value, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             details::is_valid_insert_interpolate_v<REMAP, Value, Scale, Rotate>>>
+    void extract_3d(const Texture<Value>& grid, const Shape4<i64>& grid_shape,
+                    const Output& slice, const Shape4<i64>& slice_shape,
+                    const Scale& inv_scaling_matrix,
+                    const Rotate& fwd_rotation_matrix,
+                    f32 cutoff = 0.5f,
+                    const Shape4<i64>& target_shape = {},
+                    const Vec2<f32>& ews_radius = {}) {
+        const Device device = grid.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            const cpu::Texture<Value>& texture = grid.cpu();
+            const Array<Value> grid_array(texture.ptr, grid.shape(), texture.strides, grid.options());
+            extract_3d<REMAP>(grid_array, grid_shape, slice, slice_shape,
+                              inv_scaling_matrix, fwd_rotation_matrix,
+                              cutoff, target_shape, ews_radius);
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (noa::traits::is_any_v<Value, f64, c64>) {
+                NOA_THROW("Double-precision floating-points are not supported by CUDA textures");
+            } else {
+                details::projection_check_parameters<details::ProjectionType::EXTRACT>(
+                        grid, grid_shape, slice, slice_shape, target_shape,
+                        inv_scaling_matrix, fwd_rotation_matrix);
+
+                auto& cuda_stream = stream.cuda();
+                const cuda::Texture<Value>& texture = grid.cuda();
+                cuda::geometry::fft::extract_3d<REMAP>(
+                        texture.array.get(), *texture.texture, grid.interp_mode(), grid_shape,
+                        slice.get(), slice.strides(), slice_shape,
+                        details::extract_matrix(inv_scaling_matrix),
+                        details::extract_matrix(fwd_rotation_matrix),
+                        cutoff, target_shape, ews_radius, cuda_stream);
+                cuda_stream.enqueue_attach(texture.array, texture.texture, slice.share());
+                if constexpr (noa::traits::is_array_or_view_v<Scale>)
+                    cuda_stream.enqueue_attach(inv_scaling_matrix.share());
+                if constexpr (noa::traits::is_array_or_view_v<Rotate>)
+                    cuda_stream.enqueue_attach(fwd_rotation_matrix.share());
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Extracts 2D Fourier slice(s) from a virtual volume filled by other slices, using linear interpolation.
     /// \details This function effectively combines the insertion by interpolation and the extraction, but only
     ///          renders the frequencies that are going to be used for the extraction. This function is useful if
     ///          the 3D Fourier volume, where the slices are inserted, is used for extracting slice(s) immediately
-    ///          after the insertion. It is much faster than calling insert3D and extract3D, uses less memory
-    ///          (the 3D Fourier volume is entirely skipped), and skips a layer of interpolation.
+    ///          after the insertion. It is much faster than calling insert_interpolate_3d and extract_3d,
+    ///          uses less memory (the 3D Fourier volume is entirely skipped), and skips a layer of interpolation.
     ///
     /// \tparam REMAP                           Remapping from the slice to the grid layout. Should be HC2H or HC2HC.
-    /// \tparam Value                           float, double, cfloat_t, cdouble_t.
-    /// \tparam Scale0                          Array<float22_t> or float22_t.
-    /// \tparam Rotate0                         Array<float33_t> or float33_t.
-    /// \tparam Scale1                          Array<float22_t> or float22_t.
-    /// \tparam Rotate1                         Array<float33_t> or float33_t.
+    /// \tparam InputScale                      Float22 or an array/view of this type.
+    /// \tparam InputRotate                     Float33 or an array/view of this type.
+    /// \tparam OutputScale                     Float22 or an array/view of this type.
+    /// \tparam OutputRotate                    Float33 or an array/view of this type.
     /// \param[in] input_slice                  Non-redundant 2D slice(s) to insert.
     /// \param input_slice_shape                BDHW logical shape of \p input_slice.
     /// \param[out] output_slice                Non-redundant 2D extracted slice(s). See warning below.
@@ -271,46 +651,190 @@ namespace noa::geometry::fft {
     ///                                         If {0,0}, the slices are projections.
     ///
     /// \warning This function doesn't set the \p output_slice. Instead, it adds the contribution of \p input_slice
-    ///          onto the signal already present in \p output_slice. This is different from the overload taking a
-    ///          3D grid and allows to still insert slices one at a time.
-    template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
-             typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
-                     REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
-    void extract3D(const Array<Value>& input_slice, dim4_t input_slice_shape,
-                   const Array<Value>& output_slice, dim4_t output_slice_shape,
-                   const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
-                   const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
-                   float slice_z_radius,
-                   float cutoff = 0.5f,
-                   float2_t ews_radius = {});
+    ///          onto the signal already present in \p output_slice. This is different from insert_interpolate_3d and
+    ///          allows to still insert slices one at a time.
+    template<Remap REMAP, typename Input, typename Output, typename InputScale, typename InputRotate,
+             typename OutputScale, typename OutputRotate, typename = std::enable_if_t<
+                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                     noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+                     noa::traits::are_almost_same_value_type_v<Input, Output> &&
+                     details::is_valid_insert_insert_extract_v<
+                     REMAP, noa::traits::value_type_t<Output>, InputScale, InputRotate, OutputScale, OutputRotate>>>
+    void insert_interpolate_and_extract_3d(
+            const Input& input_slice, const Shape4<i64>& input_slice_shape,
+            const Output& output_slice, const Shape4<i64>& output_slice_shape,
+            const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
+            const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
+            f32 slice_z_radius, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+
+        details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
+                input_slice, input_slice_shape, output_slice, output_slice_shape, {},
+                input_fwd_scaling_matrix, input_inv_rotation_matrix,
+                output_inv_scaling_matrix, output_fwd_rotation_matrix);
+
+        const Device device = output_slice.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
+                        input_slice.get(), input_slice.strides(), input_slice_shape,
+                        output_slice.get(), output_slice.strides(), output_slice_shape,
+                        details::extract_matrix(input_fwd_scaling_matrix),
+                        details::extract_matrix(input_inv_rotation_matrix),
+                        details::extract_matrix(output_inv_scaling_matrix),
+                        details::extract_matrix(output_fwd_rotation_matrix),
+                        cutoff, ews_radius, slice_z_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
+                    input_slice.get(), input_slice.strides(), input_slice_shape,
+                    output_slice.get(), output_slice.strides(), output_slice_shape,
+                    details::extract_matrix(input_fwd_scaling_matrix),
+                    details::extract_matrix(input_inv_rotation_matrix),
+                    details::extract_matrix(output_inv_scaling_matrix),
+                    details::extract_matrix(output_fwd_rotation_matrix),
+                    cutoff, ews_radius, slice_z_radius, cuda_stream);
+            cuda_stream.enqueue_attach(input_slice.share(), output_slice.share());
+            if constexpr (noa::traits::is_array_or_view_v<InputScale>)
+                cuda_stream.enqueue_attach(input_fwd_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<InputRotate>)
+                cuda_stream.enqueue_attach(input_inv_rotation_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<OutputScale>)
+                cuda_stream.enqueue_attach(output_inv_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<OutputRotate>)
+                cuda_stream.enqueue_attach(output_fwd_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Extracts 2D Fourier slice(s) from a virtual volume filled by other slices, using linear interpolation.
     /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
-    template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
-             typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
-                    REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
-    void extract3D(const Texture<Value>& input_slice, dim4_t input_slice_shape,
-                   const Array<Value>& output_slice, dim4_t output_slice_shape,
-                   const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
-                   const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
-                   float slice_z_radius,
-                   float cutoff = 0.5f,
-                   float2_t ews_radius = {});
+    template<Remap REMAP, typename Value, typename Output, typename InputScale, typename InputRotate,
+             typename OutputScale, typename OutputRotate, typename = std::enable_if_t<
+                    noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+                    details::is_valid_insert_insert_extract_v<
+                    REMAP, Value, InputScale, InputRotate, OutputScale, OutputRotate>>>
+    void insert_interpolate_and_extract_3d(
+            const Texture<Value>& input_slice, const Shape4<i64>& input_slice_shape,
+            const Output& output_slice, const Shape4<i64>& output_slice_shape,
+            const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
+            const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
+            f32 slice_z_radius, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+
+        const Device device = output_slice.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            const cpu::Texture<Value>& texture = input_slice.cpu();
+            const Array<Value> input_slice_array(
+                    texture.ptr, input_slice.shape(), texture.strides, input_slice.options());
+            insert_interpolate_and_extract_3d<REMAP>(
+                    input_slice_array, input_slice_shape, output_slice, output_slice_shape,
+                    input_fwd_scaling_matrix, input_inv_rotation_matrix,
+                    output_inv_scaling_matrix, output_fwd_rotation_matrix,
+                    slice_z_radius, cutoff, ews_radius);
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            if constexpr (noa::traits::is_any_v<Value, f64, c64>) {
+                NOA_THROW("Double-precision floating-points are not supported by CUDA textures");
+            } else {
+                details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
+                        input_slice, input_slice_shape, output_slice, output_slice_shape, {},
+                        input_fwd_scaling_matrix, input_inv_rotation_matrix,
+                        output_inv_scaling_matrix, output_fwd_rotation_matrix);
+
+                auto& cuda_stream = stream.cuda();
+                const cuda::Texture<Value>& texture = input_slice.cuda();
+                cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
+                        texture.array.get(), *texture.texture, input_slice.interp_mode(), input_slice_shape,
+                        output_slice.get(), output_slice.strides(), output_slice_shape,
+                        details::extract_matrix(input_fwd_scaling_matrix),
+                        details::extract_matrix(input_inv_rotation_matrix),
+                        details::extract_matrix(output_inv_scaling_matrix),
+                        details::extract_matrix(output_fwd_rotation_matrix),
+                        cutoff, ews_radius, slice_z_radius, cuda_stream);
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output_slice.share());
+                if constexpr (noa::traits::is_array_or_view_v<InputScale>)
+                    cuda_stream.enqueue_attach(input_fwd_scaling_matrix.share());
+                if constexpr (noa::traits::is_array_or_view_v<InputRotate>)
+                    cuda_stream.enqueue_attach(input_inv_rotation_matrix.share());
+                if constexpr (noa::traits::is_array_or_view_v<OutputScale>)
+                    cuda_stream.enqueue_attach(output_inv_scaling_matrix.share());
+                if constexpr (noa::traits::is_array_or_view_v<OutputRotate>)
+                    cuda_stream.enqueue_attach(output_fwd_rotation_matrix.share());
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Extracts 2D Fourier slice(s) from a virtual volume filled by other slices, using linear interpolation.
     /// \details This function has the same features and limitations as the overload taking arrays,
     ///          but the slice is represented by a single constant value. This is for example useful
     ///          to keep track of the multiplicity of the Fourier insertion.
-    template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1,
-             typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
-                    REMAP, Value, Scale0, Rotate0, Scale1, Rotate1>>>
-    void extract3D(Value input_slice, dim4_t input_slice_shape,
-                   const Array<Value>& output_slice, dim4_t output_slice_shape,
-                   const Scale0& input_fwd_scaling_matrix, const Rotate0& input_inv_rotation_matrix,
-                   const Scale1& output_inv_scaling_matrix, const Rotate1& output_fwd_rotation_matrix,
-                   float slice_z_radius,
-                   float cutoff = 0.5f,
-                   float2_t ews_radius = {});
+    template<Remap REMAP, typename Input, typename Output, typename InputScale, typename InputRotate,
+             typename OutputScale, typename OutputRotate, typename = std::enable_if_t<
+                    noa::traits::is_array_or_view_of_any_v<Output, Input> &&
+                    details::is_valid_insert_insert_extract_v<
+                    REMAP, Input, InputScale, InputRotate, OutputScale,OutputRotate>>>
+    void insert_interpolate_and_extract_3d(
+            Input input_slice, const Shape4<i64>& input_slice_shape,
+            const Output& output_slice, const Shape4<i64>& output_slice_shape,
+            const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
+            const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
+            f32 slice_z_radius, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+
+        details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
+                input_slice, input_slice_shape, output_slice, output_slice_shape, {},
+                input_fwd_scaling_matrix, input_inv_rotation_matrix,
+                output_inv_scaling_matrix, output_fwd_rotation_matrix);
+
+        const Device device = output_slice.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
+                        input_slice, input_slice_shape,
+                        output_slice.get(), output_slice.strides(), output_slice_shape,
+                        details::extract_matrix(input_fwd_scaling_matrix),
+                        details::extract_matrix(input_inv_rotation_matrix),
+                        details::extract_matrix(output_inv_scaling_matrix),
+                        details::extract_matrix(output_fwd_rotation_matrix),
+                        cutoff, ews_radius, slice_z_radius, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
+                    input_slice, input_slice_shape,
+                    output_slice.get(), output_slice.strides(), output_slice_shape,
+                    details::extract_matrix(input_fwd_scaling_matrix),
+                    details::extract_matrix(input_inv_rotation_matrix),
+                    details::extract_matrix(output_inv_scaling_matrix),
+                    details::extract_matrix(output_fwd_rotation_matrix),
+                    cutoff, ews_radius, slice_z_radius, cuda_stream);
+            cuda_stream.enqueue_attach(output_slice.share());
+            if constexpr (noa::traits::is_array_or_view_v<InputScale>)
+                cuda_stream.enqueue_attach(input_fwd_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<InputRotate>)
+                cuda_stream.enqueue_attach(input_inv_rotation_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<OutputScale>)
+                cuda_stream.enqueue_attach(output_inv_scaling_matrix.share());
+            if constexpr (noa::traits::is_array_or_view_v<OutputRotate>)
+                cuda_stream.enqueue_attach(output_fwd_rotation_matrix.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Corrects for the gridding, assuming tri-linear interpolation was used during the Fourier insertion.
     /// \details During direct Fourier insertion of slices S into a volume B, two problems arises:
@@ -326,13 +850,51 @@ namespace noa::geometry::fft {
     ///             wanted reconstruction and the apodization function. The apodization function is the Fourier
     ///             transform of the gridding kernel (e.g. sinc^2 for linear interpolation). This function is there
     ///             to correct for this gridding artefact, assuming tri-linear interpolation.
-    /// \tparam Value           float or double.
     /// \param[in] input        Inverse Fourier transform of the 3D grid used for direct Fourier insertion.
     /// \param[out] output      Gridding-corrected output. Can be equal to \p input.
     /// \param post_correction  Whether the correction is the post- or pre-correction.
-    ///                         Post correction is meant to be applied on the volume that was just back-projected
-    ///                         using insert3D, whereas pre-correction is meant to be applied on the volume that is
-    ///                         about to be forward projected using extract3D.
-    template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, float, double>>>
-    void griddingCorrection(const Array<Value>& input, const Array<Value>& output, bool post_correction);
+    ///                         Post correction is meant to be applied on the volume that was just back-projected,
+    ///                         whereas pre-correction is meant to be applied on the volume that is about to be
+    ///                         forward projected.
+    template<typename Input, typename Output, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64> &&
+             noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+    void gridding_correction(const Input& input, const Output& output, bool post_correction) {
+        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
+
+        auto input_strides = input.strides();
+        if (!noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      input.shape(), output.shape());
+        }
+
+        const Device device = output.device();
+        NOA_CHECK(device == input.device(),
+                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
+                  input.device(), device);
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::gridding_correction(
+                        input.get(), input_strides,
+                        output.get(), output.strides(),
+                        output.shape(), post_correction, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::gridding_correction(
+                    input.get(), input_strides,
+                    output.get(), output.strides(),
+                    output.shape(), post_correction, stream.cuda());
+            cuda_stream.enqueue_attach(input.share(), output.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 }

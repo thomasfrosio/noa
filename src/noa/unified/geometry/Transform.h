@@ -45,7 +45,7 @@ namespace noa::geometry::details {
 
         if constexpr (!traits::is_matXX_v<Matrix>) {
             NOA_CHECK(noa::indexing::is_vector(matrix.shape()) &&
-                      matrix.elements() == output.shape()[0] && matrix.contiguous(),
+                      matrix.elements() == output.shape()[0] && matrix.are_contiguous(),
                       "The number of matrices, specified as a contiguous vector, should be equal "
                       "to the number of batches in the output, got {} matrices and {} output batches",
                       matrix.elements(), output.shape()[0]);
@@ -174,7 +174,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform_2d(
-                        texture.array.get(), texture.texture.get(),
+                        texture.array.get(), *texture.texture,
                         input.shape(), input.interp_mode(), input.border_mode(),
                         output.get(), output.strides(), output.shape(),
                         details::extract_matrix(inv_matrices), cuda_stream);
@@ -278,7 +278,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform_3d(
-                        texture.array.get(), texture.texture.get(),
+                        texture.array.get(), *texture.texture,
                         input.shape(), input.interp_mode(), input.border_mode(),
                         output.get(), output.strides(), output.shape(),
                         details::extract_matrix(inv_matrices), cuda_stream);
@@ -389,7 +389,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform_and_symmetrize_2d(
-                        texture.array.get(), texture.texture.get(),
+                        texture.array.get(), *texture.texture,
                         input.interp_mode(), input.shape(),
                         output.get(), output.strides(), output.shape(),
                         shift, inv_matrix, symmetry, center,
@@ -497,7 +497,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::transform_and_symmetrize_3d(
-                        texture.array.get(), texture.texture.get(),
+                        texture.array.get(), *texture.texture,
                         input.interp_mode(), input.shape(),
                         output.get(), output.strides(), output.shape(),
                         shift, inv_matrix, symmetry, center,
@@ -588,7 +588,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::symmetrize_2d(
-                        texture.array.get(), texture.texture.get(),
+                        texture.array.get(), *texture.texture,
                         input.interp_mode(), input.shape(),
                         output.get(), output.strides(), output.shape(),
                         symmetry, center, normalize, cuda_stream);
@@ -678,7 +678,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = input.cuda();
                 cuda::geometry::symmetrize_3d(
-                        texture.array.get(), texture.texture.get(),
+                        texture.array.get(), *texture.texture,
                         input.interp_mode(), input.shape(),
                         output.get(), output.strides(), output.shape(),
                         symmetry, center, normalize, cuda_stream);

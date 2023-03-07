@@ -109,7 +109,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = cartesian.cuda();
                 cuda::geometry::cartesian2polar(
-                        texture.array.get(), texture.texture.get(), cartesian.interp_mode(), cartesian.shape(),
+                        texture.array.get(), *texture.texture, cartesian.interp_mode(), cartesian.shape(),
                         polar.get(), polar.strides(), polar.shape(),
                         cartesian_center, radius_range, angle_range,
                         log, cuda_stream);
@@ -197,7 +197,7 @@ namespace noa::geometry {
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Value>& texture = polar.cuda();
                 cuda::geometry::polar2cartesian(
-                        texture.array.get(), texture.texture.get(), polar.interp_mode(), polar.shape(),
+                        texture.array.get(), *texture.texture, polar.interp_mode(), polar.shape(),
                         cartesian.get(), cartesian.strides(), cartesian.shape(),
                         cartesian_center, radius_range, angle_range,
                         log, cuda_stream);
