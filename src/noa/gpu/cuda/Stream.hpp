@@ -54,7 +54,7 @@ namespace noa::cuda::details {
                 clear_();
 
                 const auto key = static_cast<i32>(m_registry.size());
-                ([&key, this](auto&& input) { this->pushBack_(key, input); }(std::forward<Args>(args)), ...);
+                ([&key, this](auto&& input) { this->push_back_(key, input); }(std::forward<Args>(args)), ...);
                 return true;
             } else {
                 return false;
@@ -128,13 +128,13 @@ namespace noa::cuda::details {
         }
 
         template<typename T>
-        void pushBack_(i32 key, const std::shared_ptr<T>& ptr) {
+        void push_back_(i32 key, const std::shared_ptr<T>& ptr) {
             // TODO When moving to C++20, use std::forward to remove extra copy if original shared_ptr is a rvalue.
             m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
         }
 
         template<typename T>
-        void pushBack_(i32, T&&) { /* there is nothing to do */ }
+        void push_back_(i32, T&&) { /* there is nothing to do */ }
     };
 }
 

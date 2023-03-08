@@ -32,7 +32,7 @@ namespace noa::cpu::geometry {
              typename = std::enable_if_t<details::is_valid_shape_v<2, Value, Matrix, Functor, CValue>>>
     void ellipse(const Value* input, const Strides4<i64>& input_strides,
                  Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                 const Vec2<f32>& center, const Vec2<f32>& radius, float edge_size,
+                 const Vec2<f32>& center, const Vec2<f32>& radius, f32 edge_size,
                  const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
         cpu::geometry::fft::ellipse<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
@@ -44,7 +44,7 @@ namespace noa::cpu::geometry {
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
     void sphere(const Value* input, const Strides4<i64>& input_strides,
                 Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                const Vec3<f32>& center, float radius, float edge_size,
+                const Vec3<f32>& center, f32 radius, f32 edge_size,
                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
         cpu::geometry::fft::sphere<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
@@ -56,7 +56,7 @@ namespace noa::cpu::geometry {
              typename = std::enable_if_t<details::is_valid_shape_v<2, Value, Matrix, Functor, CValue>>>
     void sphere(const Value* input, const Strides4<i64>& input_strides,
                 Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                const Vec2<f32>& center, float radius, float edge_size,
+                const Vec2<f32>& center, f32 radius, f32 edge_size,
                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
         cpu::geometry::fft::sphere<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
@@ -68,7 +68,7 @@ namespace noa::cpu::geometry {
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
     void rectangle(const Value* input, const Strides4<i64>& input_strides,
                    Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                   const Vec3<f32>& center, const Vec3<f32>& radius, float edge_size,
+                   const Vec3<f32>& center, const Vec3<f32>& radius, f32 edge_size,
                    const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
         cpu::geometry::fft::rectangle<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
@@ -80,7 +80,7 @@ namespace noa::cpu::geometry {
              typename = std::enable_if_t<details::is_valid_shape_v<2, Value, Matrix, Functor, CValue>>>
     void rectangle(const Value* input, const Strides4<i64>& input_strides,
                    Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                   const Vec2<f32>& center, const Vec2<f32>& radius, float edge_size,
+                   const Vec2<f32>& center, const Vec2<f32>& radius, f32 edge_size,
                    const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
         cpu::geometry::fft::rectangle<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
@@ -92,7 +92,7 @@ namespace noa::cpu::geometry {
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
     void cylinder(const Value* input, const Strides4<i64>& input_strides,
                   Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                  const Vec3<f32>& center, float radius, float length, float edge_size,
+                  const Vec3<f32>& center, f32 radius, f32 length, f32 edge_size,
                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
         cpu::geometry::fft::cylinder<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
