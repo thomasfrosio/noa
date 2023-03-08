@@ -25,9 +25,7 @@ set(NOA_UNIFIED_HEADERS
         unified/fft/Resize.h
         unified/fft/Transform.h
 
-#        # noa::signal
-#        unified/signal/Convolve.h
-#        unified/signal/Convolve.inl
+        # noa::signal
 #        unified/signal/fft/Bandpass.h
 #        unified/signal/fft/Bandpass.inl
 #        unified/signal/fft/Correlate.h
@@ -38,10 +36,8 @@ set(NOA_UNIFIED_HEADERS
 #        unified/signal/fft/Shift.inl
 #        unified/signal/fft/Standardize.h
 #        unified/signal/fft/Standardize.inl
-#        unified/signal/Median.h
-#        unified/signal/Median.inl
-#        unified/signal/Shape.h
-#        unified/signal/Shape.inl
+        unified/signal/Convolve.h
+        unified/signal/Median.h
 
         # noa::geometry
         unified/geometry/fft/Polar.h
@@ -50,6 +46,7 @@ set(NOA_UNIFIED_HEADERS
         unified/geometry/Polar.h
         unified/geometry/Prefilter.h
         unified/geometry/Transform.h
+        unified/geometry/Shape.h
 
         # noa::memory
         unified/memory/Cast.hpp
