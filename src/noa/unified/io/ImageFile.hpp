@@ -17,13 +17,11 @@ namespace noa::io {
     /// \details
     /// - \b Format: ImageFile is an unified interface to manipulate image file formats. Only MRC and TIFF files are
     ///   currently supported. TIFF files only support (stack of) 2D image(s).\n
-    /// - \b Batches: The library, including this class, uses the batch-depth-height-width (BDHW) order.
-    ///   As such, a stack of 2D images is {batch, 1, height, width} and a 3D volume is {1, depth, height, width}.\n
-    /// - \b Ordering: Data is always writen into the file in the BDHW rightmost order (i.e. row-major). For reading
-    ///   operations, it is either 1) a contiguous array is provided, we assume BDHW rightmost order and we might have
-    ///   to reorder the data before returning it if the data in the file is not stored in BDHW rightmost order, or
-    ///   2) a View (which contains strides) is provided and we will return the data in the same order as it is saved
-    ///   in the file because the order is saved in the strides.\n
+    /// - \b Shape: The library, including this class, uses the batch-depth-height-width (BDHW) order.
+    ///   As such, a stack of 2D images is \c {batch,1,height,width} and a 3D volume is \c {1,depth,height,width}.\n
+    /// - \b Ordering: Data is always writen into the file in the BDHW rightmost order (i.e. row-major), which
+    ///   may involve a reordering of the input array. For reading operations, the order in the file is preserved
+    ///   and encoded in the strides of the output array.\n
     class ImageFile {
     public:
         /// Creates an empty instance. Use open(), otherwise all other function calls will be ignored.
@@ -53,11 +51,11 @@ namespace noa::io {
     public:
         /// (Re)Opens the file.
         /// \param filename     Path of the file to open.
-        /// \param mode         Open mode. Should be one of the following combination:
+        /// \param mode         Open mode bitflag. Should be one of the following combination:
         ///                     1) READ:                File should exists.
-        ///                     2) READ|WRITE:          File should exists.     Backup copy.
-        ///                     3) WRITE or WRITE|TRUNC Overwrite the file.     Backup move.
-        ///                     4) READ|WRITE|TRUNC:    Overwrite the file.     Backup move.
+        ///                     2) READ|WRITE:          File should exists. Backup copy.
+        ///                     3) WRITE or WRITE|TRUNC Overwrite the file. Backup move.
+        ///                     4) READ|WRITE|TRUNC:    Overwrite the file. Backup move.
         ///
         /// \throws Exception   In any of the following cases:
         ///         - If the file does not exist and \p mode is io::READ or io::READ|io::WRITE.
@@ -84,7 +82,7 @@ namespace noa::io {
         }
 
         /// Closes the file. In writing mode and for some file format,
-        /// there can be a write operation to save the buffered data.
+        /// this can trigger a write operation to save the buffered data.
         void close() {
             close_();
         }
@@ -102,11 +100,17 @@ namespace noa::io {
         [[nodiscard]] bool is_png() const noexcept { return m_header_format == Format::PNG; }
 
         /// Gets the path.
-        [[nodiscard]] Path filename() const noexcept { return m_header ? m_header->filename() : ""; }
+        [[nodiscard]] const Path& filename() const noexcept {
+            NOA_CHECK(is_open(), "The file should be opened");
+            NOA_ASSERT(m_header);
+            return m_header->filename();
+        }
 
         /// Returns a (brief) description of the file data.
         [[nodiscard]] std::string info(bool brief) const noexcept {
-            return m_header ? m_header->info_string(brief) : "";
+            NOA_CHECK(is_open(), "The file should be opened");
+            NOA_ASSERT(m_header);
+            return m_header->info_string(brief);
         }
 
         /// Gets the shape of the data.
@@ -162,8 +166,7 @@ namespace noa::io {
 
     public: // Read
         /// Loads the entire file in \p output.
-        /// \tparam T           Any numeric type (integer, floating-point, complex).
-        /// \param[out] output  Output array where the deserialized values are saved.
+        /// \param[out] output  Array or View, of any numeric type, where the deserialized values are saved.
         ///                     Should match the shape of the file.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
@@ -205,7 +208,7 @@ namespace noa::io {
         /// Loads some 2D slices from the file.
         /// The file should describe a (stack of) 2D images(s), or a single volume.
         /// \tparam T           Any data type (integer, floating-point, complex).
-        /// \param[out] output  View of the output BDHW array where the deserialized slice(s) are saved.
+        /// \param[out] output  Array or View, of any numeric type, where the deserialized slice(s) are saved.
         ///                     Should describe a (stack of) 2D images(s), i.e. the depth should be 1.
         /// \param start        Index of the slice, in the file, where the deserialization starts.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
@@ -231,12 +234,11 @@ namespace noa::io {
 
     public: // Write
         /// Saves \p input into the file.
-        /// \details If the shape of the file is set, \p input should have the same shape.
-        ///          Otherwise, the shape of the file is set to the shape of \p input.
-        /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
-        ///                     If the data type of the file is set, \p T should be compatible with it.
-        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
-        /// \param[in] input    Input array to serialize.
+        /// \details Writes to the file. If the shape of the file is set, \p input should have the same shape.
+        ///          Otherwise, the shape of the file is set to the shape of \p input. If the data type of the
+        ///          file is set, it should be compatible with the value type of \p input. Otherwise, the value
+        ///          type of \p input (or the closest supported type) is set as the data type of the file.
+        /// \param[in] input    Array or View, of any numeric type, to serialize.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
         template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_of_numeric_v<Input>>>
@@ -254,11 +256,12 @@ namespace noa::io {
         }
 
         /// Saves some 2D slices into the file.
-        /// The file should describe a (stack of) 2D slice(s), or a single volume.
-        /// \tparam T           Any data type (integer, floating-point, complex). See traits::is_data.
-        ///                     If the data type of the file is set, \p T should be compatible with it.
-        ///                     Otherwise, \p T is set as the data type of the file (or the closest supported type).
-        /// \param[in] input    Input array to serialize. Should correspond to the file shape.
+        /// \details Writes to the file, which should describe a (stack of) 2D slice(s), or a single volume.
+        ///          If the shape of the file is set, \p input should have the same shape.
+        ///          Otherwise, the shape of the file is set to the shape of \p input. If the data type of the
+        ///          file is set, it should be compatible with the value type of \p input. Otherwise, the value
+        ///          type of \p input (or the closest supported type) is set as the data type of the file.
+        /// \param[in] input    Array or View, of any numeric type, to serialize.
         ///                     Should describe a (stack of) 2D images(s), i.e. the depth should be 1.
         /// \param start        Index of the slice, in the file, where the serialization starts.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
