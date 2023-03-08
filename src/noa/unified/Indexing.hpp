@@ -39,4 +39,16 @@ namespace noa::indexing {
                   array.strides());
         return offset2index(offset, array.strides(), array.shape());
     }
+
+    /// Whether the input is a contiguous vector.
+    template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_v<Input>>>
+    [[nodiscard]] constexpr bool is_contiguous_vector(const Input& input) {
+        return is_vector(input.shape()) && input.are_contiguous();
+    }
+
+    /// Whether the input is a contiguous (batched) vector.
+    template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_v<Input>>>
+    [[nodiscard]] constexpr bool is_contiguous_vector_batched(const Input& input) {
+        return is_vector(input.shape(), true) && input.are_contiguous();
+    }
 }

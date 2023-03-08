@@ -56,21 +56,19 @@ namespace noa::geometry::fft::details {
                        "but got input:{} and output:{}", input.device(), device);
 
         if constexpr (!traits::is_matXX_v<Matrix>) {
-            NOA_CHECK(noa::indexing::is_vector(inv_matrices.shape()) &&
-                      inv_matrices.elements() == output.shape()[0] && inv_matrices.are_contiguous(),
-                      "The number of matrices, specified as a contiguous vector, should be equal "
-                      "to the number of batches in the output, got {} matrices and {} output batches",
-                      inv_matrices.elements(), output.shape()[0]);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrices) && inv_matrices.elements() == output.shape()[0],
+                      "The number of matrices, specified as a contiguous vector, should be equal to the number of "
+                      "batches in the output, but got matrix shape:{}, strides:{} and {} output batches",
+                      inv_matrices.shape(), inv_matrices.strides(), output.shape()[0]);
             NOA_CHECK(device == inv_matrices.device(),
                       "The input matrices and output arrays must be on the same device, "
                       "but got matrix:{} and output:{}", inv_matrices.device(), device);
         }
         if constexpr (!traits::is_realX_v<Shift>) {
-            NOA_CHECK(noa::indexing::is_vector(post_shifts.shape()) &&
-                      post_shifts.elements() == output.shape()[0] && post_shifts.are_contiguous(),
-                      "The number of shifts, specified as a contiguous vector, should be equal "
-                      "to the number of batches in the output, got {} shifts and {} output batches",
-                      post_shifts.elements(), output.shape()[0]);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(post_shifts) &&  post_shifts.elements() == output.shape()[0],
+                      "The number of shifts, specified as a contiguous vector, should be equal to the number of "
+                      "batches in the output, but got shift shape:{}, strides:{} and {} output batches",
+                      post_shifts.shape(), post_shifts.strides(), output.shape()[0]);
             NOA_CHECK(device == post_shifts.device(),
                       "The input shifts and output arrays must be on the same device, "
                       "but got shift:{} and output:{}", post_shifts.device(), device);

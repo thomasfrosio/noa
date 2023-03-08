@@ -53,12 +53,10 @@ namespace noa::geometry::fft::details {
             NOA_CHECK(!matrix.is_empty(), "The matrices should not be empty");
         }
 
-        NOA_CHECK(noa::indexing::is_vector(matrix.shape()) &&
-                  matrix.elements() == required_size &&
-                  matrix.is_contiguous(),
-                  "The number of matrices, specified as a contiguous vector, "
-                  "should be equal to the number of slices, but got {} matrices and {} slices",
-                  matrix.elements(), required_size);
+        NOA_CHECK(noa::indexing::is_contiguous_vector(matrix) && matrix.elements() == required_size,
+                  "The number of matrices, specified as a contiguous vector, should be equal to the number of slices, "
+                  "but got matrix shape:{}, strides:{} and {} slices",
+                  matrix.shape(), matrix.strides, required_size);
 
         NOA_CHECK(matrix.device() == compute_device,
                   "The transformation parameters should be on the compute device");
