@@ -102,7 +102,7 @@ namespace noa::memory {
     /// Returns an uninitialized contiguous array with the same shape and options as \p array.
     template<typename Input>
     [[nodiscard]] auto like(const Input& array) {
-        using value_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
+        using value_t = noa::traits::mutable_value_type_t<Input>;
         return Array<value_t>(array.shape(), array.options());
     }
 }

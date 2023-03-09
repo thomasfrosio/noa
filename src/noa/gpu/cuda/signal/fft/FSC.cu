@@ -39,7 +39,7 @@ namespace noa::cuda::signal::fft {
                          const Shape4<i64>& shape,
                          const Vec3<f32>* normalized_cone_directions,
                          i64 cone_count, f32 cone_aperture,
-                        cuda::Stream& stream) {
+                         cuda::Stream& stream) {
 
         const auto s_shape = shape.as_safe<i32>();
         const auto s_shape_3d = s_shape.pop_front();

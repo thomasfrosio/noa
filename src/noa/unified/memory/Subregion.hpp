@@ -32,8 +32,7 @@ namespace noa::memory {
         NOA_CHECK(!input.is_empty() && !subregions.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, subregions),
                   "The input and subregion(s) arrays should not overlap");
-        NOA_CHECK(noa::indexing::is_vector(origins.shape()) && origins.contiguous() &&
-                  origins.elements() == subregions.shape()[0],
+        NOA_CHECK(noa::indexing::is_contiguous_vector(origins) && origins.elements() == subregions.shape()[0],
                   "The indexes should be a contiguous vector of {} elements but got shape {} and strides {}",
                   subregions.shape()[0], origins.shape(), origins.strides());
 
@@ -85,8 +84,7 @@ namespace noa::memory {
         NOA_CHECK(!output.is_empty() && !subregions.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(output, subregions),
                   "The subregion(s) and output arrays should not overlap");
-        NOA_CHECK(noa::indexing::is_vector(origins.shape()) && origins.contiguous() &&
-                  origins.elements() == subregions.shape()[0],
+        NOA_CHECK(noa::indexing::is_contiguous_vector(origins) && origins.elements() == subregions.shape()[0],
                   "The indexes should be a contiguous vector of {} elements but got shape {} and strides {}",
                   subregions.shape()[0], origins.shape(), origins.strides());
 

@@ -83,7 +83,7 @@ namespace noa::memory {
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
     template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_of_numeric_v<Input>>>
     auto permute_copy(const Input& input, const Vec4<i64>& permutation) {
-        using mutable_value_type = std::remove_const_t<noa::traits::value_type_t<Input>>;
+        using mutable_value_type = noa::traits::mutable_value_type_t<Input>;
         const auto permuted_shape = noa::indexing::reorder(input.shape(), permutation);
         auto output = Array<mutable_value_type>(permuted_shape, input.options());
         permute_copy(input, output, permutation);

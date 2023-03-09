@@ -95,12 +95,12 @@ namespace noa::math {
                   "The matrix x should have the same layout as the matrix a");
 
         // Check svd:
-        if (!svd.empty()) {
+        if (!svd.is_empty()) {
             const i64 mn_min = std::min(m_samples, n_variables);
             NOA_CHECK(a.shape()[0] == svd.shape()[0],
                       "The number of batches does not match, got {} batches in A and {} batches in SVD",
                       a.shape()[0], svd.shape()[0]);
-            NOA_CHECK(noa::indexing::is_vector(svd.shape(), true) && svd.contiguous(),
+            NOA_CHECK(noa::indexing::is_contiguous_vector_batched(svd),
                       "The output singular values should be a contiguous (batched) vector, "
                       "but got shape:{} and stride:{}", svd.shape(), svd.strides());
             NOA_CHECK(svd.shape().pop_front().elements() == mn_min,

@@ -24,7 +24,7 @@ namespace noa::math {
     template<typename Lhs, typename Rhs, typename = std::enable_if_t<
              noa::traits::are_array_or_view_v<Lhs, Rhs> &&
              noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
-             details::is_valid_dot_t<std::remove_const_t<noa::traits::value_type_t<Lhs>>>>>
+             details::is_valid_dot_t<noa::traits::mutable_value_type_t<Lhs>>>>
     [[nodiscard]] auto dot(const Lhs& lhs, const Rhs& rhs) {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty(), "Empty array detected");
         NOA_CHECK(!lhs.shape().is_batched() && lhs.shape().ndim() <= 2 &&

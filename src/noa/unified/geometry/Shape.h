@@ -7,7 +7,7 @@
 
 #include "noa/unified/Array.hpp"
 
-namespace noa::signal::details {
+namespace noa::geometry::details {
     using namespace ::noa::fft;
     template<i32 NDIM, typename Value, typename Matrix, typename Functor, typename CValue>
     constexpr bool is_valid_shape_v =
@@ -28,7 +28,7 @@ namespace noa::signal::details {
     }
 }
 
-namespace noa::signal {
+namespace noa::geometry {
     /// Returns or applies an elliptical mask.
     /// \tparam Matrix      2D case: Float22, Float23, or Float33.
     ///                     3D case: Float33, Float34, or Float44.
@@ -57,7 +57,7 @@ namespace noa::signal {
                  Matrix inv_matrix = {}, Functor functor = {},
                  CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(N == 3 || output.shape().depth() == 1,
+        NOA_CHECK(output.shape().ndim() <= N,
                   "3D arrays are not supported with 2D ellipses. Use 3D ellipses to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
 
@@ -127,7 +127,7 @@ namespace noa::signal {
                 Matrix inv_matrix = {}, Functor functor = {},
                 CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(N == 3 || output.shape().depth() == 1,
+        NOA_CHECK(output.shape().ndim() <= N,
                   "3D arrays are not supported with 2D spheres. Use 3D spheres to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
 
@@ -197,7 +197,7 @@ namespace noa::signal {
                    Matrix inv_matrix = {}, Functor functor = {},
                    CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(N == 3 || output.shape().depth() == 1,
+        NOA_CHECK(output.shape().ndim() <= N,
                   "3D arrays are not supported with 2D rectangles. Use 3D rectangles to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
 

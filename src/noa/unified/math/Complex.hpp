@@ -241,7 +241,7 @@ namespace noa::math {
              noa::traits::are_array_or_view_of_real_v<Real, Imag> &&
              noa::traits::are_almost_same_value_type_v<Real, Imag>>>
     [[nodiscard]] auto complex(const Real& real, const Imag& imag) {
-        using real_t = std::remove_const_t<noa::traits::value_type_t<Real>>;
+        using real_t = noa::traits::mutable_value_type_t<Real>;
         using complex_t = Complex<real_t>;
         Array<complex_t> output(real.shape(), real.options());
         complex(real, imag, output);

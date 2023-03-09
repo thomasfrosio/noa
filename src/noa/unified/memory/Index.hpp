@@ -58,8 +58,8 @@ namespace noa::memory {
             output.offsets = Array<Offset>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using input_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
-            using lhs_t = std::remove_const_t<noa::traits::value_type_t<Lhs>>;
+            using input_t = noa::traits::mutable_value_type_t<Input>;
+            using lhs_t = noa::traits::mutable_value_type_t<Lhs>;
             if constexpr (cuda::memory::details::is_valid_extract_unary_v<input_t, lhs_t, UnaryOp, Value, Offset>) {
                 auto& cuda_stream = stream.cuda();
                 auto extracted = cuda::memory::extract_unary<Value, Offset>(
@@ -128,9 +128,9 @@ namespace noa::memory {
             output.offsets = Array<Offset>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using input_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
-            using lhs_t = std::remove_const_t<noa::traits::value_type_t<Lhs>>;
-            using rhs_t = std::remove_const_t<noa::traits::value_type_t<Rhs>>;
+            using input_t = noa::traits::mutable_value_type_t<Input>;
+            using lhs_t = noa::traits::mutable_value_type_t<Lhs>;
+            using rhs_t = noa::traits::mutable_value_type_t<Rhs>;
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<
                     input_t, lhs_t, rhs_t, BinaryOp, Value, Offset>) {
                 auto& cuda_stream = stream.cuda();
@@ -184,9 +184,9 @@ namespace noa::memory {
             output.offsets = Array<Offset>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using input_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
-            using lhs_t = std::remove_const_t<noa::traits::value_type_t<Lhs>>;
-            using rhs_t = std::remove_const_t<noa::traits::value_type_t<Rhs>>;
+            using input_t = noa::traits::mutable_value_type_t<Input>;
+            using lhs_t = noa::traits::mutable_value_type_t<Lhs>;
+            using rhs_t = noa::traits::mutable_value_type_t<Rhs>;
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<
                     input_t, lhs_t, rhs_t, BinaryOp, Value, Offset>) {
                 auto& cuda_stream = stream.cuda();
@@ -240,9 +240,9 @@ namespace noa::memory {
             output.offsets = Array<Offset>(extracted.offsets, extracted.count);
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using input_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
-            using lhs_t = std::remove_const_t<noa::traits::value_type_t<Lhs>>;
-            using rhs_t = std::remove_const_t<noa::traits::value_type_t<Rhs>>;
+            using input_t = noa::traits::mutable_value_type_t<Input>;
+            using lhs_t = noa::traits::mutable_value_type_t<Lhs>;
+            using rhs_t = noa::traits::mutable_value_type_t<Rhs>;
             if constexpr (cuda::memory::details::is_valid_extract_binary_v<
                     input_t, lhs_t, rhs_t, BinaryOp, Value, Offset>) {
                 auto& cuda_stream = stream.cuda();
@@ -277,8 +277,8 @@ namespace noa::memory {
              noa::traits::are_array_or_view_of_restricted_numeric_v<Value, Offset, Output>>>
     void insert_elements(const Value& values, const Offset& offsets, const Output& output) {
         NOA_CHECK(noa::all(values.shape() == offsets.shape()) &&
-                  noa::indexing::is_vector(offsets.shape()) &&
-                  values.contiguous() && offsets.contiguous(),
+                  noa::indexing::is_contiguous_vector(offsets) &&
+                  values.are_contiguous(),
                   "The sequence of values and offsets should be two contiguous vectors of the same size, "
                   "but got values:{} and offsets:{}", values.shape(), offsets.shape());
 
@@ -298,7 +298,7 @@ namespace noa::memory {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using output_t = std::remove_const_t<noa::traits::value_type_t<Output>>;
+            using output_t = noa::traits::mutable_value_type_t<Output>;
             if constexpr (cuda::memory::details::is_valid_insert_v<Value, Offset, output_t>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::insert_elements(

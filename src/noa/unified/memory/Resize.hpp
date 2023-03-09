@@ -91,7 +91,7 @@ namespace noa::memory {
         NOA_CHECK(noa::all(output_shape > 0),
                   "Cannot resize [left:{}, right:{}] an array of shape {} into an array of shape {}",
                   border_left, border_right, input.shape(), output_shape);
-        using value_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
+        using value_t = noa::traits::mutable_value_type_t<Input>;
         Array<value_t> output(output_shape, input.options());
         resize(input, output, border_left, border_right, border_mode, border_value);
         return output;
@@ -125,7 +125,7 @@ namespace noa::memory {
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value>>>
     [[nodiscard]] auto resize(const Input& input, const Shape4<i64>& output_shape,
                               BorderMode border_mode = BorderMode::ZERO, Value border_value = Value{0}) {
-        using value_t = std::remove_const_t<noa::traits::value_type_t<Input>>;
+        using value_t = noa::traits::mutable_value_type_t<Input>;
         Array<value_t> output(output_shape, input.options());
         resize(input, output, border_mode, border_value);
         return output;

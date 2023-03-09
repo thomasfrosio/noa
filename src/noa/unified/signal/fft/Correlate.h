@@ -1,26 +1,68 @@
 #pragma once
 
-#include "noa/unified/Array.h"
+#include "noa/cpu/signal/fft/Correlate.hpp"
+#ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/signal/fft/Correlate.hpp"
+#endif
+
+#include "noa/unified/Array.hpp"
 #include "noa/unified/fft/Transform.h"
 
 namespace noa::signal::fft::details {
     using Remap = ::noa::fft::Remap;
 
-    template<Remap REMAP, typename Real>
-    constexpr bool is_valid_xmap_v =
-            traits::is_any_v<Real, float, double> &&
-            (REMAP == Remap::H2F || REMAP == Remap::H2FC);
-
-    template<Remap REMAP, typename Real>
+    template<Remap REMAP, size_t N>
     constexpr bool is_valid_xpeak_v =
-            traits::is_any_v<Real, float, double> &&
-            (REMAP == Remap::F2F || REMAP == Remap::FC2FC);
+            (REMAP == Remap::F2F || REMAP == Remap::FC2FC) &&
+            (N == 1 || N == 2 || N == 3);
 
-    template<Remap REMAP, typename Real>
-    constexpr bool is_valid_xcorr_v =
-            traits::is_any_v<Real, float, double> &&
+    template<Remap REMAP>
+    constexpr bool is_valid_xcorr_remap_v =
             (REMAP == Remap::H2H || REMAP == Remap::HC2HC ||
              REMAP == Remap::F2F || REMAP == Remap::FC2FC);
+
+    template<size_t NDIM, typename Input, typename PeakCoord = Empty, typename PeakValue = Empty>
+    void check_xpeak_parameters(const Input& xmap, const Vec<i64, NDIM>& peak_radius, PeakMode peak_mode,
+                                const PeakCoord& peak_coordinates = {},
+                                const PeakValue& peak_values = {}) {
+        NOA_CHECK(!xmap.is_empty(), "Empty array detected");
+        NOA_CHECK(noa::all(xmap.strides() > 0), "The cross-correlation map should not be broadcast");
+        NOA_CHECK(xmap.shape().ndim() == NDIM,
+                  "The cross-correlation map(s) shape doesn't match the ndim. Got shape {} and expected ndim is {}",
+                  xmap.shape(), NDIM);
+
+        if constexpr (noa::traits::is_array_or_view_v<PeakCoord>) {
+            if (!peak_coordinates.is_empty()) {
+                NOA_CHECK(noa::indexing::is_contiguous_vector(peak_coordinates) &&
+                          peak_coordinates.elements() == xmap.shape()[0],
+                          "The number of peak coordinates, specified as a contiguous vector, should be equal to "
+                          "the number of batches in the cross-correlation map. Got {} peak coordinates and {} output "
+                          "batches", peak_coordinates.elements(), xmap.shape()[0]);
+                NOA_CHECK(xmap.device() == peak_coordinates.device(),
+                          "The cross-correlation map and output peak coordinates must be on the same device, "
+                          "but got xmap:{} and peak_coordinates:{}", xmap.device(), peak_coordinates.device());
+            }
+        }
+
+        if constexpr (noa::traits::is_array_or_view_v<PeakValue>) {
+            if (!peak_values.is_empty()) {
+                NOA_CHECK(noa::indexing::is_contiguous_vector(peak_values) &&
+                          peak_values.elements() == xmap.shape()[0],
+                          "The number of peak values, specified as a contiguous vector, should be equal to "
+                          "the number of batches in the cross-correlation map. Got {} peak values and {} output "
+                          "batches", peak_values.elements(), xmap.shape()[0]);
+                NOA_CHECK(xmap.device() == peak_values.device(),
+                          "The cross-correlation map and output peak values must be on the same device, "
+                          "but got xmap:{} and peak_values:{}", xmap.device(), peak_values.device());
+            }
+        }
+
+        constexpr i64 CUDA_COM_LIMIT = NDIM == 1 ? 64 : NDIM == 2 ? 8 : 2;
+        const i64 peak_radius_limit = xmap.device().gpu() && peak_mode == PeakMode::COM ? CUDA_COM_LIMIT : 64;
+        NOA_CHECK(noa::all(peak_radius > 0 && peak_radius <= peak_radius_limit),
+                  "The registration radius should be a small positive value (less than {}), but got {}",
+                  peak_radius_limit, peak_radius);
+    }
 }
 
 namespace noa::signal::fft {
@@ -41,141 +83,322 @@ namespace noa::signal::fft {
     ///                         This should match the mode that was used to compute the input transforms.
     /// \param[out] buffer      Buffer that can fit \p shape.fft() complex elements. It is overwritten.
     ///                         Can be \p lhs or \p rhs. If empty, use \p rhs instead.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xmap_v<REMAP, Real>>>
-    void xmap(const Array<Complex<Real>>& lhs, const Array<Complex<Real>>& rhs, const Array<Real>& output,
-              CorrelationMode correlation_mode = CONVENTIONAL_CORRELATION,
+    template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
+             typename Buffer = View<noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
+                    noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
+                    noa::traits::is_array_or_view_of_any_v<Rhs, c32, c64> &&
+                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
+                    noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Buffer> &&
+                    noa::traits::are_same_value_type_v<noa::traits::value_type_t<Rhs>, Output> &&
+                    (REMAP == Remap::H2F || REMAP == Remap::H2FC)>>
+    void xmap(const Lhs& lhs, const Rhs& rhs, const Output& output,
+              CorrelationMode correlation_mode = CorrelationMode::CONVENTIONAL,
               Norm fft_norm = noa::fft::NORM_DEFAULT,
-              const Array<Complex<Real>>& buffer = {});
+              const Buffer& buffer = {}) {
+        NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
+
+        const auto expected_shape = output.shape().fft();
+        auto lhs_strides = lhs.strides();
+        if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      lhs.shape(), expected_shape);
+        }
+        auto rhs_strides = rhs.strides();
+        if (!noa::indexing::broadcast(rhs.shape(), rhs_strides, expected_shape)) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      rhs.shape(), expected_shape);
+        }
+
+        const Device device = output.device();
+        NOA_CHECK(device == lhs.device() && device == rhs.device(),
+                  "The lhs, rhs and output arrays must be on the same device, but got lhs:{}, rhs:{} and output:{}",
+                  lhs.device(), rhs.device(), device);
+
+        if (buffer.is_empty()) {
+            NOA_CHECK(noa::all(rhs_strides >= 0),
+                      "Since no temporary buffer is passed, the rhs input will be overwritten and "
+                      "should not have any strides equal to 0, but got {}", rhs_strides);
+        } else {
+            NOA_CHECK(device == buffer.device(),
+                      "The temporary and output arrays must be on the same device, buffer:{} and output:{}",
+                      buffer.device(), device);
+            NOA_CHECK(noa::all(buffer.shape() >= expected_shape) && noa::all(buffer.strides() >= 0),
+                      "The temporary buffer should be able to fit an array of shape {}, but got effective shape of {}",
+                      expected_shape, noa::indexing::effective_shape(buffer.shape(), buffer.strides()));
+        }
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::signal::fft::xmap<REMAP>(
+                        lhs.get(), lhs_strides, rhs.get(), rhs_strides,
+                        output.get(), output.strides(), output.shape(),
+                        correlation_mode, fft_norm,
+                        buffer.get(), buffer.strides(), threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::signal::fft::xmap<REMAP>(
+                    lhs.get(), lhs_strides, rhs.get(), rhs_strides,
+                    output.get(), output.strides(), output.shape(),
+                    correlation_mode, fft_norm,
+                    buffer.get(), buffer.strides(), cuda_stream);
+            cuda_stream.enqueue_attach(lhs.share(), rhs.share(), output.share(), buffer.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Find the highest peak in a cross-correlation line.
     /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                    float or double.
-    /// \param[in] xmap                 1D cross-correlation map. Should be a column or row vector.
+    /// \param[in,out] xmap             1d, 2d or 3d cross-correlation map.
     ///                                 It can be overwritten depending on \p xmap_radius.
-    /// \param[out] peak_coordinates    Output coordinate of the highest peak. One per batch or empty.
+    /// \param[out] peak_coordinates    Output ((D)H)W coordinate of the highest peak. One per batch or empty.
     /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
-    /// \param xmap_radius              Radius of the smooth mask to apply (in-place) on \p xmap.
+    /// \param xmap_radius              ((D)H)W radius of the smooth elliptic mask to apply (in-place) to \p xmap.
     ///                                 This is used to restrict the peak position relative to the center of \p xmap.
     ///                                 If negative or 0, it is ignored.
     /// \param peak_mode                Registration mode to use for subpixel accuracy.
-    /// \param peak_radius              Radius of the registration window, centered on the peak.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak1D(const Array<Real>& xmap,
-                 const Array<float>& peak_coordinates,
-                 const Array<Real>& peak_values = {},
-                 float xmap_radius = 0,
-                 PeakMode peak_mode = PEAK_PARABOLA_1D,
-                 int64_t peak_radius = 1);
+    /// \param peak_radius              ((D)H)W radius of the registration window, centered on the peak.
+    /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
+    template<Remap REMAP, typename Input, size_t N,
+             typename PeakCoord = View<Vec<f32, N>>,
+             typename PeakValue = View<noa::traits::mutable_value_type_t<Input>>,
+             typename = std::enable_if_t<
+                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64> &&
+                     noa::traits::is_array_or_view_of_any_v<PeakCoord, Vec<f32, N>> &&
+                     noa::traits::is_array_or_view_of_any_v<PeakValue, f32, f64> &&
+                     noa::traits::are_almost_same_value_type_v<Input, PeakValue> &&
+                     details::is_valid_xpeak_v<REMAP, N>>>
+    void xpeak(const Input& xmap,
+               const PeakCoord& peak_coordinates,
+               const PeakValue& peak_values = {},
+               const Vec<f32, N>& xmap_radius = Vec<f32, N>{1},
+               PeakMode peak_mode = PeakMode::PARABOLA_1D,
+               const Vec<i64, N>& peak_radius = Vec<i64, N>{1}) {
+        details::check_xpeak_parameters(xmap, xmap_radius, peak_mode, peak_coordinates, peak_values);
 
-    /// Returns the coordinate and value of the highest peak in a cross-correlation map.
+        const Device& device = xmap.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                if constexpr (N == 1) {
+                    cpu::signal::fft::xpeak_1d<REMAP>(
+                            xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                            peak_coordinates.get(), peak_values.get(),
+                            peak_mode, peak_radius, threads);
+                } else if constexpr (N == 2) {
+                    cpu::signal::fft::xpeak_2d<REMAP>(
+                            xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                            peak_coordinates.get(), peak_values.get(),
+                            peak_mode, peak_radius, threads);
+                } else {
+                    cpu::signal::fft::xpeak_3d<REMAP>(
+                            xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                            peak_coordinates.get(), peak_values.get(),
+                            peak_mode, peak_radius, threads);
+                }
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            if constexpr (N == 1) {
+                cuda::signal::fft::xpeak_1d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_coordinates.get(), peak_values.get(),
+                        peak_mode, peak_radius, cuda_stream);
+            } else if constexpr (N == 2) {
+                cuda::signal::fft::xpeak_2d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_coordinates.get(), peak_values.get(),
+                        peak_mode, peak_radius, cuda_stream);
+            } else {
+                cuda::signal::fft::xpeak_3d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_coordinates.get(), peak_values.get(),
+                        peak_mode, peak_radius, cuda_stream);
+            }
+            cuda_stream.enqueue_attach(xmap.share(), peak_coordinates.share(), peak_values.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Returns a pair of the ((D)H)W coordinate and the value of the highest peak in a cross-correlation map.
     /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real        float or double.
-    /// \param[in] xmap     1D cross-correlation map. Should be a column or row vector.
-    ///                     It can be overwritten depending on \p xmap_radius.
-    /// \param xmap_radius  Radius of the smooth mask to apply (in-place) to \p xmap.
+    /// \param[in,out] xmap 1d, 2d, or 3d cross-correlation map. It can be overwritten depending on \p xmap_radius.
+    /// \param xmap_radius  ((D)H)W radius of the smooth elliptic mask to apply (in-place) to \p xmap.
     ///                     This is used to restrict the peak position relative to the center of \p xmap.
     ///                     If negative or 0, it is ignored.
     /// \param peak_mode    Registration mode to use for subpixel accuracy.
-    /// \param peak_radius  Radius of the registration window, centered on the peak.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    [[nodiscard]] std::pair<float, Real>
-    xpeak1D(const Array<Real>& xmap,
-            float xmap_radius = 0,
-            PeakMode peak_mode = PEAK_PARABOLA_1D,
-            int64_t peak_radius = 1);
+    /// \param peak_radius  ((D)H)W radius of the registration window, centered on the peak.
+    /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
+    template<Remap REMAP, typename Input, size_t N, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             details::is_valid_xpeak_v<REMAP, N>>>
+    [[nodiscard]] auto xpeak(const Input& xmap,
+                             const Vec<f32, N>& xmap_radius = Vec<f32, N>{0},
+                             PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                             const Vec<i64, N>& peak_radius = Vec<i64, N>{1}) {
+        details::check_xpeak_parameters(xmap, xmap_radius, peak_mode);
+        NOA_CHECK(!xmap.is_batched(), "The input cross-correlation cannot be batched, but got shape {}", xmap.shape());
 
-    /// Find the highest peak in a cross-correlation map.
-    /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                    float or double.
-    /// \param[in,out] xmap             2D cross-correlation map. It can be overwritten depending on \p xmap_radius.
-    /// \param[out] peak_coordinates    Output HW coordinate of the highest peak. One per batch or empty.
-    /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
-    /// \param xmap_radius              HW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
-    ///                                 This is used to restrict the peak position relative to the center of \p xmap.
-    ///                                 If negative or 0, it is ignored.
-    /// \param peak_mode                Registration mode to use for subpixel accuracy.
-    /// \param peak_radius              HW radius of the registration window, centered on the peak.
-    /// \note On the GPU, \p peak_radius is limited to 8 with \p peak_mode PEAK_PARABOLA_COM.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak2D(const Array<Real>& xmap,
-                 const Array<float2_t>& peak_coordinates,
-                 const Array<Real>& peak_values = {},
-                 float2_t xmap_radius = float2_t{0},
-                 PeakMode peak_mode = PEAK_PARABOLA_1D,
-                 long2_t peak_radius = long2_t{1});
-
-    /// Returns the HW coordinate and value of the highest peak in a cross-correlation map.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real        float or double.
-    /// \param[in,out] xmap 2D cross-correlation map. It can be overwritten depending on \p xmap_radius.
-    /// \param xmap_radius  HW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
-    ///                     This is used to restrict the peak position relative to the center of \p xmap.
-    ///                     If negative or 0, it is ignored.
-    /// \param peak_mode    Registration mode to use for subpixel accuracy.
-    /// \param peak_radius  HW radius of the registration window, centered on the peak.
-    /// \note On the GPU, \p peak_radius is limited to 8 with \p peak_mode PEAK_PARABOLA_COM.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    [[nodiscard]] std::pair<float2_t, Real>
-    xpeak2D(const Array<Real>& xmap,
-            float2_t xmap_radius = float2_t{0},
-            PeakMode peak_mode = PEAK_PARABOLA_1D,
-            long2_t peak_radius = long2_t{1});
-
-    /// Find the highest peak in a cross-correlation map.
-    /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real                    float or double.
-    /// \param[in,out] xmap             3D cross-correlation map. It can be overwritten depending on \p xmap_radius.
-    /// \param[out] peak_coordinates    Output DHW coordinate of the highest peak. One per batch or empty.
-    /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
-    /// \param xmap_radius              DHW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
-    ///                                 This is used to restrict the peak position relative to the center of \p xmap.
-    ///                                 If negative or 0, it is ignored.
-    /// \param peak_mode                Registration mode to use for subpixel accuracy.
-    /// \param peak_radius              DHW radius of the registration window, centered on the peak.
-    /// \note On the GPU, \p peak_radius is limited to 2 with \p peak_mode PEAK_PARABOLA_COM.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak3D(const Array<Real>& xmap,
-                 const Array<float3_t>& peak_coordinates,
-                 const Array<Real>& peak_values = {},
-                 float3_t xmap_radius = float3_t{0},
-                 PeakMode peak_mode = PEAK_PARABOLA_1D,
-                 long3_t peak_radius = long3_t{1});
-
-    /// Returns the DHW coordinate and value of the highest peak in a cross-correlation map.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \tparam Real        float or double.
-    /// \param[in,out] xmap 3D cross-correlation map. It can be overwritten depending on \p xmap_radius.
-    /// \param xmap_radius  DHW radius of the smooth elliptic mask to apply (in-place) to \p xmap.
-    ///                     This is used to restrict the peak position relative to the center of \p xmap.
-    ///                     If negative or 0, it is ignored.
-    /// \param peak_mode    Registration mode to use for subpixel accuracy.
-    /// \param peak_radius  DHW radius of the registration window, centered on the peak.
-    /// \note On the GPU, \p peak_radius is limited to 2 with \p peak_mode PEAK_PARABOLA_COM.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    [[nodiscard]] std::pair<float3_t, Real>
-    xpeak3D(const Array<Real>& xmap,
-            float3_t xmap_radius = float3_t{0},
-            PeakMode peak_mode = PEAK_PARABOLA_1D,
-            long3_t peak_radius = long3_t{1});
+        const Device& device = xmap.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            cpu_stream.synchronize();
+            const auto threads = cpu_stream.threads();
+            if constexpr (N == 1) {
+                return cpu::signal::fft::xpeak_1d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_mode, peak_radius, threads);
+            } else if constexpr (N == 2) {
+                return cpu::signal::fft::xpeak_2d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_mode, peak_radius, threads);
+            } else {
+                return cpu::signal::fft::xpeak_3d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_mode, peak_radius, threads);
+            }
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            if constexpr (N == 1) {
+                return cuda::signal::fft::xpeak_1d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_mode, peak_radius, cuda_stream);
+            } else if constexpr (N == 2) {
+                return cuda::signal::fft::xpeak_2d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_mode, peak_radius, cuda_stream);
+            } else {
+                return cuda::signal::fft::xpeak_3d<REMAP>(
+                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
+                        peak_mode, peak_radius, cuda_stream);
+            }
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Computes the cross-correlation coefficient(s).
     /// \tparam REMAP               Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.
-    /// \tparam Real                float or double.
     /// \param[in] lhs              Left-hand side FFT.
     /// \param[in] rhs              Right-hand side FFT.
     /// \param shape                BDHW logical shape.
     /// \param[out] coefficients    Cross-correlation coefficient(s). One per batch.
     ///                             It should be dereferenceable by the CPU.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, Real>>>
-    void xcorr(const Array<Complex<Real>>& lhs, const Array<Complex<Real>>& rhs,
-               dim4_t shape, const Array<Real>& coefficients);
+    template<Remap REMAP, typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
+             noa::traits::is_array_or_view_of_almost_any_v<Rhs, c32, c64> &&
+             noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
+             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
+             noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Lhs>, Output> &&
+             details::is_valid_xcorr_remap_v<REMAP>>>
+    void xcorr(const Lhs& lhs, const Rhs& rhs, const Shape4<i64>& shape, const Output& coefficients) {
+        NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !coefficients.is_empty(), "Empty array detected");
+        NOA_CHECK(noa::indexing::is_contiguous_vector(coefficients) && coefficients.elements() == shape[0],
+                  "The number of coefficients, specified as a contiguous vector, should be equal to the number "
+                  "of batches. Got {} coefficients and {} output batches", coefficients.elements(), shape[0]);
+
+        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        const auto expected_shape = SRC_IS_HALF ? shape.fft() : shape;
+        auto lhs_strides = lhs.strides();
+        if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      lhs.shape(), expected_shape);
+        }
+        auto rhs_strides = rhs.strides();
+        if (!noa::indexing::broadcast(rhs.shape(), rhs_strides, expected_shape)) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      rhs.shape(), expected_shape);
+        }
+
+        NOA_CHECK(lhs.device() == rhs.device(),
+                  "The lhs and rhs input arrays should be on the same device, but got lhs:{} and rhs:{}",
+                  lhs.device(), rhs.device());
+        NOA_CHECK(coefficients.dereferenceable(), "The coefficients should be accessible to the CPU");
+        if (coefficients.device() != lhs.device())
+            Stream::current(coefficients.device()).synchronize();
+
+        Stream& stream = Stream::current(lhs.device());
+        if (stream.device().is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::signal::fft::xcorr<REMAP>(
+                        lhs.get(), lhs_strides, rhs.get(), rhs_strides,
+                        shape, coefficients.get(), threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::signal::fft::xcorr<REMAP>(
+                    lhs.get(), lhs_strides, rhs.get(), rhs_strides,
+                    shape, coefficients.get(), cuda_stream);
+            cuda_stream.enqueue_attach(lhs.share(), rhs.share(), coefficients.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 
     /// Computes the cross-correlation coefficient.
     /// \tparam REMAP   Layout of \p lhs and \p rhs. Should be H2H, HC2HC, F2F or FC2FC.
-    /// \tparam Real    float or double.
     /// \param[in] lhs  Left-hand side FFT.
     /// \param[in] rhs  Right-hand side FFT.
     /// \param shape    BDHW logical shape. Should not be batched.
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, Real>>>
-    [[nodiscard]] Real xcorr(const Array<Complex<Real>>& lhs, const Array<Complex<Real>>& rhs, dim4_t shape);
+    template<Remap REMAP, typename Lhs, typename Rhs, typename = std::enable_if_t<
+            noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
+            noa::traits::is_array_or_view_of_almost_any_v<Rhs, c32, c64> &&
+            noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
+            details::is_valid_xcorr_remap_v<REMAP>>>
+    [[nodiscard]] auto xcorr(const Lhs& lhs, const Rhs& rhs, const Shape4<i64>& shape) {
+        NOA_CHECK(!lhs.is_empty() && !rhs.is_empty(), "Empty array detected");
+        NOA_CHECK(!shape.is_batched(), "The input shape should not be batched");
+
+        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        const auto expected_shape = SRC_IS_HALF ? shape.fft() : shape;
+        auto lhs_strides = lhs.strides();
+        if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      lhs.shape(), expected_shape);
+        }
+        auto rhs_strides = rhs.strides();
+        if (!noa::indexing::broadcast(rhs.shape(), rhs_strides, expected_shape)) {
+            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
+                      rhs.shape(), expected_shape);
+        }
+
+        NOA_CHECK(lhs.device() == rhs.device(),
+                  "The lhs and rhs input arrays should be on the same device, but got lhs:{} and rhs:{}",
+                  lhs.device(), rhs.device());
+
+        const Device device = lhs.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            cpu_stream.synchronize();
+            const auto threads = cpu_stream.threads();
+            return cpu::signal::fft::xcorr<REMAP>(
+                    lhs.share(), lhs_strides, rhs.share(), rhs_strides, shape, threads);
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda::signal::fft::xcorr<REMAP>(
+                    lhs.share(), lhs_strides, rhs.share(), rhs_strides, shape, stream.cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 }

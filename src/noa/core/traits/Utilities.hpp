@@ -29,12 +29,14 @@ namespace noa::traits {
 namespace noa::traits {
     namespace details {
         template<typename T, typename = void> struct value_type { using type = T; };
+        template<typename T, typename = void> struct mutable_value_type { using type = T; };
         template<typename T, typename = void> struct element_type { using type = T; };
         template<typename T, typename = void> struct index_type { using type = T; };
         template<typename T, typename = void> struct shared_type { using type = T; };
         template<typename T, typename = void> struct pointer_type { using type = T; };
 
         template<typename T> struct value_type<T, std::void_t<typename T::value_type>> { using type = typename T::value_type; };
+        template<typename T> struct mutable_value_type<T, std::void_t<typename T::mutable_value_type>> { using type = typename T::mutable_value_type; };
         template<typename T> struct element_type<T, std::void_t<typename T::element_type>> { using type = typename T::element_type; };
         template<typename T> struct index_type<T, std::void_t<typename T::index_type>> { using type = typename T::index_type; };
         template<typename T> struct pointer_type<T, std::void_t<typename T::pointer_type>> { using type = typename T::pointer_type; };
@@ -42,12 +44,14 @@ namespace noa::traits {
     }
 
     template<typename T> struct value_type { using type = typename details::value_type<T>::type; };
+    template<typename T> struct mutable_value_type { using type = typename details::mutable_value_type<T>::type; };
     template<typename T> struct element_type { using type = typename details::element_type<T>::type; };
     template<typename T> struct index_type { using type = typename details::index_type<T>::type; };
     template<typename T> struct pointer_type { using type = typename details::pointer_type<T>::type; };
     template<typename T> struct shared_type { using type = typename details::shared_type<T>::type; };
 
     template<typename T> using value_type_t = typename value_type<remove_ref_cv_t<T>>::type;
+    template<typename T> using mutable_value_type_t = typename mutable_value_type<remove_ref_cv_t<T>>::type;
     template<typename T> using element_type_t = typename element_type<remove_ref_cv_t<T>>::type;
     template<typename T> using index_type_t = typename index_type<remove_ref_cv_t<T>>::type;
     template<typename T> using pointer_type_t = typename pointer_type<remove_ref_cv_t<T>>::type;

@@ -26,22 +26,18 @@ set(NOA_UNIFIED_HEADERS
         unified/fft/Transform.h
 
         # noa::signal
-#        unified/signal/fft/Bandpass.h
-#        unified/signal/fft/Bandpass.inl
-#        unified/signal/fft/Correlate.h
-#        unified/signal/fft/FSC.h
-#        unified/signal/fft/Shape.h
-#        unified/signal/fft/Shape.inl
-#        unified/signal/fft/Shift.h
-#        unified/signal/fft/Shift.inl
-#        unified/signal/fft/Standardize.h
-#        unified/signal/fft/Standardize.inl
+        unified/signal/fft/Bandpass.h
+        unified/signal/fft/Correlate.h
+        unified/signal/fft/FSC.h
+        unified/signal/fft/PhaseShift.hpp
+        unified/signal/fft/Standardize.h
         unified/signal/Convolve.h
         unified/signal/Median.h
 
         # noa::geometry
         unified/geometry/fft/Polar.h
         unified/geometry/fft/Project.h
+        unified/geometry/fft/Shape.h
         unified/geometry/fft/Transform.h
         unified/geometry/Polar.h
         unified/geometry/Prefilter.h

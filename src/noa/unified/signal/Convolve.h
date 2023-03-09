@@ -126,7 +126,7 @@ namespace noa::signal {
                             const FilterHeight& filter_height,
                             const FilterWidth& filter_width,
                             const Buffer& buffer = Buffer{}) {
-        NOA_CHECK(!input.empty() && !output.empty(), "Empty array detected");
+        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
@@ -144,7 +144,7 @@ namespace noa::signal {
         details::check_separable_filter(filter_height);
         details::check_separable_filter(filter_width);
 
-        if (!buffer.empty()) {
+        if (!buffer.is_empty()) {
             NOA_CHECK(noa::all(buffer.shape() == output.shape()) && !noa::any(buffer.strides() == 0),
                       "The temporary array should be able to hold an array of shape {}, but got shape {} and strides {}",
                       output.shape(), buffer.shape(), buffer.strides());

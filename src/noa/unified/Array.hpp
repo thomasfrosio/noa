@@ -64,6 +64,7 @@ namespace noa {
         using accessor_reference_type = AccessorReference<T, 4, i64>;
         using pointer_type = typename accessor_type::pointer_type;
         using value_type = typename accessor_type::value_type;
+        using mutable_value_type = value_type;
         using index_type = typename accessor_type::index_type;
         using strides_type = typename accessor_type::strides_type;
         using shared_type = Shared<value_type[]>;
