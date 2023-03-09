@@ -19,6 +19,7 @@ namespace noa {
     class Mat23 {
     public: // Type definitions
         using value_type = Real;
+        using mutable_value_type = value_type;
         using row_type = Vec3<value_type>;
         using vec2_type = Vec2<value_type>;
         using vec3_type = Vec3<value_type>;

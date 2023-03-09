@@ -17,6 +17,7 @@ namespace noa {
         static_assert(N <= 4);
         using vector_type = Vec<Int, N>;
         using value_type = typename vector_type::value_type;
+        using mutable_value_type = value_type;
         static constexpr int64_t SSIZE = N;
         static constexpr size_t SIZE = N;
 
@@ -501,6 +502,7 @@ namespace noa {
         static_assert(N <= 4);
         using vector_type = Vec<Int, N>;
         using value_type = typename vector_type::value_type;
+        using mutable_value_type = value_type;
         static constexpr int64_t SSIZE = N;
         static constexpr size_t SIZE = N;
 

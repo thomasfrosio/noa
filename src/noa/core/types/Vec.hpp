@@ -38,6 +38,7 @@ namespace noa {
         static_assert(N > 0, "Empty vectors are not supported");
 
         using value_type = Value;
+        using mutable_value_type = value_type;
         static constexpr int64_t SSIZE = N;
         static constexpr size_t SIZE = N;
 

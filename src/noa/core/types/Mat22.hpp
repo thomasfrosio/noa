@@ -34,6 +34,7 @@ namespace noa {
     public: // Type definitions
         static_assert(!std::is_same_v<Real, Half>);
         using value_type = Real;
+        using mutable_value_type = value_type;
         using row_type = Vec2<value_type>;
 
     public: // Component accesses

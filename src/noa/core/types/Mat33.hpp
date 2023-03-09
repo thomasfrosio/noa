@@ -39,6 +39,7 @@ namespace noa {
     class Mat33 {
     public: // Type definitions
         using value_type = Real;
+        using mutable_value_type = value_type;
         using row_type = Vec3<value_type>;
 
     public: // Component accesses

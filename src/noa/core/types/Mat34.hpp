@@ -19,6 +19,7 @@ namespace noa {
     class Mat34 {
     public: // Type definitions
         using value_type = Real;
+        using mutable_value_type = value_type;
         using row_type = Vec4<value_type>;
         using vec3_type = Vec3<value_type>;
         using vec4_type = Vec4<value_type>;

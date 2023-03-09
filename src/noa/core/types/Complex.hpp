@@ -23,6 +23,7 @@ namespace noa {
 
     public:
         using value_type = Real;
+        using mutable_value_type = Real;
 
     public: // Component accesses
         static constexpr size_t COUNT = 2;

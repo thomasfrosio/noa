@@ -33,6 +33,7 @@ namespace noa {
     class Mat44 {
     public: // Type definitions
         using value_type = Real;
+        using mutable_value_type = value_type;
         using row_type = Vec4<value_type>;
 
     public: // Component accesses

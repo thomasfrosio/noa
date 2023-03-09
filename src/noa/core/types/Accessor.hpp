@@ -87,6 +87,7 @@ namespace noa {
         #endif
 
         using value_type = T;
+        using mutable_value_type = T;
         using index_type = I;
         static constexpr index_type COUNT = N;
         static constexpr size_t SIZE = N;
