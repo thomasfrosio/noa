@@ -20,29 +20,29 @@ set(NOA_UNIFIED_HEADERS
         unified/io/ImageFile.hpp
 
         # noa::fft
-        unified/fft/Factory.h
-        unified/fft/Remap.h
-        unified/fft/Resize.h
-        unified/fft/Transform.h
+        unified/fft/Factory.hpp
+        unified/fft/Remap.hpp
+        unified/fft/Resize.hpp
+        unified/fft/Transform.hpp
 
         # noa::signal
-        unified/signal/fft/Bandpass.h
-        unified/signal/fft/Correlate.h
-        unified/signal/fft/FSC.h
+        unified/signal/fft/Bandpass.hpp
+        unified/signal/fft/Correlate.hpp
+        unified/signal/fft/FSC.hpp
         unified/signal/fft/PhaseShift.hpp
-        unified/signal/fft/Standardize.h
-        unified/signal/Convolve.h
-        unified/signal/Median.h
+        unified/signal/fft/Standardize.hpp
+        unified/signal/Convolve.hpp
+        unified/signal/Median.hpp
 
         # noa::geometry
-        unified/geometry/fft/Polar.h
-        unified/geometry/fft/Project.h
-        unified/geometry/fft/Shape.h
-        unified/geometry/fft/Transform.h
-        unified/geometry/Polar.h
-        unified/geometry/Prefilter.h
-        unified/geometry/Transform.h
-        unified/geometry/Shape.h
+        unified/geometry/fft/Polar.hpp
+        unified/geometry/fft/Project.hpp
+        unified/geometry/fft/Shape.hpp
+        unified/geometry/fft/Transform.hpp
+        unified/geometry/Polar.hpp
+        unified/geometry/Prefilter.hpp
+        unified/geometry/Transform.hpp
+        unified/geometry/Shape.hpp
 
         # noa::memory
         unified/memory/Cast.hpp

@@ -6,7 +6,7 @@
 #endif
 
 #include "noa/unified/Array.hpp"
-#include "noa/unified/fft/Transform.h"
+#include "noa/unified/fft/Transform.hpp"
 
 namespace noa::signal::fft::details {
     using Remap = ::noa::fft::Remap;

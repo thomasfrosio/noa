@@ -4,7 +4,7 @@
 
 #include "noa/unified/Array.hpp"
 #include "noa/unified/ArrayOption.hpp"
-#include "noa/unified/geometry/Prefilter.h"
+#include "noa/unified/geometry/Prefilter.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Types.hpp"

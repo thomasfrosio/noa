@@ -6,7 +6,7 @@
 #endif
 
 #include "noa/unified/Array.hpp"
-#include "noa/unified/signal/fft/FSC.h"
+#include "noa/unified/signal/fft/FSC.hpp"
 
 namespace noa::signal::fft::details {
     template<typename Lhs, typename Rhs, typename Output, typename Cones = Empty>
