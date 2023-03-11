@@ -71,7 +71,7 @@ TEST_CASE("noa::memory::linspace()", "[noa][unified]") {
         {
             const i64 elements = 5;
             const Array<double> results(elements, options);
-            double step = noa::memory::linspace(results.view(), 0., 5.);
+            const double step = noa::memory::linspace(results.view(), 0., 5.);
             std::array<double, 5> expected = {0., 1.25, 2.5, 3.75, 5.};
             REQUIRE(step == 1.25);
             REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
@@ -110,7 +110,7 @@ TEST_CASE("noa::memory::linspace()", "[noa][unified]") {
             const Array<double> results(elements, options);
             const double step = noa::memory::linspace(results, 0., 1., false);
             std::array<double, 1> expected = {0.};
-            REQUIRE(step == 0.);
+            REQUIRE(step == 1.);
             REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
         }
     }
@@ -120,6 +120,7 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
                    i32, i64, u32, u64, f32, f64, c32, c64) {
     const bool pad = GENERATE(false, true);
     const DeviceType type = GENERATE(DeviceType::CPU, DeviceType::GPU);
+    INFO(pad);
 
     if (!Device::any(type))
         return;
@@ -133,6 +134,8 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
     }
 
     const auto options = ArrayOption(Device(type), Allocator::MANAGED);
+    INFO(options.device());
+
     auto results = Array<TestType>(shape, options);
     results = results.subregion(
             noa::indexing::ellipsis_t{},
@@ -145,10 +148,10 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
         const TestType step = test::Randomizer<TestType>(1, 2).get();
         noa::memory::arange(results, start, step);
 
-        const auto expected = Array<TestType>(shape);
+        const auto expected = Array<TestType>(results.shape());
         cpu::memory::arange(expected.get(), expected.elements(), start, step);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-5));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results, expected, 1e-5));
     }
 
     AND_THEN("linspace") {
@@ -159,10 +162,10 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
 
             noa::memory::linspace(results, start, stop, endpoint);
 
-            const auto expected = Array<TestType>(shape);
+            const auto expected = Array<TestType>(results.shape());
             cpu::memory::linspace(expected.get(), expected.elements(), start, stop, endpoint);
 
-            REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results, expected, 1e-6));
         }
     }
 
@@ -170,15 +173,15 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
         const auto value = test::Randomizer<TestType>(0, 400).get();
 
         noa::memory::fill(results, value);
-        REQUIRE(test::Matcher(test::MATCH_ABS, results, value, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results, value, 1e-6));
 
         const auto zeros = memory::zeros<TestType>(shape, options);
-        REQUIRE(test::Matcher(test::MATCH_ABS, zeros, TestType{0}, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, zeros, TestType{0}, 1e-6));
 
         const auto ones = memory::ones<TestType>(shape, options);
-        REQUIRE(test::Matcher(test::MATCH_ABS, ones, TestType{1}, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, ones, TestType{1}, 1e-6));
 
         const auto fill = memory::fill(shape, value, options);
-        REQUIRE(test::Matcher(test::MATCH_ABS, fill, value, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, fill, value, 1e-6));
     }
 }

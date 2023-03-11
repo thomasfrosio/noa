@@ -21,11 +21,14 @@ set(TEST_UNIFIED_SOURCES
 #        noa/unified/signal/TestUnifiedShape.cpp
 
 #        noa/unified/math/TestUnifiedBlas.cpp
+        noa/unified/math/TestUnifiedComplex.cpp
+#        noa/unified/math/TestUnifiedLinalg.cpp
+        noa/unified/math/TestUnifiedRandom.cpp
         noa/unified/math/TestUnifiedReduce.cpp
 
-#        noa/unified/memory/TestUnifiedCast.cpp
-#        noa/unified/memory/TestUnifiedCopy.cpp
-#        noa/unified/memory/TestUnifiedFactory.cpp
+        noa/unified/memory/TestUnifiedCast.cpp
+        noa/unified/memory/TestUnifiedCopy.cpp
+        noa/unified/memory/TestUnifiedFactory.cpp
 #        noa/unified/memory/TestUnifiedIndex.cpp
 #        noa/unified/memory/TestUnifiedPermute.cpp
 #        noa/unified/memory/TestUnifiedResize.cpp
@@ -38,8 +41,8 @@ set(TEST_UNIFIED_SOURCES
 #        noa/unified/geometry/fft/TestUnifiedProject.cpp
 ##        noa/unified/geometry/TestUnifiedBackproject.cpp
 ##        noa/unified/geometry/TestUnifiedCosineStretch.cpp
-#        noa/unified/geometry/TestUnifiedTransform.cpp
-#        noa/unified/geometry/TestUnifiedSymmetry.cpp
+        noa/unified/geometry/TestUnifiedTransform.cpp
+        noa/unified/geometry/TestUnifiedSymmetry.cpp
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})

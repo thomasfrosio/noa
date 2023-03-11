@@ -31,10 +31,10 @@ TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
                 noa::indexing::slice_t{0, subregion_shape[2]},
                 noa::indexing::slice_t{0, subregion_shape[3]});
 
-        const Array data0 = math::random<i32>(math::uniform_t{}, shape, -50, 50, options);
+        const Array data0 = math::random<i32>(math::uniform_t{}, results.shape(), -50, 50, options);
         memory::cast(data0, results);
 
-        const Array<i32> data1(shape, options);
+        const Array<i32> data1(results.shape(), options);
         memory::cast(results, data1);
 
         REQUIRE(test::Matcher(test::MATCH_ABS, data0, data1, 1e-7));

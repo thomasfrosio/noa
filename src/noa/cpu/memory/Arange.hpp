@@ -9,16 +9,15 @@ namespace noa::cpu::memory {
     template<typename Value>
     inline void arange(Value* src, i64 elements, Value start, Value step) {
         NOA_ASSERT(src || !elements);
-        Value value = start;
-        for (i64 i = 0; i < elements; ++i, value += step)
-            src[i] = value;
+        for (i64 i = 0; i < elements; ++i)
+            src[i] = start + static_cast<Value>(i) * step;
     }
 
     // Returns evenly spaced values within a given interval, in the rightmost order.
     template<typename Value>
     inline void arange(Value* src, const Strides4<i64>& strides, const Shape4<i64>& shape,
                        Value start, Value step, i64 threads) {
-        if (indexing::are_contiguous(strides, shape))
+        if (noa::indexing::are_contiguous(strides, shape))
             return arange(src, shape.elements(), start, step);
 
         NOA_ASSERT(src && noa::all(shape > 0));

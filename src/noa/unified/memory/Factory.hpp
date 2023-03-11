@@ -220,7 +220,7 @@ namespace noa::memory {
     /// \param shape    Shape of the array.
     /// \param start    Start of interval.
     /// \param stop     The end value of the sequence, unless \p endpoint is false.
-    /// \param endpoint Whether the stop is the last simple. Otherwise, it is not included.
+    /// \param endpoint Whether the stop is the last sample. Otherwise, it is not included.
     /// \param option   Options of the created array.
     template<typename Value>
     [[nodiscard]] Array<Value> linspace(

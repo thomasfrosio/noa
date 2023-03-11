@@ -19,7 +19,7 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
 
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
-        const auto asset = noa::memory::empty<float>({1, 1, 512, 512});
+        const auto asset = noa::memory::empty<f32>({1, 1, 512, 512});
         const auto center = Vec2<f32>{256, 256};
         noa::geometry::rectangle({}, asset, center, {64, 128}, 5);
         noa::geometry::rectangle(asset, asset, center + Vec2<f32>{64, 128}, {32, 32}, 3, {}, noa::plus_t{}, 1.f);
@@ -40,7 +40,7 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
         const auto expected_filename = path_base / test["expected"].as<Path>();
         const auto shift = test["shift"].as<Vec2<f32>>();
         const auto symmetry = noa::geometry::Symmetry(test["symmetry"].as<std::string>());
-        const auto angle = math::deg2rad(test["angle"].as<float>());
+        const auto angle = math::deg2rad(test["angle"].as<f32>());
         const auto center = test["center"].as<Vec2<f32>>();
         const auto interp = test["interp"].as<InterpMode>();
         const auto inv_matrix = noa::geometry::rotate(-angle);
@@ -67,7 +67,7 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
                 // For nearest neighbour, the border can be off by one pixel,
                 // so here just check the total difference.
                 output.eval();
-                const float diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 // Otherwise it is usually around 2e-5, but there are some outliers...
@@ -77,14 +77,14 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
 
             // With textures:
             // The input is prefiltered at this point, so no need for prefiltering here.
-            const auto input_texture = noa::Texture<float>(
+            const auto input_texture = noa::Texture<f32>(
                     input, device, interp, BorderMode::ZERO, 0.f, /*layered=*/ false, /*prefilter=*/ false);
             noa::memory::fill(output, 0.f); // erase
             noa::geometry::transform_and_symmetrize_2d(input_texture, output, shift, inv_matrix, symmetry, center);
 
             if (interp == noa::InterpMode::NEAREST) {
                 output.eval();
-                const float diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 5e-4));
@@ -100,7 +100,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
 
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
-        const auto asset = noa::memory::empty<float>({1, 150, 150, 150});
+        const auto asset = noa::memory::empty<f32>({1, 150, 150, 150});
         const auto rectangle_center = Vec3<f32>(150 / 2);
         noa::geometry::rectangle({}, asset, rectangle_center, {34, 24, 24}, 3);
         noa::io::save(asset, path_base / param["input"][0].as<Path>());
@@ -152,7 +152,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
                 // For nearest neighbour, the border can be off by one pixel,
                 // so here just check the total difference.
                 output.eval();
-                const float diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 // Otherwise it is usually around 2e-5, but there are some outliers...
@@ -162,14 +162,14 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
 
             // With textures:
             // The input is prefiltered at this point, so no need for prefiltering here.
-            const auto input_texture = noa::Texture<float>(
+            const auto input_texture = noa::Texture<f32>(
                     input, device, interp, BorderMode::ZERO, 0.f, /*layered=*/ false, /*prefilter=*/ false);
             noa::memory::fill(output, 0.f); // erase
             noa::geometry::transform_and_symmetrize_3d(input_texture, output, shift, inv_matrix, symmetry, center);
 
             if (interp == noa::InterpMode::NEAREST) {
                 output.eval();
-                const float diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 5e-4));
@@ -207,7 +207,7 @@ TEMPLATE_TEST_CASE("unified::geometry::symmetry_2d", "[noa][unified]", f32, f64)
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 5e-4));
 
         // With textures:
-        if constexpr (std::is_same_v<TestType, float>) {
+        if constexpr (std::is_same_v<TestType, f32>) {
             const auto input_texture = noa::Texture<TestType>(
                     input_copy, device, InterpMode::LINEAR, BorderMode::ZERO, 0, /*layered=*/ true);
             noa::memory::fill(output, TestType{0}); // erase
@@ -217,7 +217,7 @@ TEMPLATE_TEST_CASE("unified::geometry::symmetry_2d", "[noa][unified]", f32, f64)
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::symmetry3D", "[noa][unified]", float, double) {
+TEMPLATE_TEST_CASE("unified::geometry::symmetrize_3d", "[noa][unified]", f32, f64) {
     const char* symbol = GENERATE("c1", "  C2", "C7 ", " D1", "D3", " o", "i1", "I2  ");
     const auto symmetry = geometry::Symmetry(symbol);
     const auto shape = test::get_random_shape4(3);
@@ -245,7 +245,7 @@ TEMPLATE_TEST_CASE("unified::geometry::symmetry3D", "[noa][unified]", float, dou
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 5e-4));
 
         // With textures:
-        if constexpr (std::is_same_v<TestType, float>) {
+        if constexpr (std::is_same_v<TestType, f32>) {
             const auto input_texture = noa::Texture<TestType>(input_copy, device, InterpMode::LINEAR, BorderMode::ZERO);
             noa::memory::fill(output, TestType{0}); // erase
             noa::geometry::symmetrize_3d(input_texture, output, symmetry, center);
