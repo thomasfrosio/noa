@@ -67,7 +67,7 @@ namespace test {
         } else if (ndim == 4) {
             test::Randomizer<noa::i64> rand(32, 128);
             return noa::Shape4<noa::i64>{test::Randomizer<noa::i64>(1, 4).get(),
-                               rand.get(), rand.get(), rand.get()};
+                                         rand.get(), rand.get(), rand.get()};
         } else {
             test::Randomizer<noa::i64> rand(32, 1024);
             return noa::Shape4<noa::i64>{1, 1, 1, rand.get()};
@@ -75,15 +75,15 @@ namespace test {
     }
 
     inline noa::Shape4<noa::i64> get_random_shape4_batched(noa::i64 ndim) {
-        test::Randomizer<noa::i64> rand_batch(1, 3);
+        test::Randomizer<noa::i64> rand_batch(1, 4);
         if (ndim == 2) {
             test::Randomizer<noa::i64> randomizer(32, 512);
             return noa::Shape4<noa::i64>{rand_batch.get(), 1,
-                               randomizer.get(), randomizer.get()};
+                                         randomizer.get(), randomizer.get()};
         } else if (ndim >= 3) {
             test::Randomizer<noa::i64> randomizer(32, 128);
             return noa::Shape4<noa::i64>{rand_batch.get(), randomizer.get(),
-                               randomizer.get(), randomizer.get()};
+                                         randomizer.get(), randomizer.get()};
         } else {
             test::Randomizer<noa::i64> randomizer(32, 1024);
             return noa::Shape4<noa::i64>{rand_batch.get(), 1, 1, randomizer.get()};

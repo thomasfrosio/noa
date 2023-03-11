@@ -26,7 +26,7 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Shape<T, N>& rhs) {
-            if (!node.IsSequence() || node.size() != 4)
+            if (!node.IsSequence() || node.size() != N)
                 return false;
             for (size_t i = 0; i < N; ++i)
                 rhs[i] = node[i].as<T>();
@@ -45,7 +45,7 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Strides<T, N>& rhs) {
-            if (!node.IsSequence() || node.size() != 4)
+            if (!node.IsSequence() || node.size() != N)
                 return false;
             for (size_t i = 0; i < N; ++i)
                 rhs[i] = node[i].as<T>();
@@ -64,7 +64,7 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Vec<T, N>& rhs) {
-            if (!node.IsSequence() || node.size() != 4)
+            if (!node.IsSequence() || node.size() != N)
                 return false;
             for (size_t i = 0; i < N; ++i)
                 rhs[i] = node[i].as<T>();
