@@ -126,10 +126,12 @@ namespace noa {
 
                     if (device_target != array.device())
                         array.eval();
+                    auto& cuda_stream = Stream::current(device_target).cuda();
                     noa::cuda::memory::copy(
-                            array.share(), array.strides(),
-                            texture.array, array.shape(),
-                            Stream::current(device_target).cuda());
+                            array.get(), array.strides(),
+                            texture.array.get(), array.shape(),
+                            cuda_stream);
+                    cuda_stream.enqueue_attach(array.share(), texture.array);
 
                     m_texture = texture;
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
@@ -228,7 +230,7 @@ namespace noa {
                 NOA_CHECK(array.device() == device_target,
                           "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
                           array.device());
-                cpu_texture_type& cpu_texture = this->cpu();
+                cpu_texture_type& cpu_texture = cpu();
                 cpu_texture.strides = array.strides();
                 if constexpr (noa::traits::is_view_v<ArrayOrView>)
                     cpu_texture.ptr = Shared<T[]>(array.get(), [](void*) {});
@@ -243,10 +245,14 @@ namespace noa {
                 } else {
                     if (device_target != array.device())
                         array.eval();
+
+                    gpu_texture_type& cuda_texture = cuda();
+                    auto& cuda_stream = Stream::current(device_target).cuda();
                     cuda::memory::copy(
-                            array.share(), array.strides(),
-                            this->cuda().array,
-                            m_shape, Stream::current(device_target).cuda());
+                            array.get(), array.strides(),
+                            cuda_texture.array.get(),
+                            m_shape, cuda_stream);
+                    cuda_stream.enqueue_attach(array.share(), cuda_texture.array);
                 }
                 #else
                 NOA_THROW("No GPU backend detected");
@@ -280,7 +286,7 @@ namespace noa {
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] bool is_contiguous() const noexcept {
+        [[nodiscard]] bool are_contiguous() const noexcept {
             if (device().is_cpu())
                 return noa::indexing::are_contiguous<ORDER>(cpu().strides, m_shape);
             else
@@ -303,8 +309,7 @@ namespace noa {
         /// Otherwise, throws an exception.
         [[nodiscard]] const cpu::Texture<value_type>& cpu() const {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
-            if (!ptr)
-                NOA_THROW("Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
+            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
             return *ptr;
         }
 
@@ -323,8 +328,7 @@ namespace noa {
         [[nodiscard]] const gpu_texture_type& cuda() const {
             #ifdef NOA_ENABLE_CUDA
             auto* ptr = std::get_if<gpu_texture_type>(&m_texture);
-            if (!ptr)
-                NOA_THROW("Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
+            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
             return *ptr;
             #else
             NOA_THROW("No GPU backend detected");

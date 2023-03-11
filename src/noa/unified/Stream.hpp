@@ -103,9 +103,8 @@ namespace noa {
         /// Gets the underlying stream, assuming it is a CPU stream (i.e. device is CPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] cpu::Stream& cpu() {
-            NOA_CHECK(m_device.is_cpu(), "The stream is not a CPU stream");
             auto* cpu_stream = std::get_if<cpu::Stream>(&m_stream);
-            NOA_ASSERT(cpu_stream);
+            NOA_CHECK(cpu_stream != nullptr, "The stream is not a CPU stream");
             return *cpu_stream;
         }
 
@@ -122,11 +121,9 @@ namespace noa {
         /// Gets the underlying stream, assuming it is a CUDA stream (i.e. device is a CUDA-capable GPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] cuda::Stream& cuda() {
-            NOA_CHECK(m_device.is_gpu(), "The stream is not a GPU stream");
-
             #ifdef NOA_ENABLE_CUDA
             auto* cuda_stream = std::get_if<cuda::Stream>(&m_stream);
-            NOA_ASSERT(cuda_stream);
+            NOA_CHECK(cuda_stream != nullptr, "The stream is not a GPU stream");
             return *cuda_stream;
             #else
             NOA_THROW("No GPU backend detected");

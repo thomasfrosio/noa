@@ -23,7 +23,7 @@ namespace noa::geometry::details {
              noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float34, Float44>);
 
 
-    template<int32_t NDIM, bool SYMMETRY = false, typename Input, typename Output, typename Value, typename Matrix>
+    template<int32_t NDIM, bool SYMMETRY = false, typename Input, typename Output, typename Matrix>
     void transform_nd_check_parameters(const Input& input, const Output& output, const Matrix& matrix) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(NDIM == 3 || (input.shape()[1] == 1 && output.shape()[1] == 1),
