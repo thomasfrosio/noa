@@ -308,6 +308,9 @@ namespace noa {
         }
 
     public:
+        [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_row[0].data(); }
+        [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_row[0].data(); }
+
         [[nodiscard]] NOA_IHD constexpr Mat44 transpose() const noexcept {
             return noa::math::transpose(*this);
         }

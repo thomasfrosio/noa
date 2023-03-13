@@ -203,6 +203,10 @@ namespace noa {
             return noa::any(m1[0] != m2[0]) || noa::any(m1[1] != m2[1]);
         }
 
+    public:
+        [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_row[0].data(); }
+        [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_row[0].data(); }
+
     public: // Support for noa::string::human<Vec>();
         [[nodiscard]] static std::string name() {
             if constexpr (std::is_same_v<value_type, float>)
