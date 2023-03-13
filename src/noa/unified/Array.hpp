@@ -49,7 +49,7 @@ namespace noa {
     ///   While column-major ordering is supported, row-major ordering is recommended. Empty dimensions have a size
     ///   of 1. If one dimension is 0, the entire array is considered empty. Arrays can be broadcast to other shapes
     ///   according to the broadcasting rule (see indexing::broadcast()). As such, some arrays can have dimensions
-    ///   with a stride of 0. Negative strides are not supported.
+    ///   with a stride of 0. Negative strides are not supported.\n
     /// - \b Deferred-deletion: When passing Arrays to a function, the stream keeps a reference of the input/output
     ///   memory-regions. These references are only destructed when the stream is done executing the function. If the
     ///   stream executes asynchronously, functions may return before completion, thus the input/output Arrays may end

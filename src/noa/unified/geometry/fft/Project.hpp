@@ -23,7 +23,7 @@ namespace noa::geometry::fft::details {
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
     constexpr bool is_valid_insert_interpolate_v =
-            traits::is_any_v<Value, f32, f64, c32, c64> &&
+            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
             (noa::traits::is_any_v<Scale, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale, Float22>) &&
             (noa::traits::is_any_v<Rotate, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate, Float33>) &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
@@ -37,7 +37,7 @@ namespace noa::geometry::fft::details {
 
     template<Remap REMAP, typename Value, typename Scale0, typename Rotate0, typename Scale1, typename Rotate1>
     constexpr bool is_valid_insert_insert_extract_v =
-            traits::is_any_v<Value, f32, f64, c32, c64> &&
+            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
             (noa::traits::is_any_v<Scale0, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale0, Float22>) &&
             (noa::traits::is_any_v<Rotate0, Float33> || noa::traits::is_array_or_view_of_almost_any_v<Rotate0, Float33>) &&
             (noa::traits::is_any_v<Scale1, Float22> || noa::traits::is_array_or_view_of_almost_any_v<Scale1, Float22>) &&
@@ -56,7 +56,7 @@ namespace noa::geometry::fft::details {
         NOA_CHECK(noa::indexing::is_contiguous_vector(matrix) && matrix.elements() == required_size,
                   "The number of matrices, specified as a contiguous vector, should be equal to the number of slices, "
                   "but got matrix shape:{}, strides:{} and {} slices",
-                  matrix.shape(), matrix.strides, required_size);
+                  matrix.shape(), matrix.strides(), required_size);
 
         NOA_CHECK(matrix.device() == compute_device,
                   "The transformation parameters should be on the compute device");
@@ -75,7 +75,7 @@ namespace noa::geometry::fft::details {
                                      const Scale1& output_scaling_matrix = {},
                                      const Rotate1& output_rotation_matrix = {}) {
         const Device output_device = output.device();
-        if constexpr (!noa::traits::is_real_v<Input>) {
+        if constexpr (!noa::traits::is_numeric_v<Input>) {
             const Device input_device = input.device();
 
             NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
@@ -441,7 +441,6 @@ namespace noa::geometry::fft {
     ///          to keep track of the multiplicity of the Fourier insertion.
     template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_any_v<Output, Input> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_insert_interpolate_v<REMAP, Input, Scale, Rotate>>>
     void insert_interpolate_3d(Input slice, const Shape4<i64>& slice_shape,
                                const Output& grid, const Shape4<i64>& grid_shape,
