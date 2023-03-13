@@ -19,7 +19,7 @@ namespace noa::indexing {
     /// \param strides      Strides associated with these indexes.
     template<typename I0, typename I1, typename I2, typename I3, typename Offset,
              typename std::enable_if_t<traits::are_int_v<I0, I1, I2, I3>, bool> = true>
-    NOA_FHD constexpr auto at(
+    [[nodiscard]] NOA_FHD constexpr auto at(
             I0 i0, I1 i1, I2 i2, I3 i3,
             const Strides4<Offset>& strides
     ) noexcept -> Offset {
@@ -35,7 +35,7 @@ namespace noa::indexing {
 
     /// Returns the memory offset corresponding to the given 4D indexes.
     template<typename Index, typename Offset>
-    NOA_FHD constexpr auto at(const Vec4<Index>& index, const Strides4<Offset>& strides) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto at(const Vec4<Index>& index, const Strides4<Offset>& strides) noexcept {
         return at(index[0], index[1], index[2], index[3], strides);
     }
 
@@ -44,7 +44,7 @@ namespace noa::indexing {
     /// \param strides      Strides associated with these indexes. Only the first 3 values are used.
     template<typename I0, typename I1, typename I2, typename Offset, size_t N,
              typename std::enable_if_t<traits::are_int_v<I0, I1, I2> && (N >= 3), bool> = true>
-    NOA_FHD constexpr auto at(
+    [[nodiscard]] NOA_FHD constexpr auto at(
             I0 i0, I1 i1, I2 i2,
             const Strides<Offset, N>& strides)
     noexcept -> Offset {
@@ -59,7 +59,7 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 3D indexes.
     template<typename Index, typename Offset, size_t N,
              typename std::enable_if_t<traits::is_int_v<Index> && (N >= 3), bool> = true>
-    NOA_FHD constexpr auto at(const Vec3<Index>& index, const Strides<Offset, N>& strides) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto at(const Vec3<Index>& index, const Strides<Offset, N>& strides) noexcept {
         return at(index[0], index[1], index[2], strides);
     }
 
@@ -68,7 +68,7 @@ namespace noa::indexing {
     /// \param strides      Strides associated with these indexes. Only the first 2 values are used.
     template<typename I0, typename I1, typename Offset, size_t N,
             typename std::enable_if_t<traits::are_int_v<I0, I1> && (N >= 2), bool> = true>
-    NOA_FHD constexpr auto at(
+    [[nodiscard]] NOA_FHD constexpr auto at(
             I0 i0, I1 i1,
             const Strides<Offset, N>& strides)
     noexcept -> Offset {
@@ -82,7 +82,7 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 3D indexes.
     template<typename Index, typename Offset, size_t N,
             typename std::enable_if_t<traits::is_int_v<Index> && (N >= 2), bool> = true>
-    NOA_FHD constexpr auto at(const Vec2<Index>& index, const Strides<Offset, N>& strides) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto at(const Vec2<Index>& index, const Strides<Offset, N>& strides) noexcept {
         return at(index[0], index[1], strides);
     }
 
@@ -93,7 +93,7 @@ namespace noa::indexing {
              typename std::enable_if_t<
                      traits::is_int_v<Index> &&
                      (traits::is_stridesX_v<Strides> || traits::is_int_v<Strides>), bool> = true>
-    NOA_FHD constexpr auto at(Index i0, Strides strides) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto at(Index i0, Strides strides) noexcept {
         using offset_t = traits::value_type_t<Strides>;
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
         NOA_ASSERT(is_safe_cast<offset_t>(i0));
@@ -108,14 +108,14 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 3D indexes.
     template<typename Index, typename Offset, size_t N,
              typename std::enable_if_t<traits::is_int_v<Index> && (N >= 1), bool> = true>
-    NOA_FHD constexpr auto at(const Vec1<Index>& index, const Strides<Offset, N>& strides) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto at(const Vec1<Index>& index, const Strides<Offset, N>& strides) noexcept {
         return at(index[0], strides);
     }
 
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
     /// Otherwise, returns \p idx. \p size should be > 0.
     template<BorderMode MODE, typename SInt, typename = std::enable_if_t<std::is_signed_v<SInt>>>
-    NOA_IHD constexpr SInt at(SInt idx, SInt size) {
+    [[nodiscard]] NOA_IHD constexpr SInt at(SInt idx, SInt size) {
         static_assert(MODE == BorderMode::CLAMP || MODE == BorderMode::PERIODIC ||
                       MODE == BorderMode::MIRROR || MODE == BorderMode::REFLECT);
         NOA_ASSERT(size > 0);
@@ -158,7 +158,7 @@ namespace noa::indexing {
 
 namespace noa::indexing {
     template<typename T, size_t N>
-    NOA_FHD constexpr bool is_rightmost(const Strides<T, N>& strides) {
+    [[nodiscard]] NOA_FHD constexpr bool is_rightmost(const Strides<T, N>& strides) {
         return strides.is_rightmost();
     }
 
@@ -167,7 +167,7 @@ namespace noa::indexing {
     /// \note Empty dimensions are contiguous by definition since their strides are not used.
     ///       Broadcast dimensions are NOT contiguous.
     template<char ORDER = 'C', typename T>
-    NOA_FHD constexpr bool are_contiguous(const Strides4<T>& strides, const Shape4<T>& shape) {
+    [[nodiscard]] NOA_FHD constexpr bool are_contiguous(const Strides4<T>& strides, const Shape4<T>& shape) {
         if (noa::any(shape == 0)) // guard against empty array
             return false;
 
@@ -198,7 +198,7 @@ namespace noa::indexing {
     ///       regardless of their stride. Functions that require broadcast dimensions to be "contiguous"
     ///       should call effective_shape() first, to "cancel" the broadcasting and mark the dimension as empty.
     template<char ORDER = 'C', typename T>
-    NOA_FHD constexpr auto is_contiguous(Strides4<T> strides, const Shape4<T>& shape) {
+    [[nodiscard]] NOA_IHD constexpr auto is_contiguous(Strides4<T> strides, const Shape4<T>& shape) {
         if (any(shape == 0)) // guard against empty array
             return Vec4<bool>{0, 0, 0, 0};
 
@@ -236,18 +236,18 @@ namespace noa::indexing {
     }
 
     template<typename T>
-    NOA_FHD constexpr bool is_vector(const Shape<T, 4>& shape, bool can_be_batched = false) {
+    [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, 4>& shape, bool can_be_batched = false) {
         return shape.is_vector(can_be_batched);
     }
 
     template<typename T, size_t N, typename = std::enable_if_t<N <= 3>>
-    NOA_FHD constexpr bool is_vector(const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, N>& shape) {
         return shape.is_vector();
     }
 
     /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
     template<typename T, typename U, size_t N>
-    NOA_IH constexpr auto effective_shape(Shape<T, N> shape, const Strides<U, N>& strides) noexcept {
+    [[nodiscard]] NOA_IH constexpr auto effective_shape(Shape<T, N> shape, const Strides<U, N>& strides) noexcept {
         for (size_t i = 0; i < N; ++i)
             shape[i] = strides[i] ? shape[i] : 1;
         return shape;
@@ -260,7 +260,7 @@ namespace noa::indexing {
     /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
     /// \see indexing::reorder(...).
     template<typename Int, size_t N>
-    NOA_IHD constexpr auto order(Strides<Int, N> strides, const Shape<Int, N>& shape) {
+    [[nodiscard]] NOA_IHD constexpr auto order(Strides<Int, N> strides, const Shape<Int, N>& shape) {
         Vec<Int, N> order;
         for (size_t i = 0; i < N; ++i) {
             order[i] = static_cast<Int>(i);
@@ -278,7 +278,7 @@ namespace noa::indexing {
     /// The difference with indexing::order() is that this function does not change the order of the non-empty
     /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
     template<typename Int, size_t N>
-    NOA_HD constexpr auto squeeze(const Shape<Int, N>& shape) {
+    [[nodiscard]] NOA_HD constexpr auto squeeze(const Shape<Int, N>& shape) {
         Vec<Int, N> order{};
         int idx = N - 1;
         for (int i = idx; i >= 0; --i) {
@@ -306,7 +306,7 @@ namespace noa::indexing {
                                       (noa::traits::is_vecN_v<VecLike, N> ||
                                        noa::traits::is_shapeN_v<VecLike, N> ||
                                        noa::traits::is_stridesN_v<VecLike, N>), bool> = true>
-    NOA_FHD constexpr auto reorder(VecLike vector, const Vec<Int, N>& order) {
+    [[nodiscard]] NOA_FHD constexpr auto reorder(VecLike vector, const Vec<Int, N>& order) {
         return vector.reorder(order);
     }
 
@@ -316,7 +316,7 @@ namespace noa::indexing {
     /// \param[in] order    Order of indexes. Should have the same number of elements as the matrices are rows.
     template<typename Matrix, typename Int, size_t N,
             typename std::enable_if_t<traits::is_matXX_v<Matrix> && Matrix::ROWS == N, bool> = true>
-    NOA_FHD constexpr Matrix reorder(const Matrix& matrix, const Vec<Int, N>& order) {
+    [[nodiscard]] NOA_FHD constexpr Matrix reorder(const Matrix& matrix, const Vec<Int, N>& order) {
         Matrix reordered_matrix;
         for (size_t row = 0; row < N; ++row) {
             using row_t = typename Matrix::row_type;
@@ -335,14 +335,14 @@ namespace noa::indexing {
                                       (noa::traits::is_vecN_v<VecLike, N> ||
                                        noa::traits::is_shapeN_v<VecLike, N> ||
                                        noa::traits::is_stridesN_v<VecLike, N>), bool> = true>
-    NOA_FHD constexpr auto circular_shift(VecLike vector, const Vec<Int, N>& order) {
+    [[nodiscard]] NOA_FHD constexpr auto circular_shift(VecLike vector, const Vec<Int, N>& order) {
         return vector.circular_shift(order);
     }
 
     /// Whether \p strides describes a column-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, size_t N>
-    NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides) {
+    [[nodiscard]] NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides) {
         constexpr size_t COL = N - 2;
         constexpr size_t ROW = N - 1;
         return strides[COL] <= strides[ROW];
@@ -352,7 +352,7 @@ namespace noa::indexing {
     /// This function effectively squeezes the shape before checking the order.
     /// Furthermore, strides of empty dimensions are ignored and are contiguous by definition.
     template<typename T, size_t N>
-    NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides, const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides, const Shape<T, N>& shape) {
         int second{-1}, first{-1};
         for (int i = N - 1; i >= 0; --i) {
             if (shape[i] > 1) {
@@ -368,7 +368,7 @@ namespace noa::indexing {
     /// Whether \p strides describes a row-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, size_t N>
-    NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides) {
+    [[nodiscard]] NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides) {
         constexpr size_t COL = N - 2;
         constexpr size_t ROW = N - 1;
         return strides[COL] >= strides[ROW];
@@ -378,7 +378,7 @@ namespace noa::indexing {
     /// This function effectively squeezes the shape before checking the order.
     /// Furthermore, strides of empty dimensions are ignored and are contiguous by definition.
     template<typename T, size_t N>
-    NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides, const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides, const Shape<T, N>& shape) {
         int second{-1}, first{-1};
         for (int i = N - 1; i >= 0; --i) {
             if (shape[i] > 1) {
@@ -397,7 +397,7 @@ namespace noa::indexing {
     /// \param output_size          Size of the output.
     /// \return Whether the input and output size are compatible.
     template<typename Int>
-    NOA_IH constexpr bool broadcast(Int input_size, Int& input_stride, Int output_size) noexcept {
+    [[nodiscard]] NOA_IH constexpr bool broadcast(Int input_size, Int& input_stride, Int output_size) noexcept {
         if (input_size == 1 && output_size != 1)
             input_stride = 0; // broadcast this dimension
         else if (input_size != output_size)
@@ -411,7 +411,7 @@ namespace noa::indexing {
     /// \param output_shape         Shape of the output.
     /// \return Whether the input and output shape are compatible.
     template<typename T, size_t N>
-    NOA_IH constexpr bool broadcast(
+    [[nodiscard]] NOA_IH constexpr bool broadcast(
             const Shape<T, N>& input_shape,
             Strides<T, N>& input_strides,
             const Shape<T, N>& output_shape
@@ -434,7 +434,7 @@ namespace noa::indexing {
     ///         If false, \p new_strides is left in an undefined state.
     /// \note Zero strides are allowed.
     template<typename T, size_t OldN, size_t NewN>
-    NOA_IH constexpr bool reshape(
+    [[nodiscard]] NOA_IH constexpr bool reshape(
             Shape<T, OldN> old_shape, Strides<T, OldN> old_strides,
             Shape<T, NewN> new_shape, Strides<T, NewN>& new_strides
     ) noexcept {
@@ -523,7 +523,7 @@ namespace noa::indexing {
     /// Returns the 2D rightmost indexes corresponding to
     /// the given memory offset in a contiguous layout.
     template<typename T>
-    NOA_FHD constexpr Vec2<T> offset2index(T offset, T size) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Vec2<T> offset2index(T offset, T size) noexcept {
         NOA_ASSERT(size > 0);
         const auto i0 = offset / size;
         const auto i1 = offset - i0 * size;
@@ -535,7 +535,7 @@ namespace noa::indexing {
     /// \param offset   Linear memory offset.
     /// \param s0,s1    DH sizes.
     template<typename T>
-    NOA_FHD constexpr Vec3<T> offset2index(T offset, T s0, T s1) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Vec3<T> offset2index(T offset, T s0, T s1) noexcept {
         NOA_ASSERT(s0 > 0 && s1 > 0);
         const auto i0 = offset / (s0 * s1);
         offset -= i0 * s0 * s1;
@@ -549,7 +549,7 @@ namespace noa::indexing {
     /// \param offset   Linear memory offset.
     /// \param s0,s1,s2 DHW sizes.
     template<typename T>
-    NOA_FHD constexpr Vec4<T> offset2index(T offset, T s0, T s1, T s2) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Vec4<T> offset2index(T offset, T s0, T s1, T s2) noexcept {
         NOA_ASSERT(s0 > 0 && s1 > 0 && s2 > 0);
         const auto i0 = offset / (s0 * s1 * s2);
         offset -= i0 * s0 * s1 * s2;
@@ -564,7 +564,7 @@ namespace noa::indexing {
     /// \param offset   Memory offset within the array.
     /// \param shape    Shape of the array.
     template<typename T, size_t N>
-    NOA_FHD constexpr Vec<T, N> offset2index(T offset, Shape<T, N> shape) noexcept {
+    [[nodiscard]] NOA_FHD constexpr Vec<T, N> offset2index(T offset, Shape<T, N> shape) noexcept {
         if constexpr (N == 1) {
             return Vec<T, N>{offset};
         } else if constexpr (N == 2) {
@@ -584,7 +584,11 @@ namespace noa::indexing {
     /// \param strides  Strides of the array.
     /// \param shape    Shape of the array.
     template<bool ASSUME_RIGHTMOST = false, typename T, size_t N>
-    NOA_IHD constexpr auto offset2index(T offset, const Strides<T, N>& strides, const Shape<T, N>& shape) noexcept {
+    [[nodiscard]] NOA_IHD constexpr auto offset2index(
+            T offset,
+            const Strides<T, N>& strides,
+            const Shape<T, N>& shape
+    ) noexcept {
         NOA_ASSERT(noa::all(shape > 0));
         Vec<T, N> out{0};
         T remain = offset;
@@ -650,7 +654,7 @@ namespace noa::indexing {
 
     public:
         template<typename New>
-        auto as() const {
+        [[nodiscard]] auto as() const {
             Reinterpret<New, index_type> out(shape, strides, reinterpret_cast<New*>(ptr));
             if constexpr (traits::is_almost_same_v<old_type, New>)
                 return out;
@@ -724,7 +728,7 @@ namespace noa::indexing {
 
     /// Splits a [0, \p size) range into \p n slices of approximately equal length.
     /// This is useful when distributing work to \p n threads.
-    inline std::vector<slice_t> split_into_slices(size_t size, size_t n) {
+    [[nodiscard]] inline std::vector<slice_t> split_into_slices(size_t size, size_t n) {
         std::vector<slice_t> slices;
         slices.reserve(n);
         const int count = static_cast<int>(n);
@@ -783,7 +787,7 @@ namespace noa::indexing {
                  typename C = full_extent_t,
                  typename D = full_extent_t,
                  typename = std::enable_if_t<are_indexer_v<A, B, C, D>>>
-        constexpr Subregion extract(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
+        [[nodiscard]] constexpr Subregion extract(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
             Subregion out{};
             extract_dim_(i0, 0, shape[0], strides[0], out.shape.data() + 0, out.strides.data() + 0, &out.offset);
             extract_dim_(i1, 1, shape[1], strides[1], out.shape.data() + 1, out.strides.data() + 1, &out.offset);
