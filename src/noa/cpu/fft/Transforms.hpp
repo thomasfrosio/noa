@@ -97,7 +97,7 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    void r2c(T input, const Strides4<i64>& input_strides,
+    void r2c(T* input, const Strides4<i64>& input_strides,
              Complex<T>* output, const Strides4<i64>& output_strides,
              const Shape4<i64>& shape, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, input_strides, output, output_strides, shape, flag, threads);
@@ -161,7 +161,7 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void c2c(Complex<T>* input, const Strides4<i64>& input_strides,
-                    Complex<T>* output, const Strides4<i64>& output_strides,
+             Complex<T>* output, const Strides4<i64>& output_strides,
              const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, input_strides, output, output_strides, shape, sign, flag, threads);
         execute(fast_plan);
