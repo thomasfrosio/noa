@@ -1,59 +1,58 @@
 #include <noa/core/geometry/Euler.hpp>
 #include <noa/core/io/MRCFile.hpp>
-#include <noa/cpu/memory/PtrHost.h>
 
 #include "Assets.h"
 #include "Helpers.h"
 #include <catch2/catch.hpp>
+#include <memory>
 
 using namespace ::noa;
 
 TEST_CASE("geometry::euler2matrix()", "[noa][geometry]") {
-    const path_t path_base = test::NOA_DATA_PATH / "common" / "geometry";
+    const Path path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
-    const auto path_expected = path_base / param["file"].as<path_t>();
+    const auto path_expected = path_base / param["file"].as<Path>();
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
-    const auto angles = math::deg2rad(param["angles"].as<float3_t>());
+    const auto angles = math::deg2rad(param["angles"].as<Vec3<f32>>());
 
     // Get expected:
     io::MRCFile file(path_expected, io::READ);
-    const size4_t shape = file.shape();
-    const size_t elements = shape.elements();
-    cpu::memory::PtrHost<float> expected(elements);
-    file.readAll(expected.get());
+    const auto shape = file.shape().as<u64>();
+    const auto matrices = shape[0];
+    const auto elements = shape.elements();
+    const auto expected = std::make_unique<f32[]>(elements);
+    file.read_all(expected.get());
 
     // Compute matrices:
-    cpu::memory::PtrHost<float33_t> buffer(shape[0]);
-    size_t count = 0;
-    for (auto& axes: valid_axes)
-        for (int intrinsic = 0; intrinsic < 2; ++intrinsic)
-            for (int right_handed = 0; right_handed < 2; ++right_handed)
-                buffer[count++] = geometry::euler2matrix(angles, axes, !intrinsic, !right_handed);
-    const auto* output = reinterpret_cast<const float*>(buffer.get());
+    const auto buffer = std::make_unique<Float33[]>(matrices);
+    const auto* result = reinterpret_cast<const f32*>(buffer.get()); // :-(
+    u64 count = 0;
+    for (const auto& axes: valid_axes)
+        for (i32 intrinsic = 1; intrinsic >=0; --intrinsic) // in Python, I do (True, False)...
+            for (i32 right_handed = 1; right_handed >=0; --right_handed)
+                buffer[count++] = noa::geometry::euler2matrix(angles, axes, intrinsic, right_handed);
 
-    // Switch to ZYX matrices:
-    for (size_t i = 0; i < shape[0]; ++i) {
-        float33_t& m = buffer[i];
-        m = {m[2].flip(), m[1].flip(), m[0].flip()};
-    }
+    // Switch the axes. In Python, I use xyz matrices...
+    for (u64 i = 0; i < matrices; ++i)
+        buffer[i] = noa::indexing::reorder(buffer[i], Vec3<i64>{2, 1, 0}); // zyx -> xyz
 
-    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), output, elements, 1e-6));
+    REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result, static_cast<i64>(elements), 1e-6));
 }
 
 TEST_CASE("geometry::matrix2euler()", "[noa][geometry]") {
-    const path_t path_base = test::NOA_DATA_PATH / "common" / "geometry";
+    const Path path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
-    const auto eulers = math::deg2rad(float3_t{10, 20, 30});
-    for (auto& axes: valid_axes) {
-        for (int intrinsic = 0; intrinsic < 2; ++intrinsic) {
-            for (int right_handed = 0; right_handed < 2; ++right_handed) {
-                const float33_t matrix = geometry::euler2matrix(eulers, axes, !intrinsic, !right_handed);
+    const auto eulers_to_test = noa::math::deg2rad(Vec3<f32>{10, 20, 30});
+    for (const auto& axes: valid_axes) {
+        for (i32 intrinsic = 1; intrinsic >=0; --intrinsic) { // in Python, I do (True, False)...
+            for (i32 right_handed = 1; right_handed >=0; --right_handed) {
+                const auto expected_matrix = noa::geometry::euler2matrix(eulers_to_test, axes, intrinsic, right_handed);
 
-                const float3_t result_eulers = geometry::matrix2euler(matrix, axes, !intrinsic, !right_handed);
-                const float33_t result_matrix = geometry::euler2matrix(result_eulers, axes, !intrinsic, !right_handed);
+                const Vec3<f32> result_eulers = noa::geometry::matrix2euler(expected_matrix, axes, intrinsic, right_handed);
+                const Float33 result_matrix = noa::geometry::euler2matrix(result_eulers, axes, intrinsic, right_handed);
 
-                REQUIRE(test::Matcher(test::MATCH_ABS, matrix.get(), result_matrix.get(), 9, 1e-6));
+                REQUIRE(test::Matcher(test::MATCH_ABS, expected_matrix.data(), result_matrix.data(), 9, 1e-6));
             }
         }
     }
