@@ -131,13 +131,14 @@ namespace noa::geometry::fft {
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename Input, typename Output, typename Matrix, typename Shift, typename = std::enable_if_t<
+    template<Remap REMAP, typename Input, typename Output, typename Matrix,
+             typename Shift = Vec2<f32>, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
              noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_transform_2d_v<REMAP, noa::traits::value_type_t<Output>, Matrix, Shift>>>
     void transform_2d(const Input& input, const Output& output, const Shape4<i64>& shape,
-                      const Matrix& inv_matrices, const Shift& post_shifts,
+                      const Matrix& inv_matrices, const Shift& post_shifts = {},
                       f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR) {
         details::transform_nd_check_parameters<2>(input, output, shape, inv_matrices, post_shifts);
         auto input_strides = input.strides();
@@ -180,16 +181,16 @@ namespace noa::geometry::fft {
     /// Rotates/scales a non-redundant 2D (batched) FFT.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Value, typename Output,
-             typename Matrix, typename Shift, typename = std::enable_if_t<
+             typename Matrix, typename Shift = Vec2<f32>, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_any_v<Output, Value> &&
              details::is_valid_transform_2d_v<REMAP, Value, Matrix, Shift>>>
     void transform_2d(const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
-                      const Matrix& inv_matrices, const Shift& post_shifts,
+                      const Matrix& inv_matrices, const Shift& post_shifts = {},
                       f32 cutoff = 0.5f) {
         const Device device = output.device();
         Stream& stream = Stream::current(device);
 
-        if (input.device().cpu()) {
+        if (input.device().is_cpu()) {
             const cpu::Texture<Value>& texture = input.cpu();
             const Array<Value> input_array(texture.ptr, input.shape(), texture.strides, input.options());
             transform_2d<REMAP>(input_array, output, shape, inv_matrices, post_shifts, cutoff, input.interp_mode());
@@ -245,13 +246,14 @@ namespace noa::geometry::fft {
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
-    template<Remap REMAP, typename Input, typename Output, typename Matrix, typename Shift, typename = std::enable_if_t<
+    template<Remap REMAP, typename Input, typename Output, typename Matrix,
+             typename Shift = Vec3<f32>, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
              noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_transform_3d_v<REMAP, noa::traits::value_type_t<Output>, Matrix, Shift>>>
     void transform_3d(const Input& input, const Output& output, const Shape4<i64>& shape,
-                      const Matrix& inv_matrices, const Shift& post_shifts,
+                      const Matrix& inv_matrices, const Shift& post_shifts = {},
                       f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR) {
         details::transform_nd_check_parameters<3>(input, output, shape, inv_matrices, post_shifts);
         auto input_strides = input.strides();
@@ -294,16 +296,16 @@ namespace noa::geometry::fft {
     /// Rotates/scales a non-redundant 3D (batched) FFT.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Value, typename Output,
-             typename Matrix, typename Shift, typename = std::enable_if_t<
+             typename Matrix, typename Shift = Vec3<f32>, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_any_v<Output, Value> &&
              details::is_valid_transform_3d_v<REMAP, Value, Matrix, Shift>>>
     void transform_3d(const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
-                      const Matrix& inv_matrices, const Shift& post_shifts,
+                      const Matrix& inv_matrices, const Shift& post_shifts = {},
                       f32 cutoff = 0.5f) {
         const Device device = output.device();
         Stream& stream = Stream::current(device);
 
-        if (input.device().cpu()) {
+        if (input.device().is_cpu()) {
             const cpu::Texture<Value>& texture = input.cpu();
             const Array<Value> input_array(texture.ptr, input.shape(), texture.strides, input.options());
             transform_3d<REMAP>(input_array, output, shape, inv_matrices, post_shifts, cutoff, input.interp_mode());
@@ -362,7 +364,7 @@ namespace noa::geometry::fft {
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void transform_and_symmetrize_2d(
             const Input& input, const Output& output, const Shape4<i64>& shape,
-            const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& post_shift,
+            const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& post_shift = {},
             f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR, bool normalize = true) {
         details::transform_nd_check_parameters<2>(input, output, shape, inv_matrix, post_shift);
         auto input_strides = input.strides();
@@ -403,7 +405,7 @@ namespace noa::geometry::fft {
              details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform_and_symmetrize_2d(
             const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
-            const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& post_shift,
+            const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& post_shift = {},
             f32 cutoff = 0.5f, bool normalize = true) {
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -460,7 +462,7 @@ namespace noa::geometry::fft {
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void transform_and_symmetrize_3d(
             const Input& input, const Output& output, const Shape4<i64>& shape,
-            const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& post_shift,
+            const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& post_shift = {},
             f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR, bool normalize = true) {
         details::transform_nd_check_parameters<3>(input, output, shape, inv_matrix, post_shift);
         auto input_strides = input.strides();
@@ -501,7 +503,7 @@ namespace noa::geometry::fft {
             details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform_and_symmetrize_3d(
             const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
-            const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& post_shift,
+            const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& post_shift = {},
             f32 cutoff = 0.5f, bool normalize = true) {
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -550,7 +552,7 @@ namespace noa::geometry::fft {
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void symmetrize_2d(const Input& input, const Output& output, const Shape4<i64>& shape,
-                      const Symmetry& symmetry, const Vec2<f32>& post_shift,
+                      const Symmetry& symmetry, const Vec2<f32>& post_shift = {},
                       f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR, bool normalize = true) {
         transform_and_symmetrize_2d<REMAP>(
                 input, output, shape, Float22{}, symmetry, post_shift,
@@ -576,7 +578,7 @@ namespace noa::geometry::fft {
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void symmetrize_3d(const Input& input, const Output& output, const Shape4<i64>& shape,
-                       const Symmetry& symmetry, const Vec3<f32>& post_shift,
+                       const Symmetry& symmetry, const Vec3<f32>& post_shift = {},
                        f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR, bool normalize = true) {
         transform_and_symmetrize_3d<REMAP>(
                 input, output, shape, Float33{}, symmetry, post_shift,
