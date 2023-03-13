@@ -10,12 +10,6 @@
 // A few necessary forward declarations:
 namespace noa {
     template<typename T>
-    class Mat34;
-
-    template<typename T>
-    class Mat33;
-
-    template<typename T>
     class Mat44;
 
     namespace math {
@@ -78,39 +72,11 @@ namespace noa {
                         row_type(0, 0, 0, v[3])} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat44(const Vec3<U>& v) noexcept
-                : m_row{row_type(v[0], 0, 0, 0),
-                        row_type(0, v[1], 0, 0),
-                        row_type(0, 0, v[2], 0),
-                        row_type(0, 0, 0, 1)} {}
-
-        template<typename U>
         NOA_HD constexpr explicit Mat44(const Mat44<U>& m) noexcept
                 : m_row{row_type(m[0]),
                         row_type(m[1]),
                         row_type(m[2]),
                         row_type(m[3])} {}
-
-        template<typename U>
-        NOA_HD constexpr explicit Mat44(const Mat34<U>& m) noexcept
-                : m_row{row_type(m[0]),
-                        row_type(m[1]),
-                        row_type(m[2]),
-                        row_type(0, 0, 0, 1)} {}
-
-        template<typename U>
-        NOA_HD constexpr explicit Mat44(const Mat33<U>& m) noexcept
-                : m_row{row_type(m[0][0], m[0][1], m[0][2], 0),
-                        row_type(m[1][0], m[1][1], m[1][2], 0),
-                        row_type(m[2][0], m[2][1], m[2][2], 0),
-                        row_type(0, 0, 0, 1)} {}
-
-        template<typename U, typename V>
-        NOA_HD constexpr explicit Mat44(const Mat33<U>& m, const Vec3<V>& v) noexcept
-                : m_row{row_type(m[0][0], m[0][1], m[0][2], v[0]),
-                        row_type(m[1][0], m[1][1], m[1][2], v[1]),
-                        row_type(m[2][0], m[2][1], m[2][2], v[2]),
-                        row_type(0, 0, 0, 1)} {}
 
         template<typename X00, typename X01, typename X02, typename X03,
                  typename Y10, typename Y11, typename Y12, typename Y13,
@@ -311,8 +277,17 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_row[0].data(); }
         [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_row[0].data(); }
 
+        template<typename T, std::enable_if_t<noa::traits::is_real_v<T>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
+            return Mat44<T>(*this);
+        }
+
         [[nodiscard]] NOA_IHD constexpr Mat44 transpose() const noexcept {
             return noa::math::transpose(*this);
+        }
+
+        [[nodiscard]] NOA_IHD constexpr Mat44 inverse() const noexcept {
+            return noa::math::inverse(*this);
         }
 
     public: // Support for noa::string::human<Vec>();

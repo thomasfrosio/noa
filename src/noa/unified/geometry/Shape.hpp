@@ -18,11 +18,10 @@ namespace noa::geometry::details {
              NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34, Float44>);
 
     template<i32 NDIM, typename Matrix>
-    constexpr auto extract_square_or_truncated_matrix(const Matrix& matrix) noexcept {
-        if constexpr (NDIM == 2 && noa::traits::is_mat33_v<Matrix>)
-            return Float23(matrix);
-        else if constexpr (NDIM == 3 && noa::traits::is_mat44_v<Matrix>)
-            return Float34(matrix);
+    constexpr auto extract_linear_or_truncated_matrix(const Matrix& matrix) noexcept {
+        if constexpr ((NDIM == 2 && noa::traits::is_mat33_v<Matrix>) ||
+                      (NDIM == 3 && noa::traits::is_mat44_v<Matrix>))
+            return noa::geometry::affine2truncated(matrix);
         else
             return matrix;
     }
@@ -83,7 +82,7 @@ namespace noa::geometry {
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
                         center, radius, edge_size,
-                        details::extract_square_or_truncated_matrix<N>(inv_matrix),
+                        details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                         functor, cvalue, invert, threads);
             });
         } else {
@@ -93,7 +92,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     center, radius, edge_size,
-                    details::extract_square_or_truncated_matrix<N>(inv_matrix),
+                    details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
@@ -155,7 +154,7 @@ namespace noa::geometry {
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
                         center, radius, edge_size,
-                        details::extract_square_or_truncated_matrix<N>(inv_matrix),
+                        details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                         functor, cvalue, invert, threads);
             });
         } else {
@@ -165,7 +164,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     center, radius, edge_size,
-                    details::extract_square_or_truncated_matrix<N>(inv_matrix),
+                    details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
@@ -227,7 +226,7 @@ namespace noa::geometry {
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
                         center, radius, edge_size,
-                        details::extract_square_or_truncated_matrix<N>(inv_matrix),
+                        details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                         functor, cvalue, invert, threads);
             });
         } else {
@@ -237,7 +236,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     center, radius, edge_size,
-                    details::extract_square_or_truncated_matrix<N>(inv_matrix),
+                    details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
@@ -297,7 +296,7 @@ namespace noa::geometry {
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
                         center, radius, length, edge_size,
-                        details::extract_square_or_truncated_matrix<3>(inv_matrix),
+                        details::extract_linear_or_truncated_matrix<3>(inv_matrix),
                         functor, cvalue, invert, threads);
             });
         } else {
@@ -307,7 +306,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     center, radius, length, edge_size,
-                    details::extract_square_or_truncated_matrix<3>(inv_matrix),
+                    details::extract_linear_or_truncated_matrix<3>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else

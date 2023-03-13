@@ -8,12 +8,6 @@
 #include "noa/core/types/Vec.hpp"
 
 namespace noa {
-    template<typename T>
-    class Mat33;
-
-    template<typename T>
-    class Mat22;
-
     // A 2x3 floating-point matrix.
     template<typename Real>
     class Mat23 {
@@ -60,24 +54,9 @@ namespace noa {
                         row_type(0, v[1], 0)} {}
 
         template<typename U>
-        NOA_HD constexpr explicit Mat23(const Mat33<U>& m) noexcept
-                : m_row{row_type(m[0]),
-                        row_type(m[1])} {}
-
-        template<typename U>
         NOA_HD constexpr explicit Mat23(const Mat23<U>& m) noexcept
                 : m_row{row_type(m[0]),
                         row_type(m[1])} {}
-
-        template<typename U>
-        NOA_HD constexpr explicit Mat23(const Mat22<U>& m) noexcept
-                : m_row{row_type(m[0][0], m[0][1], 0),
-                        row_type(m[1][0], m[1][1], 0)} {}
-
-        template<typename U, typename V>
-        NOA_HD constexpr explicit Mat23(const Mat22<U>& m, const Vec2<V>& v) noexcept
-                : m_row{row_type(m[0][0], m[0][1], v[0]),
-                        row_type(m[1][0], m[1][1], v[1])} {}
 
         template<typename X00, typename X01, typename X02,
                  typename Y10, typename Y11, typename Y12>
@@ -206,6 +185,11 @@ namespace noa {
     public:
         [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_row[0].data(); }
         [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_row[0].data(); }
+
+        template<typename T, std::enable_if_t<noa::traits::is_real_v<T>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
+            return Mat23<T>(*this);
+        }
 
     public: // Support for noa::string::human<Vec>();
         [[nodiscard]] static std::string name() {

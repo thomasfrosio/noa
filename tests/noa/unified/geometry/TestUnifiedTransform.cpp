@@ -40,8 +40,8 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[noa][unified][assets]")
                 noa::math::inverse(
                         noa::geometry::translate(center) *
                         noa::geometry::translate(shift) *
-                        Double33(noa::geometry::rotate(rotate)) *
-                        Double33(noa::geometry::scale(scale)) *
+                        noa::geometry::linear2affine(noa::geometry::rotate(rotate)) *
+                        noa::geometry::linear2affine(noa::geometry::scale(scale)) *
                         noa::geometry::translate(-center)));
 
         for (auto& device: devices) {
@@ -105,12 +105,12 @@ TEST_CASE("unified::geometry::transform_2d(), cubic", "[noa][unified][assets]") 
     const auto center = param["center"].as<Vec2<f64>>();
     const auto scale = param["scale"].as<Vec2<f64>>();
     const auto rotate = math::deg2rad(param["rotate"].as<f64>());
-    const auto inv_matrix = static_cast<Float23>(
-            noa::math::inverse(
-                    noa::geometry::translate(center) *
-                    Double33(noa::geometry::rotate(rotate)) *
-                    Double33(noa::geometry::scale(scale)) *
-                    noa::geometry::translate(-center)));
+    const auto inv_matrix = noa::geometry::affine2truncated(noa::math::inverse(
+            noa::geometry::translate(center) *
+            noa::geometry::linear2affine(noa::geometry::rotate(rotate)) *
+            noa::geometry::linear2affine(noa::geometry::scale(scale)) *
+            noa::geometry::translate(-center)
+    ).as<f32>());
 
     std::vector<Device> devices{Device("cpu")};
     if (Device::any(DeviceType::GPU))
@@ -198,7 +198,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "[noa][geometr
     const auto center = shape.filter(2, 3).vec().as<f32>() / test::Randomizer<f32>(1, 4).get();
     const auto rotation_matrix =
             noa::geometry::translate(center) *
-            Float33(noa::geometry::rotate(-rotation)) *
+            noa::geometry::linear2affine(noa::geometry::rotate(-rotation)) *
             noa::geometry::translate(-center);
 
     const auto gpu_options = noa::ArrayOption(noa::Device("cpu"), noa::Allocator::MANAGED);
@@ -235,9 +235,9 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), cpu vs gpu, texture inter
     const auto shape = test::get_random_shape4_batched(2);
     const auto center = shape.filter(2, 3).vec().as<f32>() / test::Randomizer<f32>(1, 4).get();
     const auto rotation_matrix =
-            geometry::translate(center) *
-            Float33(geometry::rotate(-rotation)) *
-            geometry::translate(-center);
+            noa::geometry::translate(center) *
+            noa::geometry::linear2affine(noa::geometry::rotate(-rotation)) *
+            noa::geometry::translate(-center);
 
     const auto gpu_options = noa::ArrayOption(Device("cpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);
@@ -281,13 +281,13 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
         const auto scale = test["scale"].as<Vec3<f64>>();
         const auto euler = math::deg2rad(test["euler"].as<Vec3<f64>>());
         const auto shift = test["shift"].as<Vec3<f64>>();
-        const auto inv_matrix = static_cast<Float44>(
-                noa::math::inverse(
-                        noa::geometry::translate(center) *
-                        noa::geometry::translate(shift) *
-                        Double44(noa::geometry::euler2matrix(euler)) *
-                        Double44(noa::geometry::scale(scale)) *
-                        noa::geometry::translate(-center)));
+        const auto inv_matrix = noa::geometry::affine2truncated(noa::math::inverse(
+                noa::geometry::translate(center) *
+                noa::geometry::translate(shift) *
+                noa::geometry::linear2affine(noa::geometry::euler2matrix(euler)) *
+                noa::geometry::linear2affine(noa::geometry::scale(scale)) *
+                noa::geometry::translate(-center)
+        )).as<f32>();
 
         for (auto& device: devices) {
             const auto stream = noa::StreamGuard(device);
@@ -349,13 +349,13 @@ TEST_CASE("unified::geometry::transform_3d(), cubic", "[noa][unified][assets]") 
     const auto cvalue = param["cvalue"].as<f32>();
     const auto center = param["center"].as<Vec3<f64>>();
     const auto scale = param["scale"].as<Vec3<f64>>();
-    const auto euler = math::deg2rad(param["euler"].as<Vec3<f64>>());
-    const auto inv_matrix = static_cast<Float44>(
-            noa::math::inverse(
-                    noa::geometry::translate(center) *
-                    Double44(noa::geometry::euler2matrix(euler)) *
-                    Double44(noa::geometry::scale(scale)) *
-                    noa::geometry::translate(-center)));
+    const auto euler = noa::math::deg2rad(param["euler"].as<Vec3<f64>>());
+    const auto inv_matrix = noa::geometry::affine2truncated(noa::math::inverse(
+            noa::geometry::translate(center) *
+            noa::geometry::linear2affine(noa::geometry::euler2matrix(euler)) *
+            noa::geometry::linear2affine(noa::geometry::scale(scale)) *
+            noa::geometry::translate(-center)
+    )).as<f32>();
 
     std::vector<Device> devices{Device("gpu")};
     if (Device::any(DeviceType::GPU))
@@ -446,9 +446,9 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometr
     const auto shape = test::get_random_shape4_batched(3);
     const auto center = shape.pop_front().vec().as<f32>() / test::Randomizer<f32>(1, 4).get();
     const Float44 rotation_matrix =
-            geometry::translate(center) *
-            Float44(matrix) *
-            geometry::translate(-center);
+            noa::geometry::translate(center) *
+            noa::geometry::linear2affine(matrix) *
+            noa::geometry::translate(-center);
 
     const auto gpu_options = noa::ArrayOption(Device("cpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);
@@ -488,9 +488,9 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu, texture interpo
     const auto shape = test::get_random_shape4_batched(3);
     const auto center = shape.pop_front().vec().as<f32>() / test::Randomizer<f32>(1, 4).get();
     const Float44 rotation_matrix =
-            geometry::translate(center) *
-            Float44(matrix) *
-            geometry::translate(-center);
+            noa::geometry::translate(center) *
+            noa::geometry::linear2affine(matrix) *
+            noa::geometry::translate(-center);
 
     const auto gpu_options = noa::ArrayOption(Device("cpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);

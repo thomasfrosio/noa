@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
+#include "noa/core/geometry/Transform.hpp"
 
 namespace noa::algorithm::geometry {
     // 2D or 3D affine transformations:
@@ -32,11 +33,13 @@ namespace noa::algorithm::geometry {
 
         using coord_type = typename Interpolator::coord_type;
         using mat23_type = Mat23<coord_type>;
+        using mat33_type = Mat33<coord_type>;
         using mat34_type = Mat34<coord_type>;
+        using mat44_type = Mat44<coord_type>;
 
         static_assert(std::is_same_v<coord_type, typename std::remove_pointer_t<Matrix>::value_type>);
-        static_assert((N == 2 && noa::traits::is_any_v<Matrix, mat23_type, const mat23_type*, const Mat33<coord_type>*>) ||
-                      (N == 3 && noa::traits::is_any_v<Matrix, mat34_type, const mat34_type*, const Mat44<coord_type>*>));
+        static_assert((N == 2 && noa::traits::is_any_v<Matrix, mat23_type, const mat23_type*, const mat33_type*>) ||
+                      (N == 3 && noa::traits::is_any_v<Matrix, mat34_type, const mat34_type*, const mat44_type*>));
 
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
@@ -53,11 +56,17 @@ namespace noa::algorithm::geometry {
         template<typename Void = void, typename = std::enable_if_t<(N == 2) && std::is_void_v<Void>>>
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept {
             const Vec3<coord_type> coordinates{y, x, coord_type{1}};
-            if constexpr (std::is_pointer_v<matrix_type>) {
-                const auto b_inv_matrix = mat23_type(m_inv_matrix[batch]);
-                m_output(batch, y, x) = static_cast<value_type>(m_input(b_inv_matrix * coordinates, batch));
+
+            if constexpr (std::is_same_v<matrix_type, const mat23_type*>) {
+                m_output(batch, y, x) = static_cast<value_type>(m_input(m_inv_matrix[batch] * coordinates, batch));
+
+            } else if constexpr (std::is_same_v<matrix_type, const mat33_type*>) {
+                const auto inv_matrix = noa::geometry::affine2truncated(m_inv_matrix[batch]);
+                m_output(batch, y, x) = static_cast<value_type>(m_input(inv_matrix * coordinates, batch));
+
             } else if constexpr (noa::traits::is_mat23_v<matrix_type>) {
                 m_output(batch, y, x) = static_cast<value_type>(m_input(m_inv_matrix * coordinates, batch));
+
             } else {
                 static_assert(noa::traits::always_false_v<value_type>);
             }
@@ -66,11 +75,17 @@ namespace noa::algorithm::geometry {
         template<typename Void = void, typename = std::enable_if_t<(N == 3) && std::is_void_v<Void>>>
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
             const Vec4<coord_type> coordinates{z, y, x, coord_type{1}};
-            if constexpr (std::is_pointer_v<matrix_type>) {
-                const auto b_inv_matrix = mat34_type(m_inv_matrix[batch]);
-                m_output(batch, z, y, x) = static_cast<value_type>(m_input(b_inv_matrix * coordinates, batch));
+
+            if constexpr (std::is_same_v<matrix_type, const mat34_type*>) {
+                m_output(batch, z, y, x) = static_cast<value_type>(m_input(m_inv_matrix[batch] * coordinates, batch));
+
+            } else if constexpr (std::is_same_v<matrix_type, const mat44_type*>) {
+                const auto inv_matrix = noa::geometry::affine2truncated(m_inv_matrix[batch]);
+                m_output(batch, z, y, x) = static_cast<value_type>(m_input(inv_matrix * coordinates, batch));
+
             } else if constexpr (noa::traits::is_mat34_v<matrix_type>) {
                 m_output(batch, z, y, x) = static_cast<value_type>(m_input(m_inv_matrix * coordinates, batch));
+
             } else {
                 static_assert(noa::traits::always_false_v<value_type>);
             }
@@ -123,9 +138,9 @@ namespace noa::algorithm::geometry {
             coordinates = m_matrix * coordinates;
             auto value = m_input(coordinates + m_center_shift, batch);
             for (index_type i = 0; i < m_symmetry_count; ++i) {
-                const Float33& m = m_symmetry_matrices[i];
+                const Float33& m = m_symmetry_matrices[i]; // zyx matrix
                 const matrix_type sym_matrix_2d{m[1][1], m[1][2],
-                                               m[2][1], m[2][2]};
+                                                m[2][1], m[2][2]}; // remove z
                 const vec_type i_coordinates = sym_matrix_2d * coordinates;
                 value += m_input(i_coordinates + m_center_shift, batch);
             }

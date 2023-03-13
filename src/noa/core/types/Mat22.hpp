@@ -10,12 +10,6 @@
 // A few necessary forward declarations:
 namespace noa {
     template<typename T>
-    class Mat33;
-
-    template<typename T>
-    class Mat23;
-
-    template<typename T>
     class Mat22;
 
     namespace math {
@@ -76,16 +70,6 @@ namespace noa {
         NOA_HD constexpr explicit Mat22(const Mat22<U>& m) noexcept
                 : m_row{row_type(m[0]),
                         row_type(m[1])} {}
-
-        template<typename U>
-        NOA_HD constexpr explicit Mat22(const Mat33<U>& m) noexcept
-                : m_row{row_type(m[0][0], m[0][1]),
-                        row_type(m[1][0], m[1][1])} {}
-
-        template<typename U>
-        NOA_HD constexpr explicit Mat22(const Mat23<U>& m) noexcept
-                : m_row{row_type(m[0][0], m[0][1]),
-                        row_type(m[1][0], m[1][1])} {}
 
         template<typename X00, typename X01,
                  typename Y10, typename Y11>
@@ -261,8 +245,17 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_row[0].data(); }
         [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_row[0].data(); }
 
+        template<typename T, std::enable_if_t<noa::traits::is_real_v<T>, bool> = true>
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
+            return Mat22<T>(*this);
+        }
+
         [[nodiscard]] NOA_IHD constexpr Mat22 transpose() const noexcept {
             return noa::math::transpose(*this);
+        }
+
+        [[nodiscard]] NOA_IHD constexpr Mat22 inverse() const noexcept {
+            return noa::math::inverse(*this);
         }
 
     public: // Support for noa::string::human<Vec>();

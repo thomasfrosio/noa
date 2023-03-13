@@ -270,10 +270,10 @@ namespace {
 
     template<typename Matrix>
     auto truncated_matrix_or_const_ptr_(const Matrix& matrix) {
-        if constexpr (noa::traits::is_mat23_v<Matrix> || noa::traits::is_mat33_v<Matrix>) {
-            return Float23(matrix);
-        } else if constexpr (noa::traits::is_mat34_v<Matrix> || noa::traits::is_mat44_v<Matrix>) {
-            return Float34(matrix);
+        if constexpr (noa::traits::is_mat33_v<Matrix> || noa::traits::is_mat44_v<Matrix>) {
+            return noa::geometry::affine2truncated(matrix);
+        } else if constexpr (noa::traits::is_matXX_v<Matrix>) {
+            return matrix;
         } else {
             NOA_ASSERT(matrix != nullptr);
             return matrix;

@@ -33,6 +33,44 @@ namespace noa::geometry {
                 0, 1, shift[1],
                 0, 0, 1};
     }
+
+    template<typename T>
+    NOA_IHD constexpr Mat33<T> linear2affine(const Mat22<T>& linear, const Vec2<T>& translate = {}) noexcept {
+        return Mat33<T>{linear[0][0], linear[0][1], translate[0],
+                        linear[1][0], linear[1][1], translate[1],
+                        0, 0, 1};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat23<T> linear2truncated(const Mat22<T>& linear, const Vec2<T>& translate = {}) noexcept {
+        return Mat23<T>{linear[0][0], linear[0][1], translate[0],
+                        linear[1][0], linear[1][1], translate[1]};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat33<T> truncated2affine(const Mat23<T>& truncated) noexcept {
+        return Mat33<T>{truncated[0][0], truncated[0][1], truncated[0][2],
+                        truncated[1][0], truncated[1][1], truncated[1][2],
+                        0, 0, 1};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat22<T> affine2linear(const Mat33<T>& affine) noexcept {
+        return Mat22<T>{affine[0][0], affine[0][1],
+                        affine[1][0], affine[1][1]};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat22<T> truncated2linear(const Mat23<T>& truncated) noexcept {
+        return Mat22<T>{truncated[0][0], truncated[0][1],
+                        truncated[1][0], truncated[1][1]};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat23<T> affine2truncated(const Mat33<T>& affine) noexcept {
+        return Mat23<T>{affine[0][0], affine[0][1], affine[0][2],
+                        affine[1][0], affine[1][1], affine[1][2]};
+    }
 }
 
 // -- 3D transformations -- //
@@ -109,5 +147,49 @@ namespace noa::geometry {
                 0, 1, 0, shift[1],
                 0, 0, 1, shift[2],
                 0, 0, 0, 1};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat44<T> linear2affine(const Mat33<T>& linear, const Vec3<T>& translate = {}) noexcept {
+        return Mat44<T>{linear[0][0], linear[0][1], linear[0][2], translate[0],
+                        linear[1][0], linear[1][1], linear[1][2], translate[1],
+                        linear[2][0], linear[2][1], linear[2][2], translate[2],
+                        0, 0, 0, 1};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat34<T> linear2truncated(const Mat33<T>& linear, const Vec3<T>& translate = {}) noexcept {
+        return Mat34<T>{linear[0][0], linear[0][1], linear[0][2], translate[0],
+                        linear[1][0], linear[1][1], linear[1][2], translate[1],
+                        linear[2][0], linear[2][1], linear[2][2], translate[2]};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat44<T> truncated2affine(const Mat34<T>& truncated) noexcept {
+        return Mat44<T>{truncated[0][0], truncated[0][1], truncated[0][2], truncated[0][3],
+                        truncated[1][0], truncated[1][1], truncated[1][2], truncated[1][3],
+                        truncated[2][0], truncated[2][1], truncated[2][2], truncated[2][3],
+                        0, 0, 0, 1};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat33<T> affine2linear(const Mat44<T>& affine) noexcept {
+        return Mat33<T>{affine[0][0], affine[0][1], affine[0][2],
+                        affine[1][0], affine[1][1], affine[1][2],
+                        affine[2][0], affine[2][1], affine[2][2]};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat33<T> truncated2linear(const Mat34<T>& truncated) noexcept {
+        return Mat33<T>{truncated[0][0], truncated[0][1], truncated[0][2],
+                        truncated[1][0], truncated[1][1], truncated[1][2],
+                        truncated[2][0], truncated[2][1], truncated[2][2]};
+    }
+
+    template<typename T>
+    NOA_IHD constexpr Mat34<T> affine2truncated(const Mat44<T>& affine) noexcept {
+        return Mat34<T>{affine[0][0], affine[0][1], affine[0][2], affine[0][3],
+                        affine[1][0], affine[1][1], affine[1][2], affine[1][3],
+                        affine[2][0], affine[2][1], affine[2][2], affine[2][3]};
     }
 }

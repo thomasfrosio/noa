@@ -1,4 +1,5 @@
 #include <noa/core/Types.hpp>
+#include <noa/core/geometry/Transform.hpp>
 
 #include <catch2/catch.hpp>
 
@@ -24,7 +25,7 @@ TEMPLATE_TEST_CASE("core::Mat22", "[noa][core]", double, float) {
 
         Mat tmp0(1, 2, 3, 4);
         Mat33<TestType> tmp1(1, 2, 0, 3, 4, 0, 0, 0, 0);
-        REQUIRE(tmp0 == Mat(tmp1));
+        REQUIRE(tmp0 == noa::geometry::affine2linear(tmp1));
         REQUIRE(Mat(Vec2<TestType>(1, 2),
                     Vec2<TestType>(3, 4)) == tmp0);
         REQUIRE(Mat(Vec2<int>(1, 2),
@@ -137,10 +138,10 @@ TEMPLATE_TEST_CASE("core::Mat23", "[noa][core]", double, float) {
 
         Mat tmp0(1, 2, 3, 4, 5, 6);
         Mat33<TestType> tmp1(1, 2, 3, 4, 5, 6, 7, 8, 9);
-        REQUIRE(tmp0 == Mat(tmp1));
+        REQUIRE(tmp0 == noa::geometry::affine2truncated(tmp1));
         Mat22<TestType> tmp2(1, 2, 3, 4);
-        REQUIRE(Mat(1, 2, 0, 3, 4, 0) == Mat(tmp2));
-        REQUIRE(Mat(1, 2, -1, 3, 4, -2) == Mat(tmp2, Vec2<TestType>(-1, -2)));
+        REQUIRE(Mat(1, 2, 0, 3, 4, 0) == noa::geometry::linear2truncated(tmp2));
+        REQUIRE(Mat(1, 2, -1, 3, 4, -2) == noa::geometry::linear2truncated(tmp2, Vec2<TestType>(-1, -2)));
         REQUIRE(Mat(Vec3<TestType>(1, 2, 3),
                     Vec3<TestType>(4, 5, 6)) == tmp0);
         REQUIRE(Mat(Vec3<int>(1, 2, 3),
@@ -236,14 +237,13 @@ TEMPLATE_TEST_CASE("core::Mat33", "[noa][core]", double, float) {
         REQUIRE(Mat(1, 0, 0, 0, 1, 0, 0, 0, 1) == test);
         REQUIRE(Mat(3, 0, 0, 0, 3, 0, 0, 0, 3) == Mat(3));
         REQUIRE(Mat(1, 0, 0, 0, 2, 0, 0, 0, 3) == Mat(Vec3<TestType>(1, 2, 3)));
-        REQUIRE(Mat(1, 0, 0, 0, 2, 0, 0, 0, 1) == Mat(Vec2<TestType>(1, 2)));
 
         Mat tmp0(1, 2, 3, 4, 5, 6, 7, 8, 9);
         Mat44<TestType> tmp1(1, 2, 3, 0, 4, 5, 6, 0, 7, 8, 9, 0, 0, 0, 0, 0);
-        REQUIRE(tmp0 == Mat(tmp1));
+        REQUIRE(tmp0 == noa::geometry::affine2linear(tmp1));
         Mat22<TestType> tmp2(1, 2, 3, 4);
-        REQUIRE(Mat(1, 2, 0, 3, 4, 0, 0, 0, 1) == Mat(tmp2));
-        REQUIRE(Mat(1, 2, -1, 3, 4, -2, 0, 0, 1) == Mat(tmp2, Vec2<TestType>(-1, -2)));
+        REQUIRE(Mat(1, 2, 0, 3, 4, 0, 0, 0, 1) == noa::geometry::linear2affine(tmp2));
+        REQUIRE(Mat(1, 2, -1, 3, 4, -2, 0, 0, 1) == noa::geometry::linear2affine(tmp2, Vec2<TestType>(-1, -2)));
         REQUIRE(Mat(Vec3<TestType>(1, 2, 3),
                     Vec3<TestType>(4, 5, 6),
                     Vec3<TestType>(7, 8, 9)) == tmp0);
@@ -377,18 +377,15 @@ TEMPLATE_TEST_CASE("core::Mat34", "[noa][core]", double, float) {
                     0, 0, 3, 0) == Mat(3));
         REQUIRE(Mat(1, 0, 0, 0,
                     0, 2, 0, 0,
-                    0, 0, 3, 0) == Mat(Vec4<TestType>(1, 2, 3, 4)));
-        REQUIRE(Mat(1, 0, 0, 0,
-                    0, 2, 0, 0,
                     0, 0, 3, 0) == Mat(Vec3<TestType>(1, 2, 3)));
 
         Mat33<TestType> tmp0(1, 2, 3, 4, 5, 6, 7, 8, 9);
         REQUIRE(Mat(1, 2, 3, 0,
                     4, 5, 6, 0,
-                    7, 8, 9, 0) == Mat(tmp0));
+                    7, 8, 9, 0) == noa::geometry::linear2truncated(tmp0));
         REQUIRE(Mat(1, 2, 3, -1,
                     4, 5, 6, -2,
-                    7, 8, 9, -3) == Mat(tmp0, Vec3<TestType>(-1, -2, -3)));
+                    7, 8, 9, -3) == noa::geometry::linear2truncated(tmp0, Vec3<TestType>(-1, -2, -3)));
         Mat tmp1(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
         REQUIRE(Mat(Vec4<TestType>(1, 2, 3, 4),
                     Vec4<TestType>(5, 6, 7, 8),
@@ -538,20 +535,16 @@ TEMPLATE_TEST_CASE("core::Mat44", "[noa][core]", double, float) {
                     0, 2, 0, 0,
                     0, 0, 3, 0,
                     0, 0, 0, 4) == Mat(Vec4<TestType>(1, 2, 3, 4)));
-        REQUIRE(Mat(1, 0, 0, 0,
-                    0, 2, 0, 0,
-                    0, 0, 3, 0,
-                    0, 0, 0, 1) == Mat(Vec3<TestType>(1, 2, 3)));
 
         Mat33<TestType> tmp0(1, 2, 3, 4, 5, 6, 7, 8, 9);
         REQUIRE(Mat(1, 2, 3, 0,
                     4, 5, 6, 0,
                     7, 8, 9, 0,
-                    0, 0, 0, 1) == Mat(tmp0));
+                    0, 0, 0, 1) == noa::geometry::linear2affine(tmp0));
         REQUIRE(Mat(1, 2, 3, -1,
                     4, 5, 6, -2,
                     7, 8, 9, -3,
-                    0, 0, 0, 1) == Mat(tmp0, Vec3<TestType>(-1, -2, -3)));
+                    0, 0, 0, 1) == noa::geometry::linear2affine(tmp0, Vec3<TestType>(-1, -2, -3)));
         Mat tmp1(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
         REQUIRE(Mat(Vec4<TestType>(1, 2, 3, 4),
                     Vec4<TestType>(5, 6, 7, 8),
