@@ -42,7 +42,7 @@ TEMPLATE_TEST_CASE("unified::ewise_unary", "[noa][unified]",
         expected_1d[i] = static_cast<result_t>(op_t{}(input_1d[i]));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -95,7 +95,7 @@ TEMPLATE_TEST_CASE("unified::ewise_unary, large", "[noa][unified]",
         expected_1d[i] = static_cast<result_t>(op_t{}(input_1d[i]));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -147,7 +147,7 @@ TEMPLATE_TEST_CASE("unified::ewise_binary", "[noa][unified]",
         expected_1d[i] = static_cast<result_t>(op_t{}(lhs_1d[i], rhs_1d[i]));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -207,7 +207,7 @@ TEMPLATE_TEST_CASE("unified::ewise_binary, large", "[noa][unified]",
         expected_1d[i] = static_cast<result_t>(op_t{}(lhs_1d[i], rhs_1d[i]));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -269,7 +269,7 @@ TEMPLATE_TEST_CASE("unified::ewise_trinary", "[noa][unified]",
         expected_1d[i] = static_cast<result_t>(op_t{}(lhs_1d[i], mhs_1d[i], rhs_1d[i]));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -335,7 +335,7 @@ TEMPLATE_TEST_CASE("unified::ewise_trinary, large", "[noa][unified]",
         expected_1d[i] = static_cast<result_t>(op_t{}(lhs_1d[i], mhs_1d[i], rhs_1d[i]));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -360,7 +360,7 @@ TEMPLATE_TEST_CASE("unified::ewise_trinary, large", "[noa][unified]",
 
 TEMPLATE_TEST_CASE("unified::ewise_binary, broadcast", "[noa][unified]", i32, f32, f64, c32) {
     std::vector<Device> devices = {Device{"cpu"}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto shape = test::get_random_shape4_batched(3);
@@ -404,7 +404,7 @@ TEMPLATE_TEST_CASE("unified::ewise_binary, broadcast", "[noa][unified]", i32, f3
 
 TEMPLATE_TEST_CASE("unified::ewise_trinary, broadcast", "[noa][unified]", i32, f32, f64, c32) {
     std::vector<Device> devices = {Device{"cpu"}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto shape = test::get_random_shape4_batched(3);

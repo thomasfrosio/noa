@@ -445,7 +445,7 @@ namespace noa {
                     }
                     break;
                 case Allocator::PINNED: {
-                    if (device.is_cpu() && !Device::any(DeviceType::GPU)) {
+                    if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
                         m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
@@ -456,7 +456,7 @@ namespace noa {
                     break;
                 }
                 case Allocator::MANAGED: {
-                    if (device.is_cpu() && !Device::any(DeviceType::GPU)) {
+                    if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
                         m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
@@ -469,7 +469,7 @@ namespace noa {
                     break;
                 }
                 case Allocator::MANAGED_GLOBAL: {
-                    if (device.is_cpu() && !Device::any(DeviceType::GPU)) {
+                    if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
                         m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
@@ -493,7 +493,7 @@ namespace noa {
             NOA_CHECK(alloc != Allocator::NONE || ptr == nullptr, "{} is for nullptr only", Allocator::NONE);
 
             if (option.device().is_cpu()) {
-                if (!Device::any(DeviceType::GPU))
+                if (!Device::is_any(DeviceType::GPU))
                     return; // Everything is allocated using PtrHost
                 #ifdef NOA_ENABLE_CUDA
                 const cudaPointerAttributes attr = cuda::utils::pointer_attributes(ptr);

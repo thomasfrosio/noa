@@ -44,7 +44,7 @@ TEMPLATE_TEST_CASE("unified::find_offset()", "[noa][unified]",
     }
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -90,7 +90,7 @@ TEMPLATE_TEST_CASE("unified::find_offset(), padded", "[noa][unified]",
     INFO(subregion_shape);
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {

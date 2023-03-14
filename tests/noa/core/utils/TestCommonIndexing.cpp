@@ -199,7 +199,7 @@ TEST_CASE("core:: shape, strides", "[noa][core]") {
         auto strides = original_shape.strides();
         REQUIRE(all(indexing::is_contiguous(strides, original_shape) == Vec4<bool>{1, 1, 1, 1}));
 
-        indexing::broadcast(original_shape, strides, broadcast_shape);
+        REQUIRE(indexing::broadcast(original_shape, strides, broadcast_shape));
         REQUIRE(all(indexing::is_contiguous(strides, broadcast_shape) == Vec4<bool>{1, 1, 0, 1}));
 
         REQUIRE(all(indexing::is_contiguous({0, 0, 0, 1}, broadcast_shape) == Vec4<bool>{0, 0, 0, 1}));
@@ -256,7 +256,7 @@ TEST_CASE("core:: shape, strides", "[noa][core]") {
         auto strides = original_shape.strides<'F'>();
         REQUIRE(all(indexing::is_contiguous<'F'>(strides, original_shape) == Vec4<bool>{1, 1, 1, 1}));
 
-        indexing::broadcast(original_shape, strides, broadcast_shape);
+        REQUIRE(indexing::broadcast(original_shape, strides, broadcast_shape));
         REQUIRE(all(indexing::is_contiguous<'F'>(strides, broadcast_shape) == Vec4<bool>{1, 1, 0, 1}));
     }
 
@@ -311,7 +311,7 @@ TEST_CASE("core:: shape, strides", "[noa][core]") {
         const Shape4<u64> original_shape{3, 128, 1, 64};
         const Shape4<u64> broadcast_shape{3, 128, 64, 64};
         auto strides = original_shape.strides();
-        indexing::broadcast(original_shape, strides, broadcast_shape);
+        REQUIRE(indexing::broadcast(original_shape, strides, broadcast_shape));
         REQUIRE(all(indexing::effective_shape(broadcast_shape, strides) == original_shape));
     }
 }

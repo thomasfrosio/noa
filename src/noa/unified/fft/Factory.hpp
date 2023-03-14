@@ -13,7 +13,7 @@ namespace noa::fft {
     /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
     /// \note If \p size is >16800, this function will simply return the next even number and will not necessarily
     ///       satisfy the aforementioned requirements.
-    inline i64 fast_size(i64 size) {
+    inline i64 next_fast_size(i64 size) {
         #ifdef NOA_ENABLE_CUDA
         return noa::cuda::fft::fast_size(size);
         #else
@@ -24,7 +24,7 @@ namespace noa::fft {
     /// Returns the next optimum BDHW shape.
     /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension, e.g. {3,1,53,53}
     ///       is rounded up to {3,1,54,54}.
-    [[nodiscard]] inline Shape4<i64> fast_shape(const Shape4<i64>& shape) {
+    [[nodiscard]] inline Shape4<i64> next_fast_shape(const Shape4<i64>& shape) {
         #ifdef NOA_ENABLE_CUDA
         return noa::cuda::fft::fast_shape(shape);
         #else

@@ -31,7 +31,7 @@ TEST_CASE("unified::math:: reductions vs numpy", "[assets][noa][unified]") {
     REQUIRE(all(data.shape() == shape));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -80,7 +80,7 @@ TEST_CASE("unified::math:: reductions complex vs numpy", "[assets][noa][unified]
     REQUIRE(all(data.shape() == shape));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -104,7 +104,7 @@ TEST_CASE("unified::math:: reductions complex vs numpy", "[assets][noa][unified]
 }
 
 TEMPLATE_TEST_CASE("unified::math:: reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
 
     const auto pad = GENERATE(true, false);
@@ -198,7 +198,7 @@ TEST_CASE("unified::math:: batched reductions vs numpy", "[assets][noa][unified]
     }
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -235,7 +235,7 @@ TEST_CASE("unified::math:: batched reductions vs numpy", "[assets][noa][unified]
 }
 
 TEMPLATE_TEST_CASE("unified::math:: batched reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
 
     const auto pad = GENERATE(true, false);
@@ -333,7 +333,7 @@ TEST_CASE("unified::math:: axis reductions vs numpy", "[assets][noa][unified]") 
     REQUIRE(all(data.shape() == shape));
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t i = 0; i < 4; ++i) {
@@ -383,7 +383,7 @@ TEST_CASE("unified::math:: axis reductions vs numpy", "[assets][noa][unified]") 
 }
 
 TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
 
     const auto pad = GENERATE(true, false);

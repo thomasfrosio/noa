@@ -17,7 +17,7 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[noa][unified][assets]")
     const auto input_filename = path_base / param["input"].as<Path>();
 
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto expected_count = static_cast<i64>(param["tests"].size() * devices.size());
@@ -36,13 +36,12 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[noa][unified][assets]")
         const auto scale = test["scale"].as<Vec2<f64>>();
         const auto rotate = math::deg2rad(test["rotate"].as<f64>());
         const auto shift = test["shift"].as<Vec2<f64>>();
-        const auto inv_matrix = static_cast<Float33>(
-                noa::math::inverse(
-                        noa::geometry::translate(center) *
-                        noa::geometry::translate(shift) *
-                        noa::geometry::linear2affine(noa::geometry::rotate(rotate)) *
-                        noa::geometry::linear2affine(noa::geometry::scale(scale)) *
-                        noa::geometry::translate(-center)));
+        const auto inv_matrix = noa::math::inverse(
+                noa::geometry::translate(center) *
+                noa::geometry::translate(shift) *
+                noa::geometry::linear2affine(noa::geometry::rotate(rotate)) *
+                noa::geometry::linear2affine(noa::geometry::scale(scale)) *
+                noa::geometry::translate(-center)).as<f32>();
 
         for (auto& device: devices) {
             const auto stream = noa::StreamGuard(device);
@@ -113,7 +112,7 @@ TEST_CASE("unified::geometry::transform_2d(), cubic", "[noa][unified][assets]") 
     ).as<f32>());
 
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -184,7 +183,7 @@ TEST_CASE("unified::geometry::transform_2d(), cubic", "[noa][unified][assets]") 
 }
 
 TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "[noa][geometry]", f32, f64, c32, c64) {
-    if (!noa::Device::any(noa::DeviceType::GPU))
+    if (!noa::Device::is_any(noa::DeviceType::GPU))
         return;
 
     const InterpMode interp = GENERATE(InterpMode::LINEAR, InterpMode::COSINE, InterpMode::CUBIC, InterpMode::CUBIC_BSPLINE);
@@ -219,7 +218,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "[noa][geometr
 
 TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), cpu vs gpu, texture interpolation", "[noa][geometry]",
                    f32, c32) {
-    if (!noa::Device::any(noa::DeviceType::GPU))
+    if (!noa::Device::is_any(noa::DeviceType::GPU))
         return;
 
     const InterpMode interp = GENERATE(InterpMode::LINEAR_FAST, InterpMode::COSINE_FAST, InterpMode::CUBIC_BSPLINE_FAST);
@@ -262,7 +261,7 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
     const auto input_filename = path_base / param["input"].as<Path>();
 
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto expected_count = static_cast<i64>(param["tests"].size() * devices.size());
@@ -281,13 +280,13 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
         const auto scale = test["scale"].as<Vec3<f64>>();
         const auto euler = math::deg2rad(test["euler"].as<Vec3<f64>>());
         const auto shift = test["shift"].as<Vec3<f64>>();
-        const auto inv_matrix = noa::geometry::affine2truncated(noa::math::inverse(
+        const auto inv_matrix = noa::math::inverse(
                 noa::geometry::translate(center) *
                 noa::geometry::translate(shift) *
                 noa::geometry::linear2affine(noa::geometry::euler2matrix(euler)) *
                 noa::geometry::linear2affine(noa::geometry::scale(scale)) *
                 noa::geometry::translate(-center)
-        )).as<f32>();
+        ).as<f32>();
 
         for (auto& device: devices) {
             const auto stream = noa::StreamGuard(device);
@@ -358,7 +357,7 @@ TEST_CASE("unified::geometry::transform_3d(), cubic", "[noa][unified][assets]") 
     )).as<f32>();
 
     std::vector<Device> devices{Device("gpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < param["tests"].size(); ++nb) {
@@ -429,7 +428,7 @@ TEST_CASE("unified::geometry::transform_3d(), cubic", "[noa][unified][assets]") 
 }
 
 TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometry]", f32, f64, c32, c64) {
-    if (!noa::Device::any(noa::DeviceType::GPU))
+    if (!noa::Device::is_any(noa::DeviceType::GPU))
         return;
 
     const InterpMode interp = GENERATE(InterpMode::LINEAR, InterpMode::COSINE, InterpMode::CUBIC, InterpMode::CUBIC_BSPLINE);
@@ -468,7 +467,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometr
 
 TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu, texture interpolation", "[noa][geometry]",
                    f32, c32) {
-    if (!noa::Device::any(noa::DeviceType::GPU))
+    if (!noa::Device::is_any(noa::DeviceType::GPU))
         return;
 
     const InterpMode interp = GENERATE(InterpMode::LINEAR_FAST, InterpMode::COSINE_FAST, InterpMode::CUBIC_BSPLINE_FAST);

@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("unified::memory::arange(), cpu", "[noa][unified]",
 
 TEST_CASE("noa::memory::linspace()", "[noa][unified]") {
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for(const auto& device: devices) {
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
     const DeviceType type = GENERATE(DeviceType::CPU, DeviceType::GPU);
     INFO(pad);
 
-    if (!Device::any(type))
+    if (!Device::is_any(type))
         return;
 
     const auto subregion_shape = test::get_random_shape4_batched(3);

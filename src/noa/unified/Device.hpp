@@ -187,7 +187,7 @@ namespace noa {
 
         /// Whether there's any device available of this type.
         /// Always returns true if \p type is CPU.
-        [[nodiscard]] static bool any(DeviceType type) {
+        [[nodiscard]] static bool is_any(DeviceType type) {
             return Device::count(type) != 0;
         }
 

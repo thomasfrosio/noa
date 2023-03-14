@@ -27,7 +27,7 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
     }
 
     std::vector<Device> devices{Device("cpu")};
-    if (!COMPUTE_ASSETS && Device::any(DeviceType::GPU))
+    if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const size_t expected_count = param["tests"].size() * devices.size();
@@ -111,7 +111,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
     }
 
     std::vector<Device> devices{Device("cpu")};
-    if (!COMPUTE_ASSETS && Device::any(DeviceType::GPU))
+    if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const size_t expected_count = param["tests"].size() * devices.size();
@@ -191,7 +191,7 @@ TEMPLATE_TEST_CASE("unified::geometry::symmetry_2d", "[noa][unified]", f32, f64)
     expected.eval();
 
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -229,7 +229,7 @@ TEMPLATE_TEST_CASE("unified::geometry::symmetrize_3d", "[noa][unified]", f32, f6
     expected.eval();
 
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {

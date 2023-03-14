@@ -257,7 +257,7 @@ namespace noa {
                 return View(get(), shape(), strides(), ArrayOption(m_options).device(Device(type)));
 
             } else if (device().is_cpu() && type == DeviceType::GPU) { // CPU -> GPU
-                NOA_CHECK(Device::any(DeviceType::GPU), "No GPU detected");
+                NOA_CHECK(Device::is_any(DeviceType::GPU), "No GPU detected");
                 NOA_CHECK(alloc == Allocator::PINNED ||
                           alloc == Allocator::MANAGED ||
                           alloc == Allocator::MANAGED_GLOBAL,

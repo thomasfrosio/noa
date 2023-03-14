@@ -28,7 +28,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     REQUIRE_FALSE(a.is_empty());
 
     // GPU
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
 
     const Device gpu("gpu:0");
@@ -75,7 +75,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
     REQUIRE(b.get() != a.get());
 
     // GPU
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
     const Device gpu("gpu:0");
     a = Array<TestType>(shape, ArrayOption{}.device(gpu).allocator(alloc));
@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f3
     }
 
     AND_THEN("cpu -> gpu") {
-        if (Device::any(DeviceType::GPU)) {
+        if (Device::is_any(DeviceType::GPU)) {
             const auto dst_options = ArrayOption(Device(DeviceType::GPU), Allocator::MANAGED);
             const auto output = input.to(dst_options);
             REQUIRE(test::Matcher(test::MATCH_ABS, input, output, 1e-10));
@@ -125,7 +125,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f3
     }
 
     AND_THEN("gpu -> gpu") {
-        if (Device::any(DeviceType::GPU)) {
+        if (Device::is_any(DeviceType::GPU)) {
             const auto dst_options = ArrayOption(Device(DeviceType::GPU), Allocator::MANAGED);
             const auto output0 = input.to(dst_options);
             const auto output1 = output0.copy();
@@ -134,7 +134,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f3
     }
 
     AND_THEN("gpu -> cpu") {
-        if (Device::any(DeviceType::GPU)) {
+        if (Device::is_any(DeviceType::GPU)) {
             const auto dst_options = ArrayOption(Device(DeviceType::GPU), Allocator::MANAGED);
             const auto output0 = input.to(dst_options);
             const auto output1 = output0.to_cpu();

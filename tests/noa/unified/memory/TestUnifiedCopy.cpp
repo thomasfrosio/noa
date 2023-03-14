@@ -26,7 +26,7 @@ TEMPLATE_TEST_CASE("unified::memory::copy", "[noa][unified]", i32, f32, f64, c32
         REQUIRE(test::Matcher(test::MATCH_ABS, a, b, 1e-8));
     }
 
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
 
     AND_THEN("cpu -> gpu -> gpu -> cpu") {
@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("unified::memory::copy", "[noa][unified]", i32, f32, f64, c32
 }
 
 TEST_CASE("unified::memory::copy, strided data from GPU to CPU", "[noa][unified]") {
-    if (!Device::any(DeviceType::GPU))
+    if (!Device::is_any(DeviceType::GPU))
         return;
 
     const auto shape = Shape4<i64>{1, 10, 10, 10};

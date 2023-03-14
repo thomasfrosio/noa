@@ -13,7 +13,7 @@ TEST_CASE("unified::sort()", "[assets][noa][unified]") {
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["sort"];
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {

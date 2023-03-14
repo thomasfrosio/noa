@@ -13,11 +13,11 @@ using namespace ::noa;
 
 TEST_CASE("unified::geometry::fft::insert_rasterize_3d", "[noa][unified][asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert3D_rasterisation"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_rasterize_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
     std::vector<Device> devices = {Device("cpu")};
-    if (!COMPUTE_ASSETS && Device::any(DeviceType::GPU))
+    if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {
@@ -68,7 +68,7 @@ TEST_CASE("unified::geometry::fft::insert_rasterize_3d", "[noa][unified][asset]"
 
 TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, remap", "[noa][unified]", f32, c32) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto slice_shape = Shape4<i64>{20, 1, 64, 64};
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, remap", "[noa][
 
 TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, value", "[noa][unified]", f32, c32, f64, c64) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto slice_shape = Shape4<i64>{20, 1, 64, 64};
@@ -154,11 +154,11 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, value", "[noa][
 
 TEST_CASE("unified::geometry::fft::insert_interpolate_3d", "[noa][unified][asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert3D_interpolation"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_interpolate_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
     std::vector<Device> devices = {Device("cpu")};
-    if (!COMPUTE_ASSETS && Device::any(DeviceType::GPU))
+    if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {
@@ -212,7 +212,7 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_3d", "[noa][unified][asset
 TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, value", "[noa][unified][asset]",
                    f32, c32, f64, c64) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto slice_shape = Shape4<i64>{20, 1, 64, 64};
@@ -251,7 +251,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, value", "[noa
 TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, using texture API and remap", "[noa][unified]",
                    f32, c32) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const i64 slice_count = GENERATE(1, 20);
@@ -309,7 +309,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, using texture
 
 TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract3D_from_grid"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract_3d"];
 
     const auto grid_filename = path / tests["grid_filename"].as<Path>();
     const auto grid_shape = tests["grid_shape"].as<Shape4<i64>>();
@@ -333,7 +333,7 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
     }
 
     std::vector<Device> devices = {Device("cpu")};
-    if (!COMPUTE_ASSETS && Device::any(DeviceType::GPU))
+    if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {
@@ -386,7 +386,7 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
 TEMPLATE_TEST_CASE("unified::geometry::fft::extract_3d, using texture API and remap", "[noa][unified]",
                    f32, c32) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto slice_shape = Shape4<i64>{20, 1, 128, 128};
@@ -425,11 +425,11 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::extract_3d, using texture API and re
 
 TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d", "[noa][unified][asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract3D_from_slices"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_interpolate_and_extract_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
     std::vector<Device> devices = {Device("cpu")};
-    if (!COMPUTE_ASSETS && Device::any(DeviceType::GPU))
+    if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {
@@ -491,7 +491,7 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d", "[noa][un
 TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, using texture API and remap",
                    "[noa][unified]", f32, c32) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto input_slice_shape = Shape4<i64>{20, 1, 256, 256};
@@ -546,7 +546,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, u
 TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, using value", "[noa][unified]",
                    f32, c32, f64, c64) {
     std::vector<Device> devices = {Device("cpu")};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     const auto input_slice_shape = Shape4<i64>{20, 1, 256, 256};

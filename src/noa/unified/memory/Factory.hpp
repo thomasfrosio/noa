@@ -60,9 +60,9 @@ namespace noa::memory {
                       noa::traits::is_vecX_v<Value> ||
                       noa::traits::is_matXX_v<Value>) {
             if (value == Value{0} && option.device().is_cpu() &&
-                (!Device::any(DeviceType::GPU) || (option.allocator() == Allocator::DEFAULT ||
-                                                   option.allocator() == Allocator::DEFAULT_ASYNC ||
-                                                   option.allocator() == Allocator::PITCHED))) {
+                (!Device::is_any(DeviceType::GPU) || (option.allocator() == Allocator::DEFAULT ||
+                                                      option.allocator() == Allocator::DEFAULT_ASYNC ||
+                                                      option.allocator() == Allocator::PITCHED))) {
                 return Array<Value>(cpu::memory::PtrHost<Value>::calloc(shape.elements()),
                                     shape, shape.strides(), option);
             }

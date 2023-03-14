@@ -18,7 +18,7 @@ TEMPLATE_TEST_CASE("unified::math::randomize()", "[noa][unified]", f32, f64) {
     }
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     auto data = Array<TestType>(shape);

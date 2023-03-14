@@ -21,7 +21,7 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
         a = Stream(cpu);
         a = std::move(b);
 
-        if (Device::any(DeviceType::GPU)) {
+        if (Device::is_any(DeviceType::GPU)) {
             const Device device(DeviceType::GPU, 0);
             Stream c(device);
             REQUIRE(c.device().is_gpu());
@@ -34,7 +34,7 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
     }
 
     AND_THEN("current, guard") {
-        if (!Device::any(DeviceType::GPU))
+        if (!Device::is_any(DeviceType::GPU))
             return;
 
         Device::set_current(Device("gpu"));

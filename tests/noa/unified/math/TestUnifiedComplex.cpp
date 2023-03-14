@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("unified::math::decompose() and complex()", "[noa][unified]",
     }
 
     std::vector<Device> devices = {Device{}};
-    if (Device::any(DeviceType::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     using complex_t = Complex<TestType>;
