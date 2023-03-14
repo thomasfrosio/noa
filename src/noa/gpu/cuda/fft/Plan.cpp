@@ -190,7 +190,7 @@ namespace noa::cuda::fft::details {
         cufftHandle plan{};
         for (i32 i = 0; i < 2; ++i) {
             const auto err = ::cufftPlanMany(
-                    &plan, rank, s_shape.data() + offset,
+                    &plan, rank, shape_3d.data() + offset,
                     i_pitch.data() + offset, i_strides[3], i_strides[0],
                     o_pitch.data() + offset, o_strides[3], o_strides[0],
                     type, batch);
