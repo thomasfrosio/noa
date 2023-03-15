@@ -32,15 +32,14 @@ set(TEST_UNIFIED_SOURCES
 #        noa/unified/memory/TestUnifiedIndex.cpp
 #        noa/unified/memory/TestUnifiedPermute.cpp
 #        noa/unified/memory/TestUnifiedResize.cpp
-#
-#        noa/unified/fft/TestUnifiedFFT.cpp
-#        noa/unified/fft/TestUnifiedResize.cpp
-#
+
+        noa/unified/fft/TestUnifiedFFT.cpp
+        noa/unified/fft/TestUnifiedRemap.cpp
+        noa/unified/fft/TestUnifiedResize.cpp
+
 #        noa/unified/geometry/fft/TestUnifiedReconstruction.cpp
-#        noa/unified/geometry/fft/TestUnifiedTransform.cpp
-#        noa/unified/geometry/fft/TestUnifiedProject.cpp
-##        noa/unified/geometry/TestUnifiedBackproject.cpp
-##        noa/unified/geometry/TestUnifiedCosineStretch.cpp
+        noa/unified/geometry/fft/TestUnifiedTransform.cpp
+        noa/unified/geometry/fft/TestUnifiedProject.cpp
         noa/unified/geometry/TestUnifiedTransform.cpp
         noa/unified/geometry/TestUnifiedSymmetry.cpp
         )
