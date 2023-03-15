@@ -46,7 +46,7 @@ namespace noa {
 
         template<typename T>
         [[nodiscard]] NOA_HD constexpr I operator[](T i) const noexcept {
-            NOA_ASSERT(i == 1);
+            NOA_ASSERT(i == 0);
             (void) i;
             return I{1};
         }
@@ -114,7 +114,7 @@ namespace noa {
 
         // Creates a contiguous 1D accessor, assuming the stride is 1.
         template<typename Void = void, typename = std::enable_if_t<(SIZE == 1) && IS_CONTIGUOUS && std::is_void_v<Void>>>
-        NOA_HD constexpr Accessor(pointer_type pointer) noexcept
+        NOA_HD constexpr explicit Accessor(pointer_type pointer) noexcept
                 : m_ptr(pointer), m_strides(nullptr) {}
 
         // Creates a const accessor from an existing non-const accessor.
