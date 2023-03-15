@@ -116,12 +116,12 @@ namespace noa::cpu::fft {
                         input, input_strides, output, output_strides, shape);
                 return noa::cpu::utils::iwise_4d(iwise_shape, kernel, threads);
             }
-            case noa::fft::Remap::HC2FC: {
+            case Remap::HC2FC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2FC>(
                         input, input_strides, output, output_strides, shape);
                 return noa::cpu::utils::iwise_4d(iwise_shape, kernel, threads);
             }
-            case noa::fft::Remap::H2FC: {
+            case Remap::H2FC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2FC>(
                         input, input_strides, output, output_strides, shape);
                 return noa::cpu::utils::iwise_4d(iwise_shape, kernel, threads);
