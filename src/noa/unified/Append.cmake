@@ -47,6 +47,7 @@ set(NOA_UNIFIED_HEADERS
         # noa::memory
         unified/memory/Cast.hpp
         unified/memory/Copy.hpp
+        unified/memory/CopyBatches.hpp
         unified/memory/Factory.hpp
         unified/memory/Index.hpp
         unified/memory/Permute.hpp
