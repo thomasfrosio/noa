@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/core/utils/Indexing.hpp"
 #include "noa/unified/Stream.hpp"
 #include "noa/unified/Indexing.hpp"
 
@@ -9,6 +8,8 @@
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #endif
+
+// NOTE: This file is included in Array.hpp
 
 namespace noa::memory {
     /// (Deep-)Copies arrays.
@@ -65,19 +66,5 @@ namespace noa::memory {
             NOA_THROW("No GPU backend detected");
             #endif
         }
-    }
-
-    /// (Deep-)Copies arrays.
-    template<typename Value, typename Vector>
-    void copy_batches(const Array<Value>& input, const Array<Value>& output,
-                      const Vector& batch_indexes) {
-        // If the batches to copy into output are next to each other,
-        // this becomes a slice operation.
-
-        // If the arrays are on the same device, use extract for
-        // better performance (only one ewise call).
-
-        // Worst case, copy batches across devices.
-
     }
 }

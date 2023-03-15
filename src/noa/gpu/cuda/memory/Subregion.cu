@@ -4,11 +4,11 @@
 #include "noa/algorithms/memory/Subregion.hpp"
 
 namespace noa::cuda::memory {
-    template<typename Value, typename>
+    template<typename Value, typename Index, typename>
     void extract_subregions(
             const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
             Value* subregions, Strides4<i64> subregion_strides, Shape4<i64> subregion_shape,
-            const Vec4<i64>* origins, BorderMode border_mode, Value border_value,
+            const Vec4<Index>* origins, BorderMode border_mode, Value border_value,
             Stream& stream) {
 
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
@@ -80,11 +80,11 @@ namespace noa::cuda::memory {
         }
     }
 
-    template<typename Value, typename>
+    template<typename Value, typename Index, typename>
     void insert_subregions(
             const Value* subregions, Strides4<i64> subregion_strides, Shape4<i64> subregion_shape,
             Value* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
-            const Vec4<i64>* origins,
+            const Vec4<Index>* origins,
             Stream& stream) {
 
         NOA_ASSERT_DEVICE_PTR(subregions, stream.device());
@@ -110,28 +110,32 @@ namespace noa::cuda::memory {
         noa::cuda::utils::iwise_4d("insert_subregions", subregion_shape, kernel, stream);
     }
 
-    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T)      \
-    template void extract_subregions<T, void>(      \
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_(T, I)   \
+    template void extract_subregions<T, I, void>(   \
         const T*, Strides4<i64>, Shape4<i64>,       \
         T*, Strides4<i64>, Shape4<i64>,             \
-        const Vec4<i64>*, BorderMode, T, Stream&);  \
-    template void insert_subregions<T, void>(       \
+        const Vec4<I>*, BorderMode, T, Stream&);    \
+    template void insert_subregions<T, I, void>(    \
         const T*, Strides4<i64>, Shape4<i64>,       \
         T*, Strides4<i64>, Shape4<i64>,             \
-        const Vec4<i64>*, Stream&)
+        const Vec4<I>*, Stream&)
 
-    NOA_INSTANTIATE_EXTRACT_INSERT_(i8);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(i16);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(i32);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(i64);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(u8);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(u16);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(u32);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(u64);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(f16);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(f32);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(f64);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(c16);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(c32);
-    NOA_INSTANTIATE_EXTRACT_INSERT_(c64);
+    #define NOA_INSTANTIATE_EXTRACT_INSERT_ALL(T)   \
+    NOA_INSTANTIATE_EXTRACT_INSERT_(T, i32);        \
+    NOA_INSTANTIATE_EXTRACT_INSERT_(T, i64)
+
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(i8);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(i16);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(i32);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(i64);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(u8);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(u16);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(u32);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(u64);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(f16);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(f32);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(f64);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(c16);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(c32);
+    NOA_INSTANTIATE_EXTRACT_INSERT_ALL(c64);
 }

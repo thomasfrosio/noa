@@ -6,10 +6,10 @@
 #endif
 
 #include "noa/unified/Array.hpp"
+#include "noa/unified/Indexing.hpp"
 
 namespace noa::memory {
     /// Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.
-    /// \tparam T               Any data type.
     /// \param[in] input        Input array to extract from.
     /// \param[out] subregions  Output subregion(s).
     /// \param[in] origins      BDHW (vector of) indexes, defining the origin where to extract subregions from \p input.
@@ -26,7 +26,7 @@ namespace noa::memory {
              noa::traits::is_array_or_view_v<Origin> &&
              noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value> &&
-             noa::traits::is_almost_same_v<noa::traits::value_type_t<Origin>, Vec4<i64>>>>
+             noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
     void extract_subregions(const Input& input, const Subregion& subregions, const Origin& origins,
                             BorderMode border_mode = BorderMode::ZERO, Value border_value = Value{0}) {
         NOA_CHECK(!input.is_empty() && !subregions.is_empty(), "Empty array detected");
@@ -79,7 +79,7 @@ namespace noa::memory {
              noa::traits::are_array_or_view_of_restricted_numeric_v<Output, Subregion> &&
              noa::traits::is_array_or_view_v<Origin> &&
              noa::traits::are_almost_same_value_type_v<Output, Subregion> &&
-             noa::traits::is_almost_same_v<noa::traits::value_type_t<Origin>, Vec4<i64>>>>
+             noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
     void insert_subregions(const Subregion& subregions, const Output& output, const Origin& origins) {
         NOA_CHECK(!output.is_empty() && !subregions.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(output, subregions),
