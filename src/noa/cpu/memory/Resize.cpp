@@ -18,7 +18,7 @@ namespace noa::cpu::memory {
 
         // Rearrange:
         const auto order = indexing::order(output_strides, output_shape);
-        if (!noa::all(order == Vec4<i64>{0, 1, 2, 3})) {
+        if (noa::any(order != Vec4<i64>{0, 1, 2, 3})) {
             input_strides = indexing::reorder(input_strides, order);
             input_shape = indexing::reorder(input_shape, order);
             border_left = indexing::reorder(border_left, order);

@@ -48,7 +48,7 @@ namespace noa::algorithm::memory {
                   m_pad_left(noa::math::max(border_left, index_type{0})) {
 
             if constexpr (MODE == BorderMode::VALUE || MODE == BorderMode::ZERO) {
-                const auto pad_right = noa::math::max(border_right, index_type{0}) * -1;
+                const auto pad_right = noa::math::max(border_right, index_type{0});
                 m_right = output_shape.vec() - pad_right;
             } else {
                 (void) border_right;
