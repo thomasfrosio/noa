@@ -204,34 +204,21 @@ namespace test {
                   m_lhs(lhs),
                   m_rhs(rhs),
                   m_comparison(comparison) {
-            if constexpr (noa::traits::is_complex_v<value_type> && !noa::traits::is_complex_v<Epsilon>) {
-                using real_t = typename value_type::value_type;
-                m_epsilon.real = static_cast<real_t>(epsilon);
-                m_epsilon.imag = static_cast<real_t>(epsilon);
-            } else {
-                m_epsilon = static_cast<value_type>(epsilon);
-            }
+            set_epsilon_(epsilon);
             check_();
         }
 
         template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
         Matcher(CompType comparison,
-                const value_type* lhs, strides_type lhs_strides,
+                const value_type* lhs, const strides_type& lhs_strides,
                 const value_type rhs,
                 shape_type shape, Epsilon epsilon) noexcept
                 : m_shape(shape),
                   m_lhs_strides(lhs_strides),
                   m_lhs(lhs),
-                  m_rhs(&m_rhs_value),
-                  m_rhs_value(rhs),
+                  m_rhs(&rhs),
                   m_comparison(comparison) {
-            if constexpr (noa::traits::is_complex_v<value_type> && !noa::traits::is_complex_v<Epsilon>) {
-                using real_t = typename value_type::value_type;
-                m_epsilon.real = static_cast<real_t>(epsilon);
-                m_epsilon.imag = static_cast<real_t>(epsilon);
-            } else {
-                m_epsilon = static_cast<value_type>(epsilon);
-            }
+            set_epsilon_(epsilon);
             check_();
         }
 
@@ -254,17 +241,29 @@ namespace test {
         #ifdef NOA_ENABLE_UNIFIED
         template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
         Matcher(CompType comparison, const array_type& lhs, const array_type& rhs, Epsilon epsilon) noexcept
-                : Matcher(comparison,
-                          lhs.eval().get(), lhs.strides(),
-                          rhs.eval().get(), rhs.strides(),
-                          lhs.shape(), epsilon) {
+                : m_shape(lhs.shape()),
+                  m_lhs_strides(lhs.strides()),
+                  m_rhs_strides(rhs.strides()),
+                  m_lhs(lhs.eval().get()),
+                  m_rhs(rhs.eval().get()),
+                  m_comparison(comparison) {
             NOA_ASSERT(noa::all(lhs.shape() == rhs.shape()));
             NOA_ASSERT(lhs.is_dereferenceable() && rhs.is_dereferenceable());
+            set_epsilon_(epsilon);
+            check_();
         }
 
         template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
         Matcher(CompType comparison, const array_type& lhs, value_type rhs, Epsilon epsilon) noexcept
-                : Matcher(comparison, lhs.eval().get(), lhs.strides(), rhs, lhs.shape(), epsilon) {}
+                : m_shape(lhs.shape()),
+                  m_lhs_strides(lhs.strides()),
+                  m_lhs(lhs.eval().get()),
+                  m_rhs(&rhs),
+                  m_comparison(comparison) {
+            NOA_ASSERT(lhs.is_dereferenceable());
+            set_epsilon_(epsilon);
+            check_();
+        }
         #endif
 
         explicit operator bool() const noexcept {
@@ -312,6 +311,17 @@ namespace test {
         }
 
     private:
+        template<typename Epsilon>
+        void set_epsilon_(Epsilon epsilon) {
+            if constexpr (noa::traits::is_complex_v<value_type> && !noa::traits::is_complex_v<Epsilon>) {
+                using real_t = typename value_type::value_type;
+                m_epsilon.real = static_cast<real_t>(epsilon);
+                m_epsilon.imag = static_cast<real_t>(epsilon);
+            } else {
+                m_epsilon = static_cast<value_type>(epsilon);
+            }
+        }
+
         void check_() noexcept {
             if (m_comparison == MATCH_ABS)
                 check_(Matcher::check_abs_<T>);
@@ -417,10 +427,9 @@ namespace test {
         index4_type m_index_failed{};
         const value_type* m_lhs{};
         const value_type* m_rhs{};
-        value_type m_rhs_value{};
         value_type m_epsilon{};
         value_type m_total_abs_diff{};
         CompType m_comparison{};
-        bool m_match{true};
+        bool m_match{false};
     };
 }
