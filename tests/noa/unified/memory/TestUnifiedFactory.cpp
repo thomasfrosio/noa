@@ -28,10 +28,9 @@ TEMPLATE_TEST_CASE("unified::memory::arange(), cpu", "[noa][unified]",
         const Array<TestType> expected(elements);
 
         noa::memory::arange(results, TestType(3), TestType(5));
-        TestType v = 3;
         const auto expected_1d = expected.template accessor_contiguous_1d();
-        for (i64 i = 0; i < elements; ++i, v += TestType(5))
-            expected_1d[i] = v;
+        for (i64 i = 0; i < elements; ++i)
+            expected_1d[i] = TestType(3) + static_cast<TestType>(i) * TestType(5);
 
         REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-10f));
     }
@@ -43,10 +42,9 @@ TEMPLATE_TEST_CASE("unified::memory::arange(), cpu", "[noa][unified]",
         const Array<TestType> expected(shape);
 
         noa::memory::arange(results, TestType(3), TestType(5));
-        TestType v = 3;
         const auto expected_1d = expected.template accessor_contiguous_1d();
-        for (i64 i = 0; i < elements; ++i, v += TestType(5))
-            expected_1d[i] = v;
+        for (i64 i = 0; i < elements; ++i)
+            expected_1d[i] = TestType(3) + static_cast<TestType>(i) * TestType(5);
 
         REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-10f));
     }
