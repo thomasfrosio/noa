@@ -179,7 +179,7 @@ namespace noa::fft {
     /// \param norm         Normalization mode.
     /// \return Non-centered FFT(s).
     template<typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64>>>
+             noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64>>>
     [[nodiscard]] auto c2c(const Input& input, Sign sign, Norm norm = NORM_DEFAULT) {
         using complex_t = typename Input::value_type;
         Array<complex_t> output(input.shape(), input.options());

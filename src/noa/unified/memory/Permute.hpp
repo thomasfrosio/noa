@@ -60,7 +60,7 @@ namespace noa::memory {
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=](){
                 noa::cpu::memory::permute(
-                        input.get(), input.strides(), input.shape(),
+                        input.get(), input_strides, input_shape,
                         output.get(), output.strides(),
                         permutation, threads);
             });
@@ -68,7 +68,7 @@ namespace noa::memory {
             #ifdef NOA_ENABLE_CUDA
             noa::cuda::Stream& cuda_stream = stream.cuda();
             noa::cuda::memory::permute(
-                    input.get(), input.strides(), input.shape(),
+                    input.get(), input_strides, input_shape,
                     output.get(), output.strides(),
                     permutation, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());

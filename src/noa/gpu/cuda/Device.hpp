@@ -159,7 +159,7 @@ namespace noa::cuda {
         }
 
         // Whether there's any CUDA capable device.
-        static bool any() {
+        static bool is_any() {
             return count() != 0;
         }
 

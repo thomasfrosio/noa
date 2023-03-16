@@ -87,7 +87,7 @@ namespace noa::memory {
     [[nodiscard]] auto resize(const Input& input,
                               const Vec4<i64>& border_left, const Vec4<i64>& border_right,
                               BorderMode border_mode = BorderMode::ZERO, Value border_value = Value{0}) {
-        const auto output_shape = input.shape().vec() + border_left + border_right;
+        const auto output_shape = Shape4<i64>(input.shape().vec() + border_left + border_right);
         NOA_CHECK(noa::all(output_shape > 0),
                   "Cannot resize [left:{}, right:{}] an array of shape {} into an array of shape {}",
                   border_left, border_right, input.shape(), output_shape);
