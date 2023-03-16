@@ -111,7 +111,7 @@ namespace noa::cuda::utils {
 
         shape = noa::indexing::effective_shape(shape, output_strides);
         const auto order = noa::indexing::order(output_strides, shape);
-        if (noa::all(order != Vec4<Index>{0, 1, 2, 3})) {
+        if (noa::any(order != Vec4<Index>{0, 1, 2, 3})) {
             shape = noa::indexing::reorder(shape, order);
             lhs_strides = noa::indexing::reorder(lhs_strides, order);
             rhs_strides = noa::indexing::reorder(rhs_strides, order);

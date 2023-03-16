@@ -285,7 +285,7 @@ namespace noa::io {
         }
 
         // Map order: enforce row-major ordering, i.e. x=1, y=2, z=3.
-        if (noa::all(order != Vec3<i32>{1, 2, 3})) {
+        if (noa::any(order != Vec3<i32>{1, 2, 3})) {
             if (noa::any(order < 1) || noa::any(order > 3) || noa::math::sum(order) != 6)
                 NOA_THROW("File: {}. Invalid data. Map order should be (1,2,3), got {}", filename, order);
             NOA_THROW("File: {}. Map order {} is not supported. Only (1,2,3) is supported", filename, order);
