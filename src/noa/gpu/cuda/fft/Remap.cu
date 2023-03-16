@@ -77,7 +77,7 @@ namespace noa::cuda::fft {
                     const dim3 blocks(std::max(shape_fft[1] / 2, 1u), shape_fft[0], shape[0]);
                     const auto output_accessor = Accessor<T, 4, uint32_t>(output, output_strides.as_safe<u32>());
                     const auto config = LaunchConfig{blocks, threads, threads * sizeof(T)};
-                    stream.enqueue("h2hc_inplace_", h2hc_inplace_<T>, config, output_accessor, shape_fft);
+                    return stream.enqueue("h2hc_inplace_", h2hc_inplace_<T>, config, output_accessor, shape_fft);
                 } else {
                     const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2HC>(
                             input, input_strides, output, output_strides, shape);
