@@ -76,16 +76,18 @@ namespace noa::cuda::fft {
     }
 
     template<typename Real>
-    void c2c(Complex<Real>* input,Complex<Real>* output,Sign sign, const Plan<Real>& plan, Stream& stream) {
+    void c2c(Complex<Real>* input, Complex<Real>* output, Sign sign, const Plan<Real>& plan, Stream& stream) {
         NOA_THROW_IF(cufftSetStream(plan.get(), stream.get()));
         if constexpr (std::is_same_v<Real, f32>) {
             NOA_THROW_IF(cufftExecC2C(plan.get(),
                                       reinterpret_cast<cufftComplex*>(input),
-                                      reinterpret_cast<cufftComplex*>(output), sign));
+                                      reinterpret_cast<cufftComplex*>(output),
+                                      noa::traits::to_underlying(sign)));
         } else {
             NOA_THROW_IF(cufftExecZ2Z(plan.get(),
                                       reinterpret_cast<cufftDoubleComplex*>(input),
-                                      reinterpret_cast<cufftDoubleComplex*>(output), sign));
+                                      reinterpret_cast<cufftDoubleComplex*>(output),
+                                      noa::traits::to_underlying(sign)));
         }
         stream.enqueue_attach(plan.share());
     }
