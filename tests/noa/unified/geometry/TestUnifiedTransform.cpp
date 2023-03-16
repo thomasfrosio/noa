@@ -200,7 +200,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "[noa][geometr
             noa::geometry::linear2affine(noa::geometry::rotate(-rotation)) *
             noa::geometry::translate(-center);
 
-    const auto gpu_options = noa::ArrayOption(noa::Device("cpu"), noa::Allocator::MANAGED);
+    const auto gpu_options = noa::ArrayOption(noa::Device("gpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);
     const auto input_gpu = input_cpu.to(gpu_options);
     const auto output_cpu = noa::memory::like(input_cpu);
@@ -238,14 +238,12 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), cpu vs gpu, texture inter
             noa::geometry::linear2affine(noa::geometry::rotate(-rotation)) *
             noa::geometry::translate(-center);
 
-    const auto gpu_options = noa::ArrayOption(Device("cpu"), noa::Allocator::MANAGED);
+    const auto gpu_options = noa::ArrayOption(Device("gpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);
-    const auto input_gpu = noa::Texture(input_cpu, gpu_options.device(), interp, border, value);
+    const auto input_gpu = noa::Texture(input_cpu, gpu_options.device(), interp, border, value, /*layered=*/ true);
     const auto output_cpu = noa::memory::like(input_cpu);
     const auto output_gpu = noa::memory::empty<TestType>(shape, gpu_options);
 
-    if (interp == InterpMode::CUBIC_BSPLINE || interp == InterpMode::CUBIC_BSPLINE_FAST)
-        noa::geometry::cubic_bspline_prefilter(input_cpu, input_cpu);
     noa::geometry::transform_2d(input_cpu, output_cpu, rotation_matrix, interp, border, value);
     noa::geometry::transform_2d(input_gpu, output_gpu, rotation_matrix);
 
@@ -356,7 +354,7 @@ TEST_CASE("unified::geometry::transform_3d(), cubic", "[noa][unified][assets]") 
             noa::geometry::translate(-center)
     )).as<f32>();
 
-    std::vector<Device> devices{Device("gpu")};
+    std::vector<Device> devices{Device("cpu")};
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
@@ -449,7 +447,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometr
             noa::geometry::linear2affine(matrix) *
             noa::geometry::translate(-center);
 
-    const auto gpu_options = noa::ArrayOption(Device("cpu"), noa::Allocator::MANAGED);
+    const auto gpu_options = noa::ArrayOption(Device("gpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);
     const auto input_gpu = input_cpu.to(gpu_options);
     const auto output_cpu = noa::memory::like(input_cpu);
@@ -484,21 +482,19 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu, texture interpo
                                   test::Randomizer<f32>(-360., 360.).get()};
     const Float33 matrix = geometry::euler2matrix(noa::math::deg2rad(eulers));
 
-    const auto shape = test::get_random_shape4_batched(3);
+    const auto shape = test::get_random_shape4(3);
     const auto center = shape.pop_front().vec().as<f32>() / test::Randomizer<f32>(1, 4).get();
     const Float44 rotation_matrix =
             noa::geometry::translate(center) *
             noa::geometry::linear2affine(matrix) *
             noa::geometry::translate(-center);
 
-    const auto gpu_options = noa::ArrayOption(Device("cpu"), noa::Allocator::MANAGED);
+    const auto gpu_options = noa::ArrayOption(Device("gpu"), noa::Allocator::MANAGED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -2, 2);
     const auto input_gpu = noa::Texture(input_cpu, gpu_options.device(), interp, border, value);
     const auto output_cpu = noa::memory::like(input_cpu);
     const auto output_gpu = noa::memory::empty<TestType>(shape, gpu_options);
 
-    if (interp == InterpMode::CUBIC_BSPLINE || interp == InterpMode::CUBIC_BSPLINE_FAST)
-        noa::geometry::cubic_bspline_prefilter(input_cpu, input_cpu);
     noa::geometry::transform_3d(input_cpu, output_cpu, rotation_matrix, interp, border, value);
     noa::geometry::transform_3d(input_gpu, output_gpu, rotation_matrix);
 

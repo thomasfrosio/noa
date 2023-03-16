@@ -47,7 +47,7 @@ TEST_CASE("unified::geometry::fft::transform_2d, vs scipy", "[noa][unified][asse
         const auto matrix = (geometry::rotate(rotate) * geometry::scale(1 / scale)).inverse().as<f32>();
 
         for (auto& device: devices) {
-            const auto stream = noa::StreamGuard(device);
+            auto stream = noa::StreamGuard(device);
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
@@ -199,7 +199,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::transform_2d(), remap", "[noa][unifi
 }
 
 TEMPLATE_TEST_CASE("unified::geometry::fft::transform_3d(), remap", "[noa][unified]", f32, f64) {
-    const auto shape = test::get_random_shape4_batched(3);
+    const auto shape = test::get_random_shape4(3);
     const float cutoff = 0.5;
     const auto interp = InterpMode::LINEAR;
 

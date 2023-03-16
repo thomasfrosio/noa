@@ -5,8 +5,8 @@ set(TEST_SOURCES
         Helpers.h
         )
 include(${PROJECT_SOURCE_DIR}/tests/noa/core/Append.cmake)
-#include(${PROJECT_SOURCE_DIR}/tests/noa/cpu/Append.cmake)
-#include(${PROJECT_SOURCE_DIR}/tests/noa/gpu/Append.cmake)
+include(${PROJECT_SOURCE_DIR}/tests/noa/cpu/Append.cmake)
+include(${PROJECT_SOURCE_DIR}/tests/noa/gpu/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/tests/noa/unified/Append.cmake)
 
 include(${PROJECT_SOURCE_DIR}/cmake/targets/noa_tests.cmake)
