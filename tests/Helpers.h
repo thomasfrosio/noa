@@ -281,8 +281,10 @@ namespace test {
                 T lhs_value = matcher.m_lhs[noa::indexing::at(matcher.m_index_failed, matcher.m_lhs_strides)];
                 T rhs_value = matcher.m_rhs[noa::indexing::at(matcher.m_index_failed, matcher.m_rhs_strides)];
                 if constexpr (std::is_integral_v<T>) {
-                    os << noa::string::format(", lhs={}, rhs={}, epsilon={}, total_abs_diff={}",
-                                              lhs_value, rhs_value, matcher.m_epsilon, matcher.m_total_abs_diff);
+                    os << noa::string::format(
+                            ", lhs={}, rhs={}, epsilon={}, total_abs_diff={}, max_abs_diff={}",
+                            lhs_value, rhs_value, matcher.m_epsilon,
+                            matcher.m_total_abs_diff, matcher.m_max_abs_diff);
                 } else {
                     int dyn_precision{};
                     if constexpr (noa::traits::is_complex_v<T>) {
@@ -293,11 +295,10 @@ namespace test {
                         dyn_precision = static_cast<int>(-noa::math::log10(noa::math::abs(matcher.m_epsilon))) + 2;
                     }
 
-                    os << noa::string::format(", lhs={:.{}}, rhs={:.{}}, epsilon={:.{}}, total_abs_diff={}",
-                                              lhs_value, dyn_precision,
-                                              rhs_value, dyn_precision,
-                                              matcher.m_epsilon, dyn_precision,
-                                              matcher.m_total_abs_diff);
+                    os << noa::string::format(
+                            ", lhs={:.{}}, rhs={:.{}}, epsilon={:.{}}, total_abs_diff={}, max_abs_diff={}",
+                            lhs_value, dyn_precision, rhs_value, dyn_precision,
+                            matcher.m_epsilon, dyn_precision, matcher.m_total_abs_diff, matcher.m_max_abs_diff);
                 }
 
                 if (matcher.m_comparison == MATCH_ABS)
@@ -334,16 +335,24 @@ namespace test {
         template<typename F>
         void check_(F&& value_checker) noexcept {
             m_total_abs_diff = value_type{0};
+            m_max_abs_diff = value_type{0};
             m_match = true;
             for (index_type i = 0; i < m_shape[0]; ++i) {
                 for (index_type j = 0; j < m_shape[1]; ++j) {
                     for (index_type k = 0; k < m_shape[2]; ++k) {
                         for (index_type l = 0; l < m_shape[3]; ++l) {
-                            const bool passed = value_checker(
+                            const auto [passed, abs_diff] = value_checker(
                                     m_lhs[noa::indexing::at(i, j, k, l, m_lhs_strides)],
                                     m_rhs[noa::indexing::at(i, j, k, l, m_rhs_strides)],
-                                    m_epsilon,
-                                    m_total_abs_diff);
+                                    m_epsilon);
+
+                            m_total_abs_diff += abs_diff;
+                            if constexpr (noa::traits::is_complex_v<value_type>) {
+                                m_max_abs_diff.real = noa::math::max(m_max_abs_diff.real, abs_diff.real);
+                                m_max_abs_diff.imag = noa::math::max(m_max_abs_diff.imag, abs_diff.imag);
+                            } else {
+                                m_max_abs_diff = noa::math::max(m_max_abs_diff, abs_diff);
+                            }
                             if (m_match && !passed) {
                                 m_index_failed = {i, j, k, l};
                                 m_match = false;
@@ -354,69 +363,87 @@ namespace test {
             }
         }
 
-        template<typename U>
-        static bool check_abs_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
-            if constexpr (noa::traits::is_complex_v<U>) {
-                using real_t = typename U::value_type;
-                return Matcher<T>::check_abs_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
-                       Matcher<T>::check_abs_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
-            } else if constexpr (std::is_integral_v<U>) {
-                U diff = input - expected;
-                if constexpr (noa::traits::is_uint_v<U>)
-                    total_abs_diff += diff;
+        template<typename value_type>
+        static std::pair<bool, value_type> check_abs_(value_type input, value_type expected, value_type epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<value_type>) {
+                using real_t = typename value_type::value_type;
+                const auto [real_passed, real_abs_diff] = Matcher<T>::check_abs_<real_t>(
+                        input.real, expected.real, epsilon.real);
+                const auto [imag_passed, imag_abs_diff] = Matcher<T>::check_abs_<real_t>(
+                        input.imag, expected.imag, epsilon.imag);
+                return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
+
+            } else if constexpr (std::is_integral_v<value_type>) {
+                value_type diff = input - expected;
+                const bool is_passed = diff <= epsilon;
+                if constexpr (noa::traits::is_uint_v<value_type>)
+                    return {is_passed, diff};
                 else
-                    total_abs_diff += noa::math::abs(diff);
-                return (input - expected) <= epsilon;
+                    return {is_passed, noa::math::abs(diff)};
             } else {
-                U diff = noa::math::abs(input - expected);
-                total_abs_diff += diff;
-                return diff <= epsilon;
+                value_type diff = noa::math::abs(input - expected);
+                return {diff <= epsilon, diff};
             }
         }
 
-        template<typename U>
-        static bool check_abs_safe_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
-            if constexpr (noa::traits::is_complex_v<U>) {
-                using real_t = typename U::value_type;
-                return Matcher<T>::check_abs_safe_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
-                       Matcher<T>::check_abs_safe_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
-            } else if constexpr (std::is_integral_v<U>) {
-                U diff = input - expected;
-                if constexpr (noa::traits::is_uint_v<U>)
-                    total_abs_diff += diff;
+        template<typename value_type>
+        static std::pair<bool, value_type> check_abs_safe_(value_type input, value_type expected, value_type epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<value_type>) {
+                using real_t = typename value_type::value_type;
+                const auto [real_passed, real_abs_diff] = Matcher<T>::check_abs_safe_<real_t>(
+                        input.real, expected.real, epsilon.real);
+                const auto [imag_passed, imag_abs_diff] = Matcher<T>::check_abs_safe_<real_t>(
+                        input.imag, expected.imag, epsilon.imag);
+                return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
+
+            } else if constexpr (std::is_integral_v<value_type>) {
+                value_type diff = input - expected;
+                const bool is_passed = diff <= epsilon;
+                if constexpr (noa::traits::is_uint_v<value_type>)
+                    return {is_passed, diff};
                 else
-                    total_abs_diff += noa::math::abs(diff);
-                return (input - expected) <= epsilon;
+                    return {is_passed, noa::math::abs(diff)};
+
             } else {
                 // Relative epsilons comparisons are usually meaningless for close-to-zero numbers,
                 // hence the absolute comparison first, acting as a safety net.
-                U diff = noa::math::abs(input - expected);
-                total_abs_diff += diff;
+                value_type diff = noa::math::abs(input - expected);
                 if (!noa::math::is_finite(diff))
-                    return false;
-                return diff <= epsilon || diff <= noa::math::max(noa::math::abs(input), noa::math::abs(expected)) * epsilon;
+                    return {false, diff};
+                const bool is_passed =
+                        diff <= epsilon ||
+                        diff <= noa::math::max(noa::math::abs(input), noa::math::abs(expected)) * epsilon;
+                return {is_passed, diff};
             }
         }
 
-        template<typename U>
-        static bool check_rel_(U input, U expected, U epsilon, U& total_abs_diff) noexcept {
-            if constexpr (noa::traits::is_complex_v<U>) {
-                using real_t = typename U::value_type;
-                return Matcher<T>::check_rel_<real_t>(input.real, expected.real, epsilon.real, total_abs_diff.real) &&
-                       Matcher<T>::check_rel_<real_t>(input.imag, expected.imag, epsilon.imag, total_abs_diff.imag);
-            } else if constexpr (std::is_integral_v<U>) {
-                U diff = input - expected;
-                if constexpr (noa::traits::is_uint_v<U>)
-                    total_abs_diff += diff;
+        template<typename value_type>
+        static std::pair<bool, value_type> check_rel_(value_type input, value_type expected, value_type epsilon) noexcept {
+            if constexpr (noa::traits::is_complex_v<value_type>) {
+                using real_t = typename value_type::value_type;
+                const auto [real_passed, real_abs_diff] = Matcher<T>::check_rel_<real_t>(
+                        input.real, expected.real, epsilon.real);
+                const auto [imag_passed, imag_abs_diff] = Matcher<T>::check_rel_<real_t>(
+                        input.imag, expected.imag, epsilon.imag);
+                return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
+
+
+            } else if constexpr (std::is_integral_v<value_type>) {
+                value_type diff = input - expected;
+                const bool is_passed = diff <= epsilon;
+                if constexpr (noa::traits::is_uint_v<value_type>)
+                    return {is_passed, diff};
                 else
-                    total_abs_diff += noa::math::abs(diff);
-                return (input - expected) <= epsilon;
+                    return {is_passed, noa::math::abs(diff)};
+
             } else {
-                total_abs_diff += noa::math::abs(input - expected);
                 auto margin = epsilon * noa::math::max(noa::math::abs(input), noa::math::abs(expected));
                 if (noa::math::is_inf(margin))
-                    margin = U{0};
-                return (input + margin >= expected) && (expected + margin >= input); // abs(a-b) <= epsilon
+                    margin = value_type{0};
+                const bool is_passed =
+                        (input + margin >= expected) &&
+                        (expected + margin >= input); // abs(a-b) <= epsilon
+                return {is_passed, noa::math::abs(input - expected)};
             }
         }
 
@@ -429,6 +456,7 @@ namespace test {
         const value_type* m_rhs{};
         value_type m_epsilon{};
         value_type m_total_abs_diff{};
+        value_type m_max_abs_diff{};
         CompType m_comparison{};
         bool m_match{false};
     };
