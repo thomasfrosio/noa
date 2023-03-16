@@ -3,6 +3,10 @@
 #include "noa/core/Exception.hpp"
 #include "noa/cpu/fft/Plan.hpp"
 
+#ifdef NOA_ENABLE_OPENMP
+#include "omp.h"
+#endif
+
 namespace {
     using namespace ::noa;
 
@@ -82,8 +86,19 @@ namespace {
     void set_threads_(const Shape3<i32>& shape, i32 batches, i64 max_threads) {
         initialize_<IS_SINGLE_PRECISION>();
         if (max_threads > 1) {
-            const i32 threads = math::min(get_threads_(shape, batches, shape.ndim()),
-                                          static_cast<i32>(max_threads));
+            const i32 threads = std::min(get_threads_(shape, batches, shape.ndim()), static_cast<i32>(max_threads));
+
+            // The ffw3-omp version seems to be quite primitive regarding the thread distribution using OpenMP.
+            // See https://github.com/FFTW/fftw3/blob/master/threads/openmp.c#L77
+            // We need to set the maximum number of OpenMP threads here, because they don't seem to use
+            // the num_threads directive. The number of threads we pass in fftw_plan_with_nthreads only seems
+            // to set the number of iterations in the main loop (one per thread).
+            // Also note that omp_set_num_threads is thread_local, so setting it in the main thread would
+            // not necessarily affect the workers from the Stream.
+            #ifdef NOA_ENABLE_OPENMP
+            omp_set_num_threads(threads);
+            #endif
+
             if constexpr (IS_SINGLE_PRECISION)
                 fftwf_plan_with_nthreads(threads);
             else

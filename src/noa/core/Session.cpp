@@ -34,7 +34,4 @@ void noa::Session::set_threads(int64_t threads) {
         }
         m_threads = std::max(max_threads, int64_t{1});
     }
-    #ifdef NOA_ENABLE_OPENMP
-    omp_set_num_threads(static_cast<int>(m_threads));
-    #endif
 }
