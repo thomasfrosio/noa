@@ -47,7 +47,8 @@ namespace noa {
         NOA_HD constexpr View() = default;
 
         // Creates a view of a contiguous row-vector.
-        NOA_HD constexpr View(T* data, index_type elements, ArrayOption options = {})
+        template<typename Index, typename = std::enable_if_t<std::is_integral_v<Index>>>
+        NOA_HD constexpr View(T* data, Index elements, ArrayOption options = {})
                 : m_accessor(data, strides_type{elements, elements, elements, 1}),
                   m_shape{1, 1, 1, elements}, m_options(options) {}
 
@@ -199,11 +200,11 @@ namespace noa {
         ///          reshaped to the aforementioned layouts. However, other non-contiguous memory layouts can only
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param[out] output  Destination. It should not overlap with this view.
-        template<typename Output,
-                 typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output> &&
-                                             noa::traits::are_almost_same_value_type_v<View, Output>>>
+        template<typename Output, typename = std::enable_if_t<
+                 noa::traits::is_array_or_view_v<Output> &&
+                 noa::traits::are_almost_same_value_type_v<View, Output>>>
         void to(const Output& output) const {
-            memory::copy(*this, output);
+            noa::memory::copy(*this, output);
         }
 
         /// Performs a deep copy of the view according \p option.
