@@ -145,9 +145,9 @@ namespace noa::signal {
                       input.shape(), output.shape());
         }
 
-        NOA_CHECK(border_mode == BorderMode::ZERO || all(dim3_t(output.shape().get(1)) >= window_size / 2 + 1),
+        NOA_CHECK(border_mode == BorderMode::ZERO || noa::all(output.shape().pop_front() >= window_size / 2 + 1),
                   "With BorderMode::REFLECT and a window of {}, the depth, height and width should be >= than {}, but got {}",
-                  window_size, window_size / 2 + 1, dim3_t(output.shape().get(1)));
+                  window_size, window_size / 2 + 1, output.shape().pop_front());
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),

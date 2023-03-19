@@ -27,7 +27,6 @@ namespace noa::signal::details {
 
 namespace noa::signal {
     /// ND convolution.
-    /// \tparam T           half_t, float, double.
     /// \param[in] input    Array to convolve.
     /// \param[out] output  Convolved array. Should not overlap with \p input.
     /// \param[in] filter   1D, 2D or 3D C-contiguous filter. The same filter is applied to every output batch.
@@ -79,7 +78,7 @@ namespace noa::signal {
         } else {
             #ifdef NOA_ENABLE_CUDA
             using value_t = typename Filter::value_type;
-            NOA_CHECK(filter_shape.elements() * sizeof(value_t) <= details::CUDA_FILTER_MAX_BYTES,
+            NOA_CHECK(filter_shape.elements() * static_cast<i64>(sizeof(value_t)) <= details::CUDA_FILTER_MAX_BYTES,
                       "In the CUDA backend, the filter size is limited to {} bytes, "
                       "but got filter shape {} and type {}",
                       details::CUDA_FILTER_MAX_BYTES, filter_shape, string::human<value_t>());
@@ -140,9 +139,9 @@ namespace noa::signal {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
-        details::check_separable_filter(filter_depth);
-        details::check_separable_filter(filter_height);
-        details::check_separable_filter(filter_width);
+        details::check_separable_filter(filter_depth, device);
+        details::check_separable_filter(filter_height, device);
+        details::check_separable_filter(filter_width, device);
 
         if (!buffer.is_empty()) {
             NOA_CHECK(noa::all(buffer.shape() == output.shape()) && !noa::any(buffer.strides() == 0),
@@ -169,9 +168,10 @@ namespace noa::signal {
         } else {
             #ifdef NOA_ENABLE_CUDA
             using value_t = typename FilterDepth::value_type;
-            NOA_CHECK(filter_depth.elements() * sizeof(value_t) <= details::CUDA_FILTER_MAX_BYTES &&
-                      filter_height.elements() * sizeof(value_t) <= details::CUDA_FILTER_MAX_BYTES &&
-                      filter_width.elements() * sizeof(value_t) <= details::CUDA_FILTER_MAX_BYTES,
+            constexpr i64 BYTES_PER_ELEMENTS = sizeof(value_t);
+            NOA_CHECK(filter_depth.elements() * BYTES_PER_ELEMENTS <= details::CUDA_FILTER_MAX_BYTES &&
+                      filter_height.elements() * BYTES_PER_ELEMENTS <= details::CUDA_FILTER_MAX_BYTES &&
+                      filter_width.elements() * BYTES_PER_ELEMENTS <= details::CUDA_FILTER_MAX_BYTES,
                       "In the CUDA backend, separable filters have a size limited to {} bytes",
                       details::CUDA_FILTER_MAX_BYTES);
 

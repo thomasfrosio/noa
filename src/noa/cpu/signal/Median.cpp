@@ -39,7 +39,7 @@ namespace {
 
         void initialize(i64 thread) noexcept {
             // Before starting the loop, offset to the thread buffer.
-            m_buffer += thread * m_window;
+            m_buffer = buffer_accessor_type(m_buffer.get() + thread * m_window);
         }
 
         void operator()(i64 i, i64 j, i64 k, i64 l) const noexcept {
@@ -240,12 +240,12 @@ namespace noa::cpu::signal {
         switch (border_mode) {
             case BorderMode::REFLECT: {
                 NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
-                auto kernel = MedianFilter2D<T, BorderMode::REFLECT>(
+                auto kernel = MedianFilter1D<T, BorderMode::REFLECT>(
                         input_accessor, output_accessor, shape, window_size, buffer_accessor);
                 return noa::cpu::utils::iwise_4d(shape, kernel, threads);
             }
             case BorderMode::ZERO: {
-                auto kernel = MedianFilter2D<T, BorderMode::REFLECT>(
+                auto kernel = MedianFilter1D<T, BorderMode::ZERO>(
                         input_accessor, output_accessor, shape, window_size, buffer_accessor);
                 return noa::cpu::utils::iwise_4d(shape, kernel, threads);
             }
@@ -289,7 +289,7 @@ namespace noa::cpu::signal {
                 return noa::cpu::utils::iwise_4d(shape, kernel, threads);
             }
             case BorderMode::ZERO: {
-                auto kernel = MedianFilter2D<T, BorderMode::REFLECT>(
+                auto kernel = MedianFilter2D<T, BorderMode::ZERO>(
                         input_accessor, output_accessor, shape, window_size, buffer_accessor);
                 return noa::cpu::utils::iwise_4d(shape, kernel, threads);
             }
@@ -335,7 +335,7 @@ namespace noa::cpu::signal {
                 return noa::cpu::utils::iwise_4d(shape, kernel, threads);
             }
             case BorderMode::ZERO: {
-                auto kernel = MedianFilter3D<T, BorderMode::REFLECT>(
+                auto kernel = MedianFilter3D<T, BorderMode::ZERO>(
                         input_accessor, output_accessor, shape, window_size, buffer_accessor);
                 return noa::cpu::utils::iwise_4d(shape, kernel, threads);
             }

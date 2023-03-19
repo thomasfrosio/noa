@@ -337,7 +337,7 @@ namespace noa::cuda::signal {
         NOA_ASSERT(noa::all(filter_shape > 0) && noa::all(shape > 0));
 
         // If there's a single dimension, use separable convolution kernels:
-        const auto dimensions_to_convolve = noa::math::sum(filter_shape > 1);
+        const auto dimensions_to_convolve = noa::math::sum((filter_shape > 1).as<i32>());
         const auto ndim = filter_shape.ndim();
 
         if (dimensions_to_convolve == 1) {
