@@ -66,7 +66,7 @@ namespace noa::traits {
     template<typename T, typename... Ts> constexpr bool is_any_v = is_any<T, Ts...>::value;
 
     template<typename T, typename... Ts> struct is_almost_any : std::bool_constant<(is_almost_same_v<T, Ts> || ...)> {};
-    template<typename T, typename... Ts> constexpr bool is_almost_any_v = is_any<T, Ts...>::value;
+    template<typename T, typename... Ts> constexpr bool is_almost_any_v = is_almost_any<T, Ts...>::value;
 
     template<typename T, typename... Ts> struct are_all_same : std::bool_constant<(std::is_same_v<T, Ts> && ...)> {};
     template<typename T, typename... Ts> constexpr bool are_all_same_v = are_all_same<T, Ts...>::value;
