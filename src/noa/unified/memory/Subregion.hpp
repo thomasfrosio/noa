@@ -21,7 +21,8 @@ namespace noa::memory {
     /// \param border_value     Constant value to use for out-of-bound conditions.
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     /// \note \p input and \p subregions should not overlap.
-    template<typename Input, typename Subregion, typename Origin, typename Value, typename = std::enable_if_t<
+    template<typename Input, typename Subregion, typename Origin,
+             typename Value = noa::traits::mutable_value_type_t<Input>, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Subregion> &&
              noa::traits::is_array_or_view_v<Origin> &&
              noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
@@ -54,7 +55,7 @@ namespace noa::memory {
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            cpu::memory::extract_subregions(
+            cuda::memory::extract_subregions(
                     input.get(), input.strides(), input.shape(),
                     subregions.get(), subregions.strides(), subregions.shape(),
                     origins.get(), border_mode, border_value, cuda_stream);
@@ -117,7 +118,11 @@ namespace noa::memory {
         }
     }
 
-    /// Gets the atlas layout (shape + subregion origins).
+    /// Given a set of subregions with the same 2D/3D shape, compute an atlas layout (atlas shape + subregion origins).
+    /// \details The atlas places the 2D/3D subregions in the same height-width plane. The depth of the atlas is the
+    ///          same as the subregions'. Note that the shape of the atlas is not necessary a square. For instance,
+    ///          with 4 subregions the atlas layout is 2x2, but with 5 subregions it goes to `3x2` with one empty
+    ///          region.
     /// \param subregion_shape  BDHW shape of the subregion(s).
     ///                         The batch dimension is the number of subregion(s) to place into the atlas.
     /// \param[out] origins     Subregion origin(s), relative to the atlas shape.
@@ -125,13 +130,19 @@ namespace noa::memory {
     ///                         As such, the batch and depth dimensions are always set to 0, hence the possibility
     ///                         to return only the height and width dimension.
     /// \return                 Atlas shape.
-    ///
-    /// \note The shape of the atlas is not necessary a square. For instance, with 4 subregions the atlas layout
-    ///       is `2x2`, but with 5 subregions it goes to `3x2` with one empty region. Subregions are saved in
-    ///       \p origins in row-major order.
-    template<typename Int, size_t N, typename = std::enable_if_t<noa::traits::is_int_v<Int> && (N == 2 || N == 4)>>
-    Shape4<i64> atlas_layout(const Shape4<i64>& subregion_shape, Vec<i64, N>* origins) {
-        NOA_ASSERT(origins && noa::all(subregion_shape > 0));
+    template<typename Origins, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_v<Origins> &&
+             (noa::traits::is_int2_v<noa::traits::value_type_t<Origins>> ||
+              noa::traits::is_int4_v<noa::traits::value_type_t<Origins>>)>>
+    Shape4<i64> atlas_layout(const Shape4<i64>& subregion_shape, const Origins& output_origins) {
+        NOA_ASSERT(noa::all(subregion_shape > 0));
+        NOA_CHECK(!output_origins.is_empty(), "Empty array detected");
+        NOA_CHECK(output_origins.device().is_cpu() &&
+                  noa::indexing::is_contiguous_vector(output_origins) &&
+                  output_origins.elements() == subregion_shape[0],
+                  "The output subregion origins should be a CPU contiguous vector,"
+                  "but got device={}, shape={} and strides={}",
+                  output_origins.device(), output_origins.shape(), output_origins.strides());
 
         const auto columns = static_cast<i64>(
                 noa::math::ceil(noa::math::sqrt(static_cast<f32>(subregion_shape[0]))));
@@ -142,17 +153,26 @@ namespace noa::memory {
                 rows * subregion_shape[2],
                 columns * subregion_shape[3]};
 
+        output_origins.eval();
+        const auto origins_1d = output_origins.accessor_contiguous_1d();
         for (i64 y = 0; y < rows; ++y) {
             for (i64 x = 0; x < columns; ++x) {
                 const i64 idx = y * columns + x;
                 if (idx >= subregion_shape[0])
                     break;
-                if constexpr (N == 4)
-                    origins[idx] = {0, 0, y * subregion_shape[2], x * subregion_shape[3]};
+                if constexpr (noa::traits::is_int4_v<typename Origins::value_type>)
+                    origins_1d[idx] = {0, 0, y * subregion_shape[2], x * subregion_shape[3]};
                 else
-                    origins[idx] = {y * subregion_shape[2], x * subregion_shape[3]};
+                    origins_1d[idx] = {y * subregion_shape[2], x * subregion_shape[3]};
             }
         }
         return atlas_shape;
+    }
+
+    template<typename Int = i64, size_t N = 4, typename = std::enable_if_t<
+             noa::traits::is_any_v<Int, i32, i64> && (N == 2 || N == 4)>>
+    auto atlas_layout(const Shape4<i64>& subregion_shape) -> std::pair<Shape4<i64>, Array<Vec<Int, N>>> {
+        Array<Vec<Int, N>> output_subregion_origins(subregion_shape.batch());
+        return {atlas_layout(subregion_shape, output_subregion_origins), output_subregion_origins};
     }
 }

@@ -57,7 +57,7 @@ namespace noa::cpu::memory {
                 out = static_cast<value_type*>(std::aligned_alloc(
                         ALIGNMENT, static_cast<size_t>(elements) * sizeof(value_type)));
             } else {
-                out = new(std::nothrow) value_type[elements];
+                out = new(std::nothrow) value_type[static_cast<size_t>(elements)];
             }
             NOA_CHECK(out, "Failed to allocate {} {} on the heap", elements, string::human<value_type>());
             return {out, alloc_deleter_type{}};

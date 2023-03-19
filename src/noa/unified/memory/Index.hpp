@@ -294,16 +294,18 @@ namespace noa::memory {
             stream.cpu().enqueue([=]() {
                 cpu::memory::insert_elements(
                         values.get(), offsets.get(),
-                        elements, output.share());
+                        elements, output.get());
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using output_t = noa::traits::mutable_value_type_t<Output>;
-            if constexpr (cuda::memory::details::is_valid_insert_v<Value, Offset, output_t>) {
+            using value_t = noa::traits::mutable_value_type_t<Value>;
+            using offset_t = noa::traits::mutable_value_type_t<Offset>;
+            using output_t = noa::traits::value_type_t<Output>;
+            if constexpr (cuda::memory::details::is_valid_insert_v<value_t, offset_t, output_t>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::insert_elements(
                         values.get(), offsets.get(),
-                        elements, output.share(), cuda_stream);
+                        elements, output.get(), cuda_stream);
                 cuda_stream.enqueue_attach(values.share(), offsets.share(), output.share());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "

@@ -18,7 +18,7 @@ namespace noa::cpu::memory::details {
     template<typename T, typename O>
     Extracted<T, O> prepare_extracted(std::vector<T>& elements, std::vector<O>& offsets) {
         Extracted<T, O> extracted{};
-        extracted.count = noa::math::max(elements.size(), offsets.size());
+        extracted.count = static_cast<i64>(noa::math::max(elements.size(), offsets.size()));
         if (!elements.empty()) {
             extracted.values = PtrHost<T>::alloc(extracted.count);
             copy(elements.data(), extracted.values.get(), extracted.count);
@@ -126,7 +126,7 @@ namespace noa::cpu::memory {
             const Shape4<i64>& shape, BinaryOp&& binary_op,
             bool extract_values, bool extract_offsets) {
         auto unary_op = [=, op = std::forward<BinaryOp>(binary_op)](Lhs lhs_value) {
-            return binary_op(lhs_value, rhs);
+            return op(lhs_value, rhs);
         };
         return extract_unary<ExtractedValue, ExtractedOffset>(
                 input, input_strides, lhs, lhs_strides, shape,
@@ -142,7 +142,7 @@ namespace noa::cpu::memory {
             const Shape4<i64>& shape, BinaryOp&& binary_op,
             bool extract_values, bool extract_offsets) {
         auto unary_op = [=, op = std::forward<BinaryOp>(binary_op)](Rhs rhs_value) {
-            return binary_op(lhs, rhs_value);
+            return op(lhs, rhs_value);
         };
         return extract_unary<ExtractedValue, ExtractedOffset>(
                 input, input_strides, rhs, rhs_strides, shape,
