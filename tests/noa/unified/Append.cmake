@@ -18,7 +18,6 @@ set(TEST_UNIFIED_SOURCES
 #        noa/unified/signal/fft/TestUnifiedShape.cpp
 #        noa/unified/signal/fft/TestUnifiedStandardize.cpp
 #        noa/unified/signal/TestUnifiedSignal.cpp
-#        noa/unified/signal/TestUnifiedShape.cpp
         noa/unified/signal/TestUnifiedMedian.cpp
         noa/unified/signal/TestUnifiedConvolve.cpp
 
@@ -45,6 +44,8 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/geometry/fft/TestUnifiedProject.cpp
         noa/unified/geometry/TestUnifiedTransform.cpp
         noa/unified/geometry/TestUnifiedSymmetry.cpp
+        noa/unified/geometry/TestUnifiedShape.cpp
+
         )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "noa/core/geometry/Transform.hpp"
+
 #include "noa/cpu/geometry/Shape.hpp"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/geometry/Shape.hpp"
@@ -58,7 +60,7 @@ namespace noa::geometry {
                  Matrix inv_matrix = {}, Functor functor = {},
                  CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= N,
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
                   "3D arrays are not supported with 2D ellipses. Use 3D ellipses to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
 
@@ -130,7 +132,7 @@ namespace noa::geometry {
                 Matrix inv_matrix = {}, Functor functor = {},
                 CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= N,
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
                   "3D arrays are not supported with 2D spheres. Use 3D spheres to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
 
@@ -202,7 +204,7 @@ namespace noa::geometry {
                    Matrix inv_matrix = {}, Functor functor = {},
                    CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= N,
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
                   "3D arrays are not supported with 2D rectangles. Use 3D rectangles to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
 
@@ -263,7 +265,7 @@ namespace noa::geometry {
     template<typename Output,
              typename Input = View<noa::traits::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_t<noa::traits::value_type_t<Output>>, size_t N,
+             typename CValue = noa::traits::value_type_t<noa::traits::value_type_t<Output>>,
              typename = std::enable_if_t<
                      noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                      noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
