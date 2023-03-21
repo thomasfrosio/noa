@@ -60,7 +60,8 @@ namespace noa::signal::fft {
     ///                     Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                     Frequencies higher than this value are not phase-shifted.
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
-    template<Remap REMAP, typename Input, typename Output, typename Shift, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output, typename Shift,
+             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
              noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
@@ -115,7 +116,8 @@ namespace noa::signal::fft {
     ///                     Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                     Frequencies higher than this value are not phase-shifted.
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
-    template<Remap REMAP, typename Input, typename Output, typename Shift, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output, typename Shift,
+             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
              noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&

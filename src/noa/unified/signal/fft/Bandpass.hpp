@@ -41,7 +41,8 @@ namespace noa::signal::fft {
     ///                     At this frequency, the pass starts to roll-off.
     /// \param width        Width of the Hann window, in cycle/pix.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
-    template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output,
+             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
@@ -88,7 +89,8 @@ namespace noa::signal::fft {
     ///                     At this frequency, the pass is fully recovered.
     /// \param width        Width of the Hann window, in cycle/pix.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
-    template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output,
+             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
@@ -135,10 +137,11 @@ namespace noa::signal::fft {
     ///                     At this frequency, the pass is fully recovered.
     /// \param cutoff_low   Second frequency cutoff, in cycle/pix, usually from \p cutoff_high to 0.5 (Nyquist).
     ///                     At this frequency, the pass starts to roll-off.
-    /// \param width1       Frequency width, in cycle/pix, of the Hann window between 0 and \p cutoff_high.
-    /// \param width2       Frequency width, in cycle/pix, of the Hann window between \p cutoff_low and 0.5.
+    /// \param width_high   Frequency width, in cycle/pix, of the Hann window between 0 and \p cutoff_high.
+    /// \param width_low    Frequency width, in cycle/pix, of the Hann window between \p cutoff_low and 0.5.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
-    template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output,
+             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
