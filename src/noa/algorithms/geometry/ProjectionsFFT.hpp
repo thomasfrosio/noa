@@ -238,7 +238,6 @@ namespace noa::algorithm::geometry {
 
         using coord2_type = Vec2<coord_type>;
         using coord3_type = Vec3<coord_type>;
-        using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
 
         using slice_accessor_or_value_type = SliceAccessorOrValue;
@@ -271,11 +270,11 @@ namespace noa::algorithm::geometry {
 
             const auto slice_shape_2d = slice_shape.filter(2, 3);
             m_slice_size_y = slice_shape_2d[0];
-            m_f_slice_shape = coord2_type((slice_shape_2d / 2 * 2 + shape2_type(slice_shape_2d == 1)).vec());
+            m_f_slice_shape = coord2_type(slice_shape_2d.vec());
 
             // Use the grid shape as backup.
             const auto target_shape_3d = noa::any(target_shape == 0) ? m_grid_shape : target_shape.pop_front();
-            m_f_target_shape = coord3_type((target_shape_3d / 2 * 2 + shape3_type(target_shape_3d == 1)).vec());
+            m_f_target_shape = coord3_type(target_shape_3d.vec());
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
@@ -368,7 +367,6 @@ namespace noa::algorithm::geometry {
         using coord_type = typename SliceInterpolator::coord_type;
         using coord2_type = Vec2<coord_type>;
         using coord3_type = Vec3<coord_type>;
-        using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
 
         static_assert(traits::is_any_v<ScaleOrEmpty, Mat22<coord_type>, const Mat22<coord_type>*, Empty>);
@@ -405,11 +403,11 @@ namespace noa::algorithm::geometry {
             }
 
             const auto slice_shape_2d = slice_shape.filter(2, 3);
-            m_f_slice_shape = coord2_type((slice_shape_2d / 2 * 2 + shape2_type(slice_shape_2d == 1)).vec());
+            m_f_slice_shape = coord2_type(slice_shape_2d.vec());
             m_f_slice_y_center = static_cast<coord_type>(slice_shape_2d[0] / 2);
 
             const auto l_target_shape = noa::any(target_shape == 0) ? m_grid_shape : target_shape.pop_front();
-            m_f_target_shape = coord3_type((l_target_shape / 2 * 2 + shape3_type(l_target_shape == 1)).vec());
+            m_f_target_shape = coord3_type(l_target_shape.vec());
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
@@ -490,7 +488,6 @@ namespace noa::algorithm::geometry {
         using coord_type = typename GridInterpolator::coord_type;
         using coord2_type = Vec2<coord_type>;
         using coord3_type = Vec3<coord_type>;
-        using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
         using slice_accessor_type = AccessorRestrict<value_type, 3, offset_type>;
 
@@ -522,12 +519,12 @@ namespace noa::algorithm::geometry {
 
             const auto slice_shape_2d = slice_shape.filter(2, 3);
             m_slice_size_y = slice_shape_2d[0];
-            m_f_slice_shape = coord2_type((slice_shape_2d / 2 * 2 + shape2_type(slice_shape_2d == 1)).vec());
+            m_f_slice_shape = coord2_type(slice_shape_2d.vec());
 
             // Use the grid shape as backup.
             const auto grid_shape_3d = grid_shape.pop_front();
             const auto target_shape_3d = noa::any(target_shape == 0) ? grid_shape_3d : target_shape.pop_front();
-            m_f_target_shape = coord3_type((target_shape_3d / 2 * 2 + shape3_type(target_shape_3d == 1)).vec());
+            m_f_target_shape = coord3_type(target_shape_3d.vec());
             m_f_grid_zy_center = coord2_type((grid_shape_3d.filter(0, 1) / 2).vec()); // grid ZY center
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
@@ -638,8 +635,8 @@ namespace noa::algorithm::geometry {
             const auto l_input_shape = input_shape.filter(2, 3);
             const auto l_output_shape = output_shape.filter(2, 3);
 
-            m_f_input_shape = coord2_type((l_input_shape / 2 * 2 + shape2_type(l_input_shape == 1)).vec());
-            m_f_output_shape = coord2_type((l_output_shape / 2 * 2 + shape2_type(l_output_shape == 1)).vec());
+            m_f_input_shape = coord2_type(l_input_shape.vec());
+            m_f_output_shape = coord2_type(l_output_shape.vec());
             m_output_slice_size_y = l_output_shape[0];
             m_f_input_center_y = static_cast<coord_type>(l_input_shape[0] / 2); // slice Y center
 

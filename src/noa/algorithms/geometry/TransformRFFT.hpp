@@ -45,8 +45,8 @@ namespace noa::algorithm::geometry {
 
         using coord_type = typename Interpolator::coord_type;
         using vec_type = Vec<coord_type, N>;
-        using preshift_or_empty_type = std::conditional_t<
-                std::is_pointer_v<shift_or_empty_type>, vec_type, Empty>;
+        using center_type = Vec<coord_type, N - 1>;
+        using preshift_or_empty_type = std::conditional_t<std::is_pointer_v<shift_or_empty_type>, vec_type, Empty>;
         using real_value_type = traits::value_type_t<value_type>;
         using shape_type = Shape<index_type, N>;
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
@@ -76,7 +76,8 @@ namespace noa::algorithm::geometry {
             }
 
             m_shape = shape_type(shape.data() + 4 - N);
-            m_f_shape = vec_type((m_shape / 2 * 2 + shape_type(m_shape == 1)).vec()); // if odd, n-1
+            m_f_shape = vec_type(m_shape.vec());
+            m_center = center_type(m_shape.pop_back().vec() / 2);
 
             m_cutoff_sqd = noa::math::clamp(cutoff, coord_type{0}, coord_type{0.5});
             m_cutoff_sqd *= m_cutoff_sqd;
@@ -92,7 +93,7 @@ namespace noa::algorithm::geometry {
             // Compute the frequency corresponding to the gid and inverse transform.
             const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
             vec_type freq{v, x};
-            freq /= m_f_shape; // [-0.5, 0.5]
+            freq /= m_f_shape;
             if (noa::math::dot(freq, freq) > m_cutoff_sqd) {
                 m_output(batch, y, x) = 0;
                 return;
@@ -112,8 +113,8 @@ namespace noa::algorithm::geometry {
             }
 
             // Convert back to index and fetch value.
-            freq[0] += coord_type{0.5}; // [0, 1]
-            freq *= m_f_shape; // [0, N-1]
+            freq *= m_f_shape;
+            freq[0] += m_center[0];
             auto value = static_cast<value_type>(m_input(freq, batch));
             if constexpr (noa::traits::is_complex_v<value_type>)
                 value.imag *= conj;
@@ -122,11 +123,14 @@ namespace noa::algorithm::geometry {
 
             // Phase shift the interpolated value.
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+                // For Nyquist with even sizes, u == -x. Otherwise, x == u.
+                // For simplicity, let index2frequency compute the frequency...
+                const auto u = index2frequency<false>(x, m_shape[1]);
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
-                    value *= phase_shift<value_type>(shift, vec_type{v, x});
+                    value *= phase_shift<value_type>(shift, vec_type{v, u});
                 } else {
-                    value *= phase_shift<value_type>(m_shift, vec_type{v, x});
+                    value *= phase_shift<value_type>(m_shift, vec_type{v, u});
                 }
             }
             m_output(batch, y, x) = value;
@@ -137,7 +141,7 @@ namespace noa::algorithm::geometry {
             const index_type w = index2frequency<IS_DST_CENTERED>(z, m_shape[0]);
             const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[1]);
             vec_type freq{w, v, x};
-            freq /= m_f_shape; // [-0.5, 0.5]
+            freq /= m_f_shape;
             if (noa::math::dot(freq, freq) > m_cutoff_sqd) {
                 m_output(batch, z, y, x) = 0;
                 return;
@@ -155,9 +159,9 @@ namespace noa::algorithm::geometry {
                     conj = -1;
             }
 
-            freq[0] += coord_type{0.5};
-            freq[1] += coord_type{0.5};
             freq *= m_f_shape;
+            freq[0] += m_center[0];
+            freq[1] += m_center[1];
             auto value = static_cast<value_type>(m_input(freq, batch));
             if constexpr (noa::traits::is_complex_v<value_type>)
                 value.imag *= conj;
@@ -165,11 +169,12 @@ namespace noa::algorithm::geometry {
                 (void) conj;
 
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+                const auto u = index2frequency<false>(x, m_shape[2]); // only matter for nyquist in even sizes
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
-                    value *= phase_shift<value_type>(shift, vec_type{w, v, x});
+                    value *= phase_shift<value_type>(shift, vec_type{w, v, u});
                 } else {
-                    value *= phase_shift<value_type>(m_shift, vec_type{w, v, x});
+                    value *= phase_shift<value_type>(m_shift, vec_type{w, v, u});
                 }
             }
             m_output(batch, z, y, x) = value;
@@ -181,6 +186,7 @@ namespace noa::algorithm::geometry {
         matrix_type m_matrix;
         shape_type m_shape;
         vec_type m_f_shape;
+        center_type m_center;
         coord_type m_cutoff_sqd;
         NOA_NO_UNIQUE_ADDRESS shift_or_empty_type m_shift;
         NOA_NO_UNIQUE_ADDRESS preshift_or_empty_type m_preshift;
@@ -211,7 +217,8 @@ namespace noa::algorithm::geometry {
 
         using coord_type = typename Interpolator::coord_type;
         using vec_type = Vec<coord_type, N>;
-        using shape_type = Shape<index_type, N - 1>;
+        using center_type = Vec<coord_type, N - 1>;
+        using shape_type = Shape<index_type, N>;
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
         using matrix_type = std::conditional_t<N == 2, Mat22<coord_type>, Mat33<coord_type>>;
@@ -246,21 +253,21 @@ namespace noa::algorithm::geometry {
             }
 
             using shape_nd_t = Shape<index_type, N>;
-            const auto i_shape = shape_nd_t(shape.data() + 4 - N); // {y, x} or {z, y, x}
-            m_shape = i_shape.pop_back(); // {y} or {z, y}
-            m_f_shape = vec_type((i_shape / 2 * 2 + shape_nd_t(i_shape == 1)).vec()); // if odd, n-1
+            m_shape = shape_nd_t(shape.data() + 4 - N); // {y, x} or {z, y, x}
+            m_f_shape = vec_type(m_shape.vec());
+            m_center = center_type(m_shape.pop_back().vec() / 2);
 
             m_cutoff_sqd = noa::math::clamp(cutoff, coord_type{0}, coord_type{0.5});
             m_cutoff_sqd *= m_cutoff_sqd;
 
             if constexpr (traits::is_realN_v<shift_or_empty_type, N>)
-                m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(i_shape.vec());
+                m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(m_shape.vec());
         }
 
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept { // x == u
             const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
             vec_type freq{v, x};
-            freq /= m_f_shape; // [-0.5, 0.5]
+            freq /= m_f_shape;
             if (noa::math::dot(freq, freq) > m_cutoff_sqd) {
                 m_output(batch, y, x) = 0;
                 return;
@@ -284,8 +291,10 @@ namespace noa::algorithm::geometry {
             }
 
             value *= m_scaling;
-            if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>)
-                value *= phase_shift<value_type>(m_shift, vec_type{v, x});
+            if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+                const auto u = index2frequency<false>(x, m_shape[1]); // only matter for nyquist in even sizes
+                value *= phase_shift<value_type>(m_shift, vec_type{v, u});
+            }
 
             m_output(batch, y, x) = value;
         }
@@ -294,7 +303,7 @@ namespace noa::algorithm::geometry {
             const index_type w = index2frequency<IS_DST_CENTERED>(z, m_shape[0]);
             const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[1]);
             vec_type frequency{w, v, x};
-            frequency /= m_f_shape; // [-0.5, 0.5]
+            frequency /= m_f_shape;
             if (noa::math::dot(frequency, frequency) > m_cutoff_sqd) {
                 m_output(batch, z, y, x) = 0;
                 return;
@@ -319,8 +328,10 @@ namespace noa::algorithm::geometry {
             }
 
             value *= m_scaling;
-            if constexpr (traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>)
-                value *= phase_shift<value_type>(m_shift, vec_type{w, v, x});
+            if constexpr (traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+                const auto u = index2frequency<false>(x, m_shape[2]); // only matter for nyquist in even sizes
+                value *= phase_shift<value_type>(m_shift, vec_type{w, v, u});
+            }
 
             m_output(batch, z, y, x) = value;
         }
@@ -335,10 +346,10 @@ namespace noa::algorithm::geometry {
                     conj = -1;
             }
 
-            frequency[0] += coord_type{0.5};
-            if constexpr (N == 3)
-                frequency[1] += coord_type{0.5};
             frequency *= m_f_shape;
+            frequency[0] += m_center[0];
+            if constexpr (N == 3)
+                frequency[1] += m_center[1];
             auto value = static_cast<value_type>(m_input(frequency, batch));
             if constexpr (noa::traits::is_complex_v<value_type>)
                 value.imag *= conj;
@@ -351,8 +362,7 @@ namespace noa::algorithm::geometry {
             if constexpr (IS_DST_CENTERED) {
                 return i; // output is centered, so do nothing
             } else {
-                // FIXME The output is center and the output isn't?
-                return noa::math::fft_shift(i, size);
+                return noa::math::ifft_shift(i, size); // centered -> non-centered
             }
         }
 
@@ -365,6 +375,7 @@ namespace noa::algorithm::geometry {
         index_type m_symmetry_count;
         shape_type m_shape;
         vec_type m_f_shape;
+        center_type m_center;
         coord_type m_cutoff_sqd;
         real_value_type m_scaling;
     };

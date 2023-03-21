@@ -84,7 +84,7 @@ namespace noa::algorithm {
         constexpr bool IS_DST_CENTERED = u_REMAP & noa::fft::Layout::DST_CENTERED;
         if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED) {
             return index;
-        } else if constexpr (IS_SRC_CENTERED) { // FC2F
+        } else if constexpr (IS_SRC_CENTERED) {
             return noa::math::ifft_shift(index, shape);
         } else { // F2FC
             return noa::math::fft_shift(index, shape);
@@ -98,7 +98,7 @@ namespace noa::algorithm {
         constexpr bool IS_DST_CENTERED = u_REMAP & noa::fft::Layout::DST_CENTERED;
         if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED) {
             return indexes;
-        } else if constexpr (IS_SRC_CENTERED) { // FC2F
+        } else if constexpr (IS_SRC_CENTERED) {
             return noa::math::ifft_shift(indexes, shape);
         } else { // F2FC
             return noa::math::fft_shift(indexes, shape);

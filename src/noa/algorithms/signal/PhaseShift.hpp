@@ -4,7 +4,7 @@
 #include "noa/algorithms/Utilities.hpp"
 
 namespace noa::algorithm::signal {
-    // Phase shift the entire spectrum each dimension by shape / 2, not shape // 2.
+    // Phase shift each dimension by size / 2 (floating-point division).
     template<noa::fft::Remap REMAP, typename Index, typename Offset, typename Value>
     class PhaseShiftHalf {
     public:
@@ -65,7 +65,6 @@ namespace noa::algorithm::signal {
 
         using vec_nd_type = Vec<coord_type, NDIM>;
         using shape_nd_type = Shape<index_type, NDIM>;
-        using shape_trunc_type = Shape<index_type, NDIM - 1>;
         using preshift_type = std::conditional_t<std::is_pointer_v<Shift>, vec_nd_type, Empty>;
 
         using input_accessor_type = Accessor<const value_type, NDIM + 1, offset_type>;
@@ -77,22 +76,22 @@ namespace noa::algorithm::signal {
                    const shape_nd_type& shape,
                    const shift_type& shift,
                    coord_type cutoff)
-                : m_input(input), m_output(output), m_shape(shape.pop_back()),
-                  m_shift(shift), m_cutoff_sqd(cutoff * cutoff) {
-
+                : m_input(input), m_output(output),
+                  m_norm(coord_type{1} / vec_nd_type(shape.vec())),
+                  m_shape(shape),
+                  m_shift(shift),
+                  m_cutoff_sqd(cutoff * cutoff) {
             const vec_nd_type pre_shift = 2 * noa::math::Constant<coord_type>::PI / vec_nd_type(shape.vec());
             if constexpr (!std::is_pointer_v<shift_type>)
                 m_shift *= pre_shift;
             else
                 m_preshift = pre_shift;
-
-            m_norm = coord_type{1} / vec_nd_type((shape / 2 * 2 + shape_nd_type(shape == 1)).vec()); // if odd, n-1
         }
 
         template<typename Void = void, typename = std::enable_if_t<NDIM == 2 && std::is_void_v<Void>>>
         NOA_HD constexpr void operator()(index_type ii, index_type ik, index_type il) const noexcept {
             const vec_nd_type frequency{index2frequency<IS_SRC_CENTERED>(ik, m_shape[0]),
-                                        il};
+                                        index2frequency<false>(il, m_shape[1])};
 
             const vec_nd_type norm_freq = frequency * m_norm;
             const value_type phase_shift =
@@ -107,7 +106,7 @@ namespace noa::algorithm::signal {
         NOA_HD constexpr void operator()(index_type ii, index_type ij, index_type ik, index_type il) const noexcept {
             const auto frequency = vec_nd_type{index2frequency<IS_SRC_CENTERED>(ij, m_shape[0]),
                                                index2frequency<IS_SRC_CENTERED>(ik, m_shape[1]),
-                                               il};
+                                               index2frequency<false>(il, m_shape[2])};
 
             const vec_nd_type norm_freq = frequency * m_norm;
             const value_type phase_shift =
@@ -131,7 +130,7 @@ namespace noa::algorithm::signal {
         input_accessor_type m_input;
         output_accessor_type m_output;
         vec_nd_type m_norm;
-        shape_trunc_type m_shape;
+        shape_nd_type m_shape;
         shift_type m_shift;
         coord_type m_cutoff_sqd;
         NOA_NO_UNIQUE_ADDRESS preshift_type m_preshift{};

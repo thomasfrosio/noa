@@ -2,6 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Atomic.hpp"
+#include "noa/algorithms/Utilities.hpp"
 
 namespace noa::algorithm::signal {
     // Isotropic FSC implementation.
@@ -16,14 +17,15 @@ namespace noa::algorithm::signal {
         static_assert(noa::traits::is_int_v<Offset>);
         static_assert(noa::traits::is_real_v<Coord>);
         static_assert(noa::traits::is_real_v<Real>);
+        static constexpr bool IS_CENTERED = static_cast<uint8_t>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
         using offset_type = Offset;
         using coord_type = Coord;
         using real_type = Real;
         using complex_type = Complex<Real>;
-        using index3_type = Vec3<index_type>;
         using coord3_type = Vec3<coord_type>;
+        using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
         using input_accessor_type = AccessorRestrict<const complex_type, 4, offset_type>;
         using output_accessor_type = AccessorRestrictContiguous<real_type, 2, offset_type>;
@@ -38,15 +40,18 @@ namespace noa::algorithm::signal {
                   m_numerator_and_output(numerator_and_output),
                   m_denominator_lhs(denominator_lhs),
                   m_denominator_rhs(denominator_rhs),
-                  m_shape(shape) {
-            m_half_shape = static_cast<coord3_type>(m_shape.vec() / 2 * 2 + index3_type(m_shape == 1));
-            m_max_shell = noa::math::min(m_shape) / 2 + 1;
-        }
+                  m_norm(coord_type{1} / static_cast<coord3_type>(shape.vec())),
+                  m_shape(shape.pop_back()),
+                  m_max_shell(noa::math::min(shape) / 2 + 1) {}
 
         // Initial reduction.
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const {
             // Compute the normalized frequency.
-            const coord3_type frequency = index2frequency_(z, y, x);
+            auto frequency = coord3_type{
+                    index2frequency<IS_CENTERED>(z, m_shape[0]),
+                    index2frequency<IS_CENTERED>(y, m_shape[1]),
+                    x};
+            frequency *= m_norm;
 
             // Shortcut for everything past Nyquist.
             const auto radius_sqd = noa::math::dot(frequency, frequency);
@@ -91,27 +96,14 @@ namespace noa::algorithm::signal {
         }
 
     private:
-        constexpr NOA_FHD coord3_type index2frequency_(index_type z, index_type y, index_type x) const noexcept {
-            index3_type index{z, y, x};
-            if constexpr (REMAP == noa::fft::H2H) {
-                for (index_type i = 0; i < 3; ++i)
-                    if (index[i] >= (m_shape[i] + 1) / 2)
-                        index[i] -= m_shape[i];
-            } else {
-                index -= m_shape.vec() / 2;
-            }
-            return coord3_type(index) / m_half_shape;
-        }
-
-    private:
         input_accessor_type m_lhs;
         input_accessor_type m_rhs;
         output_accessor_type m_numerator_and_output;
         output_accessor_type m_denominator_lhs;
         output_accessor_type m_denominator_rhs;
 
-        coord3_type m_half_shape;
-        shape3_type m_shape;
+        coord3_type m_norm;
+        shape2_type m_shape;
         index_type m_max_shell;
     };
 
@@ -130,14 +122,15 @@ namespace noa::algorithm::signal {
         static_assert(noa::traits::is_int_v<Offset>);
         static_assert(noa::traits::is_real_v<Coord>);
         static_assert(noa::traits::is_real_v<Real>);
+        static constexpr bool IS_CENTERED = static_cast<uint8_t>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
         using offset_type = Offset;
         using coord_type = Coord;
         using real_type = Real;
         using complex_type = noa::Complex<Real>;
-        using index3_type = Vec3<index_type>;
         using coord3_type = Vec3<coord_type>;
+        using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
         using input_accessor_type = AccessorRestrict<const complex_type, 4, offset_type>;
         using output_accessor_type = AccessorRestrictContiguous<real_type, 3, offset_type>;
@@ -157,18 +150,20 @@ namespace noa::algorithm::signal {
                   m_denominator_lhs(denominator_lhs),
                   m_denominator_rhs(denominator_rhs),
                   m_normalized_cone_directions(normalized_cone_directions),
-                  m_shape(shape),
-                  m_cone_count(cone_count) {
-
-            m_half_shape = static_cast<coord3_type>(m_shape.vec() / 2 * 2 + index3_type(m_shape == 1));
-            m_max_shell = noa::math::min(m_shape) / 2 + 1;
-            m_cos_cone_aperture = noa::math::cos(cone_aperture);
-        }
+                  m_norm(coord_type{1} / static_cast<coord3_type>(shape.vec())),
+                  m_cos_cone_aperture(noa::math::cos(cone_aperture)),
+                  m_shape(shape.pop_back()),
+                  m_max_shell(noa::math::min(shape) / 2 + 1),
+                  m_cone_count(cone_count) {}
 
         // Initial reduction.
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const {
             // Compute the normalized frequency.
-            const coord3_type frequency = index2frequency_(z, y, x);
+            auto frequency = coord3_type{
+                    index2frequency<IS_CENTERED>(z, m_shape[0]),
+                    index2frequency<IS_CENTERED>(y, m_shape[1]),
+                    x};
+            frequency *= m_norm;
 
             // Shortcut for everything past Nyquist.
             const auto radius_sqd = noa::math::dot(frequency, frequency);
@@ -228,19 +223,6 @@ namespace noa::algorithm::signal {
         }
 
     private:
-        constexpr NOA_FHD coord3_type index2frequency_(index_type z, index_type y, index_type x) const noexcept {
-            index3_type index{z, y, x};
-            if constexpr (REMAP == noa::fft::H2H) {
-                for (index_type i = 0; i < 3; ++i)
-                    if (index[i] >= (m_shape[i] + 1) / 2)
-                        index[i] -= m_shape[i];
-            } else {
-                index -= m_shape.vec() / 2;
-            }
-            return coord3_type(index) / m_half_shape;
-        }
-
-    private:
         input_accessor_type m_lhs;
         input_accessor_type m_rhs;
         output_accessor_type m_numerator_and_output;
@@ -248,13 +230,12 @@ namespace noa::algorithm::signal {
         output_accessor_type m_denominator_rhs;
         direction_accessor_type m_normalized_cone_directions;
 
-        coord3_type m_half_shape;
+        coord3_type m_norm;
         coord_type m_cos_cone_aperture;
-        shape3_type m_shape;
+        shape2_type m_shape;
         index_type m_max_shell;
         index_type m_cone_count;
     };
-
 
     template<noa::fft::Remap REMAP, typename Coord = float, typename Index, typename Offset, typename Real>
     auto isotropic_fsc(const noa::Complex<Real>* lhs, const Strides4<Offset>& lhs_strides,

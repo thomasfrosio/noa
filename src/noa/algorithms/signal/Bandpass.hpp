@@ -25,7 +25,6 @@ namespace noa::algorithm::signal {
         using coord_type = Coord;
         using coord3_type = Vec3<coord_type>;
         using shape2_type = Shape2<index_type>;
-        using index3_type = Vec3<index_type>;
         using shape4_type = Shape4<index_type>;
         using real_type = noa::traits::value_type_t<value_type>;
 
@@ -41,12 +40,8 @@ namespace noa::algorithm::signal {
                  const shape4_type& shape,
                  coord_type cutoff, coord_type width = coord_type{})
                 : m_input(input), m_output(output),
+                  m_norm(coord_type{1} / coord3_type(shape.pop_front().vec())),
                   m_dh_shape(shape.filter(1, 2)) {
-
-            // If odd, subtract 1 to keep Nyquist at 0.5:
-            const auto l_shape = shape.pop_front().vec();
-            m_norm = coord_type{1} / coord3_type(l_shape / 2 * 2 + index3_type(l_shape == 1));
-
             if constexpr (SOFT) {
                 m_cutoff[0] = cutoff;
                 m_width[0] = width;
@@ -64,12 +59,8 @@ namespace noa::algorithm::signal {
                  coord_type width_high = coord_type{},
                  coord_type width_low = coord_type{})
                 : m_input(input), m_output(output),
+                  m_norm(coord_type{1} / coord3_type(shape.pop_front().vec())),
                   m_dh_shape(shape.filter(1, 2)) {
-
-            // If odd, subtract 1 to keep Nyquist at 0.5:
-            const auto l_shape = shape.pop_front().vec();
-            m_norm = coord_type{1} / coord3_type(l_shape / 2 * 2 + index3_type(l_shape == 1));
-
             if constexpr (SOFT) {
                 m_cutoff[0] = cutoff_high;
                 m_cutoff[1] = cutoff_low;
