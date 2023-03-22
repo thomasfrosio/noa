@@ -13,11 +13,13 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/TestUnifiedSort.cpp
 
 #        noa/unified/signal/fft/TestUnifiedAlignment.cpp
-#        noa/unified/signal/fft/TestUnifiedCorrelate.cpp
 #        noa/unified/signal/fft/TestUnifiedMellin.cpp
-#        noa/unified/signal/fft/TestUnifiedShape.cpp
-#        noa/unified/signal/fft/TestUnifiedStandardize.cpp
+
+#        noa/unified/signal/fft/TestUnifiedCorrelate.cpp
 #        noa/unified/signal/TestUnifiedSignal.cpp
+        noa/unified/signal/fft/TestUnifiedBandpass.cpp
+        noa/unified/signal/fft/TestUnifiedPhaseShift.cpp
+        noa/unified/signal/fft/TestUnifiedStandardize.cpp
         noa/unified/signal/TestUnifiedMedian.cpp
         noa/unified/signal/TestUnifiedConvolve.cpp
 
