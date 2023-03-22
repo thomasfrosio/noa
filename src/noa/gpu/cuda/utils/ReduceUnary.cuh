@@ -531,9 +531,8 @@ namespace noa::cuda::utils::details {
             PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
             cuda::Stream& stream) {
 
-        // If rows are large, switch to more threads per row.
-        const u32 block_dim_x = noa::cuda::Constant::WARP_SIZE; // FIXME
-        const dim3 threads(block_dim_x, std::max(Config::BLOCK_SIZE / block_dim_x, u32{1}));
+        constexpr u32 BLOCK_DIM_X = noa::cuda::Constant::WARP_SIZE; // FIXME?
+        const dim3 threads(BLOCK_DIM_X, std::max(Config::BLOCK_SIZE / BLOCK_DIM_X, u32{1}));
         const auto config = LaunchConfig{batches, threads};
         const auto rows = safe_cast<u32>(shape[2] * shape[1] * (reduce_batch ? shape[0] : 1));
 
@@ -554,7 +553,7 @@ namespace noa::cuda::utils::details {
                                details::reduce_unary_4d_small<
                                        Input, Reduced, Output, Index,
                                        PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, 64, 8>,
+                                       StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 8>,
                                config, input_accessor, shape, rows, initial_reduce, output_accessor,
                                pre_process_op, reduce_op, post_process_op);
             } else if (input_vector_size == 4) {
@@ -562,7 +561,7 @@ namespace noa::cuda::utils::details {
                                details::reduce_unary_4d_small<
                                        Input, Reduced, Output, Index,
                                        PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, 64, 4>,
+                                       StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 4>,
                                config, input_accessor, shape, rows, initial_reduce, output_accessor,
                                pre_process_op, reduce_op, post_process_op);
             } else {
@@ -570,7 +569,7 @@ namespace noa::cuda::utils::details {
                                details::reduce_unary_4d_small<
                                        Input, Reduced, Output, Index,
                                        PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, 64, 2>,
+                                       StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 2>,
                                config, input_accessor, shape, rows, initial_reduce, output_accessor,
                                pre_process_op, reduce_op, post_process_op);
             }
@@ -580,7 +579,7 @@ namespace noa::cuda::utils::details {
                            details::reduce_unary_4d_small<
                                    Input, Reduced, Output, Index,
                                    PreProcessOp, ReduceOp, PostProcessOp,
-                                   StridesTrait, Config, 64, 1>,
+                                   StridesTrait, Config, BLOCK_DIM_X, 1>,
                            config, input_accessor, shape, rows, initial_reduce, output_accessor,
                            pre_process_op, reduce_op, post_process_op);
         }
