@@ -29,8 +29,9 @@ namespace noa::geometry::fft {
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Input, typename Output, typename Matrix, size_t N,
-             typename CValue = traits::value_type_t<Output>, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output, typename Matrix, size_t N,
+            typename Input = View<const noa::traits::value_type_t<Output>>,
+            typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                     noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
@@ -41,7 +42,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !noa::indexing::are_overlapped(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
-        NOA_CHECK(output.shape().ndim() <= N,
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
                   "3D arrays are not supported with 2D ellipses. Use 3D ellipses to support 2D and 3D arrays");
 
         const bool is_empty = input.is_empty();
@@ -93,8 +94,9 @@ namespace noa::geometry::fft {
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Input, typename Output, typename Matrix, size_t N,
-             typename CValue = traits::value_type_t<Output>, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output, typename Matrix, size_t N,
+             typename Input = View<const noa::traits::value_type_t<Output>>,
+             typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                     noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
@@ -105,7 +107,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !noa::indexing::are_overlapped(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
-        NOA_CHECK(output.shape().ndim() <= N,
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
                   "3D arrays are not supported with 2D spheres. Use 3D spheres to support 2D and 3D arrays");
 
         const bool is_empty = input.is_empty();
@@ -157,8 +159,9 @@ namespace noa::geometry::fft {
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Input, typename Output, typename Matrix, size_t N,
-             typename CValue = traits::value_type_t<Output>, typename = std::enable_if_t<
+    template<Remap REMAP, typename Output, typename Matrix, size_t N,
+             typename Input = View<const noa::traits::value_type_t<Output>>,
+             typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                     noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
@@ -169,7 +172,7 @@ namespace noa::geometry::fft {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !noa::indexing::are_overlapped(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
-        NOA_CHECK(output.shape().ndim() <= N,
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
                   "3D arrays are not supported with 2D rectangles. Use 3D rectangles to support 2D and 3D arrays");
 
         const bool is_empty = input.is_empty();
@@ -222,7 +225,8 @@ namespace noa::geometry::fft {
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Input, typename Output,
+    template<Remap REMAP, typename Output,
+             typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                     noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
