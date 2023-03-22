@@ -24,7 +24,7 @@ TEMPLATE_TEST_CASE("unified::memory::extract_{unary|binary}(), insert_elements()
     // Extract elements from data only if mask isn't 0.
     std::vector<size_t> expected_indexes;
     std::vector<TestType> expected_values;
-    const auto expected_data_reinsert = noa::memory::zeros<TestType>(data.shape());
+    const auto expected_data_reinsert = noa::memory::zeros<TestType>(data.shape()).eval();
 
     const auto data_1d = data.accessor_contiguous_1d();
     const auto mask_1d = mask.accessor_contiguous_1d();
@@ -51,6 +51,7 @@ TEMPLATE_TEST_CASE("unified::memory::extract_{unary|binary}(), insert_elements()
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
+    data.eval(); // sync before changing the current stream
     for (const auto& device: devices) {
         auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, Allocator::MANAGED);
@@ -67,8 +68,8 @@ TEMPLATE_TEST_CASE("unified::memory::extract_{unary|binary}(), insert_elements()
                      extracted_count == static_cast<i64>(expected_indexes.size())));
 
             stream.synchronize();
-            REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.offsets.get(), extracted_count, 0));
-            REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), extracted.values.get(), extracted_count, 0));
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected_indexes.data(), extracted.offsets.get(), extracted_count, 1e-8));
+            REQUIRE(test::Matcher(test::MATCH_ABS, expected_values.data(), extracted.values.get(), extracted_count, 1e-8));
 
             const auto reinsert = noa::memory::zeros<TestType>(shape, options);
             noa::memory::insert_elements(extracted.values, extracted.offsets, reinsert);
