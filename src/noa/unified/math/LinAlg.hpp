@@ -34,7 +34,7 @@ namespace noa::math {
     ///       In any case, the innermost dimension should be contiguous and the second-most dimension can either be
     ///       contiguous or padded.
     /// \note This function is currently not supported on the GPU.
-    template<typename MatrixA, typename MatrixB, typename MatrixX, typename Real,
+    template<typename MatrixA, typename MatrixB, typename MatrixX, typename Real = f32,
              typename MatrixU = View<noa::traits::value_type_t<noa::traits::value_type_t<MatrixA>>>,
              typename = std::enable_if_t<
                      noa::traits::is_real_v<Real> &&
@@ -117,7 +117,7 @@ namespace noa::math {
             stream.cpu().enqueue([=](){
                 cpu::math::lstsq(a.get(), a.strides(), a.shape(),
                                  b.get(), b.strides(), b.shape(),
-                                 cond, svd.get());
+                                 static_cast<f32>(cond), svd.get());
             });
         } else {
             NOA_THROW("noa::math::lstsq() is currently not supported on the GPU");

@@ -58,7 +58,7 @@ namespace noa::signal::fft::details {
         }
 
         constexpr i64 CUDA_COM_LIMIT = NDIM == 1 ? 64 : NDIM == 2 ? 8 : 2;
-        const i64 peak_radius_limit = xmap.device().gpu() && peak_mode == PeakMode::COM ? CUDA_COM_LIMIT : 64;
+        const i64 peak_radius_limit = xmap.device().is_gpu() && peak_mode == PeakMode::COM ? CUDA_COM_LIMIT : 64;
         NOA_CHECK(noa::all(peak_radius > 0 && peak_radius <= peak_radius_limit),
                   "The registration radius should be a small positive value (less than {}), but got {}",
                   peak_radius_limit, peak_radius);
@@ -84,7 +84,7 @@ namespace noa::signal::fft {
     /// \param[out] buffer      Buffer that can fit \p shape.fft() complex elements. It is overwritten.
     ///                         Can be \p lhs or \p rhs. If empty, use \p rhs instead.
     template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
-             typename Buffer = View<noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
+             typename Buffer = View<noa::traits::mutable_value_type_t<Rhs>>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
                     noa::traits::is_array_or_view_of_any_v<Rhs, c32, c64> &&
                     noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
@@ -165,7 +165,7 @@ namespace noa::signal::fft {
     /// \param peak_mode                Registration mode to use for subpixel accuracy.
     /// \param peak_radius              ((D)H)W radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
-    template<Remap REMAP, typename Input, size_t N,
+    template<Remap REMAP, size_t N, typename Input,
              typename PeakCoord = View<Vec<f32, N>>,
              typename PeakValue = View<noa::traits::mutable_value_type_t<Input>>,
              typename = std::enable_if_t<
@@ -177,10 +177,10 @@ namespace noa::signal::fft {
     void xpeak(const Input& xmap,
                const PeakCoord& peak_coordinates,
                const PeakValue& peak_values = {},
-               const Vec<f32, N>& xmap_radius = Vec<f32, N>{1},
+               const Vec<f32, N>& xmap_radius = Vec<f32, N>{-1},
                PeakMode peak_mode = PeakMode::PARABOLA_1D,
                const Vec<i64, N>& peak_radius = Vec<i64, N>{1}) {
-        details::check_xpeak_parameters(xmap, xmap_radius, peak_mode, peak_coordinates, peak_values);
+        details::check_xpeak_parameters(xmap, peak_radius, peak_mode, peak_coordinates, peak_values);
 
         const Device& device = xmap.device();
         Stream& stream = Stream::current(device);
@@ -231,6 +231,45 @@ namespace noa::signal::fft {
         }
     }
 
+    template<Remap REMAP, typename Input,
+             typename PeakCoord = View<Vec1<f32>>,
+             typename PeakValue = View<noa::traits::mutable_value_type_t<Input>>,
+             typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, 1>>>
+    void xpeak_1d(const Input& xmap,
+                  const PeakCoord& peak_coordinates,
+                  const PeakValue& peak_values = {},
+                  const Vec1<f32>& xmap_radius = Vec1<f32>{-1},
+                  PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                  const Vec1<i64>& peak_radius = Vec1<i64>{1}) {
+        xpeak<REMAP, 1>(xmap, peak_coordinates, peak_values, xmap_radius, peak_mode, peak_radius);
+    }
+
+    template<Remap REMAP, typename Input,
+             typename PeakCoord = View<Vec2<f32>>,
+             typename PeakValue = View<noa::traits::mutable_value_type_t<Input>>,
+             typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, 2>>>
+    void xpeak_2d(const Input& xmap,
+                  const PeakCoord& peak_coordinates,
+                  const PeakValue& peak_values = {},
+                  const Vec2<f32>& xmap_radius = Vec2<f32>{-1},
+                  PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                  const Vec2<i64>& peak_radius = Vec2<i64>{1}) {
+        xpeak<REMAP, 2>(xmap, peak_coordinates, peak_values, xmap_radius, peak_mode, peak_radius);
+    }
+
+    template<Remap REMAP, typename Input,
+             typename PeakCoord = View<Vec3<f32>>,
+             typename PeakValue = View<noa::traits::mutable_value_type_t<Input>>,
+             typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, 2>>>
+    void xpeak_3d(const Input& xmap,
+                  const PeakCoord& peak_coordinates,
+                  const PeakValue& peak_values = {},
+                  const Vec3<f32>& xmap_radius = Vec3<f32>{-1},
+                  PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                  const Vec3<i64>& peak_radius = Vec3<i64>{1}) {
+        xpeak<REMAP, 3>(xmap, peak_coordinates, peak_values, xmap_radius, peak_mode, peak_radius);
+    }
+
     /// Returns a pair of the ((D)H)W coordinate and the value of the highest peak in a cross-correlation map.
     /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \param[in,out] xmap 1d, 2d, or 3d cross-correlation map. It can be overwritten depending on \p xmap_radius.
@@ -240,15 +279,17 @@ namespace noa::signal::fft {
     /// \param peak_mode    Registration mode to use for subpixel accuracy.
     /// \param peak_radius  ((D)H)W radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
-    template<Remap REMAP, typename Input, size_t N, typename = std::enable_if_t<
+    template<Remap REMAP, size_t N, typename Input, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
              details::is_valid_xpeak_v<REMAP, N>>>
     [[nodiscard]] auto xpeak(const Input& xmap,
                              const Vec<f32, N>& xmap_radius = Vec<f32, N>{0},
                              PeakMode peak_mode = PeakMode::PARABOLA_1D,
                              const Vec<i64, N>& peak_radius = Vec<i64, N>{1}) {
-        details::check_xpeak_parameters(xmap, xmap_radius, peak_mode);
-        NOA_CHECK(!xmap.is_batched(), "The input cross-correlation cannot be batched, but got shape {}", xmap.shape());
+        details::check_xpeak_parameters(xmap, peak_radius, peak_mode);
+        NOA_CHECK(!xmap.shape().is_batched(),
+                  "The input cross-correlation cannot be batched, but got shape {}",
+                  xmap.shape());
 
         const Device& device = xmap.device();
         Stream& stream = Stream::current(device);
@@ -289,6 +330,36 @@ namespace noa::signal::fft {
             NOA_THROW("No GPU backend detected");
             #endif
         }
+    }
+
+    template<Remap REMAP, typename Input, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             details::is_valid_xpeak_v<REMAP, 1>>>
+    [[nodiscard]] auto xpeak_1d(const Input& xmap,
+                                const Vec1<f32>& xmap_radius = Vec1<f32>{0},
+                                PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                                const Vec1<i64>& peak_radius = Vec1<i64>{1}) {
+        return xpeak<REMAP, 1>(xmap, xmap_radius, peak_mode, peak_radius);
+    }
+
+    template<Remap REMAP, typename Input, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             details::is_valid_xpeak_v<REMAP, 2>>>
+    [[nodiscard]] auto xpeak_2d(const Input& xmap,
+                                const Vec2<f32>& xmap_radius = Vec2<f32>{0},
+                                PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                                const Vec2<i64>& peak_radius = Vec2<i64>{1}) {
+        return xpeak<REMAP, 2>(xmap, xmap_radius, peak_mode, peak_radius);
+    }
+
+    template<Remap REMAP, typename Input, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             details::is_valid_xpeak_v<REMAP, 3>>>
+    [[nodiscard]] auto xpeak_3d(const Input& xmap,
+                                const Vec3<f32>& xmap_radius = Vec3<f32>{0},
+                                PeakMode peak_mode = PeakMode::PARABOLA_1D,
+                                const Vec3<i64>& peak_radius = Vec3<i64>{1}) {
+        return xpeak<REMAP, 3>(xmap, xmap_radius, peak_mode, peak_radius);
     }
 
     /// Computes the cross-correlation coefficient(s).

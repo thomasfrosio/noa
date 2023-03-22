@@ -41,18 +41,16 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
-            cpu_stream.enqueue([=]() {
-                cpu::math::dot(lhs.get(), lhs.strides(), lhs.shape(),
-                               rhs.get(), rhs.strides(), rhs.shape(),
-                               threads);
-            });
+            cpu_stream.synchronize();
+            return cpu::math::dot(lhs.get(), lhs.strides(), lhs.shape(),
+                                  rhs.get(), rhs.strides(), rhs.shape(),
+                                  threads);
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            cuda::math::dot(lhs.get(), lhs.strides(), lhs.shape(),
-                            rhs.get(), rhs.strides(), rhs.shape(),
-                            cuda_stream);
-            cuda_stream.enqueue_attach(lhs.share(), rhs.share());
+            return cuda::math::dot(lhs.get(), lhs.strides(), lhs.shape(),
+                                   rhs.get(), rhs.strides(), rhs.shape(),
+                                   cuda_stream);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -80,7 +78,7 @@ namespace noa::math {
                   "The input vectors don't have the same number of elements. Got lhs:{} and rhs:{}",
                   lhs.shape()[2] * lhs.shape()[3], rhs.shape()[2] * rhs.shape()[3]);
 
-        NOA_CHECK(noa::indexing::is_vector(output.shape()) && output.is_contiguous(),
+        NOA_CHECK(noa::indexing::is_contiguous_vector(output),
                   "The output should be a contiguous vector, but got shape {} and stride {}",
                   output.shape(), output.strides());
 
@@ -117,26 +115,6 @@ namespace noa::math {
             NOA_THROW("No GPU backend detected");
             #endif
         }
-    }
-
-    /// Computes a matrix-matrix product, with general matrices.
-    /// \details This function computes a matrix-matrix product, but it also accepts vectors.
-    ///          As such, it can computes a matrix-vector product, a vector-matrix product and
-    ///          the vector-vector outer-product or dot product.
-    /// \tparam Lhs, Rhs, Output    Array or View of f32, f64, c32, or c64.
-    /// \param[in] lhs              Dense {B,1,M,K} matrix.
-    /// \param[in] rhs              Dense {B,1,K,N} matrix.
-    /// \param[out] output          Dense {B,1,M,N} matrix.
-    /// \note The memory layout is restricted: \p lhs, \p rhs and \p output should not overlap. All matrices should
-    ///       either be row-major or column-major. The innermost dimension of the matrices should be contiguous and
-    ///       the second-most dimension cannot be broadcast.
-    template<typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
-             details::is_valid_matmul_t<noa::traits::value_type_t<Output>>>>
-    void matmul(const Lhs& lhs, const Rhs& rhs, const Output& output) {
-        using value_t = noa::traits::value_type_t<Output>;
-        matmul(lhs, rhs, output, value_t{1}, value_t{0});
     }
 
     /// Computes a scalar-matrix-matrix product, with general matrices and adds the result to a scalar-matrix product.
@@ -219,5 +197,25 @@ namespace noa::math {
             NOA_THROW("No GPU backend detected");
             #endif
         }
+    }
+
+    /// Computes a matrix-matrix product, with general matrices.
+    /// \details This function computes a matrix-matrix product, but it also accepts vectors.
+    ///          As such, it can computes a matrix-vector product, a vector-matrix product and
+    ///          the vector-vector outer-product or dot product.
+    /// \tparam Lhs, Rhs, Output    Array or View of f32, f64, c32, or c64.
+    /// \param[in] lhs              Dense {B,1,M,K} matrix.
+    /// \param[in] rhs              Dense {B,1,K,N} matrix.
+    /// \param[out] output          Dense {B,1,M,N} matrix.
+    /// \note The memory layout is restricted: \p lhs, \p rhs and \p output should not overlap. All matrices should
+    ///       either be row-major or column-major. The innermost dimension of the matrices should be contiguous and
+    ///       the second-most dimension cannot be broadcast.
+    template<typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
+             noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
+             details::is_valid_matmul_t<noa::traits::value_type_t<Output>>>>
+    void matmul(const Lhs& lhs, const Rhs& rhs, const Output& output) {
+        using value_t = noa::traits::value_type_t<Output>;
+        matmul(lhs, rhs, output, value_t{1}, value_t{0});
     }
 }
