@@ -28,7 +28,7 @@ namespace {
                 input, input_strides, shape, &factor, Strides1<i64>{1},
                 T{0}, noa::abs_squared_t{}, noa::plus_t{}, {}, threads);
         const Complex<T> dc = input[noa::indexing::at(index_dc, input_strides)];
-        factor = 1 / noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale; // anticipate dc=0
+        factor = 1 / (noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale); // anticipate dc=0
 
         // Standardize.
         noa::cpu::utils::ewise_unary(

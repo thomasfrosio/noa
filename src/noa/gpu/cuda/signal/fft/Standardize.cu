@@ -34,7 +34,7 @@ namespace {
         Complex<T> dc;
         noa::cuda::memory::copy(input + noa::indexing::at(index_dc, input_strides), &dc, 1, stream);
         stream.synchronize();
-        factor = 1 / noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale; // anticipate dc=0
+        factor = 1 / (noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale); // anticipate dc=0
 
         noa::cuda::utils::ewise_binary(
                 "standardize_ifft",
@@ -67,6 +67,7 @@ namespace {
         // Reduce unique chunk:
         T factor0;
         auto subregion = original.extract(ellipsis_t{}, slice_t{1, original.shape[3] - even});
+        stream.synchronize();
         noa::cuda::utils::reduce_unary(
                 "standardize_ifft",
                 input + subregion.offset, subregion.strides, subregion.shape,
