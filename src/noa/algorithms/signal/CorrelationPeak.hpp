@@ -18,7 +18,7 @@ namespace noa::algorithm::signal {
             if (window_radius[i] == 1) {
                 const auto [x, y] = noa::math::lstsq_fit_quadratic_vertex_3points(
                         current_window[0], current_window[1], current_window[2]);
-                peak_coordinate[i] += static_cast<f64>(x);
+                peak_coordinate[i] = static_cast<f64>(x);
                 peak_value += static_cast<f64>(y);
             } else {
                 f64 a{}, b{}, c{};
@@ -26,7 +26,7 @@ namespace noa::algorithm::signal {
                 if (a != 0) { // This can fail if all values in output are equal.
                     const auto x = noa::math::clamp(-b / (2 * a), 0.5, static_cast<f64>(window_size) - 1.5);
                     const auto y = a * x * x + b * x + c;
-                    peak_coordinate[i] += x - static_cast<f64>(window_radius[i]);
+                    peak_coordinate[i] = x - static_cast<f64>(window_radius[i]);
                     peak_value += y;
                 }
             }

@@ -90,9 +90,12 @@ namespace noa::math {
         const Real b = y0 - y2; // * -0.5
         const Real c = y1;
 
-        const Real x = noa::math::clamp(-b / (2 * a), Real{-0.5}, Real{0.5});
-        const Real y = c + b * b / (8 * a);
-
-        return Pair{x, y};
+        if (noa::math::abs(a) < static_cast<Real>(1e-8)) {
+            return Pair{Real{0}, y1};
+        } else {
+            const Real x = noa::math::clamp(-b / (2 * a), Real{-0.5}, Real{0.5});
+            const Real y = c + b * b / (8 * a);
+            return Pair{x, y};
+        }
     }
 }

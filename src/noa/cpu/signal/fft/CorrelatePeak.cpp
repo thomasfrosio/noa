@@ -47,7 +47,7 @@ namespace {
         size_t peak_window_elements{0};
         for (size_t i = 0; i < N; ++i)
             peak_window_elements += static_cast<size_t>(peak_radius[i] * 2 + 1);
-        std::array<Real, STATIC_BUFFER_SIZE> static_buffer{0}; // TODO Replace with inline_vector
+        std::array<Real, STATIC_BUFFER_SIZE> static_buffer{0}; // TODO Replace with flat_vector
         std::vector<Real> dynamic_buffer;
         Real* output;
         if (peak_window_elements > STATIC_BUFFER_SIZE) {
@@ -74,7 +74,7 @@ namespace {
                     const i64 current_frequency = peak_frequency + index;
                     if (-dim_size / 2 <= current_frequency &&
                         current_frequency <= (dim_size - 1) / 2) {
-                        const i64 current_index = noa::algorithm::index2frequency<false>(current_frequency, dim_size);
+                        const i64 current_index = noa::algorithm::frequency2index<false>(current_frequency, dim_size);
                         *current_output = current_xmap[noa::indexing::at(current_index, xmap_strides[dim])];
                     }
                 }
@@ -116,7 +116,7 @@ namespace {
         // Prepare buffer:
         constexpr size_t STATIC_BUFFER_SIZE = 64;
         const auto peak_window_elements = static_cast<size_t>(noa::math::product(peak_radius * 2 + 1));
-        std::array<Real, STATIC_BUFFER_SIZE> static_buffer{0}; // TODO Replace with inline_vector
+        std::array<Real, STATIC_BUFFER_SIZE> static_buffer{0}; // TODO Replace with flat_vector
         std::vector<Real> dynamic_buffer;
         Real* peak_window_values;
         if (peak_window_elements > STATIC_BUFFER_SIZE) {
@@ -153,6 +153,7 @@ namespace {
                     }
                 }
             }
+            NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
             peak_index = noa::math::fft_shift(peak_index, xmap_shape);
 
         } else if constexpr (REMAP == fft::FC2FC) {
@@ -171,6 +172,7 @@ namespace {
                     }
                 }
             }
+            NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
         } else {
             static_assert(noa::traits::always_false_v<Real>);
         }
@@ -189,6 +191,7 @@ namespace {
                 }
             }
         }
+        NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
         const auto peak_coordinate = com / com_total + peak_index.as<f64>();
 
         // Finally, get the peak value.
@@ -303,7 +306,7 @@ namespace noa::cpu::signal::fft {
                 case noa::signal::PeakMode::COM: {
                     const auto accessor = Accessor<const Real, 3, i64>(imap, strides_2d.push_front(0));
                     const auto [peak_coordinate, peak_value] = subpixel_registration_com_<REMAP>(
-                            accessor, shape_2d.push_front(0), peak_index.push_front(0), peak_radius.push_front(0));
+                            accessor, shape_2d.push_front(1), peak_index.push_front(0), peak_radius.push_front(0));
                     if (output_peak_coordinates)
                         output_peak_coordinates[batch] = peak_coordinate.pop_front();
                     if (output_peak_values)

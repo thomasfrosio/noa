@@ -428,7 +428,7 @@ namespace noa {
         template<typename Void = void, std::enable_if_t<SIZE == 4 && std::is_void_v<Void>, bool> = true>
         [[nodiscard]]  NOA_FHD constexpr bool is_vector(bool can_be_batched = false) const noexcept {
             int non_empty_dimension = 0;
-            for (int i = 0; i < SIZE; ++i) {
+            for (size_t i = 0; i < SIZE; ++i) {
                 if (m_vec[i] == 0)
                     return false; // empty/invalid shape
                 if ((!can_be_batched || i != 0) && m_vec[i] > 1)

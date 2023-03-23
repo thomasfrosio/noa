@@ -61,14 +61,14 @@ namespace noa::cpu::signal::fft {
         }
 
         if constexpr (REMAP == Remap::H2FC) {
-            const auto shape_3d = shape_fft.pop_front();
+            const auto shape_3d = shape.pop_front();
             if (shape_3d.ndim() == 3) {
                 noa::cpu::signal::fft::phase_shift_3d<Remap::H2H>(
-                        tmp, tmp_strides, tmp, tmp_strides, shape_fft,
+                        tmp, tmp_strides, tmp, tmp_strides, shape,
                         (shape_3d / 2).vec().as<f32>(), 1, threads);
             } else {
                 noa::cpu::signal::fft::phase_shift_2d<Remap::H2H>(
-                        tmp, tmp_strides, tmp, tmp_strides, shape_fft,
+                        tmp, tmp_strides, tmp, tmp_strides, shape,
                         (shape_3d.pop_front() / 2).vec().as<f32>(), 1, threads);
             }
         }
