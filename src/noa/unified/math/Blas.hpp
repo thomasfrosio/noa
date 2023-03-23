@@ -148,26 +148,6 @@ namespace noa::math {
                   !noa::indexing::are_overlapped(rhs, output),
                   "Input and output arrays should not overlap");
 
-        [[maybe_unused]] const bool is_col = noa::indexing::is_column_major(lhs.strides());
-        NOA_CHECK(is_col == noa::indexing::is_column_major(rhs.strides()) &&
-                  is_col == noa::indexing::is_column_major(output.strides()),
-                  "All matrices should either be row-major or column-major");
-
-        [[maybe_unused]] const i32 innermost = 3 - is_col;
-        [[maybe_unused]] const i32 secondmost = 2 + is_col;
-        NOA_CHECK(lhs.strides()[innermost] == 1 && lhs.strides()[secondmost] >= lhs.shape()[innermost],
-                  "The innermost dimension of the left-hand side should be contiguous and "
-                  "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
-                  lhs.shape(), lhs.strides());
-        NOA_CHECK(rhs.strides()[innermost] == 1 && rhs.strides()[secondmost] >= rhs.shape()[innermost],
-                  "The innermost dimension of the right-hand side should be contiguous and "
-                  "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
-                  rhs.shape(), rhs.strides());
-        NOA_CHECK(output.strides()[innermost] == 1 && output.strides()[secondmost] >= output.shape()[innermost],
-                  "The innermost dimension of the output should be contiguous and "
-                  "the second-most dimension cannot be broadcast, but got shape:{} and stride:{}",
-                  output.shape(), output.strides());
-
         const Device device = output.device();
         NOA_CHECK(device == lhs.device() && device == rhs.device(),
                   "The input and output arrays must be on the same device, but got lhs:{}, rhs:{} and output:{}",

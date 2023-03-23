@@ -152,35 +152,23 @@ namespace noa::cpu::math {
                 i64 threads) {
         NOA_ASSERT(lhs && rhs && output && all(lhs_shape > 0) && all(rhs_shape > 0));
 
-        // Get the shape: MxK @ KxN = MxN
-        const auto m = lhs_shape[2 + lhs_transpose];
-        const auto n = rhs_shape[3 - rhs_transpose];
-        const auto k = lhs_shape[3 - lhs_transpose];
-        const auto mnk = Vec3<i64>{m, n, k}.as_safe<blasint>();
-        NOA_ASSERT(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1); // 2D matrices
-        NOA_ASSERT(m == output_shape[2] && n == output_shape[3]); // output fits the expected shape
-        NOA_ASSERT(k == rhs_shape[2 + rhs_transpose]); // left and right matrices have compatible shape
+        const auto [mnk, secondmost_strides, are_column_major] = noa::indexing::extract_matmul_layout(
+                lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
+                lhs_transpose, rhs_transpose);
 
-        // dot is faster than gemm:
-        if (m == 1 && n == 1 && alpha == T{1} && beta == T{0} &&
+        // dot is faster than gemm with OpenBLAS:
+        if (mnk[0] == 1 && mnk[1] == 1 && alpha == T{1} && beta == T{0} &&
             noa::indexing::is_contiguous(output_strides, output_shape)[0]) {
             return dot(lhs, lhs_strides, lhs_shape, rhs, rhs_strides, rhs_shape, output, threads);
         }
 
-        // Select an order:
-        const bool is_col = noa::indexing::is_column_major(output_strides);
-        const CBLAS_ORDER order = is_col ? CblasColMajor : CblasRowMajor;
-        NOA_ASSERT(is_col == noa::indexing::is_column_major(lhs_strides) &&
-                   is_col == noa::indexing::is_column_major(rhs_strides)); // same order for everyone
-
-        // Get the pitch:
-        const auto ld = Vec3<i64>{lhs_strides[2 + is_col], rhs_strides[2 + is_col], output_strides[2 + is_col]};
-        NOA_ASSERT(all(ld >= Vec3<i64>{lhs_shape[3 - is_col], rhs_shape[3 - is_col], output_shape[3 - is_col]}));
-        NOA_ASSERT(lhs_strides[3 - is_col] == 1 && rhs_strides[3 - is_col] == 1 && output_strides[3 - is_col] == 1);
-
         // TODO Intel MKL has gemm_batch...
         for (i64 batch = 0; batch < output_shape[0]; ++batch) {
-            cblas_gemm_(order, lhs_transpose, rhs_transpose, mnk, ld.as_safe<blasint>(), alpha, beta,
+            cblas_gemm_(are_column_major ? CblasColMajor : CblasRowMajor,
+                        lhs_transpose, rhs_transpose,
+                        mnk.vec().as_safe<blasint>(),
+                        secondmost_strides.vec().as_safe<blasint>(),
+                        alpha, beta,
                         lhs + lhs_strides[0] * batch,
                         rhs + rhs_strides[0] * batch,
                         output + output_strides[0] * batch);

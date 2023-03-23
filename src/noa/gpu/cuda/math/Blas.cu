@@ -220,36 +220,22 @@ namespace noa::cuda::math {
         NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        // Get the shape: MxK @ KxN = MxN
-        const auto m = lhs_shape[2 + lhs_transpose];
-        const auto n = rhs_shape[3 - rhs_transpose];
-        const auto k = lhs_shape[3 - lhs_transpose];
-        const auto mnk = Shape3<i64>{m, n, k}.as_safe<i32>();
-        NOA_ASSERT(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1); // 2D matrices
-        NOA_ASSERT(m == output_shape[2] && n == output_shape[3]); // output fits the expected shape
-        NOA_ASSERT(k == rhs_shape[2 + rhs_transpose]); // left and right matrices have compatible shape
+        auto [mnk, secondmost_strides, are_column_major] = noa::indexing::extract_matmul_layout(
+                lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
+                lhs_transpose, rhs_transpose);
 
-        // In the CPU, in the case of dot products, OpenBlas GEMM is slower than its DOT function, so we check for
-        // this condition and redirect to dot if necessary. Here, cublas GEMM is about as fast as the dot function,
-        // so let it do a matrix-matrix product even if it is a dot product.
-
-        // Select an order:
-        const bool is_col = noa::indexing::is_column_major(output_strides);
-        NOA_ASSERT(is_col == noa::indexing::is_column_major(lhs_strides) &&
-                   is_col == noa::indexing::is_column_major(rhs_strides)); // same order for everyone
-
-        // Get the pitch:
-        const auto labc = Vec3<i64>{lhs_strides[2 + is_col], rhs_strides[2 + is_col], output_strides[2 + is_col]};
+        const auto labc = secondmost_strides.vec().as_safe<i32>();
         const auto sabc = Vec3<i64>{lhs_strides[0], rhs_strides[0], output_strides[0]};
-        NOA_ASSERT(noa::all(labc >= Vec3<i64>{lhs_shape[3 - is_col], rhs_shape[3 - is_col], output_shape[3 - is_col]}));
-        NOA_ASSERT(lhs_strides[3 - is_col] == 1 && rhs_strides[3 - is_col] == 1 && output_strides[3 - is_col] == 1);
 
+        // OpenBlas GEMM is slower than its DOT function, so we check for this condition and
+        // redirect to dot if necessary. Here, cublas GEMM is about as fast as the dot function,
+        // so let it do a matrix-matrix product even if it is a dot product.
         cublasHandle_t handle = cublas_cache_handle_(stream.device().id())->handle;
         CUBLAS_THROW_IF_(cublasSetStream_v2(handle, stream.id()));
         CUBLAS_THROW_IF_(cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST));
 
-        cublas_gemm_(is_col, handle, lhs_transpose, rhs_transpose,
-                     mnk, labc.as_safe<i32>(), sabc, output_shape[0], alpha, beta,
+        cublas_gemm_(are_column_major, handle, lhs_transpose, rhs_transpose,
+                     mnk.as_safe<i32>(), labc, sabc, output_shape[0], alpha, beta,
                      lhs, rhs, output);
     }
 

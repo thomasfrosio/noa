@@ -470,6 +470,96 @@ namespace noa::indexing {
     }
 }
 
+
+namespace noa::indexing {
+    template<typename Int>
+    [[nodiscard]] auto extract_matmul_layout(
+            const Strides4<Int>& lhs_strides, const Shape4<Int>& lhs_shape,
+            const Strides4<Int>& rhs_strides, const Shape4<Int>& rhs_shape,
+            const Strides4<Int>& output_strides, const Shape4<Int>& output_shape,
+            bool lhs_transpose, bool rhs_transpose
+    ) -> std::tuple<Shape3<Int>, Strides3<Int>, bool> {
+
+        // First extract and check the shape: MxK @ KxN = MxN
+        const auto m = lhs_shape[2 + lhs_transpose];
+        const auto n = rhs_shape[3 - rhs_transpose];
+        const auto k = lhs_shape[3 - lhs_transpose];
+        NOA_CHECK(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1,
+                  "Only 2D matrices are supported, but got shape lhs={}, rhs={} and output={}",
+                  lhs_shape, rhs_shape, output_shape);
+        NOA_CHECK(m == output_shape[2] && n == output_shape[3] &&
+                  k == rhs_shape[2 + rhs_transpose],
+                  "The matrix multiplication (MxK * KxN = MxN) is invalid. "
+                  "Got shape lhs={}, rhs={} and output={}",
+                  lhs_shape.filter(2, 3), rhs_shape.filter(2, 3), output_shape.filter(2, 3));
+
+        const std::array strides{&lhs_strides, &rhs_strides, &output_strides};
+        const std::array shapes{&lhs_shape, &rhs_shape, &output_shape};
+        const auto is_vector = Vec3<bool>{
+                noa::indexing::is_vector(lhs_shape, true),
+                noa::indexing::is_vector(rhs_shape, true),
+                noa::indexing::is_vector(output_shape, true)};
+        const auto is_column_major = Vec3<bool>{
+                noa::indexing::is_column_major(lhs_strides),
+                noa::indexing::is_column_major(rhs_strides),
+                noa::indexing::is_column_major(output_strides)};
+
+        // Enforce common order and extract the pitch, aka secondmost stride
+        bool are_column_major{true};
+        bool is_order_found{false};
+        Strides3<Int> secondmost_strides;
+        for (size_t i = 0; i < 3; ++i) {
+            if (!is_vector[i]) {
+                const auto& stride = *strides[i];
+                const auto& shape = *shapes[i];
+
+                // OpenBLAS and cublas require:
+                //  1) the matrices should be either all row major or all column major.
+                //  2) the innermost stride should be 1, i.e. contiguous
+                //  3) the secondmost stride should be >= than the innermost extent.
+
+                NOA_CHECK(!is_order_found || are_column_major == is_column_major[i],
+                          "All matrices should either be row-major or column-major");
+                if (!is_order_found)
+                    are_column_major = is_column_major[i];
+                is_order_found = true;
+
+                secondmost_strides[i] = stride[2 + are_column_major];
+                NOA_CHECK(stride[3 - are_column_major] == 1 &&
+                          secondmost_strides[i] >= shape[3 - are_column_major],
+                          "The innermost dimension of the matrices (before the optional transposition) "
+                          "should be contiguous and the second-most dimension cannot be broadcast. "
+                          "Got shape={}, strides={}, layout={}",
+                          shape, stride, are_column_major ? "column" : "row");
+            }
+        }
+
+        // At this point we know the order, so set the vectors according to the chosen order.
+        for (size_t i = 0; i < 3; ++i) {
+            if (is_vector[i]) {
+                const auto& stride = *strides[i];
+                const auto& shape = *shapes[i];
+
+                // For vectors, it is more difficult here, so for now enforce contiguity.
+                NOA_CHECK(noa::indexing::are_contiguous(stride, shape),
+                          "Only contiguous vectors are currently supported, but got shape={} and strides={}",
+                          shape, stride);
+
+                const bool is_column_vector = shape[2] >= shape[3];
+                if (is_column_vector == are_column_major) {
+                    secondmost_strides[i] = shape[3 - is_column_vector];
+                } else {
+                    secondmost_strides[i] = 1;
+                }
+            }
+        }
+
+        return {{m, n, k},
+                secondmost_strides,
+                are_column_major};
+    }
+}
+
 namespace noa::indexing {
     /// Whether the range [lhs_start, lhs_end] overlaps with the range [rhs_start, rhs_end].
     [[nodiscard]] constexpr inline bool are_overlapped(
