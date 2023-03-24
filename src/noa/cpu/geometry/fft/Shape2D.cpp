@@ -88,15 +88,15 @@ namespace noa::cpu::geometry::fft {
             return;
 
         if (invert) {
-            using ellipse_t = noa::signal::Ellipse<2, CValue, true>;
-            using ellipse_smooth_t = noa::signal::EllipseSmooth<2, CValue, true>;
+            using ellipse_t = noa::geometry::Ellipse<2, CValue, true>;
+            using ellipse_smooth_t = noa::geometry::EllipseSmooth<2, CValue, true>;
             launch_2d_<REMAP, ellipse_t, ellipse_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
                     inv_matrix, functor, cvalue, threads);
         } else {
-            using ellipse_t = noa::signal::Ellipse<2, CValue, false>;
-            using ellipse_smooth_t = noa::signal::EllipseSmooth<2, CValue, false>;
+            using ellipse_t = noa::geometry::Ellipse<2, CValue, false>;
+            using ellipse_smooth_t = noa::geometry::EllipseSmooth<2, CValue, false>;
             launch_2d_<REMAP, ellipse_t, ellipse_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
@@ -124,15 +124,15 @@ namespace noa::cpu::geometry::fft {
             return;
 
         if (invert) {
-            using sphere_t = noa::signal::Sphere<2, CValue, true>;
-            using sphere_smooth_t = noa::signal::SphereSmooth<2, CValue, true>;
+            using sphere_t = noa::geometry::Sphere<2, CValue, true>;
+            using sphere_smooth_t = noa::geometry::SphereSmooth<2, CValue, true>;
             launch_2d_<REMAP, sphere_t, sphere_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
                     inv_matrix, functor, cvalue, threads);
         } else {
-            using sphere_t = noa::signal::Sphere<2, CValue, false>;
-            using sphere_smooth_t = noa::signal::SphereSmooth<2, CValue, false>;
+            using sphere_t = noa::geometry::Sphere<2, CValue, false>;
+            using sphere_smooth_t = noa::geometry::SphereSmooth<2, CValue, false>;
             launch_2d_<REMAP, sphere_t, sphere_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
@@ -161,15 +161,15 @@ namespace noa::cpu::geometry::fft {
             return;
 
         if (invert) {
-            using rectangle_t = noa::signal::Rectangle<2, CValue, true>;
-            using rectangle_smooth_t = noa::signal::RectangleSmooth<2, CValue, true>;
+            using rectangle_t = noa::geometry::Rectangle<2, CValue, true>;
+            using rectangle_smooth_t = noa::geometry::RectangleSmooth<2, CValue, true>;
             launch_2d_<REMAP, rectangle_t, rectangle_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
                     inv_matrix, functor, cvalue, threads);
         } else {
-            using rectangle_t = noa::signal::Rectangle<2, CValue, false>;
-            using rectangle_smooth_t = noa::signal::RectangleSmooth<2, CValue, false>;
+            using rectangle_t = noa::geometry::Rectangle<2, CValue, false>;
+            using rectangle_smooth_t = noa::geometry::RectangleSmooth<2, CValue, false>;
             launch_2d_<REMAP, rectangle_t, rectangle_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,

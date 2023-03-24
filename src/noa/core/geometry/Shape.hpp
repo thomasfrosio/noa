@@ -71,7 +71,7 @@ namespace noa::geometry {
     };
 }
 
-namespace noa::signal {
+namespace noa::geometry {
     // Sphere defined by a center and radius.
     template<size_t NDIM, typename Value, bool INVERT = false, typename Coord = f32>
     class Sphere {
@@ -193,7 +193,7 @@ namespace noa::signal {
     };
 }
 
-namespace noa::signal {
+namespace noa::geometry {
     // Cylinder defined by a center, radius and length.
     template<typename Value, bool INVERT = false, typename Coord = f32>
     class Cylinder {
@@ -346,7 +346,7 @@ namespace noa::signal {
     };
 }
 
-namespace noa::signal {
+namespace noa::geometry {
     // Rectangle defined by a center and radius.
     template<size_t NDIM, typename Value, bool INVERT = false, typename Coord = f32>
     class Rectangle {
@@ -466,7 +466,7 @@ namespace noa::signal {
     };
 }
 
-namespace noa::signal {
+namespace noa::geometry {
     // Ellipse defined by a center and radius.
     template<size_t NDIM, typename Value, bool INVERT = false, typename Coord = f32>
     class Ellipse {

@@ -77,15 +77,15 @@ namespace noa::cuda::geometry::fft {
         }
 
         if (invert) {
-            using ellipse_t = noa::signal::Ellipse<3, CValue, true>;
-            using ellipse_smooth_t = noa::signal::EllipseSmooth<3, CValue, true>;
+            using ellipse_t = noa::geometry::Ellipse<3, CValue, true>;
+            using ellipse_smooth_t = noa::geometry::EllipseSmooth<3, CValue, true>;
             launch_3d_<REMAP, ellipse_t, ellipse_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius, edge_size, inv_matrix, functor,
                     cvalue, invert, stream);
         } else {
-            using ellipse_t = noa::signal::Ellipse<3, CValue, false>;
-            using ellipse_smooth_t = noa::signal::EllipseSmooth<3, CValue, false>;
+            using ellipse_t = noa::geometry::Ellipse<3, CValue, false>;
+            using ellipse_smooth_t = noa::geometry::EllipseSmooth<3, CValue, false>;
             launch_3d_<REMAP, ellipse_t, ellipse_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius, edge_size, inv_matrix, functor,
@@ -110,15 +110,15 @@ namespace noa::cuda::geometry::fft {
         }
 
         if (invert) {
-            using sphere_t = noa::signal::Sphere<3, CValue, true>;
-            using sphere_smooth_t = noa::signal::SphereSmooth<3, CValue, true>;
+            using sphere_t = noa::geometry::Sphere<3, CValue, true>;
+            using sphere_smooth_t = noa::geometry::SphereSmooth<3, CValue, true>;
             launch_3d_<REMAP, sphere_t, sphere_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius, edge_size, inv_matrix, functor,
                     cvalue, invert, stream);
         } else {
-            using sphere_t = noa::signal::Sphere<3, CValue, false>;
-            using sphere_smooth_t = noa::signal::SphereSmooth<3, CValue, false>;
+            using sphere_t = noa::geometry::Sphere<3, CValue, false>;
+            using sphere_smooth_t = noa::geometry::SphereSmooth<3, CValue, false>;
             launch_3d_<REMAP, sphere_t, sphere_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius, edge_size, inv_matrix, functor,
@@ -144,15 +144,15 @@ namespace noa::cuda::geometry::fft {
         }
 
         if (invert) {
-            using rectangle_t = noa::signal::Rectangle<3, CValue, true>;
-            using rectangle_smooth_t = noa::signal::RectangleSmooth<3, CValue, true>;
+            using rectangle_t = noa::geometry::Rectangle<3, CValue, true>;
+            using rectangle_smooth_t = noa::geometry::RectangleSmooth<3, CValue, true>;
             launch_3d_<REMAP, rectangle_t, rectangle_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius, edge_size, inv_matrix, functor,
                     cvalue, invert, stream);
         } else {
-            using rectangle_t = noa::signal::Rectangle<3, CValue, false>;
-            using rectangle_smooth_t = noa::signal::RectangleSmooth<3, CValue, false>;
+            using rectangle_t = noa::geometry::Rectangle<3, CValue, false>;
+            using rectangle_smooth_t = noa::geometry::RectangleSmooth<3, CValue, false>;
             launch_3d_<REMAP, rectangle_t, rectangle_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius, edge_size, inv_matrix, functor,
@@ -177,15 +177,15 @@ namespace noa::cuda::geometry::fft {
 
         const auto radius_ = Vec3<f32>{length, radius, radius};
         if (invert) {
-            using cylinder_t = noa::signal::Cylinder<CValue, true>;
-            using cylinder_smooth_t = noa::signal::CylinderSmooth<CValue, true>;
+            using cylinder_t = noa::geometry::Cylinder<CValue, true>;
+            using cylinder_smooth_t = noa::geometry::CylinderSmooth<CValue, true>;
             launch_3d_<REMAP, cylinder_t, cylinder_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius_, edge_size, inv_matrix, functor,
                     cvalue, invert, stream);
         } else {
-            using cylinder_t = noa::signal::Cylinder<CValue, false>;
-            using cylinder_smooth_t = noa::signal::CylinderSmooth<CValue, false>;
+            using cylinder_t = noa::geometry::Cylinder<CValue, false>;
+            using cylinder_smooth_t = noa::geometry::CylinderSmooth<CValue, false>;
             launch_3d_<REMAP, cylinder_t, cylinder_smooth_t>(
                     input, input_strides, output, output_strides, shape,
                     center, radius_, edge_size, inv_matrix, functor,
