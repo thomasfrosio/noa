@@ -1,10 +1,12 @@
-#include <noa/Array.h>
-#include <noa/FFT.h>
-#include <noa/Math.h>
-#include <noa/Memory.h>
-#include <noa/Geometry.h>
-#include <noa/Signal.h>
-#include <noa/IO.h>
+// OLD - UNUSED
+
+#include <noa/Array.hpp>
+#include <noa/FFT.hpp>
+#include <noa/Math.hpp>
+#include <noa/Memory.hpp>
+#include <noa/Geometry.hpp>
+#include <noa/Signal.hpp>
+#include <noa/IO.hpp>
 #include <noa/Utils.h>
 
 #include <iostream>
