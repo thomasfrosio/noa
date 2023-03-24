@@ -13,7 +13,7 @@ namespace noa::signal {
     /// \param stddev       Standard deviation, sigma.
     /// \param normalize    Whether the window should normalized to have a total sum of 1.
     template<typename T>
-    void gaussian(const T* output, size_t elements, T stddev, bool normalize = false) {
+    void gaussian(const T* output, i64 elements, T stddev, bool normalize = false) {
         if (elements <= 1) {
             if (elements)
                 *output = T{1};
@@ -22,14 +22,14 @@ namespace noa::signal {
 
         const auto half = static_cast<T>(elements) / T{2};
         const T sig2 = 2 * stddev * stddev;
-        for (size_t i = 0; i < elements; ++i, ++output) {
+        for (i64 i = 0; i < elements; ++i, ++output) {
             const T n = static_cast<T>(i) - half;
-            *output = math::exp(-(n * n) / sig2);
+            *output = noa::math::exp(-(n * n) / sig2);
         }
 
         if (normalize) {
             T sum = std::accumulate(output, output + elements);
-            for (size_t i = 0; i < elements; ++i, ++output)
+            for (i64 i = 0; i < elements; ++i, ++output)
                 *output /= sum;
         }
     }
