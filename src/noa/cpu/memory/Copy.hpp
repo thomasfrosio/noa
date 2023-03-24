@@ -17,8 +17,7 @@ namespace noa::cpu::memory {
     // Copies src into dst.
     template<typename T>
     void copy(const T* src, T* dst, i64 elements) {
-        NOA_ASSERT(!elements ||
-                   (src && dst && !noa::indexing::are_overlapped(src, 1, elements, dst, 1, elements)));
+        NOA_ASSERT(!elements || (src && dst && !noa::indexing::are_overlapped(src, elements, dst, elements)));
         copy(src, src + elements, dst);
     }
 

@@ -568,20 +568,30 @@ namespace noa::indexing {
         return lhs_start <= rhs_end && lhs_end >= rhs_start;
     }
 
+    template<typename T, typename U, typename Integer>
+    [[nodiscard]] constexpr auto are_overlapped(
+            const T* lhs, const Integer lhs_size,
+            const U* rhs, const Integer rhs_size
+    ) noexcept -> bool {
+        if (lhs_size == 0 || rhs_size == 0)
+            return false;
+
+        const auto lhs_start = reinterpret_cast<std::uintptr_t>(lhs);
+        const auto rhs_start = reinterpret_cast<std::uintptr_t>(rhs);
+        const auto lhs_end = reinterpret_cast<std::uintptr_t>(lhs + lhs_size);
+        const auto rhs_end = reinterpret_cast<std::uintptr_t>(rhs + rhs_size);
+        return are_overlapped(lhs_start, lhs_end, rhs_start, rhs_end);
+    }
+
     template<typename T, typename U, typename V, size_t N>
     [[nodiscard]] constexpr auto are_overlapped(
             const T* lhs, const Strides<V, N>& lhs_strides, const Shape<V, N>& lhs_shape,
             const U* rhs, const Strides<V, N>& rhs_strides, const Shape<V, N>& rhs_shape
     ) noexcept -> bool {
-
         if (noa::any(lhs_shape == 0) || noa::any(rhs_shape == 0))
             return false;
-
-        const auto lhs_start = reinterpret_cast<std::uintptr_t>(lhs);
-        const auto rhs_start = reinterpret_cast<std::uintptr_t>(rhs);
-        const auto lhs_end = reinterpret_cast<std::uintptr_t>(lhs + at((lhs_shape - 1).vec(), lhs_strides));
-        const auto rhs_end = reinterpret_cast<std::uintptr_t>(rhs + at((rhs_shape - 1).vec(), rhs_strides));
-        return are_overlapped(lhs_start, lhs_end, rhs_start, rhs_end);
+        return are_overlapped(lhs, at((lhs_shape - 1).vec(), lhs_strides),
+                              rhs, at((rhs_shape - 1).vec(), rhs_strides));
     }
 
     template<typename T, typename U, typename V, size_t N>
