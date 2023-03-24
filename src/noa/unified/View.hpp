@@ -305,7 +305,7 @@ namespace noa {
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
         [[nodiscard]] View flat(i32 axis = 3) const {
-            strides_type output_shape(1);
+            shape_type output_shape(1);
             output_shape[axis] = shape().elements();
             return reshape(output_shape);
         }

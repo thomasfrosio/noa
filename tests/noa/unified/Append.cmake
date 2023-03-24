@@ -6,7 +6,7 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/TestUnifiedArray.cpp
         noa/unified/TestUnifiedDevice.cpp
         noa/unified/TestUnifiedStream.cpp
-#        noa/unified/TestUnifiedView.cpp
+        noa/unified/TestUnifiedView.cpp
 
         noa/unified/TestUnifiedEwise.cpp
         noa/unified/TestUnifiedFind.cpp
