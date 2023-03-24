@@ -1,22 +1,15 @@
 # Collect header and source files in NOA_HEADERS and NOA_SOURCES
 set(NOA_SOURCES)
 set(NOA_HEADERS
-#        Array.h
-#        Device.h
-#        FFT.h
-#        Geometry.h
-#        IO.h
-#        Logger.h
-#        Math.h
-#        Memory.h
-#        OS.h
-#        Session.h
-#        Signal.h
-#        Stream.h
-#        String.h
-#        Texture.h
-#        Types.h
-#        Utils.h
+        Array.hpp
+        FFT.hpp
+        Geometry.hpp
+        IO.hpp
+        Math.hpp
+        Memory.hpp
+        Session.hpp
+        Signal.hpp
+        String.hpp
         )
 
 include(${PROJECT_SOURCE_DIR}/src/noa/core/Append.cmake)
