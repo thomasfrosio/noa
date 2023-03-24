@@ -1,11 +1,10 @@
 #include <random>
-#include "noa/cpu/math/Random.h"
+#include "noa/cpu/math/Random.hpp"
+#include "noa/cpu/utils/EwiseUnary.hpp"
 
 // TODO Add MKL support
 
 namespace {
-    static_assert(sizeof(long long) == 8, "64-bit machines only");
-
     // The "xoshiro256** 1.0" generator.
     // C++ port by Arthur O'Dwyer (2021).
     // Based on the C version by David Blackman and Sebastiano Vigna (2018),
@@ -20,7 +19,7 @@ namespace {
             return z ^ (z >> 31);
         }
 
-        constexpr explicit xoshiro256ss() : xoshiro256ss(0) {}
+        constexpr xoshiro256ss() = default;
 
         constexpr explicit xoshiro256ss(uint64_t seed) {
             s[0] = splitmix64(seed);
@@ -38,8 +37,8 @@ namespace {
         }
 
         constexpr uint64_t operator()() {
-            uint64_t result = rotl(s[1] * 5, 7) * 9;
-            uint64_t t = s[1] << 17;
+            const uint64_t result = rotl(s[1] * 5, 7) * 9;
+            const uint64_t t = s[1] << 17;
             s[2] ^= s[0];
             s[3] ^= s[1];
             s[1] ^= s[2];
@@ -50,395 +49,258 @@ namespace {
         }
     };
 
-    using namespace ::noa;
+    template<typename T>
+    using supported_float = std::conditional_t<std::is_same_v<T, noa::f16>, noa::f32, T>;
 
     template<typename T>
-    using supported_float = std::conditional_t<std::is_same_v<T, half_t>, float, T>;
+    using uniform_distributor_t =
+            std::conditional_t<std::is_integral_v<T>,
+                               std::uniform_int_distribution<T>,
+                               std::uniform_real_distribution<supported_float<T>>>;
 
     template<typename T>
-    using uniform_distributor_t = std::conditional_t<std::is_integral_v<T>,
-                                                     std::uniform_int_distribution<T>,
-                                                     std::uniform_real_distribution<supported_float<T>>>;
+    using normal_distributor_t =
+            std::conditional_t<std::is_integral_v<T>,
+                               std::normal_distribution<noa::f32>,
+                               std::normal_distribution<supported_float<T>>>;
 
     template<typename T>
-    using normal_distributor_t = std::conditional_t<std::is_integral_v<T>,
-                                                    std::normal_distribution<float>,
-                                                    std::normal_distribution<supported_float<T>>>;
+    using lognormal_distributor_t =
+            std::conditional_t<std::is_integral_v<T>,
+                               std::lognormal_distribution<noa::f32>,
+                               std::lognormal_distribution<supported_float<T>>>;
 
     template<typename T>
-    using lognormal_distributor_t = std::conditional_t<std::is_integral_v<T>,
-                                                       std::lognormal_distribution<float>,
-                                                       std::lognormal_distribution<supported_float<T>>>;
+    using poisson_distributor_t =
+            std::conditional_t<std::is_integral_v<T>,
+                               std::poisson_distribution<T>,
+                               std::poisson_distribution<int64_t>>;
 
-    template<typename T>
-    using poisson_distributor_t = std::conditional_t<std::is_integral_v<T>,
-                                                     std::poisson_distribution<T>,
-                                                     std::poisson_distribution<int64_t>>;
 
-    template<typename T, typename distributor_t>
-    void generate_(T* ptr, dim_t elements, distributor_t& distributor) {
-        std::random_device seeder;
-        xoshiro256ss generator(seeder());
+    template<typename Distributor>
+    struct RandomOperator {
+        explicit RandomOperator(Distributor distributor)
+                : m_distributor(distributor) {}
 
-        for (dim_t i = 0; i < elements; ++i)
-            ptr[i] = static_cast<T>(distributor(generator));
-    }
+        template<typename T>
+        auto operator()(T) noexcept {
+            return m_distributor(m_generator);
+        }
 
-    template<typename T, typename distributor_t>
-    void generate_(T* ptr, dim4_t strides, dim4_t shape, distributor_t& distributor) {
-        std::random_device seeder;
-        xoshiro256ss generator(seeder());
+        void initialize(noa::i64 thread_id) {
+            m_generator = xoshiro256ss(std::random_device{}() + static_cast<size_t>(thread_id) + 1);
+        }
 
-        const dim4_t order = indexing::order(strides, shape);
-        strides = indexing::reorder(strides, order);
-        shape = indexing::reorder(shape, order);
+    private:
+        xoshiro256ss m_generator{};
+        Distributor m_distributor;
+    };
 
-        for (dim_t i = 0; i < shape[0]; ++i)
-            for (dim_t j = 0; j < shape[1]; ++j)
-                for (dim_t k = 0; k < shape[2]; ++k)
-                    for (dim_t l = 0; l < shape[3]; ++l)
-                        ptr[indexing::at(i, j, k, l, strides)] = static_cast<T>(distributor(generator));
-    }
+    template<typename Distributor>
+    struct RandomOperatorComplex {
+        explicit RandomOperatorComplex(
+                Distributor distributor_real,
+                Distributor distributor_complex)
+                : m_distributor_real(distributor_real),
+                  m_distributor_complex(distributor_complex) {}
 
-    template<typename T, typename distributor_t>
-    void generate_(Complex<T>* ptr, dim_t elements,
-                   distributor_t& distributor_real, distributor_t& distributor_imag) {
-        std::random_device seeder;
-        xoshiro256ss generator(seeder());
+        template<typename T>
+        auto operator()(T) noexcept {
+            using result_t = typename Distributor::result_type;
+            using output_t = noa::Complex<result_t>;
+            return output_t{m_distributor_real(m_generator),
+                            m_distributor_complex(m_generator)};
+        }
 
-        for (dim_t i = 0; i < elements; ++i)
-            ptr[i] = static_cast<Complex<T>>(distributor_real(generator), distributor_imag(generator));
-    }
+        void initialize(noa::i64 thread_id) {
+            m_generator = xoshiro256ss(std::random_device{}() + static_cast<size_t>(thread_id) + 1);
+        }
 
-    template<typename T, typename distributor_t>
-    void generate_(Complex<T>* ptr, dim4_t strides, dim4_t shape,
-                   distributor_t& distributor_real, distributor_t& distributor_imag) {
-        std::random_device seeder;
-        xoshiro256ss generator(seeder());
-
-        const dim4_t order = indexing::order(strides, shape);
-        strides = indexing::reorder(strides, order);
-        shape = indexing::reorder(shape, order);
-
-        for (dim_t i = 0; i < shape[0]; ++i)
-            for (dim_t j = 0; j < shape[1]; ++j)
-                for (dim_t k = 0; k < shape[2]; ++k)
-                    for (dim_t l = 0; l < shape[3]; ++l)
-                        ptr[indexing::at(i, j, k, l, strides)] =
-                                static_cast<Complex<T>>(distributor_real(generator), distributor_imag(generator));
-    }
+    private:
+        xoshiro256ss m_generator{};
+        Distributor m_distributor_real;
+        Distributor m_distributor_complex;
+    };
 }
 
 namespace noa::cpu::math {
     template<typename T, typename U, typename>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim_t elements,
-                   U min, U max, Stream& stream) {
-        NOA_ASSERT(output);
+    void randomize(noa::math::uniform_t, T* output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
+                   U min, U max, i64 threads) {
+        NOA_ASSERT(output && all(shape > 0));
+
         if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_float_v<U>) {
+            if constexpr (noa::traits::is_real_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
-                using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                randomize(noa::math::uniform_t{}, std::reinterpret_pointer_cast<real_t[]>(output), elements * 2,
-                          static_cast<supported_float>(min), static_cast<supported_float>(max), stream);
+                using supported_float = std::conditional_t<std::is_same_v<real_t, f16>, f32, real_t>;
+                const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
+                randomize(noa::math::uniform_t{}, reinterpret_cast<real_t*>(output),
+                          reinterpreted.strides, reinterpreted.shape,
+                          static_cast<supported_float>(min), static_cast<supported_float>(max), threads);
             } else {
                 using real_t = noa::traits::value_type_t<T>;
                 using distributor_t = uniform_distributor_t<real_t>;
                 using result_t = typename distributor_t::result_type;
-                stream.enqueue([=]() {
-                    auto min_ = static_cast<result_t>(min.real);
-                    auto max_ = static_cast<result_t>(max.real);
-                    distributor_t distributor_real(min_, max_);
-                    min_ = static_cast<result_t>(min.imag);
-                    max_ = static_cast<result_t>(max.imag);
-                    distributor_t distributor_imag(min_, max_);
-                    generate_(output.get(), elements, distributor_real, distributor_imag);
-                });
+                auto min_ = static_cast<result_t>(min.real);
+                auto max_ = static_cast<result_t>(max.real);
+                const distributor_t distributor_real(min_, max_);
+                min_ = static_cast<result_t>(min.imag);
+                max_ = static_cast<result_t>(max.imag);
+                const distributor_t distributor_imag(min_, max_);
+
+                RandomOperatorComplex randomizer(distributor_real, distributor_imag);
+                static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+                noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
             }
         } else {
             using distributor_t = uniform_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            stream.enqueue([=]() {
-                const auto min_ = static_cast<result_t>(min);
-                const auto max_ = static_cast<result_t>(max);
-                distributor_t distributor(min_, max_);
-                generate_(output.get(), elements, distributor);
-            });
+            const auto min_ = static_cast<result_t>(min);
+            const auto max_ = static_cast<result_t>(max);
+            const distributor_t distributor(min_, max_);
+            RandomOperator randomizer(distributor);
+            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim_t elements,
-                   U mean, U stddev, Stream& stream) {
-        NOA_ASSERT(output);
+    void randomize(noa::math::normal_t, T* output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
+                   U mean, U stddev, i64 threads) {
+        NOA_ASSERT(output && all(shape > 0));
+
         if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_float_v<U>) {
+            if constexpr (noa::traits::is_real_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
-                using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                randomize(noa::math::normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output), elements * 2,
-                          static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
+                using supported_float = std::conditional_t<std::is_same_v<real_t, f16>, f32, real_t>;
+                const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
+                randomize(noa::math::normal_t{}, reinterpret_cast<real_t*>(output),
+                          reinterpreted.strides, reinterpreted.shape,
+                          static_cast<supported_float>(mean), static_cast<supported_float>(stddev), threads);
             } else {
                 using real_t = noa::traits::value_type_t<T>;
                 using distributor_t = normal_distributor_t<real_t>;
                 using result_t = typename distributor_t::result_type;
-                stream.enqueue([=]() {
-                    auto mean_ = static_cast<result_t>(mean.real);
-                    auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real(mean_, stddev_);
-                    mean_ = static_cast<result_t>(mean.imag);
-                    stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag(mean_, stddev_);
-                    generate_(output.get(), elements, distributor_real, distributor_imag);
-                });
+                auto mean_ = static_cast<result_t>(mean.real);
+                auto stddev_ = static_cast<result_t>(stddev.real);
+                const distributor_t distributor_real(mean_, stddev_);
+                mean_ = static_cast<result_t>(mean.imag);
+                stddev_ = static_cast<result_t>(stddev.imag);
+                const distributor_t distributor_imag(mean_, stddev_);
+
+                RandomOperatorComplex randomizer(distributor_real, distributor_imag);
+                static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+                noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
             }
         } else {
             using distributor_t = normal_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            stream.enqueue([=]() {
-                const auto mean_ = static_cast<result_t>(mean);
-                const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor(mean_, stddev_);
-                generate_(output.get(), elements, distributor);
-            });
+            const auto mean_ = static_cast<result_t>(mean);
+            const auto stddev_ = static_cast<result_t>(stddev);
+            const distributor_t distributor(mean_, stddev_);
+            RandomOperator randomizer(distributor);
+            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
 
     template<typename T, typename U, typename>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim_t elements,
-                   U mean, U stddev, Stream& stream) {
-        NOA_ASSERT(output);
+    void randomize(noa::math::log_normal_t, T* output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
+                   U mean, U stddev, i64 threads) {
+        NOA_ASSERT(output && all(shape > 0));
+
         if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_float_v<U>) {
+            if constexpr (noa::traits::is_real_v<U>) {
                 using real_t = noa::traits::value_type_t<T>;
-                using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                randomize(noa::math::log_normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output), elements * 2,
-                          static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
+                using supported_float = std::conditional_t<std::is_same_v<real_t, f16>, f32, real_t>;
+                const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
+                randomize(noa::math::log_normal_t{}, reinterpret_cast<real_t*>(output),
+                          reinterpreted.strides, reinterpreted.shape,
+                          static_cast<supported_float>(mean), static_cast<supported_float>(stddev), threads);
             } else {
                 using real_t = noa::traits::value_type_t<T>;
                 using distributor_t = lognormal_distributor_t<real_t>;
                 using result_t = typename distributor_t::result_type;
-                stream.enqueue([=]() {
-                    auto mean_ = static_cast<result_t>(mean.real);
-                    auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real(mean_, stddev_);
-                    mean_ = static_cast<result_t>(mean.imag);
-                    stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag(mean_, stddev_);
-                    generate_(output.get(), elements, distributor_real, distributor_imag);
-                });
+                auto mean_ = static_cast<result_t>(mean.real);
+                auto stddev_ = static_cast<result_t>(stddev.real);
+                const distributor_t distributor_real(mean_, stddev_);
+                mean_ = static_cast<result_t>(mean.imag);
+                stddev_ = static_cast<result_t>(stddev.imag);
+                const distributor_t distributor_imag(mean_, stddev_);
+
+                RandomOperatorComplex randomizer(distributor_real, distributor_imag);
+                static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+                noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
             }
         } else {
             using distributor_t = lognormal_distributor_t<T>;
             using result_t = typename distributor_t::result_type;
-            stream.enqueue([=]() {
-                const auto mean_ = static_cast<result_t>(mean);
-                const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor(mean_, stddev_);
-                generate_(output.get(), elements, distributor);
-            });
+            const auto mean_ = static_cast<result_t>(mean);
+            const auto stddev_ = static_cast<result_t>(stddev);
+            const distributor_t distributor(mean_, stddev_);
+            RandomOperator randomizer(distributor);
+            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
 
     template<typename T, typename>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim_t elements, float lambda, Stream& stream) {
-        NOA_ASSERT(output);
-        if constexpr (noa::traits::is_complex_v<T>) {
-            using real_t = noa::traits::value_type_t<T>;
-            randomize(noa::math::poisson_t{}, std::reinterpret_pointer_cast<real_t[]>(output), elements * 2,
-                      lambda, stream);
-        } else {
-            using distributor_t = poisson_distributor_t<T>;
-            stream.enqueue([=]() {
-                distributor_t distributor(static_cast<double>(lambda));
-                generate_(output.get(), elements, distributor);
-            });
-        }
-    }
-
-    template<typename T, typename U, typename>
-    void randomize(noa::math::uniform_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
-                   U min, U max, Stream& stream) {
+    void randomize(noa::math::poisson_t, T* output,
+                   const Strides4<i64>& strides, const Shape4<i64>& shape,
+                   f32 lambda, i64 threads) {
         NOA_ASSERT(output && all(shape > 0));
-        if (indexing::areContiguous(strides, shape))
-            return randomize(noa::math::uniform_t{}, output, shape.elements(), min, max, stream);
-
-        if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_float_v<U>) {
-                using real_t = noa::traits::value_type_t<T>;
-                using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
-                randomize(noa::math::uniform_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                          reinterpreted.strides, reinterpreted.shape,
-                          static_cast<supported_float>(min), static_cast<supported_float>(max), stream);
-            } else {
-                using real_t = noa::traits::value_type_t<T>;
-                using distributor_t = uniform_distributor_t<real_t>;
-                using result_t = typename distributor_t::result_type;
-                stream.enqueue([=]() {
-                    auto min_ = static_cast<result_t>(min.real);
-                    auto max_ = static_cast<result_t>(max.real);
-                    distributor_t distributor_real(min_, max_);
-                    min_ = static_cast<result_t>(min.imag);
-                    max_ = static_cast<result_t>(max.imag);
-                    distributor_t distributor_imag(min_, max_);
-                    generate_(output.get(), strides, shape, distributor_real, distributor_imag);
-                });
-            }
-        } else {
-            using distributor_t = uniform_distributor_t<T>;
-            using result_t = typename distributor_t::result_type;
-            stream.enqueue([=]() {
-                const auto min_ = static_cast<result_t>(min);
-                const auto max_ = static_cast<result_t>(max);
-                distributor_t distributor(min_, max_);
-                generate_(output.get(), strides, shape, distributor);
-            });
-        }
-    }
-
-    template<typename T, typename U, typename>
-    void randomize(noa::math::normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
-                   U mean, U stddev, Stream& stream) {
-        NOA_ASSERT(output && all(shape > 0));
-        if (indexing::areContiguous(strides, shape))
-            return randomize(noa::math::normal_t{}, output, shape.elements(), mean, stddev, stream);
-
-        if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_float_v<U>) {
-                using real_t = noa::traits::value_type_t<T>;
-                using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
-                randomize(noa::math::normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                          reinterpreted.strides, reinterpreted.shape,
-                          static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
-            } else {
-                using real_t = noa::traits::value_type_t<T>;
-                using distributor_t = normal_distributor_t<real_t>;
-                using result_t = typename distributor_t::result_type;
-                stream.enqueue([=]() {
-                    auto mean_ = static_cast<result_t>(mean.real);
-                    auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real(mean_, stddev_);
-                    mean_ = static_cast<result_t>(mean.imag);
-                    stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag(mean_, stddev_);
-                    generate_(output.get(), strides, shape, distributor_real, distributor_imag);
-                });
-            }
-        } else {
-            using distributor_t = normal_distributor_t<T>;
-            using result_t = typename distributor_t::result_type;
-            stream.enqueue([=]() {
-                const auto mean_ = static_cast<result_t>(mean);
-                const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor(mean_, stddev_);
-                generate_(output.get(), strides, shape, distributor);
-            });
-        }
-    }
-
-    template<typename T, typename U, typename>
-    void randomize(noa::math::log_normal_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
-                   U mean, U stddev, Stream& stream) {
-        NOA_ASSERT(output && all(shape > 0));
-        if (indexing::areContiguous(strides, shape))
-            return randomize(noa::math::log_normal_t{}, output, shape.elements(), mean, stddev, stream);
-
-        if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_float_v<U>) {
-                using real_t = noa::traits::value_type_t<T>;
-                using supported_float = std::conditional_t<std::is_same_v<real_t, half_t>, float, real_t>;
-                const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
-                randomize(noa::math::log_normal_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                          reinterpreted.strides, reinterpreted.shape,
-                          static_cast<supported_float>(mean), static_cast<supported_float>(stddev), stream);
-            } else {
-                using real_t = noa::traits::value_type_t<T>;
-                using distributor_t = lognormal_distributor_t<real_t>;
-                using result_t = typename distributor_t::result_type;
-                stream.enqueue([=]() {
-                    auto mean_ = static_cast<result_t>(mean.real);
-                    auto stddev_ = static_cast<result_t>(stddev.real);
-                    distributor_t distributor_real(mean_, stddev_);
-                    mean_ = static_cast<result_t>(mean.imag);
-                    stddev_ = static_cast<result_t>(stddev.imag);
-                    distributor_t distributor_imag(mean_, stddev_);
-                    generate_(output.get(), strides, shape, distributor_real, distributor_imag);
-                });
-            }
-        } else {
-            using distributor_t = lognormal_distributor_t<T>;
-            using result_t = typename distributor_t::result_type;
-            stream.enqueue([=]() {
-                const auto mean_ = static_cast<result_t>(mean);
-                const auto stddev_ = static_cast<result_t>(stddev);
-                distributor_t distributor(mean_, stddev_);
-                generate_(output.get(), strides, shape, distributor);
-            });
-        }
-    }
-
-    template<typename T, typename>
-    void randomize(noa::math::poisson_t, const shared_t<T[]>& output, dim4_t strides, dim4_t shape,
-                   float lambda, Stream& stream) {
-        NOA_ASSERT(output && all(shape > 0));
-        if (indexing::areContiguous(strides, shape))
-            return randomize(noa::math::poisson_t{}, output, shape.elements(), lambda, stream);
 
         if constexpr (noa::traits::is_complex_v<T>) {
             using real_t = noa::traits::value_type_t<T>;
-            const auto reinterpreted = indexing::Reinterpret<T>(shape, strides, output.get()).template as<real_t>();
-            randomize(noa::math::poisson_t{}, std::reinterpret_pointer_cast<real_t[]>(output),
-                      reinterpreted.strides, reinterpreted.shape, lambda, stream);
+            const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
+            randomize(noa::math::poisson_t{}, reinterpret_cast<real_t*>(output),
+                      reinterpreted.strides, reinterpreted.shape, lambda, threads);
         } else {
             using distributor_t = poisson_distributor_t<T>;
-            stream.enqueue([=]() {
-                distributor_t distributor(static_cast<double>(lambda));
-                generate_(output.get(), strides, shape, distributor);
-            });
+            const distributor_t distributor(static_cast<double>(lambda));
+            RandomOperator randomizer(distributor);
+            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
 
-    #define INSTANTIATE_RANDOM_(T, U)                                                                                   \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);     \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);      \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);  \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim_t, U, U, Stream&);              \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&);               \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&)
+    #define INSTANTIATE_RANDOM_(T, U)                                                                                       \
+    template void randomize<T, U, void>(noa::math::uniform_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);     \
+    template void randomize<T, U, void>(noa::math::normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);      \
+    template void randomize<T, U, void>(noa::math::log_normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64)
 
-    INSTANTIATE_RANDOM_(int16_t, int16_t);
-    INSTANTIATE_RANDOM_(uint16_t, uint16_t);
-    INSTANTIATE_RANDOM_(int32_t, int32_t);
-    INSTANTIATE_RANDOM_(uint32_t, uint32_t);
-    INSTANTIATE_RANDOM_(int64_t, int64_t);
-    INSTANTIATE_RANDOM_(uint64_t, uint64_t);
-    INSTANTIATE_RANDOM_(half_t, half_t);
-    INSTANTIATE_RANDOM_(float, float);
-    INSTANTIATE_RANDOM_(double, double);
-    INSTANTIATE_RANDOM_(chalf_t, half_t);
-    INSTANTIATE_RANDOM_(cfloat_t, float);
-    INSTANTIATE_RANDOM_(cdouble_t, double);
-    INSTANTIATE_RANDOM_(chalf_t, chalf_t);
-    INSTANTIATE_RANDOM_(cfloat_t, cfloat_t);
-    INSTANTIATE_RANDOM_(cdouble_t, cdouble_t);
+    INSTANTIATE_RANDOM_(i16, i16);
+    INSTANTIATE_RANDOM_(u16, u16);
+    INSTANTIATE_RANDOM_(i32, i32);
+    INSTANTIATE_RANDOM_(u32, u32);
+    INSTANTIATE_RANDOM_(i64, i64);
+    INSTANTIATE_RANDOM_(u64, u64);
+    INSTANTIATE_RANDOM_(f16, f16);
+    INSTANTIATE_RANDOM_(f32, f32);
+    INSTANTIATE_RANDOM_(f64, f64);
+    INSTANTIATE_RANDOM_(c16, f16);
+    INSTANTIATE_RANDOM_(c32, f32);
+    INSTANTIATE_RANDOM_(c64, f64);
+    INSTANTIATE_RANDOM_(c16, c16);
+    INSTANTIATE_RANDOM_(c32, c32);
+    INSTANTIATE_RANDOM_(c64, c64);
 
-    #define INSTANTIATE_RANDOM_POISSON_(T)                                                                  \
-    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, dim_t, float, Stream&);    \
-    template void randomize<T, void>(noa::math::poisson_t, const shared_t<T[]>&, dim4_t, dim4_t, float, Stream&)
+    #define INSTANTIATE_RANDOM_POISSON_(T) \
+    template void randomize<T, void>(noa::math::poisson_t, T*, const Strides4<i64>&, const Shape4<i64>&, f32, i64)
 
-    INSTANTIATE_RANDOM_POISSON_(half_t);
-    INSTANTIATE_RANDOM_POISSON_(float);
-    INSTANTIATE_RANDOM_POISSON_(double);
+    INSTANTIATE_RANDOM_POISSON_(f16);
+    INSTANTIATE_RANDOM_POISSON_(f32);
+    INSTANTIATE_RANDOM_POISSON_(f64);
 
-    #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                              \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);     \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);      \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim4_t, dim4_t, U, U, Stream&);  \
-    template void randomize<T, U, void>(noa::math::uniform_t, const shared_t<T[]>&, dim_t, U, U, Stream&);              \
-    template void randomize<T, U, void>(noa::math::normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&);               \
-    template void randomize<T, U, void>(noa::math::log_normal_t, const shared_t<T[]>&, dim_t, U, U, Stream&)
+    #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                                  \
+    template void randomize<T, U, void>(noa::math::uniform_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);     \
+    template void randomize<T, U, void>(noa::math::normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);      \
+    template void randomize<T, U, void>(noa::math::log_normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64)
 
-    INSTANTIATE_RANDOM_HALF_(half_t, float);
-    INSTANTIATE_RANDOM_HALF_(chalf_t, float);
-    INSTANTIATE_RANDOM_HALF_(chalf_t, cfloat_t);
+    INSTANTIATE_RANDOM_HALF_(f16, f32);
+    INSTANTIATE_RANDOM_HALF_(c16, f32);
+    INSTANTIATE_RANDOM_HALF_(c16, c32);
 }

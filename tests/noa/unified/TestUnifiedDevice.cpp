@@ -1,56 +1,54 @@
-#include <noa/unified/Device.h>
-#include <noa/gpu/Backend.h>
+#include <noa/unified/Device.hpp>
+#include <noa/gpu/Backend.hpp>
 
 #include "catch2/catch.hpp"
 
 TEST_CASE("unified::Device", "[noa][unified]") {
-    using namespace ::noa;
-
     THEN("parse") {
-        Device a; // CPU
-        REQUIRE(a.cpu());
+        const noa::Device a; // CPU
+        REQUIRE(a.is_cpu());
         REQUIRE(a.id() == -1);
 
-        constexpr bool UNSAFE = true;
-        Device c("gpu", UNSAFE);
+        const auto c = noa::Device("gpu", noa::Device::DeviceUnchecked{});
         REQUIRE(c.id() == 0);
-        Device d("gpu:0", UNSAFE);
+        const auto d = noa::Device("gpu:0", noa::Device::DeviceUnchecked{});
         REQUIRE(d.id() == 0);
-        Device e("cuda", UNSAFE);
+        const auto e = noa::Device("cuda", noa::Device::DeviceUnchecked{});
         REQUIRE(e.id() == 0);
-        Device f("cuda:1", UNSAFE);
+        const auto f = noa::Device("cuda:1", noa::Device::DeviceUnchecked{});
         REQUIRE(f.id() == 1);
     }
 
     AND_THEN("validate") {
-        Device a("cpu");
-        if (Device::any(Device::GPU)) {
-            Device b("gpu");
-            Device c("gpu:0");
+        [[maybe_unused]] const auto a = noa::Device("cpu");
+        if (noa::Device::is_any(noa::DeviceType::GPU)) {
+            [[maybe_unused]] const auto b = noa::Device("gpu");
+            [[maybe_unused]] const auto c = noa::Device("gpu:0");
 
-            if constexpr (gpu::Backend::cuda()) {
-                Device d("cuda");
-                Device e("cuda:0");
+            if constexpr (noa::gpu::Backend::cuda()) {
+                [[maybe_unused]] const auto d = noa::Device("cuda");
+                [[maybe_unused]] const auto e = noa::Device("cuda:0");
             } else {
-                REQUIRE_THROWS_AS(Device("cuda"), noa::Exception);
-                REQUIRE_THROWS_AS(Device("cuda:0"), noa::Exception);
+                REQUIRE_THROWS_AS(noa::Device("cuda"), noa::Exception);
+                REQUIRE_THROWS_AS(noa::Device("cuda:0"), noa::Exception);
             }
         }
     }
 
     AND_THEN("current, guard") {
-        Device a(Device::CPU);
+        const noa::Device a(noa::DeviceType::CPU);
         REQUIRE(a.id() == -1); // current device is the cpu by default
 
-        if (Device::any(Device::GPU)) {
-            Device c(Device::GPU);
-            Device::current(c);
-            REQUIRE(c.id() == Device::current(Device::GPU).id());
+        constexpr auto GPU = noa::DeviceType::GPU;
+        if (noa::Device::is_any(GPU)) {
+            const noa::Device c(GPU);
+            noa::Device::set_current(c);
+            REQUIRE(c.id() == noa::Device::current(GPU).id());
             {
-                DeviceGuard e("gpu", Device::count(Device::GPU) - 1);
-                REQUIRE(e.id() == Device::current(Device::GPU).id());
+                const noa::DeviceGuard e(GPU, noa::Device::count(GPU) - 1);
+                REQUIRE(e.id() == noa::Device::current(GPU).id());
             }
-            REQUIRE(c.id() == Device::current(Device::GPU).id());
+            REQUIRE(c.id() == noa::Device::current(GPU).id());
         }
     }
 }

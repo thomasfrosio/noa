@@ -1,4 +1,4 @@
-#include <noa/cpu/Stream.h>
+#include <noa/cpu/Stream.hpp>
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
@@ -21,42 +21,42 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
     };
 
     SECTION("default stream") {
-        cpu::Stream stream(cpu::Stream::DEFAULT);
+        cpu::Stream stream(cpu::StreamMode::DEFAULT);
         stream.enqueue(task1);
         stream.enqueue(task2, 3);
         stream.synchronize();
-        REQUIRE_FALSE(stream.busy());
+        REQUIRE_FALSE(stream.is_busy());
         REQUIRE(flag == 3);
         stream.enqueue(task3, std::ref(flag), 4);
         stream.synchronize();
         REQUIRE(flag == 4);
         REQUIRE_THROWS(stream.enqueue(task4));
         stream.enqueue(task5);
-        REQUIRE_FALSE(stream.busy());
+        REQUIRE_FALSE(stream.is_busy());
         REQUIRE(flag == 5);
     }
 
     SECTION("async stream") {
         {
-            cpu::Stream stream(cpu::Stream::ASYNC);
+            cpu::Stream stream(cpu::StreamMode::ASYNC);
             stream.enqueue(task1);
             stream.enqueue(task2, 3);
             stream.synchronize();
-            REQUIRE_FALSE(stream.busy());
+            REQUIRE_FALSE(stream.is_busy());
             REQUIRE(flag == 3);
             stream.enqueue(task3, std::ref(flag), 4);
             stream.synchronize();
             REQUIRE(flag == 4);
             stream.enqueue(task4);
-            REQUIRE(stream.busy());
+            REQUIRE(stream.is_busy());
             REQUIRE_THROWS_AS(stream.synchronize(), std::exception);
-            REQUIRE_FALSE(stream.busy());
+            REQUIRE_FALSE(stream.is_busy());
             stream.enqueue(task5);
             stream.enqueue(task2, 1);
-            REQUIRE(stream.busy());
+            REQUIRE(stream.is_busy());
             stream.synchronize();
             REQUIRE(flag == 1);
-            REQUIRE_FALSE(stream.busy());
+            REQUIRE_FALSE(stream.is_busy());
             stream.enqueue(task5);
             stream.synchronize();
             REQUIRE(flag == 5);
@@ -68,7 +68,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         };
         for (int i = 0; i < 5; ++i) {
             {
-                cpu::Stream async_stream(cpu::Stream::ASYNC);
+                cpu::Stream async_stream(cpu::StreamMode::ASYNC);
                 for (int j = 0; j < 50; ++j)
                     async_stream.enqueue(task6);
             }
@@ -78,7 +78,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
         count = 0;
         for (int i = 0; i < 5; ++i) {
-            cpu::Stream async_stream(cpu::Stream::ASYNC);
+            cpu::Stream async_stream(cpu::StreamMode::ASYNC);
             for (int j = 0; j < 100; ++j)
                 async_stream.enqueue(task6);
             async_stream.synchronize();
@@ -89,7 +89,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
     SECTION("nested async stream") {
         {
-            cpu::Stream async_stream(cpu::Stream::ASYNC);
+            cpu::Stream async_stream(cpu::StreamMode::ASYNC);
             async_stream.enqueue([=]() mutable {
                 async_stream.enqueue([](){});
             });

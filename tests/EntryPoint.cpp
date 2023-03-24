@@ -1,13 +1,13 @@
 // This is the entry point to ALL tests.
 
-#include <noa/Session.h>
-#include <noa/common/Types.h>
+#include <noa/core/Session.hpp>
+#include <noa/core/Types.hpp>
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
 
 namespace test {
-    noa::path_t NOA_DATA_PATH;
+    noa::Path NOA_DATA_PATH;
 }
 
 int main(int argc, char* argv[]) {
@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
         return returnCode;
 
     noa::Session noa_session("tests", {}, noa::Logger::SILENT);
-    noa::Session::threads(std::min(noa::Session::threads(), size_t{8}));
+    noa::Session::set_threads(std::min(noa::Session::threads(), noa::i64{8}));
     int numFailed = catch_session.run();
     return numFailed;
 }

@@ -2,9 +2,9 @@
 # Sets the benchmark files
 # ---------------------------------------------------------------------------------------
 set(BENCHMARK_SOURCES
-        EntryPoint.cpp
-        Helpers.h
-        ${PROJECT_SOURCE_DIR}/tests/Helpers.h
+#        EntryPoint.cpp
+#        Helpers.h
+#        ${PROJECT_SOURCE_DIR}/tests/Helpers.h
         )
 
 set(BENCHMARK_CPU_SOURCES
@@ -24,9 +24,9 @@ set(BENCHMARK_CPU_SOURCES
 #
 #        src/cpu/geometry/BenchCPURotate.cpp
 #        src/cpu/geometry/BenchCPUSymmetry.cpp
-        src/cpu/geometry/fft/BenchCPURotate.cpp
+#        src/cpu/geometry/fft/BenchCPURotate.cpp
 #        src/cpu/geometry/fft/BenchCPUShift.cpp
-        src/cpu/geometry/fft/BenchCPUProject.cpp
+#        src/cpu/geometry/fft/BenchCPUProject.cpp
         )
 
 set(BENCHMARK_CUDA_SOURCES
@@ -39,7 +39,7 @@ set(BENCHMARK_CUDA_SOURCES
 
 #        src/gpu/cuda/memory/BenchCUDACopy.cpp
 
-        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
+#        src/gpu/cuda/geometry/fft/BenchCUDAProject.cpp
 #        src/gpu/cuda/geometry/BenchCUDARotate.cpp
 #        src/gpu/cuda/geometry/BenchCUDASymmetry.cpp
         )

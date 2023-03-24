@@ -1,216 +1,203 @@
-#include "noa/common/Assert.h"
-#include "noa/common/geometry/Interpolator.h"
-#include "noa/common/geometry/details/LinearTransform2DFourier.h"
-#include "noa/common/geometry/details/LinearTransform3DFourier.h"
+#include "noa/core/Assert.hpp"
+#include "noa/core/geometry/Interpolator.hpp"
+#include "noa/algorithms/geometry/TransformRFFT.hpp"
 
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/utils/Pointers.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/PtrArray.h"
-#include "noa/gpu/cuda/memory/PtrDevice.h"
-#include "noa/gpu/cuda/memory/PtrTexture.h"
-#include "noa/gpu/cuda/geometry/Interpolator.h"
-#include "noa/gpu/cuda/geometry/fft/Transform.h"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/geometry/fft/Transform.hpp"
 
 namespace {
     using namespace ::noa;
 
-    template<bool IS_OPTIONAL, typename Wrapper>
-    auto matrixOrShiftOrRawConstPtr(const Wrapper& matrix_or_shift) {
-        using output_t = std::conditional_t<traits::is_floatXX_v<Wrapper> || traits::is_floatX_v<Wrapper>,
-                                            traits::remove_ref_cv_t<Wrapper>,
-                                            const traits::element_type_t<Wrapper>*>;
-        if constexpr (traits::is_floatXX_v<Wrapper> || traits::is_floatX_v<Wrapper>) {
-            return output_t(matrix_or_shift);
-        } else {
-            if (IS_OPTIONAL && matrix_or_shift.get() == nullptr)
-                return output_t{};
-            NOA_ASSERT(matrix_or_shift != nullptr);
-            using clean_t = traits::remove_ref_cv_t<Wrapper>;
-            using raw_const_ptr_t = const typename clean_t::element_type*;
-            return static_cast<raw_const_ptr_t>(matrix_or_shift.get());
-        }
-    }
-
-
     template<fft::Remap REMAP, typename Value, typename Matrix, typename ShiftOrEmpty>
-    void linearTransform_(const AccessorRestrict<const Value, 3, uint32_t>& input,
-                          const AccessorRestrict<Value, 3, uint32_t>& output, dim4_t shape,
-                          Matrix matrices, ShiftOrEmpty shifts, float cutoff,
-                          InterpMode interp_mode, cuda::Stream& stream) {
+    void launch_transform_rfft_final_(
+            const AccessorRestrict<const Value, 3, u32>& input,
+            const AccessorRestrict<Value, 3, u32>& output, const Shape4<i64>& shape,
+            const Matrix& matrices, const ShiftOrEmpty& shifts, f32 cutoff,
+            InterpMode interp_mode, cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_2d = int2_t(shape.get(2)).fft();
-        const auto output_shape = safe_cast<int3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
+        const auto i_shape = shape.as_safe<i32>();
+        const auto input_shape_2d = i_shape.filter(2, 3).fft();
+        const auto output_shape = i_shape.filter(0, 2, 3).fft();
 
         switch (interp_mode) {
-            case INTERP_NEAREST: {
-                const auto interpolator =
-                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_2d);
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
+            case InterpMode::NEAREST: {
+                const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::NEAREST>(
+                        input, input_shape_2d);
+                const auto kernel = noa::algorithm::geometry::transform_rfft_2d<REMAP>(
                         interpolator, output, shape, matrices, shifts, cutoff);
-                return noa::cuda::utils::iwise3D("transform2D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d("transform_2d", output_shape, kernel, stream);
             }
-            case INTERP_LINEAR_FAST:
-            case INTERP_LINEAR: {
-                const auto interpolator =
-                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_2d);
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
+            case InterpMode::LINEAR_FAST:
+            case InterpMode::LINEAR: {
+                const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
+                        input, input_shape_2d);
+                const auto kernel = noa::algorithm::geometry::transform_rfft_2d<REMAP>(
                         interpolator, output, shape, matrices, shifts, cutoff);
-                return noa::cuda::utils::iwise3D("transform2D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d("transform_2d", output_shape, kernel, stream);
             }
-            case INTERP_COSINE_FAST:
-            case INTERP_COSINE: {
-                const auto interpolator =
-                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_2d);
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
+            case InterpMode::COSINE_FAST:
+            case InterpMode::COSINE: {
+                const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::COSINE>(
+                        input, input_shape_2d);
+                const auto kernel = noa::algorithm::geometry::transform_rfft_2d<REMAP>(
                         interpolator, output, shape, matrices, shifts, cutoff);
-                return noa::cuda::utils::iwise3D("transform2D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d("transform_2d", output_shape, kernel, stream);
             }
             default:
-                NOA_THROW_FUNC("transform2D", "{} is not supported", interp_mode);
+                NOA_THROW_FUNC("transform_2d", "{} is not supported", interp_mode);
         }
     }
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename ShiftOrEmpty>
-    void linearTransform_(const AccessorRestrict<const Value, 4, uint32_t>& input,
-                          const AccessorRestrict<Value, 4, uint32_t>& output, dim4_t shape,
-                          Matrix matrices, ShiftOrEmpty shift, float cutoff,
-                          InterpMode interp_mode, cuda::Stream& stream) {
-        const auto input_shape_3d = int3_t(shape.get(1)).fft();
-        const auto output_shape = safe_cast<int4_t>(shape).fft();
+    void launch_transform_rfft_final_(
+            const AccessorRestrict<const Value, 4, u32>& input,
+            const AccessorRestrict<Value, 4, u32>& output, const Shape4<i64>& shape,
+            const Matrix& matrices, const ShiftOrEmpty& shift, f32 cutoff,
+            InterpMode interp_mode, cuda::Stream& stream) {
+        const auto i_shape = shape.as_safe<i32>();
+        const auto input_shape_3d = i_shape.pop_front().fft();
+        const auto output_shape = i_shape.fft();
 
         switch (interp_mode) {
-            case INTERP_NEAREST: {
-                const auto interpolator =
-                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_3d);
-                const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
+            case InterpMode::NEAREST: {
+                const auto interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::NEAREST>(
+                        input, input_shape_3d);
+                const auto kernel = noa::algorithm::geometry::transform_rfft_3d<REMAP>(
                         interpolator, output, shape, matrices, shift, cutoff);
-                return noa::cuda::utils::iwise4D("transform3D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d("transform_3d", output_shape, kernel, stream);
             }
-            case INTERP_LINEAR_FAST:
-            case INTERP_LINEAR: {
-                const auto interpolator =
-                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_3d);
-                const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
+            case InterpMode::LINEAR_FAST:
+            case InterpMode::LINEAR: {
+                const auto interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::LINEAR>(
+                        input, input_shape_3d);
+                const auto kernel = noa::algorithm::geometry::transform_rfft_3d<REMAP>(
                         interpolator, output, shape, matrices, shift, cutoff);
-                return noa::cuda::utils::iwise4D("transform3D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d("transform_3d", output_shape, kernel, stream);
             }
-            case INTERP_COSINE_FAST:
-            case INTERP_COSINE: {
-                const auto interpolator =
-                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_3d);
-                const auto kernel = noa::geometry::fft::details::transform3D<REMAP, int32_t>(
+            case InterpMode::COSINE_FAST:
+            case InterpMode::COSINE: {
+                const auto interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::COSINE>(
+                        input, input_shape_3d);
+                const auto kernel = noa::algorithm::geometry::transform_rfft_3d<REMAP>(
                         interpolator, output, shape, matrices, shift, cutoff);
-                return noa::cuda::utils::iwise4D("transform3D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d("transform_3d", output_shape, kernel, stream);
             }
             default:
-                NOA_THROW_FUNC("transform3D", "{} is not supported", interp_mode);
+                NOA_THROW_FUNC("transform_3d", "{} is not supported", interp_mode);
         }
     }
 
     template<fft::Remap REMAP, int32_t NDIM, typename Value, typename Matrix, typename Shift>
-    void launchLinearTransform_(const AccessorRestrict<const Value, NDIM + 1, uint32_t>& input,
-                                const AccessorRestrict<Value, NDIM + 1, uint32_t>& output, dim4_t shape,
-                                Matrix matrices, Shift shift, float cutoff,
-                                InterpMode interp_mode, cuda::Stream& stream) {
+    void launch_transform_rfft_(
+            const AccessorRestrict<const Value, NDIM + 1, u32>& input,
+            const AccessorRestrict<Value, NDIM + 1, u32>& output, const Shape4<i64>& shape,
+            const Matrix& matrices, const Shift& shift, f32 cutoff,
+            InterpMode interp_mode, cuda::Stream& stream) {
         const bool do_shift = noa::any(shift != Shift{});
         if (do_shift)
-            linearTransform_<REMAP>(input, output, shape, matrices, shift, cutoff, interp_mode, stream);
+            launch_transform_rfft_final_<REMAP>(
+                    input, output, shape, matrices, shift, cutoff, interp_mode, stream);
         else
-            linearTransform_<REMAP>(input, output, shape, matrices, empty_t{}, cutoff, interp_mode, stream);
+            launch_transform_rfft_final_<REMAP>(
+                    input, output, shape, matrices, Empty{}, cutoff, interp_mode, stream);
     }
 
     template<fft::Remap REMAP, typename Value, typename MatrixOrEmpty, typename ShiftOrEmpty>
-    void linearTransformSymmetry_(const AccessorRestrict<const Value, 3, uint32_t>& input,
-                                  const AccessorRestrict<Value, 3, uint32_t>& output, dim4_t shape,
-                                  MatrixOrEmpty matrix, const geometry::Symmetry& symmetry,
-                                  ShiftOrEmpty shift, float cutoff, bool normalize,
-                                  InterpMode interp_mode, cuda::Stream& stream) {
+    void launch_transform_symmetry_final_(
+            const AccessorRestrict<const Value, 3, u32>& input,
+            const AccessorRestrict<Value, 3, u32>& output, const Shape4<i64>& shape,
+            const MatrixOrEmpty& matrix, const geometry::Symmetry& symmetry,
+            const ShiftOrEmpty& shift, f32 cutoff, bool normalize,
+            InterpMode interp_mode, cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_2d = int2_t(shape.get(2)).fft();
-        const auto output_shape = safe_cast<int3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
+        const auto input_shape_2d = shape.filter(2, 3).as_safe<i32>().fft();
+        const auto output_shape = shape.filter(0, 2, 3).as_safe<i32>().fft();
 
-        const auto symmetry_count = static_cast<int64_t>(symmetry.count());
-        const auto symmetry_matrices = noa::cuda::memory::PtrDevice<float33_t>::alloc(symmetry_count, stream);
+        const auto symmetry_count = symmetry.count();
+        const auto symmetry_matrices = noa::cuda::memory::PtrDevice<Float33>::alloc(symmetry_count, stream);
         noa::cuda::memory::copy(symmetry.get(), symmetry_matrices.get(), symmetry_count, stream);
         using real_t = traits::value_type_t<Value>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
         switch (interp_mode) {
-            case INTERP_NEAREST: {
-                const auto interpolator =
-                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_2d);
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP>(
+            case InterpMode::NEAREST: {
+                const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::NEAREST>(
+                        input, input_shape_2d);
+                const auto kernel = noa::algorithm::geometry::transform_symmetry_rfft_2d<REMAP>(
                         interpolator, output, shape, matrix, symmetry_matrices.get(),
                         symmetry_count, scaling, shift, cutoff);
-                return noa::cuda::utils::iwise3D("transform2D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d("transform_2d", output_shape, kernel, stream);
             }
-            case INTERP_LINEAR_FAST:
-            case INTERP_LINEAR: {
-                const auto interpolator =
-                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_2d);
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP>(
+            case InterpMode::LINEAR_FAST:
+            case InterpMode::LINEAR: {
+                const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
+                        input, input_shape_2d);
+                const auto kernel = noa::algorithm::geometry::transform_symmetry_rfft_2d<REMAP>(
                         interpolator, output, shape, matrix, symmetry_matrices.get(),
                         symmetry_count, scaling, shift, cutoff);
-                return noa::cuda::utils::iwise3D("transform2D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d("transform_2d", output_shape, kernel, stream);
             }
-            case INTERP_COSINE_FAST:
-            case INTERP_COSINE: {
-                const auto interpolator =
-                        noa::geometry::interpolator2D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_2d);
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP>(
+            case InterpMode::COSINE_FAST:
+            case InterpMode::COSINE: {
+                const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::COSINE>(
+                        input, input_shape_2d);
+                const auto kernel = noa::algorithm::geometry::transform_symmetry_rfft_2d<REMAP>(
                         interpolator, output, shape, matrix, symmetry_matrices.get(),
                         symmetry_count, scaling, shift, cutoff);
-                return noa::cuda::utils::iwise3D("transform2D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d("transform_2d", output_shape, kernel, stream);
             }
             default:
-                NOA_THROW_FUNC("transform2D", "{} is not supported", interp_mode);
+                NOA_THROW_FUNC("transform_2d", "{} is not supported", interp_mode);
         }
     }
 
     template<fft::Remap REMAP, typename Value, typename MatrixOrEmpty, typename ShiftOrEmpty>
-    void linearTransformSymmetry_(const AccessorRestrict<const Value, 4, uint32_t>& input,
-                                  const AccessorRestrict<Value, 4, uint32_t>& output, dim4_t shape,
-                                  MatrixOrEmpty matrix, const geometry::Symmetry& symmetry,
-                                  ShiftOrEmpty shift, float cutoff, bool normalize,
-                                  InterpMode interp_mode, cuda::Stream& stream) {
+    void launch_transform_symmetry_final_(
+            const AccessorRestrict<const Value, 4, u32>& input,
+            const AccessorRestrict<Value, 4, u32>& output, const Shape4<i64>& shape,
+            const MatrixOrEmpty& matrix, const geometry::Symmetry& symmetry,
+            const ShiftOrEmpty& shift, f32 cutoff, bool normalize,
+            InterpMode interp_mode, cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_3d = int3_t(shape.get(1)).fft();
-        const auto output_shape = safe_cast<int4_t>(shape).fft();
+        const auto input_shape_3d = shape.pop_front().as_safe<i32>().fft();
+        const auto output_shape = shape.as_safe<i32>().fft();
 
-        const auto symmetry_count = static_cast<int64_t>(symmetry.count());
-        const auto symmetry_matrices = noa::cuda::memory::PtrDevice<float33_t>::alloc(symmetry_count, stream);
+        const auto symmetry_count = symmetry.count();
+        const auto symmetry_matrices = noa::cuda::memory::PtrDevice<Float33>::alloc(symmetry_count, stream);
         noa::cuda::memory::copy(symmetry.get(), symmetry_matrices.get(), symmetry_count, stream);
         using real_t = traits::value_type_t<Value>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
         switch (interp_mode) {
-            case INTERP_NEAREST: {
-                const auto interpolator =
-                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_NEAREST>(input, input_shape_3d);
-                const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP>(
+            case InterpMode::NEAREST: {
+                const auto interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::NEAREST>(
+                        input, input_shape_3d);
+                const auto kernel = noa::algorithm::geometry::transform_symmetry_rfft_3d<REMAP>(
                         interpolator, output, shape, matrix, symmetry_matrices.get(),
                         symmetry_count, scaling, shift, cutoff);
-                return noa::cuda::utils::iwise4D("transform3D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d("transform_3d", output_shape, kernel, stream);
             }
-            case INTERP_LINEAR_FAST:
-            case INTERP_LINEAR: {
-                const auto interpolator =
-                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(input, input_shape_3d);
-                const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP>(
+            case InterpMode::LINEAR_FAST:
+            case InterpMode::LINEAR: {
+                const auto interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::LINEAR>(
+                        input, input_shape_3d);
+                const auto kernel = noa::algorithm::geometry::transform_symmetry_rfft_3d<REMAP>(
                         interpolator, output, shape, matrix, symmetry_matrices.get(),
                         symmetry_count, scaling, shift, cutoff);
-                return noa::cuda::utils::iwise4D("transform3D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d("transform_3d", output_shape, kernel, stream);
             }
-            case INTERP_COSINE_FAST:
-            case INTERP_COSINE: {
-                const auto interpolator =
-                        noa::geometry::interpolator3D<BORDER_ZERO, INTERP_COSINE>(input, input_shape_3d);
-                const auto kernel = noa::geometry::fft::details::transformSymmetry3D<REMAP>(
+            case InterpMode::COSINE_FAST:
+            case InterpMode::COSINE: {
+                const auto interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::COSINE>(
+                        input, input_shape_3d);
+                const auto kernel = noa::algorithm::geometry::transform_symmetry_rfft_3d<REMAP>(
                         interpolator, output, shape, matrix, symmetry_matrices.get(),
                         symmetry_count, scaling, shift, cutoff);
-                return noa::cuda::utils::iwise4D("transform3D", output_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d("transform_3d", output_shape, kernel, stream);
             }
             default:
                 NOA_THROW_FUNC("transform3D", "{} is not supported", interp_mode);
@@ -218,339 +205,178 @@ namespace {
     }
 
     template<fft::Remap REMAP, int32_t NDIM, typename Value, typename Matrix, typename Shift>
-    void launchLinearTransformSymmetry_(const AccessorRestrict<const Value, NDIM + 1, uint32_t>& input,
-                                        const AccessorRestrict<Value, NDIM + 1, uint32_t>& output, dim4_t shape,
-                                        Matrix matrix, const geometry::Symmetry& symmetry, Shift shift,
-                                        float cutoff, bool normalize, InterpMode interp_mode, cuda::Stream& stream) {
+    void launch_transform_symmetry_(
+            const AccessorRestrict<const Value, NDIM + 1, u32>& input,
+            const AccessorRestrict<Value, NDIM + 1, u32>& output, const Shape4<i64>& shape,
+            const Matrix& matrix, const geometry::Symmetry& symmetry, const Shift& shift,
+            f32 cutoff, bool normalize, InterpMode interp_mode, cuda::Stream& stream) {
         const bool apply_shift = noa::any(shift != Shift{});
         const bool apply_matrix = matrix != Matrix{};
 
         if (apply_shift && apply_matrix) {
-            linearTransformSymmetry_<REMAP>(
+            launch_transform_symmetry_final_<REMAP>(
                     input, output, shape,
                     matrix, symmetry, shift, cutoff,
                     normalize, interp_mode, stream);
         } else if (apply_shift) {
-            linearTransformSymmetry_<REMAP>(
+            launch_transform_symmetry_final_<REMAP>(
                     input, output, shape,
-                    empty_t{}, symmetry, shift, cutoff,
+                    Empty{}, symmetry, shift, cutoff,
                     normalize, interp_mode, stream);
         } else if (apply_matrix) {
-            linearTransformSymmetry_<REMAP>(
+            launch_transform_symmetry_final_<REMAP>(
                     input, output, shape,
-                    matrix, symmetry, empty_t{}, cutoff,
+                    matrix, symmetry, Empty{}, cutoff,
                     normalize, interp_mode, stream);
         } else {
-            linearTransformSymmetry_<REMAP>(
+            launch_transform_symmetry_final_<REMAP>(
                     input, output, shape,
-                    empty_t{}, symmetry, empty_t{}, cutoff,
+                    Empty{}, symmetry, Empty{}, cutoff,
                     normalize, interp_mode, stream);
-        }
-    }
-
-
-
-    template<fft::Remap REMAP, bool LAYERED, typename Value, typename Matrix, typename ShiftOrEmpty>
-    void linearTransform2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                            Value* output, dim4_t output_strides, dim4_t shape,
-                            Matrix matrix, ShiftOrEmpty shift, float cutoff,
-                            cuda::Stream& stream) {
-        NOA_ASSERT(shape[1] == 1);
-        const auto iwise_shape = safe_cast<int3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
-        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
-                output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
-
-        switch (texture_interp_mode) {
-            case INTERP_NEAREST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_LINEAR: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_COSINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_LINEAR_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_COSINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transform2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape, matrix, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            default:
-                NOA_THROW_FUNC("transform2D", "{} is not supported", texture_interp_mode);
-        }
-    }
-
-    template<fft::Remap REMAP, bool LAYERED, typename Value, typename Matrix, typename Shift>
-    void launchLinearTransform2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                  Value* output, dim4_t output_strides, dim4_t shape,
-                                  Matrix matrix, Shift shift, float cutoff,
-                                  cuda::Stream& stream) {
-        const bool do_shift = noa::any(shift != Shift{});
-        if (do_shift) {
-            linearTransform2D_<REMAP, LAYERED>(
-                    texture, texture_interp_mode,
-                    output, output_strides, shape,
-                    matrix, shift, cutoff, stream);
-        } else {
-            linearTransform2D_<REMAP, LAYERED>(
-                    texture, texture_interp_mode,
-                    output, output_strides, shape,
-                    matrix, empty_t{}, cutoff, stream);
-        }
-    }
-
-    template<fft::Remap REMAP, bool LAYERED, typename Value, typename MatrixOrEmpty, typename ShiftOrEmpty>
-    void linearTransformSymmetry2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                    Value* output, dim4_t output_strides, dim4_t shape,
-                                    MatrixOrEmpty matrix, const geometry::Symmetry& symmetry,
-                                    ShiftOrEmpty shift, float cutoff, bool normalize,
-                                    cuda::Stream& stream) {
-        // TODO Move symmetry matrices to constant memory?
-        const dim_t count = symmetry.count();
-        const float33_t* symmetry_matrices = symmetry.get();
-        using unique_ptr_t = cuda::memory::PtrDevice<float33_t>::alloc_unique_t;
-        unique_ptr_t d_matrices = cuda::memory::PtrDevice<float33_t>::alloc(count, stream);
-        cuda::memory::copy(symmetry_matrices, d_matrices.get(), count, stream);
-        const float scaling = normalize ? 1 / static_cast<float>(count + 1) : 1;
-
-        NOA_ASSERT(shape[1] == 1);
-        const auto iwise_shape = safe_cast<int3_t>(dim3_t{shape[0], shape[2], shape[3]}).fft();
-        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(
-                output, safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]}));
-
-        switch (texture_interp_mode) {
-            case INTERP_NEAREST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_NEAREST, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape,
-                        matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_LINEAR: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape,
-                        matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_COSINE: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape,
-                        matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_LINEAR_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape,
-                        matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            case INTERP_COSINE_FAST: {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_COSINE_FAST, Value, false, LAYERED>;
-                const auto kernel = noa::geometry::fft::details::transformSymmetry2D<REMAP, int32_t>(
-                        interpolator_t(texture), output_accessor, shape,
-                        matrix, d_matrices.get(), count, scaling, shift, cutoff);
-                return cuda::utils::iwise3D("geometry::fft::transform2D", iwise_shape, kernel, stream);
-            }
-            default:
-                NOA_THROW_FUNC("transform2D", "{} is not supported", texture_interp_mode);
-        }
-    }
-
-    template<fft::Remap REMAP, bool LAYERED, typename Value>
-    void launchLinearTransformSymmetry2D_(cudaTextureObject_t texture, InterpMode texture_interp_mode,
-                                          Value* output, dim4_t output_strides, dim4_t output_shape,
-                                          float22_t matrix, const geometry::Symmetry& symmetry, float2_t shift,
-                                          float cutoff, bool normalize, cuda::Stream& stream) {
-        const bool apply_shift = any(shift != 0.f);
-        const bool apply_matrix = matrix != float22_t{};
-
-        if (apply_shift && apply_matrix) {
-            linearTransformSymmetry2D_<REMAP, LAYERED>(
-                    texture, texture_interp_mode, output, output_strides, output_shape,
-                    matrix, symmetry, shift, cutoff, normalize, stream);
-        } else if (apply_shift) {
-            linearTransformSymmetry2D_<REMAP, LAYERED>(
-                    texture, texture_interp_mode, output, output_strides, output_shape,
-                    empty_t{}, symmetry, shift, cutoff, normalize, stream);
-        } else if (apply_matrix) {
-            linearTransformSymmetry2D_<REMAP, LAYERED>(
-                    texture, texture_interp_mode, output, output_strides, output_shape,
-                    matrix, symmetry, empty_t{}, cutoff, normalize, stream);
-        } else {
-            linearTransformSymmetry2D_<REMAP, LAYERED>(
-                    texture, texture_interp_mode, output, output_strides, output_shape,
-                    empty_t{}, symmetry, empty_t{}, cutoff, normalize, stream);
         }
     }
 }
 
 namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
-    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     const Matrix& inv_matrices, const Shift& shifts,
-                     float cutoff, InterpMode interp_mode, Stream& stream) {
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        if constexpr (!traits::is_floatXX_v<Matrix>) {
-            NOA_ASSERT_DEVICE_PTR(inv_matrices.get(), stream.device());
+    void transform_2d(const Value* input, const Strides4<i64>& input_strides,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+                      const Matrix& inv_matrices, const Shift& shifts,
+                      f32 cutoff, InterpMode interp_mode, Stream& stream) {
+        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
+        if constexpr (!traits::is_matXX_v<Matrix>) {
+            NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 
-        const auto input_strides_2d = safe_cast<uint3_t>(dim3_t{input_strides[0], input_strides[2], input_strides[3]});
-        const auto output_strides_2d = safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]});
-        const auto input_accessor = AccessorRestrict<const Value, 3, uint32_t>(input.get(), input_strides_2d);
-        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(output.get(), output_strides_2d);
-
-        launchLinearTransform_<REMAP, 2>(
+        const auto input_accessor = AccessorRestrict<const Value, 3, u32>(input, input_strides.filter(0, 2, 3).as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<Value, 3, u32>(output, output_strides.filter(0, 2, 3).as_safe<u32>());
+        launch_transform_rfft_<REMAP, 2>(
                 input_accessor, output_accessor, shape,
-                matrixOrShiftOrRawConstPtr<false>(inv_matrices),
-                matrixOrShiftOrRawConstPtr<true>(shifts),
-                cutoff, interp_mode, stream);
-
-        stream.attach(input, output);
-        if constexpr (!traits::is_floatXX_v<Matrix>)
-            stream.attach(inv_matrices);
-        if constexpr (!traits::is_floatX_v<Shift>)
-            stream.attach(shifts);
+                inv_matrices, shifts, cutoff, interp_mode, stream);
     }
 
     template<Remap REMAP, typename Value, typename Matrix, typename Shift, typename>
-    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     const Matrix& inv_matrices, const Shift& shifts,
-                     float cutoff, InterpMode interp_mode, Stream& stream) {
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
-        if constexpr (!traits::is_floatXX_v<Matrix>) {
-            NOA_ASSERT_DEVICE_PTR(inv_matrices.get(), stream.device());
+    void transform_3d(const Value* input, const Strides4<i64>& input_strides,
+                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+                      const Matrix& inv_matrices, const Shift& shifts,
+                      f32 cutoff, InterpMode interp_mode, Stream& stream) {
+        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
+        if constexpr (!traits::is_matXX_v<Matrix>) {
+            NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 
-        const auto input_strides_3d = safe_cast<uint4_t>(input_strides);
-        const auto output_strides_3d = safe_cast<uint4_t>(output_strides);
-        const auto input_accessor = AccessorRestrict<const Value, 4, uint32_t>(input.get(), input_strides_3d);
-        const auto output_accessor = AccessorRestrict<Value, 4, uint32_t>(output.get(), output_strides_3d);
-
-        launchLinearTransform_<REMAP, 3>(
+        const auto input_accessor = AccessorRestrict<const Value, 4, uint32_t>(input, input_strides.as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<Value, 4, uint32_t>(output, output_strides.as_safe<u32>());
+        launch_transform_rfft_<REMAP, 3>(
                 input_accessor, output_accessor, shape,
-                matrixOrShiftOrRawConstPtr<false>(inv_matrices),
-                matrixOrShiftOrRawConstPtr<true>(shifts),
-                cutoff, interp_mode, stream);
-
-        stream.attach(input, output);
-        if constexpr (!traits::is_floatXX_v<Matrix>)
-            stream.attach(inv_matrices);
-        if constexpr (!traits::is_floatX_v<Shift>)
-            stream.attach(shifts);
+                inv_matrices, shifts, cutoff, interp_mode, stream);
     }
 
     template<Remap REMAP, typename Value, typename>
-    void transform2D(const shared_t<Value[]>& input, dim4_t input_strides,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     float22_t inv_matrix, const Symmetry& symmetry, float2_t shift,
-                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+    void transform_and_symmetrize_2d(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& shift,
+            f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         if (!symmetry.count()) {
-            return transform2D<REMAP>(input, input_strides, output, output_strides, shape,
-                                      inv_matrix, shift, cutoff, interp_mode, stream);
+            return transform_2d<REMAP>(
+                    input, input_strides, output, output_strides, shape,
+                    inv_matrix, shift, cutoff, interp_mode, stream);
         }
 
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        const auto input_strides_2d = safe_cast<uint3_t>(dim3_t{input_strides[0], input_strides[2], input_strides[3]});
-        const auto output_strides_2d = safe_cast<uint3_t>(dim3_t{output_strides[0], output_strides[2], output_strides[3]});
-        const auto input_accessor = AccessorRestrict<const Value, 3, uint32_t>(input.get(), input_strides_2d);
-        const auto output_accessor = AccessorRestrict<Value, 3, uint32_t>(output.get(), output_strides_2d);
-
-        launchLinearTransformSymmetry_<REMAP, 2>(
+        const auto input_accessor = AccessorRestrict<const Value, 3, u32>(input, input_strides.filter(0, 2, 3).as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<Value, 3, u32>(output, output_strides.filter(0, 2, 3).as_safe<u32>());
+        launch_transform_symmetry_<REMAP, 2>(
                 input_accessor, output_accessor, shape,
                 inv_matrix, symmetry, shift,
                 cutoff, normalize, interp_mode, stream);
-
-        stream.attach(input, output, symmetry.share());
     }
 
     template<Remap REMAP, typename Value, typename>
-    void transform3D(const shared_t<Value[]>& input, dim4_t input_strides,
-                     const shared_t<Value[]>& output, dim4_t output_strides, dim4_t shape,
-                     float33_t inv_matrix, const Symmetry& symmetry, float3_t shift,
-                     float cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+    void transform_and_symmetrize_3d(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& shift,
+            f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
         if (!symmetry.count()) {
-            return transform3D<REMAP>(input, input_strides, output, output_strides, shape,
-                                      inv_matrix, shift, cutoff, interp_mode, stream);
+            return transform_3d<REMAP>(
+                    input, input_strides, output, output_strides, shape,
+                    inv_matrix, shift, cutoff, interp_mode, stream);
         }
 
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        const auto input_strides_3d = safe_cast<uint4_t>(input_strides);
-        const auto output_strides_3d = safe_cast<uint4_t>(output_strides);
-        const auto input_accessor = AccessorRestrict<const Value, 4, uint32_t>(input.get(), input_strides_3d);
-        const auto output_accessor = AccessorRestrict<Value, 4, uint32_t>(output.get(), output_strides_3d);
-
-        launchLinearTransformSymmetry_<REMAP, 3>(
+        const auto input_accessor = AccessorRestrict<const Value, 4, u32>(input, input_strides.as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<Value, 4, u32>(output, output_strides.as_safe<u32>());
+        launch_transform_symmetry_<REMAP, 3>(
                 input_accessor, output_accessor, shape,
                 inv_matrix, symmetry, shift,
                 cutoff, normalize, interp_mode, stream);
-
-        stream.attach(input, output, symmetry.share());
     }
 
-    #define NOA_INSTANTIATE_TRANSFORM_SYMMETRY(T)                                                                                                                                                   \
-    template void transform2D<Remap::HC2HC, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&l);  \
-    template void transform2D<Remap::HC2H, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float22_t, const Symmetry&, float2_t, float, InterpMode, bool, Stream&);    \
-    template void transform3D<Remap::HC2HC, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&);   \
-    template void transform3D<Remap::HC2H, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, float33_t, const Symmetry&, float3_t, float, InterpMode, bool, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM_SYMMETRY(T)                               \
+    template void transform_and_symmetrize_2d<noa::fft::Remap::HC2HC, T, void>( \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,               \
+        const Shape4<i64>&, const Float22&, const Symmetry&,                    \
+        const Vec2<f32>&, f32, InterpMode, bool, Stream&);                      \
+    template void transform_and_symmetrize_2d<noa::fft::Remap::HC2H, T, void>(  \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,               \
+        const Shape4<i64>&, const Float22&, const Symmetry&,                    \
+        const Vec2<f32>&, f32, InterpMode, bool, Stream&);                      \
+    template void transform_and_symmetrize_3d<noa::fft::Remap::HC2HC, T, void>( \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,               \
+        const Shape4<i64>&, const Float33&, const Symmetry&,                    \
+        const Vec3<f32>&, f32, InterpMode, bool, Stream&);                      \
+    template void transform_and_symmetrize_3d<noa::fft::Remap::HC2H, T, void>(  \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,               \
+        const Shape4<i64>&, const Float33&, const Symmetry&,                    \
+        const Vec3<f32>&, f32, InterpMode, bool, Stream&)
 
-    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S) \
-    template void transform2D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&); \
-    template void transform2D<Remap::HC2HC, T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM2D_(T, M, S)                           \
+    template void transform_2d<noa::fft::Remap::HC2H,  T, M, S, void>(      \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,           \
+        const Shape4<i64>&, M const&, S const&, f32, InterpMode, Stream&);  \
+    template void transform_2d<noa::fft::Remap::HC2HC, T, M, S, void>(      \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,           \
+        const Shape4<i64>&, M const&, S const&, f32, InterpMode, Stream&)
 
-    #define NOA_INSTANTIATE_TRANSFORM3D_(T, M, S) \
-    template void transform3D<Remap::HC2H,  T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&); \
-    template void transform3D<Remap::HC2HC, T, M, S, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, const M&, const S&, float, InterpMode, Stream&)
+    #define NOA_INSTANTIATE_TRANSFORM3D_(T, M, S)                           \
+    template void transform_3d<noa::fft::Remap::HC2H,  T, M, S, void>(      \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,           \
+        const Shape4<i64>&, M const&, S const&, f32, InterpMode, Stream&);  \
+    template void transform_3d<noa::fft::Remap::HC2HC, T, M, S, void>(      \
+        const T*, const Strides4<i64>&, T*, const Strides4<i64>&,           \
+        const Shape4<i64>&, M const&, S const&, f32, InterpMode, Stream&)
 
-    #define NOA_INSTANTIATE_TRANSFORM2D_ALL_(T)                         \
-    NOA_INSTANTIATE_TRANSFORM2D_(T, float22_t, float2_t);               \
-    NOA_INSTANTIATE_TRANSFORM2D_(T, shared_t<float22_t[]>, float2_t);   \
-    NOA_INSTANTIATE_TRANSFORM2D_(T, float22_t, shared_t<float2_t[]>);   \
-    NOA_INSTANTIATE_TRANSFORM2D_(T, shared_t<float22_t[]>, shared_t<float2_t[]>)
+    #define NOA_INSTANTIATE_TRANSFORM2D_ALL_(T)                     \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, Float22, Vec2<f32>);            \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, const Float22*, Vec2<f32>);     \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, Float22, const Vec2<f32>*);     \
+    NOA_INSTANTIATE_TRANSFORM2D_(T, const Float22*, const Vec2<f32>*)
 
-    #define NOA_INSTANTIATE_TRANSFORM3D_ALL_(T)                         \
-    NOA_INSTANTIATE_TRANSFORM3D_(T, float33_t, float3_t);               \
-    NOA_INSTANTIATE_TRANSFORM3D_(T, shared_t<float33_t[]>, float3_t);   \
-    NOA_INSTANTIATE_TRANSFORM3D_(T, float33_t, shared_t<float3_t[]>);   \
-    NOA_INSTANTIATE_TRANSFORM3D_(T, shared_t<float33_t[]>, shared_t<float3_t[]>)
+    #define NOA_INSTANTIATE_TRANSFORM3D_ALL_(T)                     \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, Float33, Vec3<f32>);            \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, const Float33*, Vec3<f32>);     \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, Float33, const Vec3<f32>*);     \
+    NOA_INSTANTIATE_TRANSFORM3D_(T, const Float33*, const Vec3<f32>*)
 
     #define NOA_INSTANTIATE_TRANSFORM_ALL_(T)   \
     NOA_INSTANTIATE_TRANSFORM2D_ALL_(T);        \
     NOA_INSTANTIATE_TRANSFORM3D_ALL_(T);        \
     NOA_INSTANTIATE_TRANSFORM_SYMMETRY(T)
 
-    NOA_INSTANTIATE_TRANSFORM_ALL_(float);
-    NOA_INSTANTIATE_TRANSFORM_ALL_(double);
-    NOA_INSTANTIATE_TRANSFORM_ALL_(cfloat_t);
-    NOA_INSTANTIATE_TRANSFORM_ALL_(cdouble_t);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(f32);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(f64);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(c32);
+    NOA_INSTANTIATE_TRANSFORM_ALL_(c64);
 }

@@ -1,25 +1,25 @@
-#include <noa/common/utils/Irange.h>
-#include <noa/cpu/Device.h>
+#include <noa/core/utils/Irange.hpp>
+#include <noa/cpu/Device.hpp>
 
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
 
 TEST_CASE("cpu::Device", "[noa][cpu]") {
-    cpu::DeviceMemory mem_info = cpu::Device::memory();
+    const cpu::DeviceMemory mem_info = cpu::Device::memory();
     REQUIRE(mem_info.free != 0);
     REQUIRE(mem_info.total != 0);
 
-    cpu::DeviceCore core_info = cpu::Device::cores();
+    const cpu::DeviceCore core_info = cpu::Device::cores();
     REQUIRE(core_info.logical != 0);
     REQUIRE(core_info.physical != 0);
 
     for (auto level: irange(3)) {
-        cpu::DeviceCache cache_info = cpu::Device::cache(level);
+        const cpu::DeviceCache cache_info = cpu::Device::cache(level);
         REQUIRE(cache_info.size != 0);
         REQUIRE(cache_info.line_size != 0);
     }
 
     // Simply check that it runs without throwing an exception.
-    [[maybe_unused]] std::string s = cpu::Device::summary();
+    [[maybe_unused]] const std::string s = cpu::Device::summary();
 }

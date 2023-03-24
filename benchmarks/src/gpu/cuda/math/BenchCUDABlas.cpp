@@ -1,13 +1,13 @@
 #include <benchmark/benchmark.h>
 
-#include <noa/gpu/cuda/Event.h>
-#include <noa/gpu/cuda/Stream.h>
-#include <noa/gpu/cuda/math/Blas.h>
+#include <noa/gpu/cuda/Event.hpp>
+#include <noa/gpu/cuda/Stream.hpp>
+#include <noa/gpu/cuda/math/Blas.hpp>
 #include <noa/gpu/cuda/math/Ewise.h>
-#include <noa/gpu/cuda/math/Random.h>
-#include <noa/gpu/cuda/math/Reduce.h>
-#include <noa/gpu/cuda/memory/PtrDevice.h>
-#include <noa/gpu/cuda/memory/PtrDevicePadded.h>
+#include <noa/gpu/cuda/math/Random.hpp>
+#include <noa/gpu/cuda/math/Reduce.hpp>
+#include <noa/gpu/cuda/memory/PtrDevice.hpp>
+#include <noa/gpu/cuda/memory/PtrDevicePadded.hpp>
 
 using namespace ::noa;
 

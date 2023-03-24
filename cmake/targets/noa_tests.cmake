@@ -18,10 +18,7 @@ target_link_libraries(noa_tests
 
 target_precompile_headers(noa_tests
         PRIVATE
-        ${PROJECT_SOURCE_DIR}/src/noa/common/Definitions.h
-        ${PROJECT_SOURCE_DIR}/src/noa/common/Exception.h
-        ${PROJECT_SOURCE_DIR}/src/noa/common/Logger.h
-        ${PROJECT_SOURCE_DIR}/src/noa/common/Types.h
+        ${PROJECT_SOURCE_DIR}/src/noa/core/Types.hpp
         )
 
 target_include_directories(noa_tests

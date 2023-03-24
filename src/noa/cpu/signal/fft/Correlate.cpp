@@ -1,134 +1,147 @@
-#include "noa/cpu/fft/Transforms.h"
-#include "noa/cpu/math/Ewise.h"
-#include "noa/cpu/signal/fft/Correlate.h"
-#include "noa/cpu/signal/fft/Shift.h"
+#include "noa/cpu/fft/Transforms.hpp"
+#include "noa/cpu/signal/fft/Correlate.hpp"
+#include "noa/cpu/signal/fft/PhaseShift.hpp"
+#include "noa/cpu/utils/EwiseBinary.hpp"
 
 namespace noa::cpu::signal::fft {
     template<Remap REMAP, typename Real, typename>
-    void xmap(const shared_t<Complex<Real>[]>& lhs, dim4_t lhs_strides,
-              const shared_t<Complex<Real>[]>& rhs, dim4_t rhs_strides,
-              const shared_t<Real[]>& output, dim4_t output_strides,
-              dim4_t shape, CorrelationMode correlation_mode, Norm norm, Stream& stream,
-              const shared_t<Complex<Real>[]>& tmp, dim4_t tmp_strides) {
+    void xmap(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+              Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+              Real* output, const Strides4<i64>& output_strides,
+              const Shape4<i64>& shape, CorrelationMode correlation_mode, Norm norm,
+              Complex<Real>* tmp, Strides4<i64> tmp_strides, i64 threads) {
+        if (!tmp) {
+            tmp = rhs;
+            tmp_strides = rhs_strides;
+        }
+        NOA_ASSERT(noa::all(tmp_strides > 0));
 
-        using complex_t = Complex<Real>;
-        using real_t = Real;
-        const shared_t<complex_t[]>& buffer = tmp ? tmp : rhs;
-        const dim4_t& buffer_strides = tmp ? tmp_strides : rhs_strides;
-        NOA_ASSERT(all(buffer_strides > 0));
+        constexpr auto EPSILON = static_cast<Real>(1e-13);
+        constexpr bool IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        const auto shape_fft = IS_HALF ? shape.fft() : shape;
 
-        constexpr auto EPSILON = static_cast<real_t>(1e-13);
+        // TODO Identify auto-correlation case?
         switch (correlation_mode) {
-            case noa::signal::CONVENTIONAL_CORRELATION:
-                cpu::math::ewise(lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides,
-                                 shape.fft(), noa::math::multiply_conj_t{}, stream);
+            case CorrelationMode::CONVENTIONAL:
+                noa::cpu::utils::ewise_binary(
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides,
+                        shape.fft(), noa::multiply_conj_t{}, threads);
                 break;
-            case noa::signal::PHASE_CORRELATION:
-                cpu::math::ewise(
-                        lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
-                        [](complex_t l, complex_t r) {
-                            const complex_t product = l * noa::math::conj(r);
-                            const real_t magnitude = noa::math::abs(product);
+            case CorrelationMode::PHASE:
+                noa::cpu::utils::ewise_binary(
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.fft(),
+                        [](const Complex<Real>& l, const Complex<Real>& r) {
+                            const Complex<Real> product = l * noa::math::conj(r);
+                            const Real magnitude = noa::math::abs(product);
                             return product / (magnitude + EPSILON);
                             // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
                             // for input values close to zero (less than 1e-10). In most cases, this is fine.
-                        }, stream);
+                        }, threads);
                 break;
-            case noa::signal::DOUBLE_PHASE_CORRELATION:
-                cpu::math::ewise(
-                        lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
-                        [](complex_t l, complex_t r) -> complex_t {
-                            const complex_t product = l * noa::math::conj(r);
-                            const complex_t product_sqd = {product.real * product.real, product.imag * product.imag};
-                            const real_t magnitude = noa::math::sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
+            case CorrelationMode::DOUBLE_PHASE:
+                noa::cpu::utils::ewise_binary(
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.fft(),
+                        [](const Complex<Real>& l, const Complex<Real>& r) -> Complex<Real> {
+                            const Complex<Real> product = l * noa::math::conj(r);
+                            const Complex<Real> product_sqd = {product.real * product.real, product.imag * product.imag};
+                            const Real magnitude = noa::math::sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
                             return {(product_sqd.real - product_sqd.imag) / magnitude,
                                     (2 * product.real * product.imag) / magnitude};
-                        }, stream);
+                        }, threads);
                 break;
-            case noa::signal::MUTUAL_CORRELATION:
-                cpu::math::ewise(
-                        lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides, shape.fft(),
-                        [](complex_t l, complex_t r) {
-                            const complex_t product = l * noa::math::conj(r);
-                            const real_t magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));
+            case CorrelationMode::MUTUAL:
+                noa::cpu::utils::ewise_binary(
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape_fft,
+                        [](const Complex<Real>& l, const Complex<Real>& r) {
+                            const Complex<Real> product = l * noa::math::conj(r);
+                            const Real magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));
                             return product / (magnitude_sqrt + EPSILON);
-                        }, stream);
+                        }, threads);
                 break;
         }
 
         if constexpr (REMAP == Remap::H2FC) {
-            const dim3_t shape_3d(shape.get(1));
+            const auto shape_3d = shape.pop_front();
             if (shape_3d.ndim() == 3) {
-                cpu::signal::fft::shift3D<Remap::H2H>(
-                        buffer, buffer_strides, buffer, buffer_strides, shape,
-                        float3_t(shape_3d / 2), 1, stream);
+                noa::cpu::signal::fft::phase_shift_3d<Remap::H2H>(
+                        tmp, tmp_strides, tmp, tmp_strides, shape,
+                        (shape_3d / 2).vec().as<f32>(), 1, threads);
             } else {
-                cpu::signal::fft::shift2D<Remap::H2H>(
-                        buffer, buffer_strides, buffer, buffer_strides, shape,
-                        float2_t{shape_3d[1] / 2, shape_3d[2] / 2}, 1, stream);
+                noa::cpu::signal::fft::phase_shift_2d<Remap::H2H>(
+                        tmp, tmp_strides, tmp, tmp_strides, shape,
+                        (shape_3d.pop_front() / 2).vec().as<f32>(), 1, threads);
             }
         }
 
-        cpu::fft::c2r(buffer, buffer_strides, output, output_strides, shape, cpu::fft::ESTIMATE, norm, stream);
+        noa::cpu::fft::c2r(
+                tmp, tmp_strides, output, output_strides,
+                shape, cpu::fft::ESTIMATE, norm, threads);
     }
 
-    #define INSTANTIATE_XMAP(R, T)              \
-    template void xmap<R, T, void>(             \
-        const shared_t<Complex<T>[]>&, dim4_t,  \
-        const shared_t<Complex<T>[]>&, dim4_t,  \
-        const shared_t<T[]>&, dim4_t, dim4_t,   \
-        CorrelationMode, Norm, Stream&,         \
-        const shared_t<Complex<T>[]>&, dim4_t)
+    #define INSTANTIATE_XMAP(R, T)                      \
+    template void xmap<R, T, void>(                     \
+        const Complex<T>*, const Strides4<i64>&,        \
+        Complex<T>*, const Strides4<i64>&,              \
+        T*, const Strides4<i64>&, const Shape4<i64>&,   \
+        CorrelationMode, Norm, Complex<T>*, Strides4<i64>, i64)
 
-    #define INSTANTIATE_XMAP_ALL(T)     \
-    INSTANTIATE_XMAP(Remap::H2F, T);    \
-    INSTANTIATE_XMAP(Remap::H2FC, T)
+    #define INSTANTIATE_XMAP_ALL(T)         \
+    INSTANTIATE_XMAP(noa::fft::H2F, T);     \
+    INSTANTIATE_XMAP(noa::fft::H2FC, T)
 
-    INSTANTIATE_XMAP_ALL(float);
-    INSTANTIATE_XMAP_ALL(double);
+    INSTANTIATE_XMAP_ALL(f32);
+    INSTANTIATE_XMAP_ALL(f64);
 }
 
 namespace noa::cpu::signal::fft::details {
+    // TODO We could use the same approach as in CUDA, with 3 separate reductions,
+    //      but this approach is likely to be more efficient here. Benchmark?
     template<typename Real>
-    Real xcorr(const Complex<Real>* lhs, dim3_t lhs_strides,
-               const Complex<Real>* rhs, dim3_t rhs_strides,
-               dim3_t shape, dim_t threads) {
-        double sum = 0, sum_lhs = 0, sum_rhs = 0;
-        double err = 0, err_lhs = 0, err_rhs = 0;
+    Real xcorr(const Complex<Real>* lhs, const Strides3<i64>& lhs_strides,
+               const Complex<Real>* rhs, const Strides3<i64>& rhs_strides,
+               const Shape3<i64>& shape, i64 threads) {
 
-        auto abs_sqd = noa::math::abs_squared_t{};
-        auto accurate_sum = [](double value, double& s, double& e) {
+        auto accurate_sum = [](f64 value, f64& s, f64& e) {
             auto t = s + value;
             e += noa::math::abs(s) >= noa::math::abs(value) ? (s - t) + value : (value - t) + s;
             s = t;
         };
 
-        #pragma omp parallel for collapse(3) num_threads(threads) if(shape.elements() > 1048576)    \
+        const auto lhs_accessor = Accessor<const Complex<Real>, 3, i64>(lhs, lhs_strides);
+        const auto rhs_accessor = Accessor<const Complex<Real>, 3, i64>(rhs, rhs_strides);
+
+        f64 sum = 0, sum_lhs = 0, sum_rhs = 0;
+        f64 err = 0, err_lhs = 0, err_rhs = 0;
+
+        #pragma omp parallel for collapse(3) num_threads(threads) if(shape.elements() > 1'048'576)  \
         reduction(+:sum, sum_lhs, sum_rhs, err, err_lhs, err_rhs) default(none)                     \
-        shared(lhs, lhs_strides, rhs, rhs_strides, shape, abs_sqd, accurate_sum)
+        shared(lhs_accessor, rhs_accessor, shape, accurate_sum)
 
-        for (dim_t j = 0; j < shape[0]; ++j) {
-            for (dim_t k = 0; k < shape[1]; ++k) {
-                for (dim_t l = 0; l < shape[2]; ++l) {
+        for (i64 j = 0; j < shape[0]; ++j) {
+            for (i64 k = 0; k < shape[1]; ++k) {
+                for (i64 l = 0; l < shape[2]; ++l) {
 
-                    const auto lhs_value = static_cast<cdouble_t>(lhs[indexing::at(j, k, l, lhs_strides)]);
-                    const auto rhs_value = static_cast<cdouble_t>(rhs[indexing::at(j, k, l, rhs_strides)]);
+                    const auto lhs_value = static_cast<c64>(lhs_accessor(j, k, l));
+                    const auto rhs_value = static_cast<c64>(rhs_accessor(j, k, l));
 
-                    accurate_sum(abs_sqd(lhs_value), sum_lhs, err_lhs);
-                    accurate_sum(abs_sqd(rhs_value), sum_rhs, err_rhs);
+                    accurate_sum(noa::abs_squared_t{}(lhs_value), sum_lhs, err_lhs);
+                    accurate_sum(noa::abs_squared_t{}(rhs_value), sum_rhs, err_rhs);
                     accurate_sum(noa::math::real(lhs_value * noa::math::conj(rhs_value)), sum, err);
                 }
             }
         }
 
-        const double numerator = sum + err;
-        const double denominator = noa::math::sqrt((sum_lhs + err_lhs) * (sum_rhs + err_rhs));
+        const f64 numerator = sum + err;
+        const f64 denominator = noa::math::sqrt((sum_lhs + err_lhs) * (sum_rhs + err_rhs));
         return static_cast<Real>(numerator / denominator);
     }
 
-    #define INSTANTIATE_XCORR(T) \
-    template T xcorr<T>(const Complex<T>*, dim3_t, const Complex<T>*, dim3_t, dim3_t, dim_t)
+    #define INSTANTIATE_XCORR(T)                    \
+    template T xcorr<T>(                            \
+        const Complex<T>*, const Strides3<i64>&,    \
+        const Complex<T>*, const Strides3<i64>&,    \
+        const Shape3<i64>&, i64)
 
-    INSTANTIATE_XCORR(float);
-    INSTANTIATE_XCORR(double);
+    INSTANTIATE_XCORR(f32);
+    INSTANTIATE_XCORR(f64);
 }

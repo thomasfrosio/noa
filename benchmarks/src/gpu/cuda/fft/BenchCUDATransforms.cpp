@@ -1,10 +1,10 @@
 #include <benchmark/benchmark.h>
 
-#include <noa/gpu/cuda/Event.h>
-#include <noa/gpu/cuda/Stream.h>
-#include <noa/gpu/cuda/math/Random.h>
-#include <noa/gpu/cuda/memory/PtrManaged.h>
-#include <noa/gpu/cuda/fft/Transforms.h>
+#include <noa/gpu/cuda/Event.hpp>
+#include <noa/gpu/cuda/Stream.hpp>
+#include <noa/gpu/cuda/math/Random.hpp>
+#include <noa/gpu/cuda/memory/PtrManaged.hpp>
+#include <noa/gpu/cuda/fft/Transforms.hpp>
 
 using namespace ::noa;
 

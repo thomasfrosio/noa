@@ -1,29 +1,41 @@
-#include <noa/unified/math/Random.h>
-#include <noa/unified/memory/Cast.h>
+#include <noa/unified/math/Random.hpp>
+#include <noa/unified/memory/Cast.hpp>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", int32_t, float, double) {
-    const size4_t shape = test::getRandomShapeBatched(3);
+TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
+    const bool pad = GENERATE(false, true);
+    const auto subregion_shape = test::get_random_shape4_batched(3);
+    auto shape = subregion_shape;
+    if (pad) {
+        shape[1] += 10;
+        shape[2] += 11;
+        shape[3] += 12;
+    }
 
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        StreamGuard stream(device);
-        ArrayOption options(device, Allocator::MANAGED);
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
 
-        Array data0 = math::random<int32_t>(math::uniform_t{}, shape, -50, 50, options);
+        auto results = Array<TestType>(shape, options);
+        results = results.subregion(
+                noa::indexing::ellipsis_t{},
+                noa::indexing::slice_t{0, subregion_shape[1]},
+                noa::indexing::slice_t{0, subregion_shape[2]},
+                noa::indexing::slice_t{0, subregion_shape[3]});
 
-        Array<TestType> result(shape, options);
-        memory::cast(data0, result);
+        const Array data0 = math::random<i32>(math::uniform_t{}, results.shape(), -50, 50, options);
+        memory::cast(data0, results);
 
-        Array<int32_t> data1(shape, options);
-        memory::cast(result, data1);
+        const Array<i32> data1(results.shape(), options);
+        memory::cast(results, data1);
 
         REQUIRE(test::Matcher(test::MATCH_ABS, data0, data1, 1e-7));
     }

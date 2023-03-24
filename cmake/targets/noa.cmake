@@ -5,6 +5,7 @@ message(STATUS "-> noa::noa: configuring public target...")
 # Linking options and libraries
 # ---------------------------------------------------------------------------------------
 # Common:
+include(${PROJECT_SOURCE_DIR}/cmake/ext/fmt.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/ext/spdlog.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/ext/half.cmake)
 
@@ -14,6 +15,7 @@ add_library(noa_private_libraries INTERFACE)
 
 target_link_libraries(noa_public_libraries
         INTERFACE
+        fmt::fmt
         spdlog::spdlog
         half::half
         )
@@ -29,7 +31,8 @@ if (NOA_ENABLE_CPU)
 
     if (NOA_CPU_OPENMP)
         find_package(OpenMP 4.5 REQUIRED)
-        target_link_libraries(noa_private_libraries INTERFACE OpenMP::OpenMP_CXX)
+        # OpenMP pragmas are included in the source files of the user, so use public visibility.
+        target_link_libraries(noa_public_libraries INTERFACE OpenMP::OpenMP_CXX)
     endif ()
 
     include(${PROJECT_SOURCE_DIR}/cmake/ext/fftw.cmake)
@@ -169,8 +172,8 @@ target_include_directories(noa
         )
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/utils/Version.h.in"
-        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
+        "${PROJECT_SOURCE_DIR}/cmake/utils/Version.hpp.in"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
         @ONLY)
 
 # Since it is static library only, the SOVERSION shouldn't matter.
@@ -211,7 +214,7 @@ endforeach ()
 
 # Generated headers:
 install(FILES
-        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.h"
+        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 
 message(STATUS "-> noa::noa: configuring public target... done")

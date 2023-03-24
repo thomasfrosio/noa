@@ -1,9 +1,9 @@
 #include <benchmark/benchmark.h>
 
-#include <noa/cpu/Stream.h>
-#include <noa/cpu/math/Random.h>
-#include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/signal/Convolve.h>
+#include <noa/cpu/Stream.hpp>
+#include <noa/cpu/math/Random.hpp>
+#include <noa/cpu/memory/PtrHost.hpp>
+#include <noa/cpu/signal/Convolve.hpp>
 
 using namespace ::noa;
 

@@ -1,85 +1,185 @@
-#include <noa/unified/Array.h>
-#include <noa/unified/memory/Factory.h>
-#include <noa/unified/io/ImageFile.h>
+#include <noa/unified/Array.hpp>
+#include <noa/unified/memory/Factory.hpp>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
 
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("unified::memory::arange()", "[noa][unified]",
-                   int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    Device::Type type = GENERATE(Device::CPU, Device::GPU);
-    if (!Device::any(type))
-        return;
 
-    const TestType start = 1;
-    const TestType step = 2;
-    const size4_t shape = test::getRandomShapeBatched(3);
-    const size_t elements = shape.elements();
+TEMPLATE_TEST_CASE("unified::memory::arange(), cpu", "[noa][unified]",
+                   i32, i64, u32, u64, f32, f64, c32, c64) {
+    {
+        const i64 elements = 100;
+        const Array<TestType> results(elements);
+        const Array<TestType> expected(elements);
 
-    Array<TestType> results = memory::arange(shape, start, step, {Device(type), Allocator::MANAGED});
+        noa::memory::arange(results, TestType(0), TestType(1));
+        const auto expected_1d = expected.template accessor_contiguous_1d();
+        for (i64 i = 0; i < elements; ++i)
+            expected_1d[i] = static_cast<TestType>(i);
 
-    cpu::memory::PtrHost<TestType> expected(elements);
-    cpu::memory::arange(expected.get(), elements, start, step);
+        REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-10f));
+    }
 
-    results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.get(), elements, 1e-5));
+    {
+        const i64 elements = 55;
+        const Array<TestType> results(elements);
+        const Array<TestType> expected(elements);
+
+        noa::memory::arange(results, TestType(3), TestType(5));
+        const auto expected_1d = expected.template accessor_contiguous_1d();
+        for (i64 i = 0; i < elements; ++i)
+            expected_1d[i] = TestType(3) + static_cast<TestType>(i) * TestType(5);
+
+        REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-10f));
+    }
+
+    {
+        const auto shape = test::get_random_shape4_batched(3);
+        const i64 elements = shape.elements();
+        const Array<TestType> results(shape);
+        const Array<TestType> expected(shape);
+
+        noa::memory::arange(results, TestType(3), TestType(5));
+        const auto expected_1d = expected.template accessor_contiguous_1d();
+        for (i64 i = 0; i < elements; ++i)
+            expected_1d[i] = TestType(3) + static_cast<TestType>(i) * TestType(5);
+
+        REQUIRE(test::Matcher(test::MATCH_ABS, results, expected, 1e-10f));
+    }
 }
 
 TEST_CASE("unified::memory::linspace()", "[noa][unified]") {
-    Device::Type type = GENERATE(Device::CPU, Device::GPU);
-    if (!Device::any(type))
-        return;
+    std::vector<Device> devices = {Device{}};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
 
-    const bool endpoint = GENERATE(true, false);
-    const double start = test::Randomizer<double>(0, 5).get();
-    const double stop = test::Randomizer<double>(5, 50).get();
-    const size4_t shape = test::getRandomShapeBatched(3);
-    const size_t elements = shape.elements();
+    for(const auto& device: devices) {
+        const StreamGuard guard(device, StreamMode::DEFAULT);
+        const ArrayOption options(device, Allocator::MANAGED);
 
-    Array<double> results = memory::linspace(shape, start, stop, endpoint, {Device(type), Allocator::MANAGED});
+        {
+            const i64 elements = 5;
+            const auto results = noa::memory::linspace(elements, 0., 5., false, options);
+            std::array<double, 5> expected = {0, 1, 2, 3, 4};
+            REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
+        }
 
-    cpu::memory::PtrHost<double> expected(elements);
-    cpu::memory::linspace(expected.get(), elements, start, stop, endpoint);
+        {
+            const i64 elements = 5;
+            const Array<double> results(elements, options);
+            const double step = noa::memory::linspace(results.view(), 0., 5.);
+            std::array<double, 5> expected = {0., 1.25, 2.5, 3.75, 5.};
+            REQUIRE(step == 1.25);
+            REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
+        }
 
-    results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results.get(), expected.get(), elements, 1e-6));
+        {
+            const i64 elements = 8;
+            const Array<double> results(elements);
+            const double step = noa::memory::linspace(results, 0., 1.);
+            std::array<double, 8> expected = {0., 0.14285714, 0.28571429, 0.42857143,
+                                              0.57142857, 0.71428571, 0.85714286, 1.};
+            REQUIRE_THAT(step, Catch::WithinAbs(0.14285714285714285, 1e-9));
+            REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
+        }
+
+        {
+            const i64 elements = 8;
+            const Array<double> results(elements, options);
+            const double step = noa::memory::linspace(results, 0., 1., false);
+            std::array<double, 8> expected = {0., 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875};
+            REQUIRE(step == 0.125);
+            REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
+        }
+
+        {
+            const i64 elements = 9;
+            const Array<double> results(elements, options);
+            const double step = noa::memory::linspace(results, 3., 40.);
+            std::array<double, 9> expected = {3., 7.625, 12.25, 16.875, 21.5, 26.125, 30.75, 35.375, 40.};
+            REQUIRE(step == 4.625);
+            REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
+        }
+
+        {
+            const i64 elements = 1;
+            const Array<double> results(elements, options);
+            const double step = noa::memory::linspace(results, 0., 1., false);
+            std::array<double, 1> expected = {0.};
+            REQUIRE(step == 1.);
+            REQUIRE(test::Matcher(test::MATCH_ABS, results.eval().get(), expected.data(), elements, 1e-7));
+        }
+    }
 }
 
-TEST_CASE("unified::memory::iota()", "[.]") {
-    Device::Type type = GENERATE(Device::CPU, Device::GPU);
-    if (!Device::any(type))
+TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
+                   i32, i64, u32, u64, f32, f64, c32, c64) {
+    const bool pad = GENERATE(false, true);
+    const DeviceType type = GENERATE(DeviceType::CPU, DeviceType::GPU);
+    INFO(pad);
+
+    if (!Device::is_any(type))
         return;
 
-    const size4_t shape = test::getRandomShapeBatched(3);
-    size4_t tile = shape;
-    tile[3] = 1;
+    const auto subregion_shape = test::get_random_shape4_batched(3);
+    auto shape = subregion_shape;
+    if (pad) {
+        shape[1] += 10;
+        shape[2] += 11;
+        shape[3] += 12;
+    }
 
-    Array<float> results = memory::iota<float>(shape, tile, {Device(type), Allocator::MANAGED});
+    const auto options = ArrayOption(Device(type), Allocator::MANAGED);
+    INFO(options.device());
 
-    io::save(results, test::NOA_DATA_PATH / "test_iota.mrc");
-}
+    auto results = Array<TestType>(shape, options);
+    results = results.subregion(
+            noa::indexing::ellipsis_t{},
+            noa::indexing::slice_t{0, subregion_shape[1]},
+            noa::indexing::slice_t{0, subregion_shape[2]},
+            noa::indexing::slice_t{0, subregion_shape[3]});
 
-TEMPLATE_TEST_CASE("unified::memory::{zeros|ones|fill}()", "[noa][unified]",
-                   int32_t, uint32_t, int64_t, uint64_t, float, double, cfloat_t, cdouble_t) {
-    Device::Type type = GENERATE(Device::CPU, Device::GPU);
-    if (!Device::any(type))
-        return;
+    AND_THEN("arange") {
+        const TestType start = test::Randomizer<TestType>(0, 3).get();
+        const TestType step = test::Randomizer<TestType>(1, 2).get();
+        noa::memory::arange(results, start, step);
 
-    const size4_t shape = test::getRandomShapeBatched(3);
-    const ArrayOption options{Device(type), Allocator::MANAGED};
-    Array<TestType> results;
+        const auto expected = Array<TestType>(results.shape());
+        cpu::memory::arange(expected.get(), expected.elements(), start, step);
 
-    results = memory::zeros<TestType>(shape, options);
-    results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results, TestType{0}, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results, expected, 1e-5));
+    }
 
-    results = memory::ones<TestType>(shape, options);
-    results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results, TestType{1}, 1e-6));
+    AND_THEN("linspace") {
+        if constexpr (noa::traits::is_real_v<TestType>) {
+            const bool endpoint = GENERATE(true, false);
+            const TestType start = test::Randomizer<TestType>(-5, 5).get();
+            const TestType stop = test::Randomizer<TestType>(10, 50).get();
 
-    results = memory::fill(shape, TestType{5}, options);
-    results.eval();
-    REQUIRE(test::Matcher(test::MATCH_ABS, results, TestType{5}, 1e-6));
+            noa::memory::linspace(results, start, stop, endpoint);
+
+            const auto expected = Array<TestType>(results.shape());
+            cpu::memory::linspace(expected.get(), expected.elements(), start, stop, endpoint);
+
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results, expected, 1e-6));
+        }
+    }
+
+    AND_THEN("zeros/ones/fill") {
+        const auto value = test::Randomizer<TestType>(0, 400).get();
+
+        noa::memory::fill(results, value);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, results, value, 1e-6));
+
+        const auto zeros = memory::zeros<TestType>(shape, options);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, zeros, TestType{0}, 1e-6));
+
+        const auto ones = memory::ones<TestType>(shape, options);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, ones, TestType{1}, 1e-6));
+
+        const auto fill = memory::fill(shape, value, options);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, fill, value, 1e-6));
+    }
 }

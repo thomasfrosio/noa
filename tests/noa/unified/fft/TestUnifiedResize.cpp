@@ -1,20 +1,66 @@
-#include <noa/IO.h>
-#include <noa/FFT.h>
-#include <noa/Math.h>
+#include <noa/unified/fft/Resize.hpp>
+#include <noa/unified/fft/Remap.hpp>
+#include <noa/unified/math/Random.hpp>
+#include <noa/unified/memory/Factory.hpp>
+#include <noa/unified/io/ImageFile.hpp>
 
 #include <catch2/catch.hpp>
+#include "Assets.h"
 #include "Helpers.h"
 using namespace ::noa;
 
-TEMPLATE_TEST_CASE("unified::fft::resize remap", "[noa][unified]", float, double, cfloat_t, cdouble_t) {
+TEST_CASE("unified::fft::resize()", "[asset][noa][unified]") {
+    const fs::path path = test::NOA_DATA_PATH / "fft";
+    YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["resize"];
+
+    constexpr bool GENERATE_ASSETS = false;
+    if constexpr (GENERATE_ASSETS) {
+        for (const YAML::Node& node : tests["input"]) {
+            const auto shape = node["shape"].as<Shape4<i64>>();
+            const auto path_input = path / node["path"].as<Path>();
+            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.fft(), -128., 128.);
+            noa::io::save(input, path_input);
+        }
+    }
+
     std::vector<Device> devices{Device("cpu")};
-    if (Device::any(Device::GPU))
+    if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
-    const dim4_t input_shape = test::getRandomShapeBatched(4);
-    dim4_t output_shape = input_shape;
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
 
-    test::Randomizer<dim_t> randomizer(0, 20);
+        for (size_t i = 0; i < tests["tests"].size(); ++i) {
+            const YAML::Node& test = tests["tests"][i];
+            const auto filename_input = path / test["input"].as<Path>();
+            const auto filename_expected = path / test["expected"].as<Path>();
+            const auto shape_input = test["shape_input"].as<Shape4<i64>>();
+            const auto shape_expected = test["shape_expected"].as<Shape4<i64>>();
+
+            const auto input = noa::io::load_data<f32>(filename_input, false, options);
+            const auto output = noa::memory::empty<f32>(shape_expected.fft(), options);
+            noa::fft::resize<fft::H2H>(input, shape_input, output, shape_expected);
+
+            if constexpr (GENERATE_ASSETS) {
+                noa::io::save(output, filename_expected);
+            } else {
+                const auto expected = noa::io::load_data<f32>(filename_expected, false, options);
+                REQUIRE(test::Matcher(test::MATCH_ABS, expected, output, 1e-10));
+            }
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE("unified::fft::resize and remap", "[noa][unified]", f32, f64, c32, c64) {
+    std::vector<Device> devices{Device("cpu")};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    const auto input_shape = test::get_random_shape4_batched(4);
+    auto output_shape = input_shape;
+
+    test::Randomizer<i64> randomizer(0, 20);
     output_shape[1] += randomizer.get();
     output_shape[2] += randomizer.get();
     output_shape[3] += randomizer.get();
@@ -23,8 +69,8 @@ TEMPLATE_TEST_CASE("unified::fft::resize remap", "[noa][unified]", float, double
     INFO(output_shape);
 
     for (auto& device: devices) {
-        StreamGuard stream(device);
-        ArrayOption options(device, Allocator::MANAGED);
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
         Array a0 = math::random<TestType>(math::uniform_t{}, input_shape.fft(), -50, 50, options);
@@ -32,65 +78,13 @@ TEMPLATE_TEST_CASE("unified::fft::resize remap", "[noa][unified]", float, double
         Array a2 = fft::remap(fft::H2HC, a1, output_shape);
         Array a3 = fft::resize<fft::HC2HC>(a2, output_shape, input_shape);
         Array a4 = fft::remap(fft::HC2H, a3, input_shape);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, a0, a4, 5e-3));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, a0, a4, 5e-6));
 
         a0 = math::random<TestType>(math::uniform_t{}, input_shape, -50, 50, options);
         a1 = fft::resize<fft::F2F>(a0, input_shape, output_shape);
         a2 = fft::remap(fft::F2FC, a1, output_shape);
         a3 = fft::resize<fft::FC2FC>(a2, output_shape, input_shape);
         a4 = fft::remap(fft::FC2F, a3, input_shape);
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, a0, a4, 5e-3));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, a0, a4, 5e-6));
     }
-}
-
-TEST_CASE("unified::fft::resize, crop", "[.]") {
-    using real_t = float;
-    using complex_t = Complex<real_t>;
-
-    const Device cpu{};
-    StreamGuard stream(cpu);
-    ArrayOption options{cpu, Allocator::DEFAULT};
-
-    Array src = io::load<real_t>(test::NOA_DATA_PATH / "signal" / "fft" / "tilt1_slice21.mrc", false, options);
-    Array src_fft = fft::r2c(src.release());
-
-    const size_t reduce_factor = 6;
-    const size4_t shape = src.shape();
-    const size4_t shape_bin{shape[0], shape[1], shape[2] / reduce_factor, shape[3] / reduce_factor};
-
-    Array<complex_t> dst_fft(shape_bin.fft(), options);
-    fft::resize<fft::H2H>(src_fft.release(), shape, dst_fft, shape_bin);
-
-    Array dst = fft::c2r(dst_fft.release(), shape_bin);
-    io::save(dst, test::NOA_DATA_PATH / "signal" / "fft" / "tilt1_slice21_cropped2.mrc");
-}
-
-TEST_CASE("unified::fft::resize, crop entire stack", "[.]") {
-    using real_t = float;
-    using complex_t = Complex<real_t>;
-
-    const Device cpu{};
-    StreamGuard stream(cpu);
-    ArrayOption options{cpu, Allocator::DEFAULT};
-
-    const size_t reduce_factor = 6;
-
-    io::ImageFile file(test::NOA_DATA_PATH / "tilt1.mrc", io::READ);
-    const size4_t shape = file.shape();
-    float3_t pixel_size = file.pixelSize();
-    pixel_size[1] *= reduce_factor;
-    pixel_size[2] *= reduce_factor;
-
-    Array src = file.read<real_t>(options);
-    Array src_fft = fft::r2c(src.release());
-
-    const size4_t shape_binned{shape[0], shape[1], shape[2] / reduce_factor, shape[3] / reduce_factor};
-    Array<complex_t> dst_fft{shape_binned.fft(), options};
-    fft::resize<fft::H2H>(src_fft.release(), shape, dst_fft, shape_binned);
-
-    Array dst = fft::c2r(dst_fft.release(), shape_binned);
-
-    file.open(test::NOA_DATA_PATH / "tilt1_cropped.mrc", io::WRITE);
-    file.pixelSize(pixel_size);
-    file.write(dst);
 }

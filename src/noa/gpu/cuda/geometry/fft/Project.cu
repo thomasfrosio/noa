@@ -1,621 +1,537 @@
-#include "noa/common/geometry/Interpolator.h"
-#include "noa/common/geometry/InterpolatorValue.h"
-#include "noa/common/geometry/details/FourierProjections.h"
+#include "noa/core/geometry/Interpolator.hpp"
+#include "noa/core/geometry/InterpolatorValue.hpp"
+#include "noa/algorithms/geometry/ProjectionsFFT.hpp"
 
-#include "noa/gpu/cuda/Exception.h"
-#include "noa/gpu/cuda/memory/PtrArray.h"
-#include "noa/gpu/cuda/memory/PtrTexture.h"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/memory/PtrArray.hpp"
+#include "noa/gpu/cuda/memory/PtrTexture.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
-#include "noa/gpu/cuda/utils/Pointers.h"
-#include "noa/gpu/cuda/geometry/Interpolator.h"
-#include "noa/gpu/cuda/geometry/fft/Project.h"
+#include "noa/gpu/cuda/utils/Pointers.hpp"
+#include "noa/gpu/cuda/geometry/Interpolator.hpp"
+#include "noa/gpu/cuda/geometry/fft/Project.hpp"
 
 namespace {
     using namespace ::noa;
 
-    template<typename T>
-    using matrixOrRawConstPtr_t = std::conditional_t<
-            traits::is_floatXX_v<T>,
-            traits::remove_ref_cv_t<T>,
-            const traits::element_type_t<T>*>;
-
-    template<bool ALLOW_NULL, typename MatrixWrapper>
-    auto matrixOrRawConstPtr_(MatrixWrapper matrix, cuda::Device device) {
-        using output_t = matrixOrRawConstPtr_t<MatrixWrapper>;
-        if constexpr (traits::is_floatXX_v<MatrixWrapper>) {
-            return output_t(matrix);
-        } else {
-            NOA_ASSERT((ALLOW_NULL && !matrix) || cuda::utils::devicePointer(matrix.get(), device));
-            return static_cast<output_t>(matrix.get());
-        }
-        (void) device;
-    }
-
     template<fft::Remap REMAP, typename Interpolator, typename Value, typename Scale, typename Rotate>
-    void insert3D_(Interpolator slice_interpolator, dim4_t slice_shape,
-                   Value* grid, dim4_t grid_strides, dim4_t grid_shape,
-                   const Scale& fwd_scaling_matrices,
-                   const Rotate& inv_rotation_matrices,
-                   float cutoff, dim4_t target_shape, float2_t ews_radius,
-                   float slice_z_radius, cuda::Stream& stream) {
+    void insert_interpolate_3d_(
+            Interpolator slice_interpolator, const Shape4<i64>& slice_shape,
+            Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
+            f32 slice_z_radius, cuda::Stream& stream) {
 
-        const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t{grid_strides[1], grid_strides[2], grid_strides[3]});
-        const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid, grid_strides_3d);
-        const auto iwise_shape = safe_cast<int3_t>(dim3_t{grid_shape.get(1)}).fft();
+        const auto i_grid_shape = grid_shape.as_safe<i32>();
+        const auto grid_strides_3d = grid_strides.filter(1, 2, 3).as_safe<u32>();
+        const auto grid_accessor = AccessorRestrict<Value, 3, u32>(grid, grid_strides_3d);
+        const auto iwise_shape = i_grid_shape.pop_front().fft();
 
-        const auto apply_ews = any(ews_radius != 0);
+        const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = fwd_scaling_matrices != Scale{};
 
-        const auto fwd_scaling_matrices_ = matrixOrRawConstPtr_<false>(fwd_scaling_matrices, stream.device());
-        const auto inv_rotation_matrices_ = matrixOrRawConstPtr_<true>(inv_rotation_matrices, stream.device());
-
-        using namespace noa::geometry::fft::details;
         if (apply_ews || apply_scale) {
-            const auto functor = fourierInsertionExplicitThickness<REMAP, int32_t>(
-                    slice_interpolator, slice_shape, grid_accessor, grid_shape,
-                    fwd_scaling_matrices_, inv_rotation_matrices_,
-                    cutoff, target_shape, ews_radius, slice_z_radius);
-            cuda::utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+            const auto kernel = noa::algorithm::geometry::fourier_insertion_interpolate<REMAP, i32>(
+                    slice_interpolator, slice_shape.as_safe<i32>(), grid_accessor, i_grid_shape,
+                    fwd_scaling_matrices, inv_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), ews_radius, slice_z_radius);
+            return cuda::utils::iwise_3d("geometry::fft::insert_interpolate_3d", iwise_shape, kernel, stream);
         } else {
-            const auto functor = fourierInsertionExplicitThickness<REMAP, int32_t>(
-                    slice_interpolator, slice_shape, grid_accessor, grid_shape,
-                    empty_t{}, inv_rotation_matrices_,
-                    cutoff, target_shape, empty_t{}, slice_z_radius);
-            cuda::utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+            const auto kernel = noa::algorithm::geometry::fourier_insertion_interpolate<REMAP, i32>(
+                    slice_interpolator, slice_shape.as_safe<i32>(), grid_accessor, i_grid_shape,
+                    Empty{}, inv_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), Empty{}, slice_z_radius);
+            return cuda::utils::iwise_3d("geometry::fft::insert_interpolate_3d", iwise_shape, kernel, stream);
         }
-
-        if constexpr (!traits::is_floatXX_v<Scale>)
-            if (fwd_scaling_matrices)
-                stream.attach(fwd_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<Rotate>)
-            stream.attach(inv_rotation_matrices);
     }
 
     template<fft::Remap REMAP, typename Value, typename Interpolator, typename Scale, typename Rotate>
-    void extract3D_(Interpolator grid, dim4_t grid_shape,
-                    Value* slice, dim4_t slice_strides, dim4_t slice_shape,
-                    const Scale& inv_scaling_matrices,
-                    const Rotate& fwd_rotation_matrices,
-                    float cutoff, dim4_t target_shape, float2_t ews_radius, cuda::Stream& stream) {
+    void extract_3d_(
+            Interpolator grid, const Shape4<i64>& grid_shape,
+            Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, cuda::Stream& stream) {
 
-        const auto iwise_shape = safe_cast<int3_t>(dim3_t{slice_shape[0], slice_shape[2], slice_shape[3]}).fft();
-        const auto slice_strides_3d = safe_cast<uint3_t>(dim3_t{slice_strides[0], slice_strides[2], slice_strides[3]});
-        const auto slice_accessor = AccessorRestrict<Value, 3, uint32_t>(slice, slice_strides_3d);
+        const auto i_slice_shape = slice_shape.as_safe<i32>();
+        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).fft();
+        const auto slice_strides_3d = slice_strides.filter(0, 2, 3).as_safe<u32>();
+        const auto slice_accessor = AccessorRestrict<Value, 3, u32>(slice, slice_strides_3d);
 
-        const auto apply_ews = any(ews_radius != 0);
+        const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
 
-        const auto inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(inv_scaling_matrices, stream.device());
-        const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(fwd_rotation_matrices, stream.device());
-
-        using namespace noa::geometry::fft::details;
         if (apply_ews || apply_scale) {
-            const auto functor = fourierExtraction<REMAP, int32_t>(
-                    grid, grid_shape, slice_accessor, slice_shape,
-                    inv_scaling_matrices_, fwd_rotation_matrices_,
-                    cutoff, target_shape, ews_radius);
-            cuda::utils::iwise3D("geometry::fft::extract3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_extraction<REMAP>(
+                    grid, grid_shape.as_safe<i32>(), slice_accessor, i_slice_shape,
+                    inv_scaling_matrices, fwd_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), ews_radius);
+            cuda::utils::iwise_3d("geometry::fft::extract_3d", iwise_shape, functor, stream);
         } else {
-            const auto functor = fourierExtraction<REMAP, int32_t>(
-                    grid, grid_shape, slice_accessor, slice_shape,
-                    empty_t{}, fwd_rotation_matrices_,
-                    cutoff, target_shape, empty_t{});
-            cuda::utils::iwise3D("geometry::fft::extract3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_extraction<REMAP>(
+                    grid, grid_shape.as_safe<i32>(), slice_accessor, i_slice_shape,
+                    Empty{}, fwd_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), Empty{});
+            cuda::utils::iwise_3d("geometry::fft::extract_3d", iwise_shape, functor, stream);
         }
-        if constexpr (!traits::is_floatXX_v<Scale>)
-            if (inv_scaling_matrices)
-                stream.attach(inv_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<Rotate>)
-            stream.attach(fwd_rotation_matrices);
     }
 
     template<fft::Remap REMAP, typename Interpolator, typename Value,
              typename Scale0, typename Scale1, typename Rotate0, typename Rotate1>
-    void extract3D_(Interpolator input_slice_interpolator, dim4_t input_slice_shape,
-                    Value* output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                    const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
-                    const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-                    float cutoff, float2_t ews_radius, float slice_z_radius, cuda::Stream& stream) {
+    void insert_interpolate_and_extract_3d_(
+            Interpolator input_slice_interpolator, const Shape4<i64>& input_slice_shape,
+            Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
+            const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
+            const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, cuda::Stream& stream) {
 
-        const auto output_slice_strides_2d = safe_cast<uint3_t>(
-                dim3_t{output_slice_strides[0], output_slice_strides[2], output_slice_strides[3]});
-        const auto output_slice_accessor = AccessorRestrict<Value, 3, uint32_t>(output_slice, output_slice_strides_2d);
-        const auto iwise_shape = safe_cast<int3_t>(
-                dim3_t{output_slice_shape[0], output_slice_shape[2], output_slice_shape[3]}).fft();
+        const auto output_slice_strides_2d = output_slice_strides.filter(0, 2, 3).as_safe<u32>();
+        const auto output_slice_accessor = AccessorRestrict<Value, 3, u32>(output_slice, output_slice_strides_2d);
+        const auto i_output_slice_shape = output_slice_shape.as_safe<i32>();
+        const auto iwise_shape = i_output_slice_shape.filter(0, 2, 3).fft();
 
-        const auto apply_ews = any(ews_radius != 0);
+        const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = insert_fwd_scaling_matrices != Scale0{};
 
-        // The transformation for the insertion needs to be inverted.
-        const auto device = stream.device();
-        const auto insert_fwd_scaling_matrices_ = matrixOrRawConstPtr_<false>(insert_fwd_scaling_matrices, device);
-        const auto insert_inv_rotation_matrices_ = matrixOrRawConstPtr_<true>(insert_inv_rotation_matrices, device);
-        const auto extract_inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(extract_inv_scaling_matrices, device);
-        const auto extract_fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(extract_fwd_rotation_matrices, device);
-
-        using namespace noa::geometry::fft::details;
         if (apply_ews || apply_scale) {
-            const auto functor = fourierInsertExtraction<REMAP, int32_t>(
-                    input_slice_interpolator, input_slice_shape,
-                    output_slice_accessor, output_slice_shape,
-                    insert_fwd_scaling_matrices_, insert_inv_rotation_matrices_,
-                    extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
+            const auto functor = noa::algorithm::geometry::fourier_insert_and_extraction<REMAP, i32>(
+                    input_slice_interpolator, input_slice_shape.as_safe<i32>(),
+                    output_slice_accessor, i_output_slice_shape,
+                    insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                    extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     cutoff, ews_radius, slice_z_radius);
-            cuda::utils::iwise3D("geometry::fft::extract3D", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d("insert_interpolate_and_extract_3d", iwise_shape, functor, stream);
         } else {
-            const auto functor = fourierInsertExtraction<REMAP, int32_t>(
-                    input_slice_interpolator, input_slice_shape,
-                    output_slice_accessor, output_slice_shape,
-                    empty_t{}, insert_inv_rotation_matrices_,
-                    extract_inv_scaling_matrices_, extract_fwd_rotation_matrices_,
-                    cutoff, empty_t{}, slice_z_radius);
-            cuda::utils::iwise3D("geometry::fft::extract3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_insert_and_extraction<REMAP, i32>(
+                    input_slice_interpolator, input_slice_shape.as_safe<i32>(),
+                    output_slice_accessor, i_output_slice_shape,
+                    Empty{}, insert_inv_rotation_matrices,
+                    extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                    cutoff, Empty{}, slice_z_radius);
+            return noa::cuda::utils::iwise_3d("insert_interpolate_and_extract_3d", iwise_shape, functor, stream);
         }
-
-        if constexpr (!traits::is_floatXX_v<Scale0>)
-            if (insert_fwd_scaling_matrices)
-                stream.attach(insert_fwd_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<Rotate0>)
-            stream.attach(insert_inv_rotation_matrices);
-
-        if constexpr (!traits::is_floatXX_v<Scale1>)
-            if (extract_inv_scaling_matrices)
-                stream.attach(extract_inv_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<Rotate1>)
-            stream.attach(extract_fwd_rotation_matrices);
     }
 }
 
 namespace noa::cuda::geometry::fft {
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                  float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
+    void insert_rasterize_3d(
+            const Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
 
-        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(slice, stream.device());
+        NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
-        const auto slice_strides_3d = safe_cast<uint3_t>(dim3_t{slice_strides[0], slice_strides[2], slice_strides[3]});
-        const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
-        const auto slice_accessor = AccessorRestrict<const Value, 3, uint32_t>(slice.get(), slice_strides_3d);
-        const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid.get(), grid_strides_3d);
-        const auto iwise_shape = safe_cast<int3_t>(dim3_t{slice_shape[0], slice_shape[2], slice_shape[3]}).fft();
+        const auto slice_strides_3d = slice_strides.filter(0, 2, 3).as_safe<u32>();
+        const auto grid_strides_3d = grid_strides.pop_front().as_safe<u32>();
+        const auto slice_accessor = AccessorRestrict<const Value, 3, u32>(slice, slice_strides_3d);
+        const auto grid_accessor = AccessorRestrict<Value, 3, u32>(grid, grid_strides_3d);
+        const auto i_slice_shape = slice_shape.as_safe<i32>();
+        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).fft();
 
-        const auto apply_ews = any(ews_radius != 0);
+        const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
 
-        const auto inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(inv_scaling_matrices, stream.device());
-        const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(fwd_rotation_matrices, stream.device());
-
-        using namespace noa::geometry::fft::details;
         if (apply_ews || apply_scale) {
-            const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
-                    slice_accessor, slice_shape, grid_accessor, grid_shape,
-                    inv_scaling_matrices_, fwd_rotation_matrices_,
-                    cutoff, target_shape, ews_radius);
-            utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_insertion_rasterize<REMAP, i32>(
+                    slice_accessor, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
+                    inv_scaling_matrices, fwd_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), ews_radius);
+            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
         } else {
-            const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
-                    slice_accessor, slice_shape, grid_accessor, grid_shape,
-                    empty_t{}, fwd_rotation_matrices_,
-                    cutoff, target_shape, empty_t{});
-            utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_insertion_rasterize<REMAP, i32>(
+                    slice_accessor, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
+                    Empty{}, fwd_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), Empty{});
+            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
         }
-
-        stream.attach(slice, grid);
-        if constexpr (!traits::is_floatXX_v<Scale>)
-            if (inv_scaling_matrices)
-                stream.attach(inv_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<Rotate>)
-            stream.attach(fwd_rotation_matrices);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void insert3D(Value slice, dim4_t slice_shape,
-                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                  float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
+    void insert_rasterize_3d(
+            Value slice, const Shape4<i64>& slice_shape,
+            Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
 
-        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
+        NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
-        const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
-        const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid.get(), grid_strides_3d);
-        const auto iwise_shape = safe_cast<int3_t>(dim3_t{slice_shape[0], slice_shape[2], slice_shape[3]}).fft();
+        const auto i_slice_shape = slice_shape.as_safe<i32>();
+        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).fft();
+        const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid, grid_strides.pop_front().as_safe<u32>());
 
-        const auto apply_ews = any(ews_radius != 0);
+        const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
 
-        const auto inv_scaling_matrices_ = matrixOrRawConstPtr_<false>(inv_scaling_matrices, stream.device());
-        const auto fwd_rotation_matrices_ = matrixOrRawConstPtr_<true>(fwd_rotation_matrices, stream.device());
-
-        using namespace noa::geometry::fft::details;
         if (apply_ews || apply_scale) {
-            const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
-                    slice, slice_shape, grid_accessor, grid_shape,
-                    inv_scaling_matrices_, fwd_rotation_matrices_,
-                    cutoff, target_shape, ews_radius);
-            utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_insertion_rasterize<REMAP>(
+                    slice, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
+                    inv_scaling_matrices, fwd_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), ews_radius);
+            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
         } else {
-            const auto functor = fourierInsertionByGridding<REMAP, int32_t>(
-                    slice, slice_shape, grid_accessor, grid_shape,
-                    empty_t{}, fwd_rotation_matrices_,
-                    cutoff, target_shape, empty_t{});
-            utils::iwise3D("geometry::fft::insert3D", iwise_shape, functor, stream);
+            const auto functor = noa::algorithm::geometry::fourier_insertion_rasterize<REMAP>(
+                    slice, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
+                    Empty{}, fwd_rotation_matrices,
+                    cutoff, target_shape.as_safe<i32>(), Empty{});
+            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
         }
-
-        stream.attach(grid);
-        if constexpr (!traits::is_floatXX_v<Scale>)
-            if (inv_scaling_matrices)
-                stream.attach(inv_scaling_matrices);
-        if constexpr (!traits::is_floatXX_v<Rotate>)
-            stream.attach(fwd_rotation_matrices);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void insert3D(const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
-                  float cutoff, dim4_t target_shape, float2_t ews_radius,
-                  float slice_z_radius, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
+    void insert_interpolate_3d(
+            const Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
+            f32 slice_z_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(grid, stream.device());
+        NOA_ASSERT_DEVICE_PTR(slice, stream.device());
 
-        const auto slice_shape_2d = safe_cast<int2_t>(dim2_t(slice_shape.get(2)));
-        const auto slice_strides_3d = safe_cast<uint3_t>(dim3_t{slice_strides[0], slice_strides[2], slice_strides[3]});
-        const auto slice_accessor = AccessorRestrict<const Value, 3, uint32_t>(slice.get(), slice_strides_3d);
-        const auto slice_interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
-                slice_accessor, slice_shape_2d.fft(), Value{0});
+        const auto slice_accessor = AccessorRestrict<const Value, 3, u32>(
+                slice, slice_strides.filter(0, 2, 3).as_safe<u32>());
+        const auto slice_interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
+                slice_accessor, slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
 
-        insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
-                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
-                         slice_z_radius, stream);
-        stream.attach(slice, grid);
+        insert_interpolate_3d_<REMAP>(
+                slice_interpolator, slice_shape, grid, grid_strides, grid_shape,
+                fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                slice_z_radius, stream);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void insert3D(Value slice, dim4_t slice_shape,
-                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
-                  float cutoff, dim4_t target_shape, float2_t ews_radius,
-                  float slice_z_radius, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
+    void insert_interpolate_3d(
+            Value slice, const Shape4<i64>& slice_shape,
+            Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
+            f32 slice_z_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
-        const auto slice_shape_2d = safe_cast<int2_t>(dim2_t(slice_shape.get(2)));
-        const auto slice_interpolator = noa::geometry::interpolatorValue2D<BORDER_ZERO, INTERP_LINEAR>(
-                slice, slice_shape_2d.fft(), Value{0});
+        const auto slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
+                slice, slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
 
-        insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
-                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
-                         slice_z_radius, stream);
-        stream.attach(grid);
+        insert_interpolate_3d_<REMAP>(
+                slice_interpolator, slice_shape, grid, grid_strides, grid_shape,
+                fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                slice_z_radius, stream);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void insert3D(const shared_t<cudaArray>& array,
-                  const shared_t<cudaTextureObject_t>& slice, InterpMode slice_interpolation_mode, dim4_t slice_shape,
-                  const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                  const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
-                  float cutoff, dim4_t target_shape, float2_t ews_radius,
-                  float slice_z_radius, Stream& stream) {
+    void insert_interpolate_3d(
+            cudaArray* array, cudaTextureObject_t slice,
+            InterpMode slice_interpolation_mode, const Shape4<i64>& slice_shape,
+            Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
+            f32 slice_z_radius, Stream& stream) {
 
-        NOA_ASSERT(memory::PtrTexture::array(*slice) == array.get());
-        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
-        NOA_CHECK(slice_interpolation_mode == INTERP_LINEAR || slice_interpolation_mode == INTERP_LINEAR_FAST,
+        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(slice) == array);
+        NOA_ASSERT_DEVICE_PTR(grid, stream.device());
+        NOA_CHECK(slice_interpolation_mode == InterpMode::LINEAR || slice_interpolation_mode == InterpMode::LINEAR_FAST,
                   "The interpolation mode should be {} or {}, got {}",
-                  INTERP_LINEAR, INTERP_LINEAR_FAST, slice_interpolation_mode);
+                  InterpMode::LINEAR, InterpMode::LINEAR_FAST, slice_interpolation_mode);
 
-        const bool is_layered = memory::PtrArray<Value>::isLayered(array.get());
+        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(array);
         if (is_layered) {
-            if (slice_interpolation_mode == INTERP_LINEAR) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, true>;
-                const auto slice_interpolator = interpolator_t(*slice);
-                insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
-                                 fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
-                                 slice_z_radius, stream);
+            if (slice_interpolation_mode == InterpMode::LINEAR) {
+                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, true>;
+                insert_interpolate_3d_<REMAP>(
+                        interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
+                        fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                        slice_z_radius, stream);
             } else {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, true>;
-                const auto slice_interpolator = interpolator_t(*slice);
-                insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
-                                 fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
-                                 slice_z_radius, stream);
+                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, true>;
+                insert_interpolate_3d_<REMAP>(
+                        interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
+                        fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                        slice_z_radius, stream);
             }
         } else {
-            if (slice_interpolation_mode == INTERP_LINEAR) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value>;
-                const auto slice_interpolator = interpolator_t(*slice);
-                insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
-                                 fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
-                                 slice_z_radius, stream);
+            if (slice_interpolation_mode == InterpMode::LINEAR) {
+                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value>;
+                insert_interpolate_3d_<REMAP>(
+                        interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
+                        fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                        slice_z_radius, stream);
             } else {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value>;
-                const auto slice_interpolator = interpolator_t(*slice);
-                insert3D_<REMAP>(slice_interpolator, slice_shape, grid.get(), grid_strides, grid_shape,
-                                 fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
-                                 slice_z_radius, stream);
+                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value>;
+                insert_interpolate_3d_<REMAP>(
+                        interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
+                        fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
+                        slice_z_radius, stream);
             }
         }
-        stream.attach(array, grid, slice);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void extract3D(const shared_t<Value[]>& grid, dim4_t grid_strides, dim4_t grid_shape,
-                   const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                   const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                   float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(grid.get(), stream.device());
+    void extract_3d(const Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+                    Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+                    const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+                    f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(slice, stream.device());
+        NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
-        const auto grid_shape_3d = safe_cast<int3_t>(dim3_t(grid_shape.get(1)));
-        const auto grid_strides_3d = safe_cast<uint3_t>(dim3_t(grid_strides.get(1)));
-        const auto grid_accessor = AccessorRestrict<const Value, 3, uint32_t>(grid.get(), grid_strides_3d);
-        const auto grid_interpolator = noa::geometry::interpolator3D<BORDER_ZERO, INTERP_LINEAR>(
-                grid_accessor, grid_shape_3d.fft(), Value{0});
+        const auto grid_accessor = AccessorRestrict<const Value, 3, u32>(grid, grid_strides.pop_front().as_safe<u32>());
+        const auto grid_interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::LINEAR>(
+                grid_accessor, grid_shape.pop_front().as_safe<i32>().fft(), Value{0});
 
-        extract3D_<REMAP>(grid_interpolator, grid_shape, slice.get(), slice_strides, slice_shape,
-                          inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
-                          ews_radius, stream);
-        stream.attach(slice, grid);
+        extract_3d_<REMAP>(grid_interpolator, grid_shape, slice, slice_strides, slice_shape,
+                           inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
+                           ews_radius, stream);
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void extract3D(const shared_t<cudaArray>& array,
-                   const shared_t<cudaTextureObject_t>& grid, InterpMode grid_interpolation_mode, dim4_t grid_shape,
-                   const shared_t<Value[]>& slice, dim4_t slice_strides, dim4_t slice_shape,
-                   const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                   float cutoff, dim4_t target_shape, float2_t ews_radius, Stream& stream) {
-        NOA_ASSERT(memory::PtrTexture::array(*grid) == array.get());
-        NOA_ASSERT_DEVICE_PTR(slice.get(), stream.device());
-        NOA_CHECK(grid_interpolation_mode == INTERP_LINEAR || grid_interpolation_mode == INTERP_LINEAR_FAST,
+    void extract_3d(cudaArray* array, cudaTextureObject_t grid,
+                    InterpMode grid_interpolation_mode, const Shape4<i64>& grid_shape,
+                    Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+                    const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+                    f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
+        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(grid) == array);
+        NOA_ASSERT_DEVICE_PTR(slice, stream.device());
+        NOA_CHECK(grid_interpolation_mode == InterpMode::LINEAR || grid_interpolation_mode == InterpMode::LINEAR_FAST,
                   "The interpolation mode should be {} or {}, got {}",
-                  INTERP_LINEAR, INTERP_LINEAR_FAST, grid_interpolation_mode);
+                  InterpMode::LINEAR, InterpMode::LINEAR_FAST, grid_interpolation_mode);
 
-        if (grid_interpolation_mode == INTERP_LINEAR) {
-            using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR, Value>;
-            const auto grid_interpolator = interpolator_t(*grid);
-            extract3D_<REMAP>(grid_interpolator, grid_shape, slice.get(), slice_strides, slice_shape,
-                              inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
-                              ews_radius, stream);
-        } else if (grid_interpolation_mode == INTERP_LINEAR_FAST) {
-            using interpolator_t = cuda::geometry::Interpolator3D<INTERP_LINEAR_FAST, Value>;
-            const auto grid_interpolator = interpolator_t(*grid);
-            extract3D_<REMAP>(grid_interpolator, grid_shape, slice.get(), slice_strides, slice_shape,
-                              inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
-                              ews_radius, stream);
+        if (grid_interpolation_mode == InterpMode::LINEAR) {
+            using interpolator_t = noa::cuda::geometry::Interpolator3D<InterpMode::LINEAR, Value>;
+            extract_3d_<REMAP>(interpolator_t(grid), grid_shape, slice, slice_strides, slice_shape,
+                               inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
+                               ews_radius, stream);
+        } else if (grid_interpolation_mode == InterpMode::LINEAR_FAST) {
+            using interpolator_t = noa::cuda::geometry::Interpolator3D<InterpMode::LINEAR_FAST, Value>;
+            extract_3d_<REMAP>(interpolator_t(grid), grid_shape, slice, slice_strides, slice_shape,
+                               inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
+                               ews_radius, stream);
         } else {
             NOA_THROW("The interpolation mode should be {} or {}, got {}",
-                      INTERP_LINEAR, INTERP_LINEAR_FAST, grid_interpolation_mode);
+                      InterpMode::LINEAR, InterpMode::LINEAR_FAST, grid_interpolation_mode);
         }
-        stream.attach(array, grid, slice);
     }
 
     template<Remap REMAP, typename Value,
              typename Scale0, typename Scale1,
              typename Rotate0, typename Rotate1, typename>
-    void extract3D(const shared_t<Value[]>& input_slice, dim4_t input_slice_strides, dim4_t input_slice_shape,
-                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
-                   const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-                   float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(output_slice.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(input_slice.get(), stream.device());
+    void insert_interpolate_and_extract_3d(
+            const Value* input_slice, const Strides4<i64>& input_slice_strides, const Shape4<i64>& input_slice_shape,
+            Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
+            const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
+            const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
+        NOA_ASSERT_DEVICE_PTR(input_slice, stream.device());
 
-        const dim3_t input_slice_strides_2d{input_slice_strides[0], input_slice_strides[2], input_slice_strides[3]};
-        const auto input_slice_accessor = AccessorRestrict<const Value, 3, uint32_t>(
-                input_slice.get(), input_slice_strides_2d);
-        const auto input_slice_interpolator = noa::geometry::interpolator2D<BORDER_ZERO, INTERP_LINEAR>(
-                input_slice_accessor, safe_cast<int2_t>(dim2_t(input_slice_shape.get(2))).fft(), Value{0});
+        const auto input_slice_accessor = AccessorRestrict<const Value, 3, u32>(
+                input_slice, input_slice_strides.filter(0, 2, 3).as_safe<u32>());
+        const auto input_slice_interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
+                input_slice_accessor, input_slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
 
-        extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
-                          output_slice.get(), output_slice_strides, output_slice_shape,
-                          insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                          extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                          cutoff, ews_radius, slice_z_radius, stream);
-        stream.attach(input_slice, output_slice);
+        insert_interpolate_and_extract_3d_<REMAP>(
+                input_slice_interpolator, input_slice_shape,
+                output_slice, output_slice_strides, output_slice_shape,
+                insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                cutoff, ews_radius, slice_z_radius, stream);
     }
 
     template<Remap REMAP, typename Value,
              typename Scale0, typename Scale1,
              typename Rotate0, typename Rotate1, typename>
-    void extract3D(Value input_slice, dim4_t input_slice_shape,
-                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
-                   const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-                   float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
-        NOA_ASSERT_DEVICE_PTR(output_slice.get(), stream.device());
+    void insert_interpolate_and_extract_3d(
+            Value input_slice, const Shape4<i64>& input_slice_shape,
+            Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
+            const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
+            const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, Stream& stream) {
+        NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
 
-        const auto input_slice_interpolator = noa::geometry::interpolatorValue2D<BORDER_ZERO, INTERP_LINEAR>(
-                input_slice, safe_cast<int2_t>(dim2_t(input_slice_shape.get(2))).fft(), Value{0});
+        const auto input_slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
+                input_slice, input_slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
 
-        extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
-                          output_slice.get(), output_slice_strides, output_slice_shape,
-                          insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                          extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                          cutoff, ews_radius, slice_z_radius, stream);
-        stream.attach(output_slice);
+        insert_interpolate_and_extract_3d_<REMAP>(
+                input_slice_interpolator, input_slice_shape,
+                output_slice, output_slice_strides, output_slice_shape,
+                insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                cutoff, ews_radius, slice_z_radius, stream);
     }
 
     template<Remap REMAP, typename Value,
              typename Scale0, typename Scale1,
              typename Rotate0, typename Rotate1, typename>
-    void extract3D(const shared_t<cudaArray>& input_slice_array,
-                   const shared_t<cudaTextureObject_t>& input_slice_texture,
-                   InterpMode input_slice_interpolation_mode, dim4_t input_slice_shape,
-                   const shared_t<Value[]>& output_slice, dim4_t output_slice_strides, dim4_t output_slice_shape,
-                   const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
-                   const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-                   float cutoff, float2_t ews_radius, float slice_z_radius, Stream& stream) {
+    void insert_interpolate_and_extract_3d(
+            cudaArray* input_slice_array, cudaTextureObject_t input_slice_texture,
+            InterpMode input_slice_interpolation_mode, const Shape4<i64>& input_slice_shape,
+            Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
+            const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
+            const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, Stream& stream) {
 
         // Input texture requirements:
-        NOA_ASSERT(memory::PtrTexture::array(*input_slice_texture) == input_slice_array.get());
-        NOA_ASSERT_DEVICE_PTR(output_slice.get(), stream.device());
-        NOA_CHECK(input_slice_interpolation_mode == INTERP_LINEAR ||
-                  input_slice_interpolation_mode == INTERP_LINEAR_FAST,
+        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(input_slice_texture) == input_slice_array);
+        NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
+        NOA_CHECK(input_slice_interpolation_mode == InterpMode::LINEAR ||
+                  input_slice_interpolation_mode == InterpMode::LINEAR_FAST,
                   "The interpolation mode should be {} or {}, got {}",
-                  INTERP_LINEAR, INTERP_LINEAR_FAST, input_slice_interpolation_mode);
+                  InterpMode::LINEAR, InterpMode::LINEAR_FAST, input_slice_interpolation_mode);
 
-        const bool is_layered = memory::PtrArray<Value>::isLayered(input_slice_array.get());
+        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(input_slice_array);
         if (is_layered) {
-            if (input_slice_interpolation_mode == INTERP_LINEAR) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value, false, true>;
-                const auto input_slice_interpolator = interpolator_t(*input_slice_texture);
-                extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
-                                  output_slice.get(), output_slice_strides, output_slice_shape,
-                                  insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                                  extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                                  cutoff, ews_radius, slice_z_radius, stream);
-            } else if (input_slice_interpolation_mode == INTERP_LINEAR_FAST) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value, false, true>;
-                const auto input_slice_interpolator = interpolator_t(*input_slice_texture);
-                extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
-                                  output_slice.get(), output_slice_strides, output_slice_shape,
-                                  insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                                  extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                                  cutoff, ews_radius, slice_z_radius, stream);
+            if (input_slice_interpolation_mode == InterpMode::LINEAR) {
+                using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, true>;
+                insert_interpolate_and_extract_3d_<REMAP>(
+                        interpolator_t(input_slice_texture), input_slice_shape,
+                        output_slice, output_slice_strides, output_slice_shape,
+                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                        extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                        cutoff, ews_radius, slice_z_radius, stream);
+            } else if (input_slice_interpolation_mode == InterpMode::LINEAR_FAST) {
+                using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, true>;
+                insert_interpolate_and_extract_3d_<REMAP>(
+                        interpolator_t(input_slice_texture), input_slice_shape,
+                        output_slice, output_slice_strides, output_slice_shape,
+                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                        extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                        cutoff, ews_radius, slice_z_radius, stream);
             }
         } else {
-            if (input_slice_interpolation_mode == INTERP_LINEAR) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR, Value>;
-                const auto input_slice_interpolator = interpolator_t(*input_slice_texture);
-                extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
-                                  output_slice.get(), output_slice_strides, output_slice_shape,
-                                  insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                                  extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                                  cutoff, ews_radius, slice_z_radius, stream);
-            } else if (input_slice_interpolation_mode == INTERP_LINEAR_FAST) {
-                using interpolator_t = cuda::geometry::Interpolator2D<INTERP_LINEAR_FAST, Value>;
-                const auto input_slice_interpolator = interpolator_t(*input_slice_texture);
-                extract3D_<REMAP>(input_slice_interpolator, input_slice_shape,
-                                  output_slice.get(), output_slice_strides, output_slice_shape,
-                                  insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
-                                  extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                                  cutoff, ews_radius, slice_z_radius, stream);
+            if (input_slice_interpolation_mode == InterpMode::LINEAR) {
+                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value>;
+                insert_interpolate_and_extract_3d_<REMAP>(
+                        interpolator_t(input_slice_texture), input_slice_shape,
+                        output_slice, output_slice_strides, output_slice_shape,
+                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                        extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                        cutoff, ews_radius, slice_z_radius, stream);
+            } else if (input_slice_interpolation_mode == InterpMode::LINEAR_FAST) {
+                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value>;
+                insert_interpolate_and_extract_3d_<REMAP>(
+                        interpolator_t(input_slice_texture), input_slice_shape,
+                        output_slice, output_slice_strides, output_slice_shape,
+                        insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
+                        extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
+                        cutoff, ews_radius, slice_z_radius, stream);
             }
         }
-        stream.attach(input_slice_array, input_slice_texture, output_slice);
     }
 
     template<typename Value, typename>
-    void griddingCorrection(const shared_t<Value[]>& input, dim4_t input_strides,
-                            const shared_t<Value[]>& output, dim4_t output_strides,
-                            dim4_t shape, bool post_correction, Stream& stream) {
-        NOA_ASSERT(all(shape > 0));
-        NOA_ASSERT_DEVICE_PTR(input.get(), stream.device());
-        NOA_ASSERT_DEVICE_PTR(output.get(), stream.device());
+    void gridding_correction(const Value* input, const Strides4<i64>& input_strides,
+                             Value* output, const Strides4<i64>& output_strides,
+                             const Shape4<i64>& shape, bool post_correction, Stream& stream) {
+        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT_DEVICE_PTR(input, stream.device());
+        NOA_ASSERT_DEVICE_PTR(output, stream.device());
 
-        const auto iwise_shape = safe_cast<uint4_t>(shape);
-        const auto input_accessor = Accessor<const Value, 4, uint32_t>(input.get(), safe_cast<uint4_t>(input_strides));
-        const auto output_accessor = Accessor<Value, 4, uint32_t>(output.get(), safe_cast<uint4_t>(output_strides));
+        const auto i_shape = shape.as_safe<u32>();
+        const auto input_accessor = Accessor<const Value, 4, u32>(input, input_strides.as_safe<u32>());
+        const auto output_accessor = Accessor<Value, 4, u32>(output, output_strides.as_safe<u32>());
 
         if (post_correction) {
-            const auto kernel = noa::geometry::fft::details::griddingCorrection<true>(
-                    input_accessor, output_accessor, shape);
-            utils::iwise4D("geometry::fft::griddingCorrection", iwise_shape, kernel, stream);
+            const auto kernel = noa::algorithm::geometry::gridding_correction<true>(
+                    input_accessor, output_accessor, i_shape);
+            noa::cuda::utils::iwise_4d("geometry::fft::gridding_correction", i_shape, kernel, stream);
         } else {
-            const auto kernel = noa::geometry::fft::details::griddingCorrection<false>(
-                    input_accessor, output_accessor, shape);
-            utils::iwise4D("geometry::fft::griddingCorrection", iwise_shape, kernel, stream);
+            const auto kernel = noa::algorithm::geometry::gridding_correction<false>(
+                    input_accessor, output_accessor, i_shape);
+            noa::cuda::utils::iwise_4d("geometry::fft::gridding_correction", i_shape, kernel, stream);
         }
-        stream.attach(input, output);
     }
+    template void gridding_correction<f32, void>(const f32*, const Strides4<i64>&, f32*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);
+    template void gridding_correction<f64, void>(const f64*, const Strides4<i64>&, f64*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);
 
-    #define NOA_INSTANTIATE_INSERT_(T, REMAP, S, R)             \
-    template void insert3D<REMAP, T, S, R, void>(               \
-        const shared_t<T[]>&, dim4_t, dim4_t,                   \
-        const shared_t<T[]>&, dim4_t, dim4_t,                   \
-        const S&, const R&, float, dim4_t, float2_t, Stream&);  \
-    template void insert3D<REMAP, T, S, R, void>(               \
-        T, dim4_t,                                              \
-        const shared_t<T[]>&, dim4_t, dim4_t,                   \
-        const S&, const R&, float, dim4_t, float2_t, Stream&)
+    #define NOA_INSTANTIATE_INSERT_RASTERIZE_(T, REMAP, S, R)                       \
+    template void insert_rasterize_3d<REMAP, T, S, R, void>(                        \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                         \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                               \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, Stream&);    \
+    template void insert_rasterize_3d<REMAP, T, S, R, void>(                        \
+        T, const Shape4<i64>&,                                                      \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                               \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, Stream&)
 
-    #define NOA_INSTANTIATE_INSERT_THICK_(T, REMAP, S, R)               \
-    template void insert3D<REMAP, T, S, R, void>(                       \
-        const shared_t<T[]>&, dim4_t, dim4_t,                           \
-        const shared_t<T[]>&, dim4_t, dim4_t,                           \
-        const S&, const R&, float, dim4_t, float2_t, float, Stream&);   \
-    template void insert3D<REMAP, T, S, R, void>(                       \
-        T, dim4_t,                                                      \
-        const shared_t<T[]>&, dim4_t, dim4_t,                           \
-        const S&, const R&, float, dim4_t, float2_t, float, Stream&)
+    #define NOA_INSTANTIATE_INSERT_INTERPOLATE_(T, REMAP, S, R)                         \
+    template void insert_interpolate_3d<REMAP, T, S, R, void>(                          \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, f32, Stream&);   \
+    template void insert_interpolate_3d<REMAP, T, S, R, void>(                          \
+        T, const Shape4<i64>&,                                                          \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, f32, Stream&)
 
-    #define NOA_INSTANTIATE_EXTRACT_(T, REMAP, S, R)    \
-    template void extract3D<REMAP, T, S, R, void>(      \
-        const shared_t<T[]>&, dim4_t, dim4_t,           \
-        const shared_t<T[]>&, dim4_t, dim4_t,           \
-        const S&, const R&, float, dim4_t, float2_t, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_(T, REMAP, S, R)        \
+    template void extract_3d<REMAP, T, S, R, void>(         \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        T*, const Strides4<i64>&, const Shape4<i64>&,       \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, Stream&)
 
-    #define NOA_INSTANTIATE_INSERT_EXTRACT_(T, REMAP, S0, S1, R0, R1)   \
-    template void extract3D<REMAP, T, S0, S1, R0, R1, void>(            \
-        const shared_t<T[]>&, dim4_t, dim4_t,                           \
-        const shared_t<T[]>&, dim4_t, dim4_t,                           \
-        const S0&, const R0&, const S1&, const R1&, float,              \
-        float2_t, float, Stream&);                                      \
-    template void extract3D<REMAP, T, S0, S1, R0, R1, void>(            \
-        T, dim4_t,                                                      \
-        const shared_t<T[]>&, dim4_t, dim4_t,                           \
-        const S0&, const R0&, const S1&, const R1&, float,              \
-        float2_t, float, Stream&)
+    #define NOA_INSTANTIATE_INSERT_EXTRACT_(T, REMAP, S0, S1, R0, R1)                       \
+    template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(        \
+        const T*, const Strides4<i64>&, const Shape4<i64>&,                                 \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                                       \
+        S0 const&, R0 const&, S1 const&, R1 const&, f32, const Vec2<f32>&, f32, Stream&);   \
+    template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(        \
+        T, const Shape4<i64>&,                                                              \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                                       \
+        S0 const&, R0 const&, S1 const&, R1 const&, f32, const Vec2<f32>&, f32, Stream&)
 
-    #define NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, S, R)      \
-    NOA_INSTANTIATE_INSERT_(T, Remap::H2H, S, R);           \
-    NOA_INSTANTIATE_INSERT_(T, Remap::H2HC, S, R);          \
-    NOA_INSTANTIATE_INSERT_(T, Remap::HC2H, S, R);          \
-    NOA_INSTANTIATE_INSERT_(T, Remap::HC2HC, S, R);         \
-    NOA_INSTANTIATE_INSERT_THICK_(T, Remap::HC2H, S, R);    \
-    NOA_INSTANTIATE_INSERT_THICK_(T, Remap::HC2HC, S, R);   \
-    NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2H, S, R);         \
+    #define NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, S, R)          \
+    NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::H2H, S, R);     \
+    NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::H2HC, S, R);    \
+    NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::HC2H, S, R);    \
+    NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::HC2HC, S, R);   \
+    NOA_INSTANTIATE_INSERT_INTERPOLATE_(T, Remap::HC2H, S, R);  \
+    NOA_INSTANTIATE_INSERT_INTERPOLATE_(T, Remap::HC2HC, S, R); \
+    NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2H, S, R);             \
     NOA_INSTANTIATE_EXTRACT_(T, Remap::HC2HC, S, R)
 
     #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, S0, S1, R0, R1)  \
     NOA_INSTANTIATE_INSERT_EXTRACT_(T, Remap::HC2H, S0, S1, R0, R1);    \
     NOA_INSTANTIATE_INSERT_EXTRACT_(T, Remap::HC2HC, S0, S1, R0, R1)
 
-    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, R0, R1)                              \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, float22_t, float22_t, R0, R1);               \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, shared_t<float22_t[]>, float22_t, R0, R1);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, float22_t, shared_t<float22_t[]>, R0, R1);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, shared_t<float22_t[]>, shared_t<float22_t[]>, R0, R1)
+    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, R0, R1)                      \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, Float22, Float22, R0, R1);           \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, const Float22*, Float22, R0, R1);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, Float22, const Float22*, R0, R1);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(T, const Float22*, const Float22*, R0, R1)
 
-    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(T)                             \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, float33_t, float33_t);               \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, shared_t<float33_t[]>, float33_t);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, float33_t, shared_t<float33_t[]>);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, shared_t<float33_t[]>, shared_t<float33_t[]>)
+    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(T)                     \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, Float33, Float33);           \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, const Float33*, Float33);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, Float33, const Float33*);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(T, const Float33*, const Float33*)
 
-    #define NOA_INSTANTIATE_PROJECT_ALL(T)                                  \
-    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, float22_t, float33_t);             \
-    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, shared_t<float22_t[]>, float33_t); \
-    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, float22_t, shared_t<float33_t[]>); \
-    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, shared_t<float22_t[]>, shared_t<float33_t[]>);\
+    #define NOA_INSTANTIATE_PROJECT_ALL_(T)                                 \
+    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, Float22, Float33);                 \
+    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, const Float22*, Float33);          \
+    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, Float22, const Float33*);          \
+    NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, const Float22*, const Float33*);   \
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(T)
 
-    NOA_INSTANTIATE_PROJECT_ALL(float);
-    NOA_INSTANTIATE_PROJECT_ALL(cfloat_t);
-    NOA_INSTANTIATE_PROJECT_ALL(double);
-    NOA_INSTANTIATE_PROJECT_ALL(cdouble_t);
+    NOA_INSTANTIATE_PROJECT_ALL_(f32);
+    NOA_INSTANTIATE_PROJECT_ALL_(f64);
+    NOA_INSTANTIATE_PROJECT_ALL_(c32);
+    NOA_INSTANTIATE_PROJECT_ALL_(c64);
 
     #define NOA_INSTANTIATE_INSERT_THICK_TEXTURE(T, REMAP, S, R)            \
-    template void insert3D<REMAP, T, S, R, void>(                           \
-        const shared_t<cudaArray>&,                                         \
-        const shared_t<cudaTextureObject_t>& slice, InterpMode, dim4_t,     \
-        const shared_t<T[]>&, dim4_t, dim4_t,                               \
-        const S&, const R&, float, dim4_t, float2_t, float, Stream&)
+    template void insert_interpolate_3d<REMAP, T, S, R, void>(              \
+        cudaArray*, cudaTextureObject_t, InterpMode, const Shape4<i64>&,    \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                       \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, f32, Stream&)
 
-    #define NOA_INSTANTIATE_EXTRACT_TEXTURE(T, REMAP, S, R)         \
-    template void extract3D<REMAP, T, S, R, void>(                  \
-        const shared_t<cudaArray>&,                                 \
-        const shared_t<cudaTextureObject_t>&, InterpMode, dim4_t,   \
-        const shared_t<T[]>&, dim4_t, dim4_t,                       \
-        const S&, const R&, float, dim4_t, float2_t, Stream&)
+    #define NOA_INSTANTIATE_EXTRACT_TEXTURE(T, REMAP, S, R)                 \
+    template void extract_3d<REMAP, T, S, R, void>(                         \
+        cudaArray*, cudaTextureObject_t, InterpMode, const Shape4<i64>&,    \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                       \
+        S const&, R const&, f32, const Shape4<i64>&, const Vec2<f32>&, Stream&)
 
-    #define NOA_INSTANTIATE_INSERT_EXTRACT_TEXTURE_(T, REMAP, S0, S1, R0, R1)   \
-    template void extract3D<REMAP, T, S0, S1, R0, R1, void>(                    \
-        const shared_t<cudaArray>&,                                             \
-        const shared_t<cudaTextureObject_t>&, InterpMode, dim4_t,               \
-        const shared_t<T[]>&, dim4_t, dim4_t,                                   \
-        const S0&, const R0&, const S1&, const R1&, float,                      \
-        float2_t, float, Stream&)
+    #define NOA_INSTANTIATE_INSERT_EXTRACT_TEXTURE_(T, REMAP, S0, S1, R0, R1)       \
+    template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(\
+        cudaArray*, cudaTextureObject_t, InterpMode, const Shape4<i64>&,            \
+        T*, const Strides4<i64>&, const Shape4<i64>&,                               \
+        S0 const&, R0 const&, S1 const&, R1 const&, f32,                            \
+        const Vec2<f32>&, f32, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, S, R)  \
     NOA_INSTANTIATE_INSERT_THICK_TEXTURE(T, Remap::HC2H, S, R); \
@@ -627,28 +543,25 @@ namespace noa::cuda::geometry::fft {
     NOA_INSTANTIATE_INSERT_EXTRACT_TEXTURE_(T, Remap::HC2H, S0, S1, R0, R1);    \
     NOA_INSTANTIATE_INSERT_EXTRACT_TEXTURE_(T, Remap::HC2HC, S0, S1, R0, R1)
 
-    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, R0, R1)                              \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, float22_t, float22_t, R0, R1);               \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, shared_t<float22_t[]>, float22_t, R0, R1);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, float22_t, shared_t<float22_t[]>, R0, R1);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, shared_t<float22_t[]>, shared_t<float22_t[]>, R0, R1)
+    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, R0, R1)                      \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, Float22, Float22, R0, R1);           \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, const Float22*, Float22, R0, R1);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, Float22, const Float22*, R0, R1);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP_TEXTURE(T, const Float22*, const Float22*, R0, R1)
 
-    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE_TEXTURE(T)                             \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, float33_t, float33_t);               \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, shared_t<float33_t[]>, float33_t);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, float33_t, shared_t<float33_t[]>);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, shared_t<float33_t[]>, shared_t<float33_t[]>)
+    #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE_TEXTURE(T)                     \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, Float33, Float33);           \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, const Float33*, Float33);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, Float33, const Float33*);    \
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE_TEXTURE(T, const Float33*, const Float33*)
 
-    #define NOA_INSTANTIATE_PROJECT_TEXTURE_ALL(T)                                              \
-    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, float22_t, float33_t);                         \
-    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, shared_t<float22_t[]>, float33_t);             \
-    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, float22_t, shared_t<float33_t[]>);             \
-    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, shared_t<float22_t[]>, shared_t<float33_t[]>); \
+    #define NOA_INSTANTIATE_PROJECT_TEXTURE_ALL(T)                                  \
+    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, Float22, Float33);                 \
+    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, const Float22*, Float33);          \
+    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, Float22, const Float33*);          \
+    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, const Float22*, const Float33*);   \
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE_TEXTURE(T)
 
-    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL(float);
-    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL(cfloat_t);
-
-    template void griddingCorrection<float, void>(const shared_t<float[]>&, dim4_t, const shared_t<float[]>&, dim4_t, dim4_t, bool, Stream&);
-    template void griddingCorrection<double, void>(const shared_t<double[]>&, dim4_t, const shared_t<double[]>&, dim4_t, dim4_t, bool, Stream&);
+    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL(f32);
+    NOA_INSTANTIATE_PROJECT_TEXTURE_ALL(c32);
 }

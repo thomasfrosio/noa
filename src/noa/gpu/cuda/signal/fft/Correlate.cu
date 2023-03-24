@@ -1,9 +1,7 @@
-#include "noa/gpu/cuda/fft/Transforms.h"
-#include "noa/gpu/cuda/math/Ewise.h"
-#include "noa/gpu/cuda/math/Reduce.h"
-#include "noa/gpu/cuda/memory/PtrPinned.h"
-#include "noa/gpu/cuda/signal/fft/Correlate.h"
-#include "noa/gpu/cuda/signal/fft/Shift.h"
+#include "noa/gpu/cuda/fft/Transforms.hpp"
+#include "noa/gpu/cuda/memory/PtrPinned.hpp"
+#include "noa/gpu/cuda/signal/fft/Correlate.hpp"
+#include "noa/gpu/cuda/signal/fft/PhaseShift.hpp"
 
 #include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
@@ -11,173 +9,176 @@
 
 namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename Real, typename _>
-    void xmap(const shared_t<Complex<Real>[]>& lhs, dim4_t lhs_strides,
-              const shared_t<Complex<Real>[]>& rhs, dim4_t rhs_strides,
-              const shared_t<Real[]>& output, dim4_t output_strides,
-              dim4_t shape, CorrelationMode correlation_mode, Norm norm, Stream& stream,
-              const shared_t<Complex<Real>[]>& tmp, dim4_t tmp_strides) {
+    void xmap(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+              Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+              Real* output, const Strides4<i64>& output_strides,
+              const Shape4<i64>& shape, CorrelationMode correlation_mode, Norm norm,
+              Complex<Real>* tmp, Strides4<i64> tmp_strides, Stream& stream) {
+        if (!tmp) {
+            tmp = rhs;
+            tmp_strides = rhs_strides;
+        }
+        NOA_ASSERT(noa::all(tmp_strides > 0));
 
-        using complex_t = Complex<Real>;
-        using real_t = Real;
-        const shared_t<complex_t[]>& buffer = tmp ? tmp : rhs;
-        const dim4_t& buffer_strides = tmp ? tmp_strides : rhs_strides;
-        NOA_ASSERT(all(buffer_strides > 0));
+        constexpr auto EPSILON = static_cast<Real>(1e-13);
+        constexpr bool IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        const auto shape_fft = IS_HALF ? shape.fft() : shape;
 
-        // TODO Identify auto-correlation case
-        constexpr auto EPSILON = static_cast<real_t>(1e-13);
+        // TODO Identify auto-correlation case?
         switch (correlation_mode) {
-            case noa::signal::CONVENTIONAL_CORRELATION:
-                cuda::math::ewise(lhs, lhs_strides, rhs, rhs_strides, buffer, buffer_strides,
-                                  shape.fft(), noa::math::multiply_conj_t{}, stream);
+            case CorrelationMode::CONVENTIONAL:
+                noa::cuda::utils::ewise_binary(
+                        "xmap",
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides,
+                        shape.fft(), stream, noa::multiply_conj_t{});
                 break;
-            case noa::signal::PHASE_CORRELATION:
-                cuda::utils::ewise::binary(
-                        "signal::fft::xmap",
-                        lhs.get(), lhs_strides, rhs.get(), rhs_strides,
-                        buffer.get(), buffer_strides, shape.fft(), true, stream,
-                        []__device__(complex_t l, complex_t r) {
-                            const complex_t product = l * noa::math::conj(r);
-                            const real_t magnitude = noa::math::abs(product);
+            case CorrelationMode::PHASE:
+                noa::cuda::utils::ewise_binary(
+                        "xmap",
+                        lhs, lhs_strides, rhs, rhs_strides,
+                        tmp, tmp_strides, shape.fft(), stream,
+                        []__device__(const Complex<Real>& l, const Complex<Real>& r) {
+                            const Complex<Real> product = l * noa::math::conj(r);
+                            const Real magnitude = noa::math::abs(product);
                             return product / (magnitude + EPSILON);
                             // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
                             // for input values close to zero (less than 1e-10). In most cases, this is fine.
                         });
                 break;
-            case noa::signal::DOUBLE_PHASE_CORRELATION:
-                cuda::utils::ewise::binary(
-                        "signal::fft::xmap",
-                        lhs.get(), lhs_strides, rhs.get(), rhs_strides,
-                        buffer.get(), buffer_strides, shape.fft(), true, stream,
-                        []__device__(complex_t l, complex_t r) -> complex_t {
-                            const complex_t product = l * noa::math::conj(r);
-                            const complex_t product_sqd = {product.real * product.real, product.imag * product.imag};
-                            const real_t magnitude = noa::math::sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
+            case CorrelationMode::DOUBLE_PHASE:
+                noa::cuda::utils::ewise_binary(
+                        "xmap",
+                        lhs, lhs_strides, rhs, rhs_strides,
+                        tmp, tmp_strides, shape.fft(), stream,
+                        []__device__(const Complex<Real>& l, const Complex<Real>& r) -> Complex<Real> {
+                            const Complex<Real> product = l * noa::math::conj(r);
+                            const Complex<Real> product_sqd = {product.real * product.real, product.imag * product.imag};
+                            const Real magnitude = noa::math::sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
                             return {(product_sqd.real - product_sqd.imag) / magnitude,
                                     (2 * product.real * product.imag) / magnitude};
                         });
                 break;
-            case noa::signal::MUTUAL_CORRELATION:
-                cuda::utils::ewise::binary(
-                        "signal::fft::xmap",
-                        lhs.get(), lhs_strides, rhs.get(), rhs_strides,
-                        buffer.get(), buffer_strides, shape.fft(), true, stream,
-                        []__device__(complex_t l, complex_t r) {
-                            const complex_t product = l * noa::math::conj(r);
-                            const real_t magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));
+            case CorrelationMode::MUTUAL:
+                noa::cuda::utils::ewise_binary(
+                        "xmap",
+                        lhs, lhs_strides, rhs, rhs_strides,
+                        tmp, tmp_strides, shape.fft(), stream,
+                        []__device__(const Complex<Real>& l, const Complex<Real>& r) {
+                            const Complex<Real> product = l * noa::math::conj(r);
+                            const Real magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));
                             return product / (magnitude_sqrt + EPSILON);
                         });
                 break;
         }
 
         if constexpr (REMAP == Remap::H2FC) {
-            const dim3_t shape_3d(shape.get(1));
+            const auto shape_3d = shape.pop_front();
             if (shape_3d.ndim() == 3) {
-                cuda::signal::fft::shift3D<Remap::H2H>(buffer, buffer_strides, buffer, buffer_strides, shape,
-                                                       float3_t(shape_3d / 2), 1, stream);
+                noa::cuda::signal::fft::phase_shift_3d<Remap::H2H>(
+                        tmp, tmp_strides, tmp, tmp_strides, shape,
+                        (shape_3d / 2).vec().as<f32>(), 1, stream);
             } else {
-                cuda::signal::fft::shift2D<Remap::H2H>(buffer, buffer_strides, buffer, buffer_strides, shape,
-                                                       float2_t{shape_3d[1] / 2, shape_3d[2] / 2}, 1, stream);
+                noa::cuda::signal::fft::phase_shift_2d<Remap::H2H>(
+                        tmp, tmp_strides, tmp, tmp_strides, shape,
+                        (shape_3d.pop_front() / 2).vec().as<f32>(), 1, stream);
             }
         }
 
-        cuda::fft::c2r(buffer, buffer_strides, output, output_strides, shape, norm, stream);
+        noa::cuda::fft::c2r(tmp, tmp_strides, output, output_strides, shape, norm, stream);
     }
 
-    #define NOA_INSTANTIATE_XMAP(R, T)          \
-    template void xmap<R, T, void>(             \
-        const shared_t<Complex<T>[]>&, dim4_t,  \
-        const shared_t<Complex<T>[]>&, dim4_t,  \
-        const shared_t<T[]>&, dim4_t, dim4_t,   \
-        CorrelationMode, Norm, Stream&,         \
-        const shared_t<Complex<T>[]>&, dim4_t)
+    #define INSTANTIATE_XMAP(R, T)                      \
+    template void xmap<R, T, void>(                     \
+        const Complex<T>*, const Strides4<i64>&,        \
+        Complex<T>*, const Strides4<i64>&,              \
+        T*, const Strides4<i64>&, const Shape4<i64>&,   \
+        CorrelationMode, Norm, Complex<T>*, Strides4<i64>, Stream&)
 
-    #define NOA_INSTANTIATE_XMAP_ALL(T)     \
-    NOA_INSTANTIATE_XMAP(Remap::H2F, T);    \
-    NOA_INSTANTIATE_XMAP(Remap::H2FC, T)
+    #define INSTANTIATE_XMAP_ALL(T)         \
+    INSTANTIATE_XMAP(noa::fft::H2F, T);     \
+    INSTANTIATE_XMAP(noa::fft::H2FC, T)
 
-    NOA_INSTANTIATE_XMAP_ALL(float);
-    NOA_INSTANTIATE_XMAP_ALL(double);
+    INSTANTIATE_XMAP_ALL(f32);
+    INSTANTIATE_XMAP_ALL(f64);
 }
 
 namespace noa::cuda::signal::fft::details {
     template<typename Real>
-    void xcorr(const shared_t<Complex<Real>[]>& lhs, dim4_t lhs_stride,
-               const shared_t<Complex<Real>[]>& rhs, dim4_t rhs_stride,
-               dim4_t shape, const shared_t<Real[]>& coefficients,
-               Stream& stream, bool is_half) {
-        const dim_t batches = shape[0];
-        const dim4_t shape_fft = is_half ? shape.fft() : shape;
+    void xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+               const Shape4<i64>& shape, Real* coefficients, Stream& stream) {
+        const auto batches = shape[0];
+        const auto buffer = cuda::memory::PtrPinned<Real>::alloc(batches * 3);
+        const auto numerator = buffer.get();
+        const auto denominator_lhs = buffer.get() + batches;
+        const auto denominator_rhs = buffer.get() + batches * 2;
 
-        cuda::memory::PtrPinned<Real> buffer(batches * 3);
-        auto denominator_lhs = buffer.get() + batches;
-        auto denominator_rhs = buffer.get() + batches * 2;
-
-        Real* null{};
-        cuda::utils::reduce(
-                "signal::fft::xcorr", lhs.get(), lhs_stride, shape_fft,
-                noa::math::abs_squared_t{}, noa::math::plus_t{}, Real{0},
-                denominator_lhs, 1, noa::math::copy_t{},
-                null, 0, noa::math::copy_t{},
+        noa::cuda::utils::reduce_unary(
+                "xcorr", lhs, lhs_strides, shape,
+                denominator_lhs, Strides1<i64>{1}, Real{0},
+                noa::abs_squared_t{}, noa::plus_t{}, {},
                 false, true, stream);
-        cuda::utils::reduce(
-                "signal::fft::xcorr", rhs.get(), rhs_stride, shape_fft,
-                noa::math::abs_squared_t{}, noa::math::plus_t{}, Real{0},
-                denominator_rhs, 1, noa::math::copy_t{},
-                null, 0, noa::math::copy_t{},
+        noa::cuda::utils::reduce_unary(
+                "xcorr", rhs, rhs_strides, shape,
+                denominator_rhs, Strides1<i64>{1}, Real{0},
+                noa::abs_squared_t{}, noa::plus_t{}, {},
                 false, true, stream);
 
-        auto combine_op = []__device__(Complex<Real> l, Complex<Real> r) { return noa::math::real(l * r); };
-        cuda::utils::reduce<false>(
-                "signal::fft::xcorr",
-                lhs.get(), lhs_stride, rhs.get(), rhs_stride, shape_fft,
-                noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, Real{0},
-                buffer.get(), 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, false, stream);
+        auto preprocess_op = []__device__(const Complex<Real>& l, const Complex<Real>& r) {
+            return noa::math::real(l * noa::math::conj(r));
+        };
+        noa::cuda::utils::reduce_binary(
+                "xcorr", lhs, lhs_strides, rhs, rhs_strides, shape,
+                numerator, Strides1<i64>{1}, Real{0},
+                preprocess_op, noa::plus_t{}, {},
+                false, true, stream);
 
-        stream.synchronize(); // FIXME Add callback
-        for (dim_t batch = 0; batch < batches; ++batch) {
-            coefficients.get()[batch] =
-                    buffer[batch] / noa::math::sqrt(denominator_lhs[batch] * denominator_rhs[batch]);
-        }
+        stream.synchronize(); // FIXME Add callback?
+        for (i64 batch = 0; batch < batches; ++batch)
+            coefficients[batch] = numerator[batch] / noa::math::sqrt(denominator_lhs[batch] * denominator_rhs[batch]);
     }
 
     template<typename Real>
-    Real xcorr(const shared_t<Complex<Real>[]>& lhs, dim4_t lhs_stride,
-               const shared_t<Complex<Real>[]>& rhs, dim4_t rhs_stride,
-               dim4_t shape, Stream& stream, bool is_half) {
+    Real xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+               const Shape4<i64>& shape, Stream& stream) {
         NOA_ASSERT(shape[0] == 1);
-        const dim4_t shape_fft = is_half ? shape.fft() : shape;
 
         Real numerator{}, denominator_lhs{}, denominator_rhs{};
-        Real* null{};
-        cuda::utils::reduce(
-                "signal::fft::xcorr", lhs.get(), lhs_stride, shape_fft,
-                noa::math::abs_squared_t{}, noa::math::plus_t{}, Real{0},
-                &denominator_lhs, 1, noa::math::copy_t{},
-                null, 0, noa::math::copy_t{},
+        noa::cuda::utils::reduce_unary(
+                "xcorr", lhs, lhs_strides, shape,
+                &denominator_lhs, Strides1<i64>{1}, Real{0},
+                noa::abs_squared_t{}, noa::plus_t{}, {},
                 true, true, stream);
-        cuda::utils::reduce(
-                "signal::fft::xcorr", rhs.get(), rhs_stride, shape_fft,
-                noa::math::abs_squared_t{}, noa::math::plus_t{}, Real{0},
-                &denominator_rhs, 1, noa::math::copy_t{},
-                null, 0, noa::math::copy_t{},
+        noa::cuda::utils::reduce_unary(
+                "xcorr", rhs, rhs_strides, shape,
+                &denominator_rhs, Strides1<i64>{1}, Real{0},
+                noa::abs_squared_t{}, noa::plus_t{}, {},
                 true, true, stream);
 
-        auto combine_op = []__device__(Complex<Real> l, Complex<Real> r) { return noa::math::real(l * r); };
-        cuda::utils::reduce<false>(
-                "signal::fft::xcorr",
-                lhs.get(), lhs_stride, rhs.get(), rhs_stride, shape_fft,
-                noa::math::copy_t{}, noa::math::conj_t{}, combine_op, noa::math::plus_t{}, Real{0},
-                &numerator, 1, noa::math::copy_t{}, null, 1, noa::math::copy_t{}, false, stream);
+        auto preprocess_op = []__device__(const Complex<Real>& l, const Complex<Real>& r) {
+            return noa::math::real(l * noa::math::conj(r));
+        };
+        noa::cuda::utils::reduce_binary(
+                "xcorr", lhs, lhs_strides, rhs, rhs_strides, shape,
+                &numerator, Strides1<i64>{1}, Real{0},
+                preprocess_op, noa::plus_t{}, {},
+                true, true, stream);
 
         stream.synchronize();
-        const Real denominator = noa::math::sqrt(denominator_lhs * denominator_rhs);
-        return numerator / denominator;
+        return numerator / noa::math::sqrt(denominator_lhs * denominator_rhs);
     }
 
-    #define NOA_INSTANTIATE_XCORR(T) \
-    template void xcorr<T>(const shared_t<Complex<T>[]>&, dim4_t, const shared_t<Complex<T>[]>&, dim4_t, dim4_t, const shared_t<T[]>&, Stream&, bool); \
-    template T xcorr<T>(const shared_t<Complex<T>[]>&, dim4_t, const shared_t<Complex<T>[]>&, dim4_t, dim4_t, Stream&, bool)
+    #define INSTANTIATE_XCORR(T)                    \
+    template void xcorr<T>(                         \
+        const Complex<T>*, const Strides4<i64>&,    \
+        const Complex<T>*, const Strides4<i64>&,    \
+        const Shape4<i64>&, T*, Stream&);           \
+    template T xcorr<T>(                            \
+        const Complex<T>*, const Strides4<i64>&,    \
+        const Complex<T>*, const Strides4<i64>&,    \
+        const Shape4<i64>&, Stream&)
 
-    NOA_INSTANTIATE_XCORR(float);
-    NOA_INSTANTIATE_XCORR(double);
+    INSTANTIATE_XCORR(f32);
+    INSTANTIATE_XCORR(f64);
 }

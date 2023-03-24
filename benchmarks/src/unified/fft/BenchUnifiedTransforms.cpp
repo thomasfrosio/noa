@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
-#include <noa/FFT.h>
-#include <noa/Math.h>
+#include <noa/FFT.hpp>
+#include <noa/Math.hpp>
 
 using namespace ::noa;
 

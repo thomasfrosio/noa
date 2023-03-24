@@ -1,134 +1,149 @@
-#include "noa/gpu/cuda/math/Ewise.h"
-#include "noa/gpu/cuda/memory/Copy.h"
-#include "noa/gpu/cuda/memory/Set.h"
-#include "noa/gpu/cuda/signal/fft/Standardize.h"
+#include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/memory/Set.hpp"
+#include "noa/gpu/cuda/signal/fft/Standardize.hpp"
+#include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 
 namespace {
     using namespace ::noa;
+    using Remap = noa::fft::Remap;
     using Norm = noa::fft::Norm;
 
-    template<fft::Remap REMAP, typename T>
-    void standardizeFull_(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
-                          const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-                          dim4_t shape, Norm norm, cuda::Stream& stream) {
-        NOA_ASSERT(shape.ndim() <= 3);
-        const auto count = static_cast<T>(math::prod(shape));
-        const auto scale = norm == fft::NORM_FORWARD ? 1 : norm == fft::NORM_ORTHO ? math::sqrt(count) : count;
+    template<Remap REMAP, typename T>
+    void standardize_full_(const Complex<T>* input, const Strides4<i64>& input_strides,
+                           Complex<T>* output, const Strides4<i64>& output_strides,
+                           const Shape4<i64>& shape, Norm norm, cuda::Stream& stream) {
+        const auto count = static_cast<T>(shape.elements());
+        const auto scale = norm == Norm::FORWARD ? 1 : norm == Norm::ORTHO ? math::sqrt(count) : count;
 
-        dim4_t index_dc{};
-        if constexpr (REMAP == fft::Remap::FC2FC) {
+        Vec4<i64> index_dc{0};
+        if constexpr (REMAP == Remap::FC2FC) {
             index_dc = {0,
-                        math::FFTShift(dim_t{0}, shape[1]),
-                        math::FFTShift(dim_t{0}, shape[2]),
-                        math::FFTShift(dim_t{0}, shape[3])};
+                        noa::math::fft_shift(i64{0}, shape[1]),
+                        noa::math::fft_shift(i64{0}, shape[2]),
+                        noa::math::fft_shift(i64{0}, shape[3])};
         }
 
+        // Compute the energy of the input.
         T factor;
-        T* null{};
-        cuda::utils::reduce(
-                "signal::fft::standardize",
-                input.get(), input_strides, shape,
-                math::abs_squared_t{}, math::plus_t{}, T{0},
-                &factor, 1, math::copy_t{}, null, 1, math::copy_t{}, true, true, stream);
+        noa::cuda::utils::reduce_unary(
+                "standardize_ifft",
+                input, input_strides, shape, &factor, Strides1<i64>{1},
+                T{0}, noa::abs_squared_t{}, noa::plus_t{}, {},
+                true, true, stream);
         Complex<T> dc;
-        cuda::memory::copy(input.get() + indexing::at(index_dc, input_strides), &dc, 1, stream);
-
+        noa::cuda::memory::copy(input + noa::indexing::at(index_dc, input_strides), &dc, 1, stream);
         stream.synchronize();
-        factor = math::sqrt(factor - math::abs(dc) * math::abs(dc)) / scale;
+        factor = 1 / (noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale); // anticipate dc=0
 
-        cuda::math::ewise(input, input_strides, 1 / factor, output, output_strides, shape, math::multiply_t{}, stream);
-        cuda::memory::set(output.get() + indexing::at(index_dc, output_strides), 1, Complex<T>{0}, stream);
-        stream.attach(output);
+        noa::cuda::utils::ewise_binary(
+                "standardize_ifft",
+                input, input_strides, factor, output, output_strides,
+                shape, stream, noa::multiply_t{});
+        cuda::memory::set(output + noa::indexing::at(index_dc, output_strides), 1, Complex<T>{0}, stream);
     }
 
-    template<fft::Remap REMAP, typename T>
-    void standardizeHalf_(const shared_t<Complex<T>[]>& input, dim4_t input_strides,
-                          const shared_t<Complex<T>[]>& output, dim4_t output_strides,
-                          dim4_t shape, dim4_t shape_fft, Norm norm, cuda::Stream& stream) {
-        NOA_ASSERT(shape.ndim() <= 3);
-        using namespace noa::indexing;
-        const auto count = static_cast<T>(math::prod(shape));
-        const auto scale = norm == fft::NORM_FORWARD ? 1 : norm == fft::NORM_ORTHO ? math::sqrt(count) : count;
+    template<Remap REMAP, typename T>
+    void standardize_half_(const Complex<T>* input, const Strides4<i64>& input_strides,
+                           Complex<T>* output, const Strides4<i64>& output_strides,
+                           const Shape4<i64>& shape, const Shape4<i64>& shape_fft,
+                           Norm norm, cuda::Stream& stream) {
+        const auto count = static_cast<T>(shape.elements());
+        const auto scale = norm == Norm::FORWARD ? 1 : norm == Norm::ORTHO ? math::sqrt(count) : count;
 
-        const Subregion original(shape_fft, input_strides);
         const bool even = !(shape[3] % 2);
-        dim4_t index_dc{};
-        if constexpr (REMAP == fft::Remap::HC2HC)
-            index_dc = {0, math::FFTShift(dim_t{0}, shape[1]), math::FFTShift(dim_t{0}, shape[2]), 0};
+        Vec4<i64> index_dc{};
+        if constexpr (REMAP == fft::Remap::HC2HC) {
+            index_dc = {0,
+                        noa::math::fft_shift(i64{0}, shape[1]),
+                        noa::math::fft_shift(i64{0}, shape[2]),
+                        0};
+        }
+
+        // Encode the original input layout:
+        using namespace noa::indexing;
+        const auto original = Subregion(shape_fft, input_strides);
 
         // Reduce unique chunk:
-        auto subregion = original(ellipsis_t{}, slice_t{1, original.shape()[3] - even});
         T factor0;
-        T* null{};
-        cuda::utils::reduce(
-                "signal::fft::standardize",
-                input.get() + subregion.offset(), subregion.strides(), subregion.shape(),
-                math::abs_squared_t{}, math::plus_t{}, T{0},
-                &factor0, 1, math::copy_t{}, null, 1, math::copy_t{}, true, true, stream);
+        auto subregion = original.extract(ellipsis_t{}, slice_t{1, original.shape[3] - even});
+        stream.synchronize();
+        noa::cuda::utils::reduce_unary(
+                "standardize_ifft",
+                input + subregion.offset, subregion.strides, subregion.shape,
+                &factor0, Strides1<i64>{1}, T{0},
+                noa::abs_squared_t{}, noa::plus_t{}, {},
+                true, true, stream);
 
         // Reduce common column/plane containing the DC:
-        subregion = original(ellipsis_t{}, 0);
+        subregion = original.extract(ellipsis_t{}, 0);
         T factor1;
-        cuda::utils::reduce(
-                "signal::fft::standardize",
-                input.get() + subregion.offset(), subregion.strides(), subregion.shape(),
-                math::abs_squared_t{}, math::plus_t{}, T{0},
-                &factor1, 1, math::copy_t{}, null, 1, math::copy_t{}, true, true, stream);
+        noa::cuda::utils::reduce_unary(
+                "standardize_ifft",
+                input + subregion.offset, subregion.strides, subregion.shape,
+                &factor1, Strides1<i64>{1}, T{0},
+                noa::abs_squared_t{}, noa::plus_t{}, {},
+                true, true, stream);
         Complex<T> dc;
-        cuda::memory::copy(input.get() + indexing::at(index_dc, input_strides), &dc, 1, stream);
+        noa::cuda::memory::copy(input + at(index_dc, input_strides), &dc, 1, stream);
 
         T factor2{0};
         if (even) {
             // Reduce common column/plane containing the real Nyquist:
-            subregion = original(ellipsis_t{}, -1);
-            cuda::utils::reduce(
-                    "signal::fft::standardize",
-                    input.get() + subregion.offset(), subregion.strides(), subregion.shape(),
-                    math::abs_squared_t{}, math::plus_t{}, T{0},
-                    &factor2, 1, math::copy_t{}, null, 1, math::copy_t{}, true, true, stream);
+            subregion = original.extract(ellipsis_t{}, -1);
+            noa::cuda::utils::reduce_unary(
+                    "standardize_ifft",
+                    input + subregion.offset, subregion.strides, subregion.shape,
+                    &factor2, Strides1<i64>{1}, T{0},
+                    noa::abs_squared_t{}, noa::plus_t{}, {},
+                    true, true, stream);
         }
 
+        // Standardize.
         stream.synchronize();
-        factor1 -= math::abs(dc) * math::abs(dc);
-        const T factor = math::sqrt(2 * factor0 + factor1 + factor2) / scale;
+        factor1 -= noa::abs_squared_t{}(dc); // anticipate dc=0
+        const T factor = scale / math::sqrt(2 * factor0 + factor1 + factor2);
 
-        cuda::math::ewise(input, input_strides, 1 / factor,
-                          output, output_strides, shape_fft, math::multiply_t{}, stream);
-        cuda::memory::set(output.get() + indexing::at(index_dc, output_strides), 1, Complex<T>{0}, stream);
-        stream.attach(output);
+        noa::cuda::utils::ewise_binary(
+                "standardize_ifft",
+                input, input_strides, factor,
+                output, output_strides, shape_fft,
+                stream, noa::multiply_t{});
+        noa::cuda::memory::set(output + at(index_dc, output_strides), 1, Complex<T>{0}, stream);
     }
 }
 
 namespace noa::cuda::signal::fft {
-    template<Remap REMAP, typename T, typename>
-    void standardize(const shared_t<T[]>& input, dim4_t input_strides,
-                     const shared_t<T[]>& output, dim4_t output_strides,
-                     dim4_t shape, Norm norm, Stream& stream) {
-        using real_t = traits::value_type_t<T>;
-        const dim4_t shape_{1, shape[1], shape[2], shape[3]};
-        const dim4_t shape_fft = REMAP == Remap::F2F || REMAP == Remap::FC2FC ? shape_ : shape_.fft();
+    template<noa::fft::Remap REMAP, typename T, typename>
+    void standardize_ifft(const T* input, const Strides4<i64>& input_strides,
+                          T* output, const Strides4<i64>& output_strides,
+                          const Shape4<i64>& shape, noa::fft::Norm norm, Stream& stream) {
+        const auto shape_unbatched = shape.pop_front().push_front(1);
+        const auto shape_unbatched_fft =
+                REMAP == noa::fft::F2F || REMAP == noa::fft::FC2FC ?
+                shape_unbatched : shape_unbatched.fft();
 
-        // TODO The reduction can be batched, so maybe loop through batched only for the final ewise?
-        for (dim_t batch = 0; batch < shape[0]; ++batch) {
-            if constexpr (REMAP == Remap::F2F || REMAP == Remap::FC2FC) {
-                standardizeFull_<REMAP>(input, input_strides, output, output_strides,
-                                        shape_, norm, stream);
-            } else if constexpr (REMAP == Remap::H2H || REMAP == Remap::HC2HC) {
-                standardizeHalf_<REMAP>(input, input_strides, output, output_strides,
-                                        shape_, shape_fft, norm, stream);
+        for (i64 batch = 0; batch < shape[0]; ++batch) {
+            if constexpr (REMAP == noa::fft::F2F || REMAP == noa::fft::FC2FC) {
+                standardize_full_<REMAP>(
+                        input, input_strides, output, output_strides,
+                        shape_unbatched, norm, stream);
+            } else if constexpr (REMAP == noa::fft::H2H || REMAP == noa::fft::HC2HC) {
+                standardize_half_<REMAP>(
+                        input, input_strides, output, output_strides,
+                        shape_unbatched, shape_unbatched_fft, norm, stream);
             } else {
-                static_assert(traits::always_false_v<T>);
+                static_assert(noa::traits::always_false_v<T>);
             }
         }
     }
 
-    #define INSTANTIATE_STANDARDIZE_(T)                                                                                                     \
-    template void standardize<Remap::F2F, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&);      \
-    template void standardize<Remap::FC2FC, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&);    \
-    template void standardize<Remap::H2H, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&);      \
-    template void standardize<Remap::HC2HC, T, void>(const shared_t<T[]>&, dim4_t, const shared_t<T[]>&, dim4_t, dim4_t, Norm, Stream&)
+    #define INSTANTIATE_STANDARDIZE_(T)                                                                                                                     \
+    template void standardize_ifft<Remap::F2F, T>(const T*, const Strides4<i64>&, T*, const Strides4<i64>&, const Shape4<i64>&, noa::fft::Norm, Stream&);   \
+    template void standardize_ifft<Remap::FC2FC, T>(const T*, const Strides4<i64>&, T*, const Strides4<i64>&, const Shape4<i64>&, noa::fft::Norm, Stream&); \
+    template void standardize_ifft<Remap::H2H, T>(const T*, const Strides4<i64>&, T*, const Strides4<i64>&, const Shape4<i64>&, noa::fft::Norm, Stream&);   \
+    template void standardize_ifft<Remap::HC2HC, T>(const T*, const Strides4<i64>&, T*, const Strides4<i64>&, const Shape4<i64>&, noa::fft::Norm, Stream&)
 
-    INSTANTIATE_STANDARDIZE_(cfloat_t);
-    INSTANTIATE_STANDARDIZE_(cdouble_t);
+    INSTANTIATE_STANDARDIZE_(c32);
+    INSTANTIATE_STANDARDIZE_(c64);
 }

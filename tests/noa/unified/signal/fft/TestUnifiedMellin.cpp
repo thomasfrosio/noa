@@ -1,10 +1,12 @@
-#include <noa/Array.h>
-#include <noa/FFT.h>
-#include <noa/Math.h>
-#include <noa/Memory.h>
-#include <noa/Geometry.h>
-#include <noa/Signal.h>
-#include <noa/IO.h>
+// OLD - UNUSED
+
+#include <noa/Array.hpp>
+#include <noa/FFT.hpp>
+#include <noa/Math.hpp>
+#include <noa/Memory.hpp>
+#include <noa/Geometry.hpp>
+#include <noa/Signal.hpp>
+#include <noa/IO.hpp>
 #include <noa/Utils.h>
 
 #include <iostream>
@@ -32,7 +34,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
     const size4_t polar_shape{1, 1, 1024, 256};
 
     std::vector<Device> devices = {Device{"cpu"}};
-    if (Device::any(Device::GPU))
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     io::MRCFile file;
@@ -110,7 +112,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
     const float2_t angle_range{0, PI * 2};
 
     std::vector<Device> devices = {Device{"cpu"}};
-    if (Device::any(Device::GPU))
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     const path_t directory = test::NOA_DATA_PATH / "signal" / "fft";
