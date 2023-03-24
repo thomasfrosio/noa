@@ -11,6 +11,10 @@ namespace {
     // One string per thread is enough since TIFFFile will immediately throw after the error.
     thread_local std::string s_error_buffer;
 
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
     void format_message_tiff_(std::string& output, const char* module, const char* fmt, va_list args) {
         if (module) { // module is optional
             output += module;
@@ -22,6 +26,9 @@ namespace {
         if (vsnprintf(tmp, 400, fmt, args) > 0)
             output += tmp;
     }
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic pop
+#endif
 
     // if s_error_buffer is not empty, there's an error waiting to be printed.
     extern "C" void errorHandler_(const char* module, const char* fmt, va_list args) {
@@ -484,6 +491,7 @@ namespace noa::io {
                 } else if (bits_per_sample == 128) {
                     return DataType::C64;
                 }
+                break;
             default:
                 break;
         }

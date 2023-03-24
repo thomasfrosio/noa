@@ -196,41 +196,53 @@ namespace noa::io {
                                                  output + bytes_per_row * row,
                                                  shape[3], true, clamp);
                     }
-                    break;
+                    return;
                 }
+                break;
             case DataType::I8:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<i8>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::U8:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<u8>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::I16:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<i16>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::U16:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<u16>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::I32:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<i32>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::U32:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<u32>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::I64:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<i64>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::U64:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<u64>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::F16:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<f16>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::F32:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<f32>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::F64:
                 if constexpr (noa::traits::is_scalar_v<Input>)
                     return serialize_<f64>(input, strides, shape, output, clamp, swap_endian);
+                break;
             case DataType::CI16:
                 if constexpr (traits::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
@@ -239,6 +251,7 @@ namespace noa::io {
                                      output, DataType::I16,
                                      clamp, swap_endian);
                 }
+                break;
             case DataType::C16:
                 if constexpr (traits::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
@@ -247,6 +260,7 @@ namespace noa::io {
                                      output, DataType::F16,
                                      clamp, swap_endian);
                 }
+                break;
             case DataType::C32:
                 if constexpr (traits::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
@@ -255,6 +269,7 @@ namespace noa::io {
                                      output, DataType::F32,
                                      clamp, swap_endian);
                 }
+                break;
             case DataType::C64:
                 if constexpr (traits::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
@@ -263,9 +278,11 @@ namespace noa::io {
                                      output, DataType::F64,
                                      clamp, swap_endian);
                 }
-            default:
-                NOA_THROW("{} cannot be serialized into the data type {}", string::human<Input>(), data_type);
+                break;
+            case DataType::UNKNOWN:
+                break;
         }
+        NOA_THROW("{} cannot be serialized into the data type {}", string::human<Input>(), data_type);
     }
 
     void serialize(const void* input, DataType input_data_type,
@@ -503,41 +520,53 @@ namespace noa::io {
                                                    output + shape[3] * row,
                                                    shape[3], true);
                     }
-                    break;
+                    return;
                 }
+                break;
             case DataType::I8:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<i8>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::U8:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<u8>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::I16:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<i16>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::U16:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<u16>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::I32:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<i32>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::U32:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<u32>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::I64:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<i64>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::U64:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<u64>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::F16:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<f16>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::F32:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<f32>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::F64:
                 if constexpr (noa::traits::is_scalar_v<T>)
                     return deserialize_<f64>(input, output, strides, shape, clamp, swap_endian);
+                break;
             case DataType::CI16:
                 if constexpr (noa::traits::is_complex_v<T>) {
                     using real_t = typename T::value_type;
@@ -546,6 +575,7 @@ namespace noa::io {
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
                 }
+                break;
             case DataType::C16:
                 if constexpr (noa::traits::is_complex_v<T>) {
                     using real_t = typename T::value_type;
@@ -554,6 +584,7 @@ namespace noa::io {
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
                 }
+                break;
             case DataType::C32:
                 if constexpr (noa::traits::is_complex_v<T>) {
                     using real_t = typename T::value_type;
@@ -562,6 +593,7 @@ namespace noa::io {
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
                 }
+                break;
             case DataType::C64:
                 if constexpr (noa::traits::is_complex_v<T>) {
                     using real_t = typename T::value_type;
@@ -570,9 +602,11 @@ namespace noa::io {
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
                 }
-            default:
-                NOA_THROW("data type {} cannot be deserialized into {}", data_type, string::human<T>());
+                break;
+            case DataType::UNKNOWN:
+                break;
         }
+        NOA_THROW("data type {} cannot be deserialized into {}", data_type, string::human<T>());
     }
 
     void deserialize(const Byte* input, DataType input_data_type,
