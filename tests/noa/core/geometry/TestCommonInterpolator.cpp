@@ -4,7 +4,7 @@
 
 // The interpolators are tested extensively already, and this was
 // just added during the development to check if it compiled.
-TEST_CASE("common::geometry, Interpolator", "[noa][core]") {
+TEST_CASE("core::geometry, Interpolator", "[noa][core]") {
     using namespace noa;
 
     const Shape3<int32_t> shape0;

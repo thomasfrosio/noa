@@ -9,7 +9,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("io::Stats", "[noa][common][io]") {
+TEST_CASE("core::io::Stats", "[noa][core]") {
     io::Stats<f32> out;
     REQUIRE_FALSE(out.has_min());
     REQUIRE_FALSE(out.has_max());
@@ -38,7 +38,7 @@ TEST_CASE("io::Stats", "[noa][common][io]") {
     REQUIRE(out.std() == 6);
 }
 
-TEST_CASE("io::MRCFile: real dtype", "[noa][common][io]") {
+TEST_CASE("core::io::MRCFile: real dtype", "[noa][core]") {
     const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
     const std::string fixture_expected_header =
             "Format: MRC File\n"

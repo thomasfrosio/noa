@@ -10,7 +10,7 @@
 
 using namespace ::noa;
 
-TEST_CASE("cpu::signal::fft::standardize_ifft(), half", "[noa][unified]") {
+TEST_CASE("unified::signal::fft::standardize_ifft(), rfft", "[noa][unified]") {
     const auto shape = Shape4<i64>{1, 1, 128, 128};
 
     fft::Norm norm = GENERATE(fft::Norm::FORWARD, fft::Norm::BACKWARD, fft::Norm::ORTHO, fft::Norm::NONE);
@@ -44,7 +44,7 @@ TEST_CASE("cpu::signal::fft::standardize_ifft(), half", "[noa][unified]") {
     }
 }
 
-TEST_CASE("cpu::signal::fft::standardize_ifft(), full", "[noa][cpu]") {
+TEST_CASE("unified::signal::fft::standardize_ifft(), fft", "[noa][unified]") {
     const auto shape = Shape4<i64>{1, 1, 128, 128};
 
     fft::Norm norm = GENERATE(fft::Norm::FORWARD, fft::Norm::BACKWARD, fft::Norm::ORTHO, fft::Norm::NONE);
