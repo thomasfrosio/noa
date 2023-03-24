@@ -1,6 +1,5 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/View.hpp>
-#include <noa/unified/io/ImageFile.hpp>
 
 #include <catch2/catch.hpp>
 #include "Helpers.h"
@@ -8,6 +7,8 @@
 using namespace ::noa;
 
 TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, StreamMode::DEFAULT);
+
     const auto shape = test::get_random_shape4_batched(2);
     const Allocator alloc = GENERATE(Allocator::DEFAULT,
                                      Allocator::DEFAULT_ASYNC,
@@ -43,8 +44,8 @@ TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f
     REQUIRE(va.get());
 }
 
-
 TEMPLATE_TEST_CASE("unified::View, copy values", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, StreamMode::ASYNC);
     const auto shape = test::get_random_shape4_batched(3);
     const auto input = Array<TestType>(shape, Allocator::MANAGED);
     const auto view = input.view();

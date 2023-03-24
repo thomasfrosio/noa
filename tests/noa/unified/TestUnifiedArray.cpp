@@ -8,6 +8,7 @@
 using namespace ::noa;
 
 TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, Vec4<i32>, Double22) {
+    StreamGuard guard(Device{}, StreamMode::DEFAULT);
     Array<TestType> a;
     REQUIRE(a.is_empty());
 
@@ -53,6 +54,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
 }
 
 TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, StreamMode::DEFAULT);
     const auto shape = test::get_random_shape4_batched(2);
     const Allocator alloc = GENERATE(Allocator::DEFAULT,
                                      Allocator::DEFAULT_ASYNC,
@@ -103,6 +105,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
 }
 
 TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, StreamMode::DEFAULT);
     const auto shape = test::get_random_shape4_batched(3);
     const auto input = Array<TestType>(shape, Allocator::MANAGED);
 
@@ -144,6 +147,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f3
 }
 
 TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, StreamMode::DEFAULT);
     AND_THEN("as another type") {
         Array<f64> c({2, 3, 4, 5});
         Array<unsigned char> d = c.as<unsigned char>();
