@@ -71,9 +71,9 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[noa][unified][assets]")
 
             // With textures:
             if (device.is_gpu() &&
-                (border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
-                ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
-                 interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST))
+                ((border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
+                 ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
+                  interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST)))
                 continue; // gpu textures have limitations on the addressing mode
 
             // The input is prefiltered at this point, so no need for prefiltering here.
@@ -160,9 +160,9 @@ TEST_CASE("unified::geometry::transform_2d(), cubic", "[noa][unified][assets]") 
 
             // With textures:
             if (device.is_gpu() &&
-                (border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
-                ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
-                 interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST))
+                ((border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
+                 ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
+                  interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST)))
                 continue; // gpu textures have limitations on the addressing mode
 
             // The input is prefiltered at this point, so no need for prefiltering here.
@@ -314,9 +314,9 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
 
             // With textures:
             if (device.is_gpu() &&
-                (border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
-                ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
-                 interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST))
+                ((border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
+                 ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
+                  interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST)))
                 continue; // gpu textures have limitations on the addressing mode
 
             // The input is prefiltered at this point, so no need for prefiltering here.
@@ -403,9 +403,9 @@ TEST_CASE("unified::geometry::transform_3d(), cubic", "[noa][unified][assets]") 
 
             // With textures:
             if (device.is_gpu() &&
-                (border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
-                ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
-                 interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST))
+                ((border == BorderMode::VALUE || border == BorderMode::REFLECT) ||
+                 ((border == BorderMode::MIRROR || border == BorderMode::PERIODIC) &&
+                  interp != InterpMode::LINEAR_FAST && interp != InterpMode::NEAREST)))
                 continue; // gpu textures have limitations on the addressing mode
 
             // The input is prefiltered at this point, so no need for prefiltering here.

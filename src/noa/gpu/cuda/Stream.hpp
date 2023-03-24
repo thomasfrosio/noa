@@ -196,7 +196,10 @@ namespace noa::cuda {
     public:
         // Enqueues a kernel launch to the stream.
         template<typename K, typename ...Args>
-        void enqueue(const char* kernel_name, K kernel, LaunchConfig config, Args&& ... args) {
+        void enqueue([[maybe_unused]] const char* kernel_name,
+                     [[maybe_unused]] K kernel,
+                     [[maybe_unused]] LaunchConfig config,
+                     [[maybe_unused]] Args&& ... args) {
             #ifndef __CUDACC__
             NOA_THROW("To launch kernels, the compilation must be steered by NVCC "
                       "(i.e. this function should be called from CUDA C/C++ .cu files)");

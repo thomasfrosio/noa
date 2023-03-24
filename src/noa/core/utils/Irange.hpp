@@ -6,7 +6,16 @@
 // Adapted from https://github.com/pytorch/pytorch/blob/master/c10/util/irange.h
 namespace noa::details {
     template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
-    struct IntIterator : std::iterator<std::input_iterator_tag, I> {
+    struct IntIterator {
+    public:
+        // iterator traits
+        using difference_type = I;
+        using value_type = I;
+        using pointer = const I*;
+        using reference = const I&;
+        using iterator_category = std::forward_iterator_tag;
+
+    public:
         constexpr explicit IntIterator(I value_) noexcept: value(value_) {}
         constexpr I operator*() const noexcept { return value; }
         constexpr I const* operator->() const noexcept { return &value; }
