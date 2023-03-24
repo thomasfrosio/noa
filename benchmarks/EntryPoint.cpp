@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#include <noa/Session.h>
+#include <noa/Session.hpp>
 #include <benchmark/benchmark.h>
 
 namespace benchmark {

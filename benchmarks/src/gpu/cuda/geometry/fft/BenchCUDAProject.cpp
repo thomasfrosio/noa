@@ -3,15 +3,15 @@
 #include <noa/common/geometry/Euler.h>
 #include <noa/common/io/MRCFile.h>
 
-#include <noa/gpu/cuda/Event.h>
-#include <noa/gpu/cuda/geometry/fft/Project.h>
-#include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/memory/PtrDevice.h>
-#include <noa/gpu/cuda/memory/PtrPinned.h>
-#include <noa/gpu/cuda/memory/PtrTexture.h>
-#include <noa/gpu/cuda/memory/PtrArray.h>
-#include <noa/gpu/cuda/memory/Set.h>
-#include <noa/gpu/cuda/Stream.h>
+#include <noa/gpu/cuda/Event.hpp>
+#include <noa/gpu/cuda/geometry/fft/Project.hpp>
+#include <noa/gpu/cuda/memory/Copy.hpp>
+#include <noa/gpu/cuda/memory/PtrDevice.hpp>
+#include <noa/gpu/cuda/memory/PtrPinned.hpp>
+#include <noa/gpu/cuda/memory/PtrTexture.hpp>
+#include <noa/gpu/cuda/memory/PtrArray.hpp>
+#include <noa/gpu/cuda/memory/Set.hpp>
+#include <noa/gpu/cuda/Stream.hpp>
 
 #include "Helpers.h"
 

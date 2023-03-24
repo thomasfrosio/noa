@@ -1,10 +1,10 @@
 #include <benchmark/benchmark.h>
 
-#include <noa/cpu/Stream.h>
-#include <noa/cpu/memory/PtrHost.h>
-#include <noa/cpu/memory/Cast.h>
-#include <noa/cpu/memory/Set.h>
-#include <noa/cpu/memory/Copy.h>
+#include <noa/cpu/Stream.hpp>
+#include <noa/cpu/memory/PtrHost.hpp>
+#include <noa/cpu/memory/Cast.hpp>
+#include <noa/cpu/memory/Set.hpp>
+#include <noa/cpu/memory/Copy.hpp>
 
 #include "Helpers.h"
 

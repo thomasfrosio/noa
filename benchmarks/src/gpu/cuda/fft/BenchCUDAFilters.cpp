@@ -1,10 +1,10 @@
 #include <benchmark/benchmark.h>
 
-#include <noa/cpu/memory/PtrHost.h>
-#include <noa/gpu/cuda/Stream.h>
-#include <noa/gpu/cuda/Event.h>
-#include <noa/gpu/cuda/memory/Copy.h>
-#include <noa/gpu/cuda/memory/PtrDevice.h>
+#include <noa/cpu/memory/PtrHost.hpp>
+#include <noa/gpu/cuda/Stream.hpp>
+#include <noa/gpu/cuda/Event.hpp>
+#include <noa/gpu/cuda/memory/Copy.hpp>
+#include <noa/gpu/cuda/memory/PtrDevice.hpp>
 #include <noa/gpu/cuda/fft/Filters.h>
 
 #include "Helpers.h"
