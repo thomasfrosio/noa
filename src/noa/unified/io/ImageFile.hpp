@@ -386,7 +386,7 @@ namespace noa::io {
               const Path& filename, DataType data_type = DataType::UNKNOWN) {
         auto file = ImageFile(filename, io::WRITE);
         if constexpr (noa::traits::is_vec2_v<PixelSize>)
-            file.set_pixel_size(pixel_size.pop_front(1).template as<f32>());
+            file.set_pixel_size(pixel_size.push_front(1).template as<f32>());
         else
             file.set_pixel_size(pixel_size.template as<f32>());
         if (data_type != DataType::UNKNOWN)

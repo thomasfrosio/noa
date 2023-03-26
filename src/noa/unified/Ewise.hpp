@@ -670,7 +670,7 @@ namespace noa {
                                     rhs,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(rhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs.share(), output.share());
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
