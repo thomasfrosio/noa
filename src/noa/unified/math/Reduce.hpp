@@ -224,14 +224,15 @@ namespace noa::math {
         }
     }
 
-    /// Normalizes (and standardizes) the input array in-place, by setting its mean to 0 and variance to 1.
-    /// It also returns the mean and variance before normalization.
-    template<typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Input> &&
-             details::is_valid_var_std_v<Input, Input>>>
-    auto normalize(const Input& array, i64 ddof = 0) {
-        const auto [mean, var] = mean_var(array, ddof);
-        ewise_trinary(array, mean, var, array, minus_divide_t{});
+    /// Normalizes (and standardizes) an array, by setting its mean to 0 and variance to 1.
+    /// Can be in-place or out-of-place. It also returns the mean and variance before normalization.
+    template<typename Input, typename Output, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             noa::traits::is_almost_any_v<noa::traits::value_type_t<Output>, f32, f64, c32, c64> &&
+             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+    auto normalize(const Input& input, const Output& output, i64 ddof = 0) {
+        const auto [mean, var] = mean_var(input, ddof);
+        ewise_trinary(input, mean, var, output, minus_divide_t{});
         return std::pair{mean, var};
     }
 }
