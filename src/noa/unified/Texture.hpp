@@ -230,7 +230,7 @@ namespace noa {
                 NOA_CHECK(array.device() == device_target,
                           "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
                           array.device());
-                cpu_texture_type& cpu_texture = cpu();
+                cpu_texture_type& cpu_texture = cpu_();
                 cpu_texture.strides = array.strides();
                 if constexpr (noa::traits::is_view_v<ArrayOrView>)
                     cpu_texture.ptr = Shared<T[]>(array.get(), [](void*) {});
@@ -246,7 +246,7 @@ namespace noa {
                     if (device_target != array.device())
                         array.eval();
 
-                    gpu_texture_type& cuda_texture = cuda();
+                    gpu_texture_type& cuda_texture = cuda_();
                     auto& cuda_stream = Stream::current(device_target).cuda();
                     cuda::memory::copy(
                             array.get(), array.strides(),
@@ -307,7 +307,7 @@ namespace noa {
 
         /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] const cpu::Texture<value_type>& cpu() const {
+        [[nodiscard]] const cpu_texture_type& cpu() const {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
             NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
             return *ptr;
@@ -348,6 +348,31 @@ namespace noa {
                 return false;
                 #endif
             }
+        }
+
+    private: // For now, keep the right to modify the underlying textures to yourself
+        [[nodiscard]] cpu_texture_type& cpu_() {
+            auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
+            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
+            return *ptr;
+        }
+
+        [[nodiscard]] gpu_texture_type& gpu_() {
+            #ifdef NOA_ENABLE_CUDA
+            return this->cuda();
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+
+        [[nodiscard]] gpu_texture_type& cuda_() {
+            #ifdef NOA_ENABLE_CUDA
+            auto* ptr = std::get_if<gpu_texture_type>(&m_texture);
+            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
+            return *ptr;
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
         }
 
     private:
