@@ -158,9 +158,7 @@ namespace noa::cuda::fft::details {
         const auto i_type = noa::traits::to_underlying(type);
         std::string hash;
         {
-            static std::ostringstream tmp;
-            tmp.seekp(0); // clear
-
+            std::ostringstream tmp;
             tmp << rank << ':';
             for (i32 i = 0; i < rank; ++i)
                 tmp << shape_3d[offset + i] << ',';
@@ -177,6 +175,7 @@ namespace noa::cuda::fft::details {
 
             tmp << i_type << ':';
             tmp << batch;
+
             hash = tmp.str();
         }
 
