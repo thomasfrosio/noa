@@ -19,14 +19,14 @@ namespace noa::memory {
         NOA_CHECK(input.device() == output.device(),
                   "The input and output should be on the same device, but got input={} and output={}",
                   input.device(), output.device());
-        NOA_CHECK(noa::indexing::is_contiguous_vector(batch_indexes) && output.shape[0] == batch_indexes.size(),
+        NOA_CHECK(noa::indexing::is_contiguous_vector(batch_indexes) && output.shape()[0] == batch_indexes.size(),
                   "The indexes should be specified as a contiguous vector of size {}, but got shape={} and strides={}",
-                  output.shape[0], batch_indexes.shape(), batch_indexes.strides());
-        NOA_CHECK(batch_indexes.device.is_cpu(),
+                  output.shape()[0], batch_indexes.shape(), batch_indexes.strides());
+        NOA_CHECK(batch_indexes.device().is_cpu(),
                   "The indexes should be on the CPU, got device={}",
-                  batch_indexes.device);
+                  batch_indexes.device());
 
-        const auto batches_to_copy = output.shape[0];
+        const auto batches_to_copy = output.shape()[0];
         const auto batch_indexes_1d = batch_indexes.accessor_contiguous_1d();
 
         using index_t = typename Indexes::value_type;
@@ -70,7 +70,7 @@ namespace noa::memory {
         }
 
         // Worst case, copy batches one by one across devices.
-        for (auto batch_index: batch_indexes)
-            input.subregion(batch_index).to(output.subregion(batch_index));
+        for (i64 i = 0; i < batches_to_copy; ++i)
+            input.subregion(batch_indexes_1d[i]).to(output.subregion(batch_indexes_1d[i]));
     }
 }

@@ -398,7 +398,7 @@ namespace noa::signal::fft {
         NOA_CHECK(lhs.device() == rhs.device(),
                   "The lhs and rhs input arrays should be on the same device, but got lhs:{} and rhs:{}",
                   lhs.device(), rhs.device());
-        NOA_CHECK(coefficients.dereferenceable(), "The coefficients should be accessible to the CPU");
+        NOA_CHECK(coefficients.is_dereferenceable(), "The coefficients should be accessible to the CPU");
         if (coefficients.device() != lhs.device())
             Stream::current(coefficients.device()).synchronize();
 

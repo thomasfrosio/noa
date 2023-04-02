@@ -47,7 +47,7 @@ namespace noa::geometry::details {
             NOA_CHECK(noa::indexing::is_contiguous_vector(matrix) && matrix.elements() == output.shape()[0],
                       "The number of matrices, specified as a contiguous vector, should be equal to the number of "
                       "batches in the output, but got matrix shape:{}, strides:{} and {} output batches",
-                      matrix.shape(), matrix.strides, output.shape()[0]);
+                      matrix.shape(), matrix.strides(), output.shape()[0]);
             NOA_CHECK(device == matrix.device(),
                       "The transformation matrices should be on the same device as the output, "
                       "but got matrices:{} and output:{}", matrix.device(), device);
