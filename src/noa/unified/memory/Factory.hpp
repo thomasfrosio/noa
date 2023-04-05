@@ -124,9 +124,10 @@ namespace noa::memory {
     }
 
     /// Returns an uninitialized contiguous array with the same shape and options as \p array.
-    template<typename Input>
+    /// The value type can be set explicitly. By default, it is set to the mutable value type of \p array.
+    template<typename Value = Empty, typename Input>
     [[nodiscard]] auto like(const Input& array) {
-        using value_t = noa::traits::mutable_value_type_t<Input>;
+        using value_t = std::conditional_t<std::is_empty_v<Value>, noa::traits::mutable_value_type_t<Input>, Value>;
         return Array<value_t>(array.shape(), array.options());
     }
 }
