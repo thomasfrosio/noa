@@ -72,6 +72,12 @@ namespace noa::memory {
         return out;
     }
 
+    /// Returns an array filled with a given value.
+    template<typename Value>
+    [[nodiscard]] Array<Value> fill(i64 elements, Value value, ArrayOption option = {}) {
+        return fill(Shape4<i64>{1, 1, 1, elements}, value, option);
+    }
+
     /// Returns an array filled with zeros.
     /// \tparam Value   Any data type.
     /// \param shape    Shape of the array.
@@ -79,6 +85,12 @@ namespace noa::memory {
     template<typename Value>
     [[nodiscard]] Array<Value> zeros(const Shape4<i64>& shape, ArrayOption option = {}) {
         return fill(shape, Value{0}, option);
+    }
+
+    /// Returns an array filled with zeros.
+    template<typename Value>
+    [[nodiscard]] Array<Value> zeros(i64 elements, ArrayOption option = {}) {
+        return fill(elements, Value{0}, option);
     }
 
     /// Returns an array filled with ones.
@@ -90,6 +102,12 @@ namespace noa::memory {
         return fill(shape, Value{1}, option);
     }
 
+    /// Returns an array filled with ones.
+    template<typename Value>
+    [[nodiscard]] Array<Value> ones(i64 elements, ArrayOption option = {}) {
+        return fill(elements, Value{1}, option);
+    }
+
     /// Returns an uninitialized array.
     /// \tparam Value   Any data type.
     /// \param shape    Shape of the array.
@@ -97,6 +115,12 @@ namespace noa::memory {
     template<typename Value>
     [[nodiscard]] Array<Value> empty(const Shape4<i64>& shape, ArrayOption option = {}) {
         return Array<Value>(shape, option);
+    }
+
+    /// Returns an uninitialized array.
+    template<typename Value>
+    [[nodiscard]] Array<Value> empty(i64 elements, ArrayOption option = {}) {
+        return Array<Value>(elements, option);
     }
 
     /// Returns an uninitialized contiguous array with the same shape and options as \p array.
