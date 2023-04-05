@@ -20,7 +20,7 @@ namespace {
         const bool has_smooth_edge = edge_size > 1e-5f;
         if (has_smooth_edge) {
             const GeomShapeSmooth geom_shape_smooth(center, radius, edge_size, cvalue);
-            if (Matrix{} == inv_matrix) {
+            if (Matrix{} == inv_matrix) { // identity matrix of nullptr
                 const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                         input_accessor, output_accessor, shape, geom_shape_smooth, Empty{}, functor);
                 noa::cpu::utils::iwise_4d(start, end, kernel, threads);
@@ -31,7 +31,7 @@ namespace {
             }
         } else {
             const GeomShape geom_shape(center, radius, cvalue);
-            if (Matrix{} == inv_matrix) {
+            if (Matrix{} == inv_matrix) { // identity matrix of nullptr
                 const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                         input_accessor, output_accessor, shape, geom_shape, Empty{}, functor);
                 noa::cpu::utils::iwise_4d(start, end, kernel, threads);
@@ -70,20 +70,23 @@ namespace noa::cpu::geometry::fft {
     void ellipse(const Value* input, Strides4<i64> input_strides,
                  Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                  Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
-                 Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
-        const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
-        if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
-            const auto order = (order_3d + 1).push_front(0);
-            input_strides = indexing::reorder(input_strides, order);
-            output_strides = indexing::reorder(output_strides, order);
-            shape = indexing::reorder(shape, order);
-            center = indexing::reorder(center, order_3d);
-            radius = indexing::reorder(radius, order_3d);
-            inv_matrix = indexing::reorder(inv_matrix, order_3d);
+                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
+        Matrix matrices = inv_matrix;
+        if constexpr (!std::is_pointer_v<Matrix>) {
+            const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
+            if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
+                const auto order = (order_3d + 1).push_front(0);
+                input_strides = indexing::reorder(input_strides, order);
+                output_strides = indexing::reorder(output_strides, order);
+                shape = indexing::reorder(shape, order);
+                center = indexing::reorder(center, order_3d);
+                radius = indexing::reorder(radius, order_3d);
+                matrices = indexing::reorder(matrices, order_3d);
+            }
         }
 
         const auto[start, end] = get_iwise_subregion_<Functor>(
-                input, output, shape, center, radius, edge_size, inv_matrix, cvalue, invert);
+                input, output, shape, center, radius, edge_size, matrices, cvalue, invert);
         if (noa::any(end <= start))
             return;
 
@@ -93,14 +96,14 @@ namespace noa::cpu::geometry::fft {
                 launch_3d_<REMAP, ellipse_t, ellipse_smooth_t>(
                         input, input_strides, output, output_strides,
                         start, end, shape, center, radius, edge_size,
-                        inv_matrix, functor, cvalue, threads);
+                        matrices, functor, cvalue, threads);
         } else {
             using ellipse_t = noa::geometry::Ellipse<3, CValue, false>;
             using ellipse_smooth_t = noa::geometry::EllipseSmooth<3, CValue, false>;
                 launch_3d_<REMAP, ellipse_t, ellipse_smooth_t>(
                         input, input_strides, output, output_strides,
                         start, end, shape, center, radius, edge_size,
-                        inv_matrix, functor, cvalue, threads);
+                        matrices, functor, cvalue, threads);
         }
     }
 
@@ -108,19 +111,22 @@ namespace noa::cpu::geometry::fft {
     void sphere(const Value* input, Strides4<i64> input_strides,
                 Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                 Vec3<f32> center, f32 radius, f32 edge_size,
-                Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
-        const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
-        if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
-            const auto order = (order_3d + 1).push_front(0);
-            input_strides = indexing::reorder(input_strides, order);
-            output_strides = indexing::reorder(output_strides, order);
-            shape = indexing::reorder(shape, order);
-            center = indexing::reorder(center, order_3d);
-            inv_matrix = indexing::reorder(inv_matrix, order_3d);
+                const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
+        Matrix matrices = inv_matrix;
+        if constexpr (!std::is_pointer_v<Matrix>) {
+            const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
+            if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
+                const auto order = (order_3d + 1).push_front(0);
+                input_strides = indexing::reorder(input_strides, order);
+                output_strides = indexing::reorder(output_strides, order);
+                shape = indexing::reorder(shape, order);
+                center = indexing::reorder(center, order_3d);
+                matrices = indexing::reorder(matrices, order_3d);
+            }
         }
 
         const auto[start, end] = get_iwise_subregion_<Functor>(
-                input, output, shape, center, radius, edge_size, inv_matrix, cvalue, invert);
+                input, output, shape, center, radius, edge_size, matrices, cvalue, invert);
         if (noa::any(end <= start))
             return;
 
@@ -130,14 +136,14 @@ namespace noa::cpu::geometry::fft {
             launch_3d_<REMAP, sphere_t, sphere_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
-                    inv_matrix, functor, cvalue, threads);
+                    matrices, functor, cvalue, threads);
         } else {
             using sphere_t = noa::geometry::Sphere<3, CValue, false>;
             using sphere_smooth_t = noa::geometry::SphereSmooth<3, CValue, false>;
             launch_3d_<REMAP, sphere_t, sphere_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
-                    inv_matrix, functor, cvalue, threads);
+                    matrices, functor, cvalue, threads);
         }
     }
 
@@ -145,20 +151,23 @@ namespace noa::cpu::geometry::fft {
     void rectangle(const Value* input, Strides4<i64> input_strides,
                    Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                    Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
-                   Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
-        const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
-        if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
-            const auto order = (order_3d + 1).push_front(0);
-            input_strides = indexing::reorder(input_strides, order);
-            output_strides = indexing::reorder(output_strides, order);
-            shape = indexing::reorder(shape, order);
-            center = indexing::reorder(center, order_3d);
-            radius = indexing::reorder(radius, order_3d);
-            inv_matrix = indexing::reorder(inv_matrix, order_3d);
+                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
+        Matrix matrices = inv_matrix;
+        if constexpr (!std::is_pointer_v<Matrix>) {
+            const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
+            if (noa::any(order_3d != Vec3<i64>{0, 1, 2})) {
+                const auto order = (order_3d + 1).push_front(0);
+                input_strides = indexing::reorder(input_strides, order);
+                output_strides = indexing::reorder(output_strides, order);
+                shape = indexing::reorder(shape, order);
+                center = indexing::reorder(center, order_3d);
+                radius = indexing::reorder(radius, order_3d);
+                matrices = indexing::reorder(matrices, order_3d);
+            }
         }
 
         const auto[start, end] = get_iwise_subregion_<Functor>(
-                input, output, shape, center, radius, edge_size, inv_matrix, cvalue, invert);
+                input, output, shape, center, radius, edge_size, matrices, cvalue, invert);
         if (noa::any(end <= start))
             return;
 
@@ -168,14 +177,14 @@ namespace noa::cpu::geometry::fft {
             launch_3d_<REMAP, rectangle_t, rectangle_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
-                    inv_matrix, functor, cvalue, threads);
+                    matrices, functor, cvalue, threads);
         } else {
             using rectangle_t = noa::geometry::Rectangle<3, CValue, false>;
             using rectangle_smooth_t = noa::geometry::RectangleSmooth<3, CValue, false>;
             launch_3d_<REMAP, rectangle_t, rectangle_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, radius, edge_size,
-                    inv_matrix, functor, cvalue, threads);
+                    matrices, functor, cvalue, threads);
         }
     }
 
@@ -183,19 +192,22 @@ namespace noa::cpu::geometry::fft {
     void cylinder(const Value* input, Strides4<i64> input_strides,
                   Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                   Vec3<f32> center, f32 radius, f32 length, f32 edge_size,
-                  Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
-        const auto order_2d = noa::indexing::order(output_strides.filter(2, 3), shape.filter(2, 3));
-        if (noa::any(order_2d != Vec2<i64>{0, 1})) {
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-            std::swap(shape[2], shape[3]);
-            std::swap(center[1], center[2]);
-            inv_matrix = noa::indexing::reorder(inv_matrix, (order_2d + 1).push_front(0));
+                  const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, i64 threads) {
+        Matrix matrices = inv_matrix;
+        if constexpr (!std::is_pointer_v<Matrix>) {
+            const auto order_2d = noa::indexing::order(output_strides.filter(2, 3), shape.filter(2, 3));
+            if (noa::any(order_2d != Vec2<i64>{0, 1})) {
+                std::swap(input_strides[2], input_strides[3]);
+                std::swap(output_strides[2], output_strides[3]);
+                std::swap(shape[2], shape[3]);
+                std::swap(center[1], center[2]);
+                matrices = noa::indexing::reorder(matrices, (order_2d + 1).push_front(0));
+            }
         }
 
         const auto radius_ = Vec3<f32>{length, radius, radius};
         const auto[start, end] = get_iwise_subregion_<Functor>(
-                input, output, shape, center, radius_, edge_size, inv_matrix, cvalue, invert);
+                input, output, shape, center, radius_, edge_size, matrices, cvalue, invert);
         if (noa::any(end <= start))
             return;
 
@@ -205,14 +217,14 @@ namespace noa::cpu::geometry::fft {
             launch_3d_<REMAP, cylinder_t, cylinder_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, Vec2<f32>{length, radius}, edge_size,
-                    inv_matrix, functor, cvalue, threads);
+                    matrices, functor, cvalue, threads);
         } else {
             using cylinder_t = noa::geometry::Cylinder<CValue, false>;
             using cylinder_smooth_t = noa::geometry::CylinderSmooth<CValue, false>;
             launch_3d_<REMAP, cylinder_t, cylinder_smooth_t>(
                     input, input_strides, output, output_strides,
                     start, end, shape, center, Vec2<f32>{length, radius}, edge_size,
-                    inv_matrix, functor, cvalue, threads);
+                    matrices, functor, cvalue, threads);
         }
     }
 
@@ -221,30 +233,32 @@ namespace noa::cpu::geometry::fft {
         const T*, Strides4<i64>,                    \
         T*, Strides4<i64>,                          \
         Shape4<i64>, Vec3<f32>, Vec3<f32>, f32,     \
-        M, F, C, bool, i64);                        \
+        M const&, F, C, bool, i64);                 \
     template void sphere<R, T, M, F, C, void>(      \
         const T*, Strides4<i64>,                    \
         T*, Strides4<i64>,                          \
         Shape4<i64>, Vec3<f32>, f32, f32,           \
-        M, F, C, bool, i64);                        \
+        M const&, F, C, bool, i64);                 \
     template void rectangle<R, T, M, F, C, void>(   \
         const T*, Strides4<i64>,                    \
         T*, Strides4<i64>,                          \
         Shape4<i64>, Vec3<f32>, Vec3<f32>, f32,     \
-        M, F, C, bool, i64);                        \
+        M const&, F, C, bool, i64);                 \
     template void cylinder<R, T, M, F, C, void>(    \
         const T*, Strides4<i64>,                    \
         T*, Strides4<i64>,                          \
         Shape4<i64>, Vec3<f32>, f32, f32, f32,      \
-        M, F, C, bool, i64)
+        M const&, F, C, bool, i64)
 
     #define NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, M)      \
     NOA_INSTANTIATE_SHAPE_3D_(R, T, C, M, noa::multiply_t); \
     NOA_INSTANTIATE_SHAPE_3D_(R, T, C, M, noa::plus_t)
 
-    #define NOA_INSTANTIATE_SHAPE_MATRIX_(R, T, C)      \
-    NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, Float33);   \
-    NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, Float34)
+    #define NOA_INSTANTIATE_SHAPE_MATRIX_(R, T, C)              \
+    NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, Float33);           \
+    NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, Float34);           \
+    NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, const Float33*);    \
+    NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, const Float34*)
 
     #define NOA_INSTANTIATE_SHAPE_ALL(T, C)                 \
     NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2F, T, C);     \

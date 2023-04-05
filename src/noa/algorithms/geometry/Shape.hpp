@@ -14,7 +14,8 @@ namespace noa::algorithm::geometry {
         static constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
         static_assert(!(u8_REMAP & Layout::SRC_HALF || u8_REMAP & Layout::DST_HALF));
 
-        static_assert(noa::traits::is_any_v<MatrixOrEmpty, Mat33<Coord>, Mat34<Coord>, Empty>);
+        static_assert(noa::traits::is_any_v<MatrixOrEmpty,
+                Mat33<Coord>, Mat34<Coord>, const Mat33<Coord>*, const Mat34<Coord>*, Empty>);
         static_assert(noa::traits::are_int_v<Index, Offset>);
         static_assert(noa::traits::is_real_v<Coord>);
 
@@ -51,8 +52,14 @@ namespace noa::algorithm::geometry {
             index3_type index{j, k, l};
             const index3_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
             const index3_type o_idx = to_output_indexes<REMAP>(index, m_shape);
-            const auto mask_value = m_geometric_shape(coord3_type(i_idx), m_inv_matrix);
-            const auto value = m_input ? m_functor(m_input(i, i_idx[0], i_idx[1], i_idx[2]), mask_value) : mask_value;
+
+            value_type mask;
+            if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
+                mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix[i]);
+            } else {
+                mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix);
+            }
+            const auto value = m_input ? m_functor(m_input(i, i_idx[0], i_idx[1], i_idx[2]), mask) : mask;
             m_output(i, o_idx[0], o_idx[1], o_idx[2]) = value;
         }
 
@@ -60,9 +67,17 @@ namespace noa::algorithm::geometry {
             index3_type index{j, k, l};
             const index3_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
             const index3_type o_idx = to_output_indexes<REMAP>(index, m_shape);
-            const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix);
-            for (index_type i = 0; i < m_batch; ++i)
-                m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+
+            if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
+                for (index_type i = 0; i < m_batch; ++i) {
+                    const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix[i]);
+                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+                }
+            } else {
+                const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix);
+                for (index_type i = 0; i < m_batch; ++i)
+                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+            }
         }
 
     public:
@@ -83,7 +98,8 @@ namespace noa::algorithm::geometry {
         static constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
         static_assert(!(u8_REMAP & Layout::SRC_HALF || u8_REMAP & Layout::DST_HALF));
 
-        static_assert(noa::traits::is_any_v<MatrixOrEmpty, Mat22<Coord>, Mat23<Coord>, Empty>);
+        static_assert(noa::traits::is_any_v<MatrixOrEmpty,
+                Mat22<Coord>, Mat23<Coord>, const Mat22<Coord>*, const Mat23<Coord>*, Empty>);
         static_assert(noa::traits::are_int_v<Index, Offset>);
         static_assert(noa::traits::is_real_v<Coord>);
 
@@ -120,7 +136,13 @@ namespace noa::algorithm::geometry {
             index2_type index{k, l};
             const index2_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
             const index2_type o_idx = to_output_indexes<REMAP>(index, m_shape);
-            const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix);
+
+            value_type mask;
+            if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
+                mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix[i]);
+            } else {
+                mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix);
+            }
             const auto value = m_input ? m_functor(m_input(i, i_idx[0], i_idx[1]), mask) : mask;
             m_output(i, o_idx[0], o_idx[1]) = value;
         }
@@ -129,9 +151,17 @@ namespace noa::algorithm::geometry {
             index2_type index{k, l};
             const index2_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
             const index2_type o_idx = to_output_indexes<REMAP>(index, m_shape);
-            const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix);
-            for (index_type i = 0; i < m_batch; ++i)
-                m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+
+            if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
+                for (index_type i = 0; i < m_batch; ++i) {
+                    const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix[i]);
+                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+                }
+            } else {
+                const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix);
+                for (index_type i = 0; i < m_batch; ++i)
+                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+            }
         }
 
     public:

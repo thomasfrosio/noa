@@ -10,8 +10,8 @@ namespace noa::cpu::geometry::details {
             noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
             std::is_same_v<CValue, noa::traits::value_type_t<Value>> &&
             noa::traits::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
-            (NDIM == 2 && noa::traits::is_any_v<Matrix, Float22, Float23> ||
-             NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34>);
+            (NDIM == 2 && noa::traits::is_any_v<Matrix, Float22, Float23, const Float22*, const Float23*> ||
+             NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34, const Float33*, const Float34*>);
 }
 
 namespace noa::cpu::geometry {

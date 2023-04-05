@@ -16,23 +16,31 @@ namespace noa::geometry::details {
             noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
             std::is_same_v<CValue, noa::traits::value_type_t<Value>> &&
             noa::traits::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
-            (NDIM == 2 && noa::traits::is_any_v<Matrix, Float22, Float23, Float33> ||
-             NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34, Float44>);
+            (NDIM == 2 &&
+             (noa::traits::is_any_v<Matrix, Float22, Float23, Float33> ||
+              noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22, Float23>) ||
+             NDIM == 3 &&
+             (noa::traits::is_any_v<Matrix, Float33, Float34, Float44> ||
+              noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float33, Float34>));
 
     template<i32 NDIM, typename Matrix>
     constexpr auto extract_linear_or_truncated_matrix(const Matrix& matrix) noexcept {
         if constexpr ((NDIM == 2 && noa::traits::is_mat33_v<Matrix>) ||
-                      (NDIM == 3 && noa::traits::is_mat44_v<Matrix>))
+                      (NDIM == 3 && noa::traits::is_mat44_v<Matrix>)) {
             return noa::geometry::affine2truncated(matrix);
-        else
+        } else if constexpr (noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22, Float23, Float33, Float34>) {
+            using const_ptr_t = const typename Matrix::mutable_value_type*;
+            return const_ptr_t(matrix.get());
+        } else {
             return matrix;
+        }
     }
 }
 
 namespace noa::geometry {
     /// Returns or applies an elliptical mask.
-    /// \tparam Matrix      2D case: Float22, Float23, or Float33.
-    ///                     3D case: Float33, Float34, or Float44.
+    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
+    ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
@@ -41,6 +49,7 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param functor      Operator defining how to apply the mask onto \p input.
     ///                     This is ignored if \p input is empty.
     /// \param cvalue       Real value of the mask. Elements outside the mask are set to 0.
@@ -57,7 +66,7 @@ namespace noa::geometry {
                      details::is_valid_shape_v<N, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
     void ellipse(const Input& input, const Output& output,
                  const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
-                 Matrix inv_matrix = {}, Functor functor = {},
+                 const Matrix& inv_matrix = {}, Functor functor = {},
                  CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
@@ -74,6 +83,16 @@ namespace noa::geometry {
         NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
+
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -97,6 +116,8 @@ namespace noa::geometry {
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
+            if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+                cuda_stream.enqueue_attach(inv_matrix.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -104,8 +125,8 @@ namespace noa::geometry {
     }
 
     /// Returns or applies a spherical mask.
-    /// \tparam Matrix      2D case: Float22, Float23, or Float33.
-    ///                     3D case: Float33, Float34, or Float44.
+    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
+    ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
@@ -114,6 +135,7 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -129,7 +151,7 @@ namespace noa::geometry {
                      details::is_valid_shape_v<N, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
     void sphere(const Input& input, const Output& output,
                 const Vec<f32, N>& center, f32 radius, f32 edge_size,
-                Matrix inv_matrix = {}, Functor functor = {},
+                const Matrix& inv_matrix = {}, Functor functor = {},
                 CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
@@ -146,6 +168,16 @@ namespace noa::geometry {
         NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
+
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -169,6 +201,8 @@ namespace noa::geometry {
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
+            if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+                cuda_stream.enqueue_attach(inv_matrix.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -176,8 +210,8 @@ namespace noa::geometry {
     }
 
     /// Returns or applies a rectangular mask.
-    /// \tparam Matrix      2D case: Float22, Float23, or Float33.
-    ///                     3D case: Float33, Float34, or Float44.
+    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
+    ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
@@ -186,6 +220,7 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -201,7 +236,7 @@ namespace noa::geometry {
                      details::is_valid_shape_v<N, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
     void rectangle(const Input& input, const Output& output,
                    const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
-                   Matrix inv_matrix = {}, Functor functor = {},
+                   const Matrix& inv_matrix = {}, Functor functor = {},
                    CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
@@ -218,6 +253,16 @@ namespace noa::geometry {
         NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
+
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -241,6 +286,8 @@ namespace noa::geometry {
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
+            if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+                cuda_stream.enqueue_attach(inv_matrix.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -248,7 +295,7 @@ namespace noa::geometry {
     }
 
     /// Returns or applies a cylindrical mask.
-    /// \tparam Matrix      Float33, Float34, or Float44.
+    /// \tparam Matrix      Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
@@ -258,6 +305,7 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse DHW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -273,7 +321,7 @@ namespace noa::geometry {
                      details::is_valid_shape_v<3, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
     void cylinder(const Input& input, const Output& output,
                   const Vec3<f32>& center, f32 radius, f32 length, f32 edge_size,
-                  Matrix inv_matrix = {}, Functor functor = {},
+                  const Matrix& inv_matrix = {}, Functor functor = {},
                   CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         const bool is_empty = input.is_empty();
@@ -288,6 +336,16 @@ namespace noa::geometry {
         NOA_CHECK(is_empty || device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
+
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -311,6 +369,8 @@ namespace noa::geometry {
                     details::extract_linear_or_truncated_matrix<3>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
+            if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+                cuda_stream.enqueue_attach(inv_matrix.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

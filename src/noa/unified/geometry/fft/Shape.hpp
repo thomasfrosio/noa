@@ -11,8 +11,24 @@ namespace noa::geometry::fft::details {
     using namespace ::noa::fft;
     template<Remap REMAP, size_t N, typename Matrix>
     constexpr bool is_valid_shape_v =
-            ((N == 2 && std::is_same_v<Matrix, Float22>) || (N == 3 && std::is_same_v<Matrix, Float33>)) &&
+            ((N == 2 && (noa::traits::is_any_v<Matrix, Empty, Float22> ||
+                         noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22>)) ||
+             (N == 3 && (noa::traits::is_any_v<Matrix, Empty, Float33> ||
+                         noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float33>))) &&
             (REMAP == F2F || REMAP == FC2FC || REMAP == F2FC || REMAP == FC2F);
+
+    template<size_t N, typename Matrix>
+    constexpr auto extract_matrix(const Matrix& matrix) noexcept {
+        if constexpr (noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22, Float33>) {
+            using const_ptr_t = const typename Matrix::mutable_value_type*;
+            return const_ptr_t(matrix.get());
+        } else if constexpr (std::is_empty_v<Matrix>) {
+            using matrix_t = std::conditional_t<N == 2, const Float22*, const Float33*>;
+            return matrix_t{};
+        } else {
+            return matrix;
+        }
+    }
 }
 
 namespace noa::geometry::fft {
@@ -26,10 +42,11 @@ namespace noa::geometry::fft {
     /// \param radius       (D)HW radius, in elements, of the ellipse.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse (D)HW matrix to apply on the ellipse. The rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Output, typename Matrix, size_t N,
+    template<Remap REMAP, typename Output, size_t N, typename Matrix = Empty,
             typename Input = View<const noa::traits::value_type_t<Output>>,
             typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
@@ -57,6 +74,16 @@ namespace noa::geometry::fft {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -65,7 +92,7 @@ namespace noa::geometry::fft {
                 cpu::geometry::fft::ellipse<REMAP>(
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
-                        center, radius, edge_size, inv_matrix,
+                        center, radius, edge_size, details::extract_matrix<N>(inv_matrix),
                         noa::multiply_t{}, cvalue, invert, threads);
             });
         } else {
@@ -74,7 +101,7 @@ namespace noa::geometry::fft {
             cuda::geometry::fft::ellipse<REMAP>(
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix,
+                    center, radius, edge_size, details::extract_matrix<N>(inv_matrix),
                     noa::multiply_t{}, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
@@ -91,6 +118,7 @@ namespace noa::geometry::fft {
     /// \param radius       Radius, in elements, of the sphere.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse (D)HW matrix to apply on the sphere. The rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
@@ -122,6 +150,16 @@ namespace noa::geometry::fft {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -130,7 +168,7 @@ namespace noa::geometry::fft {
                 cpu::geometry::fft::sphere<REMAP>(
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
-                        center, radius, edge_size, inv_matrix,
+                        center, radius, edge_size, details::extract_matrix<N>(inv_matrix),
                         noa::multiply_t{}, cvalue, invert, threads);
             });
         } else {
@@ -139,7 +177,7 @@ namespace noa::geometry::fft {
             cuda::geometry::fft::sphere<REMAP>(
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix,
+                    center, radius, edge_size, details::extract_matrix<N>(inv_matrix),
                     noa::multiply_t{}, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
@@ -156,6 +194,7 @@ namespace noa::geometry::fft {
     /// \param radius       (D)HW radius, in elements, of the rectangle.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse (D)HW matrix to apply on the rectangle. The rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
@@ -187,6 +226,16 @@ namespace noa::geometry::fft {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -195,7 +244,7 @@ namespace noa::geometry::fft {
                 cpu::geometry::fft::rectangle<REMAP>(
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
-                        center, radius, edge_size, inv_matrix,
+                        center, radius, edge_size, details::extract_matrix<N>(inv_matrix),
                         noa::multiply_t{}, cvalue, invert, threads);
             });
         } else {
@@ -204,7 +253,7 @@ namespace noa::geometry::fft {
             cuda::geometry::fft::rectangle<REMAP>(
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
-                    center, radius, edge_size, inv_matrix,
+                    center, radius, edge_size, details::extract_matrix<N>(inv_matrix),
                     noa::multiply_t{}, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
@@ -222,10 +271,11 @@ namespace noa::geometry::fft {
     /// \param length       Length of the cylinder along the depth dimension.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse DHW matrix to apply on the cylinder. The rotation center is located at \p center.
+    ///                     If an array is provided, there should be one matrix per output batch.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Output,
+    template<Remap REMAP, typename Output, typename Matrix = Empty,
              typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
@@ -234,7 +284,7 @@ namespace noa::geometry::fft {
                     details::is_valid_shape_v<REMAP, 3, Float33>>>
     void cylinder(const Input& input, const Output& output,
                   const Vec3<f32>& center, f32 radius, f32 length, f32 edge_size,
-                  const Float33 inv_matrix = {}, CValue cvalue = CValue{1}, bool invert = false) {
+                  const Matrix inv_matrix = {}, CValue cvalue = CValue{1}, bool invert = false) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
         NOA_CHECK((REMAP == Remap::F2F || REMAP == Remap::FC2FC) || !noa::indexing::are_overlapped(input, output),
                   "In-place computation is not supported with remapping {}", REMAP);
@@ -251,6 +301,16 @@ namespace noa::geometry::fft {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrix.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
+                      inv_matrix.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
+        }
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -259,7 +319,7 @@ namespace noa::geometry::fft {
                 cpu::geometry::fft::cylinder<REMAP>(
                         input.get(), input_strides,
                         output.get(), output.strides(), output.shape(),
-                        center, radius, length, edge_size, inv_matrix,
+                        center, radius, length, edge_size, details::extract_matrix<3>(inv_matrix),
                         noa::multiply_t{}, cvalue, invert, threads);
             });
         } else {
@@ -268,7 +328,7 @@ namespace noa::geometry::fft {
             cuda::geometry::fft::cylinder<REMAP>(
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
-                    center, radius, length, edge_size, inv_matrix,
+                    center, radius, length, edge_size, details::extract_matrix<3>(inv_matrix),
                     noa::multiply_t{}, cvalue, invert, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else

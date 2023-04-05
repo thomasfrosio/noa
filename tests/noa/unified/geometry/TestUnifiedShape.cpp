@@ -660,3 +660,96 @@ TEMPLATE_TEST_CASE("unified::geometry::ellipse, 3d affine", "[noa][unified]", f3
         REQUIRE(test::Matcher(test::MATCH_ABS, output_linear, output_affine, 1e-4));
     }
 }
+
+TEST_CASE("unified::geometry::shapes, 2d batched", "[noa][unified]") {
+    const auto shape = Shape4<i64>{10, 1, 512, 512};
+    const auto center = shape.filter(2, 3).vec().as<f32>() / 2;
+    const auto radius = Vec2<f32>{128, 198};
+
+    std::vector<Device> devices{Device("cpu")};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    Array matrices = noa::memory::empty<Float22>(shape[0]);
+    for (i64 i = 0; i < shape[0]; ++i)
+        matrices(0, 0, 0, i) = noa::geometry::rotate(static_cast<f32>(i * 4));
+
+    for (auto device: devices) {
+        INFO(device);
+        const auto option = ArrayOption(device, Allocator::MANAGED);
+        const Array batched = noa::memory::empty<f32>(shape, option);
+        const Array serial = noa::memory::empty<f32>(shape, option);
+        const Array matrices_device = matrices.to(option); // just for simplicity
+
+        AND_THEN("ellipse") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::ellipse({}, serial.subregion(i), center, radius, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::ellipse({}, batched, center, radius, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+
+        AND_THEN("sphere") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::sphere({}, serial.subregion(i), center, 126.f, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::sphere({}, batched, center, 126.f, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+
+        AND_THEN("rectangle") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::rectangle({}, serial.subregion(i), center, radius, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::rectangle({}, batched, center, radius, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+    }
+}
+
+TEST_CASE("unified::geometry::shapes, 3d batched", "[noa][unified]") {
+    const auto shape = Shape4<i64>{4, 175, 165, 198};
+    const auto center = shape.filter(1, 2, 3).vec().as<f32>() / 2;
+    const auto radius = Vec3<f32>{64, 54, 56};
+
+    std::vector<Device> devices{Device("cpu")};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    Array matrices = noa::memory::empty<Float33>(shape[0]);
+    for (i64 i = 0; i < shape[0]; ++i)
+        matrices(0, 0, 0, i) = noa::geometry::euler2matrix(Vec3<f32>{static_cast<f32>(i * 4), 0, 0}, "zyx");
+
+    for (auto device: devices) {
+        INFO(device);
+        const auto option = ArrayOption(device, Allocator::MANAGED);
+        const Array batched = noa::memory::empty<f32>(shape, option);
+        const Array serial = noa::memory::empty<f32>(shape, option);
+        const Array matrices_device = matrices.to(option); // just for simplicity
+
+        AND_THEN("ellipse") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::ellipse({}, serial.subregion(i), center, radius, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::ellipse({}, batched, center, radius, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+
+        AND_THEN("sphere") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::sphere({}, serial.subregion(i), center, 91.f, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::sphere({}, batched, center, 91.f, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+
+        AND_THEN("rectangle") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::rectangle({}, serial.subregion(i), center, radius, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::rectangle({}, batched, center, radius, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+
+        AND_THEN("cylinder") {
+            for (i64 i = 0; i < shape[0]; ++i)
+                noa::geometry::cylinder({}, serial.subregion(i), center, 45.f, 71.f, 10.f, matrices(0, 0, 0, i));
+            noa::geometry::cylinder({}, batched, center, 45.f, 71.f, 10.f, matrices_device);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, batched, serial, 1e-6));
+        }
+    }
+}

@@ -11,8 +11,8 @@ namespace noa::cuda::geometry::fft::details {
             std::is_same_v<CValue, noa::traits::value_type_t<Value>> &&
             (REMAP == F2F || REMAP == FC2FC || REMAP == F2FC || REMAP == FC2F) &&
             noa::traits::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
-            (NDIM == 2 && noa::traits::is_any_v<Matrix, Float22, Float23> ||
-             NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34>);
+            (NDIM == 2 && noa::traits::is_any_v<Matrix, Float22, Float23, const Float22*, const Float23*> ||
+             NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34, const Float33*, const Float34*>);
 }
 
 namespace noa::cuda::geometry::fft {
@@ -24,7 +24,7 @@ namespace noa::cuda::geometry::fft {
     void ellipse(const Value* input, Strides4<i64> input_strides,
                  Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                  Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
-                 Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
@@ -32,7 +32,7 @@ namespace noa::cuda::geometry::fft {
     void ellipse(const Value* input, Strides4<i64> input_strides,
                  Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                  Vec2<f32> center, Vec2<f32> radius, f32 edge_size,
-                 Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
@@ -40,7 +40,7 @@ namespace noa::cuda::geometry::fft {
     void sphere(const Value* input, Strides4<i64> input_strides,
                 Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                 Vec3<f32> center, f32 radius, f32 edge_size,
-                Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
@@ -48,7 +48,7 @@ namespace noa::cuda::geometry::fft {
     void sphere(const Value* input, Strides4<i64> input_strides,
                 Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                 Vec2<f32> center, f32 radius, f32 edge_size,
-                Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
@@ -56,7 +56,7 @@ namespace noa::cuda::geometry::fft {
     void rectangle(const Value* input, Strides4<i64> input_strides,
                    Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                    Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
-                   Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
@@ -64,7 +64,7 @@ namespace noa::cuda::geometry::fft {
     void rectangle(const Value* input, Strides4<i64> input_strides,
                    Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                    Vec2<f32> center, Vec2<f32> radius, f32 edge_size,
-                   Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
@@ -72,5 +72,5 @@ namespace noa::cuda::geometry::fft {
     void cylinder(const Value* input, Strides4<i64> input_strides,
                   Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
                   Vec3<f32> center, f32 radius, f32 length, f32 edge_size,
-                  Matrix inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
+                  const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream);
 }
