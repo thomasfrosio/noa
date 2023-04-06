@@ -10,35 +10,65 @@ namespace {
              typename Functor, typename Value, typename CValue, typename Radius, typename Matrix>
     void launch_2d_(const Value* input, const Strides4<i64>& input_strides,
                     Value* output, const Strides4<i64>& output_strides,
-                    const Vec3<i64>& start, const Vec3<i64>& end, const Shape4<i64>& shape,
+                    const Vec2<i64>& start, const Vec2<i64>& end, const Shape4<i64>& shape,
                     const Vec2<f32>& center, const Radius& radius, f32 edge_size,
                     const Matrix& inv_matrix, const Functor& functor, CValue cvalue, i64 threads) {
 
         const auto input_accessor = Accessor<const Value, 3, i64>(input, input_strides.filter(0, 2, 3));
         const auto output_accessor = Accessor<Value, 3, i64>(output, output_strides.filter(0, 2, 3));
-        const auto shape_3d = shape.filter(0, 2, 3);
+        const auto shape_2d = shape.filter(0, 2, 3);
+        const bool reduce_output_batch = noa::algorithm::geometry::is_output_batch_reduced(output_strides, shape);
         const bool has_smooth_edge = edge_size > 1e-5f;
+
         if (has_smooth_edge) {
             const GeomShapeSmooth geom_shape_smooth(center, radius, edge_size, cvalue);
-            if (Matrix{} == inv_matrix) { // identity matrix of nullptr
-                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                        input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
-                noa::cpu::utils::iwise_3d(start, end, kernel, threads);
+            if (reduce_output_batch) {
+                if (Matrix{} == inv_matrix) { // identity matrix or nullptr
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, Empty{}, functor);
+                    noa::cpu::utils::iwise_2d(start, end, kernel, threads);
+                } else {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, inv_matrix, functor);
+                    noa::cpu::utils::iwise_2d(start, end, kernel, threads);
+                }
             } else {
-                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                        input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
-                noa::cpu::utils::iwise_3d(start, end, kernel, threads);
+                const auto start_3d = start.push_front(0);
+                const auto end_3d = end.push_front(shape_2d[0]);
+                if (Matrix{} == inv_matrix) {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, Empty{}, functor);
+                    noa::cpu::utils::iwise_3d(start_3d, end_3d, kernel, threads);
+                } else {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, inv_matrix, functor);
+                    noa::cpu::utils::iwise_3d(start_3d, end_3d, kernel, threads);
+                }
             }
         } else {
             const GeomShape geom_shape(center, radius, cvalue);
-            if (Matrix{} == inv_matrix) { // identity matrix of nullptr
-                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                        input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
-                noa::cpu::utils::iwise_3d(start, end, kernel, threads);
+            if (reduce_output_batch) {
+                if (Matrix{} == inv_matrix) {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape, Empty{}, functor);
+                    noa::cpu::utils::iwise_2d(start, end, kernel, threads);
+                } else {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape, inv_matrix, functor);
+                    noa::cpu::utils::iwise_2d(start, end, kernel, threads);
+                }
             } else {
-                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                        input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
-                noa::cpu::utils::iwise_3d(start, end, kernel, threads);
+                const auto start_3d = start.push_front(0);
+                const auto end_3d = end.push_front(shape_2d[0]);
+                if (Matrix{} == inv_matrix) {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape, Empty{}, functor);
+                    noa::cpu::utils::iwise_3d(start_3d, end_3d, kernel, threads);
+                } else {
+                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_2d, geom_shape, inv_matrix, functor);
+                    noa::cpu::utils::iwise_3d(start_3d, end_3d, kernel, threads);
+                }
             }
         }
     }
@@ -58,10 +88,9 @@ namespace {
             const auto shape_2d = shape.filter(2, 3).vec();
             const auto start = noa::math::clamp(Vec2<i64>(center - (radius + edge_size)), Vec2<i64>{}, shape_2d);
             const auto end = noa::math::clamp(Vec2<i64>(center + (radius + edge_size) + 1), Vec2<i64>{}, shape_2d);
-            return std::pair{start.push_front(0),
-                             end.push_front(shape[0])};
+            return std::pair{start, end};
         } else {
-            return std::pair{Vec3<i64>{0}, shape.filter(0, 2, 3).vec()};
+            return std::pair{Vec2<i64>{0}, shape.filter(2, 3).vec()};
         }
     }
 }
@@ -218,9 +247,7 @@ namespace noa::cpu::geometry::fft {
 
     #define NOA_INSTANTIATE_SHAPE_ALL(T, C)                 \
     NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2F, T, C);     \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2FC, T, C);   \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2FC, T, C);    \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2F, T, C)
+    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2FC, T, C)
 
     NOA_INSTANTIATE_SHAPE_ALL(f32, f32);
     NOA_INSTANTIATE_SHAPE_ALL(f64, f64);

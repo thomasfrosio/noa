@@ -35,21 +35,97 @@ namespace noa::geometry::details {
             return matrix;
         }
     }
+
+    template<i32 NDIM, typename Input, typename Output, typename Matrix>
+    auto check_shape_parameters(
+            const Input& input,
+            const Output& output,
+            const Matrix inv_matrices
+    ) -> std::tuple<Strides4<i64>, Strides4<i64>, Shape4<i64>> {
+        NOA_CHECK(!output.is_empty(), "Empty array detected");
+        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(NDIM),
+                  "3D arrays are not supported with 2D geometric shapes. "
+                  "Use 3D geometric shapes to support 2D and 3D arrays");
+        const bool is_empty = input.is_empty();
+        const bool is_input_batched = input.shape().is_batched();
+        const bool is_output_batched = output.shape().is_batched();
+
+        // Input is valid:
+        //  - 1) both are batched -> broadcast input, and check matrix size is equal to the number of batches.
+        //  - 2) both are not batched (reduce) -> broadcast input, but matrix defines the number of batches.
+        //  - 3) input is batched (reduce) -> broadcast 3d, input sets the number of batches, and check matrix count.
+        //  - 4) output is batched -> same as both are batched.
+        // Otherwise:
+        //  - 5) output is batched -> it defines the number of batches.
+        //  - 6) output is not batched (reduce) -> matrix defines the number of batches.
+        auto final_shape = output.shape();
+        auto input_strides = input.strides();
+        auto output_strides = output.strides();
+        if (!is_empty) {
+            if (is_input_batched && !is_output_batched) { // case 3
+                auto input_strides_3d = input.strides().pop_front();
+                const auto input_shape_3d = input.shape().pop_front();
+                const auto output_shape_3d = output.shape().pop_front();
+                NOA_CHECK(noa::indexing::broadcast(input_shape_3d, input_strides_3d, output_shape_3d),
+                          "Cannot broadcast an array of shape {} into an array of shape {}",
+                          input_shape_3d, output_shape_3d);
+                input_strides = input_strides_3d.push_front(input_strides[0]);
+                final_shape[0] = input.shape()[0];
+                output_strides[0] = 0; // the backends use the output batch stride to check the reduce case.
+            } else { // case 1, 2, 4
+                NOA_CHECK(noa::indexing::broadcast(input.shape(), input_strides, output.shape()),
+                          "Cannot broadcast an array of shape {} into an array of shape {}",
+                          input.shape(), output.shape());
+            }
+        }
+
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            if ((is_empty || !is_input_batched) && !is_output_batched) { // case 2, 6
+                final_shape[0] = inv_matrices.elements();
+                output_strides[0] = 0;
+            }
+        }
+
+        const Device device = output.device();
+        NOA_CHECK(is_empty || device == input.device(),
+                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
+                  input.device(), device);
+
+        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
+            NOA_CHECK(!inv_matrices.is_empty(), "Empty array detected");
+            NOA_CHECK(inv_matrices.device() == device,
+                      "The input and output arrays must be on the same device, but got inv_matrices:{}, output:{}",
+                      inv_matrices.device(), device);
+            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrices) && inv_matrices.elements() == final_shape[0],
+                      "The matrices should be specified as a contiguous vector of {} elements, "
+                      "but got shape={} and strides={}",
+                      final_shape[0], inv_matrices.shape(), inv_matrices.strides());
+        }
+
+        return {input_strides, output_strides, final_shape};
+    }
 }
 
 namespace noa::geometry {
     /// Returns or applies an elliptical mask.
+    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    ///          save in \p output. The same transformation can be applied to every batch or there can be
+    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
+    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
+    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
+    ///          in \p output.
     /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
     ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
-    /// \param[out] output  Masked array(s). Can be equal to \p input.
+    /// \param[out] output  Masked array(s).
     /// \param center       (D)HW center of the ellipse.
     /// \param radius       (D)HW radius, in elements, of the ellipse.
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     If an array is provided, there should be one matrix per output batch.
+    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
+    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input.
     ///                     This is ignored if \p input is empty.
     /// \param cvalue       Real value of the mask. Elements outside the mask are set to 0.
@@ -68,32 +144,14 @@ namespace noa::geometry {
                  const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
                  const Matrix& inv_matrix = {}, Functor functor = {},
                  CValue cvalue = CValue{1}, bool invert = false) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
-                  "3D arrays are not supported with 2D ellipses. Use 3D ellipses to support 2D and 3D arrays");
-        const bool is_empty = input.is_empty();
 
-        auto input_strides = input.strides();
-        if (!is_empty && !noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
-        }
+        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
+        Strides4<i64> input_strides, output_strides;
+        Shape4<i64> final_shape;
+        std::tie(input_strides, output_strides, final_shape) =
+                details::check_shape_parameters<N>(input, output, inv_matrix);
 
         const Device device = output.device();
-        NOA_CHECK(is_empty || device == input.device(),
-                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
-                  input.device(), device);
-
-        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
-            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
-            NOA_CHECK(inv_matrix.device() == device,
-                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
-                      inv_matrix.device(), device);
-            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
-                      "The matrices should be specified as a contiguous vector of {} elements, "
-                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
-        }
-
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -101,7 +159,7 @@ namespace noa::geometry {
             cpu_stream.enqueue([=](){
                 cpu::geometry::ellipse(
                         input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        output.get(), output_strides, final_shape,
                         center, radius, edge_size,
                         details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                         functor, cvalue, invert, threads);
@@ -111,7 +169,7 @@ namespace noa::geometry {
             auto& cuda_stream = stream.cuda();
             cuda::geometry::ellipse(
                     input.get(), input_strides,
-                    output.get(), output.strides(), output.shape(),
+                    output.get(), output_strides, final_shape,
                     center, radius, edge_size,
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
@@ -125,6 +183,12 @@ namespace noa::geometry {
     }
 
     /// Returns or applies a spherical mask.
+    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    ///          save in \p output. The same transformation can be applied to every batch or there can be
+    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
+    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
+    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
+    ///          in \p output.
     /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
     ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
@@ -135,7 +199,8 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     If an array is provided, there should be one matrix per output batch.
+    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
+    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -153,32 +218,14 @@ namespace noa::geometry {
                 const Vec<f32, N>& center, f32 radius, f32 edge_size,
                 const Matrix& inv_matrix = {}, Functor functor = {},
                 CValue cvalue = CValue{1}, bool invert = false) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
-                  "3D arrays are not supported with 2D spheres. Use 3D spheres to support 2D and 3D arrays");
-        const bool is_empty = input.is_empty();
 
-        auto input_strides = input.strides();
-        if (!is_empty && !noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
-        }
+        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
+        Strides4<i64> input_strides, output_strides;
+        Shape4<i64> final_shape;
+        std::tie(input_strides, output_strides, final_shape) =
+                details::check_shape_parameters<N>(input, output, inv_matrix);
 
         const Device device = output.device();
-        NOA_CHECK(is_empty || device == input.device(),
-                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
-                  input.device(), device);
-
-        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
-            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
-            NOA_CHECK(inv_matrix.device() == device,
-                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
-                      inv_matrix.device(), device);
-            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
-                      "The matrices should be specified as a contiguous vector of {} elements, "
-                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
-        }
-
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -186,7 +233,7 @@ namespace noa::geometry {
             cpu_stream.enqueue([=](){
                 cpu::geometry::sphere(
                         input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        output.get(), output_strides, final_shape,
                         center, radius, edge_size,
                         details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                         functor, cvalue, invert, threads);
@@ -196,7 +243,7 @@ namespace noa::geometry {
             auto& cuda_stream = stream.cuda();
             cuda::geometry::sphere(
                     input.get(), input_strides,
-                    output.get(), output.strides(), output.shape(),
+                    output.get(), output_strides, final_shape,
                     center, radius, edge_size,
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
@@ -210,6 +257,12 @@ namespace noa::geometry {
     }
 
     /// Returns or applies a rectangular mask.
+    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    ///          save in \p output. The same transformation can be applied to every batch or there can be
+    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
+    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
+    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
+    ///          in \p output.
     /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
     ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
@@ -220,7 +273,8 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     If an array is provided, there should be one matrix per output batch.
+    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
+    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -238,32 +292,14 @@ namespace noa::geometry {
                    const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
                    const Matrix& inv_matrix = {}, Functor functor = {},
                    CValue cvalue = CValue{1}, bool invert = false) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(N),
-                  "3D arrays are not supported with 2D rectangles. Use 3D rectangles to support 2D and 3D arrays");
-        const bool is_empty = input.is_empty();
 
-        auto input_strides = input.strides();
-        if (!is_empty && !noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
-        }
+        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
+        Strides4<i64> input_strides, output_strides;
+        Shape4<i64> final_shape;
+        std::tie(input_strides, output_strides, final_shape) =
+                details::check_shape_parameters<N>(input, output, inv_matrix);
 
         const Device device = output.device();
-        NOA_CHECK(is_empty || device == input.device(),
-                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
-                  input.device(), device);
-
-        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
-            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
-            NOA_CHECK(inv_matrix.device() == device,
-                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
-                      inv_matrix.device(), device);
-            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
-                      "The matrices should be specified as a contiguous vector of {} elements, "
-                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
-        }
-
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -271,7 +307,7 @@ namespace noa::geometry {
             cpu_stream.enqueue([=](){
                 cpu::geometry::rectangle(
                         input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        output.get(), output_strides, final_shape,
                         center, radius, edge_size,
                         details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                         functor, cvalue, invert, threads);
@@ -281,7 +317,7 @@ namespace noa::geometry {
             auto& cuda_stream = stream.cuda();
             cuda::geometry::rectangle(
                     input.get(), input_strides,
-                    output.get(), output.strides(), output.shape(),
+                    output.get(), output_strides, final_shape,
                     center, radius, edge_size,
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
@@ -295,6 +331,12 @@ namespace noa::geometry {
     }
 
     /// Returns or applies a cylindrical mask.
+    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    ///          save in \p output. The same transformation can be applied to every batch or there can be
+    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
+    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
+    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
+    ///          in \p output.
     /// \tparam Matrix      Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
@@ -305,7 +347,8 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse DHW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     If an array is provided, there should be one matrix per output batch.
+    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
+    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -323,30 +366,14 @@ namespace noa::geometry {
                   const Vec3<f32>& center, f32 radius, f32 length, f32 edge_size,
                   const Matrix& inv_matrix = {}, Functor functor = {},
                   CValue cvalue = CValue{1}, bool invert = false) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-        const bool is_empty = input.is_empty();
 
-        auto input_strides = input.strides();
-        if (!is_empty && !noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
-            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
-        }
+        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
+        Strides4<i64> input_strides, output_strides;
+        Shape4<i64> final_shape;
+        std::tie(input_strides, output_strides, final_shape) =
+                details::check_shape_parameters<3>(input, output, inv_matrix);
 
         const Device device = output.device();
-        NOA_CHECK(is_empty || device == input.device(),
-                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
-                  input.device(), device);
-
-        if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
-            NOA_CHECK(!inv_matrix.is_empty(), "Empty array detected");
-            NOA_CHECK(inv_matrix.device() == device,
-                      "The input and output arrays must be on the same device, but got inv_matrix:{}, output:{}",
-                      inv_matrix.device(), device);
-            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrix) && inv_matrix.elements() == output.shape()[0],
-                      "The matrices should be specified as a contiguous vector of {} elements, "
-                      "but got shape={} and strides={}", output.shape()[0], inv_matrix.shape(), inv_matrix.strides());
-        }
-
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -354,7 +381,7 @@ namespace noa::geometry {
             cpu_stream.enqueue([=](){
                 cpu::geometry::cylinder(
                         input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        output.get(), output_strides, final_shape,
                         center, radius, length, edge_size,
                         details::extract_linear_or_truncated_matrix<3>(inv_matrix),
                         functor, cvalue, invert, threads);
@@ -364,7 +391,7 @@ namespace noa::geometry {
             auto& cuda_stream = stream.cuda();
             cuda::geometry::cylinder(
                     input.get(), input_strides,
-                    output.get(), output.strides(), output.shape(),
+                    output.get(), output_strides, final_shape,
                     center, radius, length, edge_size,
                     details::extract_linear_or_truncated_matrix<3>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);

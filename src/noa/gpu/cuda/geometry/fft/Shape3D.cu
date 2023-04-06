@@ -16,6 +16,9 @@ namespace {
                     bool invert, cuda::Stream& stream) {
         NOA_ASSERT_DEVICE_OR_NULL_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
+        if constexpr (std::is_pointer_v<Matrix>) {
+            NOA_ASSERT_DEVICE_OR_NULL_PTR(inv_matrix, stream.device());
+        }
 
         Vec3<i32> start{0};
         auto end = shape.pop_front().as_safe<i32>().vec();
@@ -30,44 +33,57 @@ namespace {
 
         const auto input_accessor = Accessor<const Value, 4, u32>(input, input_strides.as_safe<u32>());
         const auto output_accessor = Accessor<Value, 4, u32>(output, output_strides.as_safe<u32>());
+        const bool reduce_output_batch = noa::algorithm::geometry::is_output_batch_reduced(output_strides, shape);
         const auto shape_3d = shape.as_safe<i32>();
 
         if (edge_size > 1e-5f) {
             const GeomShapeSmooth geom_shape_smooth(center, radius, edge_size, cvalue);
-            if (Matrix{} == inv_matrix) {
-                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                        input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
-                noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
-            } else {
-                if constexpr (std::is_pointer_v<Matrix>) {
-                    NOA_ASSERT_DEVICE_PTR(inv_matrix, stream.device());
+            if (reduce_output_batch) {
+                if (Matrix{} == inv_matrix) { // identity matrix or nullptr
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
-                    noa::cuda::utils::iwise_4d(
-                            "geometric_shape_3d", start.push_front(0), end.push_front(shape_3d[0]), kernel, stream);
+                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
+                    noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
                 } else {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                             input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
                     noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
                 }
+            } else {
+                const auto start_4d = start.push_front(0);
+                const auto end_4d = end.push_front(shape_3d[0]);
+                if (Matrix{} == inv_matrix) {
+                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
+                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
+                } else {
+                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
+                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
+                }
             }
         } else {
             const GeomShape geom_shape(center, radius, cvalue);
-            if (Matrix{} == inv_matrix) {
-                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                        input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
-                noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
-            } else {
-                if constexpr (std::is_pointer_v<Matrix>) {
-                    NOA_ASSERT_DEVICE_PTR(inv_matrix, stream.device());
+            if (reduce_output_batch) {
+                if (Matrix{} == inv_matrix) {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
-                    noa::cuda::utils::iwise_4d(
-                            "geometric_shape_3d", start.push_front(0), end.push_front(shape_3d[0]), kernel, stream);
+                            input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
+                    noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
                 } else {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                             input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
                     noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
+                }
+            } else {
+                const auto start_4d = start.push_front(0);
+                const auto end_4d = end.push_front(shape_3d[0]);
+                if (Matrix{} == inv_matrix) {
+                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
+                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
+                } else {
+                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                            input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
+                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
                 }
             }
         }
@@ -258,9 +274,7 @@ namespace noa::cuda::geometry::fft {
 
     #define NOA_INSTANTIATE_SHAPE_ALL(T, C)                 \
     NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2F, T, C);     \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2FC, T, C);   \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2FC, T, C);    \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2F, T, C)
+    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2FC, T, C)
 
     NOA_INSTANTIATE_SHAPE_ALL(f32, f32);
     NOA_INSTANTIATE_SHAPE_ALL(f64, f64);

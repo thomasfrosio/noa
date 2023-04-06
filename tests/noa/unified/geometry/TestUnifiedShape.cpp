@@ -177,7 +177,7 @@ TEST_CASE("unified::geometry::ellipse(), 2d", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::sphere, 3D", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::sphere, 3d", "[assets][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{Device("cpu")};
     if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
@@ -231,7 +231,7 @@ TEST_CASE("unified::geometry::sphere, 3D", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::rectangle, 3D", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::rectangle, 3d", "[assets][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{Device("cpu")};
     if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
@@ -286,7 +286,7 @@ TEST_CASE("unified::geometry::rectangle, 3D", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::ellipse, 3D", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::ellipse, 3d", "[assets][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{Device("cpu")};
     if (!COMPUTE_ASSETS && Device::is_any(DeviceType::GPU))
@@ -423,7 +423,7 @@ TEMPLATE_TEST_CASE("unified::geometry::sphere, 2d matches 3d", "[noa][unified]",
 
         const auto cvalue = noa::traits::value_type_t<TestType>(1);
         noa::geometry::sphere(input, output_2d, center_2d, radius, edge_size, inv_transform_2d, {}, cvalue, invert);
-        noa::geometry::sphere(input, output_3d, center_3d, radius, edge_size, inv_transform_3d, {}, cvalue, invert);
+        noa::geometry::sphere(input, output_3d, center_3d, radius, edge_size, inv_transform_3d, noa::multiply_t{}, cvalue, invert);
         REQUIRE(test::Matcher(test::MATCH_ABS, output_2d, output_3d, 1e-4));
     }
 }
@@ -601,7 +601,7 @@ TEMPLATE_TEST_CASE("unified::geometry::cylinder, cpu vs gpu", "[noa][unified]", 
     REQUIRE(test::Matcher(test::MATCH_ABS, output_cpu, output_gpu.to_cpu(), 1e-4));
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2D affine", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d affine", "[noa][unified]", f32, f64, c32, c64) {
     const auto shape = test::get_random_shape4_batched(2);
     const auto center = (shape.filter(2, 3) / 2).vec().as<f32>();
     const Vec2<f32> radius{40, 25};

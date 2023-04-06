@@ -68,16 +68,18 @@ namespace noa::algorithm::geometry {
             const index3_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
             const index3_type o_idx = to_output_indexes<REMAP>(index, m_shape);
 
+            value_type value{0};
             if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
                 for (index_type i = 0; i < m_batch; ++i) {
                     const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix[i]);
-                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+                    value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
                 }
             } else {
                 const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix);
                 for (index_type i = 0; i < m_batch; ++i)
-                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+                     value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
             }
+            m_output[0](o_idx) = value;
         }
 
     public:
@@ -152,16 +154,18 @@ namespace noa::algorithm::geometry {
             const index2_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
             const index2_type o_idx = to_output_indexes<REMAP>(index, m_shape);
 
+            value_type value{0};
             if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
                 for (index_type i = 0; i < m_batch; ++i) {
                     const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix[i]);
-                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+                    value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
                 }
             } else {
                 const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix);
                 for (index_type i = 0; i < m_batch; ++i)
-                    m_output[i](o_idx) = m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+                    value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
             }
+            m_output[0](o_idx) = value;
         }
 
     public:
@@ -198,5 +202,13 @@ namespace noa::algorithm::geometry {
                   const Functor& functor) {
         using output_t = Shape2D<REMAP, Index, Offset, Value, Coord, GeomShape, MatrixOrEmpty, Functor>;
         return output_t(input, output, shape, geom_shape, inv_matrix, functor);
+    }
+
+    // The shape functors allow to sum-reduce the batch dimension of the output.
+    // This is just to detect this case.
+    [[nodiscard]] constexpr bool is_output_batch_reduced(
+            const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape) {
+        return shape.is_batched() && output_strides[0] == 0;
     }
 }
