@@ -71,6 +71,7 @@ set(NOA_CUDA_HEADERS
         gpu/cuda/geometry/fft/Polar.hpp
         gpu/cuda/geometry/fft/Project.hpp
         gpu/cuda/geometry/fft/Shape.hpp
+        gpu/cuda/geometry/fft/Shape.cuh
         gpu/cuda/geometry/fft/Transform.hpp
         gpu/cuda/geometry/Interpolator.hpp
         gpu/cuda/geometry/Polar.hpp
@@ -143,8 +144,10 @@ set(NOA_CUDA_SOURCES
         # noa::cuda::geometry
         gpu/cuda/geometry/fft/Polar.cu
         gpu/cuda/geometry/fft/Project.cu
-        gpu/cuda/geometry/fft/Shape2D.cu
-        gpu/cuda/geometry/fft/Shape3D.cu
+        gpu/cuda/geometry/fft/ShapeEllipse.cu
+        gpu/cuda/geometry/fft/ShapeSphere.cu
+        gpu/cuda/geometry/fft/ShapeRectangle.cu
+        gpu/cuda/geometry/fft/ShapeCylinder.cu
         gpu/cuda/geometry/fft/Transform.cu
         gpu/cuda/geometry/fft/TransformTexture.cu
         gpu/cuda/geometry/Polar.cu
