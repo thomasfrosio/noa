@@ -624,7 +624,7 @@ namespace noa::geometry::fft {
     /// \tparam OutputRotate                    Float33 or an array/view of this type.
     /// \param[in] input_slice                  Non-redundant 2D slice(s) to insert.
     /// \param input_slice_shape                BDHW logical shape of \p input_slice.
-    /// \param[out] output_slice                Non-redundant 2D extracted slice(s). See warning below.
+    /// \param[in,out] output_slice             Non-redundant 2D extracted slice(s). See \p add_to_output.
     /// \param output_slice_shape               BDHW logical shape of \p output_slice.
     /// \param[in] input_fwd_scaling_matrix     2x2 HW \e forward real-space scaling matrix to apply to the input
     ///                                         slices before the rotation. If an array is passed, it can be empty
@@ -642,14 +642,15 @@ namespace noa::geometry::fft {
     ///                                         Otherwise the same rotation matrix is applied to every slice.
     /// \param slice_z_radius                   Radius along the normal of the central slices, in cycle/pix.
     ///                                         This is usually from 0.001 to 0.01.
+    /// \param add_to_output                    Whether the contribution of the input slices should be added to the
+    ///                                         output. By default, the function sets \p output_slice. With this option
+    ///                                         enabled, it instead adds the contribution of \p input_slice to the
+    ///                                         signal already in \p output_slice, allowing to reuse and progressively
+    ///                                         build the output signal.
     /// \param cutoff                           Frequency cutoff of the virtual 3D Fourier volume, in cycle/pix.
     /// \param ews_radius                       HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                         If negative, the negative curve is computed.
     ///                                         If {0,0}, the slices are projections.
-    ///
-    /// \warning This function doesn't set the \p output_slice. Instead, it adds the contribution of \p input_slice
-    ///          onto the signal already present in \p output_slice. This is different from insert_interpolate_3d and
-    ///          allows to still insert slices one at a time.
     template<Remap REMAP, typename Input, typename Output, typename InputScale, typename InputRotate,
              typename OutputScale, typename OutputRotate, typename = std::enable_if_t<
                      noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
@@ -662,7 +663,7 @@ namespace noa::geometry::fft {
             const Output& output_slice, const Shape4<i64>& output_slice_shape,
             const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
             const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            f32 slice_z_radius, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+            f32 slice_z_radius, bool add_to_output = false, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
 
         details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
                 input_slice, input_slice_shape, output_slice, output_slice_shape, {},
@@ -682,7 +683,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix(input_inv_rotation_matrix),
                         details::extract_matrix(output_inv_scaling_matrix),
                         details::extract_matrix(output_fwd_rotation_matrix),
-                        cutoff, ews_radius, slice_z_radius, threads);
+                        cutoff, ews_radius, slice_z_radius, add_to_output, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -694,7 +695,7 @@ namespace noa::geometry::fft {
                     details::extract_matrix(input_inv_rotation_matrix),
                     details::extract_matrix(output_inv_scaling_matrix),
                     details::extract_matrix(output_fwd_rotation_matrix),
-                    cutoff, ews_radius, slice_z_radius, cuda_stream);
+                    cutoff, ews_radius, slice_z_radius, add_to_output, cuda_stream);
             cuda_stream.enqueue_attach(input_slice.share(), output_slice.share());
             if constexpr (noa::traits::is_array_or_view_v<InputScale>)
                 cuda_stream.enqueue_attach(input_fwd_scaling_matrix.share());
@@ -722,7 +723,7 @@ namespace noa::geometry::fft {
             const Output& output_slice, const Shape4<i64>& output_slice_shape,
             const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
             const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            f32 slice_z_radius, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+            f32 slice_z_radius, bool add_to_output = false, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
 
         const Device device = output_slice.device();
         Stream& stream = Stream::current(device);
@@ -734,7 +735,7 @@ namespace noa::geometry::fft {
                     input_slice_array, input_slice_shape, output_slice, output_slice_shape,
                     input_fwd_scaling_matrix, input_inv_rotation_matrix,
                     output_inv_scaling_matrix, output_fwd_rotation_matrix,
-                    slice_z_radius, cutoff, ews_radius);
+                    slice_z_radius, add_to_output, cutoff, ews_radius);
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (noa::traits::is_any_v<Value, f64, c64>) {
@@ -754,7 +755,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix(input_inv_rotation_matrix),
                         details::extract_matrix(output_inv_scaling_matrix),
                         details::extract_matrix(output_fwd_rotation_matrix),
-                        cutoff, ews_radius, slice_z_radius, cuda_stream);
+                        cutoff, ews_radius, slice_z_radius, add_to_output, cuda_stream);
                 cuda_stream.enqueue_attach(texture.array, texture.texture, output_slice.share());
                 if constexpr (noa::traits::is_array_or_view_v<InputScale>)
                     cuda_stream.enqueue_attach(input_fwd_scaling_matrix.share());
@@ -785,7 +786,7 @@ namespace noa::geometry::fft {
             const Output& output_slice, const Shape4<i64>& output_slice_shape,
             const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
             const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            f32 slice_z_radius, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+            f32 slice_z_radius, bool add_to_output = false, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
 
         details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
                 input_slice, input_slice_shape, output_slice, output_slice_shape, {},
@@ -805,7 +806,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix(input_inv_rotation_matrix),
                         details::extract_matrix(output_inv_scaling_matrix),
                         details::extract_matrix(output_fwd_rotation_matrix),
-                        cutoff, ews_radius, slice_z_radius, threads);
+                        cutoff, ews_radius, slice_z_radius, add_to_output, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -817,7 +818,7 @@ namespace noa::geometry::fft {
                     details::extract_matrix(input_inv_rotation_matrix),
                     details::extract_matrix(output_inv_scaling_matrix),
                     details::extract_matrix(output_fwd_rotation_matrix),
-                    cutoff, ews_radius, slice_z_radius, cuda_stream);
+                    cutoff, ews_radius, slice_z_radius, add_to_output, cuda_stream);
             cuda_stream.enqueue_attach(output_slice.share());
             if constexpr (noa::traits::is_array_or_view_v<InputScale>)
                 cuda_stream.enqueue_attach(input_fwd_scaling_matrix.share());

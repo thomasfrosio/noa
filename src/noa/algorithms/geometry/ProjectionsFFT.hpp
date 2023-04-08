@@ -613,7 +613,8 @@ namespace noa::algorithm::geometry {
                 const input_rotate_type& insert_inv_rotation_matrices,
                 const output_scale_or_empty_type& extract_inv_scaling_matrices,
                 const output_rotate_type& extract_fwd_rotation_matrices,
-                coord_type cutoff, const ews_or_empty_type& ews_radius, coord_type slice_z_radius)
+                coord_type cutoff, const ews_or_empty_type& ews_radius,
+                coord_type slice_z_radius, bool add_to_output)
                 : m_input_slices(input_slices),
                   m_output_slices(output_slices),
                   m_insert_inv_rotation_matrices(insert_inv_rotation_matrices),
@@ -621,7 +622,8 @@ namespace noa::algorithm::geometry {
                   m_insert_fwd_scaling_matrices(insert_fwd_scaling_matrices),
                   m_extract_inv_scaling_matrices(extract_inv_scaling_matrices),
                   m_input_count(input_shape[0]),
-                  m_slice_z_radius(slice_z_radius) {
+                  m_slice_z_radius(slice_z_radius),
+                  m_add_to_output(add_to_output) {
 
             NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
             NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
@@ -658,8 +660,11 @@ namespace noa::algorithm::geometry {
                     freq_2d, m_extract_inv_scaling_matrices, m_extract_fwd_rotation_matrices,
                     output_batch, m_ews_diam_inv);
 
-            if (noa::math::dot(freq_3d, freq_3d) > m_cutoff)
+            if (noa::math::dot(freq_3d, freq_3d) > m_cutoff) {
+                if (!m_add_to_output)
+                    m_output_slices(output_batch, y, u) = value_type{0};
                 return;
+            }
 
             // Then, insert the input slices.
             value_type value{0};
@@ -678,7 +683,10 @@ namespace noa::algorithm::geometry {
                 value += i_value;
             }
             // The transformation preserves the hermitian symmetry, so there's nothing else to do.
-            m_output_slices(output_batch, y, u) += value;
+            if (m_add_to_output)
+                m_output_slices(output_batch, y, u) += value;
+            else
+                m_output_slices(output_batch, y, u) = value;
         }
 
     private:
@@ -697,6 +705,7 @@ namespace noa::algorithm::geometry {
         NOA_NO_UNIQUE_ADDRESS ews_or_empty_type m_ews_diam_inv{};
         coord_type m_cutoff;
         coord_type m_slice_z_radius;
+        bool m_add_to_output;
     };
 
     template<bool POST_CORRECTION, typename Coord, typename Index, typename Value>
@@ -826,7 +835,8 @@ namespace noa::algorithm::geometry {
             const InputRotate& insert_inv_rotation_matrices,
             const OutputScaleOrEmpty& extract_inv_scaling_matrices,
             const OutputRotate& extract_fwd_rotation_matrices,
-            Coord cutoff, EWSOrEmpty ews_radius, Coord slice_z_radius) {
+            Coord cutoff, EWSOrEmpty ews_radius,
+            Coord slice_z_radius, bool add_to_output) {
         return FourierInsertExtraction<
                 REMAP, Index, Value, Offset,
                 InputScaleOrEmpty, InputRotate,
@@ -838,7 +848,8 @@ namespace noa::algorithm::geometry {
                 insert_inv_rotation_matrices,
                 extract_inv_scaling_matrices,
                 extract_fwd_rotation_matrices,
-                cutoff, ews_radius, slice_z_radius);
+                cutoff, ews_radius,
+                slice_z_radius, add_to_output);
     }
 
     template<bool POST_CORRECTION, typename Coord = f32, typename Index, typename Value>

@@ -128,7 +128,7 @@ namespace noa::cuda::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, Stream& stream);
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream);
 
     template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
@@ -138,7 +138,7 @@ namespace noa::cuda::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, Stream& stream);
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream);
 
     template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_texture_v<
@@ -149,7 +149,7 @@ namespace noa::cuda::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, Stream& stream);
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64>>>
     void gridding_correction(const Value* input, const Strides4<i64>& input_strides,

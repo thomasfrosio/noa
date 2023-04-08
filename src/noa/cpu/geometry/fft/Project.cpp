@@ -164,7 +164,7 @@ namespace noa::cpu::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, i64 threads) {
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, i64 threads) {
 
         const auto iwise_shape = output_slice_shape.filter(0, 2, 3).fft();
         const auto input_slice_accessor = AccessorRestrict<const Value, 3, i64>(input_slice, input_slice_strides.filter(0, 2, 3));
@@ -181,7 +181,7 @@ namespace noa::cpu::geometry::fft {
                     output_slice_accessor, output_slice_shape,
                     insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                    cutoff, ews_radius, slice_z_radius);
+                    cutoff, ews_radius, slice_z_radius, add_to_output);
             noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
         } else {
             const auto kernel = noa::algorithm::geometry::fourier_insert_and_extraction<REMAP>(
@@ -189,7 +189,7 @@ namespace noa::cpu::geometry::fft {
                     output_slice_accessor, output_slice_shape,
                     Empty{}, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                    cutoff, Empty{}, slice_z_radius);
+                    cutoff, Empty{}, slice_z_radius, add_to_output);
             noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
         }
     }
@@ -200,7 +200,7 @@ namespace noa::cpu::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, i64 threads) {
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, i64 threads) {
 
         const auto iwise_shape = output_slice_shape.filter(0,2,3).fft();
         const auto output_slice_accessor = AccessorRestrict<Value, 3, i64>(output_slice, output_slice_strides.filter(0, 2, 3));
@@ -216,7 +216,7 @@ namespace noa::cpu::geometry::fft {
                     output_slice_accessor, output_slice_shape,
                     insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                    cutoff, ews_radius, slice_z_radius);
+                    cutoff, ews_radius, slice_z_radius, add_to_output);
             noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
         } else {
             const auto kernel = noa::algorithm::geometry::fourier_insert_and_extraction<REMAP>(
@@ -224,7 +224,7 @@ namespace noa::cpu::geometry::fft {
                     output_slice_accessor, output_slice_shape,
                     Empty{}, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
-                    cutoff, Empty{}, slice_z_radius);
+                    cutoff, Empty{}, slice_z_radius, add_to_output);
             noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
         }
     }
@@ -281,11 +281,13 @@ namespace noa::cpu::geometry::fft {
     template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(    \
         const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
         T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
-        S0 const&, R0 const&, S1 const&, R1 const&, f32, const Vec2<f32>&, f32, i64);   \
+        S0 const&, R0 const&, S1 const&, R1 const&,                                     \
+        f32, const Vec2<f32>&, f32, bool, i64);                                         \
     template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(    \
         T, const Shape4<i64>&,                                                          \
         T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
-        S0 const&, R0 const&, S1 const&, R1 const&, f32, const Vec2<f32>&, f32, i64)
+        S0 const&, R0 const&, S1 const&, R1 const&,                                     \
+        f32, const Vec2<f32>&, f32, bool, i64)
 
     #define NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, S, R)          \
     NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::H2H, S, R);     \
