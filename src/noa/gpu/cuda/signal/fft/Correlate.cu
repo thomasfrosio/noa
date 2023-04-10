@@ -1,5 +1,5 @@
 #include "noa/gpu/cuda/fft/Transforms.hpp"
-#include "noa/gpu/cuda/memory/PtrPinned.hpp"
+#include "noa/gpu/cuda/memory/PtrManaged.hpp"
 #include "noa/gpu/cuda/signal/fft/Correlate.hpp"
 #include "noa/gpu/cuda/signal/fft/PhaseShift.hpp"
 
@@ -108,7 +108,7 @@ namespace noa::cuda::signal::fft::details {
                const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
                const Shape4<i64>& shape, Real* coefficients, Stream& stream) {
         const auto batches = shape[0];
-        const auto buffer = cuda::memory::PtrPinned<Real>::alloc(batches * 3);
+        const auto buffer = cuda::memory::PtrManaged<Real>::alloc(batches * 3, stream);
         const auto numerator = buffer.get();
         const auto denominator_lhs = buffer.get() + batches;
         const auto denominator_rhs = buffer.get() + batches * 2;

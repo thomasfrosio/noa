@@ -2,7 +2,6 @@
 
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/memory/PtrPinned.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"

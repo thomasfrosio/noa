@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/memory/PtrPinned.hpp"
+#include "noa/gpu/cuda/memory/PtrManaged.hpp"
 
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
@@ -711,7 +711,7 @@ namespace noa::cuda::utils {
         const Index elements = shape_to_reduce.elements();
 
         // Get the sum:
-        const auto sums = noa::cuda::memory::PtrPinned<Input>::alloc(batches);
+        const auto sums = noa::cuda::memory::PtrManaged<Input>::alloc(batches, stream);
         reduce_unary(name, input, input_strides, shape,
                      sums.get(), Strides1<Index>{1}, Input{0},
                      {}, noa::plus_t{}, {},

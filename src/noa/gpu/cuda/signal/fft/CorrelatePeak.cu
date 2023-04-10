@@ -4,7 +4,7 @@
 #include "noa/core/math/LeastSquare.hpp"
 
 #include "noa/gpu/cuda/Find.hpp"
-#include "noa/gpu/cuda/memory/PtrPinned.hpp"
+#include "noa/gpu/cuda/memory/PtrManaged.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
 #include "noa/gpu/cuda/signal/fft/Correlate.hpp"
 #include "noa/gpu/cuda/geometry/fft/Shape.hpp"
@@ -309,8 +309,8 @@ namespace noa::cuda::signal::fft {
                   PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream) -> std::pair<Vec1<f32>, Real> {
         NOA_CHECK(shape[0] == 1, "This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        const auto peak_coordinate = memory::PtrPinned<Vec1<f32>>::alloc(1);
-        const auto peak_value = memory::PtrPinned<Real>::alloc(1);
+        const auto peak_coordinate = memory::PtrManaged<Vec1<f32>>::alloc(1, stream);
+        const auto peak_value = memory::PtrManaged<Real>::alloc(1, stream);
 
         xpeak_1d<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
                         peak_coordinate.get(), peak_value.get(),
@@ -388,8 +388,8 @@ namespace noa::cuda::signal::fft {
                   PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream) -> std::pair<Vec2<f32>, Real> {
         NOA_CHECK(shape[0] == 1, "This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        const auto peak_coordinate = memory::PtrPinned<Vec2<f32>>::alloc(1);
-        const auto peak_value = memory::PtrPinned<Real>::alloc(1);
+        const auto peak_coordinate = memory::PtrManaged<Vec2<f32>>::alloc(1, stream);
+        const auto peak_value = memory::PtrManaged<Real>::alloc(1, stream);
 
         xpeak_2d<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
                         peak_coordinate.get(), peak_value.get(),
@@ -470,8 +470,8 @@ namespace noa::cuda::signal::fft {
                   PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream) -> std::pair<Vec3<f32>, Real> {
         NOA_CHECK(shape[0] == 1, "This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        const auto peak_coordinate = memory::PtrPinned<Vec3<f32>>::alloc(1);
-        const auto peak_value = memory::PtrPinned<Real>::alloc(1);
+        const auto peak_coordinate = memory::PtrManaged<Vec3<f32>>::alloc(1, stream);
+        const auto peak_value = memory::PtrManaged<Real>::alloc(1, stream);
 
         xpeak_3d<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
                         peak_coordinate.get(), peak_value.get(),
