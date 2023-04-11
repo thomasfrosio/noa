@@ -40,7 +40,10 @@ namespace {
         Input mean = utils::block_reduce_shared<BLOCK_DIM_X>(
                 s_data + BLOCK_DIM_X * threadIdx.y, gid[3], noa::plus_t{});
 
-        // Share the mean of the row to all threads within that row:
+        // Share the mean of the row to all threads within that row.
+        // But first, make sure the entire block is done with the reduction before saving
+        // to the shared buffer.
+        utils::block_synchronize();
         if (gid[3] == 0)
             s_data[threadIdx.y] = mean * inv_count;
         utils::block_synchronize();
