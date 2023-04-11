@@ -419,7 +419,7 @@ TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(5e-5) : static_cast<real_t>(1e-10);
 
-    for (i64 axis = 3; axis < 4; ++axis) {
+    for (i64 axis = 0; axis < 4; ++axis) {
         INFO("axis: " << axis);
         auto output_shape = subregion_shape;
         output_shape[axis] = 1;
