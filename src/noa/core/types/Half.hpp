@@ -87,10 +87,11 @@ namespace noa {
         enum class Mode { BINARY };
 
         // Conversion constructor. Reinterprets the bits as Half.
-        NOA_HD constexpr Half(Mode, uint16_t bits) noexcept
         #if defined(__CUDA_ARCH__)
-                : m_data(__ushort_as_half(bits)) {}
+        NOA_DEVICE Half(Mode, uint16_t bits) noexcept
+                : m_data(__half_raw{bits}) {}
         #else
+        constexpr Half(Mode, uint16_t bits) noexcept
         // This function is not native to the half_float namespace. It was added to our version
         // to allow reinterpretation from bits to half_float::half in constexpr context.
                 : m_data(half_float::reinterpret_as_half(bits)) {}
