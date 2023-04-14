@@ -93,11 +93,12 @@ namespace noa::cuda {
     NOA_INSTANTIATE_EWISE_BINARY_FLOAT(f32);
     NOA_INSTANTIATE_EWISE_BINARY_FLOAT(f64);
 
-    #define NOA_INSTANTIATE_EWISE_BINARY_COMPLEX(T,U,V)     \
-    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::plus_t);      \
-    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::minus_t);     \
-    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::multiply_t);  \
-    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::divide_t);    \
+    #define NOA_INSTANTIATE_EWISE_BINARY_COMPLEX(T,U,V)         \
+    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::plus_t);          \
+    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::minus_t);         \
+    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::multiply_t);      \
+    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::divide_t);        \
+    NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::divide_safe_t);   \
     NOA_INSTANTIATE_EWISE_BINARY(T,U,V,::noa::dist2_t)
 
     NOA_INSTANTIATE_EWISE_BINARY_COMPLEX(c16, c16, c16);

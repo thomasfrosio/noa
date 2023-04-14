@@ -198,17 +198,23 @@ namespace noa {
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs % rhs; }
     };
 
+    // If divisor is too close to zero, do not divide and set the output to zero instead.
     struct divide_safe_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const {
-            if constexpr (::noa::traits::is_real_v<U>) {
-                return ::noa::math::abs(rhs) < ::noa::math::Limits<U>::epsilon() ? T(0) : lhs / rhs;
-            } else if constexpr (std::is_integral_v<U>) {
-                return rhs == 0 ? T(0) : T(lhs / rhs); // short is implicitly promoted to int so cast it back
+            if constexpr (::noa::traits::are_real_or_complex_v<T, U>) {
+                using epsilon_t = noa::traits::value_type_t<U>;
+                #if defined(__CUDA_ARCH__)
+                const epsilon_t epsilon = ::noa::math::Limits<epsilon_t>::epsilon();
+                #else
+                constexpr epsilon_t epsilon = ::noa::math::Limits<epsilon_t>::epsilon();
+                #endif
+                return ::noa::math::abs(rhs) < epsilon ? T{0} : lhs / rhs;
+            } else if constexpr (noa::traits::are_int_v<T, U>) {
+                return rhs == 0 ? T{0} : T(lhs / rhs); // short is implicitly promoted to int so cast it back
             } else {
                 static_assert(::noa::traits::always_false_v<T>);
             }
-            return T(0); // unreachable
         }
     };
 
