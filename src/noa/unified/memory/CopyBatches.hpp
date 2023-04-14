@@ -59,7 +59,7 @@ namespace noa::memory {
             // FIXME Benchmark to check whether this is faster than the simple
             //       one by one copy for small number of batches.
             const auto device = output.device();
-            if (input.device() == device && batches_to_copy > 5) {
+            if (input.device() == device && batches_to_copy > 2) {
                 Array<Vec4<i32>> batch_origins(batches_to_copy);
                 for (size_t i = 0; i < batches_to_copy; ++i)
                     batch_origins(0, 0, 0, i) = {safe_cast<i32>(batch_indexes_1d[i]), 0, 0, 0};
@@ -71,6 +71,6 @@ namespace noa::memory {
 
         // Worst case, copy batches one by one across devices.
         for (i64 i = 0; i < batches_to_copy; ++i)
-            input.subregion(batch_indexes_1d[i]).to(output.subregion(batch_indexes_1d[i]));
+            input.subregion(batch_indexes_1d[i]).to(output.subregion(i));
     }
 }
