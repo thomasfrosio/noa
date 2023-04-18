@@ -71,6 +71,11 @@ namespace noa::cuda::math {
                                Shape4<i64> shape,
                                bool overwrite,
                                Stream& stream);
+
+    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    [[nodiscard]] Value rmsd(const Value* lhs, const Strides4<i64>& lhs_strides,
+                             const Value* rhs, const Strides4<i64>& rhs_strides,
+                             const Shape4<i64>& shape, Stream& stream);
 }
 
 namespace noa::cuda::math {

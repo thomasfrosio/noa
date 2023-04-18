@@ -235,6 +235,40 @@ namespace noa::math {
         ewise_trinary(input, mean, var, output, minus_divide_t{});
         return std::pair{mean, var};
     }
+
+    /// Returns the root-mean-square deviation.
+    template<typename Lhs, typename Rhs, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_v<Lhs, Rhs> &&
+             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
+             noa::traits::is_array_or_view_of_almost_any_v<Lhs, f32, f64>>>
+    [[nodiscard]] auto rmsd(const Lhs& lhs, const Rhs& rhs) {
+        NOA_CHECK(!lhs.is_empty() && !rhs.is_empty(), "Empty array detected");
+        const Device device = rhs.device();
+
+        NOA_CHECK(noa::all(lhs.shape() == rhs.shape()),
+                  "The lhs and rhs arrays should have the same shape, but got lhs={} and rhs={}",
+                  lhs.shape(), rhs.shape());
+        NOA_CHECK(device == lhs.device(),
+                  "The arrays should be on the same device, but got lhs={} and rhs={}",
+                  lhs.device(), device);
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            cpu_stream.synchronize();
+            return cpu::math::rmsd(
+                    lhs.get(), lhs.strides(), rhs.get(), rhs.strides(),
+                    rhs.shape(), cpu_stream.threads());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda::math::rmsd(
+                    lhs.get(), lhs.strides(), rhs.get(), rhs.strides(),
+                    rhs.shape(), stream.cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
 }
 
 namespace noa::math {

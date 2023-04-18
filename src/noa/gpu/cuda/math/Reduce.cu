@@ -1,6 +1,7 @@
 #include "noa/gpu/cuda/Sort.hpp"
 #include "noa/gpu/cuda/math/Reduce.hpp"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
+#include "noa/gpu/cuda/utils/ReduceBinary.cuh"
 
 namespace noa::cuda::math {
     template<typename Value, typename>
@@ -110,7 +111,7 @@ namespace noa::cuda::math {
         };
         Output output_dist2;
         utils::reduce_unary(
-                "math::statistics",
+                "math::mean_var",
                 input, strides, shape,
                  &output_dist2, Strides1<i64>{1}, Output{0},
                 preprocess_op, noa::plus_t{}, {}, true, true, stream);
@@ -173,6 +174,20 @@ namespace noa::cuda::math {
             return out[0];
     }
 
+    template<typename Value, typename _>
+    Value rmsd(const Value* lhs, const Strides4<i64>& lhs_strides,
+               const Value* rhs, const Strides4<i64>& rhs_strides,
+               const Shape4<i64>& shape, Stream& stream) {
+        Value output;
+        utils::reduce_binary(
+                "math::rmsd",
+                lhs, lhs_strides, rhs, rhs_strides, shape,
+                &output, Strides1<i64>{1}, Value{0},
+                noa::dist2_t{}, noa::plus_t{}, {}, true, true, stream);
+        stream.synchronize();
+        return noa::math::sqrt(output / static_cast<noa::traits::value_type_t<Value>>(shape.elements()));
+    }
+
     #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                              \
     template T min<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
     template T max<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
@@ -215,4 +230,13 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_VAR_(f64, f64);
     NOA_INSTANTIATE_VAR_(c32, f32);
     NOA_INSTANTIATE_VAR_(c64, f64);
+
+    #define NOA_INSTANTIATE_RMSD(T)     \
+    template T rmsd<T,void>(            \
+        const T*, const Strides4<i64>&, \
+        const T*, const Strides4<i64>&, \
+        const Shape4<i64>&, Stream&)
+
+    NOA_INSTANTIATE_RMSD(f32);
+    NOA_INSTANTIATE_RMSD(f64);
 }

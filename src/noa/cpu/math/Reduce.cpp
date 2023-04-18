@@ -5,6 +5,7 @@
 #include "noa/cpu/memory/Copy.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
 #include "noa/cpu/utils/ReduceUnary.hpp"
+#include "noa/cpu/utils/ReduceBinary.hpp"
 
 namespace {
     using namespace noa;
@@ -333,6 +334,24 @@ namespace noa::cpu::math {
             return static_cast<Value>(to_sort[(elements - 1) / 2] + half) / Value{2}; // cast to silence integer promotion
         }
     }
+
+    template<typename Value, typename>
+    Value rmsd(const Value* lhs, const Strides4<i64>& lhs_strides,
+               const Value* rhs, const Strides4<i64>& rhs_strides,
+               const Shape4<i64>& shape, i64 threads) {
+
+        auto preprocess_op = [](Value a, Value b) {
+            const auto c = static_cast<f64>(a) - static_cast<f64>(b);
+            return c * c;
+        };
+
+        f64 output;
+        noa::cpu::utils::reduce_binary(
+                lhs, lhs_strides, rhs, rhs_strides, shape, &output, Strides1<i64>{1},
+                f64{0}, preprocess_op, noa::plus_t{}, {}, threads);
+        output = noa::math::sqrt(output / static_cast<f64>(shape.elements()));
+        return static_cast<Value>(output);
+    }
 }
 
 namespace noa::cpu::math {
@@ -454,4 +473,13 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_VAR_STD_(f64, f64);
     NOA_INSTANTIATE_VAR_STD_(c32, f32);
     NOA_INSTANTIATE_VAR_STD_(c64, f64);
+
+    #define NOA_INSTANTIATE_RMSD(T)     \
+    template T rmsd<T,void>(            \
+        const T*, const Strides4<i64>&, \
+        const T*, const Strides4<i64>&, \
+        const Shape4<i64>&, i64)
+
+    NOA_INSTANTIATE_RMSD(f32);
+    NOA_INSTANTIATE_RMSD(f64);
 }
