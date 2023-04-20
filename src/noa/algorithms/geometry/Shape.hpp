@@ -82,7 +82,7 @@ namespace noa::algorithm::geometry {
             m_output[0](o_idx) = value;
         }
 
-    public:
+    private:
         input_accessor_type m_input;
         output_accessor_type m_output;
         matrix_or_empty_type m_inv_matrix;
@@ -168,7 +168,7 @@ namespace noa::algorithm::geometry {
             m_output[0](o_idx) = value;
         }
 
-    public:
+    private:
         input_accessor_type m_input;
         output_accessor_type m_output;
         matrix_or_empty_type m_inv_matrix;
