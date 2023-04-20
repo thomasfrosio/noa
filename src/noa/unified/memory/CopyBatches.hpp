@@ -6,11 +6,18 @@ namespace noa::memory {
     /// \param[in] input            Input array to copy.
     /// \param[out] output          Output array.
     /// \param[in] batch_indexes    Contiguous vector with the input batch index(es) to copy into \p output.
+    /// \param group_copy_at_count  If the batches are not consecutive, this function will either do a per-batch
+    ///                             copy or a grouped copy using memory::extract_subregions. This parameter sets
+    ///                             the threshold when to use a grouped copy. This has no effect if the batches
+    ///                             are consecutive, or not on the same device, or for types that don't support
+    ///                             memory::extract_subregions.
     template<typename Input, typename Output, typename Indexes, typename = std::enable_if_t<
              noa::traits::are_array_or_view_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              noa::traits::is_array_or_view_of_almost_any_v<Indexes, i32, i64>>>
-    void copy_batches(const Input& input, const Output& output, const Indexes& batch_indexes) {
+    void copy_batches(const Input& input, const Output& output,
+                      const Indexes& batch_indexes,
+                      i64 group_copy_at_count = 2) {
 
         NOA_CHECK(!input.is_empty() && !output.is_empty() && !batch_indexes.is_empty(), "Empty array detected");
         NOA_CHECK(noa::all(input.shape().pop_front() == output.shape().pop_front() || input.shape().pop_front() == 1),
@@ -49,7 +56,8 @@ namespace noa::memory {
         // If the batches to copy into output are next to each other,
         // this becomes a slice operation. So try to identify this case:
         if (index > 0) {
-            const auto slice = noa::indexing::slice_t{batch_indexes_1d[0], batch_indexes_1d[index - 1]};
+            NOA_ASSERT(batch_indexes_1d[0] + batches_to_copy == index);
+            const auto slice = noa::indexing::slice_t{batch_indexes_1d[0], index};
             return input.subregion(slice).to(output);
         }
 
@@ -59,7 +67,7 @@ namespace noa::memory {
             // FIXME Benchmark to check whether this is faster than the simple
             //       one by one copy for small number of batches.
             const auto device = output.device();
-            if (input.device() == device && batches_to_copy > 2) {
+            if (input.device() == device && batches_to_copy > group_copy_at_count) {
                 Array<Vec4<i32>> batch_origins(batches_to_copy);
                 for (size_t i = 0; i < batches_to_copy; ++i)
                     batch_origins(0, 0, 0, i) = {safe_cast<i32>(batch_indexes_1d[i]), 0, 0, 0};
