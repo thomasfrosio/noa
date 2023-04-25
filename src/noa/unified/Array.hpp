@@ -155,14 +155,14 @@ namespace noa {
         [[nodiscard]] constexpr bool is_dereferenceable() const noexcept { return options().is_dereferenceable(); }
 
         /// Returns the BDHW shape of the array.
-        [[nodiscard]] const shape_type& shape() const noexcept { return m_shape; }
+        [[nodiscard]] constexpr const shape_type& shape() const noexcept { return m_shape; }
 
         /// Returns the BDHW strides of the array.
-        [[nodiscard]] const strides_type& strides() const noexcept { return m_strides; }
+        [[nodiscard]] constexpr const strides_type& strides() const noexcept { return m_strides; }
 
         /// Returns the number of elements in the array.
-        [[nodiscard]] index_type elements() const noexcept { return shape().elements(); }
-        [[nodiscard]] index_type size() const noexcept { return shape().elements(); }
+        [[nodiscard]] constexpr index_type elements() const noexcept { return shape().elements(); }
+        [[nodiscard]] constexpr index_type size() const noexcept { return shape().elements(); }
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
@@ -176,7 +176,7 @@ namespace noa {
         }
 
         /// Whether the array is empty. An array is empty if not initialized or if one of its dimension is 0.
-        [[nodiscard]] bool is_empty() const noexcept { return !get() || noa::any(shape() == 0); }
+        [[nodiscard]] constexpr bool is_empty() const noexcept { return !get() || noa::any(shape() == 0); }
 
     public: // Accessors
         /// Synchronizes the current stream of the Array's device.
