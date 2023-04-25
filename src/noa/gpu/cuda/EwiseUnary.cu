@@ -19,11 +19,12 @@ namespace noa::cuda {
         U*, const Strides4<i64>&,                   \
         const Shape4<i64>&, UNARY, Stream&)
 
-    #define NOA_INSTANTIATE_EWISE_UNARY_INT(T,U)        \
-    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::copy_t);     \
-    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::square_t);   \
-    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::abs_t);      \
-    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::negate_t);   \
+    #define NOA_INSTANTIATE_EWISE_UNARY_INT(T,U)            \
+    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::copy_t);         \
+    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::square_t);       \
+    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::abs_t);          \
+    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::abs_squared_t);  \
+    NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::negate_t);       \
     NOA_INSTANTIATE_EWISE_UNARY(T,U,::noa::one_minus_t)
 
     NOA_INSTANTIATE_EWISE_UNARY_INT(i8, i8);
@@ -80,7 +81,8 @@ namespace noa::cuda {
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::floor_t);        \
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::trunc_t);        \
     NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::one_log_t);      \
-    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::abs_one_log_t)
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::abs_one_log_t);  \
+    NOA_INSTANTIATE_EWISE_UNARY(T,T,::noa::abs_squared_t)
 
     NOA_INSTANTIATE_EWISE_UNARY_FLOAT(f16);
     NOA_INSTANTIATE_EWISE_UNARY_FLOAT(f32);

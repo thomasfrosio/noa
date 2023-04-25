@@ -7,10 +7,10 @@
 namespace noa::cuda::details {
     template<typename In, typename Out, typename Op>
     constexpr bool is_valid_ewise_unary_v =
-            (traits::is_any_v<Out, i8, i16, i32, i64> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, abs_t, negate_t, one_minus_t, nonzero_t, logical_not_t>) ||
+            (traits::is_any_v<Out, i8, i16, i32, i64> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, abs_t, abs_squared_t, negate_t, one_minus_t, nonzero_t, logical_not_t>) ||
             (traits::is_any_v<Out, u8, u16, u32, u64> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, nonzero_t, logical_not_t>) ||
             (traits::is_restricted_int_v<In> && std::is_same_v<Out, bool> && traits::is_any_v<Op, nonzero_t, logical_not_t>) ||
-            (traits::is_real_v<Out> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, abs_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t, one_log_t, abs_one_log_t>) ||
+            (traits::is_real_v<Out> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, abs_t, abs_squared_t, negate_t, one_minus_t, inverse_t, sqrt_t, rsqrt_t, exp_t, log_t, cos_t, sin_t, one_log_t, abs_one_log_t>) ||
             (traits::is_real_v<Out> && std::is_same_v<In, Out> && traits::is_any_v<Op, round_t, rint_t, ceil_t, floor_t, trunc_t>) ||
             (traits::is_complex_v<Out> && std::is_same_v<In, Out> && traits::is_any_v<Op, one_minus_t, square_t, inverse_t, normalize_t, conj_t>) ||
             (traits::is_complex_v<In> && std::is_same_v<Out, traits::value_type_t<In>> && traits::is_any_v<Op, abs_t, real_t, imag_t, abs_squared_t, abs_one_log_t>);

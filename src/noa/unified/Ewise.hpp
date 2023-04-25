@@ -14,11 +14,11 @@ namespace noa {
     /// \param unary_op     Unary operator. The output is explicitly cast to the \p output value type.
     /// \note On the GPU, supported operators and types are limited to the following list:
     ///     \b Integers:\n
-    ///       - \c (copy|square|abs|negate|one_minus|nonzero|logical_not)_t(A)->A\n
+    ///       - \c (copy|square|abs|abs_squared|negate|one_minus|nonzero|logical_not)_t(A)->A\n
     ///       - \c (copy|square|nonzero|logical_not)_t(B)->B\n
     ///       - \c (nonzero|logical_not)_t(A|B)->bool\n
     ///     \b Floating-points:\n
-    ///       - \c (copy|square|abs|negate|one_minus|inverse)_t(C)->C\n
+    ///       - \c (copy|square|abs|abs_squared|negate|one_minus|inverse)_t(C)->C\n
     ///       - \c (sqrt|rsqrt|exp|log|cos|sin|one_log|abs_one_log)_t(C)->C\n
     ///       - \c (round|rint|ceil|floor|trunc)_t(C)->C\n
     ///     \b Complex:\n
