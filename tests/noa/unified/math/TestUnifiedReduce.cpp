@@ -173,6 +173,34 @@ TEMPLATE_TEST_CASE("unified::math:: reductions, cpu vs gpu", "[noa][unified]", i
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &cpu_mean, &gpu_mean, 1, eps));
 }
 
+TEMPLATE_TEST_CASE("unified::math:: sum/mean preprocess", "[noa][unified]", i64, f32, f64, c32, c64) {
+    const auto shape = test::get_random_shape4_batched(3);
+
+    std::vector<Device> devices = {Device{}};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
+        INFO(device);
+
+        Array<TestType> data(shape, options);
+        test::Randomizer<TestType> randomizer(-5, 5);
+        test::randomize(data.get(), data.elements(), randomizer);
+
+        const auto processed = noa::ewise_unary(data, noa::abs_squared_t{});
+        const auto sum0 = math::sum(processed);
+        const auto mean0 = math::mean(processed);
+
+        const auto sum1 = math::sum(data, noa::abs_squared_t{});
+        const auto mean1 = math::mean(data, noa::abs_squared_t{});
+
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &sum0, &sum1, 1, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &mean0, &mean1, 1, 1e-6));
+    }
+}
+
 TEST_CASE("unified::math:: batched reductions vs numpy", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];

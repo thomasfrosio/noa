@@ -34,35 +34,39 @@ namespace noa::cuda::math {
         return output;
     }
 
-    template<typename Value, typename>
-    Value sum(const Value* input,
-              const Strides4<i64>& strides,
-              const Shape4<i64>& shape,
-              Stream& stream) {
-        Value output{};
+    template<typename Value, typename PreProcessOp, typename Reduced, typename>
+    Reduced sum(const Value* input,
+                const Strides4<i64>& strides,
+                const Shape4<i64>& shape,
+                PreProcessOp pre_process_op,
+                Stream& stream) {
+        Reduced output{};
         utils::reduce_unary(
                 "math::sum",
-                input, strides, shape, &output, Strides1<i64>{1}, Value{0},
-                {}, noa::plus_t{}, {}, true, true, stream);
+                input, strides, shape, &output, Strides1<i64>{1}, Reduced{0},
+                pre_process_op, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
         return output;
     }
 
-    template<typename Value, typename>
-    Value mean(const Value* input,
-               const Strides4<i64>& strides,
-               const Shape4<i64>& shape,
-               Stream& stream) {
-        Value output{};
+    template<typename Value, typename PreProcessOp, typename Reduced, typename>
+    Reduced mean(const Value* input,
+                 const Strides4<i64>& strides,
+                 const Shape4<i64>& shape,
+                 PreProcessOp pre_process_op,
+                 Stream& stream) {
+        Reduced output{};
         utils::reduce_unary(
                 "math::mean",
-                input, strides, shape, &output, Strides1<i64>{1}, Value{0},
-                {}, noa::plus_t{}, {}, true, true, stream);
+                input, strides, shape, &output, Strides1<i64>{1}, Reduced{0},
+                pre_process_op, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
-        if constexpr (noa::traits::is_int_v<Value>) {
-            return static_cast<Value>(noa::math::round(static_cast<f64>(output) / static_cast<f64>(shape.elements())));
+        if constexpr (noa::traits::is_int_v<Reduced>) {
+            return static_cast<Reduced>(noa::math::round(
+                    static_cast<f64>(output) / static_cast<f64>(shape.elements())));
         } else {
-            return output / static_cast<Value>(shape.elements());
+            using real_t = noa::traits::value_type_t<Value>;
+            return output / static_cast<real_t>(shape.elements());
         }
     }
 
@@ -203,23 +207,37 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(i32);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(i64);
 
-    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T)                                             \
-    template T sum<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
-    template T mean<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, P)                                              \
+    template T sum<T,P,T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, P, Stream&); \
+    template T mean<T,P,T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, P, Stream&)
 
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(f32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(f64);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(u32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(u64);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(i32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(i64);
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(T)      \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::copy_t);   \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::nonzero_t);\
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::square_t); \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::abs_t);    \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::abs_squared_t)
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX(T)                                               \
-    template T sum<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
-    template T mean<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f64);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u64);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i64);
 
-    NOA_INSTANTIATE_REDUCE_COMPLEX(c32);
-    NOA_INSTANTIATE_REDUCE_COMPLEX(c64);
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, P)                                             \
+    template R sum<C,P,R,void>(const C*, const Strides4<i64>&, const Shape4<i64>&, P, Stream&); \
+    template R mean<C,P,R,void>(const C*, const Strides4<i64>&, const Shape4<i64>&, P, Stream&)
+
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(C, R)        \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, C, noa::copy_t);      \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, noa::nonzero_t);   \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, C, noa::square_t);    \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, noa::abs_t);       \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, noa::abs_squared_t)
+
+    NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c32, f32);
+    NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c64, f64);
 
     #define NOA_INSTANTIATE_VAR_(T,U)                                                               \
     template U var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);     \

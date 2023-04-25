@@ -14,12 +14,12 @@ namespace {
         MIN, MAX, SUM, MEAN, VAR, STD
     };
 
-    template<ReductionMode MODE, typename Input>
+    template<ReductionMode MODE, typename Input, typename Output = Input, typename PreProcessOp = noa::copy_t>
     struct ReduceAll {
     public:
         static constexpr auto execute(
                 const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-                i64 threads, i64 ddof = 0, const Input* sum_ptr = nullptr
+                i64 threads, i64 ddof = 0, const Output* sum_ptr = nullptr
         ) {
             constexpr bool IS_SUM_OR_MEAN = MODE == ReductionMode::SUM || MODE == ReductionMode::MEAN;
             if constexpr (MODE == ReductionMode::MIN) {
@@ -37,38 +37,54 @@ namespace {
                 return output;
 
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_int_v<Input>) {
-                Input output;
+                Output output;
+                auto preprocess_op = [](Input v) {
+                    return static_cast<Input>(PreProcessOp{}(v));
+                };
                 noa::cpu::utils::reduce_unary(
                         input, strides, shape, &output, Strides1<i64>{1},
-                        Input{0}, {}, noa::plus_t{}, {}, threads);
+                        Output{0}, preprocess_op, noa::plus_t{}, {}, threads);
                 if constexpr (MODE == ReductionMode::MEAN)
-                    output = static_cast<Input>(noa::math::round(
+                    output = static_cast<Output>(noa::math::round(
                             static_cast<f64>(output) / static_cast<f64>(shape.elements())));
                 return output;
 
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_real_v<Input>) {
                 f64 global_error{0};
                 f64 global_sum{0};
+                auto preprocess_op = [](Input v) {
+                    return static_cast<f64>(PreProcessOp{}(v));
+                };
+
                 noa::cpu::utils::reduce_unary(
                         input, strides, shape, &global_sum, Strides1<i64>{1},
-                        f64{0}, [](Input v) { return static_cast<f64>(v); },
-                        noa::algorithm::math::AccuratePlusReal{&global_error}, {}, threads);
+                        f64{0}, preprocess_op, noa::algorithm::math::AccuratePlusReal{&global_error},
+                        {}, threads);
+
                 global_sum += global_error;
                 if constexpr (MODE == ReductionMode::MEAN)
                     global_sum /= static_cast<f64>(shape.elements());
-                return static_cast<Input>(global_sum);
+                return static_cast<Output>(global_sum);
 
             } else if constexpr (IS_SUM_OR_MEAN && noa::traits::is_complex_v<Input>) {
-                c64 global_error{0};
-                c64 global_sum{0};
+                using reduce_double_t = std::conditional_t<noa::traits::is_complex_v<Output>, c64, f64>;
+                using reduce_op_t = std::conditional_t<noa::traits::is_complex_v<Output>,
+                                                       noa::algorithm::math::AccuratePlusComplex,
+                                                       noa::algorithm::math::AccuratePlusReal>;
+                reduce_double_t global_error{0};
+                reduce_double_t global_sum{0};
+                auto preprocess_op = [](Input v) {
+                    return static_cast<reduce_double_t>(PreProcessOp{}(v));
+                };
+
                 noa::cpu::utils::reduce_unary(
                         input, strides, shape, &global_sum, Strides1<i64>{1},
-                        c64{0}, [](Input v) { return static_cast<c64>(v); },
-                        noa::algorithm::math::AccuratePlusComplex{&global_error}, {}, threads);
+                        reduce_double_t{0}, preprocess_op, reduce_op_t{&global_error}, {}, threads);
+
                 global_sum += global_error;
                 if constexpr (MODE == ReductionMode::MEAN)
                     global_sum /= static_cast<f64>(shape.elements());
-                return static_cast<Input>(global_sum);
+                return static_cast<Output>(global_sum);
 
             } else if constexpr (MODE == ReductionMode::VAR || MODE == ReductionMode::STD) {
                 using mean_t = std::conditional_t<noa::traits::is_complex_v<Input>, c64, f64>;
@@ -274,14 +290,14 @@ namespace noa::cpu::math {
         return ReduceAll<ReductionMode::MAX, Value>::execute(input, strides, shape, threads);
     }
 
-    template<typename Value, typename>
-    Value sum(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
-        return ReduceAll<ReductionMode::SUM, Value>::execute(input, strides, shape, threads);
+    template<typename Value, typename PreProcessOp, typename Reduced, typename>
+    Reduced sum(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, PreProcessOp, i64 threads) {
+        return ReduceAll<ReductionMode::SUM, Value, Reduced, PreProcessOp>::execute(input, strides, shape, threads);
     }
 
-    template<typename Value, typename>
-    Value mean(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
-        return ReduceAll<ReductionMode::MEAN, Value>::execute(input, strides, shape, threads);
+    template<typename Value, typename PreProcessOp, typename Reduced, typename>
+    Reduced mean(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, PreProcessOp, i64 threads) {
+        return ReduceAll<ReductionMode::MEAN, Value, Reduced, PreProcessOp>::execute(input, strides, shape, threads);
     }
 
     template<typename Input, typename Output, typename>
@@ -314,7 +330,7 @@ namespace noa::cpu::math {
 
         // Allocate buffer only if necessary.
         const auto elements = shape.elements();
-        Value* to_sort{};
+        Value* to_sort;
         using buffer_t = typename noa::cpu::memory::PtrHost<Value>::alloc_unique_type ;
         buffer_t buffer;
         if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
@@ -438,9 +454,39 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_MIN_MAX_(f32);
     NOA_INSTANTIATE_MIN_MAX_(f64);
 
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, P)                                              \
+    template T sum<T,P,T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, P, i64);     \
+    template T mean<T,P,T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, P, i64)
+
+    #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(T)      \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::copy_t);   \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::nonzero_t);\
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::square_t); \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::abs_t);    \
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, noa::abs_squared_t)
+
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f64);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u64);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i32);
+    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i64);
+
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, P)                                             \
+    template R sum<C,P,R,void>(const C*, const Strides4<i64>&, const Shape4<i64>&, P, i64);     \
+    template R mean<C,P,R,void>(const C*, const Strides4<i64>&, const Shape4<i64>&, P, i64)
+
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(C, R)        \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, C, noa::copy_t);      \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, noa::nonzero_t);   \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, C, noa::square_t);    \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, noa::abs_t);       \
+    NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, noa::abs_squared_t)
+
+    NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c32, f32);
+    NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c64, f64);
+
     #define NOA_INSTANTIATE_SUM_MEAN_(T)                                                \
-    template T sum<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
-    template T mean<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);  \
     template void sum<T, void>(                                                         \
         const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
         T*, const Strides4<i64>&, const Shape4<i64>&, i64);                             \

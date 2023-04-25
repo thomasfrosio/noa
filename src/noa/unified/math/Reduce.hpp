@@ -14,10 +14,13 @@ namespace noa::math::details {
             noa::traits::is_any_v<noa::traits::mutable_value_type_t<Input>,
                                   i16, i32, i64, u16, u32, u64, f16, f32, f64>;
 
-    template<typename Input>
+    template<typename Input, typename PreProcessOp = noa::copy_t>
     constexpr bool is_valid_sum_mean_v =
             noa::traits::is_any_v<noa::traits::mutable_value_type_t<Input>,
-                                  i32, i64, u32, u64, f32, f64, c32, c64>;
+                                  i32, i64, u32, u64, f32, f64, c32, c64> &&
+            noa::traits::is_any_v<PreProcessOp,
+                                  noa::copy_t, noa::nonzero_t, noa::square_t,
+                                  noa::abs_t, noa::abs_squared_t>;
 
     template<typename Input, typename Output>
     constexpr bool is_valid_var_std_v =
@@ -95,22 +98,27 @@ namespace noa::math {
     }
 
     /// Returns the sum of the input array.
+    /// \param[in] array        Array to reduce.
+    /// \param pre_process_op   Preprocessing operator. Used to apply a unary
+    ///                         element-wise operator before the reduction.
     /// \note For (complex)-floating-point types, the CPU backend uses
     ///       a multi-threaded Kahan summation (with Neumaier variation).
-    template<typename Input, typename = std::enable_if_t<
+    template<typename Input, typename PreProcessOp = noa::copy_t, typename = std::enable_if_t<
              noa::traits::is_array_or_view_v<Input> &&
-             details::is_valid_sum_mean_v<Input>>>
-    [[nodiscard]] auto sum(const Input& array) {
+             details::is_valid_sum_mean_v<Input, PreProcessOp>>>
+    [[nodiscard]] auto sum(const Input& array, PreProcessOp pre_process_op = {}) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::sum(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+            return cpu::math::sum(array.get(), array.strides(), array.shape(),
+                                  pre_process_op, cpu_stream.threads());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::sum(array.get(), array.strides(), array.shape(), stream.cuda());
+            return cuda::math::sum(array.get(), array.strides(), array.shape(),
+                                   pre_process_op, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -118,22 +126,27 @@ namespace noa::math {
     }
 
     /// Returns the mean of the input array.
+    /// \param[in] array        Array to reduce.
+    /// \param pre_process_op   Preprocessing operator. Used to apply a unary
+    ///                         element-wise operator before the reduction.
     /// \note For (complex)-floating-point types, the CPU backend uses
     ///       a multi-threaded Kahan summation (with Neumaier variation).
-    template<typename Input, typename = std::enable_if_t<
+    template<typename Input, typename PreProcessOp = noa::copy_t, typename = std::enable_if_t<
              noa::traits::is_array_or_view_v<Input> &&
-             details::is_valid_sum_mean_v<Input>>>
-    [[nodiscard]] auto mean(const Input& array) {
+             details::is_valid_sum_mean_v<Input, PreProcessOp>>>
+    [[nodiscard]] auto mean(const Input& array, PreProcessOp pre_process_op = {}) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::mean(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+            return cpu::math::mean(array.get(), array.strides(), array.shape(),
+                                   pre_process_op, cpu_stream.threads());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::mean(array.get(), array.strides(), array.shape(), stream.cuda());
+            return cuda::math::mean(array.get(), array.strides(), array.shape(),
+                                    pre_process_op, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
