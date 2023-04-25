@@ -166,11 +166,23 @@ namespace noa::math {
     [[nodiscard]] NOA_FHD constexpr bool signbit(float x) { return ::signbit(x); }
 
     template<typename T>
-    [[nodiscard]] NOA_FHD T abs(T x) { return ::abs(x); }
-    template<>
-    [[nodiscard]] NOA_FHD int8_t abs<int8_t>(int8_t x) { return static_cast<int8_t>(::abs(x)); }
-    template<>
-    [[nodiscard]] NOA_FHD int16_t abs<int16_t>(int16_t x) { return static_cast<int16_t>(::abs(x)); }
+    [[nodiscard]] NOA_FHD T abs(T x) {
+        if constexpr (noa::traits::is_uint_v<T>) {
+            return x;
+        } else if constexpr (noa::traits::is_int_v<T>) {
+            if constexpr (noa::traits::is_almost_same_v<T, long>)
+                return ::labs(x);
+            else if constexpr (noa::traits::is_almost_same_v<T, long long>)
+                return ::llabs(x);
+            else if constexpr (noa::traits::is_almost_same_v<T, int8_t>)
+                return static_cast<int8_t>(::abs(x));
+            else if constexpr (noa::traits::is_almost_same_v<T, int16_t>)
+                return static_cast<int16_t>(::abs(x));
+            return ::abs(x);
+        } else {
+            return ::abs(x);
+        }
+    }
 
     [[nodiscard]] NOA_FHD double fma(double x, double y, double z) { return ::fma(x, y, z); }
     [[nodiscard]] NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
