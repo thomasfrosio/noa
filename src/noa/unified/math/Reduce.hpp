@@ -101,6 +101,8 @@ namespace noa::math {
     /// \param[in] array        Array to reduce.
     /// \param pre_process_op   Preprocessing operator. Used to apply a unary
     ///                         element-wise operator before the reduction.
+    ///                         Must be copy_t, nonzero_t, square_t, abs_t or abs_squared_t.
+    ///                         For complex input types, abs_t or abs_squared_t return a real value.
     /// \note For (complex)-floating-point types, the CPU backend uses
     ///       a multi-threaded Kahan summation (with Neumaier variation).
     template<typename Input, typename PreProcessOp = noa::copy_t, typename = std::enable_if_t<
