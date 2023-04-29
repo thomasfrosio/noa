@@ -14,13 +14,14 @@ namespace noa::fft {
     /// \param[in] input    Real space array.
     /// \param[out] output  Non-redundant non-centered FFT(s).
     /// \param norm         Normalization mode.
+    /// \param cache_plan   Whether this transform should be cached.
     /// \note In-place transforms are allowed if the \p input is appropriately padded to account
     ///       for the extra one (if odd) or two (if even) real element along the width dimension.
     template<typename Input, typename Output, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64> &&
              noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, noa::traits::value_type_t<Output>>>>
-    void r2c(const Input& input, const Output& output, Norm norm = NORM_DEFAULT) {
+    void r2c(const Input& input, const Output& output, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(noa::all(output.shape() == input.shape().fft()),
                   "Given the real input with a shape of {}, the non-redundant shape of the complex output "
@@ -46,7 +47,7 @@ namespace noa::fft {
             auto& cuda_stream = stream.cuda();
             cuda::fft::r2c(input.get(), input.strides(),
                            output.get(), output.strides(),
-                           input.shape(), norm, cuda_stream);
+                           input.shape(), norm, cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -57,13 +58,14 @@ namespace noa::fft {
     /// Computes the forward R2C transform of (batched) 2D/3D array(s) or column/row vector(s).
     /// \param[in] input    Real space array.
     /// \param norm         Normalization mode.
+    /// \param cache_plan   Whether this transform should be cached.
     /// \return Non-redundant non-centered FFT(s).
     template<typename Input, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64>>>
-    [[nodiscard]] auto r2c(const Input& input, Norm norm = NORM_DEFAULT) {
+    [[nodiscard]] auto r2c(const Input& input, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         using real_t = typename Input::value_type;
         Array<Complex<real_t>> output(input.shape().fft(), input.options());
-        r2c(input, output, norm);
+        r2c(input, output, norm, cache_plan);
         return output;
     }
 
@@ -71,6 +73,7 @@ namespace noa::fft {
     /// \param[in,out] input    Non-redundant non-centered FFT(s).
     /// \param[out] output      Real space array.
     /// \param norm             Normalization mode.
+    /// \param cache_plan       Whether this transform should be cached.
     /// \note In-place transforms are allowed if the \p output is appropriately padded to account
     ///       for the extra one (if odd) or two (if even) real element in the width dimension.
     /// \note For multidimensional C2R transforms, the input is not preserved.
@@ -78,7 +81,7 @@ namespace noa::fft {
             noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
             noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
             noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Input>, Output>>>
-    void c2r(const Input& input, const Output& output, Norm norm = NORM_DEFAULT) {
+    void c2r(const Input& input, const Output& output, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(noa::all(input.shape() == output.shape().fft()),
                   "Given the real output with a shape of {}, the non-redundant shape of the complex input "
@@ -104,7 +107,7 @@ namespace noa::fft {
             auto& cuda_stream = stream.cuda();
             cuda::fft::c2r(input.get(), input.strides(),
                            output.get(), output.strides(),
-                           output.shape(), norm, cuda_stream);
+                           output.shape(), norm, cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -116,14 +119,16 @@ namespace noa::fft {
     /// \param[in,out] input    Non-redundant non-centered FFT(s).
     /// \param shape            BDHW logical shape of \p input.
     /// \param norm             Normalization mode.
+    /// \param cache_plan       Whether this transform should be cached.
     /// \return Real space array.
     /// \note For multidimensional C2R transforms, the input is not preserved.
     template<typename Input, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64>>>
-    [[nodiscard]] auto c2r(const Input& input, const Shape4<i64> shape, Norm norm = NORM_DEFAULT) {
+    [[nodiscard]] auto c2r(const Input& input, const Shape4<i64> shape,
+                           Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         using real_t = noa::traits::value_type_t<typename Input::value_type>;
         Array<real_t> output(shape, input.options());
-        c2r(input, output, norm);
+        c2r(input, output, norm, cache_plan);
         return output;
     }
 
@@ -133,12 +138,14 @@ namespace noa::fft {
     /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
     ///                     It can be −1 (\c Sign::FORWARD) or +1 (\c Sign::BACKWARD).
     /// \param norm         Normalization mode.
+    /// \param cache_plan   Whether this transform should be cached.
     /// \note In-place transforms are allowed.
     template<typename Input, typename Output, typename = std::enable_if_t<
             noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
             noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
             noa::traits::are_almost_same_value_type_v<Input, Output>>>
-    void c2c(const Input& input, const Output& output, Sign sign, Norm norm = NORM_DEFAULT) {
+    void c2c(const Input& input, const Output& output, Sign sign,
+             Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(noa::all(input.shape() == output.shape()),
                   "The input and output shape should match (no broadcasting allowed), but got input {} and output {}",
@@ -164,7 +171,7 @@ namespace noa::fft {
             auto& cuda_stream = stream.cuda();
             cuda::fft::c2c(input.get(), input.strides(),
                            output.get(), output.strides(),
-                           input.shape(), sign, norm, cuda_stream);
+                           input.shape(), sign, norm, cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -177,13 +184,14 @@ namespace noa::fft {
     /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
     ///                     It can be −1 (\c Sign::FORWARD) or +1 (\c Sign::BACKWARD).
     /// \param norm         Normalization mode.
+    /// \param cache_plan   Whether this transform should be cached.
     /// \return Non-centered FFT(s).
     template<typename Input, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64>>>
-    [[nodiscard]] auto c2c(const Input& input, Sign sign, Norm norm = NORM_DEFAULT) {
+    [[nodiscard]] auto c2c(const Input& input, Sign sign, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         using complex_t = typename Input::value_type;
         Array<complex_t> output(input.shape(), input.options());
-        c2c(input, output, sign, norm);
+        c2c(input, output, sign, norm, cache_plan);
         return output;
     }
 }

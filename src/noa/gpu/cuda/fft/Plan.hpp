@@ -9,11 +9,19 @@
 // TODO Add f16/c16 support. https://docs.nvidia.com/cuda/cufft/index.html#half-precision-transforms
 
 namespace noa::cuda::fft::details {
-    [[nodiscard]] Shared<cufftHandle> get_plan(cufftType_t type, const Shape4<i64>& shape, i32 device);
+    [[nodiscard]] Shared<cufftHandle> get_plan(
+            cufftType_t type,
+            const Shape4<i64>& shape,
+            i32 device,
+            bool save_in_cache);
 
     [[nodiscard]] Shared<cufftHandle> get_plan(
-            cufftType_t type, Strides4<i64> input_stride, Strides4<i64> output_stride,
-            const Shape4<i64>& shape, i32 device);
+            cufftType_t type,
+            Strides4<i64> input_stride,
+            Strides4<i64> output_stride,
+            const Shape4<i64>& shape,
+            i32 device,
+            bool save_in_cache);
 
     void cache_clear(i32 device) noexcept;
     void cache_set_limit(i32 device, i32 count) noexcept;
@@ -42,15 +50,13 @@ namespace noa::cuda::fft {
         C2C = CUFFT_C2C
     };
 
-    class PlanCache {
-    public:
-        static void cleanup(Device device = Device::current()) {
-            details::cache_clear(device.id());
-        }
-        static void set_limit(i32 count, Device device = Device::current()) {
-            details::cache_set_limit(device.id(), count);
-        }
-    };
+    inline void cache_clear(Device device = Device::current()) {
+        details::cache_clear(device.id());
+    }
+
+    inline void cache_set_limit(i32 count, Device device = Device::current()) {
+        details::cache_set_limit(device.id(), count);
+    }
 
     // Template class managing FFT plans in CUDA using cuFFT.
     // NOTE: For R2C/C2R transforms, the 2D/3D arrays should be in the rightmost order for best performance since the
@@ -65,19 +71,28 @@ namespace noa::cuda::fft {
     template<typename Real, typename = std::enable_if_t<traits::is_any_v<Real, float, double>>>
     class Plan {
     public:
-        Plan(Type type, const Shape4<i64>& shape, Device device = Device::current())
-                : m_plan(details::get_plan(to_cufft_type_(type), shape, device.id())) {}
+        Plan(Type type,
+             const Shape4<i64>& shape,
+             Device device = Device::current(),
+             bool save_to_cache = true
+        ) : m_plan(details::get_plan(to_cufft_type_(type), shape, device.id(), save_to_cache)) {}
 
-        Plan(Type type, const Strides4<i64>& input_strides, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, Device device = Device::current()) {
-
+        Plan(Type type,
+             const Strides4<i64>& input_strides,
+             const Strides4<i64>& output_strides,
+             const Shape4<i64>& shape,
+             Device device = Device::current(),
+             bool save_to_cache = true
+        ) {
             const auto input_shape = type == Type::C2R ? shape.fft() : shape;
             const auto output_shape = type == Type::R2C ? shape.fft() : shape;
             if (noa::indexing::are_contiguous(input_strides, input_shape) &&
                 noa::indexing::are_contiguous(output_strides, output_shape)) {
-                m_plan = details::get_plan(to_cufft_type_(type), shape, device.id());
+                m_plan = details::get_plan(
+                        to_cufft_type_(type), shape, device.id(), save_to_cache);
             } else {
-                m_plan = details::get_plan(to_cufft_type_(type), input_strides, output_strides, shape, device.id());
+                m_plan = details::get_plan(
+                        to_cufft_type_(type), input_strides, output_strides, shape, device.id(), save_to_cache);
             }
         }
 

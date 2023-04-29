@@ -84,7 +84,7 @@ namespace noa::cuda::signal::fft {
             }
         }
 
-        noa::cuda::fft::c2r(tmp, tmp_strides, output, output_strides, shape, norm, stream);
+        noa::cuda::fft::c2r(tmp, tmp_strides, output, output_strides, shape, norm, true, stream);
     }
 
     #define INSTANTIATE_XMAP(R, T)                      \

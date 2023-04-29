@@ -95,8 +95,8 @@ namespace noa::cuda::fft {
 
 namespace noa::cuda::fft {
     template<typename T>
-    void r2c(T* input, Complex<T>* output, const Shape4<i64>& shape, Norm norm, Stream& stream) {
-        Plan<T> plan(fft::R2C, shape, stream.device());
+    void r2c(T* input, Complex<T>* output, const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
+        Plan<T> plan(fft::R2C, shape, stream.device(), cache_plan);
         r2c(input, output, plan, stream);
         details::normalize<true>(output, shape.fft().strides(), shape, Sign::FORWARD, norm, stream);
     }
@@ -104,19 +104,20 @@ namespace noa::cuda::fft {
     template<typename T>
     void r2c(T* input, const Strides4<i64>& input_strides,
              Complex<T>* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, Norm norm, Stream& stream) {
-        const Plan<T> plan(fft::R2C, input_strides, output_strides, shape, stream.device());
+             const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
+        const Plan<T> plan(fft::R2C, input_strides, output_strides, shape, stream.device(), cache_plan);
         r2c(input, output, plan, stream);
         details::normalize<true>(output, output_strides, shape, Sign::FORWARD, norm, stream);
     }
 
     template<typename T>
-    void r2c(T* data, const Shape4<i64>& shape, Norm norm, Stream& stream) {
-        r2c(data, reinterpret_cast<Complex<T>*>(data), shape, norm, stream);
+    void r2c(T* data, const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
+        r2c(data, reinterpret_cast<Complex<T>*>(data), shape, norm, cache_plan, stream);
     }
 
     template<typename T>
-    void r2c(T* data, const Strides4<i64>& strides, const Shape4<i64>& shape, Norm norm, Stream& stream) {
+    void r2c(T* data, const Strides4<i64>& strides, const Shape4<i64>& shape, Norm norm,
+             bool cache_plan, Stream& stream) {
         // Since it is in-place, the physical width (in real elements):
         //  1: is even, since complex elements take 2 real elements.
         //  2: has at least 1 (if odd) or 2 (if even) extract real element.
@@ -124,60 +125,62 @@ namespace noa::cuda::fft {
         NOA_ASSERT(strides.physical_shape()[2] >= shape[3] + 1 + static_cast<i64>(!(shape[3] % 2)));
 
         const auto complex_strides = Strides4<i64>{strides[0] / 2, strides[1] / 2, strides[2] / 2, strides[3]};
-        r2c(data, strides, reinterpret_cast<Complex<T>*>(data), complex_strides, shape, norm, stream);
+        r2c(data, strides, reinterpret_cast<Complex<T>*>(data), complex_strides, shape, norm, cache_plan, stream);
     }
 
     template<typename T>
     void c2r(Complex<T>* input, const Strides4<i64>& input_strides,
              T* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, Norm norm, Stream& stream) {
-        const Plan<T> plan(fft::C2R, input_strides, output_strides, shape, stream.device());
+             const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
+        const Plan<T> plan(fft::C2R, input_strides, output_strides, shape, stream.device(), cache_plan);
         c2r(input, output, plan, stream);
         details::normalize<false>(output, output_strides, shape, Sign::BACKWARD, norm, stream);
     }
 
     template<typename T>
-    void c2r(Complex<T>* input, T* output, const Shape4<i64>& shape, Norm norm, Stream& stream) {
-        const Plan<T> plan(fft::C2R, shape, stream.device());
+    void c2r(Complex<T>* input, T* output, const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
+        const Plan<T> plan(fft::C2R, shape, stream.device(), cache_plan);
         c2r(input, output, plan, stream);
         details::normalize<false>(output, shape.strides(), shape, Sign::BACKWARD, norm, stream);
     }
 
     template<typename T>
-    void c2r(Complex<T>* data, const Shape4<i64>& shape, Norm norm, Stream& stream) {
-        c2r(data, reinterpret_cast<T*>(data), shape, norm, stream);
+    void c2r(Complex<T>* data, const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
+        c2r(data, reinterpret_cast<T*>(data), shape, norm, cache_plan, stream);
     }
 
     template<typename T>
-    void c2r(Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape, Norm norm, Stream& stream) {
+    void c2r(Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
+             Norm norm, bool cache_plan, Stream& stream) {
         const auto real_strides = Strides4<i64>{strides[0] * 2, strides[1] * 2, strides[2] * 2, strides[3]};
-        c2r(data, strides, reinterpret_cast<T*>(data), real_strides, shape, norm, stream);
+        c2r(data, strides, reinterpret_cast<T*>(data), real_strides, shape, norm, cache_plan, stream);
     }
 
     template<typename T>
     void c2c(Complex<T>* input, const Strides4<i64>& input_strides,
              Complex<T>* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, Sign sign, Norm norm, Stream& stream) {
-        const Plan<T> fast_plan(fft::C2C, input_strides, output_strides, shape, stream.device());
+             const Shape4<i64>& shape, Sign sign, Norm norm, bool cache_plan, Stream& stream) {
+        const Plan<T> fast_plan(fft::C2C, input_strides, output_strides, shape, stream.device(), cache_plan);
         c2c(input, output, sign, fast_plan, stream);
         details::normalize<false>(output, output_strides, shape, sign, norm, stream);
     }
 
     template<typename T>
-    void c2c(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape, Sign sign, Norm norm, Stream& stream) {
-        const Plan<T> fast_plan(fft::C2C, shape, stream.device());
+    void c2c(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
+             Sign sign, Norm norm, bool cache_plan, Stream& stream) {
+        const Plan<T> fast_plan(fft::C2C, shape, stream.device(), cache_plan);
         c2c(input, output, sign, fast_plan, stream);
         details::normalize<false>(output, shape.strides(), shape, sign, norm, stream);
     }
 
     template<typename T>
-    void c2c(Complex<T>* data, const Shape4<i64>& shape, Sign sign, Norm norm, Stream& stream) {
-        c2c(data, data, shape, sign, norm, stream);
+    void c2c(Complex<T>* data, const Shape4<i64>& shape, Sign sign, Norm norm, bool cache_plan, Stream& stream) {
+        c2c(data, data, shape, sign, norm, cache_plan, stream);
     }
 
     template<typename T>
     void c2c(Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
-             Sign sign, Norm norm, Stream& stream) {
-        c2c(data, strides, data, strides, shape, sign, norm, stream);
+             Sign sign, Norm norm, bool cache_plan, Stream& stream) {
+        c2c(data, strides, data, strides, shape, sign, norm, cache_plan, stream);
     }
 }

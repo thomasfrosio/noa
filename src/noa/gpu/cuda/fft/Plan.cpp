@@ -28,25 +28,25 @@ namespace {
             15750, 15876, 16000, 16128, 16200, 16384, 16464, 16800
     };
 
-    class CufftCache {
+    class CufftManager {
     public:
-        CufftCache() = default;
+        CufftManager() = default;
 
-        void limit(i32 size) noexcept {
-            NOA_ASSERT(size > 0);
-            m_max_size = static_cast<size_t>(size);
+        void set_cache_limit(i32 size) noexcept {
+            NOA_ASSERT(size >= 0);
+            m_max_size = clamp_cast<size_t>(size);
             while (m_queue.size() > m_max_size)
                 m_queue.pop_back();
         }
 
-        void clear() noexcept {
+        void clear_cache() noexcept {
             while (!m_queue.empty())
                 m_queue.pop_back();
         }
 
-        [[nodiscard]] i32 limit() const noexcept { return static_cast<i32>(m_max_size); }
+        [[nodiscard]] i32 cache_limit() const noexcept { return static_cast<i32>(m_max_size); }
 
-        [[nodiscard]] Shared<cufftHandle> find(const std::string& key) const noexcept {
+        [[nodiscard]] Shared<cufftHandle> find_in_cache(const std::string& key) const noexcept {
             Shared<cufftHandle> res;
             for (const auto& i: m_queue) {
                 if (key == i.first) {
@@ -57,16 +57,28 @@ namespace {
             return res;
         }
 
-        Shared<cufftHandle>& push(std::string&& key, cufftHandle plan) {
+        Shared<cufftHandle> share_and_push_to_cache(std::string&& key, cufftHandle plan) {
             auto deleter = [](const cufftHandle* ptr) {
                 cufftDestroy(*ptr);
                 delete ptr;
             };
 
+            // The cache is turned off.
+            if (m_max_size == 0)
+                return Shared<cufftHandle>(new cufftHandle{plan}, deleter);
+
             if (m_queue.size() >= m_max_size)
                 m_queue.pop_back();
             m_queue.emplace_front(std::move(key), Shared<cufftHandle>(new cufftHandle{plan}, deleter));
             return m_queue.front().second;
+        }
+
+        static Shared<cufftHandle> share(cufftHandle plan) {
+            auto deleter = [](const cufftHandle* ptr) {
+                cufftDestroy(*ptr);
+                delete ptr;
+            };
+            return Shared<cufftHandle>(new cufftHandle{plan}, deleter);
         }
 
     private:
@@ -77,19 +89,19 @@ namespace {
 
     // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-host-thread cache.
     // Each GPU has its own cache of course.
-    CufftCache& get_cache_(i32 device) {
+    CufftManager& get_cache_(i32 device) {
         constexpr i32 MAX_DEVICES = 16;
-        thread_local Unique<CufftCache> g_cache[MAX_DEVICES];
+        thread_local Unique<CufftManager> g_cache[MAX_DEVICES];
 
-        Unique<CufftCache>& cache = g_cache[device];
+        Unique<CufftManager>& cache = g_cache[device];
         if (!cache)
-            cache = std::make_unique<CufftCache>();
+            cache = std::make_unique<CufftManager>();
         return *cache;
     }
 }
 
 namespace noa::cuda::fft::details {
-    auto get_plan(cufftType_t type, const Shape4<i64>& shape, i32 device) -> Shared<cufftHandle> {
+    auto get_plan(cufftType_t type, const Shape4<i64>& shape, i32 device, bool save_in_cache) -> Shared<cufftHandle> {
         const auto s_shape = shape.as_safe<i32>();
         const auto batch = s_shape[0];
         auto shape_3d = s_shape.pop_front();
@@ -108,8 +120,8 @@ namespace noa::cuda::fft::details {
             hash = noa::string::format("{}:{}:{}:{}", rank, shape_3d[2], i_type, batch);
 
         // Look for a cached plan:
-        CufftCache& cache = get_cache_(device);
-        Shared<cufftHandle> handle_ptr = cache.find(hash);
+        CufftManager& cache = get_cache_(device);
+        Shared<cufftHandle> handle_ptr = cache.find_in_cache(hash);
         if (handle_ptr)
             return handle_ptr;
 
@@ -127,15 +139,18 @@ namespace noa::cuda::fft::details {
             if (i)
                 NOA_THROW("Failed to create a cuFFT plan. {}", to_string(err));
             else
-                cache.clear();
+                cache.clear_cache();
         }
-        return cache.push(std::move(hash), plan);
+        if (save_in_cache)
+            return cache.share_and_push_to_cache(std::move(hash), plan);
+        else
+            return CufftManager::share(plan);
     }
 
     auto get_plan(
             cufftType_t type,
             Strides4<i64> input_strides, Strides4<i64> output_strides,
-            const Shape4<i64>& shape, i32 device
+            const Shape4<i64>& shape, i32 device, bool save_in_cache
     ) -> Shared<cufftHandle> {
         auto s_shape = shape.as_safe<i32>();
         const auto batch = s_shape[0];
@@ -180,8 +195,8 @@ namespace noa::cuda::fft::details {
         }
 
         // Look for a cached plan:
-        CufftCache& cache = get_cache_(device);
-        Shared<cufftHandle> handle_ptr = cache.find(hash);
+        CufftManager& cache = get_cache_(device);
+        Shared<cufftHandle> handle_ptr = cache.find_in_cache(hash);
         if (handle_ptr)
             return handle_ptr;
 
@@ -198,17 +213,20 @@ namespace noa::cuda::fft::details {
             if (i == 1)
                 NOA_THROW("Failed to create a cuFFT plan. {}", to_string(err));
             else
-                cache.clear();
+                cache.clear_cache();
         }
-        return cache.push(std::move(hash), plan);
+        if (save_in_cache)
+            return cache.share_and_push_to_cache(std::move(hash), plan);
+        else
+            return CufftManager::share(plan);
     }
 
     void cache_clear(i32 device) noexcept {
-        get_cache_(device).clear();
+        get_cache_(device).clear_cache();
     }
 
     void cache_set_limit(i32 device, i32 count) noexcept {
-        get_cache_(device).limit(count);
+        get_cache_(device).set_cache_limit(count);
     }
 }
 
