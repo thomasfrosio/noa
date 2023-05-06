@@ -310,13 +310,13 @@ namespace noa {
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S>& vector) const noexcept {
-            constexpr bool NEW_SIZE = N + S;
+            constexpr size_t NEW_SIZE = (N + S);
             return Shape<value_type, NEW_SIZE>(m_vec.push_front(vector));
         }
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
-            constexpr bool NEW_SIZE = N + S;
+            constexpr size_t NEW_SIZE = N + S;
             return Shape<value_type, NEW_SIZE>(m_vec.push_back(vector));
         }
 
@@ -796,13 +796,13 @@ namespace noa {
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S>& vector) const noexcept {
-            constexpr bool NEW_SIZE = N + S;
+            constexpr size_t NEW_SIZE = N + S;
             return Strides<value_type, NEW_SIZE>(m_vec.push_front(vector));
         }
 
         template<size_t S>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
-            constexpr bool NEW_SIZE = N + S;
+            constexpr size_t NEW_SIZE = N + S;
             return Strides<value_type, NEW_SIZE>(m_vec.push_back(vector));
         }
 
