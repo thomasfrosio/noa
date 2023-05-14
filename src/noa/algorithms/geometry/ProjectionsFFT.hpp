@@ -392,8 +392,7 @@ namespace noa::algorithm::geometry {
                   m_inv_rotation_matrices(inv_rotation_matrices),
                   m_fwd_scaling_matrices(fwd_scaling_matrices),
                   m_grid_shape(grid_shape.pop_front()),
-                  m_slice_count(slice_shape[0]),
-                  m_slice_z_radius(slice_z_radius) {
+                  m_slice_count(slice_shape[0]) {
 
             NOA_ASSERT(noa::all(slice_shape > 0) && noa::all(grid_shape > 0));
             NOA_ASSERT(slice_shape[1] == 1);
@@ -416,6 +415,10 @@ namespace noa::algorithm::geometry {
 
             m_cutoff = noa::math::max(cutoff, coord_type{0});
             m_cutoff *= m_cutoff;
+
+            // Clamp the slice z-radius to ensure it's thick enough for these dimensions.
+            const auto max_output_size = static_cast<f32>(noa::math::min(l_target_shape));
+            m_slice_z_radius = noa::math::max(slice_z_radius, 1.f / max_output_size);
         }
 
         // For every voxel of the grid.
@@ -426,21 +429,23 @@ namespace noa::algorithm::geometry {
             if (noa::math::dot(orig_freq, orig_freq) > m_cutoff)
                 return;
 
+            value_type value{0};
             for (index_type i = 0; i < m_slice_count; ++i) {
                 const auto [freq_z, freq_2d] = details::transform_grid2slice(
                         orig_freq, m_fwd_scaling_matrices, m_inv_rotation_matrices, i, m_ews_diam_inv);
 
                 // If voxel is not affected by the slice, skip.
-                value_type value{0};
+                value_type i_value{0};
                 if (freq_z <= m_slice_z_radius && freq_z >= -m_slice_z_radius) {
-                    value = details::interpolate_slice_value(freq_2d, m_f_slice_shape, m_f_slice_y_center, m_slice, i);
+                    i_value = details::interpolate_slice_value(freq_2d, m_f_slice_shape, m_f_slice_y_center, m_slice, i);
                     const auto weight = details::slice_z_weight(freq_z, m_slice_z_radius);
-                    value *= static_cast<real_type>(weight);
+                    i_value *= static_cast<real_type>(weight);
                 }
-
-                // The transformation preserves the hermitian symmetry, so there's nothing else to do.
-                m_grid(z, y, u) += value;
+                value += i_value;
             }
+
+            // The transformation preserves the hermitian symmetry, so there's nothing else to do.
+            m_grid(z, y, u) += value;
         }
 
     private:
@@ -622,7 +627,6 @@ namespace noa::algorithm::geometry {
                   m_insert_fwd_scaling_matrices(insert_fwd_scaling_matrices),
                   m_extract_inv_scaling_matrices(extract_inv_scaling_matrices),
                   m_input_count(input_shape[0]),
-                  m_slice_z_radius(slice_z_radius),
                   m_add_to_output(add_to_output) {
 
             NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
@@ -649,6 +653,10 @@ namespace noa::algorithm::geometry {
 
             m_cutoff = noa::math::max(cutoff, coord_type{0});
             m_cutoff *= m_cutoff;
+
+            // Clamp the slice z-radius to ensure it's thick enough for these dimensions.
+            const auto max_output_size = static_cast<f32>(noa::math::min(l_output_shape));
+            m_slice_z_radius = noa::math::max(slice_z_radius, 1.f / max_output_size);
         }
 
         // Should be called for every pixel of every slice to extract.

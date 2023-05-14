@@ -327,7 +327,7 @@ namespace noa::geometry::fft {
     ///                                 If an array is passed, it should have one matrix per slice.
     ///                                 Otherwise the same rotation matrix is applied to every slice.
     /// \param slice_z_radius           Radius along the normal of the central slices, in cycle/pix.
-    ///                                 This is usually from 0.001 to 0.01.
+    ///                                 This is clamped to ensure a minimum of 1 pixel diameter.
     /// \param cutoff                   Frequency cutoff in \p grid, in cycle/pix.
     /// \param target_shape             Actual BDHW logical shape of the 3D volume.
     /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
@@ -342,7 +342,7 @@ namespace noa::geometry::fft {
                                const Output& grid, const Shape4<i64>& grid_shape,
                                const Scale& fwd_scaling_matrix,
                                const Rotate& inv_rotation_matrix,
-                               f32 slice_z_radius,
+                               f32 slice_z_radius = 0.f,
                                f32 cutoff = 0.5f,
                                const Shape4<i64>& target_shape = {},
                                const Vec2<f32>& ews_radius = {}) {
@@ -394,7 +394,7 @@ namespace noa::geometry::fft {
                                const Output& grid, const Shape4<i64>& grid_shape,
                                const Scale& fwd_scaling_matrix,
                                const Rotate& inv_rotation_matrix,
-                               f32 slice_z_radius,
+                               f32 slice_z_radius = 0.f,
                                f32 cutoff = 0.5f,
                                const Shape4<i64>& target_shape = {},
                                const Vec2<f32>& ews_radius = {}) {
@@ -446,7 +446,7 @@ namespace noa::geometry::fft {
                                const Output& grid, const Shape4<i64>& grid_shape,
                                const Scale& fwd_scaling_matrix,
                                const Rotate& inv_rotation_matrix,
-                               f32 slice_z_radius,
+                               f32 slice_z_radius = 0.f,
                                f32 cutoff = 0.5f,
                                const Shape4<i64>& target_shape = {},
                                const Vec2<f32>& ews_radius = {}) {
@@ -641,7 +641,7 @@ namespace noa::geometry::fft {
     ///                                         If an array is passed, it should have one matrix per slice.
     ///                                         Otherwise the same rotation matrix is applied to every slice.
     /// \param slice_z_radius                   Radius along the normal of the central slices, in cycle/pix.
-    ///                                         This is usually from 0.001 to 0.01.
+    ///                                         This is clamped to ensure a minimum of 1 pixel diameter.
     /// \param add_to_output                    Whether the contribution of the input slices should be added to the
     ///                                         output. By default, the function sets \p output_slice. With this option
     ///                                         enabled, it instead adds the contribution of \p input_slice to the
@@ -663,7 +663,8 @@ namespace noa::geometry::fft {
             const Output& output_slice, const Shape4<i64>& output_slice_shape,
             const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
             const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            f32 slice_z_radius, bool add_to_output = false, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+            f32 slice_z_radius = 0.f, bool add_to_output = false,
+            f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
 
         details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
                 input_slice, input_slice_shape, output_slice, output_slice_shape, {},
@@ -723,7 +724,8 @@ namespace noa::geometry::fft {
             const Output& output_slice, const Shape4<i64>& output_slice_shape,
             const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
             const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            f32 slice_z_radius, bool add_to_output = false, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+            f32 slice_z_radius = 0.f, bool add_to_output = false,
+            f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
 
         const Device device = output_slice.device();
         Stream& stream = Stream::current(device);
@@ -786,7 +788,8 @@ namespace noa::geometry::fft {
             const Output& output_slice, const Shape4<i64>& output_slice_shape,
             const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
             const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            f32 slice_z_radius, bool add_to_output = false, f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
+            f32 slice_z_radius = 0.f, bool add_to_output = false,
+            f32 cutoff = 0.5f, const Vec2<f32>& ews_radius = {}) {
 
         details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
                 input_slice, input_slice_shape, output_slice, output_slice_shape, {},
