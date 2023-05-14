@@ -15,6 +15,8 @@ namespace noa::fft::details {
             REMAP == Remap::HC2HC || REMAP == Remap::FC2FC;
 }
 
+// TODO Rescale values like in IMOD?
+
 namespace noa::fft {
     /// Crops or zero-pads FFT(s).
     /// \tparam REMAP       FFT Remap. Should be H2H, HC2HC, F2F or FC2FC.

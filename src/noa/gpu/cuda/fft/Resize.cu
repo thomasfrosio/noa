@@ -1,5 +1,6 @@
 #include "noa/algorithms/fft/Resize.hpp"
 #include "noa/gpu/cuda/fft/Resize.hpp"
+#include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/Resize.hpp"
 #include "noa/gpu/cuda/memory/Set.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
@@ -10,6 +11,9 @@ namespace noa::cuda::fft {
     void resize(const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
                 T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
                 Stream& stream) {
+        if (noa::all(input_shape == output_shape))
+            return noa::cuda::memory::copy(input, input_strides, output, output_strides, input_shape, stream);
+
         // For centered layouts, use the memory::resize instead.
         if constexpr (REMAP == noa::fft::HC2HC) {
             auto [border_left, border_right] = noa::algorithm::memory::borders(input_shape.fft(), output_shape.fft());
