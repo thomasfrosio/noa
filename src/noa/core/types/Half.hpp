@@ -610,7 +610,7 @@ namespace noa {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(__hisnan(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(isNaN(static_cast<Half::arithmetic_type>(x)));
+            return Half(isnan(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::isnan(x.native()));
             #endif
@@ -620,7 +620,7 @@ namespace noa {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             return Half(__hisinf(x.native()));
             #elif defined(__CUDA_ARCH__)
-            return Half(isInf(static_cast<Half::arithmetic_type>(x)));
+            return Half(isinf(static_cast<Half::arithmetic_type>(x)));
             #else
             return Half(half_float::isinf(x.native()));
             #endif
