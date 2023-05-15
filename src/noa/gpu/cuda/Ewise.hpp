@@ -4,9 +4,42 @@
 #include "noa/core/Types.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
+// Add user-defined type-combinations.
+// 1) Create a .cu file and add NOA_CUDA_EWISE_*_GENERATE_API and NOA_CUDA_EWISE_*_INSTANTIATE_API macros
+//    with the input/output and operator type to support. See examples in the Ewise_*.cu files.
+// 2) Add the template specialisation for the proclaim_is_user_ewise_* traits so that the library knows these
+//    types are supported and will be available for linking.
+// 3) Compile the .cu file and link. You can now use the ewise_* functions (from the backend or unified API)
+//    with these new types.
+
+namespace noa::cuda {
+    template<typename, typename, typename> struct proclaim_is_user_ewise_unary : std::false_type {};
+    template<typename, typename, typename, typename> struct proclaim_is_user_ewise_binary : std::false_type {};
+    template<typename, typename, typename, typename, typename> struct proclaim_is_user_ewise_trinary : std::false_type {};
+
+    template<typename In, typename Out, typename UnaryOp>
+    using is_user_ewise_unary = std::bool_constant<proclaim_is_user_ewise_unary<In, Out, UnaryOp>::value>;
+
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp>
+    using is_user_ewise_binary = std::bool_constant<proclaim_is_user_ewise_binary<Lhs, Rhs, Out, BinaryOp>::value>;
+
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp>
+    using is_user_ewise_trinary = std::bool_constant<proclaim_is_user_ewise_trinary<Lhs, Mhs, Rhs, Out, TrinaryOp>::value>;
+
+    template<typename In, typename Out, typename UnaryOp>
+    constexpr bool is_user_ewise_unary_v = is_user_ewise_unary<In, Out, UnaryOp>::value;
+
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp>
+    constexpr bool is_user_ewise_binary_v = is_user_ewise_binary<Lhs, Rhs, Out, BinaryOp>::value;
+
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp>
+    constexpr bool is_user_ewise_trinary_v = is_user_ewise_trinary<Lhs, Mhs, Rhs, Out, TrinaryOp>::value;
+}
+
 namespace noa::cuda::details {
     template<typename In, typename Out, typename Op>
     constexpr bool is_valid_ewise_unary_v =
+            is_user_ewise_unary_v<In, Out, Op> ||
             (traits::is_any_v<Out, i8, i16, i32, i64> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, abs_t, abs_squared_t, negate_t, one_minus_t, nonzero_t, logical_not_t>) ||
             (traits::is_any_v<Out, u8, u16, u32, u64> && std::is_same_v<In, Out> && traits::is_any_v<Op, copy_t, square_t, nonzero_t, logical_not_t>) ||
             (traits::is_restricted_int_v<In> && std::is_same_v<Out, bool> && traits::is_any_v<Op, nonzero_t, logical_not_t>) ||
@@ -17,6 +50,7 @@ namespace noa::cuda::details {
 
     template<typename Lhs, typename Rhs, typename Out, typename Op>
     constexpr bool is_valid_ewise_binary_v =
+            is_user_ewise_binary_v<Lhs, Rhs, Out, Op> ||
             (traits::is_restricted_int_v<Out> && traits::are_all_same_v<Lhs, Rhs, Out> &&
              traits::is_any_v<Op, plus_t, minus_t, multiply_t, divide_t, divide_safe_t, dist2_t, min_t, max_t,
                       equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t, modulo_t, logical_and_t, logical_or_t>) ||
@@ -33,8 +67,8 @@ namespace noa::cuda::details {
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
     constexpr bool is_valid_ewise_trinary_bool_v =
             traits::is_restricted_scalar_v<Lhs> &&
-            (traits::are_all_same_v<Lhs, Mhs, Rhs, Out> || traits::are_all_same_v<Lhs, Mhs, Rhs> && std::is_same_v<Out, bool>)
-            && traits::is_any_v<Op, within_t, within_equal_t>;
+            (traits::are_all_same_v<Lhs, Mhs, Rhs, Out> || traits::are_all_same_v<Lhs, Mhs, Rhs> && std::is_same_v<Out, bool>) &&
+            traits::is_any_v<Op, within_t, within_equal_t>;
 
     template<typename Op>
     constexpr bool is_valid_ewise_trinary_arithmetic_op_v =
@@ -53,6 +87,7 @@ namespace noa::cuda::details {
 
     template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename Op>
     constexpr bool is_valid_ewise_trinary_v =
+            is_user_ewise_trinary_v<Lhs, Mhs, Rhs, Out, Op> ||
             is_valid_ewise_trinary_bool_v<Lhs, Mhs, Rhs, Out, Op> ||
             is_valid_ewise_trinary_arithmetic_v<Lhs, Mhs, Rhs, Out, Op> ||
             (traits::is_restricted_scalar_v<Lhs> &&

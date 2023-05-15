@@ -233,3 +233,64 @@ namespace noa::cuda::utils {
                 [=] NOA_DEVICE(Lhs lhs_value) { return binary_op(lhs_value, rhs); });
     }
 }
+
+#define NOA_CUDA_EWISE_BINARY_GENERATE_API                                              \
+namespace noa::cuda {                                                                   \
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp, typename>     \
+    void ewise_binary(const Lhs* lhs, const Strides4<i64>& lhs_strides,                 \
+                      const Rhs* rhs, const Strides4<i64>& rhs_strides,                 \
+                      Out* output, const Strides4<i64>& output_strides,                 \
+                      const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream) {   \
+        noa::cuda::utils::ewise_binary(                                                 \
+                "ewise_binary",                                                         \
+                lhs, lhs_strides,                                                       \
+                rhs, rhs_strides,                                                       \
+                output, output_strides,                                                 \
+                shape, stream, binary_op);                                              \
+    }                                                                                   \
+                                                                                        \
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp, typename>     \
+    void ewise_binary(const Lhs* lhs, const Strides4<i64>& lhs_strides,                 \
+                      Rhs rhs,                                                          \
+                      Out* output, const Strides4<i64>& output_strides,                 \
+                      const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream) {   \
+        noa::cuda::utils::ewise_binary(                                                 \
+                "ewise_binary",                                                         \
+                lhs, lhs_strides,                                                       \
+                rhs,                                                                    \
+                output, output_strides,                                                 \
+                shape, stream, binary_op);                                              \
+    }                                                                                   \
+                                                                                        \
+    template<typename Lhs, typename Rhs, typename Out, typename BinaryOp, typename>     \
+    void ewise_binary(Lhs lhs,                                                          \
+                      const Rhs* rhs, const Strides4<i64>& rhs_strides,                 \
+                      Out* output, const Strides4<i64>& output_strides,                 \
+                      const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream) {   \
+        noa::cuda::utils::ewise_binary(                                                 \
+                "ewise_binary",                                                         \
+                lhs,                                                                    \
+                rhs, rhs_strides,                                                       \
+                output, output_strides,                                                 \
+                shape, stream, binary_op);                                              \
+    }                                                                                   \
+}
+
+#define NOA_CUDA_EWISE_BINARY_INSTANTIATE_API(Lhs, Rhs, Out, BinaryOp)  \
+namespace noa::cuda {                                                   \
+    template void ewise_binary<Lhs,Rhs,Out,BinaryOp,void>(              \
+        const Lhs*, const Strides4<i64>&,                               \
+        const Rhs*, const Strides4<i64>&,                               \
+        Out*, const Strides4<i64>&,                                     \
+        const Shape4<i64>&, BinaryOp, Stream&);                         \
+    template void ewise_binary<Lhs,Rhs,Out,BinaryOp,void>(              \
+        const Lhs*, const Strides4<i64>&,                               \
+        Rhs,                                                            \
+        Out*, const Strides4<i64>&,                                     \
+        const Shape4<i64>&, BinaryOp, Stream&);                         \
+    template void ewise_binary<Lhs,Rhs,Out,BinaryOp,void>(              \
+        Lhs,                                                            \
+        const Rhs*, const Strides4<i64>&,                               \
+        Out*, const Strides4<i64>&,                                     \
+        const Shape4<i64>&, BinaryOp, Stream&);                         \
+}

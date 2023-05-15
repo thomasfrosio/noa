@@ -12,7 +12,8 @@ namespace noa {
     /// \param[in] input    Input array to transform.
     /// \param[out] output  Transformed array.
     /// \param unary_op     Unary operator. The output is explicitly cast to the \p output value type.
-    /// \note On the GPU, supported operators and types are limited to the following list:
+    /// \note On the GPU, supported operators and types are limited to the following list.
+    ///       Other type combinations can be added (see noa/gpu/cuda/Ewise.hpp).
     ///     \b Integers:\n
     ///       - \c (copy|square|abs|abs_squared|negate|one_minus|nonzero|logical_not)_t(A)->A\n
     ///       - \c (copy|square|nonzero|logical_not)_t(B)->B\n
@@ -102,7 +103,8 @@ namespace noa {
     /// \param[in] rhs      Right-hand side argument.
     /// \param[out] output  Transformed array.
     /// \param binary_op    Binary operator. The output is explicitly cast to the \p output value type.
-    /// \note On the GPU, supported operators and types are limited to the following list:
+    /// \note On the GPU, supported operators and types are limited to the following list.
+    ///       Other type combinations can be added (see noa/gpu/cuda/Ewise.hpp).
     ///     \b Integers:\n
     ///       - \c (plus|minus|multiply|divide|divide_safe|dist2|min|max)_t(A,A)->A\n
     ///       - \c (equal|not_equal|less|less_equal|greater|greater_equal|modulo|logical_and|logical_or)_t(A,A)->A\n
@@ -332,7 +334,8 @@ namespace noa {
     /// \param[in] rhs      Right-hand side argument.
     /// \param[out] output  Transformed array.
     /// \param trinary_op   Trinary operator. The output is explicitly cast to the \p output value type.
-    /// \note On the GPU, supported operators and types are limited to the following list:
+    /// \note On the GPU, supported operators and types are limited to the following list.
+    ///       Other type combinations can be added (see noa/gpu/cuda/Ewise.hpp).
     ///     \b Integers and Floating-points:\n
     ///       - \c (within|within_equal)_t(A,A,A)->A|bool\n
     ///       - \c clamp_t(A,A,A)->A\n

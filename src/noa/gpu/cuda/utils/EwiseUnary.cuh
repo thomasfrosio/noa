@@ -321,3 +321,25 @@ namespace noa::cuda::utils {
         }
     }
 }
+
+#define NOA_CUDA_EWISE_UNARY_GENERATE_API
+namespace noa::cuda {                                                               \
+    template<typename In, typename Out, typename UnaryOp, typename>                 \
+    void ewise_unary(const In* input, const Strides4<i64>& input_strides,           \
+                     Out* output, const Strides4<i64>& output_strides,              \
+                     const Shape4<i64>& shape, UnaryOp unary_op, Stream& stream) {  \
+        noa::cuda::utils::ewise_unary(                                              \
+                "ewise_unary",                                                      \
+                input, input_strides,                                               \
+                output, output_strides,                                             \
+                shape, stream, unary_op);                                           \
+    }                                                                               \
+}
+
+#define NOA_CUDA_EWISE_UNARY_INSTANTIATE_API(In, Out, UnaryOp)  \
+namespace noa::cuda {                                           \
+    template void ewise_unary<In,Out,UnaryOp,void>(             \
+        const In*, const Strides4<i64>&,                        \
+        Out*, const Strides4<i64>&,                             \
+        const Shape4<i64>&, UnaryOp, Stream&);                  \
+}

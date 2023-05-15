@@ -321,3 +321,157 @@ namespace noa::cuda::utils {
                 [=] NOA_DEVICE(Mhs mhs_value, Rhs rhs_value) { return trinary_op(lhs, mhs_value, rhs_value); });
     }
 }
+
+#define NOA_CUDA_EWISE_TRINARY_GENERATE_API                                                             \
+namespace noa::cuda {                                                                                   \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,                                \
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,                                \
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,                                \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs, lhs_strides,                                                                       \
+                mhs, mhs_strides,                                                                       \
+                rhs, rhs_strides,                                                                       \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+                                                                                                        \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(Lhs lhs,                                                                         \
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,                                \
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,                                \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs,                                                                                    \
+                mhs, mhs_strides,                                                                       \
+                rhs, rhs_strides,                                                                       \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+                                                                                                        \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,                                \
+                       Mhs mhs,                                                                         \
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,                                \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs, lhs_strides,                                                                       \
+                mhs,                                                                                    \
+                rhs, rhs_strides,                                                                       \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+                                                                                                        \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,                                \
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,                                \
+                       Rhs rhs,                                                                         \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs, lhs_strides,                                                                       \
+                mhs, mhs_strides,                                                                       \
+                rhs,                                                                                    \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+                                                                                                        \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(const Lhs* lhs, const Strides4<i64>& lhs_strides,                                \
+                       Mhs mhs,                                                                         \
+                       Rhs rhs,                                                                         \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs, lhs_strides,                                                                       \
+                mhs,                                                                                    \
+                rhs,                                                                                    \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+                                                                                                        \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(Lhs lhs,                                                                         \
+                       const Mhs* mhs, const Strides4<i64>& mhs_strides,                                \
+                       Rhs rhs,                                                                         \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs,                                                                                    \
+                mhs, mhs_strides,                                                                       \
+                rhs,                                                                                    \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+                                                                                                        \
+    template<typename Lhs, typename Mhs, typename Rhs, typename Out, typename TrinaryOp, typename>      \
+    void ewise_trinary(Lhs lhs,                                                                         \
+                       Mhs mhs,                                                                         \
+                       const Rhs* rhs, const Strides4<i64>& rhs_strides,                                \
+                       Out* output, const Strides4<i64>& output_strides,                                \
+                       const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
+        noa::cuda::utils::ewise_trinary(                                                                \
+                "ewise_trinary",                                                                        \
+                lhs,                                                                                    \
+                mhs,                                                                                    \
+                rhs, rhs_strides,                                                                       \
+                output, output_strides,                                                                 \
+                shape, stream, trinary_op);                                                             \
+    }                                                                                                   \
+}
+
+#define NOA_CUDA_EWISE_TRINARY_INSTANTIATE_API(Lhs, Mhs ,Rhs, Out, TrinaryOp)   \
+namespace noa::cuda {                                                           \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        const Lhs*, const Strides4<i64>&,                                       \
+        const Mhs*, const Strides4<i64>&,                                       \
+        const Rhs*, const Strides4<i64>&,                                       \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        Lhs,                                                                    \
+        const Mhs*, const Strides4<i64>&,                                       \
+        const Rhs*, const Strides4<i64>&,                                       \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        const Lhs*, const Strides4<i64>&,                                       \
+        Mhs,                                                                    \
+        const Rhs*, const Strides4<i64>&,                                       \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        const Lhs*, const Strides4<i64>&,                                       \
+        const Mhs*, const Strides4<i64>&,                                       \
+        Rhs,                                                                    \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        const Lhs*, const Strides4<i64>&,                                       \
+        Mhs,                                                                    \
+        Rhs,                                                                    \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        Lhs,                                                                    \
+        const Mhs*, const Strides4<i64>&,                                       \
+        Rhs,                                                                    \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+    template void ewise_trinary<Lhs,Mhs,Rhs,Out,TrinaryOp,void>(                \
+        Lhs,                                                                    \
+        Mhs,                                                                    \
+        const Rhs*, const Strides4<i64>&,                                       \
+        Out*, const Strides4<i64>&,                                             \
+        const Shape4<i64>&, TrinaryOp, Stream&);                                \
+}
