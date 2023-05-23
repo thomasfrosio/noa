@@ -63,6 +63,7 @@ set(NOA_CORE_HEADERS
         core/geometry/Symmetry.hpp
         core/geometry/Transform.hpp
 
+        core/signal/fft/CTF.hpp
         core/signal/Windows.hpp
 
         core/io/BinaryFile.hpp

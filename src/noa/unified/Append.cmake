@@ -28,6 +28,7 @@ set(NOA_UNIFIED_HEADERS
         # noa::signal
         unified/signal/fft/Bandpass.hpp
         unified/signal/fft/Correlate.hpp
+        unified/signal/fft/CTF.hpp
         unified/signal/fft/FSC.hpp
         unified/signal/fft/PhaseShift.hpp
         unified/signal/fft/Standardize.hpp

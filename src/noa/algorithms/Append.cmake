@@ -22,9 +22,10 @@ set(NOA_ALGO_HEADERS
         algorithms/geometry/Transform.hpp
         algorithms/geometry/TransformRFFT.hpp
 
-        algorithms/signal/CorrelationPeak.hpp
-        algorithms/signal/FSC.hpp
         algorithms/signal/Bandpass.hpp
+        algorithms/signal/CorrelationPeak.hpp
+        algorithms/signal/CTF.hpp
+        algorithms/signal/FSC.hpp
         algorithms/signal/PhaseShift.hpp
 
         )

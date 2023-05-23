@@ -37,6 +37,7 @@ set(NOA_CPU_HEADERS
         # noa::cpu::signal
         cpu/signal/fft/Bandpass.hpp
         cpu/signal/fft/Correlate.hpp
+        cpu/signal/fft/CTF.hpp
         cpu/signal/fft/FSC.hpp
         cpu/signal/fft/PhaseShift.hpp
         cpu/signal/fft/Standardize.hpp
@@ -89,6 +90,7 @@ set(NOA_CPU_SOURCES
         cpu/signal/fft/Bandpass.cpp
         cpu/signal/fft/Correlate.cpp
         cpu/signal/fft/CorrelatePeak.cpp
+        cpu/signal/fft/CTF.cpp
         cpu/signal/fft/FSC.cpp
         cpu/signal/fft/PhaseShift.cpp
         cpu/signal/fft/Standardize.cpp
