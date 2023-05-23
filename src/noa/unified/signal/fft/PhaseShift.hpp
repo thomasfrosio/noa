@@ -68,7 +68,7 @@ namespace noa::signal::fft {
              (noa::traits::is_array_or_view_of_almost_any_v<Shift, Vec2<f32>> || std::is_same_v<Shift, Vec2<f32>>) &&
              (REMAP == Remap::H2H || REMAP == Remap::H2HC || REMAP == Remap::HC2H || REMAP == Remap::HC2HC)>>
     void phase_shift_2d(const Input& input, const Output& output, const Shape4<i64>& shape,
-                        const Shift& shifts, f32 cutoff = 0.5f) {
+                        const Shift& shifts, f32 cutoff = 1) {
 
         details::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
         auto input_strides = input.strides();
@@ -124,7 +124,7 @@ namespace noa::signal::fft {
              (noa::traits::is_array_or_view_of_almost_any_v<Shift, Vec3<f32>> || std::is_same_v<Shift, Vec3<f32>>)&&
              (REMAP == Remap::H2H || REMAP == Remap::H2HC || REMAP == Remap::HC2H || REMAP == Remap::HC2HC)>>
     void phase_shift_3d(const Input& input, const Output& output, const Shape4<i64>& shape,
-                        const Shift& shifts, f32 cutoff = 0.5f) {
+                        const Shift& shifts, f32 cutoff = 1) {
 
         details::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
         auto input_strides = input.strides();

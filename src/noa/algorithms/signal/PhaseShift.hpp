@@ -114,6 +114,8 @@ namespace noa::algorithm::signal {
                     noa::math::dot(norm_freq, norm_freq) <= m_cutoff_sqd ?
                     phase_shift_(ii, frequency) : value_type{1, 0};
 
+            // FIXME If even, the real nyquist should stay real, so add the conjugate pair?
+
             const auto oj = to_output_index<REMAP>(ij, m_shape[0]);
             const auto ok = to_output_index<REMAP>(ik, m_shape[1]);
             m_output(ii, oj, ok, il) = m_input ? m_input(ii, ij, ik, il) * phase_shift : phase_shift;

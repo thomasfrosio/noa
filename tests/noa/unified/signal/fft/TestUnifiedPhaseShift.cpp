@@ -12,7 +12,7 @@ using namespace noa;
 
 TEST_CASE("unified::signal::fft::phase_shift_2d()", "[assets][noa][unified]") {
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
-    const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2D"];
+    const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2d"];
 
     std::vector<Device> devices{Device{"cpu"}};
         if (Device::is_any(DeviceType::GPU))
@@ -23,7 +23,6 @@ TEST_CASE("unified::signal::fft::phase_shift_2d()", "[assets][noa][unified]") {
         INFO("test=" << i);
         const auto shape = param["shape"].as<Shape4<i64>>();
         const auto shift = param["shift"].as<Vec2<f32>>();
-        const auto cutoff = param["cutoff"].as<f32>();
         const auto path_output = path_base / param["output"].as<Path>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<Path>();
 
@@ -36,12 +35,12 @@ TEST_CASE("unified::signal::fft::phase_shift_2d()", "[assets][noa][unified]") {
 
             if (path_input.filename().empty()) {
                 const auto output = noa::memory::empty<c32>(shape.rfft(), options);
-                noa::signal::fft::phase_shift_2d<fft::H2H>({}, output, shape, shift, cutoff);
+                noa::signal::fft::phase_shift_2d<fft::H2H>({}, output, shape, shift);
                 REQUIRE(test::Matcher(test::MATCH_ABS, expected, output, 1e-4f));
 
             } else {
                 const auto input = noa::io::load_data<c32>(path_input, false, options);
-                noa::signal::fft::phase_shift_2d<fft::H2H>(input, input, shape, shift, cutoff);
+                noa::signal::fft::phase_shift_2d<fft::H2H>(input, input, shape, shift);
                 REQUIRE(test::Matcher(test::MATCH_ABS, expected, input, 1e-4f));
             }
         }
@@ -90,7 +89,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::phase_shift_2d(), remap", "[noa][unifi
 
 TEST_CASE("unified::signal::fft::phase_shift_3d()", "[assets][noa][unified]") {
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
-    const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3D"];
+    const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3d"];
 
     std::vector<Device> devices{Device{"cpu"}};
     if (Device::is_any(DeviceType::GPU))
@@ -100,7 +99,6 @@ TEST_CASE("unified::signal::fft::phase_shift_3d()", "[assets][noa][unified]") {
         const YAML::Node& param = params[i];
         const auto shape = param["shape"].as<Shape4<i64>>();
         const auto shift = param["shift"].as<Vec3<f32>>();
-        const auto cutoff = param["cutoff"].as<f32>();
         const auto path_output = path_base / param["output"].as<Path>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<Path>();
 
@@ -113,12 +111,12 @@ TEST_CASE("unified::signal::fft::phase_shift_3d()", "[assets][noa][unified]") {
 
             if (path_input.filename().empty()) {
                 const auto output = noa::memory::empty<c32>(shape.rfft(), options);
-                noa::signal::fft::phase_shift_3d<fft::H2H>({}, output, shape, shift, cutoff);
+                noa::signal::fft::phase_shift_3d<fft::H2H>({}, output, shape, shift);
                 REQUIRE(test::Matcher(test::MATCH_ABS, expected, output, 1e-4f));
 
             } else {
                 const auto input = noa::io::load_data<c32>(path_input, false, options);
-                noa::signal::fft::phase_shift_3d<fft::H2H>(input, input, shape, shift, cutoff);
+                noa::signal::fft::phase_shift_3d<fft::H2H>(input, input, shape, shift);
                 REQUIRE(test::Matcher(test::MATCH_ABS, expected, input, 1e-4f));
             }
         }
