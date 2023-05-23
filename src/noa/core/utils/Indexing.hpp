@@ -253,6 +253,16 @@ namespace noa::indexing {
         return shape;
     }
 
+    /// Returns the index of the first non-empty dimension, excluding the batch dimension, going from left to right.
+    /// If all dimensions are empty, the index of the width dimension is returned, ie 3.
+    template<typename Index>
+    [[nodiscard]] NOA_IHD constexpr Index non_empty_dhw_dimension(const Shape4<Index>& shape) noexcept {
+        for (Index i = 1; i < 4; ++i)
+            if (shape[i] > 1)
+                return i;
+        return 3;
+    }
+
     /// Returns the order the dimensions should be sorted so that they are in the rightmost order.
     /// The input dimensions have the following indexes: {0, 1, 2, 3}.
     /// For instance, if \p strides is representing a F-contiguous order, this function returns {0, 1, 3, 2}.

@@ -5,7 +5,7 @@
 #include "noa/algorithms/signal/CTF.hpp"
 
 namespace noa::cpu::signal::fft::details {
-    using namespace ::noa::fft;
+    using Remap = ::noa::fft::Remap;
 
     template<Remap REMAP, typename Input, typename Output, typename CTF>
     constexpr bool is_valid_ctf_v =
@@ -21,14 +21,14 @@ namespace noa::cpu::signal::fft::details {
 
 namespace noa::cpu::signal::fft {
     template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFIsotropic,
-            typename = std::enable_if_t<details::is_valid_ctf_v<REMAP, Input, Output, CTFIsotropic>>>
+             typename = std::enable_if_t<details::is_valid_ctf_v<REMAP, Input, Output, CTFIsotropic>>>
     void ctf_isotropic(
-            const Input* input, const Strides4<i64>& input_strides,
-            Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Input* input, Strides4<i64> input_strides,
+            Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
             const CTFIsotropic& ctf, bool ctf_square, bool ctf_abs, i64 threads);
 
     template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFAnisotropic,
-            typename = std::enable_if_t<details::is_valid_ctf_v<REMAP, Input, Output, CTFAnisotropic>>>
+             typename = std::enable_if_t<details::is_valid_ctf_v<REMAP, Input, Output, CTFAnisotropic>>>
     void ctf_anisotropic(
             const Input* input, const Strides4<i64>& input_strides,
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
