@@ -17,6 +17,7 @@ set(NOA_ALGO_HEADERS
         algorithms/geometry/PolarTransform.hpp
         algorithms/geometry/PolarTransformRFFT.hpp
         algorithms/geometry/ProjectionsFFT.hpp
+        algorithms/geometry/RotationalAverage.hpp
         algorithms/geometry/Shape.hpp
         algorithms/geometry/Transform.hpp
         algorithms/geometry/TransformRFFT.hpp
