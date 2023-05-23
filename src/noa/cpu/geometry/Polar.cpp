@@ -9,8 +9,10 @@ namespace noa::cpu::geometry {
     template<typename Value, typename>
     void cartesian2polar(const Value* cartesian, Strides4<i64> cartesian_strides, Shape4<i64> cartesian_shape,
                          Value* polar, Strides4<i64> polar_strides, Shape4<i64> polar_shape,
-                         Vec2<f32> cartesian_center, const Vec2<f32>& radius_range, const Vec2<f32>& angle_range,
-                         bool log, InterpMode interp, i64 threads) {
+                         Vec2<f32> cartesian_center,
+                         const Vec2<f32>& radius_range, bool radius_range_endpoint,
+                         const Vec2<f32>& angle_range, bool angle_range_endpoint,
+                         InterpMode interp, i64 threads) {
         NOA_ASSERT(cartesian && polar && cartesian != polar &&
                    noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
@@ -42,8 +44,9 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::NEAREST>(
                         input_accessor, cartesian_shape_2d);
                 const auto kernel = noa::algorithm::geometry::cartesian2polar<i64>(
-                        interpolator, output_accessor, polar_shape,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, output_accessor, polar_shape, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(polar_shape_2d, kernel, threads);
             }
             case InterpMode::LINEAR_FAST:
@@ -51,8 +54,9 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
                         input_accessor, cartesian_shape_2d);
                 const auto kernel = noa::algorithm::geometry::cartesian2polar<i64>(
-                        interpolator, output_accessor, polar_shape,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, output_accessor, polar_shape, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(polar_shape_2d, kernel, threads);
             }
             case InterpMode::COSINE_FAST:
@@ -60,16 +64,18 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::COSINE>(
                         input_accessor, cartesian_shape_2d);
                 const auto kernel = noa::algorithm::geometry::cartesian2polar<i64>(
-                        interpolator, output_accessor, polar_shape,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, output_accessor, polar_shape, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(polar_shape_2d, kernel, threads);
             }
             case InterpMode::CUBIC: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::CUBIC>(
                         input_accessor, cartesian_shape_2d);
                 const auto kernel = noa::algorithm::geometry::cartesian2polar<i64>(
-                        interpolator, output_accessor, polar_shape,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, output_accessor, polar_shape, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(polar_shape_2d, kernel, threads);
             }
             case InterpMode::CUBIC_BSPLINE_FAST:
@@ -77,8 +83,9 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::CUBIC_BSPLINE>(
                         input_accessor, cartesian_shape_2d);
                 const auto kernel = noa::algorithm::geometry::cartesian2polar<i64>(
-                        interpolator, output_accessor, polar_shape,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, output_accessor, polar_shape, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(polar_shape_2d, kernel, threads);
             }
         }
@@ -87,8 +94,10 @@ namespace noa::cpu::geometry {
     template<typename Value, typename>
     void polar2cartesian(const Value* polar, Strides4<i64> polar_strides, Shape4<i64> polar_shape,
                          Value* cartesian, Strides4<i64> cartesian_strides, Shape4<i64> cartesian_shape,
-                         Vec2<f32> cartesian_center, const Vec2<f32>& radius_range, const Vec2<f32>& angle_range,
-                         bool log, InterpMode interp, i64 threads) {
+                         Vec2<f32> cartesian_center,
+                         const Vec2<f32>& radius_range, bool radius_range_endpoint,
+                         const Vec2<f32>& angle_range, bool angle_range_endpoint,
+                         InterpMode interp, i64 threads) {
         NOA_ASSERT(cartesian && polar && cartesian != polar &&
                    noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT(cartesian_shape[1] == 1 && polar_shape[1] == 1);
@@ -120,8 +129,9 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::NEAREST>(
                         input_accessor, polar_shape_2d);
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i64>(
-                        interpolator, polar_shape, output_accessor,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, polar_shape, output_accessor, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(cartesian_shape_2d, kernel, threads);
             }
             case InterpMode::LINEAR_FAST:
@@ -129,8 +139,9 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
                         input_accessor, polar_shape_2d);
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i64>(
-                        interpolator, polar_shape, output_accessor,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, polar_shape, output_accessor, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(cartesian_shape_2d, kernel, threads);
             }
             case InterpMode::COSINE_FAST:
@@ -138,16 +149,18 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::COSINE>(
                         input_accessor, polar_shape_2d);
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i64>(
-                        interpolator, polar_shape, output_accessor,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, polar_shape, output_accessor, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(cartesian_shape_2d, kernel, threads);
             }
             case InterpMode::CUBIC: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::CUBIC>(
                         input_accessor, polar_shape_2d);
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i64>(
-                        interpolator, polar_shape, output_accessor,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, polar_shape, output_accessor, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(cartesian_shape_2d, kernel, threads);
             }
             case InterpMode::CUBIC_BSPLINE_FAST:
@@ -155,8 +168,9 @@ namespace noa::cpu::geometry {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::CUBIC_BSPLINE>(
                         input_accessor, polar_shape_2d);
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i64>(
-                        interpolator, polar_shape, output_accessor,
-                        cartesian_center, radius_range, angle_range, log);
+                        interpolator, polar_shape, output_accessor, cartesian_center,
+                        radius_range, radius_range_endpoint,
+                        angle_range, angle_range_endpoint);
                 return noa::cpu::utils::iwise_3d(cartesian_shape_2d, kernel, threads);
             }
         }
@@ -165,13 +179,13 @@ namespace noa::cpu::geometry {
     #define INSTANTIATE_POLAR(T)                    \
     template void cartesian2polar<T, void>(         \
         const T*, Strides4<i64>, Shape4<i64>,       \
-        T*, Strides4<i64>, Shape4<i64>,             \
-        Vec2<f32>, const Vec2<f32>&,                \
+        T*, Strides4<i64>, Shape4<i64>, Vec2<f32>,  \
+        const Vec2<f32>&, bool,                     \
         const Vec2<f32>&, bool, InterpMode, i64);   \
     template void polar2cartesian<T, void>(         \
         const T*, Strides4<i64>, Shape4<i64>,       \
-        T*, Strides4<i64>, Shape4<i64>,             \
-        Vec2<f32>, const Vec2<f32>&,                \
+        T*, Strides4<i64>, Shape4<i64>, Vec2<f32>,  \
+        const Vec2<f32>&, bool,                     \
         const Vec2<f32>&, bool, InterpMode, i64)
 
     INSTANTIATE_POLAR(f32);
