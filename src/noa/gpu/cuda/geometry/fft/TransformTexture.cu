@@ -22,7 +22,7 @@ namespace {
             cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
         const auto i_shape = shape.as_safe<i32>();
-        const auto output_shape = i_shape.filter(0, 2, 3).fft();
+        const auto output_shape = i_shape.filter(0, 2, 3).rfft();
         const auto output_accessor = AccessorRestrict<Value, 3, i32>(output, output_strides.filter(0, 2, 3).as_safe<i32>());
 
         switch (texture_interp_mode) {
@@ -88,7 +88,7 @@ namespace {
             const Matrix& inv_matrix, const ShiftOrEmpty& shift, f32 cutoff,
             cuda::Stream& stream) {
         const auto i_shape = shape.as_safe<i32>();
-        const auto output_shape = i_shape.fft();
+        const auto output_shape = i_shape.rfft();
         const auto output_accessor = AccessorRestrict<Value, 4, i32>(output, output_strides.as_safe<i32>());
 
         switch (texture_interp_mode) {
@@ -162,7 +162,7 @@ namespace {
 
         NOA_ASSERT(shape[1] == 1);
         const auto i_shape = shape.as_safe<i32>();
-        const auto output_shape = i_shape.filter(0, 2, 3).fft();
+        const auto output_shape = i_shape.filter(0, 2, 3).rfft();
         const auto output_accessor = AccessorRestrict<Value, 3, i32>(output, output_strides.filter(0, 2, 3).as_safe<i32>());
 
         switch (texture_interp_mode) {
@@ -249,7 +249,7 @@ namespace {
         const auto scaling = normalize ? 1 / static_cast<f32>(count + 1) : 1;
 
         const auto i_shape = shape.as_safe<i32>();
-        const auto output_shape = i_shape.fft();
+        const auto output_shape = i_shape.rfft();
         const auto output_accessor = AccessorRestrict<Value, 4, i32>(output, output_strides.as_safe<i32>());
 
         switch (texture_interp_mode) {

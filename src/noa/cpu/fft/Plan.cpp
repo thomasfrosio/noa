@@ -154,7 +154,7 @@ namespace {
             std::swap(shape_3d[1], shape_3d[2]);
 
         const auto how_many = static_cast<i32>(shape[0]);
-        const i32 odist = shape_3d.fft().elements();
+        const i32 odist = shape_3d.rfft().elements();
         const i32 idist = input == reinterpret_cast<T*>(output) ? odist * 2 : shape_3d.elements();
 
         constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
@@ -238,7 +238,7 @@ namespace {
         NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
-        const i32 idist = shape_3d.fft().elements();
+        const i32 idist = shape_3d.rfft().elements();
         const i32 odist = reinterpret_cast<T*>(input) == output ? idist * 2 : shape_3d.elements();
         const auto how_many = static_cast<i32>(shape[0]);
 

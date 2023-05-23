@@ -20,8 +20,8 @@ namespace {
             InterpMode interp_mode, cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
         const auto i_shape = shape.as_safe<i32>();
-        const auto input_shape_2d = i_shape.filter(2, 3).fft();
-        const auto output_shape = i_shape.filter(0, 2, 3).fft();
+        const auto input_shape_2d = i_shape.filter(2, 3).rfft();
+        const auto output_shape = i_shape.filter(0, 2, 3).rfft();
 
         switch (interp_mode) {
             case InterpMode::NEAREST: {
@@ -59,8 +59,8 @@ namespace {
             const Matrix& matrices, const ShiftOrEmpty& shift, f32 cutoff,
             InterpMode interp_mode, cuda::Stream& stream) {
         const auto i_shape = shape.as_safe<i32>();
-        const auto input_shape_3d = i_shape.pop_front().fft();
-        const auto output_shape = i_shape.fft();
+        const auto input_shape_3d = i_shape.pop_front().rfft();
+        const auto output_shape = i_shape.rfft();
 
         switch (interp_mode) {
             case InterpMode::NEAREST: {
@@ -114,8 +114,8 @@ namespace {
             const ShiftOrEmpty& shift, f32 cutoff, bool normalize,
             InterpMode interp_mode, cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_2d = shape.filter(2, 3).as_safe<i32>().fft();
-        const auto output_shape = shape.filter(0, 2, 3).as_safe<i32>().fft();
+        const auto input_shape_2d = shape.filter(2, 3).as_safe<i32>().rfft();
+        const auto output_shape = shape.filter(0, 2, 3).as_safe<i32>().rfft();
 
         const auto symmetry_count = symmetry.count();
         const auto symmetry_matrices = noa::cuda::memory::PtrDevice<Float33>::alloc(symmetry_count, stream);
@@ -163,8 +163,8 @@ namespace {
             const ShiftOrEmpty& shift, f32 cutoff, bool normalize,
             InterpMode interp_mode, cuda::Stream& stream) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_3d = shape.pop_front().as_safe<i32>().fft();
-        const auto output_shape = shape.as_safe<i32>().fft();
+        const auto input_shape_3d = shape.pop_front().as_safe<i32>().rfft();
+        const auto output_shape = shape.as_safe<i32>().rfft();
 
         const auto symmetry_count = symmetry.count();
         const auto symmetry_matrices = noa::cuda::memory::PtrDevice<Float33>::alloc(symmetry_count, stream);

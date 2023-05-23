@@ -15,9 +15,9 @@ namespace noa::signal::fft::details {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !fsc.is_empty(), "Empty array detected");
         NOA_CHECK(lhs.get() != rhs.get(), "Computing the FSC on the same array is not allowed");
 
-        NOA_CHECK(noa::all(rhs.shape() == shape.fft()),
+        NOA_CHECK(noa::all(rhs.shape() == shape.rfft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
-                  shape, shape.fft(), rhs.shape());
+                  shape, shape.rfft(), rhs.shape());
         NOA_CHECK(noa::all(lhs.shape() == rhs.shape()),
                   "The two input arrays should have the same shape. Got lhs:{} and rhs:{}",
                   lhs.shape(), rhs.shape());

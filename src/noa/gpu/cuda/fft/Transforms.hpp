@@ -30,7 +30,7 @@ namespace noa::cuda::fft::details {
         const auto scale = norm == Norm::ORTHO ? noa::math::sqrt(count) : count;
         if (sign == Sign::FORWARD && (norm == Norm::FORWARD || norm == Norm::ORTHO)) {
             ewise_binary(array, strides, 1 / scale, array, strides,
-                         HALF ? shape.fft() : shape, noa::multiply_t{}, stream);
+                         HALF ? shape.rfft() : shape, noa::multiply_t{}, stream);
         } else if (sign == Sign::BACKWARD && (norm == Norm::BACKWARD || norm == Norm::ORTHO)) {
             ewise_binary(array, strides, 1 / scale, array, strides,
                          shape, noa::multiply_t{}, stream);
@@ -98,7 +98,7 @@ namespace noa::cuda::fft {
     void r2c(T* input, Complex<T>* output, const Shape4<i64>& shape, Norm norm, bool cache_plan, Stream& stream) {
         Plan<T> plan(fft::R2C, shape, stream.device(), cache_plan);
         r2c(input, output, plan, stream);
-        details::normalize<true>(output, shape.fft().strides(), shape, Sign::FORWARD, norm, stream);
+        details::normalize<true>(output, shape.rfft().strides(), shape, Sign::FORWARD, norm, stream);
     }
 
     template<typename T>

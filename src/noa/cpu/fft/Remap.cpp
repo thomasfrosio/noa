@@ -53,7 +53,7 @@ namespace noa::cpu::fft {
             case Remap::H2H:
             case Remap::HC2HC:
                 if (input != output)
-                    noa::cpu::memory::copy(input, input_strides, output, output_strides, shape.fft(), threads);
+                    noa::cpu::memory::copy(input, input_strides, output, output_strides, shape.rfft(), threads);
                 break;
             case Remap::F2F:
             case Remap::FC2FC:

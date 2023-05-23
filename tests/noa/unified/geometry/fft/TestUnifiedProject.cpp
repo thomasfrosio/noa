@@ -49,8 +49,8 @@ TEST_CASE("unified::geometry::fft::insert_rasterize_3d", "[noa][unified][asset]"
                 fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
             // Backward project.
-            const Array slice_fft = noa::memory::linspace<f32>(slice_shape.fft(), 1, 10, true, options);
-            const Array grid_fft = noa::memory::zeros<f32>(grid_shape.fft(), options);
+            const Array slice_fft = noa::memory::linspace<f32>(slice_shape.rfft(), 1, 10, true, options);
+            const Array grid_fft = noa::memory::zeros<f32>(grid_shape.rfft(), options);
             noa::geometry::fft::insert_rasterize_3d<fft::HC2HC>(
                     slice_fft, slice_shape, grid_fft, grid_shape,
                     inv_scaling_matrix, fwd_rotation_matrices,
@@ -87,8 +87,8 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, remap", "[noa][
         if (fwd_rotation_matrices.device() != device)
             fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
-        const Array slice_fft = noa::memory::linspace<TestType>(slice_shape.fft(), 1, 10, true, options);
-        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.fft(), options);
+        const Array slice_fft = noa::memory::linspace<TestType>(slice_shape.rfft(), 1, 10, true, options);
+        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
         const Array grid_fft2 = grid_fft0.copy();
 
@@ -138,8 +138,8 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, value", "[noa][
             fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
         const auto value = test::Randomizer<TestType>(-10, 10).get();
-        const Array slice_fft = noa::memory::fill<TestType>(slice_shape.fft(), value, options);
-        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.fft(), options);
+        const Array slice_fft = noa::memory::fill<TestType>(slice_shape.rfft(), value, options);
+        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
         noa::geometry::fft::insert_rasterize_3d<fft::HC2HC>(
@@ -191,8 +191,8 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_3d", "[noa][unified][asset
                 inv_rotation_matrices = inv_rotation_matrices.to(device);
 
             // Backward project.
-            const Array slice_fft = noa::memory::linspace<f32>(slice_shape.fft(), 1, 10, true, options);
-            const Array grid_fft = noa::memory::zeros<f32>(grid_shape.fft(), options);
+            const Array slice_fft = noa::memory::linspace<f32>(slice_shape.rfft(), 1, 10, true, options);
+            const Array grid_fft = noa::memory::zeros<f32>(grid_shape.rfft(), options);
             noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
                     slice_fft.eval(), slice_shape, grid_fft, grid_shape,
                     fwd_scaling_matrix, inv_rotation_matrices,
@@ -234,8 +234,8 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, value", "[noa
             fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
         const auto value = test::Randomizer<TestType>(-10, 10).get();
-        const Array slice_fft = noa::memory::fill<TestType>(slice_shape.fft(), value, options);
-        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.fft(), options);
+        const Array slice_fft = noa::memory::fill<TestType>(slice_shape.rfft(), value, options);
+        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
         noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
@@ -274,8 +274,8 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, using texture
         if (inv_rotation_matrices.device() != device)
             inv_rotation_matrices = inv_rotation_matrices.to(device);
 
-        const Array slice_fft = noa::memory::linspace<TestType>(slice_shape.fft(), 1, 10, true, options);
-        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.fft(), options);
+        const Array slice_fft = noa::memory::linspace<TestType>(slice_shape.rfft(), 1, 10, true, options);
+        const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
         const Array grid_fft2 = grid_fft0.copy();
 
@@ -323,9 +323,9 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
                     noa::math::deg2rad(Vec3<f32>{90, 0, i * 10}), "xyz", false);
         }
         const auto insert_slice_shape = Shape4<i64>{36, 1, grid_shape[2], grid_shape[3]};
-        const Array grid_fft = noa::memory::empty<f32>(grid_shape.fft());
+        const Array grid_fft = noa::memory::empty<f32>(grid_shape.rfft());
 
-        const Array slice_fft = noa::memory::linspace<f32>(insert_slice_shape.fft(), 1, 20);
+        const Array slice_fft = noa::memory::linspace<f32>(insert_slice_shape.rfft(), 1, 20);
         noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
                 slice_fft, insert_slice_shape, grid_fft, grid_shape,
                 Float22{}, insert_fwd_rotation_matrices, 0.01f, 0.5f);
@@ -364,7 +364,7 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
                 fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
             const Array grid_fft = noa::io::load_data<f32>(grid_filename, false, options);
-            const Array slice_fft = noa::memory::empty<f32>(slice_shape.fft(), options);
+            const Array slice_fft = noa::memory::empty<f32>(slice_shape.rfft(), options);
 
             // Forward project.
             geometry::fft::extract_3d<fft::HC2HC>(
@@ -406,8 +406,8 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::extract_3d, using texture API and re
         if (fwd_rotation_matrices.device() != device)
             fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
-        const Array grid_fft = noa::memory::linspace<TestType>(grid_shape.fft(), -50, 50, true, options);
-        const Array slice_fft0 = noa::memory::empty<TestType>(slice_shape.fft(), options);
+        const Array grid_fft = noa::memory::linspace<TestType>(grid_shape.rfft(), -50, 50, true, options);
+        const Array slice_fft0 = noa::memory::empty<TestType>(slice_shape.rfft(), options);
         const Array slice_fft1 = slice_fft0.copy();
         const Array slice_fft2 = slice_fft0.copy();
 
@@ -467,8 +467,8 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d", "[noa][un
             if (output_fwd_rotation_matrices.device() != device)
                 output_fwd_rotation_matrices = output_fwd_rotation_matrices.to(device);
 
-            const Array input_slice_fft = noa::memory::linspace<f32>(input_slice_shape.fft(), -50, 50, true, options);
-            const Array output_slice_fft = noa::memory::empty<f32>(output_slice_shape.fft(), options);
+            const Array input_slice_fft = noa::memory::linspace<f32>(input_slice_shape.rfft(), -50, 50, true, options);
+            const Array output_slice_fft = noa::memory::empty<f32>(output_slice_shape.rfft(), options);
 
             noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
                     input_slice_fft, input_slice_shape,
@@ -518,11 +518,11 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, u
         if (output_fwd_rotation_matrices.device() != device)
             output_fwd_rotation_matrices = output_fwd_rotation_matrices.to(device);
 
-        const Array input_slice_fft = noa::memory::linspace<TestType>(input_slice_shape.fft(), -50, 50, true, options);
+        const Array input_slice_fft = noa::memory::linspace<TestType>(input_slice_shape.rfft(), -50, 50, true, options);
         const Texture<TestType> texture_input_slice_fft(
                 input_slice_fft, device, InterpMode::LINEAR, BorderMode::ZERO, 0.f, /*layered=*/ true);
-        const Array output_slice_fft0 = noa::memory::empty<TestType>(output_slice_shape.fft(), options);
-        const Array output_slice_fft1 = noa::memory::empty<TestType>(output_slice_shape.fft(), options);
+        const Array output_slice_fft0 = noa::memory::empty<TestType>(output_slice_shape.rfft(), options);
+        const Array output_slice_fft1 = noa::memory::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft2 = noa::memory::like(output_slice_fft1);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
@@ -574,9 +574,9 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, u
             output_fwd_rotation_matrices = output_fwd_rotation_matrices.to(device);
 
         const auto value = test::Randomizer<TestType>(-10, 10).get();
-        const Array input_slice_fft = noa::memory::fill<TestType>(input_slice_shape.fft(), value, options);
-        const Array output_slice_fft0 = noa::memory::empty<TestType>(output_slice_shape.fft(), options);
-        const Array output_slice_fft1 = noa::memory::empty<TestType>(output_slice_shape.fft(), options);
+        const Array input_slice_fft = noa::memory::fill<TestType>(input_slice_shape.rfft(), value, options);
+        const Array output_slice_fft0 = noa::memory::empty<TestType>(output_slice_shape.rfft(), options);
+        const Array output_slice_fft1 = noa::memory::empty<TestType>(output_slice_shape.rfft(), options);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
                 input_slice_fft, input_slice_shape,
@@ -616,8 +616,8 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test rot",
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const Array input_slice_fft = noa::memory::linspace<f32>(input_slice_shape.fft(), -100, 100, true, options);
-        const Array output_slice_fft0 = noa::memory::empty<f32>(output_slice_shape.fft(), options);
+        const Array input_slice_fft = noa::memory::linspace<f32>(input_slice_shape.rfft(), -100, 100, true, options);
+        const Array output_slice_fft0 = noa::memory::empty<f32>(output_slice_shape.rfft(), options);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
                 input_slice_fft, input_slice_shape,
@@ -630,4 +630,34 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test rot",
         noa::io::save(input_slice_fft, directory / "input_slice.mrc");
         noa::io::save(output_slice_fft0, directory / "output_slice.mrc");
     }
+}
+
+TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test multiplicity", "[.]") {
+    const auto slice_shape = Shape4<i64>{20, 1, 512, 512};
+    const auto grid_shape = Shape4<i64>{1, 512, 512, 512};
+    const auto slice_z_radius = 0.0009765625f;
+
+    Array<Float33> fwd_rotation_matrices(slice_shape[0]);
+    const auto fwd_rotation_matrices_1d = fwd_rotation_matrices.accessor_contiguous_1d();
+    for (i64 i = 0; i < slice_shape[0]; ++i) {
+        fwd_rotation_matrices_1d[i] = noa::geometry::euler2matrix(
+                noa::math::deg2rad(Vec3<f32>{0, -20 + i * 3, 0}), "zyx");
+    }
+
+    const Array slices_fft = noa::memory::ones<f32>(slice_shape.rfft());
+    const Array grid_fft = noa::memory::zeros<f32>(grid_shape.rfft());
+    const Array grid2_fft = noa::memory::zeros<f32>(grid_shape.rfft());
+
+    noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
+            slices_fft, slice_shape, grid_fft, grid_shape,
+            Float22{}, fwd_rotation_matrices, slice_z_radius, 0.45f);
+    noa::io::save(grid_fft, test::NOA_DATA_PATH / "geometry" / "fft" / "test_slice_radius.mrc");
+
+//    noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
+//            1.f, slice_shape, grid2_fft, grid_shape,
+//            Float22{}, fwd_rotation_matrices, slice_z_radius, 0.45f);
+//    noa::io::save(grid2_fft, test::NOA_DATA_PATH / "geometry" / "fft" / "test_multiplicity.mrc");
+//
+//    noa::ewise_binary(grid_fft, grid2_fft, grid_fft, noa::divide_safe_t{});
+//    noa::io::save(grid_fft, test::NOA_DATA_PATH / "geometry" / "fft" / "test_multiplicity_after.mrc");
 }

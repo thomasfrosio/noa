@@ -16,10 +16,10 @@ namespace {
         constexpr bool NO_REMAP = (u8_REMAP & fft::Layout::SRC_CENTERED) == (u8_REMAP & fft::Layout::DST_CENTERED);
 
         if (!input) {
-            noa::cpu::memory::set(output, output_strides, shape.fft(), T{1, 0}, threads);
+            noa::cpu::memory::set(output, output_strides, shape.rfft(), T{1, 0}, threads);
         } else {
             if constexpr (NO_REMAP)
-                noa::cpu::memory::copy(input, input_strides, output, output_strides, shape.fft(), threads);
+                noa::cpu::memory::copy(input, input_strides, output, output_strides, shape.rfft(), threads);
             else
                 noa::cpu::fft::remap(REMAP, input, input_strides, output, output_strides, shape, threads);
         }
@@ -40,7 +40,7 @@ namespace noa::cpu::signal::fft {
 
         auto kernel = noa::algorithm::signal::phase_shift<REMAP, 2>(
                 input, input_strides, output, output_strides, shape, shifts, cutoff);
-        noa::cpu::utils::iwise_3d(shape.filter(0, 2, 3).fft(), kernel, threads);
+        noa::cpu::utils::iwise_3d(shape.filter(0, 2, 3).rfft(), kernel, threads);
     }
 
     template<noa::fft::Remap REMAP, typename T, typename>
@@ -61,11 +61,11 @@ namespace noa::cpu::signal::fft {
         if (is_half_shift && cutoff >= noa::math::sqrt(0.5f)) {
             auto kernel = noa::algorithm::signal::phase_shift_half<REMAP>(
                     input, input_strides, output, output_strides, shape);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         } else {
             auto kernel = noa::algorithm::signal::phase_shift<REMAP, 2>(
                     input, input_strides, output, output_strides, shape, shift, cutoff);
-            noa::cpu::utils::iwise_3d(shape.filter(0, 2, 3).fft(), kernel, threads);
+            noa::cpu::utils::iwise_3d(shape.filter(0, 2, 3).rfft(), kernel, threads);
         }
     }
 
@@ -79,7 +79,7 @@ namespace noa::cpu::signal::fft {
 
         auto kernel = noa::algorithm::signal::phase_shift<REMAP, 3>(
                 input, input_strides, output, output_strides, shape, shifts, cutoff);
-        noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+        noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
     }
 
     template<noa::fft::Remap REMAP, typename T, typename>
@@ -99,11 +99,11 @@ namespace noa::cpu::signal::fft {
         if (is_half_shift && cutoff >= noa::math::sqrt(0.5f)) {
             auto kernel = noa::algorithm::signal::phase_shift_half<REMAP>(
                     input, input_strides, output, output_strides, shape);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         } else {
             auto kernel = noa::algorithm::signal::phase_shift<REMAP, 3>(
                     input, input_strides, output, output_strides, shape, shift, cutoff);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         }
     }
 

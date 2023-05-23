@@ -15,10 +15,10 @@ namespace noa::cpu::fft {
 
         // For centered layouts, use the memory::resize instead.
         if constexpr (REMAP == noa::fft::HC2HC) {
-            auto [border_left, border_right] = noa::algorithm::memory::borders(input_shape.fft(), output_shape.fft());
+            auto [border_left, border_right] = noa::algorithm::memory::borders(input_shape.rfft(), output_shape.rfft());
             border_right[3] += std::exchange(border_left[3], 0); // for width, padding goes to the right side only
             return noa::cpu::memory::resize(
-                    input, input_strides, input_shape.fft(),
+                    input, input_strides, input_shape.rfft(),
                     border_left, border_right,
                     output, output_strides,
                     BorderMode::ZERO, T{0}, threads);
@@ -56,7 +56,7 @@ namespace noa::cpu::fft {
             // padded elements to be set to 0, so do it here, on the entire array.
             if constexpr (REMAP == noa::fft::H2H) {
                 mode = noa::algorithm::fft::ResizeMode::PAD_H2H;
-                noa::cpu::memory::set(output, output_strides, output_shape.fft(), T{0}, /*threads=*/ 1);
+                noa::cpu::memory::set(output, output_strides, output_shape.rfft(), T{0}, /*threads=*/ 1);
             } else if constexpr (REMAP == noa::fft::F2F) {
                 mode = noa::algorithm::fft::ResizeMode::PAD_F2F;
                 noa::cpu::memory::set(output, output_strides, output_shape, T{0}, /*threads=*/ 1);

@@ -46,9 +46,9 @@ namespace noa::algorithm::geometry {
         using coord_type = typename Interpolator::coord_type;
         using vec_type = Vec<coord_type, N>;
         using center_type = Vec<coord_type, N - 1>;
+        using shape_type = Shape<index_type, N - 1>;
         using preshift_or_empty_type = std::conditional_t<std::is_pointer_v<shift_or_empty_type>, vec_type, Empty>;
         using real_value_type = traits::value_type_t<value_type>;
-        using shape_type = Shape<index_type, N>;
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
         static_assert(traits::is_any_v<ShiftOrEmpty, Empty, vec_type, const vec_type*>);
@@ -75,17 +75,18 @@ namespace noa::algorithm::geometry {
                 NOA_ASSERT(shape[1] == 1);
             }
 
-            m_shape = shape_type(shape.data() + 4 - N);
-            m_f_shape = vec_type(m_shape.vec());
-            m_center = center_type(m_shape.pop_back().vec() / 2);
+            const auto shape_nd = Shape<index_type, N>(shape.data() + 4 - N);
+            m_f_shape = vec_type(shape_nd.vec());
+            m_shape = shape_nd.pop_back();
+            m_center = center_type(m_shape.vec() / 2);
 
             m_cutoff_sqd = noa::math::clamp(cutoff, coord_type{0}, coord_type{0.5});
             m_cutoff_sqd *= m_cutoff_sqd;
 
             if constexpr (traits::is_realN_v<shift_or_empty_type, N>)
-                m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(m_shape.vec());
+                m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(shape_nd.vec());
             else if constexpr (traits::is_realN_v<preshift_or_empty_type, N>)
-                m_preshift = 2 * noa::math::Constant<coord_type>::PI / vec_type(m_shape.vec());
+                m_preshift = 2 * noa::math::Constant<coord_type>::PI / vec_type(shape_nd.vec());
         }
 
         template<typename Void = void, typename = std::enable_if_t<(N == 2) && std::is_void_v<Void>>>
@@ -123,14 +124,11 @@ namespace noa::algorithm::geometry {
 
             // Phase shift the interpolated value.
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
-                // For Nyquist with even sizes, u == -x. Otherwise, x == u.
-                // For simplicity, let index2frequency compute the frequency...
-                const auto u = index2frequency<false>(x, m_shape[1]);
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
-                    value *= phase_shift<value_type>(shift, vec_type{v, u});
+                    value *= phase_shift<value_type>(shift, vec_type{v, x}); // u == x
                 } else {
-                    value *= phase_shift<value_type>(m_shift, vec_type{v, u});
+                    value *= phase_shift<value_type>(m_shift, vec_type{v, x});
                 }
             }
             m_output(batch, y, x) = value;
@@ -169,12 +167,11 @@ namespace noa::algorithm::geometry {
                 (void) conj;
 
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
-                const auto u = index2frequency<false>(x, m_shape[2]); // only matter for nyquist in even sizes
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
-                    value *= phase_shift<value_type>(shift, vec_type{w, v, u});
+                    value *= phase_shift<value_type>(shift, vec_type{w, v, x}); // u == x
                 } else {
-                    value *= phase_shift<value_type>(m_shift, vec_type{w, v, u});
+                    value *= phase_shift<value_type>(m_shift, vec_type{w, v, x});
                 }
             }
             m_output(batch, z, y, x) = value;
@@ -218,7 +215,7 @@ namespace noa::algorithm::geometry {
         using coord_type = typename Interpolator::coord_type;
         using vec_type = Vec<coord_type, N>;
         using center_type = Vec<coord_type, N - 1>;
-        using shape_type = Shape<index_type, N>;
+        using shape_type = Shape<index_type, N - 1>;
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
         using matrix_type = std::conditional_t<N == 2, Mat22<coord_type>, Mat33<coord_type>>;
@@ -253,15 +250,16 @@ namespace noa::algorithm::geometry {
             }
 
             using shape_nd_t = Shape<index_type, N>;
-            m_shape = shape_nd_t(shape.data() + 4 - N); // {y, x} or {z, y, x}
-            m_f_shape = vec_type(m_shape.vec());
-            m_center = center_type(m_shape.pop_back().vec() / 2);
+            const auto shape_nd = shape_nd_t(shape.data() + 4 - N); // {y, x} or {z, y, x}
+            m_f_shape = vec_type(shape_nd.vec());
+            m_shape = shape_nd.pop_back();
+            m_center = center_type(m_shape.vec() / 2);
 
             m_cutoff_sqd = noa::math::clamp(cutoff, coord_type{0}, coord_type{0.5});
             m_cutoff_sqd *= m_cutoff_sqd;
 
             if constexpr (traits::is_realN_v<shift_or_empty_type, N>)
-                m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(m_shape.vec());
+                m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(shape_nd.vec());
         }
 
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept { // x == u
@@ -292,8 +290,7 @@ namespace noa::algorithm::geometry {
 
             value *= m_scaling;
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
-                const auto u = index2frequency<false>(x, m_shape[1]); // only matter for nyquist in even sizes
-                value *= phase_shift<value_type>(m_shift, vec_type{v, u});
+                value *= phase_shift<value_type>(m_shift, vec_type{v, x}); // u == v
             }
 
             m_output(batch, y, x) = value;
@@ -329,8 +326,7 @@ namespace noa::algorithm::geometry {
 
             value *= m_scaling;
             if constexpr (traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
-                const auto u = index2frequency<false>(x, m_shape[2]); // only matter for nyquist in even sizes
-                value *= phase_shift<value_type>(m_shift, vec_type{w, v, u});
+                value *= phase_shift<value_type>(m_shift, vec_type{w, v, x}); // u == x
             }
 
             m_output(batch, z, y, x) = value;

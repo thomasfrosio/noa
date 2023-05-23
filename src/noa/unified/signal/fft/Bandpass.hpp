@@ -15,9 +15,9 @@ namespace noa::signal::fft::details {
     template<Remap REMAP, typename Input, typename Output>
     void check_bandpass_parameters(const Input& input, const Output& output, const Shape4<i64>& shape) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(noa::all(output.shape() == shape.fft()),
+        NOA_CHECK(noa::all(output.shape() == shape.rfft()),
                   "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
-                  shape, shape.fft(), output.shape());
+                  shape, shape.rfft(), output.shape());
 
         if (!input.is_empty()) {
             NOA_CHECK(output.device() == input.device(),

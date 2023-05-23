@@ -234,8 +234,7 @@ namespace noa::memory {
             NOA_THROW("No GPU backend detected");
             #endif
         }
-        auto[a_, b_, step] = noa::algorithm::memory::linspace_step(output.shape().elements(), start, stop, endpoint);
-        return step;
+        return noa::algorithm::memory::linspace_step(output.shape().elements(), start, stop, endpoint);
     }
 
     /// Returns an array with evenly spaced values within a given interval, in the BDHW order.

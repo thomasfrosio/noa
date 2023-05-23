@@ -24,13 +24,13 @@ namespace noa::cuda::signal::fft {
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(),
                     i_shape, cutoff, width);
-            noa::cuda::utils::iwise_4d("lowpass", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("lowpass", i_shape.rfft(), kernel, stream);
         } else {
             auto kernel = noa::algorithm::signal::lowpass<REMAP, false>(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(),
                     i_shape, cutoff, width);
-            noa::cuda::utils::iwise_4d("lowpass", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("lowpass", i_shape.rfft(), kernel, stream);
         }
     }
 
@@ -52,13 +52,13 @@ namespace noa::cuda::signal::fft {
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(),
                     i_shape, cutoff, width);
-            noa::cuda::utils::iwise_4d("highpass", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("highpass", i_shape.rfft(), kernel, stream);
         } else {
             auto kernel = noa::algorithm::signal::highpass<REMAP, false>(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(),
                     i_shape, cutoff, width);
-            noa::cuda::utils::iwise_4d("highpass", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("highpass", i_shape.rfft(), kernel, stream);
         }
     }
 
@@ -80,13 +80,13 @@ namespace noa::cuda::signal::fft {
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(), i_shape,
                     cutoff_high, cutoff_low, width_high, width_low);
-            noa::cuda::utils::iwise_4d("bandpass", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("bandpass", i_shape.rfft(), kernel, stream);
         } else {
             auto kernel = noa::algorithm::signal::bandpass<REMAP, false>(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(), i_shape,
                     cutoff_high, cutoff_low, width_high, width_low);
-            noa::cuda::utils::iwise_4d("bandpass", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("bandpass", i_shape.rfft(), kernel, stream);
         }
     }
 

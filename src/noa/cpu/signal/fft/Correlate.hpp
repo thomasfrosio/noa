@@ -47,7 +47,7 @@ namespace noa::cpu::signal::fft {
         NOA_ASSERT(lhs && rhs && noa::all(shape > 0));
         constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto batches = shape[0];
-        const auto input_shape = SRC_IS_HALF ? shape.pop_front() : shape.pop_front().fft();
+        const auto input_shape = SRC_IS_HALF ? shape.pop_front() : shape.pop_front().rfft();
         const auto lhs_strides_3d = lhs_strides.pop_front();
         const auto rhs_strides_3d = rhs_strides.pop_front();
 
@@ -66,7 +66,7 @@ namespace noa::cpu::signal::fft {
         NOA_ASSERT(lhs && rhs && noa::all(shape > 0));
         NOA_ASSERT(shape[0] == 1);
         constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto input_shape = SRC_IS_HALF ? shape.pop_front() : shape.pop_front().fft();
+        const auto input_shape = SRC_IS_HALF ? shape.pop_front() : shape.pop_front().rfft();
         const auto lhs_strides_3d = lhs_strides.pop_front();
         const auto rhs_strides_3d = rhs_strides.pop_front();
         return details::xcorr(lhs, lhs_strides_3d, rhs, rhs_strides_3d, input_shape, threads);

@@ -32,14 +32,14 @@ TEST_CASE("unified::signal::fft::lowpass()", "[asset][noa][unified]") {
         if (COMPUTE_ASSETS) {
             auto no_batch_shape = shape;
             no_batch_shape[0] = 1;
-            const auto filter_expected = noa::memory::empty<f32>(no_batch_shape.fft());
+            const auto filter_expected = noa::memory::empty<f32>(no_batch_shape.rfft());
             noa::signal::fft::lowpass<fft::H2H>({}, filter_expected, no_batch_shape, cutoff, width);
             noa::io::save(filter_expected, filename_expected);
             continue;
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::io::load_data<f32>(filename_expected), shape.fft());
+        auto filter_expected = noa::indexing::broadcast(noa::io::load_data<f32>(filename_expected), shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, StreamMode::DEFAULT);
@@ -50,12 +50,12 @@ TEST_CASE("unified::signal::fft::lowpass()", "[asset][noa][unified]") {
                 filter_expected = filter_expected.to(options);
 
             // Test saving the mask.
-            const auto filter_result = noa::memory::empty<f32>(shape.fft(), options);
+            const auto filter_result = noa::memory::empty<f32>(shape.rfft(), options);
             noa::signal::fft::lowpass<fft::H2H>({}, filter_result, shape, cutoff, width);
             REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
-            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.fft(), -5, 5, options);
+            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.rfft(), -5, 5, options);
             const auto expected = noa::memory::like(input);
             noa::ewise_binary(filter_expected, input, expected, noa::multiply_t{});
 
@@ -81,7 +81,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::lowpass(), remap", "[noa][unified]", f
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto filter_expected = noa::memory::empty<TestType>(shape.fft(), options);
+        const auto filter_expected = noa::memory::empty<TestType>(shape.rfft(), options);
         const auto filter_result = noa::memory::like(filter_expected);
         const auto filter_remapped = noa::memory::like(filter_expected);
 
@@ -125,14 +125,14 @@ TEST_CASE("unified::signal::fft::highpass()", "[asset][noa][unified]") {
         if (COMPUTE_ASSETS) {
             auto no_batch_shape = shape;
             no_batch_shape[0] = 1;
-            const auto filter_expected = noa::memory::empty<f32>(no_batch_shape.fft());
+            const auto filter_expected = noa::memory::empty<f32>(no_batch_shape.rfft());
             noa::signal::fft::highpass<fft::H2H>({}, filter_expected, no_batch_shape, cutoff, width);
             noa::io::save(filter_expected, filename_expected);
             continue;
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::io::load_data<f32>(filename_expected), shape.fft());
+        auto filter_expected = noa::indexing::broadcast(noa::io::load_data<f32>(filename_expected), shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, StreamMode::DEFAULT);
@@ -143,12 +143,12 @@ TEST_CASE("unified::signal::fft::highpass()", "[asset][noa][unified]") {
                 filter_expected = filter_expected.to(options);
 
             // Test saving the mask.
-            const auto filter_result = noa::memory::empty<f32>(shape.fft(), options);
+            const auto filter_result = noa::memory::empty<f32>(shape.rfft(), options);
             noa::signal::fft::highpass<fft::H2H>({}, filter_result, shape, cutoff, width);
             REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
-            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.fft(), -5, 5, options);
+            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.rfft(), -5, 5, options);
             const auto expected = noa::memory::like(input);
             noa::ewise_binary(filter_expected, input, expected, noa::multiply_t{});
 
@@ -174,7 +174,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::highpass(), remap", "[noa][unified]", 
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto filter_expected = noa::memory::empty<TestType>(shape.fft(), options);
+        const auto filter_expected = noa::memory::empty<TestType>(shape.rfft(), options);
         const auto filter_result = noa::memory::like(filter_expected);
         const auto filter_remapped = noa::memory::like(filter_expected);
 
@@ -218,7 +218,7 @@ TEST_CASE("unified::signal::fft::bandpass()", "[asset][noa][unified]") {
         if (COMPUTE_ASSETS) {
             auto no_batch_shape = shape;
             no_batch_shape[0] = 1;
-            const auto filter_expected = noa::memory::empty<f32>(no_batch_shape.fft());
+            const auto filter_expected = noa::memory::empty<f32>(no_batch_shape.rfft());
             noa::signal::fft::bandpass<fft::H2H>(
                     {}, filter_expected, no_batch_shape, cutoff[0], cutoff[1], width[0], width[1]);
             noa::io::save(filter_expected, filename_expected);
@@ -226,7 +226,7 @@ TEST_CASE("unified::signal::fft::bandpass()", "[asset][noa][unified]") {
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::io::load_data<f32>(filename_expected), shape.fft());
+        auto filter_expected = noa::indexing::broadcast(noa::io::load_data<f32>(filename_expected), shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, StreamMode::DEFAULT);
@@ -237,12 +237,12 @@ TEST_CASE("unified::signal::fft::bandpass()", "[asset][noa][unified]") {
                 filter_expected = filter_expected.to(options);
 
             // Test saving the mask.
-            const auto filter_result = noa::memory::empty<f32>(shape.fft(), options);
+            const auto filter_result = noa::memory::empty<f32>(shape.rfft(), options);
             noa::signal::fft::bandpass<fft::H2H>({}, filter_result, shape, cutoff[0], cutoff[1], width[0], width[1]);
             REQUIRE(test::Matcher(test::MATCH_ABS, filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
-            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.fft(), -5, 5, options);
+            const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape.rfft(), -5, 5, options);
             const auto expected = noa::memory::like(input);
             noa::ewise_binary(filter_expected, input, expected, noa::multiply_t{});
 
@@ -268,7 +268,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::bandpass(), remap", "[noa][unified]", 
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto filter_expected = noa::memory::empty<TestType>(shape.fft(), options);
+        const auto filter_expected = noa::memory::empty<TestType>(shape.rfft(), options);
         const auto filter_result = noa::memory::like(filter_expected);
         const auto filter_remapped = noa::memory::like(filter_expected);
 
@@ -299,8 +299,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft::bandpass(), cpu vs gpu", "[noa][unifie
     const f32 cutoff = 0.4f;
     const f32 width = 0.1f;
 
-    const auto cpu_output = noa::memory::empty<TestType>(shape.fft());
-    const auto gpu_output = noa::memory::empty<TestType>(shape.fft(), ArrayOption(Device("gpu"), Allocator::PITCHED));
+    const auto cpu_output = noa::memory::empty<TestType>(shape.rfft());
+    const auto gpu_output = noa::memory::empty<TestType>(shape.rfft(), ArrayOption(Device("gpu"), Allocator::PITCHED));
 
     noa::signal::fft::lowpass<fft::H2H>({}, cpu_output, shape, cutoff, width);
     noa::signal::fft::lowpass<fft::H2H>({}, gpu_output, shape, cutoff, width);

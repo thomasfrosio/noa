@@ -19,10 +19,10 @@ namespace {
         constexpr bool NO_REMAP = (u8_REMAP & fft::Layout::SRC_CENTERED) == (u8_REMAP & fft::Layout::DST_CENTERED);
 
         if (!input) {
-            noa::cuda::memory::set(output, output_strides, shape.fft(), T{1, 0}, stream);
+            noa::cuda::memory::set(output, output_strides, shape.rfft(), T{1, 0}, stream);
         } else {
             if constexpr (NO_REMAP)
-                noa::cuda::memory::copy(input, input_strides, output, output_strides, shape.fft(), stream);
+                noa::cuda::memory::copy(input, input_strides, output, output_strides, shape.rfft(), stream);
             else
                 noa::cuda::fft::remap(REMAP, input, input_strides, output, output_strides, shape, stream);
         }
@@ -46,7 +46,7 @@ namespace noa::cuda::signal::fft {
                 input, input_strides.as_safe<u32>(),
                 output, output_strides.as_safe<u32>(),
                 i_shape, shifts, cutoff);
-        noa::cuda::utils::iwise_3d("phase_shift_2d", i_shape.filter(0, 2, 3).fft(), kernel, stream);
+        noa::cuda::utils::iwise_3d("phase_shift_2d", i_shape.filter(0, 2, 3).rfft(), kernel, stream);
     }
 
     template<noa::fft::Remap REMAP, typename T, typename>
@@ -70,13 +70,13 @@ namespace noa::cuda::signal::fft {
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(),
                     i_shape);
-            noa::cuda::utils::iwise_4d("phase_shift_2d", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("phase_shift_2d", i_shape.rfft(), kernel, stream);
         } else {
             auto kernel = noa::algorithm::signal::phase_shift<REMAP, 2>(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(),
                     i_shape, shift, cutoff);
-            noa::cuda::utils::iwise_3d("phase_shift_2d", i_shape.filter(0, 2, 3).fft(), kernel, stream);
+            noa::cuda::utils::iwise_3d("phase_shift_2d", i_shape.filter(0, 2, 3).rfft(), kernel, stream);
         }
     }
 
@@ -92,7 +92,7 @@ namespace noa::cuda::signal::fft {
         auto kernel = noa::algorithm::signal::phase_shift<REMAP, 3>(
                 input, input_strides.as_safe<u32>(),
                 output, output_strides.as_safe<u32>(), i_shape, shifts, cutoff);
-        noa::cuda::utils::iwise_4d("phase_shift_3d", i_shape.fft(), kernel, stream);
+        noa::cuda::utils::iwise_4d("phase_shift_3d", i_shape.rfft(), kernel, stream);
     }
 
     template<noa::fft::Remap REMAP, typename T, typename>
@@ -114,12 +114,12 @@ namespace noa::cuda::signal::fft {
             auto kernel = noa::algorithm::signal::phase_shift_half<REMAP>(
                     input, input_strides.as_safe<i32>(),
                     output, output_strides.as_safe<i32>(), i_shape);
-            noa::cuda::utils::iwise_4d("phase_shift_3d", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("phase_shift_3d", i_shape.rfft(), kernel, stream);
         } else {
             auto kernel = noa::algorithm::signal::phase_shift<REMAP, 3>(
                     input, input_strides.as_safe<i32>(),
                     output, output_strides.as_safe<i32>(), i_shape, shift, cutoff);
-            noa::cuda::utils::iwise_4d("phase_shift_3d", i_shape.fft(), kernel, stream);
+            noa::cuda::utils::iwise_4d("phase_shift_3d", i_shape.rfft(), kernel, stream);
         }
     }
 

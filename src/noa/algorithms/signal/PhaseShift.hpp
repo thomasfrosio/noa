@@ -65,6 +65,7 @@ namespace noa::algorithm::signal {
 
         using vec_nd_type = Vec<coord_type, NDIM>;
         using shape_nd_type = Shape<index_type, NDIM>;
+        using shape_type = Shape<index_type, NDIM - 1>;
         using preshift_type = std::conditional_t<std::is_pointer_v<Shift>, vec_nd_type, Empty>;
 
         using input_accessor_type = Accessor<const value_type, NDIM + 1, offset_type>;
@@ -78,7 +79,7 @@ namespace noa::algorithm::signal {
                    coord_type cutoff)
                 : m_input(input), m_output(output),
                   m_norm(coord_type{1} / vec_nd_type(shape.vec())),
-                  m_shape(shape),
+                  m_shape(shape.pop_back()),
                   m_shift(shift),
                   m_cutoff_sqd(cutoff * cutoff) {
             const vec_nd_type pre_shift = 2 * noa::math::Constant<coord_type>::PI / vec_nd_type(shape.vec());
@@ -91,7 +92,7 @@ namespace noa::algorithm::signal {
         template<typename Void = void, typename = std::enable_if_t<NDIM == 2 && std::is_void_v<Void>>>
         NOA_HD constexpr void operator()(index_type ii, index_type ik, index_type il) const noexcept {
             const vec_nd_type frequency{index2frequency<IS_SRC_CENTERED>(ik, m_shape[0]),
-                                        index2frequency<false>(il, m_shape[1])};
+                                        il};
 
             const vec_nd_type norm_freq = frequency * m_norm;
             const value_type phase_shift =
@@ -106,7 +107,7 @@ namespace noa::algorithm::signal {
         NOA_HD constexpr void operator()(index_type ii, index_type ij, index_type ik, index_type il) const noexcept {
             const auto frequency = vec_nd_type{index2frequency<IS_SRC_CENTERED>(ij, m_shape[0]),
                                                index2frequency<IS_SRC_CENTERED>(ik, m_shape[1]),
-                                               index2frequency<false>(il, m_shape[2])};
+                                               il};
 
             const vec_nd_type norm_freq = frequency * m_norm;
             const value_type phase_shift =
@@ -130,7 +131,7 @@ namespace noa::algorithm::signal {
         input_accessor_type m_input;
         output_accessor_type m_output;
         vec_nd_type m_norm;
-        shape_nd_type m_shape;
+        shape_type m_shape;
         shift_type m_shift;
         coord_type m_cutoff_sqd;
         NOA_NO_UNIQUE_ADDRESS preshift_type m_preshift{};

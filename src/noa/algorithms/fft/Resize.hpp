@@ -102,9 +102,9 @@ namespace noa::algorithm::fft {
         // in the output are NOT set and the backend should make sure these are set to zeros at some point.
         Shape4<Index> iwise_shape;
         if constexpr (MODE == ResizeMode::CROP_H2H) {
-            iwise_shape = output_shape.fft();
+            iwise_shape = output_shape.rfft();
         } else if constexpr (MODE == ResizeMode::PAD_H2H) {
-            iwise_shape = input_shape.fft();
+            iwise_shape = input_shape.rfft();
         } else if constexpr (MODE == ResizeMode::CROP_F2F) {
             iwise_shape = output_shape;
         } else if constexpr (MODE == ResizeMode::PAD_F2F) {

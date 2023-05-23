@@ -4,7 +4,7 @@
 
 namespace noa::algorithm::memory {
     template<typename Value>
-    std::tuple<i64, Value, Value> linspace_step(i64 elements, Value start, Value stop, bool endpoint = true) {
+    std::tuple<i64, Value, Value> linspace_range(i64 elements, Value start, Value stop, bool endpoint = true) {
         using compute_t =
                 std::conditional_t<noa::traits::is_complex_v<Value>, c64,
                 std::conditional_t<noa::traits::is_real_v<Value>, f64, Value>>;
@@ -12,6 +12,12 @@ namespace noa::algorithm::memory {
         const auto delta = static_cast<compute_t>(stop) - static_cast<compute_t>(start);
         const auto step = delta / static_cast<compute_t>(count);
         return {count, static_cast<Value>(delta), static_cast<Value>(step)};
+    }
+
+    template<typename Value>
+    Value linspace_step(i64 elements, Value start, Value stop, bool endpoint = true) {
+        const auto [count, delta, step] = linspace_range(elements, start, stop, endpoint);
+        return step;
     }
 
     template<typename Index, typename Offset, typename Value>
@@ -66,7 +72,7 @@ namespace noa::algorithm::memory {
     template<typename Index, typename Offset, typename Value>
     auto linspace_4d(Value* output, const Strides4<i64>& strides, const Shape4<i64>& shape,
                      Value start, Value stop, bool endpoint) {
-        auto [_0, _1, step] = linspace_step(shape.elements(), start, stop, endpoint);
+        const auto step = linspace_step(shape.elements(), start, stop, endpoint);
         return std::pair{
                 Linspace4D<Index, Offset, Value>(
                         Accessor<Value, 4, Offset>(output, strides.as_safe<Offset>()),
@@ -112,7 +118,7 @@ namespace noa::algorithm::memory {
 
     template<typename Index, typename Offset, typename Value>
     auto linspace_1d(Value* output, i64 size, Value start, Value stop, bool endpoint) {
-        auto [_0, _1, step] = linspace_step(size, start, stop, endpoint);
+        const auto step = linspace_step(size, start, stop, endpoint);
         return std::pair{
                 Linspace1D<Index, Offset, Value>(
                         AccessorContiguous<Value, 1, Offset>(output),

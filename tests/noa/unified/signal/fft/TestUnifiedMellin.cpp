@@ -51,7 +51,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
         geometry::transform2D(lhs, rhs, rotation_matrix);
 
         // Compute the non-redundant centered FFT:
-        Array<cfloat_t> lhs_fft{shape.fft(), options}, rhs_fft{shape.fft(), options};
+        Array<cfloat_t> lhs_fft{shape.rfft(), options}, rhs_fft{shape.rfft(), options};
         fft::r2c(lhs, lhs_fft);
         fft::r2c(rhs, rhs_fft);
         fft::remap(fft::H2HC, lhs_fft, lhs_fft, shape);
@@ -67,12 +67,12 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
         math::ewise(rhs_fft.release(), rhs_cart, math::abs_t{});
 
         file.open(directory / string::format("test_{}_xmap_mellin_lhs.mrc", device), io::WRITE);
-        file.shape(shape.fft());
+        file.shape(shape.rfft());
         file.writeAll(lhs_cart.eval().get());
         file.close();
 
         file.open(directory / string::format("test_{}_xmap_mellin_rhs.mrc", device), io::WRITE);
-        file.shape(shape.fft());
+        file.shape(shape.rfft());
         file.writeAll(rhs_cart.eval().get());
         file.close();
 
@@ -91,7 +91,7 @@ TEST_CASE("unified::signal::fft, Fourier-Mellin", "[.]") {
         file.close();
 
         // Phase correlate:
-        Array<cfloat_t> lhs_polar_fft{polar_shape.fft(), options}, rhs_polar_fft{polar_shape.fft(), options};
+        Array<cfloat_t> lhs_polar_fft{polar_shape.rfft(), options}, rhs_polar_fft{polar_shape.rfft(), options};
         fft::r2c(lhs_polar, lhs_polar_fft);
         fft::r2c(rhs_polar, rhs_polar_fft);
         signal::fft::xmap<fft::H2FC>(lhs_polar_fft, rhs_polar_fft, lhs_polar);
@@ -134,8 +134,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
         file.readAll(rhs.get(), false);
 
         // Compute the non-redundant centered FFT:
-        Array<cfloat_t> lhs_fft{cartesian_shape.fft(), options};
-        Array<cfloat_t> rhs_fft{cartesian_shape.fft(), options};
+        Array<cfloat_t> lhs_fft{cartesian_shape.rfft(), options};
+        Array<cfloat_t> rhs_fft{cartesian_shape.rfft(), options};
         fft::r2c(lhs.release(), lhs_fft, norm);
         fft::r2c(rhs.release(), rhs_fft, norm);
         fft::remap(fft::H2HC, lhs_fft, lhs_fft, cartesian_shape);
@@ -145,8 +145,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
         signal::fft::bandpass<fft::HC2HC>(rhs_fft, rhs_fft, cartesian_shape, 0.25, 0.5f, 0.20f, 0.1f);
 
         // Compute the abs log-polar transforms (reuse the real inputs):
-        Array<float> lhs_cart{cartesian_shape.fft(), options};
-        Array<float> rhs_cart{cartesian_shape.fft(), options};
+        Array<float> lhs_cart{cartesian_shape.rfft(), options};
+        Array<float> rhs_cart{cartesian_shape.rfft(), options};
         math::ewise(lhs_fft.release(), lhs_cart, math::abs_t{});
         math::ewise(rhs_fft.release(), rhs_cart, math::abs_t{});
 
@@ -191,8 +191,8 @@ TEMPLATE_TEST_CASE("unified::signal::fft, Fourier-Mellin cryoEM", "[.]", float) 
         file.close();
 
         // Phase correlate:
-        Array<cfloat_t> lhs_polar_fft{polar_shape.fft(), options};
-        Array<cfloat_t> rhs_polar_fft{polar_shape.fft(), options};
+        Array<cfloat_t> lhs_polar_fft{polar_shape.rfft(), options};
+        Array<cfloat_t> rhs_polar_fft{polar_shape.rfft(), options};
         fft::r2c(lhs_polar, lhs_polar_fft, norm);
         fft::r2c(rhs_polar, rhs_polar_fft, norm);
         signal::fft::xmap<fft::H2FC>(lhs_polar_fft, rhs_polar_fft, lhs_polar,

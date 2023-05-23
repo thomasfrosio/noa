@@ -121,7 +121,7 @@ namespace noa::cuda::signal::fft {
         const auto shape_unbatched = shape.pop_front().push_front(1);
         const auto shape_unbatched_fft =
                 REMAP == noa::fft::F2F || REMAP == noa::fft::FC2FC ?
-                shape_unbatched : shape_unbatched.fft();
+                shape_unbatched : shape_unbatched.rfft();
 
         for (i64 batch = 0; batch < shape[0]; ++batch) {
             if constexpr (REMAP == noa::fft::F2F || REMAP == noa::fft::FC2FC) {

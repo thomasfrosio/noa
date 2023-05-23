@@ -39,12 +39,12 @@ namespace noa::fft {
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "Input and output arrays should not overlap");
         NOA_CHECK(input.shape()[0] == output.shape()[0], "The batch dimension cannot be resized");
 
-        NOA_CHECK(noa::all(input.shape() == (IS_FULL ? input_shape : input_shape.fft())),
+        NOA_CHECK(noa::all(input.shape() == (IS_FULL ? input_shape : input_shape.rfft())),
                   "Given the {} remap, the input fft is expected to have a physical shape of {}, but got {}",
-                  REMAP, IS_FULL ? input_shape : input_shape.fft(), input.shape());
-        NOA_CHECK(noa::all(output.shape() == (IS_FULL ? output_shape : output_shape.fft())),
+                  REMAP, IS_FULL ? input_shape : input_shape.rfft(), input.shape());
+        NOA_CHECK(noa::all(output.shape() == (IS_FULL ? output_shape : output_shape.rfft())),
                   "Given the {} remap, the output fft is expected to have a physical shape of {}, but got {}",
-                  REMAP, IS_FULL ? output_shape : output_shape.fft(), output.shape());
+                  REMAP, IS_FULL ? output_shape : output_shape.rfft(), output.shape());
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),
@@ -89,7 +89,7 @@ namespace noa::fft {
                               const Shape4<i64>& output_shape) {
         using value_t = typename Input::value_type;
         Array<value_t> output(noa::traits::to_underlying(REMAP) & Layout::DST_FULL ?
-                              output_shape : output_shape.fft(),
+                              output_shape : output_shape.rfft(),
                               input.options());
         fft::resize<REMAP>(input, input_shape, output, output_shape);
         return output;

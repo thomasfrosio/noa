@@ -14,7 +14,7 @@ namespace noa::cpu::memory {
                 *src = start;
             return Value(0);
         }
-        auto[count, delta, step] = noa::algorithm::memory::linspace_step(elements, start, stop, endpoint);
+        auto[count, delta, step] = noa::algorithm::memory::linspace_range(elements, start, stop, endpoint);
         for (i64 i = 0; i < count; ++i)
             src[i] = start + static_cast<Value>(i) * step;
         if (endpoint)

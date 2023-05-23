@@ -16,11 +16,11 @@ namespace noa::cpu::signal::fft {
         if (width > 1e-6f) {
             auto kernel = noa::algorithm::signal::lowpass<REMAP, true>(
                     input, input_strides, output, output_strides, shape, cutoff, width);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         } else {
             auto kernel = noa::algorithm::signal::lowpass<REMAP, false>(
                     input, input_strides, output, output_strides, shape, cutoff, width);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         }
     }
 
@@ -37,11 +37,11 @@ namespace noa::cpu::signal::fft {
         if (width > 1e-6f) {
             auto kernel = noa::algorithm::signal::highpass<REMAP, true>(
                     input, input_strides, output, output_strides, shape, cutoff, width);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         } else {
             auto kernel = noa::algorithm::signal::highpass<REMAP, false>(
                     input, input_strides, output, output_strides, shape, cutoff, width);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         }
     }
 
@@ -59,12 +59,12 @@ namespace noa::cpu::signal::fft {
             auto kernel = noa::algorithm::signal::bandpass<REMAP, true>(
                     input, input_strides, output, output_strides, shape,
                     cutoff_high, cutoff_low, width_high, width_low);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         } else {
             auto kernel = noa::algorithm::signal::bandpass<REMAP, false>(
                     input, input_strides, output, output_strides, shape,
                     cutoff_high, cutoff_low, width_high, width_low);
-            noa::cpu::utils::iwise_4d(shape.fft(), kernel, threads);
+            noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
         }
     }
 

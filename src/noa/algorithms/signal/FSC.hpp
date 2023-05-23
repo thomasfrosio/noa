@@ -17,7 +17,7 @@ namespace noa::algorithm::signal {
         static_assert(noa::traits::is_int_v<Offset>);
         static_assert(noa::traits::is_real_v<Coord>);
         static_assert(noa::traits::is_real_v<Real>);
-        static constexpr bool IS_CENTERED = static_cast<uint8_t>(REMAP) & noa::fft::Layout::SRC_CENTERED;
+        static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
         using offset_type = Offset;
@@ -122,7 +122,7 @@ namespace noa::algorithm::signal {
         static_assert(noa::traits::is_int_v<Offset>);
         static_assert(noa::traits::is_real_v<Coord>);
         static_assert(noa::traits::is_real_v<Real>);
-        static constexpr bool IS_CENTERED = static_cast<uint8_t>(REMAP) & noa::fft::Layout::SRC_CENTERED;
+        static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
         using offset_type = Offset;
@@ -237,7 +237,7 @@ namespace noa::algorithm::signal {
         index_type m_cone_count;
     };
 
-    template<noa::fft::Remap REMAP, typename Coord = float, typename Index, typename Offset, typename Real>
+    template<noa::fft::Remap REMAP, typename Coord = f32, typename Index, typename Offset, typename Real>
     auto isotropic_fsc(const noa::Complex<Real>* lhs, const Strides4<Offset>& lhs_strides,
                        const noa::Complex<Real>* rhs, const Strides4<Offset>& rhs_strides,
                        Real* numerator,

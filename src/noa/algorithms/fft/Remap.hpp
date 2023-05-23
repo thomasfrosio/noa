@@ -139,7 +139,7 @@ namespace noa::algorithm::fft {
         const auto kernel = Remap<REMAP, Value, Index, Offset>(input_accessor, output_accessor, shape.pop_front());
         const auto iwise_shape =
                 noa::traits::to_underlying(REMAP) & noa::traits::to_underlying(noa::fft::Layout::DST_HALF) ?
-                shape.fft() : shape;
+                shape.rfft() : shape;
 
         return std::pair{kernel, iwise_shape};
     }

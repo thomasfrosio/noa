@@ -22,10 +22,10 @@ namespace {
     class Projector {
     public:
         Projector(size4_t volume_shape, size4_t slice_shape, ArrayOption options)
-                : m_volume_fft(memory::zeros<cfloat_t>(volume_shape.fft(), options)),
-                  m_volume_weights_fft(memory::zeros<float>(volume_shape.fft(), options)),
-                  m_weights_ones_fft(memory::ones<float>(slice_shape.fft(), options)),
-                  m_weights_extract_fft(memory::empty<float>(slice_shape.fft(), options)),
+                : m_volume_fft(memory::zeros<cfloat_t>(volume_shape.rfft(), options)),
+                  m_volume_weights_fft(memory::zeros<float>(volume_shape.rfft(), options)),
+                  m_weights_ones_fft(memory::ones<float>(slice_shape.rfft(), options)),
+                  m_weights_extract_fft(memory::empty<float>(slice_shape.rfft(), options)),
                   m_volume_shape(volume_shape),
                   m_slice_shape(slice_shape) {}
 
@@ -97,7 +97,7 @@ namespace {
         // Preprocess the tilt-series.
         Timer timer0;
         timer0.start();
-        Array tilt_series_fft = memory::empty<cfloat_t>(original_tilt_series_shape.fft(), options);
+        Array tilt_series_fft = memory::empty<cfloat_t>(original_tilt_series_shape.rfft(), options);
         Array tilt_series = fft::alias(tilt_series_fft, original_tilt_series_shape);
         file.read(tilt_series);
         {
@@ -114,7 +114,7 @@ namespace {
 
         // Backward project the reference.
         timer0.start();
-        Array reference_pad_fft = memory::empty<cfloat_t>(slice_shape.fft(), options);
+        Array reference_pad_fft = memory::empty<cfloat_t>(slice_shape.rfft(), options);
         Array reference_pad = fft::alias(reference_pad_fft, slice_shape);
         memory::resize(tilt_series.subregion(index_order[0]), reference_pad);
         fft::r2c(reference_pad, reference_pad_fft);
@@ -125,7 +125,7 @@ namespace {
         output_shifts.emplace_back(0);
 
         // Prepare reference and target arrays.
-        Array target_pad_fft = memory::empty<cfloat_t>(slice_shape.fft(), options);
+        Array target_pad_fft = memory::empty<cfloat_t>(slice_shape.rfft(), options);
         Array target_pad = fft::alias(target_pad_fft, slice_shape);
         Array xmap = memory::empty<float>(slice_shape, options);
         tilt_series.eval();
@@ -176,7 +176,7 @@ namespace {
         // Preprocess the tilt-series.
         Timer timer0;
         timer0.start();
-        Array tilt_series_fft = memory::empty<cfloat_t>(tilt_series_shape.fft(), options);
+        Array tilt_series_fft = memory::empty<cfloat_t>(tilt_series_shape.rfft(), options);
         Array tilt_series = fft::alias(tilt_series_fft, tilt_series_shape);
         file.read(tilt_series);
         {
@@ -322,8 +322,8 @@ TEST_CASE("unified::signal::fft, Find shifts with fwd projection", "[.]") {
 //
 //    // Backward project the 0deg:
 //    const size4_t volume_shape{1, 256, slice_shape[2], slice_shape[3]};
-//    Array volume_fft = memory::zeros<cfloat_t>(volume_shape.fft(), options);
-//    Array volume_weights_fft = memory::zeros<float>(volume_shape.fft(), options);
+//    Array volume_fft = memory::zeros<cfloat_t>(volume_shape.rfft(), options);
+//    Array volume_weights_fft = memory::zeros<float>(volume_shape.rfft(), options);
 //    backwardProject_(volume_fft, volume_weights_fft, slice_0deg_fft,
 //                     volume_shape, slice_shape,
 //                     rotations.get()[0]);
@@ -339,7 +339,7 @@ TEST_CASE("unified::signal::fft, Find shifts with fwd projection", "[.]") {
 //    taper_(slice_3deg_projected, 60);
 //    io::save(slice_3deg_projected, g_output_dir / "slice_3deg_projected.mrc");
 //
-//    Array slice_3deg_projected_fft_abs = memory::empty<float>(slice_shape.fft(), options);
+//    Array slice_3deg_projected_fft_abs = memory::empty<float>(slice_shape.rfft(), options);
 //    math::ewise(slice_3deg_projected_fft, slice_3deg_projected_fft_abs, log_plot_functor);
 //    io::save(slice_3deg_projected_fft_abs, g_output_dir / "slice_3deg_projected_fft_abs.mrc");
 //
@@ -368,7 +368,7 @@ TEST_CASE("unified::signal::fft, Find shifts with fwd projection", "[.]") {
 
 //    {
 //        Array image_fft = slice_0deg_fft.copy();
-//        Array image_fft_output = memory::zeros<cfloat_t>(slice_shape.fft(), options);
+//        Array image_fft_output = memory::zeros<cfloat_t>(slice_shape.rfft(), options);
 //
 //        signal::fft::shift2D<fft::H2HC>(image_fft, image_fft_output, slice_shape, -slice_center);
 //        float22_t rot = geometry::rotate(math::deg2rad(-rotation_angle));

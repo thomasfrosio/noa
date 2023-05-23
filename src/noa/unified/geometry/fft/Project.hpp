@@ -86,14 +86,14 @@ namespace noa::geometry::fft::details {
                       "The input and output should be on the same device but got input:{} and output:{}",
                       input_device, output_device);
 
-            NOA_CHECK(noa::all(input.shape() == input_shape.fft()),
+            NOA_CHECK(noa::all(input.shape() == input_shape.rfft()),
                       "The shape of the non-redundant input does not match the expected shape. "
-                      "Got {} and expected {}", input.shape(), input_shape.fft());
+                      "Got {} and expected {}", input.shape(), input_shape.rfft());
         }
 
-        NOA_CHECK(noa::all(output.shape() == output_shape.fft()),
+        NOA_CHECK(noa::all(output.shape() == output_shape.rfft()),
                   "The shape of the non-redundant output does not match the expected shape. Got {} and expected {}",
-                  output.shape(), output_shape.fft());
+                  output.shape(), output_shape.rfft());
 
         if constexpr (DIRECTION == ProjectionType::INSERT_RASTERIZE ||
                       DIRECTION == ProjectionType::INSERT_INTERPOLATE) {

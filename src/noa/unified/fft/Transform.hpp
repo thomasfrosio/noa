@@ -23,9 +23,9 @@ namespace noa::fft {
              noa::traits::are_almost_same_value_type_v<Input, noa::traits::value_type_t<Output>>>>
     void r2c(const Input& input, const Output& output, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-        NOA_CHECK(noa::all(output.shape() == input.shape().fft()),
+        NOA_CHECK(noa::all(output.shape() == input.shape().rfft()),
                   "Given the real input with a shape of {}, the non-redundant shape of the complex output "
-                  "should be {}, but got {}", input.shape(), input.shape().fft(), output.shape());
+                  "should be {}, but got {}", input.shape(), input.shape().rfft(), output.shape());
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),
@@ -64,7 +64,7 @@ namespace noa::fft {
              noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64>>>
     [[nodiscard]] auto r2c(const Input& input, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         using real_t = typename Input::value_type;
-        Array<Complex<real_t>> output(input.shape().fft(), input.options());
+        Array<Complex<real_t>> output(input.shape().rfft(), input.options());
         r2c(input, output, norm, cache_plan);
         return output;
     }
@@ -83,9 +83,9 @@ namespace noa::fft {
             noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Input>, Output>>>
     void c2r(const Input& input, const Output& output, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-        NOA_CHECK(noa::all(input.shape() == output.shape().fft()),
+        NOA_CHECK(noa::all(input.shape() == output.shape().rfft()),
                   "Given the real output with a shape of {}, the non-redundant shape of the complex input "
-                  "should be {}, but got {}", output.shape(), output.shape().fft(), input.shape());
+                  "should be {}, but got {}", output.shape(), output.shape().rfft(), input.shape());
 
         const Device device = output.device();
         NOA_CHECK(device == input.device(),

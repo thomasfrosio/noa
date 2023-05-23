@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE("unified::fft::remap()", "[noa][unified]", f16, f32, f64, c16
 
         AND_THEN("h2hc, in-place") {
             const auto shape_even = test::get_random_shape4_batched(ndim, /*even=*/ true);
-            const auto half_in = noa::math::random<TestType>(noa::math::uniform_t{}, shape_even.fft(), -5, 5, options);
+            const auto half_in = noa::math::random<TestType>(noa::math::uniform_t{}, shape_even.rfft(), -5, 5, options);
 
             const auto half_out = noa::fft::remap(fft::H2HC, half_in, shape_even);
             noa::fft::remap(fft::H2HC, half_in, half_in, shape_even);
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("unified::fft::remap()", "[noa][unified]", f16, f32, f64, c16
         }
 
         const Array input_full = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -5, 5, options);
-        const Array input_half = noa::math::random<TestType>(noa::math::uniform_t{}, shape.fft(), -5, 5, options);
+        const Array input_half = noa::math::random<TestType>(noa::math::uniform_t{}, shape.rfft(), -5, 5, options);
 
         AND_THEN("fc->f->fc") {
             const auto full = noa::fft::remap(fft::FC2F, input_full, shape);
@@ -139,7 +139,7 @@ TEMPLATE_TEST_CASE("unified::fft::remap(), cpu vs gpu", "[noa][unified]", f16, f
     INFO("remap: " << remap);
 
     const auto shape = test::get_random_shape4_batched(ndim);
-    const auto input_shape = noa::traits::to_underlying(remap) & noa::fft::SRC_HALF ? shape.fft() : shape;
+    const auto input_shape = noa::traits::to_underlying(remap) & noa::fft::SRC_HALF ? shape.rfft() : shape;
 
     const auto gpu_options = ArrayOption(Device("gpu"), Allocator::PITCHED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, input_shape, -5, 5);

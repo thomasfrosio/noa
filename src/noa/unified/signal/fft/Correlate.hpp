@@ -65,6 +65,8 @@ namespace noa::signal::fft::details {
     }
 }
 
+// TODO Add xmap_autocorrelate() to compute the xcorr and the auto-correlation of the lhs and rhs?
+
 namespace noa::signal::fft {
     using Remap = ::noa::fft::Remap;
     using Norm = ::noa::fft::Norm;
@@ -81,7 +83,7 @@ namespace noa::signal::fft {
     /// \param correlation_mode Correlation mode to use. Remember that DOUBLE_PHASE_CORRELATION doubles the shifts.
     /// \param fft_norm         Normalization mode to use for the C2R transform producing the final output.
     ///                         This should match the mode that was used to compute the input transforms.
-    /// \param[out] buffer      Buffer that can fit \p shape.fft() complex elements. It is overwritten.
+    /// \param[out] buffer      Buffer that can fit \p shape.rfft() complex elements. It is overwritten.
     ///                         Can be \p lhs or \p rhs. If empty, use \p rhs instead.
     template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<noa::traits::mutable_value_type_t<Rhs>>, typename = std::enable_if_t<
@@ -97,7 +99,7 @@ namespace noa::signal::fft {
               const Buffer& buffer = {}) {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
-        const auto expected_shape = output.shape().fft();
+        const auto expected_shape = output.shape().rfft();
         auto lhs_strides = lhs.strides();
         if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -383,7 +385,7 @@ namespace noa::signal::fft {
                   "of batches. Got {} coefficients and {} output batches", coefficients.elements(), shape[0]);
 
         constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto expected_shape = SRC_IS_HALF ? shape.fft() : shape;
+        const auto expected_shape = SRC_IS_HALF ? shape.rfft() : shape;
         auto lhs_strides = lhs.strides();
         if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
@@ -439,7 +441,7 @@ namespace noa::signal::fft {
         NOA_CHECK(!shape.is_batched(), "The input shape should not be batched");
 
         constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto expected_shape = SRC_IS_HALF ? shape.fft() : shape;
+        const auto expected_shape = SRC_IS_HALF ? shape.rfft() : shape;
         auto lhs_strides = lhs.strides();
         if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
             NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",

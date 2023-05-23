@@ -84,8 +84,8 @@ namespace noa::cuda::fft {
              Device device = Device::current(),
              bool save_to_cache = true
         ) {
-            const auto input_shape = type == Type::C2R ? shape.fft() : shape;
-            const auto output_shape = type == Type::R2C ? shape.fft() : shape;
+            const auto input_shape = type == Type::C2R ? shape.rfft() : shape;
+            const auto output_shape = type == Type::R2C ? shape.rfft() : shape;
             if (noa::indexing::are_contiguous(input_strides, input_shape) &&
                 noa::indexing::are_contiguous(output_strides, output_shape)) {
                 m_plan = details::get_plan(

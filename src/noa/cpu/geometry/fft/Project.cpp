@@ -17,7 +17,7 @@ namespace noa::cpu::geometry::fft {
 
         const auto slice_accessor = AccessorRestrict<const Value, 3, i64>(slice, slice_strides.filter(0, 2, 3));
         const auto grid_accessor = AccessorRestrict<Value, 3, i64>(grid, grid_strides.filter(1, 2, 3));
-        const auto iwise_shape = slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = slice_shape.filter(0, 2, 3).rfft();
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
@@ -45,7 +45,7 @@ namespace noa::cpu::geometry::fft {
             f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, i64 threads) {
 
         const auto grid_accessor = AccessorRestrict<Value, 3, i64>(grid, grid_strides.filter(1, 2, 3));
-        const auto iwise_shape = slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = slice_shape.filter(0, 2, 3).rfft();
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
@@ -75,9 +75,9 @@ namespace noa::cpu::geometry::fft {
 
         const auto slice_accessor = AccessorRestrict<const Value, 3, i64>(slice, slice_strides.filter(0, 2, 3));
         const auto grid_accessor = AccessorRestrict<Value, 3, i64>(grid, grid_strides.filter(1, 2, 3));
-        const auto iwise_shape = grid_shape.pop_front().fft();
+        const auto iwise_shape = grid_shape.pop_front().rfft();
         const auto slice_interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                slice_accessor, slice_shape.filter(2, 3).fft(), Value{0});
+                slice_accessor, slice_shape.filter(2, 3).rfft(), Value{0});
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = fwd_scaling_matrices != Scale{};
@@ -106,9 +106,9 @@ namespace noa::cpu::geometry::fft {
             f32 slice_z_radius, i64 threads) {
 
         const auto grid_accessor = AccessorRestrict<Value, 3, i64>(grid, grid_strides.filter(1, 2, 3));
-        const auto iwise_shape = grid_shape.pop_front().fft();
+        const auto iwise_shape = grid_shape.pop_front().rfft();
         const auto slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                slice, slice_shape.filter(2, 3).fft(), Value{0});
+                slice, slice_shape.filter(2, 3).rfft(), Value{0});
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = fwd_scaling_matrices != Scale{};
@@ -136,9 +136,9 @@ namespace noa::cpu::geometry::fft {
 
         const auto slice_accessor = AccessorRestrict<Value, 3, i64>(slice, slice_strides.filter(0, 2, 3));
         const auto grid_accessor = AccessorRestrict<const Value, 3, i64>(grid, grid_strides.filter(1, 2, 3));
-        const auto iwise_shape = slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = slice_shape.filter(0, 2, 3).rfft();
         const auto grid_interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::LINEAR>(
-                grid_accessor, grid_shape.filter(1, 2, 3).fft(), Value{0});
+                grid_accessor, grid_shape.filter(1, 2, 3).rfft(), Value{0});
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
@@ -166,11 +166,11 @@ namespace noa::cpu::geometry::fft {
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, i64 threads) {
 
-        const auto iwise_shape = output_slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = output_slice_shape.filter(0, 2, 3).rfft();
         const auto input_slice_accessor = AccessorRestrict<const Value, 3, i64>(input_slice, input_slice_strides.filter(0, 2, 3));
         const auto output_slice_accessor = AccessorRestrict<Value, 3, i64>(output_slice, output_slice_strides.filter(0, 2, 3));
         const auto input_slice_interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                input_slice_accessor, input_slice_shape.filter(2, 3).fft(), Value{0});
+                input_slice_accessor, input_slice_shape.filter(2, 3).rfft(), Value{0});
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = insert_fwd_scaling_matrices != Scale0{};
@@ -202,10 +202,10 @@ namespace noa::cpu::geometry::fft {
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, i64 threads) {
 
-        const auto iwise_shape = output_slice_shape.filter(0,2,3).fft();
+        const auto iwise_shape = output_slice_shape.filter(0,2,3).rfft();
         const auto output_slice_accessor = AccessorRestrict<Value, 3, i64>(output_slice, output_slice_strides.filter(0, 2, 3));
         const auto input_slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                input_slice, input_slice_shape.filter(2, 3).fft(), Value{0});
+                input_slice, input_slice_shape.filter(2, 3).rfft(), Value{0});
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = insert_fwd_scaling_matrices != Scale0{};

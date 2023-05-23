@@ -60,7 +60,7 @@ namespace noa::cuda::fft {
             case Remap::H2H:
             case Remap::HC2HC:
                 if (input != output)
-                    noa::cuda::memory::copy(input, input_strides, output, output_strides, shape.fft(), stream);
+                    noa::cuda::memory::copy(input, input_strides, output, output_strides, shape.rfft(), stream);
                 break;
             case Remap::F2F:
             case Remap::FC2FC:
@@ -72,7 +72,7 @@ namespace noa::cuda::fft {
                     NOA_ASSERT((shape[2] == 1 || !(shape[2] % 2)) && (shape[1] == 1 || !(shape[1] % 2)));
                     NOA_ASSERT(noa::all(input_strides == output_strides));
 
-                    const auto shape_fft = shape.pop_front().as_safe<u32>().fft();
+                    const auto shape_fft = shape.pop_front().as_safe<u32>().rfft();
                     const u32 threads = std::min(MAX_THREADS, noa::math::next_multiple_of(shape_fft[2], Constant::WARP_SIZE));
                     const dim3 blocks(std::max(shape_fft[1] / 2, 1u), shape_fft[0], shape[0]);
                     const auto output_accessor = Accessor<T, 4, uint32_t>(output, output_strides.as_safe<u32>());

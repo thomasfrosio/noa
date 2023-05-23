@@ -22,7 +22,7 @@ namespace noa::cpu::fft::details {
             (norm == noa::fft::Norm::FORWARD || norm == noa::fft::Norm::ORTHO)) {
             noa::cpu::utils::ewise_binary(
                     array, strides, 1 / scale, array, strides,
-                    HALF ? shape.fft() : shape, noa::multiply_t{}, threads);
+                    HALF ? shape.rfft() : shape, noa::multiply_t{}, threads);
         } else if (sign == noa::fft::Sign::BACKWARD &&
                    (norm == noa::fft::Norm::BACKWARD || norm == noa::fft::Norm::ORTHO)) {
             noa::cpu::utils::ewise_binary(
@@ -93,7 +93,7 @@ namespace noa::cpu::fft {
     void r2c(T* input, Complex<T>* output, const Shape4<i64>& shape, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, output, shape, flag, threads);
         execute(fast_plan);
-        details::normalize<true>(output, shape.fft().strides(), shape, noa::fft::Sign::FORWARD, norm, threads);
+        details::normalize<true>(output, shape.rfft().strides(), shape, noa::fft::Sign::FORWARD, norm, threads);
     }
 
     template<typename T>

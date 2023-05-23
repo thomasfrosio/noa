@@ -16,8 +16,8 @@ namespace {
             Matrix matrices, ShiftOrEmpty shift, f32 cutoff,
             InterpMode interp_mode, i64 threads) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_2d = shape.filter(2, 3).fft();
-        const auto iwise_shape = shape.filter(0, 2, 3).fft();
+        const auto input_shape_2d = shape.filter(2, 3).rfft();
+        const auto iwise_shape = shape.filter(0, 2, 3).rfft();
 
         switch (interp_mode) {
             case InterpMode::NEAREST: {
@@ -54,8 +54,8 @@ namespace {
             const AccessorRestrict<Value, 4, i64>& output, const Shape4<i64>& shape,
             Matrix matrices, ShiftOrEmpty shift, f32 cutoff,
             InterpMode interp_mode, i64 threads) {
-        const auto input_shape_3d = shape.pop_front().fft();
-        const auto iwise_shape = shape.fft();
+        const auto input_shape_3d = shape.pop_front().rfft();
+        const auto iwise_shape = shape.rfft();
 
         switch (interp_mode) {
             case InterpMode::NEAREST: {
@@ -113,8 +113,8 @@ namespace {
             ShiftOrEmpty shift, f32 cutoff, bool normalize,
             InterpMode interp_mode, i64 threads) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_2d = shape.filter(2, 3).fft();
-        const auto iwise_shape = shape.filter(0, 2, 3).fft();
+        const auto input_shape_2d = shape.filter(2, 3).rfft();
+        const auto iwise_shape = shape.filter(0, 2, 3).rfft();
 
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
@@ -158,8 +158,8 @@ namespace {
             ShiftOrEmpty shift, f32 cutoff, bool normalize,
             InterpMode interp_mode, i64 threads) {
         NOA_ASSERT(shape[1] == 1);
-        const auto input_shape_3d = shape.pop_front().fft();
-        const auto iwise_shape = shape.fft();
+        const auto input_shape_3d = shape.pop_front().rfft();
+        const auto iwise_shape = shape.rfft();
 
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
@@ -235,7 +235,7 @@ namespace noa::cpu::geometry::fft {
                       const Matrix& inv_matrices, const Shift& shifts,
                       f32 cutoff, InterpMode interp_mode, i64 threads) {
         NOA_ASSERT(input && output && input != output && noa::all(shape > 0));
-        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.fft()));
+        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.rfft()));
 
         const auto input_accessor = AccessorRestrict<const Value, 3, i64>(input, input_strides.filter(0, 2, 3));
         const auto output_accessor = AccessorRestrict<Value, 3, i64>(output, output_strides.filter(0, 2, 3));
@@ -250,7 +250,7 @@ namespace noa::cpu::geometry::fft {
                       const Matrix& inv_matrices, const Shift& shifts,
                       f32 cutoff, InterpMode interp_mode, i64 threads) {
         NOA_ASSERT(input && output && input != output && noa::all(shape > 0));
-        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.fft()));
+        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.rfft()));
 
         const auto input_accessor = AccessorRestrict<const Value, 4, i64>(input, input_strides);
         const auto output_accessor = AccessorRestrict<Value, 4, i64>(output, output_strides);
@@ -266,7 +266,7 @@ namespace noa::cpu::geometry::fft {
             const Float22& inv_matrix, const Symmetry& symmetry, const Vec2<f32>& shift,
             f32 cutoff, InterpMode interp_mode, bool normalize, i64 threads) {
         NOA_ASSERT(input && output && input != output && all(shape > 0));
-        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.fft()));
+        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.rfft()));
 
         if (!symmetry.count()) {
             return transform_2d<REMAP>(
@@ -288,7 +288,7 @@ namespace noa::cpu::geometry::fft {
             const Float33& inv_matrix, const Symmetry& symmetry, const Vec3<f32>& shift,
             f32 cutoff, InterpMode interp_mode, bool normalize, i64 threads) {
         NOA_ASSERT(input && output && input != output && all(shape > 0));
-        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.fft()));
+        NOA_ASSERT(!noa::indexing::are_overlapped(input, input_strides, output, output_strides, shape.rfft()));
 
         if (!symmetry.count()) {
             return transform_3d<REMAP>(

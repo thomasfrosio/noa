@@ -18,18 +18,18 @@ namespace noa::cpu::signal::fft {
 
         constexpr auto EPSILON = static_cast<Real>(1e-13);
         constexpr bool IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto shape_fft = IS_HALF ? shape.fft() : shape;
+        const auto shape_fft = IS_HALF ? shape.rfft() : shape;
 
         // TODO Identify auto-correlation case?
         switch (correlation_mode) {
             case CorrelationMode::CONVENTIONAL:
                 noa::cpu::utils::ewise_binary(
                         lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides,
-                        shape.fft(), noa::multiply_conj_t{}, threads);
+                        shape.rfft(), noa::multiply_conj_t{}, threads);
                 break;
             case CorrelationMode::PHASE:
                 noa::cpu::utils::ewise_binary(
-                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.fft(),
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.rfft(),
                         [](const Complex<Real>& l, const Complex<Real>& r) {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Real magnitude = noa::math::abs(product);
@@ -40,7 +40,7 @@ namespace noa::cpu::signal::fft {
                 break;
             case CorrelationMode::DOUBLE_PHASE:
                 noa::cpu::utils::ewise_binary(
-                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.fft(),
+                        lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides, shape.rfft(),
                         [](const Complex<Real>& l, const Complex<Real>& r) -> Complex<Real> {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Complex<Real> product_sqd = {product.real * product.real, product.imag * product.imag};

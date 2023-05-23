@@ -23,12 +23,12 @@ namespace noa::fft {
         const bool is_dst_full = u8_remap & Layout::DST_FULL;
 
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-        NOA_CHECK(noa::all(input.shape() == (is_src_full ? shape : shape.fft())),
+        NOA_CHECK(noa::all(input.shape() == (is_src_full ? shape : shape.rfft())),
                   "Given the {} remap, the input fft is expected to have a physical shape of {}, but got {}",
-                  remap, is_src_full ? shape : shape.fft(), input.shape());
-        NOA_CHECK(noa::all(output.shape() == (is_dst_full ? shape : shape.fft())),
+                  remap, is_src_full ? shape : shape.rfft(), input.shape());
+        NOA_CHECK(noa::all(output.shape() == (is_dst_full ? shape : shape.rfft())),
                   "Given the {} remap, the output fft is expected to have a physical shape of {}, but got {}",
-                  remap, is_dst_full ? shape : shape.fft(), output.shape());
+                  remap, is_dst_full ? shape : shape.rfft(), output.shape());
 
         NOA_CHECK(!noa::indexing::are_overlapped(input, output) ||
                   (remap == fft::H2HC && input.get() == output.get() &&
@@ -68,7 +68,7 @@ namespace noa::fft {
     template<typename Input, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_real_or_complex_v<Input>>>
     [[nodiscard]] auto remap(Remap remap, const Input& input, const Shape4<i64>& shape) {
-        const auto output_shape = noa::traits::to_underlying(remap) & Layout::DST_FULL ? shape : shape.fft();
+        const auto output_shape = noa::traits::to_underlying(remap) & Layout::DST_FULL ? shape : shape.rfft();
         using value_t = typename Input::value_type;
         Array<value_t> output(output_shape, input.options());
         fft::remap(remap, input, output, shape);

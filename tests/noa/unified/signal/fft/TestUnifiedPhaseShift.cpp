@@ -35,7 +35,7 @@ TEST_CASE("unified::signal::fft::phase_shift_2d()", "[assets][noa][unified]") {
             const auto expected = noa::io::load_data<c32>(path_output, false, options);
 
             if (path_input.filename().empty()) {
-                const auto output = noa::memory::empty<c32>(shape.fft(), options);
+                const auto output = noa::memory::empty<c32>(shape.rfft(), options);
                 noa::signal::fft::phase_shift_2d<fft::H2H>({}, output, shape, shift, cutoff);
                 REQUIRE(test::Matcher(test::MATCH_ABS, expected, output, 1e-4f));
 
@@ -62,7 +62,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::phase_shift_2d(), remap", "[noa][unifi
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto input = noa::math::random<TestType>(noa::math::uniform_t{}, shape.fft(), -1, 2, options);
+        const auto input = noa::math::random<TestType>(noa::math::uniform_t{}, shape.rfft(), -1, 2, options);
 
         AND_THEN("h2hc") {
             const auto output = noa::memory::like(input);
@@ -112,7 +112,7 @@ TEST_CASE("unified::signal::fft::phase_shift_3d()", "[assets][noa][unified]") {
             const auto expected = noa::io::load_data<c32>(path_output, false, options);
 
             if (path_input.filename().empty()) {
-                const auto output = noa::memory::empty<c32>(shape.fft(), options);
+                const auto output = noa::memory::empty<c32>(shape.rfft(), options);
                 noa::signal::fft::phase_shift_3d<fft::H2H>({}, output, shape, shift, cutoff);
                 REQUIRE(test::Matcher(test::MATCH_ABS, expected, output, 1e-4f));
 
@@ -139,7 +139,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::phase_shift_3d(), remap", "[noa][unifi
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto input = noa::math::random<TestType>(noa::math::uniform_t{}, shape.fft(), -1, 2, options);
+        const auto input = noa::math::random<TestType>(noa::math::uniform_t{}, shape.rfft(), -1, 2, options);
 
         AND_THEN("h2hc") {
             const auto output = noa::memory::like(input);
@@ -175,7 +175,7 @@ TEMPLATE_TEST_CASE("unified::signal::fft::phase_shift{2|3}d(), cpu vs gpu", "[no
     INFO(cutoff);
 
     const auto cpu_input = noa::math::random<TestType>(
-            noa::math::uniform_t{}, shape.fft(), -TestType{2, 2}, TestType{2, 2});
+            noa::math::uniform_t{}, shape.rfft(), -TestType{2, 2}, TestType{2, 2});
     const auto gpu_input = cpu_input.to(ArrayOption(Device("gpu"), Allocator::PITCHED));
 
     const fft::Remap remap = GENERATE(fft::H2H, fft::H2HC, fft::HC2HC, fft::HC2H);

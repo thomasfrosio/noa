@@ -414,10 +414,14 @@ namespace noa {
         }
 
         // Returns the shape of the non-redundant FFT, in elements,
-        [[nodiscard]] NOA_HD constexpr Shape fft() const noexcept {
+        [[nodiscard]] NOA_HD constexpr Shape rfft() const noexcept {
             Shape output = *this;
             output[SIZE - 1] = output[SIZE - 1] / 2 + 1;
             return output;
+        }
+        [[deprecated("use rfft() instead")]]
+        [[nodiscard]] NOA_HD constexpr Shape fft() const noexcept {
+            return rfft();
         }
 
         // Whether the shape describes vector.

@@ -24,7 +24,7 @@ namespace {
         const auto i_grid_shape = grid_shape.as_safe<i32>();
         const auto grid_strides_3d = grid_strides.filter(1, 2, 3).as_safe<u32>();
         const auto grid_accessor = AccessorRestrict<Value, 3, u32>(grid, grid_strides_3d);
-        const auto iwise_shape = i_grid_shape.pop_front().fft();
+        const auto iwise_shape = i_grid_shape.pop_front().rfft();
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = fwd_scaling_matrices != Scale{};
@@ -52,7 +52,7 @@ namespace {
             f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, cuda::Stream& stream) {
 
         const auto i_slice_shape = slice_shape.as_safe<i32>();
-        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).rfft();
         const auto slice_strides_3d = slice_strides.filter(0, 2, 3).as_safe<u32>();
         const auto slice_accessor = AccessorRestrict<Value, 3, u32>(slice, slice_strides_3d);
 
@@ -86,7 +86,7 @@ namespace {
         const auto output_slice_strides_2d = output_slice_strides.filter(0, 2, 3).as_safe<u32>();
         const auto output_slice_accessor = AccessorRestrict<Value, 3, u32>(output_slice, output_slice_strides_2d);
         const auto i_output_slice_shape = output_slice_shape.as_safe<i32>();
-        const auto iwise_shape = i_output_slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = i_output_slice_shape.filter(0, 2, 3).rfft();
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = insert_fwd_scaling_matrices != Scale0{};
@@ -127,7 +127,7 @@ namespace noa::cuda::geometry::fft {
         const auto slice_accessor = AccessorRestrict<const Value, 3, u32>(slice, slice_strides_3d);
         const auto grid_accessor = AccessorRestrict<Value, 3, u32>(grid, grid_strides_3d);
         const auto i_slice_shape = slice_shape.as_safe<i32>();
-        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).rfft();
 
         const auto apply_ews = noa::any(ews_radius != 0);
         const bool apply_scale = inv_scaling_matrices != Scale{};
@@ -157,7 +157,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
         const auto i_slice_shape = slice_shape.as_safe<i32>();
-        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).fft();
+        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).rfft();
         const auto grid_accessor = AccessorRestrict<Value, 3, uint32_t>(grid, grid_strides.pop_front().as_safe<u32>());
 
         const auto apply_ews = noa::any(ews_radius != 0);
@@ -191,7 +191,7 @@ namespace noa::cuda::geometry::fft {
         const auto slice_accessor = AccessorRestrict<const Value, 3, u32>(
                 slice, slice_strides.filter(0, 2, 3).as_safe<u32>());
         const auto slice_interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                slice_accessor, slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
+                slice_accessor, slice_shape.filter(2, 3).as_safe<i32>().rfft(), Value{0});
 
         insert_interpolate_3d_<REMAP>(
                 slice_interpolator, slice_shape, grid, grid_strides, grid_shape,
@@ -209,7 +209,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
         const auto slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                slice, slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
+                slice, slice_shape.filter(2, 3).as_safe<i32>().rfft(), Value{0});
 
         insert_interpolate_3d_<REMAP>(
                 slice_interpolator, slice_shape, grid, grid_strides, grid_shape,
@@ -274,7 +274,7 @@ namespace noa::cuda::geometry::fft {
 
         const auto grid_accessor = AccessorRestrict<const Value, 3, u32>(grid, grid_strides.pop_front().as_safe<u32>());
         const auto grid_interpolator = noa::geometry::interpolator_3d<BorderMode::ZERO, InterpMode::LINEAR>(
-                grid_accessor, grid_shape.pop_front().as_safe<i32>().fft(), Value{0});
+                grid_accessor, grid_shape.pop_front().as_safe<i32>().rfft(), Value{0});
 
         extract_3d_<REMAP>(grid_interpolator, grid_shape, slice, slice_strides, slice_shape,
                            inv_scaling_matrices, fwd_rotation_matrices, cutoff, target_shape,
@@ -324,7 +324,7 @@ namespace noa::cuda::geometry::fft {
         const auto input_slice_accessor = AccessorRestrict<const Value, 3, u32>(
                 input_slice, input_slice_strides.filter(0, 2, 3).as_safe<u32>());
         const auto input_slice_interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                input_slice_accessor, input_slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
+                input_slice_accessor, input_slice_shape.filter(2, 3).as_safe<i32>().rfft(), Value{0});
 
         insert_interpolate_and_extract_3d_<REMAP>(
                 input_slice_interpolator, input_slice_shape,
@@ -346,7 +346,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
 
         const auto input_slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
-                input_slice, input_slice_shape.filter(2, 3).as_safe<i32>().fft(), Value{0});
+                input_slice, input_slice_shape.filter(2, 3).as_safe<i32>().rfft(), Value{0});
 
         insert_interpolate_and_extract_3d_<REMAP>(
                 input_slice_interpolator, input_slice_shape,

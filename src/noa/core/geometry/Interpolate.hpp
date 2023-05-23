@@ -15,7 +15,7 @@ namespace noa::geometry::interpolate::details {
     constexpr NOA_IHD void bspline_weights(Coord ratio, Value* w0, Value* w1, Value* w2, Value* w3) {
         constexpr Coord ONE_SIXTH = static_cast<Coord>(1) / static_cast<Coord>(6);
         constexpr Coord TWO_THIRD = static_cast<Coord>(2) / static_cast<Coord>(3);
-        const Coord one_minus = 1.0f - ratio;
+        const Coord one_minus = 1 - ratio;
         const Coord one_squared = one_minus * one_minus;
         const Coord squared = ratio * ratio;
 

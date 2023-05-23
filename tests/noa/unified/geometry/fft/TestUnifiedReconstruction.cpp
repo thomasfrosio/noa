@@ -138,16 +138,16 @@ TEST_CASE("unified::geometry::fft, bwd and fwd projection", "[.]") {
             fwd_rotations[i] = fwd_rotations[i].transpose();
 
         // Backward projection of the data:
-        Array volume_fft = memory::zeros<cfloat_t>(volume_shape.fft(), options);
+        Array volume_fft = memory::zeros<cfloat_t>(volume_shape.rfft(), options);
         geometry::fft::insert3D<fft::HC2H>(slices_fft, slices_shape,
                                            volume_fft, volume_shape,
                                            float22_t{}, fwd_rotations, 0.0025f, 0.5f);
         signal::fft::shift3D<fft::H2H>(volume_fft, volume_fft, volume_shape, volume_center);
 
         // Backward projection of the weights:
-        Array<float> weights_slices_fft = memory::ones<float>(slice_shape.fft(), options);
-        weights_slices_fft = indexing::broadcast(weights_slices_fft, slices_shape.fft());
-        Array<float> weights_volume_fft = memory::zeros<float>(volume_shape.fft(), options);
+        Array<float> weights_slices_fft = memory::ones<float>(slice_shape.rfft(), options);
+        weights_slices_fft = indexing::broadcast(weights_slices_fft, slices_shape.rfft());
+        Array<float> weights_volume_fft = memory::zeros<float>(volume_shape.rfft(), options);
         geometry::fft::insert3D<fft::HC2H>(weights_slices_fft, slices_shape,
                                            weights_volume_fft, volume_shape,
                                            float22_t{}, fwd_rotations, 0.0025f, 0.5f);
@@ -169,10 +169,10 @@ namespace {
                   dim4_t slice_shape,
                   dim4_t target_shape = {},
                   ArrayOption options = {})
-                : m_grid_data_fft(memory::zeros<cfloat_t>(grid_shape.fft(), options)),
-                  m_grid_weights_fft(memory::zeros<float>(grid_shape.fft(), options)),
-                  m_weights_ones_fft(memory::ones<float>(slice_shape.fft(), options)),
-                  m_weights_extract_fft(memory::empty<float>(slice_shape.fft(), options)),
+                : m_grid_data_fft(memory::zeros<cfloat_t>(grid_shape.rfft(), options)),
+                  m_grid_weights_fft(memory::zeros<float>(grid_shape.rfft(), options)),
+                  m_weights_ones_fft(memory::ones<float>(slice_shape.rfft(), options)),
+                  m_weights_extract_fft(memory::empty<float>(slice_shape.rfft(), options)),
                   m_grid_shape(grid_shape),
                   m_slice_shape(slice_shape),
                   m_target_shape(target_shape) {}
@@ -229,10 +229,10 @@ namespace {
                         dim4_t slice_shape,
                         dim4_t target_shape = {},
                         ArrayOption options = {})
-                : m_grid_data_fft(memory::zeros<cfloat_t>(grid_shape.fft(), options)),
-                  m_grid_weights_fft(memory::zeros<float>(grid_shape.fft(), options)),
-                  m_weights_ones_fft(memory::ones<float>(slice_shape.fft(), options)),
-                  m_weights_extract_fft(memory::empty<float>(slice_shape.fft(), options)),
+                : m_grid_data_fft(memory::zeros<cfloat_t>(grid_shape.rfft(), options)),
+                  m_grid_weights_fft(memory::zeros<float>(grid_shape.rfft(), options)),
+                  m_weights_ones_fft(memory::ones<float>(slice_shape.rfft(), options)),
+                  m_weights_extract_fft(memory::empty<float>(slice_shape.rfft(), options)),
                   m_grid_shape(grid_shape),
                   m_slice_shape(slice_shape),
                   m_target_shape(target_shape),
@@ -319,7 +319,7 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
         projector.backward(slice_fft, fwd_matrix0, -slice_center);
         projector.forward(slice_fft, fwd_matrix1, slice_center);
 
-        Array slice_fft_ps = memory::empty<float>(slice_shape.fft());
+        Array slice_fft_ps = memory::empty<float>(slice_shape.rfft());
         math::ewise(slice_fft, slice_fft_ps, math::abs_one_log_t{});
         io::save(std::move(slice_fft_ps), output_dir / "test0_slice_fft_projected.mrc");
 
@@ -339,7 +339,7 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
         projector.backward(slice_padded_fft, fwd_matrix0, -slice_center_padded);
         projector.forward(slice_padded_fft, fwd_matrix1, slice_center_padded);
 
-        Array<float> slice_fft_ps(slice_shape_padded.fft());
+        Array<float> slice_fft_ps(slice_shape_padded.rfft());
         math::ewise(slice_padded_fft, slice_fft_ps, math::abs_one_log_t{});
         io::save(std::move(slice_fft_ps), output_dir / "test1_slice_fft_projected.mrc");
 
@@ -359,14 +359,14 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
         noa::fft::remap(fft::H2HC, slice_padded_fft, slice_padded_fft, slice_shape_padded);
 
         auto [output_slice_padded, output_slice_padded_fft] = fft::zeros<float>(slice_shape_padded);
-        Array slice_padded_fft_weights = memory::zeros<float>(slice_shape_padded.fft());
+        Array slice_padded_fft_weights = memory::zeros<float>(slice_shape_padded.rfft());
         noa::geometry::fft::extract3D<fft::HC2H>(
                 slice_padded_fft, slice_shape_padded,
                 output_slice_padded_fft, slice_shape_padded,
                 float22_t{}, math::inverse(fwd_matrix0),
                 float22_t{}, fwd_matrix1, 0.03f, 0.5f);
         noa::geometry::fft::extract3D<fft::HC2H>(
-                memory::ones<float>(slice_shape_padded.fft()), slice_shape_padded,
+                memory::ones<float>(slice_shape_padded.rfft()), slice_shape_padded,
                 slice_padded_fft_weights, slice_shape_padded,
                 float22_t{}, math::inverse(fwd_matrix0),
                 float22_t{}, fwd_matrix1, 0.03f, 0.5f);
@@ -376,7 +376,7 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
         math::ewise(output_slice_padded_fft, slice_padded_fft_weights, 1e-3f,
                     output_slice_padded_fft, math::divide_epsilon_t{});
 
-        Array slice_fft_ps = memory::empty<float>(slice_shape_padded.fft());
+        Array slice_fft_ps = memory::empty<float>(slice_shape_padded.rfft());
         math::ewise(output_slice_padded_fft, slice_fft_ps, math::abs_one_log_t{});
         io::save(std::move(slice_fft_ps), output_dir / "test2_slice_fft_projected.mrc");
 
@@ -404,7 +404,7 @@ TEST_CASE("unified::geometry::fft, transform with projections", "[.]") {
 //    {
 //        // Transform
 //        const float22_t matrix = geometry::rotate(math::deg2rad(45.f));
-//        Array<cfloat_t> tmp(slice_shape_padded.fft());
+//        Array<cfloat_t> tmp(slice_shape_padded.rfft());
 //        signal::fft::shift2D<fft::H2HC>(slice_padded_fft, tmp, slice_shape_padded, -center_padded, 1.f);
 //        geometry::fft::transform2D<fft::HC2H>(tmp, slice_padded_fft, slice_shape_padded, math::inverse(matrix), center_padded);
 //
@@ -447,9 +447,9 @@ TEST_CASE("unified::geometry::fft, project test5", "[.]") {
     const dim4_t grid_shape{1, slice_size_padded, slice_size_padded, slice_size_padded};
     ProjectorInterp projector(0.0015f, grid_shape, slice_shape_padded);
 
-    Array extract_slice_padded_fft = memory::zeros<cfloat_t>(slice_shape_padded.fft());
-    Array extract_weight_padded_fft = memory::zeros<float>(slice_shape_padded.fft());
-    Array extract_weights_padded_fft_ones = memory::ones<float>(slice_shape_padded.fft());
+    Array extract_slice_padded_fft = memory::zeros<cfloat_t>(slice_shape_padded.rfft());
+    Array extract_weight_padded_fft = memory::zeros<float>(slice_shape_padded.rfft());
+    Array extract_weights_padded_fft_ones = memory::ones<float>(slice_shape_padded.rfft());
 
     float reference_tilt = tilt_start;
     for (dim_t i = 0; i < slice_count; ++i) {
@@ -490,10 +490,10 @@ TEST_CASE("unified::geometry::fft, project test5", "[.]") {
     // With the grid:
     io::save(projector.m_grid_weights_fft, output_dir / "test5_grid.mrc");
 
-    Array reference_padded_fft = memory::empty<cfloat_t>(slice_shape_padded.fft());
+    Array reference_padded_fft = memory::empty<cfloat_t>(slice_shape_padded.rfft());
     projector.forward(reference_padded_fft, fwd_matrix_target, slice_center_padded);
 
-    Array tmp = memory::empty<float>(slice_shape_padded.fft());
+    Array tmp = memory::empty<float>(slice_shape_padded.rfft());
     math::ewise(reference_padded_fft, tmp, math::abs_one_log_t{});
     io::save(tmp, output_dir / "test5_grid_reference_fft.mrc");
 

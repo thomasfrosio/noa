@@ -54,7 +54,7 @@ TEST_CASE("unified::geometry::fft::transform_2d, vs scipy", "[noa][unified][asse
             const auto input = noa::io::load_data<f32>(input_filename, true, options);
             const auto expected = noa::io::load_data<f32>(expected_filename, true, options);
             const auto output = noa::memory::like(expected);
-            const auto input_fft = noa::memory::empty<c32>(input.shape().fft(), options);
+            const auto input_fft = noa::memory::empty<c32>(input.shape().rfft(), options);
             const auto input_fft_centered = noa::memory::like(input_fft);
             const auto output_fft = noa::memory::like(input_fft_centered);
 
@@ -116,7 +116,7 @@ TEST_CASE("unified::geometry::fft::transform_3d, vs scipy", "[noa][unified][asse
             const auto input = noa::io::load_data<f32>(input_filename, false, options);
             const auto expected = noa::io::load_data<f32>(expected_filename, false, options);
             const auto output = noa::memory::like(expected);
-            const auto input_fft = noa::memory::empty<c32>(input.shape().fft(), options);
+            const auto input_fft = noa::memory::empty<c32>(input.shape().rfft(), options);
             const auto input_fft_centered = noa::memory::like(input_fft);
             const auto output_fft = noa::memory::like(input_fft_centered);
 
@@ -178,7 +178,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::transform_2d(), remap", "[noa][unifi
         const auto input_fft = noa::fft::r2c(input);
 
         using complex_t = Complex<TestType>;
-        const auto output_fft = noa::memory::empty<complex_t>(shape.fft(), options);
+        const auto output_fft = noa::memory::empty<complex_t>(shape.rfft(), options);
         noa::geometry::fft::transform_2d<fft::HC2H>(input_fft, output_fft, shape, transforms, shifts, cutoff, interp);
 
         if constexpr (std::is_same_v<TestType, f64>) {
@@ -233,7 +233,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::transform_3d(), remap", "[noa][unifi
         const auto input_fft = noa::fft::r2c(input);
 
         using complex_t = Complex<TestType>;
-        const auto output_fft = noa::memory::empty<complex_t>(shape.fft(), options);
+        const auto output_fft = noa::memory::empty<complex_t>(shape.rfft(), options);
         noa::geometry::fft::transform_3d<fft::HC2H>(input_fft, output_fft, shape, transforms, shifts, cutoff, interp);
 
         if constexpr (std::is_same_v<TestType, f64>) {

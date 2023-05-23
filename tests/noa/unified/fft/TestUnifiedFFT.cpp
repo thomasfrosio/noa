@@ -38,7 +38,7 @@ TEMPLATE_TEST_CASE("unified::fft::r2c() -> c2r()", "[noa][unified]", f32, f64) {
                     noa::indexing::slice_t{0, subregion_shape[2]},
                     noa::indexing::slice_t{0, subregion_shape[3]});
 
-            Array fft = noa::memory::empty<Complex<TestType>>(shape.fft(), options);
+            Array fft = noa::memory::empty<Complex<TestType>>(shape.rfft(), options);
             fft = fft.subregion(
                     noa::indexing::ellipsis_t{},
                     noa::indexing::slice_t{0, subregion_shape[1]},

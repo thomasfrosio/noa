@@ -22,7 +22,7 @@ namespace noa::cuda::signal::fft {
 
         constexpr auto EPSILON = static_cast<Real>(1e-13);
         constexpr bool IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto shape_fft = IS_HALF ? shape.fft() : shape;
+        const auto shape_fft = IS_HALF ? shape.rfft() : shape;
 
         // TODO Identify auto-correlation case?
         switch (correlation_mode) {
@@ -30,13 +30,13 @@ namespace noa::cuda::signal::fft {
                 noa::cuda::utils::ewise_binary(
                         "xmap",
                         lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides,
-                        shape.fft(), stream, noa::multiply_conj_t{});
+                        shape.rfft(), stream, noa::multiply_conj_t{});
                 break;
             case CorrelationMode::PHASE:
                 noa::cuda::utils::ewise_binary(
                         "xmap",
                         lhs, lhs_strides, rhs, rhs_strides,
-                        tmp, tmp_strides, shape.fft(), stream,
+                        tmp, tmp_strides, shape.rfft(), stream,
                         []__device__(const Complex<Real>& l, const Complex<Real>& r) {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Real magnitude = noa::math::abs(product);
@@ -49,7 +49,7 @@ namespace noa::cuda::signal::fft {
                 noa::cuda::utils::ewise_binary(
                         "xmap",
                         lhs, lhs_strides, rhs, rhs_strides,
-                        tmp, tmp_strides, shape.fft(), stream,
+                        tmp, tmp_strides, shape.rfft(), stream,
                         []__device__(const Complex<Real>& l, const Complex<Real>& r) -> Complex<Real> {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Complex<Real> product_sqd = {product.real * product.real, product.imag * product.imag};
@@ -62,7 +62,7 @@ namespace noa::cuda::signal::fft {
                 noa::cuda::utils::ewise_binary(
                         "xmap",
                         lhs, lhs_strides, rhs, rhs_strides,
-                        tmp, tmp_strides, shape.fft(), stream,
+                        tmp, tmp_strides, shape.rfft(), stream,
                         []__device__(const Complex<Real>& l, const Complex<Real>& r) {
                             const Complex<Real> product = l * noa::math::conj(r);
                             const Real magnitude_sqrt = noa::math::sqrt(noa::math::abs(product));

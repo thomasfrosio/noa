@@ -28,7 +28,7 @@ namespace noa::signal::fft {
                           Norm norm = noa::fft::NORM_DEFAULT) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         constexpr bool IS_FULL = REMAP == Remap::F2F || REMAP == Remap::FC2FC;
-        const auto actual_shape = IS_FULL ? shape : shape.fft();
+        const auto actual_shape = IS_FULL ? shape : shape.rfft();
         NOA_CHECK(noa::all(input.shape() == actual_shape) && noa::all(output.shape() == actual_shape),
                   "The input {} and output {} {}redundant FFTs don't match the expected shape {}",
                   input.shape(), output.shape(), IS_FULL ? "" : "non-", actual_shape);
