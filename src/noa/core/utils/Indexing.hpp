@@ -2,7 +2,7 @@
 
 #include "noa/core/Definitions.hpp"
 #include "noa/core/Exception.hpp"
-#include "noa/core/types/Constants.hpp"
+#include "noa/core/geometry/Enums.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Mat.hpp"

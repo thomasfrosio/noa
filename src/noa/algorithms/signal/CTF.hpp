@@ -2,7 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/signal/fft/CTF.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 namespace noa::algorithm::signal::fft {
     using Remap = noa::fft::Remap;
@@ -25,7 +25,6 @@ namespace noa::algorithm::signal::fft {
     template<typename CTF>
     static constexpr bool is_valid_ctf_v = is_valid_ctf<CTF>::value;
 
-
     // Computes/applies a CTF onto a 1d/2d/3d dft.
     //  * the input/output can be both the full or both half fft. The centering can be different between the two.
     //  * if the input is complex and the output is real, the abs() of the ctf-multiplied input is saved.
@@ -38,7 +37,6 @@ namespace noa::algorithm::signal::fft {
     public:
         static constexpr bool SRC_IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         static constexpr bool DST_IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::DST_HALF;
-        static constexpr bool SRC_IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
         static constexpr bool DST_IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::DST_CENTERED;
         static_assert(SRC_IS_HALF == DST_IS_HALF);
 
@@ -85,14 +83,14 @@ namespace noa::algorithm::signal::fft {
         NOA_HD void operator()(index_type batch, index_type x) const noexcept {
             // Get the output normalized frequency.
             auto frequency = static_cast<coord_type>(
-                    DST_IS_HALF ? x : index2frequency<DST_IS_CENTERED>(x, m_shape[0]));
+                    DST_IS_HALF ? x : noa::fft::index2frequency<DST_IS_CENTERED>(x, m_shape[0]));
             frequency *= m_norm[0];
 
             const auto ctf = get_ctf_value_(frequency, batch);
 
             if (!m_input.is_empty()) {
                 // Get the input index corresponding to this output index.
-                const auto x_input = DST_IS_HALF ? x : remap_output2input_index_(x, m_shape[0]);
+                const auto x_input = DST_IS_HALF ? x : noa::fft::remap_index<REMAP, true>(x, m_shape[0]);
 
                 // Multiply the ctf with the input value.
                 m_output(batch, x) = get_input_value_and_apply_ctf_(ctf, batch, x_input);
@@ -105,8 +103,8 @@ namespace noa::algorithm::signal::fft {
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept {
             // Get the output normalized frequency.
             auto frequency = coord_nd_type{
-                    index2frequency<DST_IS_CENTERED>(y, m_shape[0]),
-                    DST_IS_HALF ? x : index2frequency<DST_IS_CENTERED>(x, m_shape[1])};
+                    noa::fft::index2frequency<DST_IS_CENTERED>(y, m_shape[0]),
+                    DST_IS_HALF ? x : noa::fft::index2frequency<DST_IS_CENTERED>(x, m_shape[1])};
             frequency *= m_norm;
 
             // Get the ctf value at this frequency.
@@ -118,8 +116,8 @@ namespace noa::algorithm::signal::fft {
 
             if (!m_input.is_empty()) {
                 // Get the input index corresponding to this output index.
-                const auto y_input = remap_output2input_index_(y, m_shape[0]);
-                const auto x_input = DST_IS_HALF ? x : remap_output2input_index_(x, m_shape[1]);
+                const auto y_input = noa::fft::remap_index<REMAP, true>(y, m_shape[0]);
+                const auto x_input = DST_IS_HALF ? x : noa::fft::remap_index<REMAP, true>(x, m_shape[1]);
 
                 // Multiply the ctf with the input value.
                 m_output(batch, y, x) = get_input_value_and_apply_ctf_(ctf, batch, y_input, x_input);
@@ -132,9 +130,9 @@ namespace noa::algorithm::signal::fft {
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
             // Get the output normalized frequency.
             auto frequency = coord_nd_type{
-                    index2frequency<DST_IS_CENTERED>(z, m_shape[0]),
-                    index2frequency<DST_IS_CENTERED>(y, m_shape[1]),
-                    DST_IS_HALF ? x : index2frequency<DST_IS_CENTERED>(x, m_shape[2])};
+                    noa::fft::index2frequency<DST_IS_CENTERED>(z, m_shape[0]),
+                    noa::fft::index2frequency<DST_IS_CENTERED>(y, m_shape[1]),
+                    DST_IS_HALF ? x : noa::fft::index2frequency<DST_IS_CENTERED>(x, m_shape[2])};
             frequency *= m_norm;
 
             // Get the ctf value at this frequency.
@@ -142,9 +140,9 @@ namespace noa::algorithm::signal::fft {
 
             if (!m_input.is_empty()) {
                 // Get the input index corresponding to this output index.
-                const auto z_input = remap_output2input_index_(z, m_shape[0]);
-                const auto y_input = remap_output2input_index_(y, m_shape[1]);
-                const auto x_input = DST_IS_HALF ? x : remap_output2input_index_(x, m_shape[2]);
+                const auto z_input = noa::fft::remap_index<REMAP, true>(z, m_shape[0]);
+                const auto y_input = noa::fft::remap_index<REMAP, true>(y, m_shape[1]);
+                const auto x_input = DST_IS_HALF ? x : noa::fft::remap_index<REMAP, true>(x, m_shape[2]);
 
                 // Multiply the ctf with the input value.
                 m_output(batch, z, y, x) = get_input_value_and_apply_ctf_(
@@ -168,20 +166,6 @@ namespace noa::algorithm::signal::fft {
             if (m_ctf_abs)
                 ctf = noa::math::abs(ctf);
             return ctf;
-        }
-
-        NOA_HD static constexpr index_type remap_output2input_index_(
-                index_type index,
-                index_type size
-        ) noexcept {
-            if constexpr (SRC_IS_CENTERED == DST_IS_CENTERED)
-                return index;
-            else if constexpr (SRC_IS_CENTERED && !DST_IS_CENTERED)
-                return noa::math::fft_shift(index, size);
-            else if constexpr (!SRC_IS_CENTERED && DST_IS_CENTERED)
-                return noa::math::ifft_shift(index, size);
-            else
-                static_assert(noa::traits::always_false_v<index_type>);
         }
 
         template<typename Value, typename... Indexes>
@@ -213,7 +197,6 @@ namespace noa::algorithm::signal::fft {
         const auto input_accessor = Accessor<const Input, N + 1, Offset>(input, input_strides);
         const auto output_accessor = Accessor<Output, N + 1, Offset>(output, output_strides);
         return CTFOperator<REMAP, N, Input, Output, CTF, Index, Offset, Coord>(
-                input_accessor, output_accessor, shape, ctf, ctf_square, ctf_abs
-                );
+                input_accessor, output_accessor, shape, ctf, ctf_square, ctf_abs);
     }
 }

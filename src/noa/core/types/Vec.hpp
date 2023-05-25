@@ -1230,22 +1230,6 @@ namespace noa::math {
                      Real epsilon = static_cast<Real>(1e-6)) {
         return are_almost_equal<ULP>(Vec<Real, N>(lhs), rhs, epsilon);
     }
-
-    template<typename VecInt, typename std::enable_if_t<noa::traits::is_intX_v<VecInt>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr VecInt fft_shift(VecInt indexes, VecInt sizes) {
-        VecInt shifted_indexes;
-        for (size_t i = 0; i < VecInt::SIZE; ++i)
-            shifted_indexes[i] = noa::math::fft_shift(indexes[i], sizes[i]);
-        return shifted_indexes;
-    }
-
-    template<typename VecInt, typename std::enable_if_t<noa::traits::is_intX_v<VecInt>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr VecInt ifft_shift(VecInt indexes, VecInt sizes) {
-        VecInt shifted_indexes;
-        for (size_t i = 0; i < VecInt::SIZE; ++i)
-            shifted_indexes[i] = noa::math::ifft_shift(indexes[i], sizes[i]);
-        return shifted_indexes;
-    }
 }
 
 // Sort:

@@ -1,3 +1,4 @@
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/Set.hpp"
 #include "noa/gpu/cuda/signal/fft/Standardize.hpp"
@@ -19,9 +20,9 @@ namespace {
         Vec4<i64> index_dc{0};
         if constexpr (REMAP == Remap::FC2FC) {
             index_dc = {0,
-                        noa::math::fft_shift(i64{0}, shape[1]),
-                        noa::math::fft_shift(i64{0}, shape[2]),
-                        noa::math::fft_shift(i64{0}, shape[3])};
+                        noa::fft::fftshift(i64{0}, shape[1]),
+                        noa::fft::fftshift(i64{0}, shape[2]),
+                        noa::fft::fftshift(i64{0}, shape[3])};
         }
 
         // Compute the energy of the input.
@@ -55,8 +56,8 @@ namespace {
         Vec4<i64> index_dc{};
         if constexpr (REMAP == fft::Remap::HC2HC) {
             index_dc = {0,
-                        noa::math::fft_shift(i64{0}, shape[1]),
-                        noa::math::fft_shift(i64{0}, shape[2]),
+                        noa::fft::fftshift(i64{0}, shape[1]),
+                        noa::fft::fftshift(i64{0}, shape[2]),
                         0};
         }
 

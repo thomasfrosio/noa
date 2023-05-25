@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 namespace noa::algorithm::geometry {
     using Remap = ::noa::fft::Remap;
@@ -12,6 +12,7 @@ namespace noa::algorithm::geometry {
     public:
         using Layout = ::noa::fft::Layout;
         static constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
+        static constexpr bool IS_SRC_CENTERED = u8_REMAP & Layout::SRC_CENTERED;
         static_assert(!(u8_REMAP & Layout::SRC_HALF || u8_REMAP & Layout::DST_HALF));
 
         static_assert(noa::traits::is_any_v<MatrixOrEmpty,
@@ -50,8 +51,8 @@ namespace noa::algorithm::geometry {
 
         constexpr NOA_IHD void operator()(index_type i, index_type j, index_type k, index_type l) const noexcept {
             index3_type index{j, k, l};
-            const index3_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
-            const index3_type o_idx = to_output_indexes<REMAP>(index, m_shape);
+            const index3_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
+            const index3_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
             value_type mask;
             if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
@@ -65,8 +66,8 @@ namespace noa::algorithm::geometry {
 
         constexpr NOA_IHD void operator()(index_type j, index_type k, index_type l) const noexcept {
             index3_type index{j, k, l};
-            const index3_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
-            const index3_type o_idx = to_output_indexes<REMAP>(index, m_shape);
+            const index3_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
+            const index3_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
             value_type value{0};
             if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
@@ -98,6 +99,7 @@ namespace noa::algorithm::geometry {
     public:
         using Layout = ::noa::fft::Layout;
         static constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
+        static constexpr bool IS_SRC_CENTERED = u8_REMAP & Layout::SRC_CENTERED;
         static_assert(!(u8_REMAP & Layout::SRC_HALF || u8_REMAP & Layout::DST_HALF));
 
         static_assert(noa::traits::is_any_v<MatrixOrEmpty,
@@ -136,8 +138,8 @@ namespace noa::algorithm::geometry {
 
         constexpr NOA_IHD void operator()(index_type i, index_type k, index_type l) const noexcept {
             index2_type index{k, l};
-            const index2_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
-            const index2_type o_idx = to_output_indexes<REMAP>(index, m_shape);
+            const index2_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
+            const index2_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
             value_type mask;
             if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
@@ -151,8 +153,8 @@ namespace noa::algorithm::geometry {
 
         constexpr NOA_IHD void operator()(index_type k, index_type l) const noexcept {
             index2_type index{k, l};
-            const index2_type i_idx = to_centered_indexes<REMAP>(index, m_shape);
-            const index2_type o_idx = to_output_indexes<REMAP>(index, m_shape);
+            const index2_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
+            const index2_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
             value_type value{0};
             if constexpr (std::is_pointer_v<matrix_or_empty_type>) {

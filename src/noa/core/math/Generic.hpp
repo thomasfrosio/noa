@@ -189,20 +189,6 @@ namespace noa::math {
 }
 
 namespace noa::math {
-    // Returns the fft centered index of the corresponding fft non-centered index.
-    // Should be within `0 <= index < size`.
-    template<typename Int, typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr Int fft_shift(Int index, Int size) {
-        return (index < (size + 1) / 2) ? index + size / 2 : index - (size + 1) / 2; // or (index + size / 2) % size
-    }
-
-    // Returns the fft non-centered index of the corresponding centered fft index.
-    // Should be within `0 <= index < size`.
-    template<typename Int, typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
-    [[nodiscard]] NOA_FHD constexpr Int ifft_shift(Int index, Int size) {
-        return (index < size / 2) ? index + (size + 1) / 2 : index - size / 2; // or (index + (size + 1) / 2) % size
-    }
-
     // Returns the value at a particular index within an evenly spaced range within a given interval.
     template<typename Int, typename Real,
              typename = std::enable_if_t<noa::traits::is_int_v<Real> && noa::traits::is_real_v<Real>>>

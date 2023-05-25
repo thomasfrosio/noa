@@ -17,8 +17,8 @@ namespace {
     void h2hc_inplace_(Accessor<T, 4, u32> output, Shape3<u32> shape_fft) {
         const u32 batch = blockIdx.z;
         const Vec2<u32> gid{blockIdx.y, blockIdx.x};
-        const u32 iz = noa::math::ifft_shift(gid[0], shape_fft[0]);
-        const u32 iy = noa::math::ifft_shift(gid[1], shape_fft[1]);
+        const u32 iz = noa::fft::ifftshift(gid[0], shape_fft[0]);
+        const u32 iy = noa::fft::ifftshift(gid[1], shape_fft[1]);
         const auto input_row = output[batch][iz][iy];
         const auto output_row = output[batch][gid[0]][gid[1]];
 

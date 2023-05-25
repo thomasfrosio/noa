@@ -3,7 +3,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
 #include "noa/core/utils/Atomic.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 // Implementation for backward and forward projections using Fourier insertion and extraction.
 // Can be called from the CPU (serial/OpenMP) or CUDA backend.
@@ -40,8 +40,8 @@ namespace noa::algorithm::geometry::details {
         for (SInt w = 0; w < 2; ++w) {
             for (SInt v = 0; v < 2; ++v) {
                 for (SInt u = 0; u < 2; ++u) {
-                    const SInt idx_w = frequency2index<IS_GRID_CENTERED>(base0[0] + w, grid_shape[0]);
-                    const SInt idx_v = frequency2index<IS_GRID_CENTERED>(base0[1] + v, grid_shape[1]);
+                    const SInt idx_w = noa::fft::frequency2index<IS_GRID_CENTERED>(base0[0] + w, grid_shape[0]);
+                    const SInt idx_v = noa::fft::frequency2index<IS_GRID_CENTERED>(base0[1] + v, grid_shape[1]);
                     const SInt idx_u = base0[2] + u;
 
                     if (idx_w >= 0 && idx_w < grid_shape[0] &&
@@ -61,8 +61,8 @@ namespace noa::algorithm::geometry::details {
                 value.imag = -value.imag;
             for (SInt w = 0; w < 2; ++w) {
                 for (SInt v = 0; v < 2; ++v) {
-                    const SInt idx_w = frequency2index<IS_GRID_CENTERED>(-(base0[0] + w), grid_shape[0]);
-                    const SInt idx_v = frequency2index<IS_GRID_CENTERED>(-(base0[1] + v), grid_shape[1]);
+                    const SInt idx_w = noa::fft::frequency2index<IS_GRID_CENTERED>(-(base0[0] + w), grid_shape[0]);
+                    const SInt idx_v = noa::fft::frequency2index<IS_GRID_CENTERED>(-(base0[1] + v), grid_shape[1]);
 
                     if (idx_w >= 0 && idx_w < grid_shape[0] &&
                         idx_v >= 0 && idx_v < grid_shape[1]) {
@@ -289,7 +289,7 @@ namespace noa::algorithm::geometry {
         NOA_HD void operator()(index_type batch, index_type y, index_type u) const noexcept { // x == u
             // We compute the forward transformation and use normalized frequencies.
             // The oversampling is implicitly handled when scaling back to the target shape.
-            const index_type v = index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
+            const index_type v = noa::fft::index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
             const auto freq_2d = coord2_type{v, u} / m_f_slice_shape;
             coord3_type freq_3d = details::transform_slice2grid(
                     freq_2d, m_inv_scaling_matrices, m_fwd_rotation_matrices, batch, m_ews_diam_inv);
@@ -423,8 +423,8 @@ namespace noa::algorithm::geometry {
 
         // For every voxel of the grid.
         NOA_HD void operator()(index_type z, index_type y, index_type u) const noexcept { // x == u
-            const index_type w = index2frequency<IS_GRID_CENTERED>(z, m_grid_shape[0]);
-            const index_type v = index2frequency<IS_GRID_CENTERED>(y, m_grid_shape[1]);
+            const index_type w = noa::fft::index2frequency<IS_GRID_CENTERED>(z, m_grid_shape[0]);
+            const index_type v = noa::fft::index2frequency<IS_GRID_CENTERED>(y, m_grid_shape[1]);
             const auto orig_freq = coord3_type{w, v, u} / m_f_target_shape;
             if (noa::math::dot(orig_freq, orig_freq) > m_cutoff)
                 return;
@@ -544,7 +544,7 @@ namespace noa::algorithm::geometry {
         // For every pixel of every slice to extract.
         NOA_HD void operator()(index_type batch, index_type y, index_type u) const noexcept {
             // Transform slice onto the grid.
-            const index_type v = index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
+            const index_type v = noa::fft::index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
             const auto freq_2d = coord2_type{v, u} / m_f_slice_shape;
             const coord3_type freq_3d = details::transform_slice2grid(
                     freq_2d, m_inv_scaling_matrices, m_fwd_rotation_matrices, batch, m_ews_diam_inv);
@@ -662,7 +662,7 @@ namespace noa::algorithm::geometry {
         // Should be called for every pixel of every slice to extract.
         NOA_HD void operator()(index_type output_batch, index_type y, index_type u) const noexcept {
             // First, compute the 3D frequency of the current slice i to extract.
-            const index_type v = index2frequency<IS_OUTPUT_SLICE_CENTERED>(y, m_output_slice_size_y);
+            const index_type v = noa::fft::index2frequency<IS_OUTPUT_SLICE_CENTERED>(y, m_output_slice_size_y);
             auto freq_2d = coord2_type{v, u} / m_f_output_shape;
             coord3_type freq_3d = details::transform_slice2grid(
                     freq_2d, m_extract_inv_scaling_matrices, m_extract_fwd_rotation_matrices,

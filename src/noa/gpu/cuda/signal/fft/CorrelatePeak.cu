@@ -1,5 +1,5 @@
 #include "noa/algorithms/signal/CorrelationPeak.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/Shape.hpp"
 #include "noa/core/math/LeastSquare.hpp"
 
@@ -25,7 +25,7 @@ namespace {
         const uint gid = blockIdx.x * blockDim.x + threadIdx.x;
         if (gid >= size)
             return;
-        const f32 coord = REMAP == fft::FC2FC ? gid : noa::math::fft_shift(gid, size);
+        const f32 coord = REMAP == fft::FC2FC ? gid : noa::fft::fftshift(gid, size);
         xmap(blockIdx.y, gid) *= line(coord);
     }
 
@@ -61,9 +61,9 @@ namespace {
         if (tid < elements) {
             const i32 tid_offset = tid - peak_radius;
             if constexpr (REMAP == fft::F2F) {
-                const i32 tid_frequency = noa::algorithm::index2frequency<false>(peak_index, xmap_size) + tid_offset;
+                const i32 tid_frequency = noa::fft::index2frequency<false>(peak_index, xmap_size) + tid_offset;
                 if (-xmap_size / 2 <= tid_frequency && tid_frequency <= (xmap_size - 1) / 2) {
-                    const i32 tid_index = noa::algorithm::frequency2index<false>(tid_frequency, xmap_size);
+                    const i32 tid_index = noa::fft::frequency2index<false>(tid_frequency, xmap_size);
                     value = xmap[tid_index * xmap_stride];
                 }
             } else {
@@ -119,7 +119,7 @@ namespace {
         // the peak radius is quite small, and it's just simpler (and maybe faster) to use a single thread.
         if (thread_index == 0) {
             if constexpr (REMAP == noa::fft::F2F)
-                peak_index = noa::math::fft_shift(peak_index, xmap_shape);
+                peak_index = noa::fft::fftshift(peak_index, xmap_shape);
 
             const auto [peak_value, peak_subpixel_coordinate] =
                     noa::algorithm::signal::peak_parabola_1d(buffer, peak_window_radius);
@@ -185,7 +185,7 @@ namespace {
             // convert back to an index and compute the memory offset.
             const auto frequency_min = -xmap_shape.vec() / 2;
             const auto frequency_max = (xmap_shape.vec() - 1) / 2;
-            const auto peak_frequency = noa::algorithm::index2frequency<false>(peak_index, xmap_shape);
+            const auto peak_frequency = noa::fft::index2frequency<false>(peak_index, xmap_shape);
 
             for (i32 i = thread_index; i < peak_window_elements; i += WARP_SIZE) {
                 const auto indexes = noa::indexing::offset2index(i, peak_window_shape);
@@ -194,7 +194,7 @@ namespace {
 
                 Real value{0};
                 if (noa::all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
-                    const auto current_index = noa::algorithm::frequency2index<false>(current_frequency, xmap_shape);
+                    const auto current_index = noa::fft::frequency2index<false>(current_frequency, xmap_shape);
                     value = xmap(current_index);
                     thread_peak_window_min = noa::math::min(thread_peak_window_min, value);
                 }
@@ -229,7 +229,7 @@ namespace {
         if (thread_index == 0) {
             if (output_peak_coordinate) {
                 if constexpr (REMAP == noa::fft::F2F)
-                    peak_index = noa::math::fft_shift(peak_index, xmap_shape);
+                    peak_index = noa::fft::fftshift(peak_index, xmap_shape);
                 if (tid_com_total != 0)
                     tid_com /= tid_com_total;
                 tid_com += Vec<f64, N>(peak_index);

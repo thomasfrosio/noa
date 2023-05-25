@@ -1,7 +1,8 @@
 #pragma once
 
 #include "noa/core/Definitions.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/math/Distribution.hpp"
+#include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::math::details {

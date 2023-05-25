@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 // Note: To support rectangular shapes, the kernels compute the transformation using normalized frequencies.
 //       One other solution could have been to use an affine transform encoding the appropriate scaling to effectively
@@ -92,7 +92,7 @@ namespace noa::algorithm::geometry {
         template<typename Void = void, typename = std::enable_if_t<(N == 2) && std::is_void_v<Void>>>
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept { // x == u
             // Compute the frequency corresponding to the gid and inverse transform.
-            const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
+            const index_type v = noa::fft::index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
             vec_type freq{v, x};
             freq /= m_f_shape;
             if (noa::math::dot(freq, freq) > m_cutoff_sqd) {
@@ -126,9 +126,9 @@ namespace noa::algorithm::geometry {
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
-                    value *= phase_shift<value_type>(shift, vec_type{v, x}); // u == x
+                    value *= noa::fft::phase_shift<value_type>(shift, vec_type{v, x}); // u == x
                 } else {
-                    value *= phase_shift<value_type>(m_shift, vec_type{v, x});
+                    value *= noa::fft::phase_shift<value_type>(m_shift, vec_type{v, x});
                 }
             }
             m_output(batch, y, x) = value;
@@ -136,8 +136,8 @@ namespace noa::algorithm::geometry {
 
         template<typename Void = void, typename = std::enable_if_t<(N == 3) && std::is_void_v<Void>>>
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept { // x == u
-            const index_type w = index2frequency<IS_DST_CENTERED>(z, m_shape[0]);
-            const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[1]);
+            const index_type w = noa::fft::index2frequency<IS_DST_CENTERED>(z, m_shape[0]);
+            const index_type v = noa::fft::index2frequency<IS_DST_CENTERED>(y, m_shape[1]);
             vec_type freq{w, v, x};
             freq /= m_f_shape;
             if (noa::math::dot(freq, freq) > m_cutoff_sqd) {
@@ -169,9 +169,9 @@ namespace noa::algorithm::geometry {
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
-                    value *= phase_shift<value_type>(shift, vec_type{w, v, x}); // u == x
+                    value *= noa::fft::phase_shift<value_type>(shift, vec_type{w, v, x}); // u == x
                 } else {
-                    value *= phase_shift<value_type>(m_shift, vec_type{w, v, x});
+                    value *= noa::fft::phase_shift<value_type>(m_shift, vec_type{w, v, x});
                 }
             }
             m_output(batch, z, y, x) = value;
@@ -263,7 +263,7 @@ namespace noa::algorithm::geometry {
         }
 
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept { // x == u
-            const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
+            const index_type v = noa::fft::index2frequency<IS_DST_CENTERED>(y, m_shape[0]);
             vec_type freq{v, x};
             freq /= m_f_shape;
             if (noa::math::dot(freq, freq) > m_cutoff_sqd) {
@@ -276,7 +276,7 @@ namespace noa::algorithm::geometry {
                 freq = m_matrix * freq;
                 value = interpolate_rfft_(freq, batch);
             } else {
-                const index_type iy = output2input_index_(y, m_shape[0]);
+                const index_type iy = noa::fft::remap_index<REMAP, true>(y, m_shape[0]);
                 value = m_input.at(batch, iy, x); // bypass interpolation when possible
             }
 
@@ -290,15 +290,15 @@ namespace noa::algorithm::geometry {
 
             value *= m_scaling;
             if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
-                value *= phase_shift<value_type>(m_shift, vec_type{v, x}); // u == v
+                value *= noa::fft::phase_shift<value_type>(m_shift, vec_type{v, x}); // u == v
             }
 
             m_output(batch, y, x) = value;
         }
 
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept { // x == u
-            const index_type w = index2frequency<IS_DST_CENTERED>(z, m_shape[0]);
-            const index_type v = index2frequency<IS_DST_CENTERED>(y, m_shape[1]);
+            const index_type w = noa::fft::index2frequency<IS_DST_CENTERED>(z, m_shape[0]);
+            const index_type v = noa::fft::index2frequency<IS_DST_CENTERED>(y, m_shape[1]);
             vec_type frequency{w, v, x};
             frequency /= m_f_shape;
             if (noa::math::dot(frequency, frequency) > m_cutoff_sqd) {
@@ -314,8 +314,8 @@ namespace noa::algorithm::geometry {
                 frequency = m_matrix * frequency;
                 value = interpolate_rfft_(frequency, batch);
             } else {
-                const index_type iz = output2input_index_(z, m_shape[0]);
-                const index_type iy = output2input_index_(y, m_shape[1]);
+                const index_type iz = noa::fft::remap_index<REMAP, true>(z, m_shape[0]);
+                const index_type iy = noa::fft::remap_index<REMAP, true>(y, m_shape[1]);
                 value = static_cast<value_type>(m_input.at(batch, iz, iy, x)); // bypass interpolation when possible
             }
 
@@ -326,7 +326,7 @@ namespace noa::algorithm::geometry {
 
             value *= m_scaling;
             if constexpr (traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
-                value *= phase_shift<value_type>(m_shift, vec_type{w, v, x}); // u == x
+                value *= noa::fft::phase_shift<value_type>(m_shift, vec_type{w, v, x}); // u == x
             }
 
             m_output(batch, z, y, x) = value;
@@ -352,14 +352,6 @@ namespace noa::algorithm::geometry {
             else
                 (void) conj;
             return value;
-        }
-
-        NOA_HD static constexpr index_type output2input_index_(index_type i, index_type size) noexcept {
-            if constexpr (IS_DST_CENTERED) {
-                return i; // output is centered, so do nothing
-            } else {
-                return noa::math::ifft_shift(i, size); // centered -> non-centered
-            }
         }
 
     private:

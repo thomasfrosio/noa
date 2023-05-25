@@ -16,7 +16,7 @@ namespace noa::geometry::fft::details {
                          noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22>)) ||
              (N == 3 && (noa::traits::is_any_v<Matrix, Empty, Float33> ||
                          noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float33>))) &&
-            (REMAP == F2F || REMAP == FC2FC || REMAP == F2FC || REMAP == FC2F);
+            (REMAP == F2F || REMAP == FC2FC);
 
     template<size_t N, typename Matrix>
     constexpr auto extract_matrix(const Matrix& matrix) noexcept {
@@ -120,7 +120,7 @@ namespace noa::geometry::fft {
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Output, typename Matrix, size_t N,
+    template<Remap REMAP, typename Output, size_t N, typename Matrix = Empty,
              typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
@@ -186,7 +186,7 @@ namespace noa::geometry::fft {
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
-    template<Remap REMAP, typename Output, typename Matrix, size_t N,
+    template<Remap REMAP, typename Output, size_t N, typename Matrix = Empty,
              typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&

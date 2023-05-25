@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
+#include "noa/core/math/Distribution.hpp"
 
 namespace noa::cpu::math::details {
     template<typename T, typename U>

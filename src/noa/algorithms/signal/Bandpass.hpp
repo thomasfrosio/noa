@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 namespace noa::algorithm::signal {
     enum class PassType {
@@ -74,16 +74,16 @@ namespace noa::algorithm::signal {
 
         NOA_HD constexpr void operator()(index_type ii, index_type ij, index_type ik, index_type il) const noexcept {
             // Compute the filter value for the current frequency:
-            coord3_type frequency(index2frequency<IS_SRC_CENTERED>(ij, m_dh_shape[0]),
-                                  index2frequency<IS_SRC_CENTERED>(ik, m_dh_shape[1]),
+            coord3_type frequency(noa::fft::index2frequency<IS_SRC_CENTERED>(ij, m_dh_shape[0]),
+                                  noa::fft::index2frequency<IS_SRC_CENTERED>(ik, m_dh_shape[1]),
                                   il);
             frequency *= m_norm;
             const auto frequency_sqd = noa::math::dot(frequency, frequency);
             const auto filter = static_cast<real_type>(get_pass_(frequency_sqd));
 
             // Compute the index of the current frequency in the output:
-            const auto oj = to_output_index<REMAP>(ij, m_dh_shape[0]);
-            const auto ol = to_output_index<REMAP>(ik, m_dh_shape[1]);
+            const auto oj = noa::fft::remap_index<REMAP>(ij, m_dh_shape[0]);
+            const auto ol = noa::fft::remap_index<REMAP>(ik, m_dh_shape[1]);
             m_output(ii, oj, ol, il) = m_input ? m_input(ii, ij, ik, il) * filter : filter;
         }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 namespace noa::algorithm::fft {
     // FFT remapping.
@@ -29,39 +30,39 @@ namespace noa::algorithm::fft {
 
         NOA_HD constexpr void operator()(index_type oi, index_type oj, index_type ok, index_type ol) const noexcept {
             if constexpr (REMAP == noa::fft::HC2H) {
-                const auto ij = noa::math::fft_shift(oj, m_shape[0]);
-                const auto ik = noa::math::fft_shift(ok, m_shape[1]);
+                const auto ij = noa::fft::fftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::fftshift(ok, m_shape[1]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, ol);
 
             } else if constexpr (REMAP == noa::fft::H2HC) {
-                const auto ij = noa::math::ifft_shift(oj, m_shape[0]);
-                const auto ik = noa::math::ifft_shift(ok, m_shape[1]);
+                const auto ij = noa::fft::ifftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::ifftshift(ok, m_shape[1]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, ol);
 
             } else if constexpr (REMAP == noa::fft::FC2F) {
-                const auto ij = noa::math::fft_shift(oj, m_shape[0]);
-                const auto ik = noa::math::fft_shift(ok, m_shape[1]);
-                const auto il = noa::math::fft_shift(ol, m_shape[2]);
+                const auto ij = noa::fft::fftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::fftshift(ok, m_shape[1]);
+                const auto il = noa::fft::fftshift(ol, m_shape[2]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, il);
 
             } else if constexpr (REMAP == noa::fft::F2FC) {
-                const auto ij = noa::math::ifft_shift(oj, m_shape[0]);
-                const auto ik = noa::math::ifft_shift(ok, m_shape[1]);
-                const auto il = noa::math::ifft_shift(ol, m_shape[2]);
+                const auto ij = noa::fft::ifftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::ifftshift(ok, m_shape[1]);
+                const auto il = noa::fft::ifftshift(ol, m_shape[2]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, il);
 
             } else if constexpr (REMAP == noa::fft::HC2F || REMAP == noa::fft::HC2FC) {
                 value_type value;
                 if (ol < m_shape[2] / 2 + 1) {
                     // Copy first non-redundant half.
-                    const auto ij = noa::math::fft_shift(oj, m_shape[0]);
-                    const auto ik = noa::math::fft_shift(ok, m_shape[1]);
+                    const auto ij = noa::fft::fftshift(oj, m_shape[0]);
+                    const auto ik = noa::fft::fftshift(ok, m_shape[1]);
                     value = m_input(oi, ij, ik, ol);
                 } else {
                     // Rebase to the symmetric row in the non-redundant input.
                     // Then copy in reverse order.
-                    const auto ij = noa::math::fft_shift(oj != 0 ? m_shape[0] - oj : oj, m_shape[0]);
-                    const auto ik = noa::math::fft_shift(ok != 0 ? m_shape[1] - ok : ok, m_shape[1]);
+                    const auto ij = noa::fft::fftshift(oj != 0 ? m_shape[0] - oj : oj, m_shape[0]);
+                    const auto ik = noa::fft::fftshift(ok != 0 ? m_shape[1] - ok : ok, m_shape[1]);
                     value = m_input(oi, ij, ik, m_shape[2] - ol);
                     if constexpr (noa::traits::is_complex_v<value_type>)
                         value = noa::math::conj(value);
@@ -70,25 +71,25 @@ namespace noa::algorithm::fft {
                 if constexpr (REMAP == noa::fft::HC2F) {
                     m_output(oi, oj, ok, ol) = value;
                 } else { // HC2FC: HC2F -> F2FC
-                    const auto ooj = noa::math::fft_shift(oj, m_shape[0]);
-                    const auto ook = noa::math::fft_shift(ok, m_shape[1]);
-                    const auto ool = noa::math::fft_shift(ol, m_shape[2]);
+                    const auto ooj = noa::fft::fftshift(oj, m_shape[0]);
+                    const auto ook = noa::fft::fftshift(ok, m_shape[1]);
+                    const auto ool = noa::fft::fftshift(ol, m_shape[2]);
                     m_output(oi, ooj, ook, ool) = value;
                 }
 
             } else if constexpr (REMAP == noa::fft::F2HC) {
-                const auto ij = noa::math::ifft_shift(oj, m_shape[0]);
-                const auto ik = noa::math::ifft_shift(ok, m_shape[1]);
+                const auto ij = noa::fft::ifftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::ifftshift(ok, m_shape[1]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, ol);
 
             } else if constexpr (REMAP == noa::fft::FC2H) {
-                const auto ij = noa::math::fft_shift(oj, m_shape[0]);
-                const auto ik = noa::math::fft_shift(ok, m_shape[1]);
-                const auto il = noa::math::fft_shift(ol, m_shape[2]);
+                const auto ij = noa::fft::fftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::fftshift(ok, m_shape[1]);
+                const auto il = noa::fft::fftshift(ol, m_shape[2]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, il);
 
             } else if constexpr (REMAP == noa::fft::FC2HC) {
-                const auto il = noa::math::fft_shift(ol, m_shape[2]);
+                const auto il = noa::fft::fftshift(ol, m_shape[2]);
                 m_output(oi, oj, ok, ol) = m_input(oi, oj, ok, il);
 
             } else if constexpr (REMAP == noa::fft::H2F || REMAP == noa::fft::H2FC) {
@@ -109,9 +110,9 @@ namespace noa::algorithm::fft {
                 if constexpr (REMAP == noa::fft::H2F) {
                     m_output(oi, oj, ok, ol) = value;
                 } else { // H2FC: H2F -> F2FC
-                    const auto ooj = noa::math::fft_shift(oj, m_shape[0]);
-                    const auto ook = noa::math::fft_shift(ok, m_shape[1]);
-                    const auto ool = noa::math::fft_shift(ol, m_shape[2]);
+                    const auto ooj = noa::fft::fftshift(oj, m_shape[0]);
+                    const auto ook = noa::fft::fftshift(ok, m_shape[1]);
+                    const auto ool = noa::fft::fftshift(ol, m_shape[2]);
                     m_output(oi, ooj, ook, ool) = value;
                 }
 

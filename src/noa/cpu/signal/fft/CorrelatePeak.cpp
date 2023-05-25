@@ -1,5 +1,5 @@
 #include "noa/algorithms/signal/CorrelationPeak.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/Shape.hpp"
 #include "noa/core/math/LeastSquare.hpp"
 #include "noa/cpu/geometry/fft/Shape.hpp"
@@ -25,7 +25,7 @@ namespace {
 
         for (i64 i = 0; i < shape[0]; ++i) {
             for (i64 l = 0; l < size; ++l) {
-                const auto coords = static_cast<f32>(REMAP == fft::FC2FC ? l : noa::math::fft_shift(l, size));
+                const auto coords = static_cast<f32>(REMAP == fft::FC2FC ? l : noa::fft::fftshift(l, size));
                 const auto mask = line(coords);
                 accessor(i, l) *= mask;
             }
@@ -69,18 +69,18 @@ namespace {
                 // Retrieve the frequency and if it is a valid frequency,
                 // convert back to an index and compute the memory offset.
                 const i64 dim_size = xmap_shape[dim];
-                const i64 peak_frequency = noa::algorithm::index2frequency<false>(peak_index[dim], dim_size);
+                const i64 peak_frequency = noa::fft::index2frequency<false>(peak_index[dim], dim_size);
                 for (i64 index = -peak_radius[dim]; index <= peak_radius[dim]; ++index, ++current_output) {
                     const i64 current_frequency = peak_frequency + index;
                     if (-dim_size / 2 <= current_frequency &&
                         current_frequency <= (dim_size - 1) / 2) {
-                        const i64 current_index = noa::algorithm::frequency2index<false>(current_frequency, dim_size);
+                        const i64 current_index = noa::fft::frequency2index<false>(current_frequency, dim_size);
                         *current_output = current_xmap[noa::indexing::at(current_index, xmap_strides[dim])];
                     }
                 }
             }
             // The xmap is not centered, but we want to output the centered index.
-            peak_index = noa::math::fft_shift(peak_index, xmap_shape);
+            peak_index = noa::fft::fftshift(peak_index, xmap_shape);
 
         } else {
             // Pre-offset to the peak location.
@@ -135,7 +135,7 @@ namespace {
             // convert back to an index and compute the memory offset.
             const auto frequency_min = -xmap_shape.vec() / 2;
             const auto frequency_max = (xmap_shape.vec() - 1) / 2;
-            const auto peak_frequency = noa::algorithm::index2frequency<false>(peak_index, xmap_shape);
+            const auto peak_frequency = noa::fft::index2frequency<false>(peak_index, xmap_shape);
 
             i64 count{0};
             for (i64 j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
@@ -145,7 +145,7 @@ namespace {
                         const auto current_frequency = peak_frequency + relative_offset;
 
                         if (noa::all(frequency_min <= current_frequency && current_frequency <= frequency_max)) {
-                            const auto current_index = noa::algorithm::frequency2index<false>(current_frequency, xmap_shape);
+                            const auto current_index = noa::fft::frequency2index<false>(current_frequency, xmap_shape);
                             const auto value = xmap(current_index);
                             peak_window_values[count] = value;
                             peak_window_min = std::min(value, peak_window_min);
@@ -154,7 +154,7 @@ namespace {
                 }
             }
             NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
-            peak_index = noa::math::fft_shift(peak_index, xmap_shape);
+            peak_index = noa::fft::fftshift(peak_index, xmap_shape);
 
         } else if constexpr (REMAP == fft::FC2FC) {
             i64 count{0};

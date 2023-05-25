@@ -20,7 +20,6 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Complex.hpp"
-#include "noa/core/types/Constants.hpp"
 #include "noa/core/types/Functors.hpp"
 #include "noa/core/types/Half.hpp"
 #include "noa/core/types/Mat.hpp"
@@ -33,6 +32,10 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/core/utils/Pair.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
+
+#include "noa/core/geometry/Enums.hpp"
+#include "noa/core/fft/Enums.hpp"
+#include "noa/core/signal/Enums.hpp"
 
 #include <ios>
 #include <filesystem>

@@ -16,8 +16,8 @@ namespace {
         const auto shape_3d = shape.pop_front();
 
         const auto kernel = [=](i64 i, i64 j, i64 k) {
-            const i64 base_j = noa::math::fft_shift(j, shape_3d[0]);
-            const i64 base_k = noa::math::fft_shift(k, shape_3d[1]);
+            const i64 base_j = noa::fft::fftshift(j, shape_3d[0]);
+            const i64 base_k = noa::fft::fftshift(k, shape_3d[1]);
             const auto i_in = output_accessor[i][j][k];
             const auto i_out = output_accessor[i][base_j][base_k];
             for (i64 l = 0; l < shape_3d[2] / 2 + 1; ++l)

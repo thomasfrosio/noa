@@ -1,8 +1,6 @@
 # Included files for noa/algorithms:
 
 set(NOA_ALGO_HEADERS
-        algorithms/Utilities.hpp
-
         algorithms/memory/Arange.hpp
         algorithms/memory/Subregion.hpp
         algorithms/memory/Iota.hpp

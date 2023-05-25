@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 namespace noa::algorithm::signal {
     // Phase shift each dimension by size / 2 (floating-point division).
@@ -30,13 +30,13 @@ namespace noa::algorithm::signal {
                 : m_input(input), m_output(output), m_bh_shape(shape.filter(1, 2)) {}
 
         NOA_HD constexpr void operator()(index_type ii, index_type ij, index_type ik, index_type il) const noexcept {
-            const auto freq = index3_type{index2frequency<IS_SRC_CENTERED>(ij, m_bh_shape[0]),
-                                          index2frequency<IS_SRC_CENTERED>(ik, m_bh_shape[1]),
+            const auto freq = index3_type{noa::fft::index2frequency<IS_SRC_CENTERED>(ij, m_bh_shape[0]),
+                                          noa::fft::index2frequency<IS_SRC_CENTERED>(ik, m_bh_shape[1]),
                                           il};
             const auto phase_shift = static_cast<real_type>(noa::math::product(1 - 2 * noa::math::abs(freq % 2)));
 
-            const auto oj = to_output_index<REMAP>(ij, m_bh_shape[0]);
-            const auto ok = to_output_index<REMAP>(ik, m_bh_shape[1]);
+            const auto oj = noa::fft::remap_index<REMAP>(ij, m_bh_shape[0]);
+            const auto ok = noa::fft::remap_index<REMAP>(ik, m_bh_shape[1]);
             m_output(ii, oj, ok, il) = m_input ? m_input(ii, ij, ik, il) * phase_shift : phase_shift;
         }
 
@@ -91,7 +91,7 @@ namespace noa::algorithm::signal {
 
         template<typename Void = void, typename = std::enable_if_t<NDIM == 2 && std::is_void_v<Void>>>
         NOA_HD constexpr void operator()(index_type ii, index_type ik, index_type il) const noexcept {
-            const vec_nd_type frequency{index2frequency<IS_SRC_CENTERED>(ik, m_shape[0]),
+            const vec_nd_type frequency{noa::fft::index2frequency<IS_SRC_CENTERED>(ik, m_shape[0]),
                                         il};
 
             const vec_nd_type norm_freq = frequency * m_norm;
@@ -99,14 +99,14 @@ namespace noa::algorithm::signal {
                     noa::math::dot(norm_freq, norm_freq) <= m_cutoff_sqd ?
                     phase_shift_(ii, frequency) : value_type{1, 0};
 
-            const auto ok = to_output_index<REMAP>(ik, m_shape[0]);
+            const auto ok = noa::fft::remap_index<REMAP>(ik, m_shape[0]);
             m_output(ii, ok, il) = m_input ? m_input(ii, ik, il) * phase_shift : phase_shift;
         }
 
         template<typename Void = void, typename = std::enable_if_t<NDIM == 3 && std::is_void_v<Void>>>
         NOA_HD constexpr void operator()(index_type ii, index_type ij, index_type ik, index_type il) const noexcept {
-            const auto frequency = vec_nd_type{index2frequency<IS_SRC_CENTERED>(ij, m_shape[0]),
-                                               index2frequency<IS_SRC_CENTERED>(ik, m_shape[1]),
+            const auto frequency = vec_nd_type{noa::fft::index2frequency<IS_SRC_CENTERED>(ij, m_shape[0]),
+                                               noa::fft::index2frequency<IS_SRC_CENTERED>(ik, m_shape[1]),
                                                il};
 
             const vec_nd_type norm_freq = frequency * m_norm;
@@ -116,17 +116,17 @@ namespace noa::algorithm::signal {
 
             // FIXME If even, the real nyquist should stay real, so add the conjugate pair?
 
-            const auto oj = to_output_index<REMAP>(ij, m_shape[0]);
-            const auto ok = to_output_index<REMAP>(ik, m_shape[1]);
+            const auto oj = noa::fft::remap_index<REMAP>(ij, m_shape[0]);
+            const auto ok = noa::fft::remap_index<REMAP>(ik, m_shape[1]);
             m_output(ii, oj, ok, il) = m_input ? m_input(ii, ij, ik, il) * phase_shift : phase_shift;
         }
 
     private:
         NOA_HD constexpr value_type phase_shift_(index_type batch, const vec_nd_type& frequency) const noexcept {
             if constexpr (std::is_pointer_v<shift_type>)
-                return phase_shift<value_type>(m_shift[batch] * m_preshift, frequency);
+                return noa::fft::phase_shift<value_type>(m_shift[batch] * m_preshift, frequency);
             else
-                return phase_shift<value_type>(m_shift, frequency);
+                return noa::fft::phase_shift<value_type>(m_shift, frequency);
         }
 
     private:

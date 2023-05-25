@@ -1011,16 +1011,6 @@ namespace noa {
 }
 
 namespace noa::math {
-    template<typename Int, size_t N>
-    [[nodiscard]] NOA_FHD constexpr Vec<Int, N> fft_shift(const Vec<Int, N>& indexes, const Shape<Int, N>& shape) {
-        return noa::math::fft_shift(indexes, shape.vec());
-    }
-
-    template<typename Int, size_t N>
-    [[nodiscard]] NOA_FHD constexpr Vec<Int, N> ifft_shift(const Vec<Int, N>& indexes, const Shape<Int, N>& shape) {
-        return noa::math::ifft_shift(indexes, shape.vec());
-    }
-
     template<typename ShapeOrStrides,
              std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto abs(ShapeOrStrides shape) noexcept {
