@@ -91,11 +91,11 @@ namespace noa::cpu::geometry::fft {
         const auto shell_count = noa::math::min(input_shape.filter(2, 3)) / 2 + 1;
 
         // When computing the average, the weights must be valid.
-        using unique_t = typename noa::cpu::memory::PtrHost<Weight>::alloc_unique_type;
+        using unique_t = typename noa::cpu::memory::PtrHost<Weight>::calloc_unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
         if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cpu::memory::PtrHost<Weight>::alloc(input_shape[0] * shell_count);
+            weight_buffer = noa::cpu::memory::PtrHost<Weight>::calloc(input_shape[0] * shell_count);
             weight_ptr = weight_buffer.get();
         }
 

@@ -6,6 +6,7 @@
 #include "noa/gpu/cuda/geometry/fft/Polar.hpp"
 #include "noa/gpu/cuda/geometry/Interpolator.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
+#include "noa/gpu/cuda/memory/Set.hpp"
 #include "noa/gpu/cuda/memory/PtrArray.hpp"
 #include "noa/gpu/cuda/memory/PtrDevice.hpp"
 #include "noa/gpu/cuda/memory/PtrTexture.hpp"
@@ -185,14 +186,16 @@ namespace noa::cuda::geometry::fft {
             Output* output, Weight* weight, bool average, Stream& stream) {
 
         const auto shell_count = noa::math::min(input_shape.filter(2, 3)) / 2 + 1;
+        const auto shell_batch_size = shell_count * input_shape[0];
 
         // When computing the average, the weights must be valid.
         using unique_t = typename noa::cuda::memory::PtrDevice<Weight>::unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
         if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cuda::memory::PtrDevice<Weight>::alloc(shell_count * input_shape[0], stream);
+            weight_buffer = noa::cuda::memory::PtrDevice<Weight>::alloc(shell_batch_size, stream);
             weight_ptr = weight_buffer.get();
+            noa::cuda::memory::set(weight_ptr, shell_batch_size, Weight{0}, stream);
         }
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
