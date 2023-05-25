@@ -41,6 +41,7 @@ namespace noa::algorithm::signal {
                   m_denominator_lhs(denominator_lhs),
                   m_denominator_rhs(denominator_rhs),
                   m_norm(coord_type{1} / static_cast<coord3_type>(shape.vec())),
+                  m_scale(static_cast<coord_type>(noa::math::min(shape))),
                   m_shape(shape.pop_back()),
                   m_max_shell_index(noa::math::min(shape) / 2) {}
 
@@ -58,7 +59,7 @@ namespace noa::algorithm::signal {
             if (radius_sqd > coord_type{0.25})
                 return;
 
-            const auto radius = noa::math::sqrt(radius_sqd);
+            const auto radius = noa::math::sqrt(radius_sqd) * m_scale;
             const auto fraction = noa::math::floor(radius);
 
             // Compute lerp weights.
@@ -103,6 +104,7 @@ namespace noa::algorithm::signal {
         output_accessor_type m_denominator_rhs;
 
         coord3_type m_norm;
+        coord_type m_scale;
         shape2_type m_shape;
         index_type m_max_shell_index;
     };
@@ -151,6 +153,7 @@ namespace noa::algorithm::signal {
                   m_denominator_rhs(denominator_rhs),
                   m_normalized_cone_directions(normalized_cone_directions),
                   m_norm(coord_type{1} / static_cast<coord3_type>(shape.vec())),
+                  m_scale(static_cast<coord_type>(noa::math::min(shape))),
                   m_cos_cone_aperture(noa::math::cos(cone_aperture)),
                   m_shape(shape.pop_back()),
                   m_max_shell_index(noa::math::min(shape) / 2),
@@ -170,7 +173,7 @@ namespace noa::algorithm::signal {
             if (radius_sqd > coord_type{0.25})
                 return;
 
-            const auto radius = noa::math::sqrt(radius_sqd);
+            const auto radius = noa::math::sqrt(radius_sqd) * m_scale;
             const auto fraction = noa::math::floor(radius);
 
             // Compute lerp weights.
@@ -231,6 +234,7 @@ namespace noa::algorithm::signal {
         direction_accessor_type m_normalized_cone_directions;
 
         coord3_type m_norm;
+        coord_type m_scale;
         coord_type m_cos_cone_aperture;
         shape2_type m_shape;
         index_type m_max_shell_index;

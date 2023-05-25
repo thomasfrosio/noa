@@ -105,8 +105,7 @@ namespace noa::algorithm::geometry {
         }
 
         NOA_HD void add_to_output_(index_type batch, coord_type radius_sqd, output_type value) const noexcept {
-            auto radius = noa::math::sqrt(radius_sqd);
-            radius *= m_scale;
+            const auto radius = noa::math::sqrt(radius_sqd) * m_scale;
             const auto fraction = noa::math::floor(radius);
 
             // Compute lerp weights.
