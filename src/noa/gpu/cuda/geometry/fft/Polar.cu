@@ -184,14 +184,14 @@ namespace noa::cuda::geometry::fft {
             const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
             Output* output, Weight* weight, bool average, Stream& stream) {
 
-        const auto shell_count = noa::math::min(input_shape) / 2 + 1;
+        const auto shell_count = noa::math::min(input_shape.filter(2, 3)) / 2 + 1;
 
         // When computing the average, the weights must be valid.
         using unique_t = typename noa::cuda::memory::PtrDevice<Weight>::unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
         if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cuda::memory::PtrDevice<Weight>::alloc(shell_count, stream);
+            weight_buffer = noa::cuda::memory::PtrDevice<Weight>::alloc(shell_count * input_shape[0], stream);
             weight_ptr = weight_buffer.get();
         }
 
@@ -230,7 +230,7 @@ namespace noa::cuda::geometry::fft {
 
         if (average) {
             // The weights are necessarily larger than zero, so do a simple division to take the mean.
-            const auto shell_shape = Shape4<i64>{1, 1, 1, shell_count};
+            const auto shell_shape = Shape4<i64>{input_shape[0], 1, 1, shell_count};
             const auto shell_strides = shell_shape.strides();
             noa::cuda::utils::ewise_binary(
                     "rotational_average",

@@ -5,6 +5,7 @@
 #include "noa/gpu/cuda/geometry/fft/Polar.hpp"
 #endif
 
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Texture.hpp"
 
@@ -70,6 +71,19 @@ namespace noa::geometry::fft::details {
         }
     }
 
+    inline void set_polar_window_range_to_default(
+            const Shape4<i64>& cartesian_shape,
+            Vec2<f32>& frequency_range,
+            Vec2<f32>& angle_range
+    ) {
+        if (noa::all(frequency_range == Vec2<f32>{})) {
+            const auto size = noa::math::min(cartesian_shape.filter(2, 3));
+            frequency_range = {0, noa::fft::highest_normalized_frequency(size)};
+        }
+        if (noa::all(angle_range == Vec2<f32>{}))
+            angle_range = {0.f, noa::math::Constant<f32>::PI};
+    }
+
     template<typename Input, typename Output, typename Weight>
     void rotational_average_check_parameters(
             const Input& input,
@@ -92,7 +106,7 @@ namespace noa::geometry::fft::details {
                   "The output must be a contiguous (batched) vector, but got shape={} and strides={}",
                   output.shape(), output.strides());
 
-        const i64 input_shell_count = noa::math::min(shape) / 2 + 1;
+        const i64 input_shell_count = noa::math::min(shape.filter(2, 3)) / 2 + 1;
         const i64 output_shell_count = output.shape().pop_front().elements();
         NOA_CHECK(input_shell_count == output_shell_count,
                   "The number of shells does not match the input shape. "
@@ -123,22 +137,24 @@ namespace noa::geometry::fft {
     using Remap = noa::fft::Remap;
 
     /// Transforms 2d dft(s) to polar coordinates.
-    /// \tparam REMAP           Only HC2FC is currently supported. The output is denoted as "FC" (full-centered)
-    ///                         to emphasize that it has a full shape (equals to \p polar_shape) and can map the
-    ///                         entire angular range (e.g. 0 to 2PI).
-    /// \param[in] cartesian    Centered 2d rfft to interpolate onto the new coordinate system.
-    /// \param cartesian_shape  BDHW logical shape of \p cartesian.
-    /// \param[out] polar       Transformed 2d array on the polar grid.
-    ///                         The width dimension is the radius rho, from and to \p radius_range.
-    ///                         The height dimension is the angle phi, from and to \p angle_range.
-    ///                         If real and \p cartesian is complex, `abs(cartesian)` is first computed.
-    /// \param frequency_range  Frequency [start,end] range of the bounding shells to transform, in cycle/pixels.
-    /// \param angle_range      Angle [start,end) range increasing in the counterclockwise orientation, in radians.
-    ///                         While the range naturally included in the non-redundant centered FFT is [-pi/2, pi/2],
-    ///                         this range can include the entire unit circle, e.g. [-pi, pi].
-    /// \param endpoint         Whether the \p angle_range 's end should be included in the range.
-    /// \param interp_mode      Interpolation method used to interpolate the values onto the new grid.
-    ///                         Cubic interpolations are not supported.
+    /// \tparam REMAP               Only HC2FC is currently supported. The output is denoted as "FC" (full-centered)
+    ///                             to emphasize that it has a full shape (equals to \p polar_shape) and can map the
+    ///                             entire angular range (e.g. 0 to 2PI).
+    /// \param[in] cartesian        Centered 2d rfft to interpolate onto the new coordinate system.
+    /// \param cartesian_shape      BDHW logical shape of \p cartesian.
+    /// \param[out] polar           Transformed 2d array on the polar grid.
+    ///                             The width dimension is the radius rho, from and to \p radius_range.
+    ///                             The height dimension is the angle phi, from and to \p angle_range.
+    ///                             If real and \p cartesian is complex, `abs(cartesian)` is first computed.
+    /// \param frequency_range      Frequency [start,end] range of the bounding shells to transform, in cycle/pixels.
+    ///                             Defaults to the [0, v], where v is the highest normalized frequency of min(height,width).
+    /// \param frequency_endpoint   Whether the \p frequency_range 's end should be included in the range.
+    /// \param angle_range          Angle [start,end) range increasing in the counterclockwise orientation, in radians.
+    ///                             While the range naturally included in the non-redundant centered FFT is [-pi/2, pi/2],
+    ///                             this range can include the entire unit circle, e.g. [-pi, pi]. Defaults to [0, pi).
+    /// \param angle_endpoint       Whether the \p angle_range 's end should be included in the range.
+    /// \param interp_mode          Interpolation method used to interpolate the values onto the new grid.
+    ///                             Cubic interpolations are not supported.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
              noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
              noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
@@ -146,11 +162,13 @@ namespace noa::geometry::fft {
               noa::traits::are_almost_same_value_type_v<Input, noa::traits::value_type_t<Output>>) &&
              REMAP == Remap::HC2FC>>
     void cartesian2polar(const Input& cartesian, const Shape4<i64>& cartesian_shape, const Output& polar,
-                         const Vec2<f32>& frequency_range,
-                         const Vec2<f32>& angle_range,
-                         bool endpoint = false,
+                         Vec2<f32> frequency_range = {},
+                         bool frequency_endpoint = true,
+                         Vec2<f32> angle_range = {},
+                         bool angle_endpoint = false,
                          InterpMode interp_mode = InterpMode::LINEAR) {
         details::cartesian2polar_check_parameters(cartesian, cartesian_shape, polar);
+        details::set_polar_window_range_to_default(cartesian_shape, frequency_range, angle_range);
 
         const Device device = polar.device();
         Stream& stream = Stream::current(device);
@@ -161,7 +179,7 @@ namespace noa::geometry::fft {
                 cpu::geometry::fft::cartesian2polar<REMAP>(
                         cartesian.get(), cartesian.strides(), cartesian_shape,
                         polar.get(), polar.strides(), polar.shape(),
-                        frequency_range, true, angle_range, endpoint,
+                        frequency_range, frequency_endpoint, angle_range, angle_endpoint,
                         interp_mode, threads);
             });
         } else {
@@ -170,7 +188,7 @@ namespace noa::geometry::fft {
             cuda::geometry::fft::cartesian2polar<REMAP>(
                     cartesian.get(), cartesian.strides(), cartesian_shape,
                     polar.get(), polar.strides(), polar.shape(),
-                    frequency_range, true, angle_range, endpoint,
+                    frequency_range, frequency_endpoint, angle_range, angle_endpoint,
                     interp_mode, cuda_stream);
             cuda_stream.enqueue_attach(cartesian.share(), polar.share());
             #else
@@ -188,8 +206,10 @@ namespace noa::geometry::fft {
               noa::traits::are_almost_same_value_type_v<Texture<Input>, noa::traits::value_type_t<Output>>) &&
              REMAP == Remap::HC2FC>>
     void cartesian2polar(const Texture<Input>& cartesian, const Shape4<i64>& cartesian_shape, const Output& polar,
-                         const Vec2<f32>& frequency_range, const Vec2<f32>& angle_range,
-                         bool endpoint = false) {
+                         Vec2<f32> frequency_range = {},
+                         bool frequency_endpoint = false,
+                         Vec2<f32> angle_range = {},
+                         bool angle_endpoint = false) {
         const Device device = polar.device();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -197,19 +217,23 @@ namespace noa::geometry::fft {
             const Array<Input> cartesian_array(texture.ptr, cartesian.shape(), texture.strides, cartesian.options());
             cartesian2polar<REMAP>(
                     cartesian_array, cartesian_shape, polar,
-                    frequency_range, angle_range, endpoint, cartesian.interp_mode());
+                    frequency_range, frequency_endpoint,
+                    angle_range, angle_endpoint,
+                    cartesian.interp_mode());
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (!noa::traits::is_any_v<Input, f32, c32>) {
                 NOA_THROW("In the CUDA backend, double-precision floating-points are not supported by this function");
             } else {
                 details::cartesian2polar_check_parameters(cartesian, cartesian_shape, polar);
+                details::set_polar_window_range_to_default(cartesian_shape, frequency_range, angle_range);
+
                 auto& cuda_stream = stream.cuda();
                 const cuda::Texture<Input>& texture = cartesian.cuda();
                 cuda::geometry::fft::cartesian2polar<Input>(
                         texture.array.get(), *texture.texture, cartesian.interp_mode(), cartesian_shape,
                         polar.get(), polar.strides(), polar.shape(),
-                        frequency_range, true, angle_range, endpoint, cuda_stream);
+                        frequency_range, frequency_endpoint, angle_range, angle_endpoint, cuda_stream);
                 cuda_stream.enqueue_attach(texture.array, texture.texture, polar.share());
             }
             #else
@@ -228,17 +252,18 @@ namespace noa::geometry::fft {
     /// \param average      Whether the rotational average should be computed instead of the rotational sum.
     ///
     /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename Weight, typename = std::enable_if_t<
+    template<noa::fft::Remap REMAP, typename Input, typename Output,
+             typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output, Weight> &&
              details::is_valid_rotational_average_v<REMAP, Input, Output, Weight>>>
     void rotational_average(
             const Input& input,
             const Output& output,
-            const Weight& weights,
             const Shape4<i64>& shape,
+            const Weight& weights = {},
             bool average = true
     ) {
-        rotational_average_check_parameters(input, output, weights, shape);
+        details::rotational_average_check_parameters(input, output, weights, shape);
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);

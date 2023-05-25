@@ -2,7 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Atomic.hpp"
-#include "noa/algorithms/Utilities.hpp"
+#include "noa/core/fft/Frequency.hpp"
 
 namespace noa::algorithm::geometry {
     // Rotational average implementation.
@@ -49,7 +49,8 @@ namespace noa::algorithm::geometry {
                           const weight_accessor_type& weight)
                 : m_input(input), m_output(output), m_weight(weight),
                   m_norm(coord_type{1} / static_cast<coord_nd_type>(shape.vec())),
-                  m_max_shell(noa::math::min(shape) / 2 + 1) {
+                  m_scale(static_cast<coord_type>(noa::math::min(shape))),
+                  m_max_shell_index(noa::math::min(shape) / 2) {
             if constexpr (IS_HALF)
                 m_shape = shape.pop_back();
             else
@@ -61,8 +62,8 @@ namespace noa::algorithm::geometry {
         NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept {
             // Compute the normalized frequency.
             auto frequency = coord_nd_type{
-                    index2frequency<IS_CENTERED>(y, m_shape[0]),
-                    IS_HALF ? x : index2frequency<IS_CENTERED>(x, m_shape[1])};
+                    noa::fft::index2frequency<IS_CENTERED>(y, m_shape[0]),
+                    IS_HALF ? x : noa::fft::index2frequency<IS_CENTERED>(x, m_shape[1])};
             frequency *= m_norm;
 
             // Shortcut for everything past Nyquist.
@@ -79,9 +80,9 @@ namespace noa::algorithm::geometry {
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
             // Compute the normalized frequency.
             auto frequency = coord_nd_type{
-                    index2frequency<IS_CENTERED>(z, m_shape[0]),
-                    index2frequency<IS_CENTERED>(y, m_shape[1]),
-                    IS_HALF ? x : index2frequency<IS_CENTERED>(x, m_shape[2])};
+                    noa::fft::index2frequency<IS_CENTERED>(z, m_shape[0]),
+                    noa::fft::index2frequency<IS_CENTERED>(y, m_shape[1]),
+                    IS_HALF ? x : noa::fft::index2frequency<IS_CENTERED>(x, m_shape[2])};
             frequency *= m_norm;
 
             // Shortcut for everything past Nyquist.
@@ -104,12 +105,13 @@ namespace noa::algorithm::geometry {
         }
 
         NOA_HD void add_to_output_(index_type batch, coord_type radius_sqd, output_type value) const noexcept {
-            const auto radius = noa::math::sqrt(radius_sqd);
+            auto radius = noa::math::sqrt(radius_sqd);
+            radius *= m_scale;
             const auto fraction = noa::math::floor(radius);
 
             // Compute lerp weights.
             const auto shell_low = static_cast<index_type>(noa::math::floor(radius));
-            const auto shell_high = noa::math::min(m_max_shell, shell_low + 1); // clamp for oob
+            const auto shell_high = noa::math::min(m_max_shell_index, shell_low + 1); // clamp for oob
             const auto fraction_high = static_cast<real_type>(radius - fraction);
             const auto fraction_low = 1 - fraction_high;
 
@@ -128,8 +130,9 @@ namespace noa::algorithm::geometry {
         weight_accessor_type m_weight;
 
         coord_nd_type m_norm;
+        coord_type m_scale;
         shape_type m_shape; // width is removed
-        index_type m_max_shell;
+        index_type m_max_shell_index;
     };
 
     template<noa::fft::Remap REMAP, typename Coord = f32,

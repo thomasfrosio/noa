@@ -32,12 +32,14 @@ namespace noa::algorithm::geometry {
                 const Shape4<index_type>& cartesian_shape,
                 const accessor_type& polar,
                 const Shape4<index_type>& polar_shape,
-                const coord2_type& frequency_range,
+                coord2_type frequency_range,
                 bool frequency_range_endpoint,
                 const coord2_type& angle_range,
                 bool angle_range_endpoint) noexcept
-                : m_cartesian(cartesian), m_polar(polar),
-                  m_start_angle(angle_range[0]) {
+                : m_cartesian(cartesian),
+                  m_polar(polar),
+                  m_start_angle(angle_range[0]),
+                  m_start_frequency(frequency_range[0]) {
 
             NOA_ASSERT(polar_shape[2] > 1 && polar_shape[3] > 1);
             NOA_ASSERT(polar_shape[1] == 1 && cartesian_shape[1] == 1);
@@ -45,29 +47,19 @@ namespace noa::algorithm::geometry {
 
             using namespace noa::algorithm::memory;
             m_step_angle = linspace_step(polar_shape[2], angle_range[0], angle_range[1], angle_range_endpoint);
+            m_step_frequency = linspace_step(polar_shape[3], frequency_range[0], frequency_range[1], frequency_range_endpoint);
 
-            const auto half_shape = coord2_type((cartesian_shape.filter(2, 3) / 2).vec());
-            m_center = half_shape[0]; // center in x is 0
-
-            // Scale the frequency range to the dimensions size.
-            const auto radius_range_along_y = 2 * frequency_range * half_shape[0];
-            const auto radius_range_along_x = 2 * frequency_range * half_shape[1];
-            m_start_radius = {radius_range_along_y[0], radius_range_along_x[0]};
-            m_step_radius[0] = linspace_step(
-                    polar_shape[3], radius_range_along_y[0], radius_range_along_y[1], frequency_range_endpoint);
-            m_step_radius[1] = linspace_step(
-                    polar_shape[3], radius_range_along_x[0], radius_range_along_x[1], frequency_range_endpoint);
+            // Scale the frequency range to the polar dimension [0,width).
+            m_scale = coord2_type(cartesian_shape.filter(2, 3).vec());
+            m_height_dc_center = static_cast<coord_type>(cartesian_shape[2] / 2);
         }
 
         NOA_IHD void operator()(index_type batch, index_type y, index_type x) const noexcept {
             const coord2_type polar_coordinate{y, x};
             const coord_type phi = polar_coordinate[0] * m_step_angle + m_start_angle;
-            coord2_type rho{
-                    polar_coordinate[1] * m_step_radius[0] + m_start_radius[0],
-                    polar_coordinate[1] * m_step_radius[1] + m_start_radius[1]
-            };
+            const coord_type rho = polar_coordinate[1] * m_step_frequency + m_start_frequency;
 
-            coord2_type cartesian_coordinates = rho * noa::math::sincos(phi);
+            coord2_type cartesian_coordinates = (rho * noa::math::sincos(phi)) * m_scale;
             real_type conj = 1;
             if (cartesian_coordinates[1] < 0) {
                 cartesian_coordinates = -cartesian_coordinates;
@@ -76,7 +68,7 @@ namespace noa::algorithm::geometry {
             } else {
                 (void) conj;
             }
-            cartesian_coordinates[0] += m_center;
+            cartesian_coordinates[0] += m_height_dc_center;
 
             input_type value = m_cartesian(cartesian_coordinates, batch);
             if constexpr (noa::traits::are_complex_v<input_type, output_type>)
@@ -91,11 +83,13 @@ namespace noa::algorithm::geometry {
     private:
         interpolator_type m_cartesian;
         accessor_type m_polar;
-        coord_type m_center;
+
+        coord2_type m_scale;
+        coord_type m_height_dc_center;
         coord_type m_step_angle;
         coord_type m_start_angle;
-        coord2_type m_start_radius;
-        coord2_type m_step_radius;
+        coord_type m_step_frequency;
+        coord_type m_start_frequency;
     };
 
     template<typename Index, typename Coord, typename Offset, typename Interpolator, typename OutputValue>

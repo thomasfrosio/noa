@@ -33,7 +33,7 @@ namespace noa::geometry::details {
         }
     }
 
-    void set_polar_window_range_to_default(
+    inline void set_polar_window_range_to_default(
             const Shape4<i64>& cartesian_shape,
             const Vec2<f32>& cartesian_center,
             Vec2<f32>& radius_range,
@@ -55,9 +55,10 @@ namespace noa::geometry {
     /// \param cartesian_center     HW transformation center.
     /// \param radius_range         Radius [start,end] range of the bounding circle to transform, in pixels.
     ///                             Defaults to the largest in-bound circle.
+    /// \param radius_endpoint      Whether the \p radius_range 's end should be included in the range.
     /// \param angle_range          Angle [start,end) range increasing in the counterclockwise orientation, in radians.
     ///                             Defaults to the entire circle, i.e. [0, 2pi).
-    /// \param endpoint             Whether the \p angle_range 's end should be included in the range.
+    /// \param angle_endpoint       Whether the \p angle_range 's end should be included in the range.
     /// \param interpolation_mode   Interpolation method used to interpolate the values onto the new grid.
     ///                             Out-of-bounds elements are set to zero.
     template<typename Input, typename Output, typename = std::enable_if_t<
@@ -158,9 +159,10 @@ namespace noa::geometry {
     /// \param cartesian_center     HW transformation center.
     /// \param radius_range         Radius [start,end] range of the bounding circle, in pixels.
     ///                             The default assumes the largest in-bound circle.
+    /// \param radius_endpoint      Whether the \p radius_range 's end should be included in the range.
     /// \param angle_range          Angle [start,end) range increasing in the counterclockwise orientation, in radians.
     ///                             Defaults to the entire circle, i.e. [0, 2pi).
-    /// \param endpoint             Whether the \p angle_range 's end should be included in the range.
+    /// \param angle_endpoint       Whether the \p angle_range 's end should be included in the range.
     /// \param interpolation_mode   Interpolation method used to interpolate the values onto the new grid.
     ///                             Out-of-bounds elements are set to zero.
     template<typename Input, typename Output, typename = std::enable_if_t<
