@@ -33,7 +33,7 @@ TEST_CASE("unified::geometry::rotational_average, assets", "[noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::rotational_average", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
     std::vector<Device> devices{Device("cpu")};
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");

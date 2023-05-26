@@ -7,7 +7,7 @@
 namespace noa::signal {
     /// Calculate the relativistic electron wavelength in meters given an acceleration potential in volts.
     /// \see https://en.wikipedia.org/wiki/Electron_diffraction#Relativistic_theory
-    [[nodiscard]] NOA_HD f64 relativistic_electron_wavelength(f64 energy) noexcept {
+    [[nodiscard]] NOA_IHD f64 relativistic_electron_wavelength(f64 energy) noexcept {
         constexpr auto h = noa::math::Constant<f64>::PLANCK;
         constexpr auto c = noa::math::Constant<f64>::SPEED_OF_LIGHT;
         constexpr auto m0 = noa::math::Constant<f64>::ELECTRON_MASS;
@@ -30,7 +30,6 @@ namespace noa::signal::fft {
     public:
         static_assert(std::is_floating_point_v<Real>);
         using value_type = Real;
-        using constants_type = Vec4<value_type>; // k1, k2, k3, k4
 
     public: // constructors
         constexpr CTFIsotropic() = default;
@@ -52,7 +51,7 @@ namespace noa::signal::fft {
                 value_type phase_shift,
                 value_type bfactor) noexcept
                 : m_pixel_size(pixel_size),
-                  m_defocus_angstroms(defocus * static_cast<Real>(1e4)), // micrometers -> angstroms
+                  m_defocus_angstroms(-defocus * static_cast<Real>(1e4)), // micrometers -> angstroms
                   m_phase_shift(phase_shift),
                   m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
                   m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
@@ -68,7 +67,7 @@ namespace noa::signal::fft {
         [[nodiscard]] NOA_HD constexpr value_type amplitude() const noexcept { return m_amplitude; }
         [[nodiscard]] NOA_HD constexpr value_type bfactor() const noexcept { return m_bfactor; }
         [[nodiscard]] NOA_HD constexpr value_type defocus() const noexcept {
-            return m_defocus_angstroms * static_cast<Real>(1e-4); // angstrom -> micrometers
+            return -m_defocus_angstroms * static_cast<Real>(1e-4); // angstrom -> micrometers
         }
         [[nodiscard]] NOA_HD constexpr value_type cs() const noexcept {
             return m_cs_angstroms * static_cast<Real>(1e-7); // angstrom -> millimeters
@@ -83,7 +82,7 @@ namespace noa::signal::fft {
         NOA_HD constexpr void set_bfactor(value_type bfactor) noexcept { m_bfactor = bfactor; }
 
         NOA_HD constexpr void set_defocus(value_type defocus) noexcept {
-            m_defocus_angstroms = defocus * static_cast<Real>(1e4);
+            m_defocus_angstroms = -defocus * static_cast<Real>(1e4);
         }
         NOA_HD constexpr void set_cs(value_type cs) noexcept {
             m_cs_angstroms = cs * * static_cast<Real>(1e7);
@@ -122,7 +121,7 @@ namespace noa::signal::fft {
     private:
         NOA_HD void set_lambda_and_cs_() noexcept {
             const auto voltage = static_cast<f64>(m_voltage_volts);
-            const auto lambda = relativistic_electron_wavelength(voltage) * 10e10; // angstroms
+            const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
             constexpr f64 PI = noa::math::Constant<f64>::PI;
             m_k1 = PI * lambda;
             m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;
@@ -199,7 +198,7 @@ namespace noa::signal::fft {
         [[nodiscard]] NOA_HD constexpr value_type amplitude() const noexcept { return m_amplitude; }
         [[nodiscard]] NOA_HD constexpr value_type bfactor() const noexcept { return m_bfactor; }
         [[nodiscard]] NOA_HD constexpr defocus_type defocus() const noexcept {
-            return {m_defocus_angstroms.value * static_cast<Real>(1e-4), // angstroms -> micrometers
+            return {-m_defocus_angstroms.value * static_cast<Real>(1e-4), // angstroms -> micrometers
                     m_defocus_angstroms.astigmatism * static_cast<Real>(1e-4), // angstroms -> micrometers
                     m_defocus_angstroms.angle};
         }
@@ -216,7 +215,7 @@ namespace noa::signal::fft {
         NOA_HD constexpr void set_bfactor(value_type bfactor) noexcept { m_bfactor = bfactor; }
 
         NOA_HD constexpr void set_defocus(defocus_type defocus) noexcept {
-            m_defocus_angstroms.value = defocus.value * static_cast<Real>(1e4); // micrometers -> angstroms
+            m_defocus_angstroms.value = -defocus.value * static_cast<Real>(1e4); // micrometers -> angstroms
             m_defocus_angstroms.astigmatism = defocus.astigmatism * static_cast<Real>(1e4); // micrometers -> angstroms
             m_defocus_angstroms = defocus.angle;
         }
@@ -272,7 +271,7 @@ namespace noa::signal::fft {
 
         NOA_HD void set_lambda_and_cs_() noexcept {
             const auto voltage = static_cast<f64>(m_voltage_volts);
-            const auto lambda = relativistic_electron_wavelength(voltage) * 10e10; // angstroms
+            const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
             constexpr f64 PI = noa::math::Constant<f64>::PI;
             m_k1 = PI * lambda;
             m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;

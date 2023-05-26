@@ -243,7 +243,8 @@ namespace noa::geometry::fft {
     }
 
     /// Computes the rotational sum/average of a 2d or 3d dft.
-    /// \tparam REMAP       Should be either H2H, HC2H, F2H or FC2H.
+    /// \tparam REMAP       Should be either H2H, HC2H, F2H or FC2H. The output layout is "H" to emphasize that
+    ///                     the output shape is the half dimension size.
     /// \param[in] input    Input dft to reduce. Can be real or complex.
     /// \param[out] output  Rotational sum/average. Should be a (batched) contiguous vector of size min(shape) // 2 + 1.
     ///                     If real and \p input is complex, `abs(input)` is computed first.

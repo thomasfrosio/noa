@@ -27,3 +27,41 @@ TEST_CASE("unified::math::lstsq - scipy example()", "[noa][unified]") {
     REQUIRE_THAT(x(0, 0, 0, 0), Catch::WithinAbs(0.20925829, 1e-7));
     REQUIRE_THAT(x(0, 0, 1, 0), Catch::WithinAbs(0.12013861, 1e-7));
 }
+
+TEST_CASE("unified::math::lstsq 2") {
+    using namespace noa;
+
+    // Exclude the first view, assuming it's the global reference.
+    const auto rows = 40;
+
+    // Find x in Ax=b. Shapes: A(M.N) * x(N.1) = b(M.1)
+    const Array<f64> A({1, 1, rows, 4});
+    const Array<f64> b({1, 1, rows, 1});
+    const auto A_ = A.accessor_contiguous<f64, 2>();
+    const auto b_ = b.accessor_contiguous_1d();
+
+    // d + cx + bx^2 + ax^3 = 0
+    f64 tilt = 0;
+    for (i64 row = 0; row < rows; ++row) { // skip 0
+        const f64 rotation = 120;
+        A_(row, 0) = 1;
+        A_(row, 1) = tilt;
+        A_(row, 2) = tilt * tilt;
+        A_(row, 3) = tilt * tilt * tilt;
+        b_(row) = rotation;
+
+        tilt += 3;
+    }
+
+    // Least-square solution using SVD.
+    std::array<f64, 4> svd{};
+    std::array<f64, 4> x{};
+    noa::math::lstsq(
+            A.view(),
+            b.view(),
+            View<f64>(x.data(), {1, 1, 4, 1}),
+            0.,
+            View<f64>(svd.data(), 4)
+    );
+    b.eval();
+}

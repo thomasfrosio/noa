@@ -16,6 +16,7 @@ set(TEST_UNIFIED_SOURCES
 #        noa/unified/signal/fft/TestUnifiedMellin.cpp
 
         noa/unified/signal/fft/TestUnifiedCorrelate.cpp
+        noa/unified/signal/fft/TestUnifiedCTF.cpp
         noa/unified/signal/fft/TestUnifiedBandpass.cpp
         noa/unified/signal/fft/TestUnifiedPhaseShift.cpp
         noa/unified/signal/fft/TestUnifiedStandardize.cpp

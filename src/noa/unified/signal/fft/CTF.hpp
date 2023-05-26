@@ -33,11 +33,11 @@ namespace noa::signal::fft::details {
             ctf_parser_t<CTF>::IS_VALID &&
             (REMAP == Remap::H2H || REMAP == Remap::HC2H || REMAP == Remap::H2HC || REMAP == Remap::HC2HC ||
              REMAP == Remap::F2F || REMAP == Remap::FC2F || REMAP == Remap::F2FC || REMAP == Remap::FC2FC) &&
-            (noa::traits::are_same_value_type_v<Input, Output> &&
-             ((noa::traits::are_all_same_v<Input, Output> &&
-               noa::traits::are_real_or_complex_v<Input, Output>) ||
-              (noa::traits::is_complex_v<Input> &&
-               noa::traits::is_real_v<Output>)));
+            (noa::traits::are_same_value_type_v<noa::traits::value_type_t<Input>, noa::traits::value_type_t<Output>> &&
+             ((noa::traits::are_same_value_type_v<Input, Output> &&
+               noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output>) ||
+              (noa::traits::is_array_or_view_of_complex_v<Input> &&
+               noa::traits::is_array_or_view_of_real_v<Output>)));
 
     template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTF>
     void ctf_check_parameters(
@@ -47,7 +47,12 @@ namespace noa::signal::fft::details {
             const CTF& ctf) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
-        constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::DST_HALF;
+        constexpr auto u8_REMAP = static_cast<u8>(REMAP);
+        constexpr bool IS_HALF = u8_REMAP & noa::fft::Layout::DST_HALF;
+        constexpr bool IS_REMAPPED =
+                (u8_REMAP & noa::fft::Layout::SRC_CENTERED) !=
+                (u8_REMAP & noa::fft::Layout::DST_CENTERED);
+
         const auto expected_shape = IS_HALF ? shape.rfft() : shape;
         NOA_CHECK(noa::all(output.shape() == expected_shape),
                   "The output shape doesn't match the expected shape, got output={} and expected={}",
@@ -57,6 +62,8 @@ namespace noa::signal::fft::details {
             NOA_CHECK(input.device() == output.device(),
                       "The input and output arrays must be on the same device, but got input={} and output={}",
                       input.device(), output.device());
+            NOA_CHECK(!IS_REMAPPED || !noa::indexing::are_overlapped(input, output),
+                      "This function cannot execute an in-place multiplication and a remapping");
         }
 
         if constexpr (noa::traits::is_array_or_view_v<CTF>) {
@@ -84,8 +91,24 @@ namespace noa::signal::fft::details {
 }
 
 namespace noa::signal::fft {
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTF, typename = std::enable_if_t<
-             details::is_valid_ctf_v<REMAP, Input, Output, CTF> && details::ctf_parser_t<CTF>::IS_ISOTROPIC>>
+    ///
+    /// \tparam REMAP       Remapping operation. Should be H2H, HC2H, HC2H, HC2HC, F2F, FC2F, F2FC or FC2FC.
+    /// \param[in] input    1d, 2d, or 3d array to multiply with the ctf.
+    ///                     If empty, the ctf is directly written to \p output.
+    ///                     If complex and \p output is real, \c output=abs(input)*ctf is computed.
+    /// \param[out] output  1d, 2d, or 3d ctf or ctf-multiplied array.
+    ///                     If no remapping is done, it can be equal to \p input.
+    /// \param shape        Logical BDHW shape.
+    /// \param ctf          Isotropic ctf. An contiguous vector of ctfs can be passed. In this case, there should be
+    ///                     one ctf per output batch. If a single value is passed, it is applied to every batch.
+    /// \param ctf_square   Whether the square of the ctf should be computed.
+    /// \param ctf_abs      Whether the absolute of the ctf should be computed.
+    template<noa::fft::Remap REMAP,
+             typename Output, typename CTF,
+             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename = std::enable_if_t<
+                     details::is_valid_ctf_v<REMAP, Input, Output, CTF> &&
+                     details::ctf_parser_t<CTF>::IS_ISOTROPIC>>
     void ctf_isotropic(
             const Input& input,
             const Output& output,
@@ -94,7 +117,7 @@ namespace noa::signal::fft {
             bool ctf_square = false,
             bool ctf_abs = false
     ) {
-        details::ctf_check_parameters(input, output, shape, ctf);
+        details::ctf_check_parameters<REMAP>(input, output, shape, ctf);
 
         auto input_strides = input.strides();
         if (!input.is_empty() && !noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
@@ -139,7 +162,7 @@ namespace noa::signal::fft {
             bool ctf_square = false,
             bool ctf_abs = false
     ) {
-        details::ctf_check_parameters(input, output, shape, ctf);
+        details::ctf_check_parameters<REMAP>(input, output, shape, ctf);
 
         auto input_strides = input.strides();
         if (!input.is_empty() && !noa::indexing::broadcast(input.shape(), input_strides, output.shape())) {
