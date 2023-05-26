@@ -78,6 +78,7 @@ set(NOA_CORE_HEADERS
         core/io/TIFFFile.hpp
 
         core/fft/Frequency.hpp
+        core/fft/Enums.hpp
 
         )
 
