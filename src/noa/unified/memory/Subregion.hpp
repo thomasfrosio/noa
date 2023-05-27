@@ -9,13 +9,13 @@
 #include "noa/unified/Indexing.hpp"
 
 namespace noa::memory {
-    /// Extracts one or multiple ND (1 <= N <= 3) subregions at various locations in the input array.
+    /// Extracts one or multiple {1|2|3}d subregions at various locations in the input array.
     /// \param[in] input        Input array to extract from.
     /// \param[out] subregions  Output subregion(s).
-    /// \param[in] origins      BDHW (vector of) indexes, defining the origin where to extract subregions from \p input.
-    ///                         While usually within the input frame, subregions can be (partially) out-of-bound.
-    ///                         The batch dimension of \p subregion sets the number of subregions to extract
-    ///                         and therefore the number of origins to enter.
+    /// \param[in] origins      Contiguous vector with the BDHW indexes of the subregions to extract. There should be
+    ///                         one Vec4 per \p subregion batch. These indexes define the origin where to extract
+    ///                         subregions from \p input. While usually within the input frame, subregions can
+    ///                         be (partially) out-of-bound.
     /// \param border_mode      Border mode used for out-of-bound conditions.
     ///                         Can be BorderMode::{NOTHING|ZERO|VALUE|CLAMP|MIRROR|REFLECT}.
     /// \param border_value     Constant value to use for out-of-bound conditions.
@@ -28,8 +28,13 @@ namespace noa::memory {
              noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value> &&
              noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
-    void extract_subregions(const Input& input, const Subregion& subregions, const Origin& origins,
-                            BorderMode border_mode = BorderMode::ZERO, Value border_value = Value{0}) {
+    void extract_subregions(
+            const Input& input,
+            const Subregion& subregions,
+            const Origin& origins,
+            BorderMode border_mode = BorderMode::ZERO,
+            Value border_value = Value{0}
+    ) {
         NOA_CHECK(!input.is_empty() && !subregions.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, subregions),
                   "The input and subregion(s) arrays should not overlap");
@@ -66,22 +71,24 @@ namespace noa::memory {
         }
     }
 
-    /// Inserts into the output array one or multiple ND (1 <= N <= 3) subregions at various locations.
+    /// Inserts into the output array one or multiple {1|2|3}d subregions at various locations.
     /// \tparam T               Any data type.
     /// \param[in] subregions   Subregion(s) to insert into \p output.
     /// \param[out] output      Output array.
-    /// \param[in] origins      BDHW (vector of) indexes, defining the origin where to insert subregions into \p output.
-    ///                         While usually within the output frame, subregions can be (partially) out-of-bound.
-    ///                         The batch dimension of \p subregion sets the number of subregions to insert
-    ///                         and therefore the number of origins to enter. Note that this function assumes no
-    ///                         overlap between subregions since there's no guarantee on the order of insertion.
-    /// \note \p subregions and \p output should not overlap.
+    /// \param[in] origins      Contiguous vector with the BDHW indexes of the subregions to insert into \p output.
+    ///                         There should be one Vec4 per \p subregion batch. While usually within the output frame,
+    ///                         subregions can be (partially) out-of-bound. This function assumes no overlap between
+    ///                         subregions and an overlap may trigger a data race.
     template<typename Subregion, typename Output, typename Origin, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_restricted_numeric_v<Output, Subregion> &&
              noa::traits::is_array_or_view_v<Origin> &&
              noa::traits::are_almost_same_value_type_v<Output, Subregion> &&
              noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
-    void insert_subregions(const Subregion& subregions, const Output& output, const Origin& origins) {
+    void insert_subregions(
+            const Subregion& subregions,
+            const Output& output,
+            const Origin& origins
+    ) {
         NOA_CHECK(!output.is_empty() && !subregions.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(output, subregions),
                   "The subregion(s) and output arrays should not overlap");

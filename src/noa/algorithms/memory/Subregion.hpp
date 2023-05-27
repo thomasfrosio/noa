@@ -108,7 +108,7 @@ namespace noa::algorithm::memory {
     // Subregions can be (partially) out of the output bounds.
     // The only catch here is that overlapped subregions are not allowed (data-race).
     // It is not clear what we want in these cases (add?), so for now, just rule it out.
-    template<typename Index,  typename Offset, typename Value, typename SubregionIndex>
+    template<typename Index, typename Offset, typename Value, typename SubregionIndex>
     class InsertSubregion {
     public:
         using value_type = Value;
