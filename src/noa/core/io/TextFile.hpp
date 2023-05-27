@@ -234,4 +234,10 @@ namespace noa::io {
         TextFile<std::ifstream> text_file(path, noa::io::READ);
         return text_file.read_all();
     }
+
+    /// Saves the entire text file.
+    inline void save_text(std::string_view string, const Path& path) {
+        TextFile<std::ofstream> text_file(path, noa::io::WRITE);
+        text_file.write(string);
+    }
 }
