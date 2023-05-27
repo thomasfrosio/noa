@@ -75,9 +75,12 @@ namespace noa::cuda::math {
                const Strides4<i64>& strides,
                const Shape4<i64>& shape,
                i64 ddof, Stream& stream) {
+        Input* null{};
         Output output;
         utils::reduce_variance<false>(
-                "math::var", input, strides, shape, &output, Strides1<i64>{1},
+                "math::var", input, strides, shape,
+                null, Strides1<i64>{1},
+                &output, Strides1<i64>{1},
                 ddof, true, true, stream);
         stream.synchronize();
         return output;
@@ -89,40 +92,15 @@ namespace noa::cuda::math {
                   const Shape4<i64>& shape,
                   i64 ddof, Stream& stream
     ) -> std::pair<Input, Output> {
-        // Get the sum and mean:
-        Input output_sum;
-        utils::reduce_unary(
-                "math::mean_var",
-                input, strides, shape, &output_sum, Strides1<i64>{1}, Input{0},
-                {}, noa::plus_t{}, {}, true, true, stream);
-
+        Input mean;
+        Output var;
+        utils::reduce_variance<false>(
+                "math::var", input, strides, shape,
+                &mean, Strides1<i64>{1},
+                &var, Strides1<i64>{1},
+                ddof, true, true, stream);
         stream.synchronize();
-        const auto elements = shape.elements();
-        Input output_mean = output_sum / static_cast<Output>(elements);
-
-        // Get the variance and stddev:
-        const auto count = static_cast<Output>(elements - ddof);
-        Input mean = output_sum / count;
-        auto preprocess_op = [mean]__device__(Input value) -> Output {
-                if constexpr (noa::traits::is_complex_v<Input>) {
-                    const Output distance = noa::math::abs(value - mean);
-                    return distance * distance;
-                } else {
-                    const Output distance = value - mean;
-                    return distance * distance;
-                }
-                return Output{0}; // unreachable
-        };
-        Output output_dist2;
-        utils::reduce_unary(
-                "math::mean_var",
-                input, strides, shape,
-                 &output_dist2, Strides1<i64>{1}, Output{0},
-                preprocess_op, noa::plus_t{}, {}, true, true, stream);
-        stream.synchronize();
-        Output output_var = output_dist2 / count;
-
-        return std::pair{output_mean, output_var};
+        return std::pair{mean, var};
     }
 
     template<typename Input, typename Output, typename>
@@ -130,9 +108,12 @@ namespace noa::cuda::math {
                const Strides4<i64>& strides,
                const Shape4<i64>& shape,
                i64 ddof, Stream& stream) {
+        Input* null{};
         Output output;
         utils::reduce_variance<true>(
-                "math::std", input, strides, shape, &output, Strides1<i64>{1},
+                "math::std", input, strides, shape,
+                null, Strides1<i64>{1},
+                &output, Strides1<i64>{1},
                 ddof, true, true, stream);
         stream.synchronize();
         return output;

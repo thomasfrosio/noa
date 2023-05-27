@@ -18,7 +18,9 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE)
     void reduce_variance_width_(
             AccessorRestrict<const Input, 4, u32> input, Shape2<u32> shape_hw,
-            AccessorRestrict<Output, 3, u32> output, Output inv_count) {
+            AccessorRestrict<Input, 3, u32> output_mean,
+            AccessorRestrict<Output, 3, u32> output,
+            Output inv_count, Output inv_count_ddof) {
         const u32 tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
         const Vec4<u32> gid{blockIdx.z,
                             blockIdx.y,
@@ -34,10 +36,10 @@ namespace {
             reduced += input_row[tidx]; // TODO Save input values to shared memory?
 
         // Each row in shared memory is reduced to one value.
-        Input* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
+        auto* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
         s_data[tid] = reduced;
         utils::block_synchronize();
-        Input mean = utils::block_reduce_shared<BLOCK_DIM_X>(
+        Input sum = utils::block_reduce_shared<BLOCK_DIM_X>(
                 s_data + BLOCK_DIM_X * threadIdx.y, gid[3], noa::plus_t{});
 
         // Share the mean of the row to all threads within that row.
@@ -45,9 +47,9 @@ namespace {
         // to the shared buffer.
         utils::block_synchronize();
         if (gid[3] == 0)
-            s_data[threadIdx.y] = mean * inv_count;
+            s_data[threadIdx.y] = sum * inv_count_ddof;
         utils::block_synchronize();
-        mean = s_data[threadIdx.y]; // bank-conflict...
+        const Input mean = s_data[threadIdx.y]; // bank-conflict...
 
         // Now get the variance:
         Output reduced_dist2{0};
@@ -71,10 +73,12 @@ namespace {
                 s_data_real + BLOCK_DIM_X * threadIdx.y, gid[3], noa::plus_t{});
 
         if (gid[3] == 0 && is_valid_row) {
-            var *= inv_count;
+            var *= inv_count_ddof;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
             output(gid[0], gid[1], gid[2]) = var;
+            if (!output_mean.is_empty())
+                output_mean(gid[0], gid[1], gid[2]) = sum * inv_count;
         }
     }
 
@@ -87,7 +91,9 @@ namespace {
     __global__ __launch_bounds__(BLOCK_SIZE)
     void reduce_variance_height_(
             const Input* __restrict__ input, Strides4<u32> input_strides, Shape2<u32> shape,
-            Output* __restrict__ output, Strides4<u32> output_strides, Output inv_count) {
+            Input* __restrict__ output_mean, Strides4<u32> output_mean_strides,
+            Output* __restrict__ output, Strides4<u32> output_strides,
+            Output inv_count, Output inv_count_ddof) {
         const u32 tid = threadIdx.y * blockDim.x + threadIdx.x;
         const Vec4<u32> gid{blockIdx.z,
                             blockIdx.y,
@@ -102,7 +108,7 @@ namespace {
         for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) // compute entire height
             reduced_sum += input[tidy * input_strides[2]]; // TODO Save input values to shared memory?
 
-        Input* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
+        auto* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
         Input* s_data_tid = s_data + tid;
         *s_data_tid = reduced_sum;
         utils::block_synchronize();
@@ -113,8 +119,8 @@ namespace {
                 *s_data_tid += s_data_tid[BLOCK_SIZE_2D.x * (SIZE / 2)];
             utils::block_synchronize();
         }
-        Input mean = s_data[threadIdx.x]; // bank-conflict
-        mean *= inv_count;
+        const Input sum = s_data[threadIdx.x]; // bank-conflict
+        const Input mean = sum * inv_count_ddof;
 
         // Get the variance:
         Output reduced_dist2{0};
@@ -145,20 +151,25 @@ namespace {
 
         if (gid[2] == 0 && is_valid_column) {
             Output var = s_data_real[threadIdx.x];
-            var *= inv_count;
+            var *= inv_count_ddof;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
             output[indexing::at(gid[0], gid[1], 0, gid[3], output_strides)] = var;
+            if (output_mean)
+                output_mean[indexing::at(gid[0], gid[1], 0, gid[3], output_mean_strides)] = sum * inv_count;
         }
     }
 
     template<bool STDDEV, typename Input, typename Output>
     void reduce_variance_axis_(const char* name,
                                const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                               Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+                               Input* output_mean, const Strides4<i64>& output_mean_strides,
+                               Output* output, const Strides4<i64>& output_strides,
+                               const Shape4<i64>& output_shape,
                                const Vec4<bool>& mask, int32_t ddof, Stream& stream) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
+        NOA_ASSERT_DEVICE_OR_NULL_PTR(output_mean, stream.device());
         NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
 
         if (noa::math::sum(mask.as<i32>()) > 1) {
@@ -170,10 +181,12 @@ namespace {
 
         const auto u_input_strides = input_strides.as_safe<u32>();
         const auto u_input_shape = input_shape.as_safe<u32>();
+        const auto u_output_mean_strides = output_mean_strides.as_safe<u32>();
         const auto u_output_strides = output_strides.as_safe<u32>();
 
         if (mask[3]) {
-            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[3] - ddof);
+            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[3]);
+            const Output inv_count_ddof = Output{1} / static_cast<Output>(u_input_shape[3] - ddof);
             const u32 block_dim_x = u_input_shape[3] > 512 ? 256 : 64;
             const dim3 threads(block_dim_x, BLOCK_SIZE / block_dim_x);
             const u32 blocks_y = noa::math::divide_up(u_input_shape[2], threads.y);
@@ -181,43 +194,53 @@ namespace {
             const LaunchConfig config{blocks, threads, BLOCK_SIZE * sizeof(Input)};
 
             const AccessorRestrict<const Input, 4, u32> input_accessor(input, u_input_strides);
+            const AccessorRestrict<Input, 3, u32> output_mean_accessor(output_mean, u_output_mean_strides.pop_back());
             const AccessorRestrict<Output, 3, u32> output_accessor(output, u_output_strides.pop_back());
             if (threads.x == 256) {
                 stream.enqueue(name, reduce_variance_width_<Input, Output, STDDEV, 256>, config,
                                input_accessor, u_input_shape.pop_front<2>(),
-                               output_accessor, inv_count);
+                               output_mean_accessor, output_accessor, inv_count, inv_count_ddof);
             } else {
                 stream.enqueue(name, reduce_variance_width_<Input, Output, STDDEV, 64>, config,
                                input_accessor, u_input_shape.pop_front<2>(),
-                               output_accessor, inv_count);
+                               output_mean_accessor, output_accessor, inv_count, inv_count_ddof);
             }
 
         } else if (mask[2]) {
-            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[2] - ddof);
+            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[2]);
+            const Output inv_count_ddof = Output{1} / static_cast<Output>(u_input_shape[2] - ddof);
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[1], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
             stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides, u_input_shape.filter(2, 3),
-                           output, u_output_strides, inv_count);
+                           output_mean, u_output_mean_strides,
+                           output, u_output_strides,
+                           inv_count, inv_count_ddof);
 
         } else if (mask[1]) {
-            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[1] - ddof);
+            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[1]);
+            const Output inv_count_ddof = Output{1} / static_cast<Output>(u_input_shape[1] - ddof);
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
             stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides.filter(0, 2, 1, 3), u_input_shape.filter(1, 3),
-                           output, u_output_strides.filter(0, 2, 1, 3), inv_count);
+                           output_mean, u_output_mean_strides.filter(0, 2, 1, 3),
+                           output, u_output_strides.filter(0, 2, 1, 3),
+                           inv_count, inv_count_ddof);
 
         } else if (mask[0]) {
-            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[0] - ddof);
+            const Output inv_count = Output{1} / static_cast<Output>(u_input_shape[0]);
+            const Output inv_count_ddof = Output{1} / static_cast<Output>(u_input_shape[0] - ddof);
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[1]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
             stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides.filter(1, 2, 0, 3), u_input_shape.filter(0, 3),
-                           output, u_output_strides.filter(1, 2, 0, 3), inv_count);
+                           output_mean, u_output_mean_strides.filter(1, 2, 0, 3),
+                           output, u_output_strides.filter(1, 2, 0, 3),
+                           inv_count, inv_count_ddof);
         }
     }
 
@@ -248,16 +271,19 @@ namespace noa::cuda::math {
                 memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+            Input* null{};
             utils::reduce_variance<false>(
                     name, input, input_strides, input_shape,
+                    null, output_strides.filter(0),
                     output, output_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
         } else {
+            Input* null{};
             reduce_variance_axis_<false>(
                     name,
                     input, input_strides, input_shape,
-                    output, output_strides, output_shape,
-                    mask, ddof, stream);
+                    null, {}, output, output_strides,
+                    output_shape, mask, ddof, stream);
         }
     }
 
@@ -276,16 +302,53 @@ namespace noa::cuda::math {
                 memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+            Input* null{};
             utils::reduce_variance<true>(
                     name, input, input_strides, input_shape,
+                    null, output_strides.filter(0),
                     output, output_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
         } else {
+            Input* null{};
             reduce_variance_axis_<true>(
                     name,
                     input, input_strides, input_shape,
-                    output, output_strides, output_shape,
-                    mask, ddof, stream);
+                    null, {}, output, output_strides,
+                    output_shape, mask, ddof, stream);
+        }
+    }
+
+    template<typename Input, typename Output, typename>
+    void mean_var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                  Input* mean, const Strides4<i64>& mean_strides,
+                  Output* variance, const Strides4<i64>& variance_strides,
+                  const Shape4<i64>& output_shape, i64 ddof, Stream& stream) {
+        const char* name = "math::mean_var";
+        const auto mask = get_mask_(name, input_shape, output_shape);
+        const auto is_or_should_reduce(output_shape == 1 || mask);
+
+        if (!noa::any(mask)) {
+            if constexpr (noa::traits::is_complex_v<Input>) {
+                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                ewise_unary(input, input_strides, variance, variance_strides, output_shape, noa::abs_t{}, stream);
+            } else {
+                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                memory::copy(input, input_strides, variance, variance_strides, output_shape, stream);
+            }
+
+        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+            utils::reduce_variance<false>(
+                    name, input, input_strides, input_shape,
+                    mean, mean_strides.filter(0),
+                    variance, variance_strides.filter(0),
+                    ddof, is_or_should_reduce[0], true, stream);
+        } else {
+            reduce_variance_axis_<false>(
+                    name,
+                    input, input_strides, input_shape,
+                    mean, mean_strides,
+                    variance, variance_strides,
+                    output_shape, mask, ddof, stream);
         }
     }
 
@@ -297,7 +360,11 @@ namespace noa::cuda::math {
     template void std<T,U,void>(                            \
         const T*, const Strides4<i64>&, const Shape4<i64>&, \
         U*, const Strides4<i64>&, const Shape4<i64>&,       \
-        i64, Stream&)
+        i64, Stream&);                                      \
+    template void mean_var<T,U,void>(                       \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        T*, const Strides4<i64>&, U*, const Strides4<i64>&, \
+        const Shape4<i64>&, i64, Stream&)
 
     NOA_INSTANTIATE_VAR_(f32, f32);
     NOA_INSTANTIATE_VAR_(f64, f64);

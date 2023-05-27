@@ -703,7 +703,8 @@ namespace noa::cuda::utils {
             const char* name,
             const Input* input, const Strides4<Index>& input_strides,
             const Shape4<Index>& shape,
-            Output* output, Strides1<Index> output_stride,
+            Input* output_mean, Strides1<Index> output_mean_stride,
+            Output* output_variance, Strides1<Index> output_variance_stride,
             i64 ddof, bool reduce_batch, bool swap_layout, Stream& stream) {
 
         const Index batches = reduce_batch ? 1 : shape[0];
@@ -711,6 +712,7 @@ namespace noa::cuda::utils {
         const Index elements = shape_to_reduce.elements();
 
         // Get the sum:
+        // FIXME We could refactor and use output_mean as buffer.
         const auto sums = noa::cuda::memory::PtrManaged<Input>::alloc(batches, stream);
         reduce_unary(name, input, input_strides, shape,
                      sums.get(), Strides1<Index>{1}, Input{0},
@@ -719,27 +721,33 @@ namespace noa::cuda::utils {
         stream.synchronize();
 
         // Get the variance:
-        const auto inv_count = Output{1} / (static_cast<Output>(elements) - static_cast<Output>(ddof));
-        auto post_process_op = [inv_count]__device__(Output dist2) -> Output {
+        const auto inv_count = Output{1} / (static_cast<Output>(elements));
+        const auto inv_count_ddof = Output{1} / (static_cast<Output>(elements) - static_cast<Output>(ddof));
+        auto post_process_op = [inv_count_ddof]__device__(Output dist2) -> Output {
             if constexpr (STD)
-                return noa::math::sqrt(dist2 * inv_count);
-            return dist2 * inv_count;
+                return noa::math::sqrt(dist2 * inv_count_ddof);
+            return dist2 * inv_count_ddof;
         };
 
         for (i64 batch = 0; batch < batches; ++batch) {
-            Input mean = sums[batch] * inv_count;
-            auto pre_process_op = [mean]__device__(Input value) -> Output {
+            const Input sum = sums[batch];
+            const Input mean_ddof = sum * inv_count_ddof;
+            auto pre_process_op = [mean_ddof]__device__(Input value) -> Output {
                 if constexpr (noa::traits::is_complex_v<Input>) {
-                    const auto distance = noa::math::abs(value - mean);
+                    const auto distance = noa::math::abs(value - mean_ddof);
                     return distance * distance;
                 } else {
-                    const auto distance = value - mean;
+                    const auto distance = value - mean_ddof;
                     return distance * distance;
                 }
                 return {}; // unreachable
             };
+            if (output_mean) {
+                const Input mean = sum * inv_count;
+                noa::cuda::memory::copy(&mean, output_mean + output_mean_stride[0] * batch, 1, stream);
+            }
             reduce_unary(name, input + input_strides[0] * batch, input_strides, shape_to_reduce,
-                         output + output_stride[0] * batch, Strides1<Index>{1}, Output{0},
+                         output_variance + output_variance_stride[0] * batch, Strides1<Index>{1}, Output{0},
                          pre_process_op, noa::plus_t{}, post_process_op,
                          true, swap_layout, stream);
         }

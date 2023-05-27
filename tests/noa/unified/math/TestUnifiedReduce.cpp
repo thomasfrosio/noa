@@ -100,6 +100,11 @@ TEST_CASE("unified::math:: reductions complex vs numpy", "[assets][noa][unified]
         REQUIRE_THAT(complex_mean.imag, Catch::WithinRel(expected_mean.imag));
         REQUIRE_THAT(var, Catch::WithinRel(expected_var));
         REQUIRE_THAT(std, Catch::WithinRel(expected_std));
+
+        const auto [mean_var0, mean_var1] = math::mean_var(data, 1);
+        REQUIRE_THAT(mean_var0.real, Catch::WithinRel(expected_mean.real));
+        REQUIRE_THAT(mean_var0.imag, Catch::WithinRel(expected_mean.imag));
+        REQUIRE_THAT(mean_var1, Catch::WithinRel(expected_var));
     }
 }
 
@@ -181,7 +186,7 @@ TEMPLATE_TEST_CASE("unified::math:: sum/mean preprocess", "[noa][unified]", i64,
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        auto stream = StreamGuard(device, StreamMode::DEFAULT);
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
@@ -395,17 +400,22 @@ TEST_CASE("unified::math:: axis reductions vs numpy", "[assets][noa][unified]") 
             math::sum(data, output);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 1e-5));
 
-            expected = noa::io::load_data<f32>(output_path_mean);
-            math::mean(data, output);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 1e-5));
-
-            expected = noa::io::load_data<f32>(output_path_var);
-            math::var(data, output);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 1e-5));
-
             expected = noa::io::load_data<f32>(output_path_std);
             math::std(data, output);
-            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected.release(), output, 1e-5));
+
+            const auto expected_mean = noa::io::load_data<f32>(output_path_mean);
+            math::mean(data, output);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected_mean, output, 1e-5));
+
+            const auto expected_variance = noa::io::load_data<f32>(output_path_var);
+            math::var(data, output);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected_variance, output, 1e-5));
+
+            const Array<f32> mean(output_shape, options);
+            math::mean_var(data, mean, output);
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected_mean, mean, 1e-5));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected_variance, output, 1e-5));
         }
     }
 }
@@ -477,13 +487,24 @@ TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified
                 math::var(cpu_data, cpu_var, ddof);
                 math::std(cpu_data, cpu_std, ddof);
 
-                const Array<real_t> gpu_results({2, 1, 1, output_shape.elements()}, gpu_data.options());
+                const Array<real_t> gpu_results({3, 1, 1, output_shape.elements()}, gpu_data.options());
                 const auto gpu_var = gpu_results.view().subregion(0).reshape(output_shape);
                 const auto gpu_std = gpu_results.view().subregion(1).reshape(output_shape);
                 math::var(gpu_data, gpu_var, ddof);
                 math::std(gpu_data, gpu_std, ddof);
 
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, cpu_results, gpu_results, eps));
+
+                const Array<TestType> cpu_mean(output_shape);
+                const Array<real_t> cpu_variance(output_shape);
+                math::mean_var(cpu_data, cpu_mean, cpu_variance);
+
+                const Array<TestType> gpu_mean(output_shape, gpu_data.options());
+                const Array<real_t> gpu_variance(output_shape, gpu_data.options());
+                math::mean_var(gpu_data, gpu_mean, gpu_variance);
+
+                REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, cpu_mean, gpu_mean, eps));
+                REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, cpu_variance, gpu_variance, eps));
             }
         }
 
@@ -500,5 +521,39 @@ TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified
         math::mean(gpu_data, gpu_mean);
 
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, cpu_results, gpu_results, eps));
+    }
+}
+
+TEMPLATE_TEST_CASE("unified::math:: reduce axis - sum/mean preprocess", "[noa][unified]", i64, f32, f64, c32, c64) {
+    const auto shape = test::get_random_shape4_batched(3);
+
+    std::vector<Device> devices = {Device{}};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    for (auto& device: devices) {
+        auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
+        INFO(device);
+
+        for (i64 axis = 0; axis < 4; ++axis) {
+            INFO("axis: " << axis);
+            auto output_shape = shape;
+            output_shape[axis] = 1;
+
+            Array<TestType> data(shape, options);
+            test::Randomizer<TestType> randomizer(-5, 5);
+            test::randomize(data.get(), data.elements(), randomizer);
+
+            const auto processed = noa::ewise_unary(data, noa::abs_t{});
+            const auto sum0 = math::sum(processed, output_shape);
+            const auto mean0 = math::mean(processed, output_shape);
+
+            const auto sum1 = math::sum(data, output_shape, noa::abs_t{});
+            const auto mean1 = math::mean(data, output_shape, noa::abs_t{});
+
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, sum0, sum1, 1e-6));
+            REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, mean0, mean1, 1e-6));
+        }
     }
 }

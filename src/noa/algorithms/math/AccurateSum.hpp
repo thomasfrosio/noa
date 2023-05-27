@@ -11,7 +11,7 @@ namespace noa::algorithm::math {
     // but that's fine because in CUDA the simple noa::plus_t{} reduction operator
     // is effectively a very fine "partial sum" thanks to the number of threads, and is as accurate.
     struct AccuratePlusReal {
-        f64* global_error;
+        f64* global_error{};
         f64 local_error{0};
 
         f64 operator()(f64 sum, f64 value) noexcept {
@@ -31,7 +31,7 @@ namespace noa::algorithm::math {
 
     // Same but for complex numbers.
     struct AccuratePlusComplex {
-        c64* global_error;
+        c64* global_error{};
         c64 local_error{0};
 
         c64 operator()(c64 sum, c64 value) noexcept {
@@ -59,7 +59,7 @@ namespace noa::algorithm::math {
         Value mean{};
 
         template<typename Input>
-        NOA_FHD constexpr output_type operator()(Input value) noexcept {
+        NOA_FHD constexpr output_type operator()(Input value) const noexcept {
             if constexpr (noa::traits::is_complex_v<Input>) {
                 const auto tmp = static_cast<c64>(value);
                 const auto distance = noa::math::abs(tmp - mean);

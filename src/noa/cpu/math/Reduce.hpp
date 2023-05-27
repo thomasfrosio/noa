@@ -9,18 +9,21 @@ namespace noa::cpu::math::details {
     constexpr bool is_valid_min_max_median_v =
             noa::traits::is_any_v<T, i16, i32, i64, u16, u32, u64, f16, f32, f64>;
 
-    template<typename T, typename PreProcessOp = noa::copy_t>
-    constexpr bool is_valid_sum_mean_v =
-            noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64> &&
-            noa::traits::is_any_v<PreProcessOp,
-                                  noa::copy_t, noa::nonzero_t, noa::square_t,
-                                  noa::abs_t, noa::abs_squared_t>;
-
     // invoke_result could be used, but I think noa::nonzero_t would return bool and not T.
     template<typename T, typename PreProcessOp>
     using sum_mean_return_t = std::conditional_t<
             noa::traits::is_any_v<PreProcessOp, noa::copy_t, noa::square_t>,
             T, noa::traits::value_type_t<T>>;
+
+    template<typename T, typename PreProcessOp = noa::copy_t, typename R = sum_mean_return_t<T, PreProcessOp>>
+    constexpr bool is_valid_sum_mean_v =
+            noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64> &&
+            std::is_same_v<R, sum_mean_return_t<T, PreProcessOp>> &&
+            noa::traits::is_any_v<PreProcessOp,
+                                  noa::copy_t, noa::nonzero_t, noa::square_t,
+                                  noa::abs_t, noa::abs_squared_t>;
+
+
 
     template<typename T, typename U>
     constexpr bool is_valid_var_std_v =
@@ -43,7 +46,7 @@ namespace noa::cpu::math {
 
     template<typename Value, typename PreProcessOp,
              typename Reduced = details::sum_mean_return_t<Value, PreProcessOp>,
-             typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreProcessOp>>>
+             typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreProcessOp, Reduced>>>
     [[nodiscard]] Reduced sum(const Value* input,
                               const Strides4<i64>& strides,
                               const Shape4<i64>& shape,
@@ -52,7 +55,7 @@ namespace noa::cpu::math {
 
     template<typename Value, typename PreProcessOp,
              typename Reduced = details::sum_mean_return_t<Value, PreProcessOp>,
-             typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreProcessOp>>>
+             typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreProcessOp, Reduced>>>
     [[nodiscard]] Reduced mean(const Value* input,
                                const Strides4<i64>& strides,
                                const Shape4<i64>& shape,
@@ -103,20 +106,28 @@ namespace noa::cpu::math {
              Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 threads);
 
-    template<typename Value, typename = std::enable_if_t<details::is_valid_sum_mean_v<Value>>>
+    template<typename Value, typename PreprocessOp, typename Reduced,
+             typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreprocessOp, Reduced>>>
     void sum(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 threads);
+             Reduced* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             PreprocessOp pre_process_op, i64 threads);
 
-    template<typename Value, typename = std::enable_if_t<details::is_valid_sum_mean_v<Value>>>
+    template<typename Value, typename PreprocessOp, typename Reduced,
+             typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreprocessOp, Reduced>>>
     void mean(const Value* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-              Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-              i64 threads);
+              Reduced* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              PreprocessOp pre_process_op, i64 threads);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 ddof, i64 threads);
+
+    template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    void mean_var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                  Input* mean, const Strides4<i64>& mean_strides,
+                  Output* variance, const Strides4<i64>& variance_strides,
+                  const Shape4<i64>& output_shape, i64 ddof, i64 threads);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
