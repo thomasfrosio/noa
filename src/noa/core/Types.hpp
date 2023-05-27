@@ -32,6 +32,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/core/utils/Pair.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
+#include "noa/core/utils/Span.hpp"
 
 #include "noa/core/geometry/Enums.hpp"
 #include "noa/core/fft/Enums.hpp"
