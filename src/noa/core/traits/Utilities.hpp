@@ -51,6 +51,7 @@ namespace noa::traits {
     template<typename T> struct shared_type { using type = typename details::shared_type<T>::type; };
 
     template<typename T> using value_type_t = typename value_type<remove_ref_cv_t<T>>::type;
+    template<typename T> using value_type_twice_t = value_type_t<value_type_t<T>>;
     template<typename T> using mutable_value_type_t = typename mutable_value_type<remove_ref_cv_t<T>>::type;
     template<typename T> using element_type_t = typename element_type<remove_ref_cv_t<T>>::type;
     template<typename T> using index_type_t = typename index_type<remove_ref_cv_t<T>>::type;

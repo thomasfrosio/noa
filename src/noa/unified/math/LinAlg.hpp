@@ -9,7 +9,7 @@ namespace noa::math::details {
     template<typename T, typename U>
     constexpr bool is_valid_lstsq_t =
             noa::traits::is_any_v<noa::traits::value_type_t<T>, f32, f64, c32, c64> &&
-            std::is_same_v<noa::traits::value_type_t<noa::traits::value_type_t<T>>, noa::traits::value_type_t<U>>;
+            std::is_same_v<noa::traits::value_type_twice_t<T>, noa::traits::value_type_t<U>>;
 }
 
 namespace noa::math {
@@ -35,7 +35,7 @@ namespace noa::math {
     ///       contiguous or padded.
     /// \note This function is currently not supported on the GPU.
     template<typename MatrixA, typename MatrixB, typename MatrixX, typename Real = f32,
-             typename MatrixU = View<noa::traits::value_type_t<noa::traits::value_type_t<MatrixA>>>,
+             typename MatrixU = View<noa::traits::value_type_twice_t<MatrixA>>,
              typename = std::enable_if_t<
                      noa::traits::is_real_v<Real> &&
                      noa::traits::are_array_or_view_v<MatrixA, MatrixB, MatrixX, MatrixU> &&
