@@ -23,6 +23,7 @@ set(NOA_CORE_HEADERS
         core/utils/Pair.hpp
         core/utils/SafeCast.hpp
         core/utils/Sort.hpp
+        core/utils/Span.hpp
         core/utils/Threadpool.hpp
         core/utils/Timer.hpp
 
