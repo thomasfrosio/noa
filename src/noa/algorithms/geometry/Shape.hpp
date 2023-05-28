@@ -64,23 +64,25 @@ namespace noa::algorithm::geometry {
             m_output(i, o_idx[0], o_idx[1], o_idx[2]) = value;
         }
 
+        // Special operator to generate multiple shapes (one per matrix) and reduce them into one.
+        template<typename Void = void, typename = std::enable_if_t<
+                 std::is_void_v<Void> && std::is_pointer_v<matrix_or_empty_type>>>
         constexpr NOA_IHD void operator()(index_type j, index_type k, index_type l) const noexcept {
             index3_type index{j, k, l};
             const index3_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
             const index3_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
             value_type value{0};
-            if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
-                for (index_type i = 0; i < m_batch; ++i) {
-                    const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix[i]);
-                    value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
-                }
-            } else {
-                const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix);
-                for (index_type i = 0; i < m_batch; ++i)
-                     value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+            for (index_type i = 0; i < m_batch; ++i) {
+                const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix[i]);
+                // If inverted, the shapes are 0 and background is cvalue,
+                // so it makes more sense to combine them by multiplication.
+                if constexpr (geom_shape_type::IS_INVERTED)
+                    value *= mask;
+                else
+                    value += mask;
             }
-            m_output[0](o_idx) = value;
+            m_output[0](o_idx) = m_input ? m_functor(m_input[0](i_idx), value) : value;
         }
 
     private:
@@ -151,23 +153,25 @@ namespace noa::algorithm::geometry {
             m_output(i, o_idx[0], o_idx[1]) = value;
         }
 
+        // Special operator to generate multiple shapes (one per matrix) and reduce them into one.
+        template<typename Void = void, typename = std::enable_if_t<
+                 std::is_void_v<Void> && std::is_pointer_v<matrix_or_empty_type>>>
         constexpr NOA_IHD void operator()(index_type k, index_type l) const noexcept {
             index2_type index{k, l};
             const index2_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
             const index2_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
             value_type value{0};
-            if constexpr (std::is_pointer_v<matrix_or_empty_type>) {
-                for (index_type i = 0; i < m_batch; ++i) {
-                    const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix[i]);
-                    value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
-                }
-            } else {
-                const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix);
-                for (index_type i = 0; i < m_batch; ++i)
-                    value += m_input ? m_functor(m_input[i](i_idx), mask) : mask;
+            for (index_type i = 0; i < m_batch; ++i) {
+                const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix[i]);
+                // If inverted, the shapes are 0 and background is cvalue,
+                // so it makes more sense to combine them by multiplication.
+                if constexpr (geom_shape_type::IS_INVERTED)
+                    value *= mask;
+                else
+                    value += mask;
             }
-            m_output[0](o_idx) = value;
+            m_output[0](o_idx) = m_input ? m_functor(m_input[0](i_idx), value) : value;
         }
 
     private:
@@ -206,11 +210,15 @@ namespace noa::algorithm::geometry {
         return output_t(input, output, shape, geom_shape, inv_matrix, functor);
     }
 
-    // The shape functors allow to sum-reduce the batch dimension of the output.
-    // This is just to detect this case.
-    [[nodiscard]] constexpr bool is_output_batch_reduced(
+    // If multiple matrices are passed, but the input/output are not batched,
+    // the shapes are reduced. This is just to detect this case.
+    template<typename Matrix>
+    [[nodiscard]] constexpr bool is_multiple_shapes_case(
+            const Strides4<i64>& input_strides,
             const Strides4<i64>& output_strides,
-            const Shape4<i64>& shape) {
-        return shape.is_batched() && output_strides[0] == 0;
+            const Shape4<i64>& shape,
+            const Matrix& matrix) {
+        return shape.is_batched() && Matrix{} != matrix &&
+               input_strides[0] == 0 && output_strides[0] == 0;
     }
 }

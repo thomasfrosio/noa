@@ -47,13 +47,12 @@ namespace noa::geometry::details {
                   "3D arrays are not supported with 2D geometric shapes. "
                   "Use 3D geometric shapes to support 2D and 3D arrays");
         const bool is_empty = input.is_empty();
-        const bool is_input_batched = input.shape().is_batched();
         const bool is_output_batched = output.shape().is_batched();
 
         // Input is valid:
         //  - 1) both are batched -> broadcast input, and check matrix size is equal to the number of batches.
-        //  - 2) both are not batched (reduce) -> broadcast input, but matrix defines the number of batches.
-        //  - 3) input is batched (reduce) -> broadcast 3d, input sets the number of batches, and check matrix count.
+        //  - 2) both are not batched (reduce) -> broadcast input/output, matrix defines the number of batches.
+        //  - 3) input is batched -> error.
         //  - 4) output is batched -> same as both are batched.
         // Otherwise:
         //  - 5) output is batched -> it defines the number of batches.
@@ -61,27 +60,17 @@ namespace noa::geometry::details {
         auto final_shape = output.shape();
         auto input_strides = input.strides();
         auto output_strides = output.strides();
-        if (!is_empty) {
-            if (is_input_batched && !is_output_batched) { // case 3
-                auto input_strides_3d = input.strides().pop_front();
-                const auto input_shape_3d = input.shape().pop_front();
-                const auto output_shape_3d = output.shape().pop_front();
-                NOA_CHECK(noa::indexing::broadcast(input_shape_3d, input_strides_3d, output_shape_3d),
-                          "Cannot broadcast an array of shape {} into an array of shape {}",
-                          input_shape_3d, output_shape_3d);
-                input_strides = input_strides_3d.push_front(input_strides[0]);
-                final_shape[0] = input.shape()[0];
-                output_strides[0] = 0; // the backends use the output batch stride to check the reduce case.
-            } else { // case 1, 2, 4
-                NOA_CHECK(noa::indexing::broadcast(input.shape(), input_strides, output.shape()),
-                          "Cannot broadcast an array of shape {} into an array of shape {}",
-                          input.shape(), output.shape());
-            }
-        }
 
+        if (!is_empty) {
+            // case 3 fails here.
+            NOA_CHECK(noa::indexing::broadcast(input.shape(), input_strides, output.shape()),
+                      "Cannot broadcast an array of shape {} into an array of shape {}",
+                      input.shape(), output.shape());
+        }
         if constexpr (noa::traits::is_array_or_view_v<Matrix>) {
-            if ((is_empty || !is_input_batched) && !is_output_batched) { // case 2, 6
+            if (!is_output_batched) { // case 2, 6
                 final_shape[0] = inv_matrices.elements();
+                input_strides[0] = 0;
                 output_strides[0] = 0;
             }
         }
@@ -110,10 +99,12 @@ namespace noa::geometry {
     /// Returns or applies an elliptical mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
     ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
@@ -124,8 +115,6 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input.
     ///                     This is ignored if \p input is empty.
     /// \param cvalue       Real value of the mask. Elements outside the mask are set to 0.
@@ -134,7 +123,7 @@ namespace noa::geometry {
     template<typename Output,
              typename Input = View<noa::traits::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_t<noa::traits::value_type_t<Output>>, size_t N,
+             typename CValue = noa::traits::value_type_twice_t<Output>, size_t N,
              typename = std::enable_if_t<
                      noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                      noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
@@ -185,10 +174,12 @@ namespace noa::geometry {
     /// Returns or applies a spherical mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
     ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
@@ -199,8 +190,6 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -208,7 +197,7 @@ namespace noa::geometry {
     template<typename Output,
              typename Input = View<noa::traits::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_t<noa::traits::value_type_t<Output>>, size_t N,
+             typename CValue = noa::traits::value_type_twice_t<Output>, size_t N,
              typename = std::enable_if_t<
                      noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                      noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
@@ -259,10 +248,12 @@ namespace noa::geometry {
     /// Returns or applies a rectangular mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
     ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
@@ -273,8 +264,6 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -282,7 +271,7 @@ namespace noa::geometry {
     template<typename Output,
              typename Input = View<noa::traits::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_t<noa::traits::value_type_t<Output>>, size_t N,
+             typename CValue = noa::traits::value_type_twice_t<Output>, size_t N,
              typename = std::enable_if_t<
                      noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                      noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
@@ -333,10 +322,12 @@ namespace noa::geometry {
     /// Returns or applies a cylindrical mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam Matrix      Float33, Float34, Float44 or an array/view of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
@@ -347,8 +338,6 @@ namespace noa::geometry {
     /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
     /// \param inv_matrix   Inverse DHW (affine) matrix to apply on the ellipse.
     ///                     For non-affine matrices, the rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
@@ -356,7 +345,7 @@ namespace noa::geometry {
     template<typename Output,
              typename Input = View<noa::traits::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_t<noa::traits::value_type_t<Output>>,
+             typename CValue = noa::traits::value_type_twice_t<Output>,
              typename = std::enable_if_t<
                      noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
                      noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&

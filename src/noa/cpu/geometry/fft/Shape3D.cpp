@@ -16,58 +16,49 @@ namespace {
 
         const auto input_accessor = Accessor<const Value, 4, i64>(input, input_strides);
         const auto output_accessor = Accessor<Value, 4, i64>(output, output_strides);
-        const bool reduce_output_batch = noa::algorithm::geometry::is_output_batch_reduced(output_strides, shape);
+        const bool is_multiple_shapes_case = noa::algorithm::geometry::is_multiple_shapes_case(
+                input_strides, output_strides, shape, inv_matrix);
 
         const bool has_smooth_edge = edge_size > 1e-5f;
         if (has_smooth_edge) {
             const GeomShapeSmooth geom_shape_smooth(center, radius, edge_size, cvalue);
-            if (reduce_output_batch) {
-                if (Matrix{} == inv_matrix) { // identity matrix of nullptr
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape, geom_shape_smooth, Empty{}, functor);
-                    noa::cpu::utils::iwise_3d(start, end, kernel, threads);
-                } else {
+            if constexpr (std::is_pointer_v<Matrix>) {
+                if (is_multiple_shapes_case) {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                             input_accessor, output_accessor, shape, geom_shape_smooth, inv_matrix, functor);
-                    noa::cpu::utils::iwise_3d(start, end, kernel, threads);
+                    return noa::cpu::utils::iwise_3d(start, end, kernel, threads);
                 }
+            }
+            const auto start_4d = start.push_front(0);
+            const auto end_4d = end.push_front(shape[0]);
+            if (Matrix{} == inv_matrix) { // identity matrix of nullptr
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape, geom_shape_smooth, Empty{}, functor);
+                noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
             } else {
-                const auto start_4d = start.push_front(0);
-                const auto end_4d = end.push_front(shape[0]);
-                if (Matrix{} == inv_matrix) { // identity matrix of nullptr
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape, geom_shape_smooth, Empty{}, functor);
-                    noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
-                } else {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape, geom_shape_smooth, inv_matrix, functor);
-                    noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
-                }
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape, geom_shape_smooth, inv_matrix, functor);
+                noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
             }
         } else {
             const GeomShape geom_shape(center, radius, cvalue);
-            if (reduce_output_batch) {
-                if (Matrix{} == inv_matrix) { // identity matrix of nullptr
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape, geom_shape, Empty{}, functor);
-                    noa::cpu::utils::iwise_3d(start, end, kernel, threads);
-                } else {
+            if constexpr (std::is_pointer_v<Matrix>) {
+                if (is_multiple_shapes_case) {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                             input_accessor, output_accessor, shape, geom_shape, inv_matrix, functor);
-                    noa::cpu::utils::iwise_3d(start, end, kernel, threads);
+                    return noa::cpu::utils::iwise_3d(start, end, kernel, threads);
                 }
+            }
+            const auto start_4d = start.push_front(0);
+            const auto end_4d = end.push_front(shape[0]);
+            if (Matrix{} == inv_matrix) { // identity matrix of nullptr
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape, geom_shape, Empty{}, functor);
+                noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
             } else {
-                const auto start_4d = start.push_front(0);
-                const auto end_4d = end.push_front(shape[0]);
-                if (Matrix{} == inv_matrix) { // identity matrix of nullptr
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape, geom_shape, Empty{}, functor);
-                    noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
-                } else {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape, geom_shape, inv_matrix, functor);
-                    noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
-                }
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape, geom_shape, inv_matrix, functor);
+                noa::cpu::utils::iwise_4d(start_4d, end_4d, kernel, threads);
             }
         }
     }

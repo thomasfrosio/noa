@@ -38,10 +38,12 @@ namespace noa::geometry::fft {
     /// Returns or applies an elliptical mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam REMAP       Layouts of \p input and \p output. Only F2F and FC2FC is supported.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input if there's no remapping.
@@ -49,8 +51,6 @@ namespace noa::geometry::fft {
     /// \param radius       (D)HW radius, in elements, of the ellipse.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse (D)HW matrix to apply on the ellipse. The rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
@@ -104,10 +104,12 @@ namespace noa::geometry::fft {
     /// Returns or applies a spherical mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam REMAP       Layouts of \p input and \p output. Only F2F and FC2FC is supported.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input if there's no remapping.
@@ -115,8 +117,6 @@ namespace noa::geometry::fft {
     /// \param radius       Radius, in elements, of the sphere.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse (D)HW matrix to apply on the sphere. The rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
@@ -170,10 +170,12 @@ namespace noa::geometry::fft {
     /// Returns or applies a rectangular mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam REMAP       Layouts of \p input and \p output. Only F2F and FC2FC is supported.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input if there's no remapping.
@@ -181,8 +183,6 @@ namespace noa::geometry::fft {
     /// \param radius       (D)HW radius, in elements, of the rectangle.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse (D)HW matrix to apply on the rectangle. The rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
@@ -236,10 +236,12 @@ namespace noa::geometry::fft {
     /// Returns or applies a cylindrical mask.
     /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Uniquely, if multiple masks are computed,
-    ///          i.e. \p input is batched and/or there's multiple transformations, \p output can also have a
-    ///          single batch, signifying that the masks should be sum-reduced to a single mask and saved
-    ///          in \p output.
+    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
+    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
+    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
+    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
+    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///
     /// \tparam REMAP       Layouts of \p input and \p output. Only F2F and FC2FC is supported.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input if there's no remapping.
@@ -248,8 +250,6 @@ namespace noa::geometry::fft {
     /// \param length       Length of the cylinder along the depth dimension.
     /// \param edge_size    Width, in elements, of the raised-cosine, including the first zero.
     /// \param inv_matrix   Inverse DHW matrix to apply on the cylinder. The rotation center is located at \p center.
-    ///                     Note, if an array is provided and \p input is empty and the output is not batched,
-    ///                     the number of matrices defines the number of shapes.
     /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.

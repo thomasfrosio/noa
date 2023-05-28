@@ -33,58 +33,49 @@ namespace {
 
         const auto input_accessor = Accessor<const Value, 3, u32>(input, input_strides.filter(0, 2, 3).as_safe<u32>());
         const auto output_accessor = Accessor<Value, 3, u32>(output, output_strides.filter(0, 2, 3).as_safe<u32>());
-        const bool reduce_output_batch = noa::algorithm::geometry::is_output_batch_reduced(output_strides, shape);
         const auto shape_2d = shape.filter(0, 2, 3).as_safe<i32>();
+        const bool is_multiple_shapes_case = noa::algorithm::geometry::is_multiple_shapes_case(
+                input_strides, output_strides, shape, inv_matrix);
 
         if (edge_size > 1e-5f) {
             const GeomShapeSmooth geom_shape_smooth(center, radius, edge_size, cvalue);
-            if (reduce_output_batch) {
-                if (Matrix{} == inv_matrix) { // identity matrix or nullptr
-                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, Empty{}, functor);
-                    noa::cuda::utils::iwise_2d("geometric_shape_2d", start, end, kernel, stream);
-                } else {
+            if constexpr (std::is_pointer_v<Matrix>) {
+                if (is_multiple_shapes_case) {
                     const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
                             input_accessor, output_accessor, shape_2d, geom_shape_smooth, inv_matrix, functor);
-                    noa::cuda::utils::iwise_2d("geometric_shape_2d", start, end, kernel, stream);
+                    return noa::cuda::utils::iwise_2d("geometric_shape_2d", start, end, kernel, stream);
                 }
+            }
+            const auto start_3d = start.push_front(0);
+            const auto end_3d = end.push_front(shape_2d[0]);
+            if (Matrix{} == inv_matrix) {
+                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_2d, geom_shape_smooth, Empty{}, functor);
+                noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
             } else {
-                const auto start_3d = start.push_front(0);
-                const auto end_3d = end.push_front(shape_2d[0]);
-                if (Matrix{} == inv_matrix) {
-                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, Empty{}, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
-                } else {
-                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_2d, geom_shape_smooth, inv_matrix, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
-                }
+                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_2d, geom_shape_smooth, inv_matrix, functor);
+                noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
             }
         } else {
             const GeomShape geom_shape(center, radius, cvalue);
-            if (reduce_output_batch) {
-                if (Matrix{} == inv_matrix) {
-                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_2d, geom_shape, Empty{}, functor);
-                    noa::cuda::utils::iwise_2d("geometric_shape_2d", start, end, kernel, stream);
-                } else {
+            if constexpr (std::is_pointer_v<Matrix>) {
+                if (is_multiple_shapes_case) {
                     const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
                             input_accessor, output_accessor, shape_2d, geom_shape, inv_matrix, functor);
-                    noa::cuda::utils::iwise_2d("geometric_shape_2d", start, end, kernel, stream);
+                    return noa::cuda::utils::iwise_2d("geometric_shape_2d", start, end, kernel, stream);
                 }
+            }
+            const auto start_3d = start.push_front(0);
+            const auto end_3d = end.push_front(shape_2d[0]);
+            if (Matrix{} == inv_matrix) {
+                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_2d, geom_shape, Empty{}, functor);
+                noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
             } else {
-                const auto start_3d = start.push_front(0);
-                const auto end_3d = end.push_front(shape_2d[0]);
-                if (Matrix{} == inv_matrix) {
-                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_2d, geom_shape, Empty{}, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
-                } else {
-                    const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_2d, geom_shape, inv_matrix, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
-                }
+                const auto kernel = noa::algorithm::geometry::shape_2d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_2d, geom_shape, inv_matrix, functor);
+                noa::cuda::utils::iwise_3d("geometric_shape_2d", start_3d, end_3d, kernel, stream);
             }
         }
     }
@@ -115,58 +106,49 @@ namespace {
 
         const auto input_accessor = Accessor<const Value, 4, u32>(input, input_strides.as_safe<u32>());
         const auto output_accessor = Accessor<Value, 4, u32>(output, output_strides.as_safe<u32>());
-        const bool reduce_output_batch = noa::algorithm::geometry::is_output_batch_reduced(output_strides, shape);
         const auto shape_3d = shape.as_safe<i32>();
+        const bool is_multiple_shapes_case = noa::algorithm::geometry::is_multiple_shapes_case(
+                input_strides, output_strides, shape, inv_matrix);
 
         if (edge_size > 1e-5f) {
             const GeomShapeSmooth geom_shape_smooth(center, radius, edge_size, cvalue);
-            if (reduce_output_batch) {
-                if (Matrix{} == inv_matrix) { // identity matrix or nullptr
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
-                } else {
+            if constexpr (std::is_pointer_v<Matrix>) {
+                if (is_multiple_shapes_case) {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                             input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
+                    return noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
                 }
+            }
+            const auto start_4d = start.push_front(0);
+            const auto end_4d = end.push_front(shape_3d[0]);
+            if (Matrix{} == inv_matrix) {
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
+                noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
             } else {
-                const auto start_4d = start.push_front(0);
-                const auto end_4d = end.push_front(shape_3d[0]);
-                if (Matrix{} == inv_matrix) {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, Empty{}, functor);
-                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
-                } else {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
-                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
-                }
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_3d, geom_shape_smooth, inv_matrix, functor);
+                noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
             }
         } else {
             const GeomShape geom_shape(center, radius, cvalue);
-            if (reduce_output_batch) {
-                if (Matrix{} == inv_matrix) {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
-                } else {
+            if constexpr (std::is_pointer_v<Matrix>) {
+                if (is_multiple_shapes_case) {
                     const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
                             input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
-                    noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
+                    return noa::cuda::utils::iwise_3d("geometric_shape_3d", start, end, kernel, stream);
                 }
+            }
+            const auto start_4d = start.push_front(0);
+            const auto end_4d = end.push_front(shape_3d[0]);
+            if (Matrix{} == inv_matrix) {
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
+                noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
             } else {
-                const auto start_4d = start.push_front(0);
-                const auto end_4d = end.push_front(shape_3d[0]);
-                if (Matrix{} == inv_matrix) {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape, Empty{}, functor);
-                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
-                } else {
-                    const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
-                            input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
-                    noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
-                }
+                const auto kernel = noa::algorithm::geometry::shape_3d<REMAP, f32>(
+                        input_accessor, output_accessor, shape_3d, geom_shape, inv_matrix, functor);
+                noa::cuda::utils::iwise_4d("geometric_shape_3d", start_4d, end_4d, kernel, stream);
             }
         }
     }

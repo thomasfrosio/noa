@@ -12,6 +12,7 @@ namespace noa::geometry {
     public:
         using value_type = Value;
         using coord_type = Coord;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD Line(coord_type center,
                                coord_type radius,
@@ -40,6 +41,7 @@ namespace noa::geometry {
     public:
         using value_type = Value;
         using coord_type = Coord;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD LineSmooth(coord_type center, coord_type radius, coord_type edge_size,
                                      value_type cvalue = value_type{1}) noexcept
@@ -81,6 +83,7 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD Sphere(vector_type center, coord_type radius,
                                  value_type cvalue = value_type{1}) noexcept
@@ -131,6 +134,7 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD SphereSmooth(
                 vector_type center,
@@ -204,6 +208,7 @@ namespace noa::geometry {
         using vector2_type = Vec2<coord_type>;
         using rotation_type = Mat33<coord_type>;
         using affine_type = Mat34<coord_type>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD Cylinder(vector3_type center, coord_type radius, coord_type length,
                                    value_type cvalue = value_type{1}) noexcept
@@ -266,6 +271,7 @@ namespace noa::geometry {
         using vector2_type = Vec2<coord_type>;
         using rotation_type = Mat33<coord_type>;
         using affine_type = Mat34<coord_type>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD CylinderSmooth(vector3_type center, coord_type radius,
                                          coord_type length, coord_type edge_size,
@@ -356,6 +362,7 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD Rectangle(vector_type center, vector_type radius,
                                     value_type cvalue = value_type{1}) noexcept
@@ -406,6 +413,7 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD RectangleSmooth(vector_type center, vector_type radius, coord_type edge_size,
                                           value_type cvalue = value_type{1}) noexcept
@@ -476,6 +484,7 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD Ellipse(vector_type center, vector_type radius,
                                   value_type cvalue = value_type{1}) noexcept
@@ -527,6 +536,7 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using rotation_type = std::conditional_t<NDIM == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool IS_INVERTED = INVERT;
 
         constexpr NOA_IHD EllipseSmooth(vector_type center, vector_type radius, coord_type edge_size,
                                         value_type cvalue = value_type{1}) noexcept
