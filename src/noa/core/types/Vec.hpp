@@ -563,6 +563,14 @@ namespace noa {
             return out;
         }
 
+        template<size_t INDEX>
+        [[nodiscard]] NOA_HD constexpr Vec set(value_type value) const noexcept {
+            static_assert(INDEX < SIZE);
+            auto output = *this;
+            output[INDEX] = value;
+            return output;
+        }
+
     public:
         // Support for noa::string::human<Vec>();
         [[nodiscard]] static std::string name() {

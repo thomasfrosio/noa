@@ -338,6 +338,14 @@ namespace noa {
             return Shape(m_vec.circular_shift(count));
         }
 
+        template<size_t INDEX>
+        [[nodiscard]] NOA_HD constexpr Shape set(value_type value) const noexcept {
+            static_assert(INDEX < SIZE);
+            auto output = *this;
+            output[INDEX] = value;
+            return output;
+        }
+
     public:
         [[nodiscard]] NOA_HD constexpr value_type elements() const noexcept {
             auto output = m_vec[0];
@@ -826,6 +834,14 @@ namespace noa {
 
         [[nodiscard]] NOA_HD constexpr Strides circular_shift(int64_t count) {
             return Strides(m_vec.circular_shift(count));
+        }
+
+        template<size_t INDEX>
+        [[nodiscard]] NOA_HD constexpr Strides set(value_type value) const noexcept {
+            static_assert(INDEX < SIZE);
+            auto output = *this;
+            output[INDEX] = value;
+            return output;
         }
 
     public:
