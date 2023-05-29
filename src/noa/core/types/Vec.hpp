@@ -563,6 +563,10 @@ namespace noa {
             return out;
         }
 
+        [[nodiscard]] NOA_HD constexpr Vec copy() const noexcept {
+            return *this;
+        }
+
         template<size_t INDEX>
         [[nodiscard]] NOA_HD constexpr Vec set(value_type value) const noexcept {
             static_assert(INDEX < SIZE);
