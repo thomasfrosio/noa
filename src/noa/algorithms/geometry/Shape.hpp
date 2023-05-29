@@ -72,7 +72,7 @@ namespace noa::algorithm::geometry {
             const index3_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
             const index3_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
-            value_type value{0};
+            value_type value = geom_shape_type::IS_INVERTED ? 1 : 0;
             for (index_type i = 0; i < m_batch; ++i) {
                 const auto mask = m_geometric_shape(coord3_type(i_idx), m_inv_matrix[i]);
                 // If inverted, the shapes are 0 and background is cvalue,
@@ -161,7 +161,7 @@ namespace noa::algorithm::geometry {
             const index2_type i_idx = noa::fft::to_centered_indexes<IS_SRC_CENTERED, false>(index, m_shape);
             const index2_type o_idx = noa::fft::remap_indexes<REMAP>(index, m_shape);
 
-            value_type value{0};
+            value_type value = geom_shape_type::IS_INVERTED ? 1 : 0;
             for (index_type i = 0; i < m_batch; ++i) {
                 const auto mask = m_geometric_shape(coord2_type(i_idx), m_inv_matrix[i]);
                 // If inverted, the shapes are 0 and background is cvalue,
