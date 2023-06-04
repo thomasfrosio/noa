@@ -34,6 +34,7 @@ set(NOA_UNIFIED_HEADERS
         unified/signal/fft/Standardize.hpp
         unified/signal/Convolve.hpp
         unified/signal/Median.hpp
+        unified/signal/Windows.hpp
 
         # noa::geometry
         unified/geometry/fft/Polar.hpp
