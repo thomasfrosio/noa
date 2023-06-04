@@ -23,16 +23,16 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/core/types/Functors.hpp"
 #include "noa/core/types/Half.hpp"
 #include "noa/core/types/Mat.hpp"
+#include "noa/core/types/Pair.hpp"
 #include "noa/core/types/Shape.hpp"
+#include "noa/core/types/Span.hpp"
 #include "noa/core/types/Vec.hpp"
 
 #include "noa/core/utils/Any.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/Irange.hpp"
-#include "noa/core/utils/Pair.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
-#include "noa/core/utils/Span.hpp"
 
 #include "noa/core/geometry/Enums.hpp"
 #include "noa/core/fft/Enums.hpp"

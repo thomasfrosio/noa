@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "noa/core/utils/Pair.hpp"
+#include "noa/core/types/Pair.hpp"
 #include "noa/cpu/Find.hpp"
 #include "noa/cpu/utils/ReduceUnary.hpp"
 

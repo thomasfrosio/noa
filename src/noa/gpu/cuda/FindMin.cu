@@ -1,4 +1,4 @@
-#include "noa/core/utils/Pair.hpp"
+#include "noa/core/types/Pair.hpp"
 #include "noa/gpu/cuda/Find.hpp"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
 

@@ -5,7 +5,7 @@
 
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/math/Comparison.hpp"
-#include "noa/core/utils/Pair.hpp"
+#include "noa/core/types/Pair.hpp"
 
 // More details at: https://www.codeproject.com/Articles/63170/Least-Squares-Regression-for-Quadratic-Curve-Fitti
 

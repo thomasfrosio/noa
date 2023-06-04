@@ -20,10 +20,8 @@ set(NOA_CORE_HEADERS
         core/utils/ClampCast.hpp
         core/utils/Indexing.hpp
         core/utils/Irange.hpp
-        core/utils/Pair.hpp
         core/utils/SafeCast.hpp
         core/utils/Sort.hpp
-        core/utils/Span.hpp
         core/utils/Threadpool.hpp
         core/utils/Timer.hpp
 
@@ -52,7 +50,9 @@ set(NOA_CORE_HEADERS
         core/types/Mat33.hpp
         core/types/Mat34.hpp
         core/types/Mat44.hpp
+        core/types/Pair.hpp
         core/types/Shape.hpp
+        core/types/Span.hpp
         core/types/Vec.hpp
 
         core/geometry/Enums.hpp
