@@ -205,29 +205,29 @@ namespace noa::fft {
         return out;
     }
 
-    /// Computes the phase shift at a given frequency.
+    /// Computes the phase shift at a given normalized-frequency.
     /// \warning \p shift should already be pre-multiplied;
     template<typename Complex, typename Coord, size_t N, typename std::enable_if_t<
             noa::traits::is_complex_v<Complex> && (N == 2 || N == 3), bool> = true>
     [[nodiscard]] NOA_FHD Complex phase_shift(
             const Vec<Coord, N>& shift,
-            const Vec<Coord, N>& freq
+            const Vec<Coord, N>& normalized_frequency
     ) {
         using real_t = typename Complex::value_type;
-        const auto factor = static_cast<real_t>(-math::dot(shift, freq));
+        const auto factor = static_cast<real_t>(-math::dot(shift, normalized_frequency));
         Complex phase_shift;
         noa::math::sincos(factor, &phase_shift.imag, &phase_shift.real);
         return phase_shift;
     }
 
-    /// Computes the phase shift at a given frequency.
+    /// Computes the phase shift at a given normalized-frequency.
     template<typename Complex, typename Coord, typename Index, size_t N>
     [[nodiscard]] NOA_FHD Complex phase_shift(
             const Vec<Coord, N>& shift,
-            const Vec<Coord, N>& frequency,
+            const Vec<Coord, N>& normalized_frequency,
             const Shape<Index, N>& shape
     ) noexcept {
         const auto pre_multiply = 2 * noa::math::Constant<Coord>::PI / shape.vec().template as<Coord>();
-        return phase_shift(shift * pre_multiply, frequency);
+        return phase_shift(shift * pre_multiply, normalized_frequency);
     }
 }

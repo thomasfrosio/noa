@@ -187,30 +187,3 @@ namespace noa::math {
     [[nodiscard]] NOA_FHD double fma(double x, double y, double z) { return ::fma(x, y, z); }
     [[nodiscard]] NOA_FHD float fma(float x, float y, float z) { return ::fmaf(x, y, z); }
 }
-
-namespace noa::math {
-    // Returns the value at a particular index within an evenly spaced range within a given interval.
-    template<typename Int, typename Real,
-             typename = std::enable_if_t<noa::traits::is_int_v<Real> && noa::traits::is_real_v<Real>>>
-    Real linspace(Int size, Int index, Real start, Real stop, bool endpoint = true) {
-        if (static_cast<Real>(size) <= start) {
-            return start;
-        } else if (endpoint && index == size - 1) {
-            return stop;
-        } else {
-            const auto count = size - static_cast<Int>(endpoint);
-            const auto delta = stop - start;
-            const auto step = delta / static_cast<Real>(count);
-            return start + static_cast<Real>(index) * step;
-        }
-    }
-
-    // Returns the step of an evenly spaced range within a given interval.
-    template<typename Int, typename Real,
-             typename = std::enable_if_t<noa::traits::is_int_v<Real> && noa::traits::is_real_v<Real>>>
-    Real linspace(Int size, Real start, Real stop, bool endpoint = true) {
-        const auto count = size - static_cast<Int>(endpoint);
-        const auto delta = stop - start;
-        return delta / static_cast<Real>(count);
-    }
-}
