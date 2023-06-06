@@ -9,7 +9,8 @@
 // TODO When C++23, and nvcc->nvc++, use mdspan instead.
 
 namespace noa {
-    // Dynamic span (C++20 std::span could replace this)
+    // Span (C++20 std::span could replace this).
+    // If SIZE==-1, the span is dynamic. Otherwise, it is the static size of the span.
     template<typename Value, int64_t SIZE = -1, typename Index = int64_t>
     class Span {
     public:
@@ -76,10 +77,12 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr auto as_const() const noexcept { return Span(*this); }
         [[nodiscard]] NOA_HD constexpr auto as_bytes() const noexcept {
             using output_t = std::conditional_t<std::is_const_v<value_type>, const std::byte, std::byte>;
-            if constexpr (IS_STATIC)
-                return Span<output_t, SIZE * sizeof(value_type), Index>(reinterpret_cast<output_t*>(data()));
-            else
+            if constexpr (IS_STATIC) {
+                constexpr auto NEW_SIZE = SIZE * static_cast<index_type>(sizeof(value_type));
+                return Span<output_t, NEW_SIZE, Index > (reinterpret_cast<output_t*>(data()));
+            } else {
                 return Span(reinterpret_cast<output_t*>(data()), ssize() * sizeof(value_type));
+            }
         }
 
     public: // Elements access
@@ -134,9 +137,9 @@ namespace noa {
 
 // Support for structure bindings:
 namespace std {
-    template<typename T, size_t N>
-    struct tuple_size<noa::Span<T, N>> : std::integral_constant<size_t, N> {};
+    template<typename T, int64_t N>
+    struct tuple_size<noa::Span<T, N>> : std::integral_constant<size_t, static_cast<size_t>(N)> {};
 
-    template<size_t I, size_t N, typename T>
+    template<size_t I, int64_t N, typename T>
     struct tuple_element<I, noa::Span<T, N>> { using type = T; };
 }
