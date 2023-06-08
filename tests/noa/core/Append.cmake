@@ -15,6 +15,7 @@ set(TEST_COMMON_SOURCES
         noa/core/types/TestCommonHalf.cpp
         noa/core/types/TestCommonMatrices.cpp
         noa/core/types/TestCommonVectors.cpp
+        noa/core/types/TestCoreSpan.cpp
 
         noa/core/geometry/TestCommonGeometryEuler.cpp
         noa/core/geometry/TestCommonInterpolator.cpp
