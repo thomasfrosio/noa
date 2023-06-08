@@ -14,6 +14,7 @@ set(NOA_CORE_HEADERS
         core/math/Distribution.hpp
         core/math/Generic.hpp
         core/math/LeastSquare.hpp
+        core/math/Range.hpp
 
         core/utils/Any.hpp
         core/utils/Atomic.hpp
