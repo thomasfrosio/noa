@@ -10,6 +10,7 @@ set(TEST_UNIFIED_SOURCES
 
         noa/unified/TestUnifiedEwise.cpp
         noa/unified/TestUnifiedFind.cpp
+        noa/unified/TestUnifiedReduce.cpp
         noa/unified/TestUnifiedSort.cpp
 
 #        noa/unified/signal/fft/TestUnifiedAlignment.cpp
@@ -50,6 +51,8 @@ set(TEST_UNIFIED_SOURCES
         noa/unified/geometry/TestUnifiedShape.cpp
         noa/unified/geometry/TestUnifiedSymmetry.cpp
         noa/unified/geometry/TestUnifiedTransform.cpp
+
+        noa/unified/geometry/TestUnifiedTileExtraction.cpp
 
         )
 

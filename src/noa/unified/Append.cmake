@@ -8,13 +8,14 @@ set(NOA_UNIFIED_HEADERS
         unified/Array.hpp
         unified/ArrayOption.hpp
         unified/Device.hpp
+        unified/Ewise.hpp
+        unified/Find.hpp
         unified/Indexing.hpp
+        unified/Reduce.hpp
+        unified/Sort.hpp
         unified/Stream.hpp
         unified/Texture.hpp
         unified/View.hpp
-        unified/Ewise.hpp
-        unified/Sort.hpp
-        unified/Find.hpp
 
         # noa::io
         unified/io/ImageFile.hpp
