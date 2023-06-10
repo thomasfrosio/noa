@@ -21,7 +21,7 @@ namespace noa::details {
     template<typename Lhs, typename Rhs, typename Reduced, typename Output, typename Index,
              typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     constexpr bool is_valid_reduce_binary_v =
-            nt::is_detected_exact_v<Reduced, nt::has_unary_operator, PreProcessOp, Lhs, Rhs> &&
+            nt::is_detected_exact_v<Reduced, nt::has_binary_operator, PreProcessOp, Lhs, Rhs> &&
             nt::is_detected_exact_v<Reduced, nt::has_binary_operator, ReduceOp, Reduced, Reduced> &&
             nt::is_detected_convertible_v<Output, nt::has_unary_operator, PostProcessOp, Reduced> &&
             !std::is_const_v<Reduced> && !std::is_const_v<Output> && std::is_integral_v<Index>;
@@ -102,10 +102,10 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Input, View<std::invoke_result_t<ReduceOp, Reduced, Reduced>>> &&
+                     noa::traits::are_array_or_view_v<Input, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
                      (details::is_valid_reduce_unary_v<
                              noa::traits::value_type_t<Input>, Reduced,
-                             std::invoke_result_t<ReduceOp, Reduced, Reduced>, Index,
+                             std::invoke_result_t<PostProcessOp, Reduced>, Index,
                              PreProcessOp, ReduceOp, PostProcessOp>)>>
     constexpr auto reduce_unary(
             const Input& input,
@@ -157,11 +157,11 @@ namespace noa {
     ///                             If the batch dimension is not reduced, only the DHW dimensions can be swapped.
     /// \note This function is currently not supported on the GPU.
     template<typename Index = i64, typename Lhs, typename Rhs, typename Reduced, typename Output,
-             typename PreProcessOp = noa::copy_t,
+             typename PreProcessOp,
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Lhs, Output> &&
+                     noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
                      details::is_valid_reduce_binary_v<
                              noa::traits::value_type_t<Lhs>,
                              noa::traits::value_type_t<Rhs>, Reduced,
@@ -221,11 +221,11 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Lhs, View<std::invoke_result_t<ReduceOp, Reduced, Reduced>>> &&
+                     noa::traits::are_array_or_view_v<Lhs, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
                      details::is_valid_reduce_binary_v<
                              noa::traits::value_type_t<Lhs>,
                              noa::traits::value_type_t<Rhs>, Reduced,
-                             std::invoke_result_t<ReduceOp, Reduced, Reduced>, Index,
+                             std::invoke_result_t<PostProcessOp, Reduced>, Index,
                              PreProcessOp, ReduceOp, PostProcessOp>>>
     constexpr auto reduce_binary(
             const Lhs& lhs, const Rhs& rhs,

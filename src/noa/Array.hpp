@@ -9,4 +9,5 @@
 
 #include "noa/unified/Ewise.hpp"
 #include "noa/unified/Find.hpp"
+#include "noa/unified/Reduce.hpp"
 #include "noa/unified/Sort.hpp"
