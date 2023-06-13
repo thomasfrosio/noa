@@ -254,7 +254,7 @@ namespace noa::indexing {
     }
 
     /// Returns the index of the first non-empty dimension, excluding the batch dimension, going from left to right.
-    /// If all dimensions are empty, the index of the width dimension is returned, ie 3.
+    /// If all dimensions are empty, the index of the width dimension is returned, ie shape[3].
     template<typename Index>
     [[nodiscard]] NOA_IHD constexpr Index non_empty_dhw_dimension(const Shape4<Index>& shape) noexcept {
         for (Index i = 1; i < 4; ++i)
