@@ -7,7 +7,7 @@ namespace noa::cpu::signal::fft {
     void ctf_isotropic(
             const Input* input, Strides4<i64> input_strides,
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
-            const CTFIsotropic& ctf, bool ctf_square, bool ctf_abs, i64 threads) {
+            const CTFIsotropic& ctf,  bool ctf_abs, bool ctf_square, i64 threads) {
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         switch (shape.ndim()) {
@@ -16,7 +16,7 @@ namespace noa::cpu::signal::fft {
                 const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 1, f32>(
                         input, input_strides.filter(0, index),
                         output, output_strides.filter(0, index),
-                        shape.filter(index), ctf, ctf_square, ctf_abs);
+                        shape.filter(index), ctf, ctf_abs, ctf_square);
 
                 auto iwise_shape = shape.filter(0, index);
                 if constexpr (IS_HALF)
@@ -35,7 +35,7 @@ namespace noa::cpu::signal::fft {
                 const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 2, f32>(
                         input, input_strides.filter(0, 2, 3),
                         output, output_strides.filter(0, 2, 3),
-                        shape.filter(2, 3), ctf, ctf_square, ctf_abs);
+                        shape.filter(2, 3), ctf, ctf_abs, ctf_square);
 
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (IS_HALF)
@@ -55,7 +55,68 @@ namespace noa::cpu::signal::fft {
                 const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 3, f32>(
                         input, input_strides,
                         output, output_strides,
-                        shape.pop_front(), ctf, ctf_square, ctf_abs);
+                        shape.pop_front(), ctf, ctf_abs, ctf_square);
+
+                auto iwise_shape = shape;
+                if constexpr (IS_HALF)
+                    iwise_shape = iwise_shape.rfft();
+                noa::cpu::utils::iwise_4d(iwise_shape, kernel, threads);
+                break;
+            }
+        }
+    }
+
+    template<noa::fft::Remap REMAP, typename Output, typename CTFIsotropic, typename>
+    void ctf_isotropic(
+            Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
+            const CTFIsotropic& ctf,  bool ctf_abs, bool ctf_square,
+            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, i64 threads) {
+
+        constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
+        switch (shape.ndim()) {
+            case 1: {
+                const i64 index = noa::indexing::non_empty_dhw_dimension(shape);
+                const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 1>(
+                        output, output_strides.filter(0, index),
+                        shape.filter(index), ctf, ctf_abs, ctf_square,
+                        fftfreq_range, fftfreq_range_endpoint);
+
+                auto iwise_shape = shape.filter(0, index);
+                if constexpr (IS_HALF)
+                    iwise_shape = iwise_shape.rfft();
+                noa::cpu::utils::iwise_2d(iwise_shape, kernel, threads);
+                break;
+            }
+            case 2: {
+                // Reorder HW dimensions to rightmost.
+                const auto order = noa::indexing::order(output_strides.filter(2, 3), shape.filter(2, 3));
+                if (noa::any(order != Vec2<i64>{0, 1})) {
+                    std::swap(output_strides[2], output_strides[3]);
+                    std::swap(shape[2], shape[3]);
+                }
+                const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 2>(
+                        output, output_strides.filter(0, 2, 3),
+                        shape.filter(2, 3), ctf, ctf_abs, ctf_square,
+                        fftfreq_range, fftfreq_range_endpoint);
+
+                auto iwise_shape = shape.filter(0, 2, 3);
+                if constexpr (IS_HALF)
+                    iwise_shape = iwise_shape.rfft();
+                noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
+                break;
+            }
+            case 3: {
+                // Reorder BHW dimensions to rightmost.
+                const auto order = noa::indexing::order(output_strides.pop_front(), shape.pop_front());
+                if (noa::any(order != Vec3<i64>{0, 1, 2})) {
+                    const auto order_3d = (order + 1).push_front(0);
+                    output_strides = noa::indexing::reorder(output_strides, order_3d);
+                    shape = noa::indexing::reorder(shape, order_3d);
+                }
+                const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 3>(
+                        output, output_strides,
+                        shape.pop_front(), ctf, ctf_abs, ctf_square,
+                        fftfreq_range, fftfreq_range_endpoint);
 
                 auto iwise_shape = shape;
                 if constexpr (IS_HALF)
@@ -70,14 +131,33 @@ namespace noa::cpu::signal::fft {
     void ctf_anisotropic(
             const Input* input, const Strides4<i64>& input_strides,
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-            const CTFAnisotropic& ctf, bool ctf_square, bool ctf_abs, i64 threads) {
+            const CTFAnisotropic& ctf,  bool ctf_abs, bool ctf_square, i64 threads) {
         NOA_ASSERT(shape.ndim() == 2);
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 2, f32>(
                 input, input_strides.filter(0, 2, 3),
                 output, output_strides.filter(0, 2, 3),
-                shape.filter(2, 3), ctf, ctf_square, ctf_abs);
+                shape.filter(2, 3), ctf, ctf_abs, ctf_square);
+
+        auto iwise_shape = shape.filter(0, 2, 3);
+        if constexpr (IS_HALF)
+            iwise_shape = iwise_shape.rfft();
+        noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
+    }
+
+    template<noa::fft::Remap REMAP, typename Output, typename CTFAnisotropic, typename>
+    void ctf_anisotropic(
+            Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const CTFAnisotropic& ctf,  bool ctf_abs, bool ctf_square,
+            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, i64 threads) {
+        NOA_ASSERT(shape.ndim() == 2);
+
+        constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
+        const auto kernel = noa::algorithm::signal::fft::ctf<REMAP, 2>(
+                output, output_strides.filter(0, 2, 3),
+                shape.filter(2, 3), ctf, ctf_abs, ctf_square,
+                fftfreq_range, fftfreq_range_endpoint);
 
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (IS_HALF)
@@ -123,4 +203,35 @@ namespace noa::cpu::signal::fft {
     NOA_INSTANTIATE_CTF_ALL_REMAP(c64, c64);
     NOA_INSTANTIATE_CTF_ALL_REMAP(c32, f32);
     NOA_INSTANTIATE_CTF_ALL_REMAP(c64, f64);
+
+    #define NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, CTF) \
+    template void ctf_isotropic<Remap, Output, CTF, void>(          \
+            Output*, Strides4<i64>,                                 \
+            Shape4<i64>, CTF const&, bool, bool,                    \
+            const Vec2<f32>&, bool, i64)
+
+    #define NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, CTF)   \
+    template void ctf_anisotropic<Remap, Output, CTF, void>(            \
+            Output*, const Strides4<i64>&,                              \
+            const Shape4<i64>&, CTF const&, bool, bool,                 \
+            const Vec2<f32>&, bool, i64)
+
+    #define NOA_INSTANTIATE_CTF_REMAP_ALL(Remap, Output)                                               \
+    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, noa::signal::fft::CTFIsotropic<f32>);           \
+    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, noa::signal::fft::CTFIsotropic<f64>);           \
+    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, const noa::signal::fft::CTFIsotropic<f32>*);    \
+    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, const noa::signal::fft::CTFIsotropic<f64>*);    \
+    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, noa::signal::fft::CTFAnisotropic<f32>);       \
+    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, noa::signal::fft::CTFAnisotropic<f64>);       \
+    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, const noa::signal::fft::CTFAnisotropic<f32>*);\
+    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, const noa::signal::fft::CTFAnisotropic<f64>*)
+
+    #define NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(Output)             \
+    NOA_INSTANTIATE_CTF_REMAP_ALL(noa::fft::Remap::H2H, Output);    \
+    NOA_INSTANTIATE_CTF_REMAP_ALL(noa::fft::Remap::HC2HC, Output);  \
+    NOA_INSTANTIATE_CTF_REMAP_ALL(noa::fft::Remap::F2F, Output);    \
+    NOA_INSTANTIATE_CTF_REMAP_ALL(noa::fft::Remap::FC2FC, Output)
+
+    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f32);
+    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f64);
 }

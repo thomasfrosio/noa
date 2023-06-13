@@ -86,5 +86,32 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, assets", "[noa][unified][assets]
     }
 }
 
+TEST_CASE("unified::signal::fft::ctf_isotropic, default range", "[noa][unified]") {
+    std::vector<Device> devices{Device("cpu")};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    const i64 ndim = GENERATE(1, 2, 3);
+    using CTFIsotropic64 = noa::signal::fft::CTFIsotropic<f64>;
+    const auto ctf = CTFIsotropic64(2.1, 2.5, 300, 0.1, 2.7, 0, 10);
+
+    for (auto device: devices) {
+        INFO(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
+        const auto shape = test::get_random_shape4_batched(ndim);
+
+        const auto input = noa::memory::ones<f32>(shape, options);
+        const auto output = noa::memory::like(input);
+        const auto expected_0 = noa::memory::like(input);
+        const auto expected_1 = noa::memory::like(input);
+
+        noa::signal::fft::ctf_isotropic<fft::FC2FC>(input, output, shape, ctf);
+        noa::signal::fft::ctf_isotropic<fft::FC2FC>({}, expected_0, shape, ctf);
+        noa::signal::fft::ctf_isotropic<fft::FC2FC>(expected_1, shape, ctf);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output, expected_0, 1e-6));
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output, expected_1, 1e-6));
+    }
+}
+
 // TODO rotation average
 // TODO astig is same as iso
