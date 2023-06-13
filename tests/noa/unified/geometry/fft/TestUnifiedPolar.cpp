@@ -38,7 +38,7 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
-    i64 size = GENERATE(64, 65);
+    const i64 size = GENERATE(64, 65);
 
     const i64 batches = 3;
     const auto shape = Shape4<i64>{batches, 1, size, size};

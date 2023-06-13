@@ -9,7 +9,7 @@ namespace noa::algorithm::geometry {
     // * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
     // * The frequencies are normalized, so rectangular volumes can be passed.
     // * The number of shells is fixed by the shape: min(shape) // 2 + 1
-    // * The input/output can be complex/real, respectively, resulting in the abs() of the input being used instead.
+    // * if input is complex and output real, the input is preprocessed to abs(input)^2.
     template<noa::fft::Remap REMAP, size_t N,
              typename Coord, typename Index, typename Offset,
              typename Input, typename Output>
@@ -48,7 +48,7 @@ namespace noa::algorithm::geometry {
                           const output_accessor_type& output,
                           const weight_accessor_type& weight)
                 : m_input(input), m_output(output), m_weight(weight),
-                  m_norm(coord_type{1} / static_cast<coord_nd_type>(shape.vec())),
+                  m_frequency_step(coord_type{1} / static_cast<coord_nd_type>(shape.vec())),
                   m_scale(static_cast<coord_type>(noa::math::min(shape))),
                   m_max_shell_index(noa::math::min(shape) / 2) {
             if constexpr (IS_HALF)
@@ -64,7 +64,7 @@ namespace noa::algorithm::geometry {
             auto frequency = coord_nd_type{
                     noa::fft::index2frequency<IS_CENTERED>(y, m_shape[0]),
                     IS_HALF ? x : noa::fft::index2frequency<IS_CENTERED>(x, m_shape[1])};
-            frequency *= m_norm;
+            frequency *= m_frequency_step;
 
             // Shortcut for everything past Nyquist.
             const auto radius_sqd = noa::math::dot(frequency, frequency);
@@ -83,7 +83,7 @@ namespace noa::algorithm::geometry {
                     noa::fft::index2frequency<IS_CENTERED>(z, m_shape[0]),
                     noa::fft::index2frequency<IS_CENTERED>(y, m_shape[1]),
                     IS_HALF ? x : noa::fft::index2frequency<IS_CENTERED>(x, m_shape[2])};
-            frequency *= m_norm;
+            frequency *= m_frequency_step;
 
             // Shortcut for everything past Nyquist.
             const auto radius_sqd = noa::math::dot(frequency, frequency);
@@ -98,7 +98,7 @@ namespace noa::algorithm::geometry {
         NOA_HD static output_type input_to_output_(input_type input) noexcept {
             if constexpr (noa::traits::is_complex_v<input_type> &&
                           noa::traits::is_real_v<output_type>) {
-                return noa::math::abs(input);
+                return noa::abs_squared_t{}(input);
             } else {
                 return input;
             }
@@ -128,7 +128,7 @@ namespace noa::algorithm::geometry {
         output_accessor_type m_output;
         weight_accessor_type m_weight;
 
-        coord_nd_type m_norm;
+        coord_nd_type m_frequency_step;
         coord_type m_scale;
         shape_type m_shape; // width is removed
         index_type m_max_shell_index;

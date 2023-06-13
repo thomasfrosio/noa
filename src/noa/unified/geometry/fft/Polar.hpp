@@ -247,7 +247,7 @@ namespace noa::geometry::fft {
     ///                     the output shape is the half dimension size.
     /// \param[in] input    Input dft to reduce. Can be real or complex.
     /// \param[out] output  Rotational sum/average. Should be a (batched) contiguous vector of size min(shape) // 2 + 1.
-    ///                     If real and \p input is complex, `abs(input)` is computed first.
+    ///                     If real and \p input is complex, `abs(input)^2` is first computed.
     /// \param[out] weights Rotational weights. Can be empty. Otherwise, the weights are directly added to this array.
     /// \param shape        BDHW logical shape.
     /// \param average      Whether the rotational average should be computed instead of the rotational sum.
