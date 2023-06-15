@@ -97,14 +97,14 @@ namespace noa {
 
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         [[nodiscard]] NOA_HD constexpr reference operator[](Int index) const noexcept {
-            NOA_ASSERT(!is_empty() && index > 0 && index < ssize());
+            NOA_ASSERT(!is_empty() && index >= 0 && index < ssize());
             return m_data[index];
         }
 
         // Guaranteed bound-check. Throws if out-of-bound.
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         [[nodiscard]] NOA_HOST constexpr reference at(Int index) const {
-            NOA_CHECK(!is_empty() && index > 0 && index < ssize(),
+            NOA_CHECK(!is_empty() && index >= 0 && index < ssize(),
                       "Out-of-bound access. Size={}, index={}", ssize(), index);
             return m_data[index];
         }
