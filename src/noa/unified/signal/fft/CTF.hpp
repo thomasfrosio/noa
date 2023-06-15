@@ -106,8 +106,10 @@ namespace noa::signal::fft::details {
 }
 
 namespace noa::signal::fft {
-
     /// Computes the isotropic ctf.
+    /// \details This function can compute the entire fft or rfft spectrum, centered or not (this is with the
+    ///          default frequency range). It can also generate a specific frequency range (defined like a
+    ///          linspace range, i.e. start, stop, endpoint).
     /// \tparam REMAP                   Output layout. Should be H2H, HC2HC, F2F or FC2FC.
     /// \param[out] output              1d, 2d, or 3d ctf.
     /// \param shape                    Logical BDHW shape.
@@ -144,7 +146,7 @@ namespace noa::signal::fft {
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::ctf_isotropic<REMAP>(
                         output.get(), output.strides(), shape,
-                        details::extract_ctf(ctf), ctf_square, ctf_abs,
+                        details::extract_ctf(ctf), ctf_abs, ctf_square,
                         fftfreq_range, fftfreq_range_endpoint, threads);
             });
         } else {
@@ -152,7 +154,7 @@ namespace noa::signal::fft {
             auto& cuda_stream = stream.cuda();
             cuda::signal::fft::ctf_isotropic<REMAP>(
                     output.get(), output.strides(), shape,
-                    details::extract_ctf(ctf), ctf_square, ctf_abs,
+                    details::extract_ctf(ctf), ctf_abs, ctf_square,
                     fftfreq_range, fftfreq_range_endpoint, cuda_stream);
             cuda_stream.enqueue_attach(output.share());
             if constexpr (noa::traits::is_array_or_view_v<CTF>)
@@ -211,7 +213,7 @@ namespace noa::signal::fft {
                 cpu::signal::fft::ctf_isotropic<REMAP>(
                         input.get(), input_strides,
                         output.get(), output.strides(), shape,
-                        details::extract_ctf(ctf), ctf_square, ctf_abs, threads);
+                        details::extract_ctf(ctf), ctf_abs, ctf_square, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -219,7 +221,7 @@ namespace noa::signal::fft {
             cuda::signal::fft::ctf_isotropic<REMAP>(
                     input.get(), input_strides,
                     output.get(), output.strides(), shape,
-                    details::extract_ctf(ctf), ctf_square, ctf_abs, cuda_stream);
+                    details::extract_ctf(ctf), ctf_abs, ctf_square, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             if constexpr (noa::traits::is_array_or_view_v<CTF>)
                 cuda_stream.enqueue_attach(ctf.share());
@@ -257,7 +259,7 @@ namespace noa::signal::fft {
                 cpu::signal::fft::ctf_anisotropic<REMAP>(
                         input.get(), input_strides,
                         output.get(), output.strides(), shape,
-                        details::extract_ctf(ctf), ctf_square, ctf_abs, threads);
+                        details::extract_ctf(ctf), ctf_abs, ctf_square, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -265,7 +267,7 @@ namespace noa::signal::fft {
             cuda::signal::fft::ctf_anisotropic<REMAP>(
                     input.get(), input_strides,
                     output.get(), output.strides(), shape,
-                    details::extract_ctf(ctf), ctf_square, ctf_abs, cuda_stream);
+                    details::extract_ctf(ctf), ctf_abs, ctf_square, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
             if constexpr (noa::traits::is_array_or_view_v<CTF>)
                 cuda_stream.enqueue_attach(ctf.share());

@@ -113,5 +113,54 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, default range", "[noa][unified]"
     }
 }
 
+TEST_CASE("unified::signal::fft::ctf_isotropic, range", "[noa][unified]") {
+    // Generate the full range, and truncate to subregion. Then generate the truncated range directly
+    // with the same number of elements as in the subregion and check these ranges are equal.
+
+    using CTFIsotropic64 = noa::signal::fft::CTFIsotropic<f64>;
+    const auto ctf = CTFIsotropic64(2.1, 2.67, 300, 0.07, 2.7, 0, 0);
+    const auto resolution_range = Vec2<f64>{40, 10};
+    const bool endpoint = GENERATE(true, false);
+
+    const auto trimmed_range = [endpoint](
+            const Vec2<f64>& fitting_range, // angstrom
+            const Vec2<f64>& spacing, // angstrom/pixel
+            i64 logical_size
+    ) -> std::tuple<i64, noa::indexing::slice_t, Vec2<f64>> {
+        const auto logical_size_f = static_cast<f64>(logical_size);
+        auto frequency_cutoff = noa::math::round(spacing / fitting_range * logical_size_f);
+        const auto index_cutoff = frequency_cutoff.as<i64>();
+
+        if (endpoint)
+            frequency_cutoff[1] -= 1;
+        const auto normalized_frequency_cutoff = frequency_cutoff / logical_size_f;
+        const auto actual_fitting_range = spacing / normalized_frequency_cutoff;
+
+        // For the new logical size, simply compute the even size.
+        const auto new_size = index_cutoff[1] - index_cutoff[0];
+        const auto new_logical_size = (new_size - 1) * 2;
+
+        return {new_logical_size, noa::indexing::slice_t{index_cutoff[0], index_cutoff[1]}, actual_fitting_range};
+    };
+
+    // Generate full range.
+    const auto shape = Shape4<i64>{1, 1, 1, 512};
+    const auto output = noa::memory::empty<f32>(shape.rfft());
+    noa::signal::fft::ctf_isotropic<fft::H2H>({}, output, shape, ctf, false, true);
+
+    // Get the truncated range and truncate the full range.
+    const auto [trimmed_size, trimmed_slice, trimmed_resolution_range] =
+            trimmed_range(resolution_range, Vec2<f64>(ctf.pixel_size()), shape.elements());
+    const auto output_truncated = output.subregion(noa::indexing::ellipsis_t{}, trimmed_slice);
+
+    // Generate the truncated
+    const auto output_range = noa::memory::empty<f32>(trimmed_size / 2 + 1);
+    noa::signal::fft::ctf_isotropic<fft::H2H>(
+            output_range, {1, 1, 1, trimmed_size}, ctf, false, true,
+            (ctf.pixel_size() / trimmed_resolution_range).as<f32>(), endpoint);
+
+    REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_truncated, output_range, 1e-6));
+}
+
 // TODO rotation average
 // TODO astig is same as iso

@@ -7,7 +7,7 @@ namespace noa::cpu::signal::fft {
     void ctf_isotropic(
             const Input* input, Strides4<i64> input_strides,
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
-            const CTFIsotropic& ctf,  bool ctf_abs, bool ctf_square, i64 threads) {
+            const CTFIsotropic& ctf, bool ctf_abs, bool ctf_square, i64 threads) {
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         switch (shape.ndim()) {
