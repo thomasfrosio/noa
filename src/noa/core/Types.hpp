@@ -34,8 +34,9 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
 
-#include "noa/core/geometry/Enums.hpp"
 #include "noa/core/fft/Enums.hpp"
+#include "noa/core/geometry/Enums.hpp"
+#include "noa/core/math/Enums.hpp"
 #include "noa/core/signal/Enums.hpp"
 
 #include <ios>

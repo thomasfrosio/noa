@@ -1,3 +1,4 @@
+#include "noa/core/types/Functors.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/math/Reduce.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
@@ -350,6 +351,40 @@ namespace noa::cuda::math {
         }
     }
 
+    template<typename Input, typename Output, typename _>
+    void norm(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              Stream& stream) {
+        const char* name = "math::norm";
+        const auto mask = get_mask_(name, input_shape, output_shape);
+        const auto is_or_should_reduce = output_shape == 1 || mask;
+
+        if (!any(mask)) {
+            return cuda::utils::ewise_unary(
+                    name, input, input_strides, output, output_strides,
+                    output_shape, stream, noa::abs_squared_t{});
+        }
+
+        if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+            utils::reduce_unary(name, input, input_strides, input_shape,
+                                output, output_strides.filter(0), Output{0},
+                                noa::abs_squared_t{}, noa::plus_t{}, noa::sqrt_t{},
+                                is_or_should_reduce[0], true, stream);
+        } else {
+            const auto pre_process_op2 = []__device__(const Input& value) -> f64 {
+                return static_cast<f64>(noa::abs_squared_t{}(value));
+            };
+            const auto post_process_op = []__device__(const f64& value) -> Output {
+                return static_cast<Output>(noa::math::sqrt(value));
+            };
+            reduce_axis_(name,
+                         input, input_strides, input_shape,
+                         output, output_strides, output_shape,
+                         mask, f64{0},
+                         pre_process_op2, noa::plus_t{}, post_process_op, stream);
+        }
+    }
+
     #define NOA_INSTANTIATE_MINMAX_(T)                          \
     template void min<T, void>(                                 \
         const T*, const Strides4<i64>&, const Shape4<i64>&,     \
@@ -396,4 +431,14 @@ namespace noa::cuda::math {
 
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_COMPLEX_ALL(c32, f32);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_COMPLEX_ALL(c64, f64);
+
+    #define NOA_INSTANTIATE_NORM_(T,U)                      \
+   template void norm<T, U, void>(                          \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        U*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
+
+    NOA_INSTANTIATE_NORM_(f32, f32);
+    NOA_INSTANTIATE_NORM_(f64, f64);
+    NOA_INSTANTIATE_NORM_(c32, f32);
+    NOA_INSTANTIATE_NORM_(c64, f64);
 }

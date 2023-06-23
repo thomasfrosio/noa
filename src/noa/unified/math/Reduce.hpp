@@ -82,6 +82,27 @@ namespace noa::math {
         }
     }
 
+    /// Returns a pair with the minimum and maximum value of the input array.
+    template<typename Input, typename = std::enable_if_t<
+            noa::traits::is_array_or_view_v<Input> &&
+            details::is_valid_min_max_median_v<Input>>>
+    [[nodiscard]] auto min_max(const Input& array) {
+        NOA_CHECK(!array.is_empty(), "Empty array detected");
+        const Device device = array.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            cpu_stream.synchronize();
+            return cpu::math::min_max(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda::math::min_max(array.get(), array.strides(), array.shape(), stream.cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
     /// Returns the median of the input array.
     /// \param[in,out] array    Input array.
     /// \param overwrite        Whether the function is allowed to overwrite \p array.
@@ -167,6 +188,30 @@ namespace noa::math {
         }
     }
 
+    /// Returns the L2-norm (i.e. sqrt(sum(abs(array)^2))) of the input array.
+    /// \tparam Input       Array or View of f32, f64, c32 or c64. For complex value types, the absolute
+    ///                     value is taken before squaring, so the result is always real and positive.
+    /// \param[in] array    Array to reduce.
+    template<typename Input, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
+    [[nodiscard]] auto norm(const Input& array) {
+        NOA_CHECK(!array.is_empty(), "Empty array detected");
+        const Device device = array.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            cpu_stream.synchronize();
+            return cpu::math::norm(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda::math::norm(array.get(), array.strides(), array.shape(), stream.cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
     /// Returns the variance of the input array.
     /// \tparam Input       Array or View of f32, f64, c32 or c64. For complex value types, the absolute
     ///                     value is taken before squaring, so the result is always real and positive.
@@ -189,6 +234,34 @@ namespace noa::math {
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::var(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Returns the standard-deviation of the input array.
+    /// \tparam Input       Array or View of f32, f64, c32 or c64. For complex value types, the absolute
+    ///                     value is taken before squaring, so the result is always real and positive.
+    /// \param[in] array    Array to reduce.
+    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
+    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
+    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
+    ///                     of the variance for normally distributed variables.
+    template<typename Input, typename = std::enable_if_t<
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
+    [[nodiscard]] auto std(const Input& array, i64 ddof = 0) {
+        NOA_CHECK(!array.is_empty(), "Empty array detected");
+        const Device device = array.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            cpu_stream.synchronize();
+            return cpu::math::std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            return cuda::math::std(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -223,28 +296,28 @@ namespace noa::math {
         }
     }
 
-    /// Returns the standard-deviation of the input array.
+    /// Returns the mean and standard deviation of the input array.
     /// \tparam Input       Array or View of f32, f64, c32 or c64. For complex value types, the absolute
     ///                     value is taken before squaring, so the result is always real and positive.
-    /// \param[in] array    Array to reduce.
     /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
     ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
+    /// \param[in] array    Array to reduce.
     template<typename Input, typename = std::enable_if_t<
              noa::traits::is_array_or_view_v<Input> &&
              details::is_valid_var_std_v<Input, noa::traits::value_type_t<Input>>>>
-    [[nodiscard]] auto std(const Input& array, i64 ddof = 0) {
+    [[nodiscard]] auto mean_std(const Input& array, i64 ddof = 0) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
+            return cpu::math::mean_std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return cuda::math::std(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
+            return cuda::math::mean_std(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -497,6 +570,57 @@ namespace noa::math {
         return output;
     }
 
+    /// Reduces an array along some dimensions by taking the L2-norm.
+    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
+    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
+    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    /// \param[in] input        Input array to reduce.
+    /// \param[out] output      Reduced norms.
+    template<typename Input, typename Output, std::enable_if_t<
+             noa::traits::are_array_or_view_v<Input, Output> &&
+             details::is_valid_var_std_v<Input, Output>, bool> = true>
+    void norm(const Input& input, const Output& output) {
+        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
+        NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
+
+        const Device device = input.device();
+        NOA_CHECK(device == output.device(),
+                  "The input and output arrays must be on the same device, but got input:{} and output:{}",
+                  device, output.device());
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::math::norm(input.get(), input.strides(), input.shape(),
+                                output.get(), output.strides(), output.shape(),
+                                threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::math::norm(input.get(), input.strides(), input.shape(),
+                             output.get(), output.strides(), output.shape(),
+                             cuda_stream);
+            cuda_stream.enqueue_attach(input.share(), output.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Reduces an array along some dimensions by taking the norm.
+    template<typename Input, typename PreProcessOp = noa::copy_t, std::enable_if_t<
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, View<noa::traits::value_type_twice_t<Input>>>, bool> = true>
+    [[nodiscard]] auto norm(const Input& input, const Shape4<i64>& output_shape) {
+        using output_value_t = noa::traits::value_type_twice_t<Input>;
+        Array<output_value_t> output(output_shape, input.options());
+        norm(input, output);
+        return output;
+    }
+
     /// Reduces an array along some dimensions by taking the variance.
     /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
@@ -553,6 +677,65 @@ namespace noa::math {
         using output_value_t = noa::traits::value_type_twice_t<Input>;
         Array<output_value_t> output(output_shape, input.options());
         var(input, output, ddof);
+        return output;
+    }
+
+    /// Reduces an array along some dimensions by taking the standard-deviation.
+    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
+    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
+    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    /// \tparam Input       Array or View of f32, f64, c32, f64. For complex types, the absolute value is taken
+    ///                     before squaring, so the variance and stddev are always real and positive.
+    /// \tparam Output      If the input value type is complex, the output value type should be the corresponding
+    ///                     real type. Otherwise, should be the same as the input value type.
+    /// \param[in] input    Input array to reduce.
+    /// \param[out] output  Reduced variances.
+    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
+    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
+    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
+    ///                     of the variance for normally distributed variables.
+    template<typename Input, typename Output, typename = std::enable_if_t<
+              noa::traits::are_array_or_view_v<Input, Output> &&
+              details::is_valid_var_std_v<Input, Output>>>
+    void std(const Input& input, const Output& output, i64 ddof = 0) {
+        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
+        NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
+
+        const Device device = input.device();
+        NOA_CHECK(device == output.device(),
+                  "The input and output arrays must be on the same device, but got input:{} and output:{}",
+                  device, output.device());
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::math::std(input.get(), input.strides(), input.shape(),
+                               output.get(), output.strides(), output.shape(),
+                               ddof, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::math::std(input.get(), input.strides(), input.shape(),
+                            output.get(), output.strides(), output.shape(),
+                            ddof, cuda_stream);
+            cuda_stream.enqueue_attach(input.share(), output.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Reduces an array along some dimensions by taking the standard-deviation.
+    template<typename Input, std::enable_if_t<
+             noa::traits::is_array_or_view_v<Input> &&
+             details::is_valid_var_std_v<Input, View<noa::traits::value_type_twice_t<Input>>>, bool> = true>
+    [[nodiscard]] auto std(const Input& input, const Shape4<i64>& output_shape, i64 ddof = 0) {
+        using output_value_t = noa::traits::value_type_twice_t<Input>;
+        Array<output_value_t> output(output_shape, input.options());
+        std(input, output, ddof);
         return output;
     }
 
@@ -618,8 +801,8 @@ namespace noa::math {
 
     /// Reduces an array along some dimensions by taking the mean and variance.
     template<typename Input, std::enable_if_t<
-             noa::traits::is_array_or_view_v<Input> &&
-             details::is_valid_var_std_v<Input, View<noa::traits::value_type_twice_t<Input>>>, bool> = true>
+            noa::traits::is_array_or_view_v<Input> &&
+            details::is_valid_var_std_v<Input, View<noa::traits::value_type_twice_t<Input>>>, bool> = true>
     [[nodiscard]] auto mean_var(const Input& input, const Shape4<i64>& output_shape, i64 ddof = 0) {
         using output_mean_value_t = noa::traits::value_type_t<Input>;
         using output_variance_value_t = noa::traits::value_type_twice_t<Input>;
@@ -629,93 +812,151 @@ namespace noa::math {
         return std::pair{mean, variance};
     }
 
-    /// Reduces an array along some dimensions by taking the standard-deviation.
+    /// Reduces an array along some dimensions by taking the mean and standard deviation.
     /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \tparam Input       Array or View of f32, f64, c32, f64. For complex types, the absolute value is taken
-    ///                     before squaring, so the variance and stddev are always real and positive.
-    /// \tparam Output      If the input value type is complex, the output value type should be the corresponding
-    ///                     real type. Otherwise, should be the same as the input value type.
-    /// \param[in] input    Input array to reduce.
-    /// \param[out] output  Reduced variances.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<typename Input, typename Output, typename = std::enable_if_t<
-              noa::traits::are_array_or_view_v<Input, Output> &&
-              details::is_valid_var_std_v<Input, Output>>>
-    void std(const Input& input, const Output& output, i64 ddof = 0) {
-        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-        NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
+    /// \tparam Input           Array or View of f32, f64, c32, f64. To compute the variance of complex types, the absolute
+    ///                         value is taken before squaring, so the variance is always real and positive.
+    /// \tparam Stddev        If the input value type is complex, the variance value type should be the corresponding
+    ///                         real type. Otherwise, should be the same as the input value type.
+    /// \param[in] input        Input array to reduce.
+    /// \param[in] mean         Reduced means.
+    /// \param[out] stddev      Reduced standard deviations.
+    /// \param ddof             Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
+    ///                         In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
+    ///                         of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
+    ///                         of the variance for normally distributed variables.
+    template<typename Input, typename Mean, typename Stddev, typename = std::enable_if_t<
+            noa::traits::are_array_or_view_v<Input, Mean, Stddev> &&
+            noa::traits::are_almost_same_value_type_v<Input, Mean> &&
+            details::is_valid_var_std_v<Input, Stddev>>>
+    void mean_std(const Input& input, const Mean& mean, const Stddev& stddev, i64 ddof = 0) {
+        NOA_CHECK(!input.is_empty() && !mean.is_empty() && !stddev.is_empty(), "Empty array detected");
+        NOA_CHECK(!noa::indexing::are_overlapped(input, mean) &&
+                  !noa::indexing::are_overlapped(input, stddev),
+                  "The input and output arrays should not overlap");
+        NOA_CHECK(noa::all(mean.shape() == stddev.shape()),
+                  "The mean and stddev arrays should have the same shape, but got mean={} and stddev={}",
+                  mean.shape(), stddev.shape());
 
         const Device device = input.device();
-        NOA_CHECK(device == output.device(),
-                  "The input and output arrays must be on the same device, but got input:{} and output:{}",
-                  device, output.device());
+        NOA_CHECK(device == mean.device() && device == stddev.device(),
+                  "The input and output arrays must be on the same device, "
+                  "but got input={} mean={} and stddev={}",
+                  device, mean.device(), stddev.device());
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=]() {
-                cpu::math::std(input.get(), input.strides(), input.shape(),
-                               output.get(), output.strides(), output.shape(),
-                               ddof, threads);
+                cpu::math::mean_std(
+                        input.get(), input.strides(), input.shape(),
+                        mean.get(), mean.strides(),
+                        stddev.get(), stddev.strides(),
+                        stddev.shape(), ddof, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            cuda::math::std(input.get(), input.strides(), input.shape(),
-                            output.get(), output.strides(), output.shape(),
-                            ddof, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda::math::mean_std(
+                    input.get(), input.strides(), input.shape(),
+                    mean.get(), mean.strides(),
+                    stddev.get(), stddev.strides(),
+                    stddev.shape(), ddof, cuda_stream);
+            cuda_stream.enqueue_attach(input.share(), mean.share(), stddev.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
     }
 
-    /// Reduces an array along some dimensions by taking the standard-deviation.
+    /// Reduces an array along some dimensions by taking the mean and standard deviation.
     template<typename Input, std::enable_if_t<
              noa::traits::is_array_or_view_v<Input> &&
              details::is_valid_var_std_v<Input, View<noa::traits::value_type_twice_t<Input>>>, bool> = true>
-    [[nodiscard]] auto std(const Input& input, const Shape4<i64>& output_shape, i64 ddof = 0) {
-        using output_value_t = noa::traits::value_type_twice_t<Input>;
-        Array<output_value_t> output(output_shape, input.options());
-        std(input, output, ddof);
-        return output;
+    [[nodiscard]] auto mean_std(const Input& input, const Shape4<i64>& output_shape, i64 ddof = 0) {
+        using output_mean_value_t = noa::traits::value_type_t<Input>;
+        using output_stddev_value_t = noa::traits::value_type_twice_t<Input>;
+        Array<output_mean_value_t> mean(output_shape, input.options());
+        Array<output_stddev_value_t> stddev(output_shape, input.options());
+        mean_std(input, mean, stddev, ddof);
+        return std::pair{mean, stddev};
     }
+}
 
-    /// Normalizes (and standardizes) an array, by setting its mean to 0 and variance to 1.
-    /// Can be in-place or out-of-place. It also returns the mean and variance before normalization.
+namespace noa::math {
+    /// Normalizes an array, according to a normalization mode.
+    /// Can be in-place or out-of-place.
     template<typename Input, typename Output, typename = std::enable_if_t<
              noa::traits::are_array_or_view_v<Input, Output> &&
              noa::traits::is_almost_any_v<noa::traits::value_type_t<Output>, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
-    auto normalize(const Input& input, const Output& output, i64 ddof = 0) {
+    void normalize(
+            const Input& input,
+            const Output& output,
+            NormalizationMode normalization_mode = NormalizationMode::MEAN_STD,
+            i64 ddof = 0
+    ) {
         NOA_CHECK(noa::all(input.shape() == output.shape()),
                   "The input and output arrays should have the same shape, but got input={} and output={}",
                   input.shape(), output.shape());
-        const auto [mean, var] = mean_var(input, ddof);
-        ewise_trinary(input, mean, var, output, minus_divide_t{});
-        return std::pair{mean, var};
+
+        switch (normalization_mode) {
+            case NormalizationMode::MIN_MAX: {
+                const auto [min, max] = min_max(input);
+                ewise_trinary(input, min, max - min, output, minus_divide_t{});
+                break;
+            }
+            case NormalizationMode::MEAN_STD: {
+                const auto [mean, stddev] = mean_std(input, ddof);
+                ewise_trinary(input, mean, stddev, output, minus_divide_t{});
+                break;
+            }
+            case NormalizationMode::L2_NORM: {
+                const auto l2_norm = norm(input);
+                ewise_binary(input, l2_norm, output, divide_t{});
+                break;
+            }
+        }
     }
 
-    /// Normalizes (and standardizes) each batch of an array, by setting mean=0 and variance=1 of each batch.
-    /// Can be in-place or out-of-place. It also returns the mean and variance before normalization.
+    /// Normalizes each batch of an array, according to a normalization mode.
+    /// Can be in-place or out-of-place.
     template<typename Input, typename Output, typename = std::enable_if_t<
              noa::traits::are_array_or_view_v<Input, Output> &&
              noa::traits::is_almost_any_v<noa::traits::value_type_t<Output>, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
-    auto normalize_per_batch(const Input& input, const Output& output, i64 ddof = 0) {
+    void normalize_per_batch(
+            const Input& input,
+            const Output& output,
+            NormalizationMode normalization_mode = NormalizationMode::MEAN_STD,
+            i64 ddof = 0
+    ) {
         NOA_CHECK(noa::all(input.shape() == output.shape()),
                   "The input and output arrays should have the same shape, but got input={} and output={}",
                   input.shape(), output.shape());
         const auto batches = Shape4<i64>{output.shape()[0], 1, 1, 1};
-        const auto [means, variances] = mean_var(input, batches, ddof);
-        ewise_trinary(input, means, variances, output, minus_divide_t{});
-        return std::pair{means, variances};
+
+        switch (normalization_mode) {
+            case NormalizationMode::MIN_MAX: {
+                const auto min = noa::math::min(input, batches);
+                const auto max = noa::math::max(input, batches);
+                ewise_binary(max, min, max, noa::minus_t{}); // not ideal...
+                ewise_trinary(input, min, max, output, minus_divide_t{});
+                break;
+            }
+            case NormalizationMode::MEAN_STD: {
+                const auto [means, stddevs] = mean_std(input, batches, ddof);
+                ewise_trinary(input, means, stddevs, output, minus_divide_t{});
+                break;
+            }
+            case NormalizationMode::L2_NORM: {
+                const auto l2_norms = norm(input, batches);
+                ewise_binary(input, l2_norms, output, divide_t{});
+                break;
+            }
+        }
     }
 }

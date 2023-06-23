@@ -42,6 +42,13 @@ namespace noa::cuda::math {
                             const Shape4<i64>& shape,
                             Stream& stream);
 
+    template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
+    [[nodiscard]] auto min_max(const Value* input,
+                               const Strides4<i64>& strides,
+                               const Shape4<i64>& shape,
+                               Stream& stream
+    ) -> std::pair<Value, Value>;
+
     template<typename Value, typename PreProcessOp,
              typename Reduced = details::sum_mean_return_t<Value, PreProcessOp>,
              typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreProcessOp, Reduced>>>
@@ -62,7 +69,21 @@ namespace noa::cuda::math {
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    [[nodiscard]] Output norm(const Input* input,
+                              const Strides4<i64>& strides,
+                              const Shape4<i64>& shape,
+                              Stream& stream);
+
+    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+             typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] Output var(const Input* input,
+                             const Strides4<i64>& strides,
+                             const Shape4<i64>& shape,
+                             i64 ddof, Stream& stream);
+
+    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+             typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    [[nodiscard]] Output std(const Input* input,
                              const Strides4<i64>& strides,
                              const Shape4<i64>& shape,
                              i64 ddof, Stream& stream);
@@ -76,10 +97,10 @@ namespace noa::cuda::math {
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    [[nodiscard]] Output std(const Input* input,
-                             const Strides4<i64>& strides,
-                             const Shape4<i64>& shape,
-                             i64 ddof, Stream& stream);
+    [[nodiscard]] auto mean_std(const Input* input,
+                                const Strides4<i64>& strides,
+                                const Shape4<i64>& shape,
+                                i64 ddof, Stream& stream) -> std::pair<Input, Output>;
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
     [[nodiscard]] Value median(Value* input,
@@ -118,7 +139,17 @@ namespace noa::cuda::math {
               PreProcessOp pre_process_op, Stream& stream);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    void norm(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              Stream& stream);
+
+    template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, Stream& stream);
+
+    template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 ddof, Stream& stream);
 
@@ -129,7 +160,8 @@ namespace noa::cuda::math {
                   const Shape4<i64>& output_shape, i64 ddof, Stream& stream);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream);
+    void mean_std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                  Input* mean, const Strides4<i64>& mean_strides,
+                  Output* stddev, const Strides4<i64>& stddev_strides,
+                  const Shape4<i64>& output_shape, i64 ddof, Stream& stream);
 }

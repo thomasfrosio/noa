@@ -1,6 +1,7 @@
 #include "noa/core/Math.hpp"
 #include "noa/algorithms/math/AccurateSum.hpp"
 
+#include "noa/core/types/Functors.hpp"
 #include "noa/cpu/math/Reduce.hpp"
 #include "noa/cpu/memory/Copy.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
@@ -9,10 +10,6 @@
 
 namespace {
     using namespace noa;
-
-    enum class ReductionMode {
-        MIN, MAX, SUM, MEAN, VAR, STD
-    };
 
     struct accurate_sum_t {};
     struct accurate_mean_t {};
@@ -353,6 +350,31 @@ namespace noa::cpu::math {
                 input, strides, shape, noa::copy_t{}, noa::max_t{}, noa::copy_t{}, threads);
     }
 
+    template<typename Value, typename>
+    auto min_max(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads
+    ) -> std::pair<Value, Value> {
+        using reduced_t = std::pair<Value, Value>;
+        const auto initial_reduce = reduced_t(
+                noa::math::Limits<Value>::max(),
+                noa::math::Limits<Value>::lowest());
+
+        const auto preprocess_operator = [](const Value& value) noexcept {
+            return reduced_t(value, value);
+        };
+
+        const auto reduction_operator = [](reduced_t reduced, const reduced_t& value) noexcept {
+            reduced.first = noa::math::min(reduced.first, value.first);
+            reduced.second = noa::math::max(reduced.second, value.second);
+            return reduced;
+        };
+
+        reduced_t output{};
+        noa::cpu::utils::reduce_unary(
+                input, strides, shape, &output, Strides1<i64>{1},
+                initial_reduce, preprocess_operator, reduction_operator, {}, threads);
+        return output;
+    }
+
     template<typename Value, typename PreProcessOp, typename Reduced, typename>
     Reduced sum(const Value* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
                 PreProcessOp pre_process_op, i64 threads) {
@@ -368,9 +390,21 @@ namespace noa::cpu::math {
     }
 
     template<typename Input, typename Output, typename>
+    Output norm(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 threads) {
+        return reduce_all<Input, Output, Output>(
+                input, strides, shape, noa::abs_squared_t{}, accurate_sum_t{}, noa::sqrt_t{}, threads);
+    }
+
+    template<typename Input, typename Output, typename>
     Output var(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 ddof, i64 threads) {
         return reduce_all<Input, Input, Output>(
                 input, strides, shape, noa::copy_t{}, accurate_variance_t{}, noa::copy_t{}, threads, ddof);
+    }
+
+    template<typename Input, typename Output, typename>
+    Output std(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 ddof, i64 threads) {
+        return reduce_all<Input, Input, Output>(
+                input, strides, shape, noa::copy_t{}, accurate_stddev_t{}, noa::copy_t{}, threads, ddof);
     }
 
     template<typename Input, typename Output, typename>
@@ -384,9 +418,13 @@ namespace noa::cpu::math {
     }
 
     template<typename Input, typename Output, typename>
-    Output std(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 ddof, i64 threads) {
-        return reduce_all<Input, Input, Output>(
-                input, strides, shape, noa::copy_t{}, accurate_stddev_t{}, noa::copy_t{}, threads, ddof);
+    auto mean_std(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+                  i64 ddof, i64 threads) -> std::pair<Input, Output> {
+        Input output_mean{};
+        const auto output_std = reduce_all<Input, Input, Output>(
+                input, strides, shape, noa::copy_t{}, accurate_stddev_t{}, noa::copy_t{}, threads,
+                ddof, &output_mean);
+        return std::pair{output_mean, output_std};
     }
 
     template<typename Value, typename>
@@ -486,6 +524,17 @@ namespace noa::cpu::math {
     }
 
     template<typename Input, typename Output, typename>
+    void norm(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              i64 threads) {
+        ReduceAxis<Input, Output, Output>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                noa::abs_squared_t{}, accurate_sum_t{}, noa::sqrt_t{},
+                threads);
+    }
+
+    template<typename Input, typename Output, typename>
     void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 ddof, i64 threads) {
@@ -493,6 +542,17 @@ namespace noa::cpu::math {
                 input, input_strides, input_shape,
                 output, output_strides, output_shape,
                 noa::copy_t{}, accurate_variance_t{}, noa::copy_t{},
+                threads, ddof);
+    }
+
+    template<typename Input, typename Output, typename>
+    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, i64 threads) {
+        ReduceAxis<Input, Input, Output>::execute(
+                input, input_strides, input_shape,
+                output, output_strides, output_shape,
+                noa::copy_t{}, accurate_stddev_t{}, noa::copy_t{},
                 threads, ddof);
     }
 
@@ -510,14 +570,16 @@ namespace noa::cpu::math {
     }
 
     template<typename Input, typename Output, typename>
-    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, i64 threads) {
+    void mean_std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                  Input* mean, const Strides4<i64>& mean_strides,
+                  Output* stddev, const Strides4<i64>& stddev_strides,
+                  const Shape4<i64>& output_shape, i64 ddof, i64 threads) {
         ReduceAxis<Input, Input, Output>::execute(
                 input, input_strides, input_shape,
-                output, output_strides, output_shape,
+                stddev, stddev_strides, output_shape,
                 noa::copy_t{}, accurate_stddev_t{}, noa::copy_t{},
-                threads, ddof);
+                threads, ddof,
+                mean, mean_strides);
     }
 }
 
@@ -525,6 +587,8 @@ namespace noa::cpu::math {
     #define NOA_INSTANTIATE_MIN_MAX_(T)                                                 \
     template T min<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
     template T max<T, void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);   \
+    template std::pair<T,T> min_max<T, void>(                                           \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, i64);                       \
     template T median<T, void>(T*, Strides4<i64>, Shape4<i64>, bool);                   \
     template void min<T, void>(                                                         \
         const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
@@ -577,11 +641,18 @@ namespace noa::cpu::math {
     NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c32, f32);
     NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c64, f64);
 
-    #define NOA_INSTANTIATE_VAR_STD_(T,U)                                                   \
+    #define NOA_INSTANTIATE_VAR_STD_(T,U) \
+    template U norm<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);     \
     template U var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64); \
     template U std<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64); \
     template std::pair<T,U> mean_var<T,U,void>(                                             \
         const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64);                      \
+    template std::pair<T,U> mean_std<T,U,void>(                                             \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, i64, i64);                      \
+                                                                                            \
+    template void norm<T,U,void>(                                                           \
+        const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
+        U*, const Strides4<i64>&, const Shape4<i64>&, i64);                                 \
     template void var<T,U,void>(                                                            \
         const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
         U*, const Strides4<i64>&, const Shape4<i64>&, i64, i64);                            \
@@ -589,6 +660,10 @@ namespace noa::cpu::math {
         const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
         U*, const Strides4<i64>&, const Shape4<i64>&, i64, i64);                            \
     template void mean_var<T,U,void>(                                                       \
+        const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
+        T*, const Strides4<i64>&, U*, const Strides4<i64>&,                                 \
+        const Shape4<i64>&, i64, i64);                                                      \
+    template void mean_std<T,U,void>(                                                       \
         const T* , const Strides4<i64>&, const Shape4<i64>&,                                \
         T*, const Strides4<i64>&, U*, const Strides4<i64>&,                                 \
         const Shape4<i64>&, i64, i64)

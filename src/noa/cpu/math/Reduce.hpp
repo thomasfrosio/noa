@@ -44,6 +44,13 @@ namespace noa::cpu::math {
                             const Shape4<i64>& shape,
                             i64 threads);
 
+    template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
+    [[nodiscard]] auto min_max(const Value* input,
+                               const Strides4<i64>& strides,
+                               const Shape4<i64>& shape,
+                               i64 threads
+    ) -> std::pair<Value, Value>;
+
     template<typename Value, typename PreProcessOp,
              typename Reduced = details::sum_mean_return_t<Value, PreProcessOp>,
              typename = std::enable_if_t<details::is_valid_sum_mean_v<Value, PreProcessOp, Reduced>>>
@@ -64,7 +71,21 @@ namespace noa::cpu::math {
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    [[nodiscard]] Output norm(const Input* input,
+                              const Strides4<i64>& strides,
+                              const Shape4<i64>& shape,
+                              i64 threads);
+
+    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+             typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] Output var(const Input* input,
+                             const Strides4<i64>& strides,
+                             const Shape4<i64>& shape,
+                             i64 ddof, i64 threads);
+
+    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+             typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    [[nodiscard]] Output std(const Input* input,
                              const Strides4<i64>& strides,
                              const Shape4<i64>& shape,
                              i64 ddof, i64 threads);
@@ -74,14 +95,16 @@ namespace noa::cpu::math {
     [[nodiscard]] auto mean_var(const Input* input,
                                 const Strides4<i64>& strides,
                                 const Shape4<i64>& shape,
-                                i64 ddof, i64 threads) -> std::pair<Input, Output>;
+                                i64 ddof, i64 threads
+    ) -> std::pair<Input, Output>;
 
     template<typename Input, typename Output = noa::traits::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    [[nodiscard]] Output std(const Input* input,
-                             const Strides4<i64>& strides,
-                             const Shape4<i64>& shape,
-                             i64 ddof, i64 threads);
+    [[nodiscard]] auto mean_std(const Input* input,
+                                const Strides4<i64>& strides,
+                                const Shape4<i64>& shape,
+                                i64 ddof, i64 threads
+    ) -> std::pair<Input, Output>;
 
     template<typename Value, typename = std::enable_if_t<details::is_valid_min_max_median_v<Value>>>
     [[nodiscard]] Value median(Value* input,
@@ -119,7 +142,17 @@ namespace noa::cpu::math {
               PreprocessOp pre_process_op, i64 threads);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    void norm(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+              i64 threads);
+
+    template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+             i64 ddof, i64 threads);
+
+    template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
+    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
              Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
              i64 ddof, i64 threads);
 
@@ -130,7 +163,8 @@ namespace noa::cpu::math {
                   const Shape4<i64>& output_shape, i64 ddof, i64 threads);
 
     template<typename Input, typename Output, typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
-    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, i64 threads);
+    void mean_std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                  Input* mean, const Strides4<i64>& mean_strides,
+                  Output* stddev, const Strides4<i64>& stddev_strides,
+                  const Shape4<i64>& output_shape, i64 ddof, i64 threads);
 }

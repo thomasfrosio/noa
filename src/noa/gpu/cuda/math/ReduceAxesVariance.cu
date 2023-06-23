@@ -352,7 +352,41 @@ namespace noa::cuda::math {
         }
     }
 
-    #define NOA_INSTANTIATE_VAR_(T,U)                       \
+    template<typename Input, typename Output, typename>
+    void mean_std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+                  Input* mean, const Strides4<i64>& mean_strides,
+                  Output* stddev, const Strides4<i64>& stddev_strides,
+                  const Shape4<i64>& output_shape, i64 ddof, Stream& stream) {
+        const char* name = "math::mean_std";
+        const auto mask = get_mask_(name, input_shape, output_shape);
+        const auto is_or_should_reduce(output_shape == 1 || mask);
+
+        if (!noa::any(mask)) {
+            if constexpr (noa::traits::is_complex_v<Input>) {
+                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                ewise_unary(input, input_strides, stddev, stddev_strides, output_shape, noa::abs_t{}, stream);
+            } else {
+                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                memory::copy(input, input_strides, stddev, stddev_strides, output_shape, stream);
+            }
+
+        } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
+            utils::reduce_variance<true>(
+                    name, input, input_strides, input_shape,
+                    mean, mean_strides.filter(0),
+                    stddev, stddev_strides.filter(0),
+                    ddof, is_or_should_reduce[0], true, stream);
+        } else {
+            reduce_variance_axis_<true>(
+                    name,
+                    input, input_strides, input_shape,
+                    mean, mean_strides,
+                    stddev, stddev_strides,
+                    output_shape, mask, ddof, stream);
+        }
+    }
+
+    #define NOA_INSTANTIATE_VAR_(T,U) \
     template void var<T,U,void>(                            \
         const T*, const Strides4<i64>&, const Shape4<i64>&, \
         U*, const Strides4<i64>&, const Shape4<i64>&,       \
@@ -362,6 +396,10 @@ namespace noa::cuda::math {
         U*, const Strides4<i64>&, const Shape4<i64>&,       \
         i64, Stream&);                                      \
     template void mean_var<T,U,void>(                       \
+        const T*, const Strides4<i64>&, const Shape4<i64>&, \
+        T*, const Strides4<i64>&, U*, const Strides4<i64>&, \
+        const Shape4<i64>&, i64, Stream&);                  \
+    template void mean_std<T,U,void>(                       \
         const T*, const Strides4<i64>&, const Shape4<i64>&, \
         T*, const Strides4<i64>&, U*, const Strides4<i64>&, \
         const Shape4<i64>&, i64, Stream&)

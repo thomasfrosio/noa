@@ -1,3 +1,4 @@
+#include "noa/core/types/Functors.hpp"
 #include "noa/gpu/cuda/Sort.hpp"
 #include "noa/gpu/cuda/math/Reduce.hpp"
 #include "noa/gpu/cuda/utils/ReduceUnary.cuh"
@@ -32,6 +33,37 @@ namespace noa::cuda::math {
                 {}, noa::max_t{}, {}, true, true, stream);
         stream.synchronize();
         return output;
+    }
+
+    template<typename Value, typename _>
+    auto min_max(const Value* input,
+                 const Strides4<i64>& strides,
+                 const Shape4<i64>& shape,
+                 Stream& stream
+    ) -> std::pair<Value, Value> {
+        using reduced_t = Pair<Value, Value>;
+        const auto initial_reduce = reduced_t(
+                noa::math::Limits<Value>::max(),
+                noa::math::Limits<Value>::lowest());
+
+        const auto preprocess_operator = []__device__(const Value& value) noexcept {
+            return reduced_t(value, value);
+        };
+
+        const auto reduction_operator = []__device__(reduced_t reduced, const reduced_t& value) noexcept {
+            reduced.first = noa::math::min(reduced.first, value.first);
+            reduced.second = noa::math::max(reduced.second, value.second);
+            return reduced;
+        };
+
+        reduced_t output{};
+        utils::reduce_unary(
+                "math::min_max",
+                input, strides, shape, &output, Strides1<i64>{1},
+                initial_reduce,
+                preprocess_operator, reduction_operator, {}, true, true, stream);
+        stream.synchronize();
+        return {output.first, output.second};
     }
 
     template<typename Value, typename PreProcessOp, typename Reduced, typename>
@@ -71,6 +103,20 @@ namespace noa::cuda::math {
     }
 
     template<typename Input, typename Output, typename>
+    Output norm(const Input* input,
+                const Strides4<i64>& strides,
+                const Shape4<i64>& shape,
+                Stream& stream) {
+        Output output{};
+        utils::reduce_unary(
+                "math::norm",
+                input, strides, shape, &output, Strides1<i64>{1}, Output{0},
+                noa::abs_squared_t{}, noa::plus_t{}, noa::sqrt_t{}, true, true, stream);
+        stream.synchronize();
+        return output;
+    }
+
+    template<typename Input, typename Output, typename>
     Output var(const Input* input,
                const Strides4<i64>& strides,
                const Shape4<i64>& shape,
@@ -84,23 +130,6 @@ namespace noa::cuda::math {
                 ddof, true, true, stream);
         stream.synchronize();
         return output;
-    }
-
-    template<typename Input, typename Output, typename _>
-    auto mean_var(const Input* input,
-                  const Strides4<i64>& strides,
-                  const Shape4<i64>& shape,
-                  i64 ddof, Stream& stream
-    ) -> std::pair<Input, Output> {
-        Input mean;
-        Output var;
-        utils::reduce_variance<false>(
-                "math::var", input, strides, shape,
-                &mean, Strides1<i64>{1},
-                &var, Strides1<i64>{1},
-                ddof, true, true, stream);
-        stream.synchronize();
-        return std::pair{mean, var};
     }
 
     template<typename Input, typename Output, typename>
@@ -117,6 +146,40 @@ namespace noa::cuda::math {
                 ddof, true, true, stream);
         stream.synchronize();
         return output;
+    }
+
+    template<typename Input, typename Output, typename _>
+    auto mean_var(const Input* input,
+                  const Strides4<i64>& strides,
+                  const Shape4<i64>& shape,
+                  i64 ddof, Stream& stream
+    ) -> std::pair<Input, Output> {
+        Input mean;
+        Output var;
+        utils::reduce_variance<false>(
+                "math::mean_var", input, strides, shape,
+                &mean, Strides1<i64>{1},
+                &var, Strides1<i64>{1},
+                ddof, true, true, stream);
+        stream.synchronize();
+        return std::pair{mean, var};
+    }
+
+    template<typename Input, typename Output, typename _>
+    auto mean_std(const Input* input,
+                  const Strides4<i64>& strides,
+                  const Shape4<i64>& shape,
+                  i64 ddof, Stream& stream
+    ) -> std::pair<Input, Output> {
+        Input mean;
+        Output var;
+        utils::reduce_variance<true>(
+                "math::mean_std", input, strides, shape,
+                &mean, Strides1<i64>{1},
+                &var, Strides1<i64>{1},
+                ddof, true, true, stream);
+        stream.synchronize();
+        return std::pair{mean, var};
     }
 
     template<typename Value, typename>
@@ -173,9 +236,10 @@ namespace noa::cuda::math {
         return noa::math::sqrt(output / static_cast<noa::traits::value_type_t<Value>>(shape.elements()));
     }
 
-    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                              \
-    template T min<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
-    template T max<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);    \
+    #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                                              \
+    template T min<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);                    \
+    template T max<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);                    \
+    template std::pair<T,T> min_max<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);   \
     template T median<T,void>(T*, Strides4<i64>, Shape4<i64>, bool, Stream&)
 
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(f16);
@@ -220,10 +284,12 @@ namespace noa::cuda::math {
     NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c32, f32);
     NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c64, f64);
 
-    #define NOA_INSTANTIATE_VAR_(T,U)                                                               \
-    template U var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);     \
-    template U std<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);     \
-    template std::pair<T, U> mean_var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
+    #define NOA_INSTANTIATE_VAR_(T,U) \
+    template U norm<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);                         \
+    template U var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);                     \
+    template U std<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);                     \
+    template std::pair<T, U> mean_var<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&);  \
+    template std::pair<T, U> mean_std<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64, Stream&)
 
     NOA_INSTANTIATE_VAR_(f32, f32);
     NOA_INSTANTIATE_VAR_(f64, f64);
