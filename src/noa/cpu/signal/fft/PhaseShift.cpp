@@ -13,7 +13,7 @@ namespace {
                   T* output, const Strides4<i64>& output_strides,
                   const Shape4<i64>& shape, i64 threads) {
         constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
-        constexpr bool NO_REMAP = (u8_REMAP & fft::Layout::SRC_CENTERED) == (u8_REMAP & fft::Layout::DST_CENTERED);
+        constexpr bool NO_REMAP = bool(u8_REMAP & fft::Layout::SRC_CENTERED) == bool(u8_REMAP & fft::Layout::DST_CENTERED);
 
         if (!input) {
             noa::cpu::memory::set(output, output_strides, shape.rfft(), T{1, 0}, threads);
@@ -33,9 +33,6 @@ namespace noa::cpu::signal::fft {
     void phase_shift_2d(const T* input, const Strides4<i64>& input_strides,
                         T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                         const Vec2<f32>* shifts, f32 cutoff, i64 threads) {
-        constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
         NOA_ASSERT(shape[1] == 1);
 
         auto kernel = noa::algorithm::signal::phase_shift<REMAP, 2>(
@@ -47,9 +44,6 @@ namespace noa::cpu::signal::fft {
     void phase_shift_2d(const T* input, const Strides4<i64>& input_strides,
                         T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                         const Vec2<f32>& shift, f32 cutoff, i64 threads) {
-        constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
         NOA_ASSERT(shape[1] == 1);
 
         if (noa::all(shift == 0))
@@ -73,10 +67,6 @@ namespace noa::cpu::signal::fft {
     void phase_shift_3d(const T* input, const Strides4<i64>& input_strides,
                         T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                         const Vec3<f32>* shifts, f32 cutoff, i64 threads) {
-        constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
-
         auto kernel = noa::algorithm::signal::phase_shift<REMAP, 3>(
                 input, input_strides, output, output_strides, shape, shifts, cutoff);
         noa::cpu::utils::iwise_4d(shape.rfft(), kernel, threads);
@@ -86,10 +76,6 @@ namespace noa::cpu::signal::fft {
     void phase_shift_3d(const T* input, const Strides4<i64>& input_strides,
                         T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                         const Vec3<f32>& shift, f32 cutoff, i64 threads) {
-        constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
-
         if (noa::all(shift == 0))
             return no_shift_<REMAP>(input, input_strides, output, output_strides, shape, threads);
 

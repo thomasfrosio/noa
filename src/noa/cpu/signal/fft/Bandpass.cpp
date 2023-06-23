@@ -7,12 +7,6 @@ namespace noa::cpu::signal::fft {
     void lowpass(const T* input, const Strides4<i64>& input_strides,
                  T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                  f32 cutoff, f32 width, i64 threads) {
-        using Layout = ::noa::fft::Layout;
-        constexpr auto u8_REMAP = static_cast<u8>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
-        NOA_ASSERT(noa::all(shape > 0));
-
         if (width > 1e-6f) {
             auto kernel = noa::algorithm::signal::lowpass<REMAP, true>(
                     input, input_strides, output, output_strides, shape, cutoff, width);
@@ -28,12 +22,6 @@ namespace noa::cpu::signal::fft {
     void highpass(const T* input, const Strides4<i64>& input_strides,
                   T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                   f32 cutoff, f32 width, i64 threads) {
-        using Layout = ::noa::fft::Layout;
-        constexpr auto u8_REMAP = static_cast<u8>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
-        NOA_ASSERT(noa::all(shape > 0));
-
         if (width > 1e-6f) {
             auto kernel = noa::algorithm::signal::highpass<REMAP, true>(
                     input, input_strides, output, output_strides, shape, cutoff, width);
@@ -49,12 +37,6 @@ namespace noa::cpu::signal::fft {
     void bandpass(const T* input, const Strides4<i64>& input_strides,
                   T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                   f32 cutoff_high, f32 cutoff_low, f32 width_high, f32 width_low, i64 threads) {
-        using Layout = ::noa::fft::Layout;
-        constexpr auto u8_REMAP = static_cast<u8>(REMAP);
-        static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        NOA_ASSERT(input != output || ((u8_REMAP & Layout::SRC_CENTERED) == (u8_REMAP & Layout::DST_CENTERED)));
-        NOA_ASSERT(noa::all(shape > 0));
-
         if (width_high > 1e-6f || width_low > 1e-6f) {
             auto kernel = noa::algorithm::signal::bandpass<REMAP, true>(
                     input, input_strides, output, output_strides, shape,
