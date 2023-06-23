@@ -24,12 +24,13 @@ namespace noa::fft {
     /// Returns the next optimum BDHW shape.
     /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension, e.g. {3,1,53,53}
     ///       is rounded up to {3,1,54,54}.
-    [[nodiscard]] inline Shape4<i64> next_fast_shape(const Shape4<i64>& shape) {
-        #ifdef NOA_ENABLE_CUDA
-        return noa::cuda::fft::fast_shape(shape);
-        #else
-        return noa::cpu::fft::fast_shape(shape);
-        #endif
+    template<size_t N>
+    [[nodiscard]] inline Shape<i64, N> next_fast_shape(Shape<i64, N> shape) {
+        constexpr size_t START_INDEX = N == 4 ? 1 : 0; // BDHW -> ignore batch
+        for (size_t i = START_INDEX; i < N; ++i)
+            if (shape[i] > 1)
+                shape[i] = next_fast_size(shape[i]);
+        return shape;
     }
 
     /// Returns the real-valued alias of \p rfft.
