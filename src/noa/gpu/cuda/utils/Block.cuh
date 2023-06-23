@@ -38,9 +38,10 @@ namespace noa::cuda::utils {
     template<>
     struct proclaim_uninitialized_type<c64> { using type = ::double2; };
 
-    template<typename Value, typename Offset>
-    struct proclaim_uninitialized_type<noa::Pair<Value, Offset>> {
-        using type = noa::Pair<typename proclaim_uninitialized_type<Value>::type, Offset>;
+    template<typename Lhs, typename Rhs>
+    struct proclaim_uninitialized_type<noa::Pair<Lhs, Rhs>> {
+        using type = noa::Pair<typename proclaim_uninitialized_type<Lhs>::type,
+                               typename proclaim_uninitialized_type<Rhs>::type>;
     };
 
     // Static initialization of shared variables is illegal in CUDA. Some types (e.g. f16) cannot be used with

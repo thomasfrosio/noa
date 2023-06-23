@@ -724,9 +724,10 @@ namespace noa::cuda::utils {
         const auto inv_count = Output{1} / (static_cast<Output>(elements));
         const auto inv_count_ddof = Output{1} / (static_cast<Output>(elements) - static_cast<Output>(ddof));
         auto post_process_op = [inv_count_ddof]__device__(Output dist2) -> Output {
+            auto variance = dist2 * inv_count_ddof;
             if constexpr (STD)
-                return noa::math::sqrt(dist2 * inv_count_ddof);
-            return dist2 * inv_count_ddof;
+                variance = noa::math::sqrt(variance);
+            return variance;
         };
 
         for (i64 batch = 0; batch < batches; ++batch) {

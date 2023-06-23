@@ -63,11 +63,10 @@ namespace noa::cuda::utils {
         return value;
     }
 
-    // Overload for value-offset pairs.
-    template<typename Value, typename Offset, typename ReduceOp,
-             typename = std::enable_if_t<noa::traits::is_int_v<Offset>>>
-    NOA_ID auto warp_reduce(Pair<Value, Offset> pair, ReduceOp reduce_op) {
-        using pair_t = Pair<Value, Offset>;
+    // Overload for pairs.
+    template<typename Lhs, typename Rhs, typename ReduceOp>
+    NOA_ID auto warp_reduce(Pair<Lhs, Rhs> pair, ReduceOp reduce_op) {
+        using pair_t = Pair<Lhs, Rhs>;
         for (i32 delta = 1; delta < 32; delta *= 2) {
             pair_t reduce{warp_suffle_down(pair.first, delta),
                           warp_suffle_down(pair.second, delta)};
