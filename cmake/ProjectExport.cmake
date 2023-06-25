@@ -17,9 +17,9 @@ include(CMakePackageConfigHelpers)
 # As such, the configuration file should find the packages that closest match the dependencies
 # we used during building. This is where package manager shines...
 configure_package_config_file(
-        ${PROJECT_SOURCE_DIR}/cmake/utils/noaConfig.cmake.in
-        ${NOA_GENERATED_DIR}/noaConfig.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa)
+    ${PROJECT_SOURCE_DIR}/cmake/utils/noaConfig.cmake.in
+    ${NOA_GENERATED_DIR}/noaConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa)
 
 # The library uses the semantic versioning: MAJOR.MINOR.PATCH
 # MAJOR: Breaking change. Reset MINOR and PATCH to 0.
@@ -29,19 +29,19 @@ configure_package_config_file(
 #        interact with the library. When updated, PATCH should be reset to 0.
 # PATCH: Bug fix only. No API changes.
 write_basic_package_version_file(
-        ${NOA_GENERATED_DIR}/noaConfigVersion.cmake
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion)
+    ${NOA_GENERATED_DIR}/noaConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
 
 # Install the config files.
 # Our modules are used by noaConfig.cmake, so install them as well.
 install(FILES
-        ${NOA_GENERATED_DIR}/noaConfig.cmake
-        ${NOA_GENERATED_DIR}/noaConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa)
+    ${NOA_GENERATED_DIR}/noaConfig.cmake
+    ${NOA_GENERATED_DIR}/noaConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa)
 install(DIRECTORY
-        ${PROJECT_SOURCE_DIR}/cmake/modules
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/)
+    ${PROJECT_SOURCE_DIR}/cmake/modules
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/)
 
 # ---------------------------------------------------------------------------------------
 # Export
@@ -50,7 +50,7 @@ install(DIRECTORY
 # which should now be installed as well. When a project imports our config,
 # our targets (but not our dependencies) will be enclosed in this noa:: namespace.
 install(EXPORT noa
-        FILE noaTargets.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa
-        NAMESPACE noa::
-        )
+    FILE noaTargets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa
+    NAMESPACE noa::
+    )

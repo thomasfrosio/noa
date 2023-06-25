@@ -41,34 +41,34 @@ endif ()
 
 # Search for the libraries.
 find_library(
-        FFTW3_DOUBLE_LIBRARIES
-        NAMES fftw3 libfftw3-3
+    FFTW3_DOUBLE_LIBRARIES
+    NAMES fftw3 libfftw3-3
 )
 find_library(
-        FFTW3_FLOAT_LIBRARIES
-        NAMES fftw3f libfftw3f-3
+    FFTW3_FLOAT_LIBRARIES
+    NAMES fftw3f libfftw3f-3
 )
 find_library(
-        FFTW3_FLOAT_THREADS_LIBRARIES
-        NAMES fftw3f_threads
+    FFTW3_FLOAT_THREADS_LIBRARIES
+    NAMES fftw3f_threads
 )
 find_library(
-        FFTW3_DOUBLE_THREADS_LIBRARIES
-        NAMES fftw3_threads
+    FFTW3_DOUBLE_THREADS_LIBRARIES
+    NAMES fftw3_threads
 )
 find_library(
-        FFTW3_DOUBLE_OPENMP_LIBRARIES
-        NAMES fftw3_omp
+    FFTW3_DOUBLE_OPENMP_LIBRARIES
+    NAMES fftw3_omp
 )
 find_library(
-        FFTW3_FLOAT_OPENMP_LIBRARIES
-        NAMES fftw3f_omp
+    FFTW3_FLOAT_OPENMP_LIBRARIES
+    NAMES fftw3f_omp
 )
 
 # Search for the header.
 find_path(
-        FFTW3_INCLUDES
-        NAMES fftw3.h
+    FFTW3_INCLUDES
+    NAMES fftw3.h
 )
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_cmake_lib_suffix})
@@ -134,20 +134,20 @@ if (FFTW3_FOUND)
     endif ()
 
     get_filename_component(FFTW3_INCLUDE_DIRS ${FFTW3_INCLUDES} DIRECTORY)
-    add_library(FFTW3::FFTW3_float  ${_fftw3_lib_type} IMPORTED)
+    add_library(FFTW3::FFTW3_float ${_fftw3_lib_type} IMPORTED)
     add_library(FFTW3::FFTW3_double ${_fftw3_lib_type} IMPORTED)
     set_target_properties(FFTW3::FFTW3_float
-            PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_INCLUDE_DIRS}"
-            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-            IMPORTED_LOCATION ${FFTW3_FLOAT_LIBRARIES}
-            )
+        PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_INCLUDE_DIRS}"
+        IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+        IMPORTED_LOCATION ${FFTW3_FLOAT_LIBRARIES}
+        )
     set_target_properties(FFTW3::FFTW3_double
-            PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_INCLUDE_DIRS}"
-            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-            IMPORTED_LOCATION ${FFTW3_DOUBLE_LIBRARIES}
-            )
+        PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_INCLUDE_DIRS}"
+        IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+        IMPORTED_LOCATION ${FFTW3_DOUBLE_LIBRARIES}
+        )
 
     if (NOT FFT3_FIND_QUIETLY)
         message(STATUS "New imported target available: FFTW3::FFTW3_float")
@@ -158,17 +158,17 @@ if (FFTW3_FOUND)
         add_library(FFTW3::FFTW3_float_threads ${_fftw3_lib_type} IMPORTED)
         add_library(FFTW3::FFTW3_double_threads ${_fftw3_lib_type} IMPORTED)
         set_target_properties(FFTW3::FFTW3_float_threads
-                PROPERTIES
-                INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_float
-                IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                IMPORTED_LOCATION ${FFTW3_FLOAT_THREADS_LIBRARIES}
-                )
+            PROPERTIES
+            INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_float
+            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+            IMPORTED_LOCATION ${FFTW3_FLOAT_THREADS_LIBRARIES}
+            )
         set_target_properties(FFTW3::FFTW3_double_threads
-                PROPERTIES
-                INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_double
-                IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                IMPORTED_LOCATION ${FFTW3_DOUBLE_THREADS_LIBRARIES}
-                )
+            PROPERTIES
+            INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_double
+            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+            IMPORTED_LOCATION ${FFTW3_DOUBLE_THREADS_LIBRARIES}
+            )
         if (NOT FFT3_FIND_QUIETLY)
             message(STATUS "New imported target available: FFTW3::FFTW3_float_threads")
             message(STATUS "New imported target available: FFTW3::FFTW3_double_threads")
@@ -179,17 +179,17 @@ if (FFTW3_FOUND)
         add_library(FFTW3::FFTW3_float_openmp ${_fftw3_lib_type} IMPORTED)
         add_library(FFTW3::FFTW3_double_openmp ${_fftw3_lib_type} IMPORTED)
         set_target_properties(FFTW3::FFTW3_float_openmp
-                PROPERTIES
-                INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_float
-                IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                IMPORTED_LOCATION ${FFTW3_FLOAT_OPENMP_LIBRARIES}
-                )
+            PROPERTIES
+            INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_float
+            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+            IMPORTED_LOCATION ${FFTW3_FLOAT_OPENMP_LIBRARIES}
+            )
         set_target_properties(FFTW3::FFTW3_double_openmp
-                PROPERTIES
-                INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_double
-                IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                IMPORTED_LOCATION ${FFTW3_DOUBLE_OPENMP_LIBRARIES}
-                )
+            PROPERTIES
+            INTERFACE_LINK_LIBRARIES FFTW3::FFTW3_double
+            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+            IMPORTED_LOCATION ${FFTW3_DOUBLE_OPENMP_LIBRARIES}
+            )
         if (NOT FFT3_FIND_QUIETLY)
             message(STATUS "New imported target available: FFTW3::FFTW3_float_openmp")
             message(STATUS "New imported target available: FFTW3::FFTW3_double_openmp")

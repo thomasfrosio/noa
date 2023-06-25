@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.21)
 
 project(noa
         LANGUAGES CXX
@@ -8,51 +8,43 @@ project(noa
 
 # Friendly heads up. The library only supports static linking:
 if (BUILD_SHARED_LIBS)
-    message(STATUS "BUILD_SHARED_LIBS is ON, but dynamic linking is not supported. This will be ignored.")
+    message(STATUS "BUILD_SHARED_LIBS is ON, but dynamic linking is not supported. This will be ignored for noa.")
 endif ()
 
-# Whether this is the top-level project
-if (NOT DEFINED NOA_IS_TOP_LEVEL)
-    if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-        set(NOA_IS_TOP_LEVEL ON)
-    else ()
-        set(NOA_IS_TOP_LEVEL OFF)
-    endif ()
-endif ()
+# Only set the cxx_standard if it is not set by someone else.
+# noa doesn't use this, but it is useful to set a default for fetch dependencies.
+if (NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 
 # Add the local modules.
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
-# Make sure different configurations don't collide.
+# Make sure debug configuration doesn't collide with release.
 set(CMAKE_DEBUG_POSTFIX "d")
 
 # Generate compile_commands.json to make it easier to work with clang based tools.
+# This is also helpful to check what cmake is passing to the compilers for build time.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Strongly encouraged to enable this globally to avoid conflicts between
+# -Wpedantic being enabled and -std=c++20 and -std=gnu++20 for example
+# when compiling with PCH enabled.
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---------------------------------------------------------------------------------------
 # Project configuration
 # ---------------------------------------------------------------------------------------
 include(cmake/utils/PreventInSourceBuilds.cmake)
 include(cmake/ProjectOptions.cmake)
-
-# Check for CUDA support and select the GPU architecture if user didn't provide one.
-if (NOA_ENABLE_CUDA)
-    include(CheckLanguage)
-    check_language(CUDA)
-    if (CMAKE_CUDA_COMPILER)
-        enable_language(CUDA)
-
-        if (NOA_CUDA_FIND_ARCHITECTURE)
-            include(${PROJECT_SOURCE_DIR}/cmake/utils/CUDASelectArch.cmake)
-            set(CMAKE_CUDA_ARCHITECTURES ${CUDASelectArch_RESULTS})
-        endif ()
-
-    else ()
-        message(FATAL_ERROR "No CUDA support detected, so building without CUDA")
-    endif ()
-endif ()
-
 include(cmake/ProjectToolchain.cmake)
+
+noa_prevent_in_source_builds()
+noa_set_options()
+noa_set_toolchain(
+    NOA_ENABLE_CUDA
+    NOA_CUDA_FIND_ARCHITECTURE
+)
 
 # These interfaces sets the project base requirements.
 # Targets should not directly modify these since they're common to multiple targets.
@@ -62,9 +54,11 @@ target_compile_features(prj_common_option INTERFACE cxx_std_17)
 target_compile_options(prj_common_option INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
 
 # Add the warnings to the compiler(s).
-include(cmake/utils/CompilerWarnings.cmake)
-set_cxx_compiler_warnings(prj_compiler_warnings)
-set_cuda_compiler_warnings(prj_compiler_warnings)
+if (NOA_ENABLE_WARNINGS)
+    include(cmake/utils/CompilerWarnings.cmake)
+    noa_set_cxx_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
+    noa_set_cuda_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
+endif ()
 
 # CMAKE_CURRENT_BINARY_DIR is the build directory and for top level projects this is where we call CMake from.
 # This is also where we put the generated files:

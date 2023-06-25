@@ -12,9 +12,9 @@ else ()
 
     include(FetchContent)
     FetchContent_Declare(
-            yaml-cpp
-            GIT_REPOSITORY ${yaml-cpp_REPOSITORY}
-            GIT_TAG ${yaml-cpp_TAG}
+        yaml-cpp
+        GIT_REPOSITORY ${yaml-cpp_REPOSITORY}
+        GIT_TAG ${yaml-cpp_TAG}
     )
     FetchContent_MakeAvailable(yaml-cpp)
 

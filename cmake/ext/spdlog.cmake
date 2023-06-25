@@ -12,9 +12,9 @@ else ()
 
     include(FetchContent)
     FetchContent_Declare(
-            spdlog
-            GIT_REPOSITORY ${spdlog_REPOSITORY}
-            GIT_TAG ${spdlog_TAG}
+        spdlog
+        GIT_REPOSITORY ${spdlog_REPOSITORY}
+        GIT_TAG ${spdlog_TAG}
     )
     option(SPDLOG_INSTALL "Enable installation for the spdlog project." ON)
     option(SPDLOG_FMT_EXTERNAL "Use the external {fmt} library" ON)

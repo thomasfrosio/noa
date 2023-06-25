@@ -73,7 +73,7 @@ namespace noa {
 /// Throws a nested exception if \a result is an error. \see the throw_if() overload for the current namespace.
 #define NOA_THROW_IF(result) throw_if(result, __FILE__, __FUNCTION__, __LINE__)
 
-#if defined(NOA_DEBUG) || defined(NOA_ENABLE_CHECKS_RELEASE)
+#if defined(NOA_DEBUG) || defined(NOA_ENABLE_CHECKS_AT_RELEASE)
 /// Checks vs assertions:\n
 /// - \b Assertions called via \e NOA_ASSERT are turned off when NOA_ENABLE_ASSERTS is not defined (see Assert.h).
 ///   They are using the C assert macro and calls abort() when the condition is not satisfied. They can be used
@@ -84,7 +84,7 @@ namespace noa {
 ///   to this error, including 1) not catching the exception and let the program terminate, 2) log the exception and
 ///   the state of the program before exiting, or in the very rare case 3) catch the exception and try to recover
 ///   from it... These checks can be very useful even in Release builds, hence the CMake option and macro
-///   NOA_ENABLE_CHECKS_RELEASE. Since they add a "throw" statement, they cannot be used in "device" code and is best
+///   NOA_ENABLE_CHECKS_AT_RELEASE. Since they add a "throw" statement, they cannot be used in "device" code and is best
 ///   to not use them in performance critical scopes (e.g. hot loop).
 #define NOA_CHECK(cond, ...) if (!(cond)) NOA_THROW(__VA_ARGS__)
 #define NOA_CHECK_FUNC(func, cond, ...) if (!(cond)) NOA_THROW_FUNC(func, __VA_ARGS__)

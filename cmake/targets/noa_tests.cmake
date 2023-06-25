@@ -8,28 +8,28 @@ add_executable(noa_tests ${TEST_SOURCES})
 add_executable(noa::noa_tests ALIAS noa_tests)
 
 target_link_libraries(noa_tests
-        PRIVATE
-        prj_common_option
-        prj_compiler_warnings
-        noa::noa
-        Catch2::Catch2
-        yaml-cpp::yaml-cpp
-        )
+    PRIVATE
+    prj_common_option
+    prj_compiler_warnings
+    noa::noa
+    Catch2::Catch2
+    yaml-cpp::yaml-cpp
+    )
 
 target_precompile_headers(noa_tests
-        PRIVATE
-        ${PROJECT_SOURCE_DIR}/src/noa/core/Types.hpp
-        )
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/noa/core/Types.hpp
+    )
 
 target_include_directories(noa_tests
-        PRIVATE
-        ${PROJECT_SOURCE_DIR}/tests
-        )
+    PRIVATE
+    ${PROJECT_SOURCE_DIR}/tests
+    )
 
 install(TARGETS noa_tests
-        EXPORT noa
-        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        )
+    EXPORT noa
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    )
 
 message(STATUS "-> noa::noa_tests: configuring public target... done")
 message(STATUS "--------------------------------------\n")

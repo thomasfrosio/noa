@@ -14,11 +14,11 @@ add_library(noa_public_libraries INTERFACE)
 add_library(noa_private_libraries INTERFACE)
 
 target_link_libraries(noa_public_libraries
-        INTERFACE
-        fmt::fmt
-        spdlog::spdlog
-        half::half
-        )
+    INTERFACE
+    fmt::fmt
+    spdlog::spdlog
+    half::half
+    )
 
 if (NOA_ENABLE_TIFF)
     include(${PROJECT_SOURCE_DIR}/cmake/ext/tiff.cmake)
@@ -37,33 +37,33 @@ if (NOA_ENABLE_CPU)
 
     include(${PROJECT_SOURCE_DIR}/cmake/ext/fftw.cmake)
     target_link_libraries(noa_public_libraries
-            INTERFACE
-            Threads::Threads
-            ${FFTW3_TARGETS}
-            )
+        INTERFACE
+        Threads::Threads
+        ${FFTW3_TARGETS}
+        )
 
     include(${PROJECT_SOURCE_DIR}/cmake/ext/cblas.cmake)
     include(${PROJECT_SOURCE_DIR}/cmake/ext/lapacke.cmake)
     target_link_libraries(noa_private_libraries
-            INTERFACE
-            CBLAS::CBLAS
-            LAPACKE::LAPACKE
-            )
+        INTERFACE
+        CBLAS::CBLAS
+        LAPACKE::LAPACKE
+        )
 endif ()
 
 # CUDA backend:
 if (NOA_ENABLE_CUDA)
     include(${PROJECT_SOURCE_DIR}/cmake/ext/cuda-toolkit.cmake)
     target_link_libraries(noa_public_libraries
-            INTERFACE
-            $<IF:$<BOOL:${NOA_CUDA_CUDART_STATIC}>, CUDA::cudart_static, CUDA::cudart>
-            $<IF:$<BOOL:${NOA_CUDA_CUFFT_STATIC}>,  CUDA::cufft_static,  CUDA::cufft>
-            )
+        INTERFACE
+        $<IF:$<BOOL:${NOA_CUDA_CUDART_STATIC}>, CUDA::cudart_static, CUDA::cudart>
+        $<IF:$<BOOL:${NOA_CUDA_CUFFT_STATIC}>, CUDA::cufft_static, CUDA::cufft>
+        )
     target_link_libraries(noa_private_libraries
-            INTERFACE
-            $<IF:$<BOOL:${NOA_CUDA_CURAND_STATIC}>, CUDA::curand_static, CUDA::curand>
-            $<IF:$<BOOL:${NOA_CUDA_CUBLAS_STATIC}>, CUDA::cublas_static, CUDA::cublas>
-            )
+        INTERFACE
+        $<IF:$<BOOL:${NOA_CUDA_CURAND_STATIC}>, CUDA::curand_static, CUDA::curand>
+        $<IF:$<BOOL:${NOA_CUDA_CUBLAS_STATIC}>, CUDA::cublas_static, CUDA::cublas>
+        )
 endif ()
 
 # ---------------------------------------------------------------------------------------
@@ -73,138 +73,123 @@ add_library(noa STATIC ${NOA_SOURCES} ${NOA_HEADERS})
 add_library(noa::noa ALIAS noa)
 
 target_link_libraries(noa
-        PRIVATE prj_common_option prj_compiler_warnings
-        PRIVATE noa_private_libraries
-        PUBLIC noa_public_libraries
-        )
+    PRIVATE prj_common_option prj_compiler_warnings
+    PRIVATE noa_private_libraries
+    PUBLIC noa_public_libraries
+    )
 
-# Not sure why, but these need to be set on the target directly
+set_target_properties(noa
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE ON)
 if (NOA_ENABLE_CUDA)
-    # The CUDA_ARCHITECTURES property defaults to CMAKE_CUDA_ARCHITECTURES.
     set_target_properties(noa
-            PROPERTIES
-            CUDA_SEPARABLE_COMPILATION ON
-            POSITION_INDEPENDENT_CODE ON
-            CUDA_RESOLVE_DEVICE_SYMBOLS ON
-            )
-endif ()
-
-if (NOA_ENABLE_LTO)
-    # FIXME Do we need to have IPO for libraries targets?
-    #       This should be triggered on the compiler that compiles the executable and links against the library.
-    #       So I don't see the point of "enabling" LTO for the library itself...
-    include(CheckIPOSupported)
-    check_ipo_supported(
-            RESULT result
-            OUTPUT output)
-    if (result)
-        set_target_properties(noa PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
-    else ()
-        message(SEND_ERROR "IPO is not supported: ${output}")
-    endif ()
+        PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+#        CUDA_RESOLVE_DEVICE_SYMBOLS ON # FIXME
+        # CUDA_ARCHITECTURES defaults to CMAKE_CUDA_ARCHITECTURES, which is already set.
+        )
 endif ()
 
 if (NOA_ENABLE_PCH)
     target_precompile_headers(noa
-            PRIVATE
-            # Streams:
-            <iostream>
-            <fstream>
-            <string>
-            <string_view>
+        PRIVATE
+        # Streams:
+        <iostream>
+        <fstream>
+        <string>
+        <string_view>
 
-            # Containers:
-            <map>
-            <unordered_map>
-            <vector>
-            <array>
-            <tuple>
+        # Containers:
+        <map>
+        <unordered_map>
+        <vector>
+        <array>
+        <tuple>
 
-            # Others:
-            <cstdint>
-            <cctype>
-            <cstring>
-            <cerrno>
-            <cmath>
-            <exception>
-            <filesystem>
-            <thread>
-            <utility>
-            <algorithm>
-            <memory>
-            <type_traits>
-            <complex>
-            <bitset>
+        # Others:
+        <cstdint>
+        <cctype>
+        <cstring>
+        <cerrno>
+        <cmath>
+        <exception>
+        <filesystem>
+        <thread>
+        <utility>
+        <algorithm>
+        <memory>
+        <type_traits>
+        <complex>
+        <bitset>
 
-            # spdlog
-            <spdlog/spdlog.h>
-            <spdlog/sinks/stdout_color_sinks.h>
-            <spdlog/sinks/basic_file_sink.h>
-            <spdlog/fmt/bundled/compile.h>
-            <spdlog/fmt/bundled/ranges.h>
-            <spdlog/fmt/bundled/os.h>
-            <spdlog/fmt/bundled/chrono.h>
-            <spdlog/fmt/bundled/color.h>
-            )
+        # spdlog
+        <spdlog/spdlog.h>
+        <spdlog/sinks/stdout_color_sinks.h>
+        <spdlog/sinks/basic_file_sink.h>
+        <spdlog/fmt/bundled/compile.h>
+        <spdlog/fmt/bundled/ranges.h>
+        <spdlog/fmt/bundled/os.h>
+        <spdlog/fmt/bundled/chrono.h>
+        <spdlog/fmt/bundled/color.h>
+        )
 endif ()
 
 # Set definitions:
 target_compile_definitions(noa
-        PUBLIC
-        "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
-        "$<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>"
-        "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
-        "$<$<BOOL:${NOA_ENABLE_UNIFIED}>:NOA_ENABLE_UNIFIED>"
-        "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
-        "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
-        "$<$<BOOL:${FFTW3_THREADS}>:NOA_FFTW_THREADS>"
-        "$<$<BOOL:${FFTW3_OPENMP}>:NOA_FFTW_THREADS>"
-        "$<$<BOOL:${NOA_ENABLE_CHECKS_RELEASE}>:NOA_ENABLE_CHECKS_RELEASE>"
-        "$<$<BOOL:${NOA_CUDA_ENABLE_ASSERT}>:NOA_CUDA_ENABLE_ASSERT>"
-        )
+    PUBLIC
+    "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
+    "$<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>"
+    "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
+    "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
+    "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
+    "$<$<BOOL:${NOA_ENABLE_CHECKS_AT_RELEASE}>:NOA_ENABLE_CHECKS_AT_RELEASE>"
+    "$<$<BOOL:${NOA_CUDA_ENABLE_ASSERT}>:NOA_CUDA_ENABLE_ASSERT>"
+    "$<$<BOOL:${FFTW3_THREADS}>:NOA_FFTW_THREADS>"
+    "$<$<BOOL:${FFTW3_OPENMP}>:NOA_FFTW_THREADS>"
+    )
 
 # Set included directories:
 target_include_directories(noa
-        PUBLIC
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
-        "$<BUILD_INTERFACE:${NOA_GENERATED_HEADERS_DIR}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-        )
+    PUBLIC
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
+    "$<BUILD_INTERFACE:${NOA_GENERATED_HEADERS_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+    )
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/utils/Version.hpp.in"
-        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
-        @ONLY)
+    "${PROJECT_SOURCE_DIR}/cmake/utils/Version.hpp.in"
+    "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
+    @ONLY)
 
 # Since it is static library only, the SOVERSION shouldn't matter.
 set_target_properties(noa PROPERTIES
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-        VERSION ${PROJECT_VERSION})
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    VERSION ${PROJECT_VERSION})
 
 # ---------------------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------------------
-# FIXME We only have static linking so: LIBRARY could be removed, same for RUNTIME although in Windows I'm not sure...
-# FIXME We don't use components, but maybe we could use them to specify what's inside the library? e.g. cuda/cpu backend.
+# TODO We only have static linking so: LIBRARY could be removed, same for RUNTIME although in Windows I'm not sure...
+# TODO We don't use components, but maybe we could use them to specify what's inside the library? e.g. cuda/cpu backend.
 install(TARGETS prj_common_option prj_compiler_warnings noa_private_libraries noa_public_libraries noa
-        EXPORT noa
+    EXPORT noa
 
-        INCLUDES
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    INCLUDES
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 
-        LIBRARY
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT noa_runtime
-        NAMELINK_COMPONENT noa_development
+    LIBRARY
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    COMPONENT noa_runtime
+    NAMELINK_COMPONENT noa_development
 
-        ARCHIVE
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        COMPONENT noa_development
+    ARCHIVE
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    COMPONENT noa_development
 
-        RUNTIME
-        DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        COMPONENT noa_runtime
-        )
+    RUNTIME
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT noa_runtime
+    )
 
 # Headers:
 foreach (FILE ${NOA_HEADERS})
@@ -214,8 +199,8 @@ endforeach ()
 
 # Generated headers:
 install(FILES
-        "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
+    "${NOA_GENERATED_HEADERS_DIR}/noa/Version.hpp"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa")
 
 message(STATUS "-> noa::noa: configuring public target... done")
 message(STATUS "--------------------------------------\n")

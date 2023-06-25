@@ -1,9 +1,9 @@
 # Collect source files for tests:
 set(TEST_SOURCES
-        Assets.h
-        EntryPoint.cpp
-        Helpers.h
-        )
+    Assets.h
+    EntryPoint.cpp
+    Helpers.h
+    )
 include(${PROJECT_SOURCE_DIR}/tests/noa/core/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/tests/noa/cpu/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/tests/noa/gpu/Append.cmake)

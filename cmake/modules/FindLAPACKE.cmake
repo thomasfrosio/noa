@@ -20,13 +20,13 @@ elseif (NOT TARGET LAPACK::LAPACK)
     add_library(LAPACK::LAPACK INTERFACE IMPORTED)
     if (LAPACK_LIBRARIES)
         set_target_properties(LAPACK::LAPACK PROPERTIES
-                INTERFACE_LINK_LIBRARIES "${LAPACK_LIBRARIES}"
-                )
+            INTERFACE_LINK_LIBRARIES "${LAPACK_LIBRARIES}"
+            )
     endif ()
     if (LAPACK_LINKER_FLAGS)
         set_target_properties(LAPACK::LAPACK PROPERTIES
-                INTERFACE_LINK_OPTIONS "${LAPACK_LINKER_FLAGS}"
-                )
+            INTERFACE_LINK_OPTIONS "${LAPACK_LINKER_FLAGS}"
+            )
     endif ()
     if (LAPACK_INCLUDE_DIRS)
         target_include_directories(LAPACK::LAPACK PUBLIC ${LAPACK_INCLUDE_DIRS})
@@ -125,5 +125,5 @@ endif ()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(LAPACKE DEFAULT_MSG
-        LAPACKE_INCLUDES
-        _lapacke_found_valid)
+    LAPACKE_INCLUDES
+    _lapacke_found_valid)

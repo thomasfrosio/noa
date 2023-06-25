@@ -3,10 +3,7 @@
 #include <noa/core/Types.hpp>
 #include <noa/core/Math.hpp>
 #include <noa/core/traits/Numerics.hpp>
-
-#ifdef NOA_ENABLE_UNIFIED
 #include <noa/unified/Array.hpp>
-#endif
 
 #include <random>
 #include <cstdlib>
@@ -238,7 +235,6 @@ namespace test {
                           rhs,
                           shape_type{1, 1, 1, elements}, epsilon) {}
 
-        #ifdef NOA_ENABLE_UNIFIED
         template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
         Matcher(CompType comparison, const array_type& lhs, const array_type& rhs, Epsilon epsilon) noexcept
                 : m_shape(lhs.shape()),
@@ -264,7 +260,6 @@ namespace test {
             set_epsilon_(epsilon);
             check_();
         }
-        #endif
 
         explicit operator bool() const noexcept {
             return m_match;

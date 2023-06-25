@@ -12,9 +12,9 @@ else ()
 
     include(FetchContent)
     FetchContent_Declare(
-            fmt
-            GIT_REPOSITORY ${fmt_REPOSITORY}
-            GIT_TAG ${fmt_TAG}
+        fmt
+        GIT_REPOSITORY ${fmt_REPOSITORY}
+        GIT_TAG ${fmt_TAG}
     )
     # See https://github.com/fmtlib/fmt/pull/3264
     option(FMT_INSTALL "Enable installation for the {fmt} project." ON)

@@ -20,11 +20,11 @@ configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
 # Create the noa-doxygen target
 add_custom_command(OUTPUT ${DOXYGEN_INDEX_FILE}
-        DEPENDS ${DOXYGEN_INPUT_DIR}
-        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
-        MAIN_DEPENDENCY ${DOXYFILE_OUT} ${DOXYFILE_IN}
-        COMMENT "Generating documentation with Doxygen"
-        VERBATIM)
+    DEPENDS ${DOXYGEN_INPUT_DIR}
+    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
+    MAIN_DEPENDENCY ${DOXYFILE_OUT} ${DOXYFILE_IN}
+    COMMENT "Generating documentation with Doxygen"
+    VERBATIM)
 add_custom_target(noa-doxygen ALL DEPENDS ${DOXYGEN_INDEX_FILE})
 
 # ---------------------------------------------------------------------------------------
@@ -36,20 +36,20 @@ set(SPHINX_INDEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/sphinx/index.html)
 
 # Create the noa-sphinx target
 add_custom_command(OUTPUT ${SPHINX_INDEX_FILE}
-        COMMAND
-        ${SPHINX_EXECUTABLE} -b html
-        # Tell Breathe where to find the Doxygen output
-        -Dbreathe_projects.Noa=${DOXYGEN_OUTPUT_DIR}/xml
-        ${SPHINX_SOURCE_DIR} ${SPHINX_BUILD_DIR}
+    COMMAND
+    ${SPHINX_EXECUTABLE} -b html
+    # Tell Breathe where to find the Doxygen output
+    -Dbreathe_projects.Noa=${DOXYGEN_OUTPUT_DIR}/xml
+    ${SPHINX_SOURCE_DIR} ${SPHINX_BUILD_DIR}
 
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/index.rst ${DOXYGEN_INDEX_FILE}
-        MAIN_DEPENDENCY ${SPHINX_SOURCE_DIR}/conf.py
-        COMMENT "Generating documentation with Sphinx")
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/index.rst ${DOXYGEN_INDEX_FILE}
+    MAIN_DEPENDENCY ${SPHINX_SOURCE_DIR}/conf.py
+    COMMENT "Generating documentation with Sphinx")
 add_custom_target(noa-sphinx ALL DEPENDS ${SPHINX_INDEX_FILE})
 
 # ---------------------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------------------
 install(DIRECTORY ${SPHINX_BUILD_DIR}
-        DESTINATION ${CMAKE_INSTALL_DOCDIR})
+    DESTINATION ${CMAKE_INSTALL_DOCDIR})

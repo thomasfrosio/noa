@@ -34,17 +34,17 @@ elseif (NOT TARGET BLAS::BLAS)
     add_library(BLAS::BLAS INTERFACE IMPORTED)
     if (BLAS_LIBRARIES)
         set_target_properties(BLAS::BLAS PROPERTIES
-                INTERFACE_LINK_LIBRARIES "${BLAS_LIBRARIES}"
-                )
+            INTERFACE_LINK_LIBRARIES "${BLAS_LIBRARIES}"
+            )
     endif ()
     if (BLAS_LINKER_FLAGS)
         set_target_properties(BLAS::BLAS PROPERTIES
-                INTERFACE_LINK_OPTIONS "${BLAS_LINKER_FLAGS}"
-                )
+            INTERFACE_LINK_OPTIONS "${BLAS_LINKER_FLAGS}"
+            )
     endif ()
     if (BLAS_INCLUDE_DIRS)
         target_include_directories(BLAS::BLAS PUBLIC ${BLAS_INCLUDE_DIRS})
-    endif()
+    endif ()
 endif ()
 
 # Find header.
@@ -90,10 +90,10 @@ if (BLAS_FOUND AND CBLAS_INCLUDES)
         add_library(CBLAS::CBLAS INTERFACE IMPORTED)
         target_link_libraries(CBLAS::CBLAS INTERFACE BLAS::BLAS)
         set_target_properties(CBLAS::CBLAS
-                PROPERTIES
-                IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                INTERFACE_INCLUDE_DIRECTORIES ${CBLAS_INCLUDE_DIRS}
-                )
+            PROPERTIES
+            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+            INTERFACE_INCLUDE_DIRECTORIES ${CBLAS_INCLUDE_DIRS}
+            )
         if (CBLAS_ZGEMM3M_FOUND)
             target_compile_definitions(CBLAS::CBLAS INTERFACE CBLAS_HAS_GEMM3M)
         endif ()
@@ -121,8 +121,8 @@ endif ()
 # Handle REQUIRED:
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(CBLAS DEFAULT_MSG
-        CBLAS_INCLUDES
-        CBLAS_WORKS)
+    CBLAS_INCLUDES
+    CBLAS_WORKS)
 
 # ---------------------------------------------------------------------------------------
 # Optional checks if OpenBLAS
@@ -167,9 +167,9 @@ int main() {
     get_filename_component(_openblas_tm_include_dir ${CBLAS_INCLUDES} DIRECTORY)
     if (NOT DEFINED _openblas_tm_run_result)
         try_run(_openblas_tm_run_result _openblas_tm_compile_result
-                ${_openblas_tm_test_dir} ${_openblas_tm_filename}
-                LINK_LIBRARIES CBLAS::CBLAS
-                )
+            ${_openblas_tm_test_dir} ${_openblas_tm_filename}
+            LINK_LIBRARIES CBLAS::CBLAS
+            )
     endif ()
 
     set(_openblas_tm_failed OFF)
@@ -217,13 +217,13 @@ int main() {
     endif()
 
     mark_as_advanced(
-            _openblas_is_cblas
-            _openblas_tm_test_dir
-            _openblas_tm_filename
-            _openblas_tm_src
-            _openblas_tm_include_dir
-            _openblas_tm_compile_result
-            _openblas_tm_run_result
-            _openblas_tm_failed
+        _openblas_is_cblas
+        _openblas_tm_test_dir
+        _openblas_tm_filename
+        _openblas_tm_src
+        _openblas_tm_include_dir
+        _openblas_tm_compile_result
+        _openblas_tm_run_result
+        _openblas_tm_failed
     )
 endif()

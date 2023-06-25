@@ -12,9 +12,9 @@ else ()
 
     include(FetchContent)
     FetchContent_Declare(
-            Catch2
-            GIT_REPOSITORY ${Catch2_REPOSITORY}
-            GIT_TAG ${Catch2_TAG}
+        Catch2
+        GIT_REPOSITORY ${Catch2_REPOSITORY}
+        GIT_TAG ${Catch2_TAG}
     )
     FetchContent_MakeAvailable(Catch2)
 

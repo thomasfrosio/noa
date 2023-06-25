@@ -12,9 +12,9 @@ else ()
 
     include(FetchContent)
     FetchContent_Declare(
-            benchmark
-            GIT_REPOSITORY ${google-benchmark_REPOSITORY}
-            GIT_TAG ${google-benchmark_TAG}
+        benchmark
+        GIT_REPOSITORY ${google-benchmark_REPOSITORY}
+        GIT_TAG ${google-benchmark_TAG}
     )
 
     FetchContent_GetProperties(benchmark)
