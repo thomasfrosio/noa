@@ -1,27 +1,27 @@
 if (NOT NOA_ENABLE_CUDA)
     return()
-endif()
+endif ()
 
 set(TEST_CUDA_SOURCES
-#        noa/gpu/cuda/math/TestCUDABlas.cpp
-#        noa/gpu/cuda/memory/TestCUDACopy.cpp
-#        noa/gpu/cuda/memory/TestCUDAIndex.cpp
-#        noa/gpu/cuda/memory/TestCUDAInitialize.cpp
-#        noa/gpu/cuda/memory/TestCUDAPermute.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
-#        noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
-#        noa/gpu/cuda/memory/TestCUDAResize.cpp
-#        noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
-#        noa/gpu/cuda/signal/fft/TestCUDAShiftFFT.cpp
-#        noa/gpu/cuda/signal/fft/TestCUDAStandardize.cpp
-#        noa/gpu/cuda/signal/TestCUDAConvolve.cpp
-#        noa/gpu/cuda/signal/TestCUDAMedian.cpp
+    #        noa/gpu/cuda/math/TestCUDABlas.cpp
+    #        noa/gpu/cuda/memory/TestCUDACopy.cpp
+    #        noa/gpu/cuda/memory/TestCUDAIndex.cpp
+    #        noa/gpu/cuda/memory/TestCUDAInitialize.cpp
+    #        noa/gpu/cuda/memory/TestCUDAPermute.cpp
+    #        noa/gpu/cuda/memory/TestCUDAPtrArray.cpp
+    #        noa/gpu/cuda/memory/TestCUDAPtrDevice.cpp
+    #        noa/gpu/cuda/memory/TestCUDAPtrDevicePadded.cpp
+    #        noa/gpu/cuda/memory/TestCUDAPtrPinned.cpp
+    #        noa/gpu/cuda/memory/TestCUDAResize.cpp
+    #        noa/gpu/cuda/signal/fft/TestCUDABandpass.cpp
+    #        noa/gpu/cuda/signal/fft/TestCUDAShiftFFT.cpp
+    #        noa/gpu/cuda/signal/fft/TestCUDAStandardize.cpp
+    #        noa/gpu/cuda/signal/TestCUDAConvolve.cpp
+    #        noa/gpu/cuda/signal/TestCUDAMedian.cpp
 
-        noa/gpu/cuda/TestCUDADevice.cpp
-        noa/gpu/cuda/TestCUDAStream.cpp
+    noa/gpu/cuda/TestCUDADevice.cpp
+    noa/gpu/cuda/TestCUDAStream.cpp
 
-        )
+    )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_CUDA_SOURCES})
