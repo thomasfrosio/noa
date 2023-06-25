@@ -12,6 +12,7 @@ set(NOA_CORE_HEADERS
         core/math/Comparison.hpp
         core/math/Constant.hpp
         core/math/Distribution.hpp
+        core/math/Enums.hpp
         core/math/Generic.hpp
         core/math/LeastSquare.hpp
         core/math/Range.hpp
