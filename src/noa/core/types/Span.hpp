@@ -25,6 +25,10 @@ namespace noa {
         using ssize_type = index_type;
         using difference_type = index_type;
         using size_type = std::make_unsigned_t<index_type>;
+
+        using mutable_value_type = std::remove_const_t<value_type>;
+        using const_value_type = std::add_const_t<mutable_value_type>;
+
         using reference = Value&;
         using const_reference = const std::remove_const_t<Value>&;
         using pointer = Value*;
@@ -74,12 +78,14 @@ namespace noa {
 
     public:
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return !m_data || ssize() <= 0; }
-        [[nodiscard]] NOA_HD constexpr auto as_const() const noexcept { return Span(*this); }
+        [[nodiscard]] NOA_HD constexpr auto as_const() const noexcept {
+            return Span<const_value_type, SIZE, Index>(*this);
+        }
         [[nodiscard]] NOA_HD constexpr auto as_bytes() const noexcept {
             using output_t = std::conditional_t<std::is_const_v<value_type>, const std::byte, std::byte>;
             if constexpr (IS_STATIC) {
                 constexpr auto NEW_SIZE = SIZE * static_cast<index_type>(sizeof(value_type));
-                return Span<output_t, NEW_SIZE, Index > (reinterpret_cast<output_t*>(data()));
+                return Span<output_t, NEW_SIZE, Index>(reinterpret_cast<output_t*>(data()));
             } else {
                 return Span(reinterpret_cast<output_t*>(data()), ssize() * sizeof(value_type));
             }
