@@ -205,7 +205,7 @@ namespace noa {
 
         /// Returns a (const-)span of the array.
         template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
-                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<T>>>
+                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
         [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
             return view().template span<U, SIZE, I>();
         }

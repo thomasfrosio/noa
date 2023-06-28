@@ -134,7 +134,7 @@ namespace noa {
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing through this Span may be illegal or create a data race.
         template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
-                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<T>>>
+                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
         [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
             NOA_CHECK(are_contiguous(),
                       "Cannot create a Span from a non-contiguous view (shape={}, strides={})",
