@@ -37,7 +37,7 @@ namespace noa::signal::fft::details {
             NOA_CHECK(noa::indexing::is_contiguous_vector(cone_directions.shape()),
                       "The cone directions should be specified as a contiguous vector, but got shape:{}, strides:{}",
                       cone_directions.shape(), cone_directions.strides());
-            cones = cone_directions.size();
+            cones = cone_directions.elements();
         }
 
         const auto shell_count = noa::math::min(lhs.shape()) / 2 + 1;
@@ -151,7 +151,7 @@ namespace noa::signal::fft {
                         lhs.get(), lhs.strides(),
                         rhs.get(), rhs.strides(),
                         fsc.get(), shape,
-                        cone_directions.get(), cone_directions.size(), cone_aperture,
+                        cone_directions.get(), cone_directions.elements(), cone_aperture,
                         threads);
             });
         } else {
@@ -161,7 +161,7 @@ namespace noa::signal::fft {
                     lhs.get(), lhs.strides(),
                     rhs.get(), rhs.strides(),
                     fsc.get(), shape,
-                    cone_directions.get(), cone_directions.size(), cone_aperture,
+                    cone_directions.get(), cone_directions.elements(), cone_aperture,
                     cuda_stream);
             cuda_stream.enqueue_attach(lhs.share(), rhs.share(), fsc.share(), cone_directions.share());
             #else
@@ -191,7 +191,7 @@ namespace noa::signal::fft {
     auto anisotropic_fsc(const Lhs& lhs, const Rhs& rhs, const Shape4<i64>& shape,
                          const Cones& cone_directions, f32 cone_aperture) {
         const auto shell_count = noa::math::min(lhs.shape()) / 2 + 1;
-        const auto expected_shape = Shape4<i64>{shape[0], 1, cone_directions.size(), shell_count};
+        const auto expected_shape = Shape4<i64>{shape[0], 1, cone_directions.elements(), shell_count};
 
         using value_t = typename Lhs::value_type;
         Array<value_t> fsc(expected_shape, rhs.options());

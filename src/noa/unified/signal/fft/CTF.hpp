@@ -82,7 +82,7 @@ namespace noa::signal::fft::details {
         }
 
         if constexpr (noa::traits::is_array_or_view_v<CTF>) {
-            NOA_CHECK(!ctf.is_empty() && noa::indexing::is_contiguous_vector(ctf) && ctf.size() == shape[0],
+            NOA_CHECK(!ctf.is_empty() && noa::indexing::is_contiguous_vector(ctf) && ctf.elements() == shape[0],
                       "The CTFs should be specified as a contiguous vector with {} elements, "
                       "but got shape {} and strides {}",
                       shape[0], ctf.shape(), ctf.strides());
