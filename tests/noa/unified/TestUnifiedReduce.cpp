@@ -29,10 +29,14 @@ TEST_CASE("unified::reduce_binary", "[noa][unified]") {
     const auto shape = test::get_random_shape4_batched(3);
     const auto input = noa::math::random<f32>(noa::math::uniform_t{}, shape, -5, 5);
 
+    const f64 offset = 1.;
     const auto result = noa::reduce_binary(input, input, f64{0},
-                                           [](f32 lhs, f32 rhs) { return static_cast<f64>(lhs * rhs); },
+                                           [offset](f32 lhs, f32 rhs) { return static_cast<f64>(lhs * rhs) + offset; },
                                            noa::plus_t{},
                                            [](f64 lhs) { return static_cast<f32>(lhs); });
-    const auto expected = noa::math::sum(input, noa::square_t{});
+
+    noa::ewise_unary(input, input, noa::square_t{});
+    noa::ewise_binary(input, offset, input, noa::plus_t{});
+    const auto expected = noa::math::sum(input);
     REQUIRE(result == expected);
 }

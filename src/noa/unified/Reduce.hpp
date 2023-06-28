@@ -77,15 +77,18 @@ namespace noa {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            noa::cpu::utils::reduce_unary(
-                    input.data(), input.strides(), input.shape(),
-                    output.data(), output.strides().filter(0),
-                    initial_reduce,
-                    std::forward<PreProcessOp>(pre_process_op),
-                    std::forward<ReduceOp>(reduce_op),
-                    std::forward<PostProcessOp>(post_process_op),
-                    cpu_stream.threads(),
-                    reduce_batch, allow_swap_layout);
+            const i64 threads = cpu_stream.threads();
+            cpu_stream.enqueue([=,
+                                op0 = std::forward<PreProcessOp>(pre_process_op),
+                                op1 = std::forward<ReduceOp>(reduce_op),
+                                op2 = std::forward<PostProcessOp>(post_process_op)]() {
+                noa::cpu::utils::reduce_unary(
+                        input.data(), input.strides(), input.shape(),
+                        output.data(), output.strides().filter(0),
+                        initial_reduce,
+                        op0, op1, op2,
+                        threads, reduce_batch, allow_swap_layout);
+            });
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_THROW("These (combination of) types are not supported by the CUDA backend"); // TODO
@@ -195,16 +198,19 @@ namespace noa {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            noa::cpu::utils::reduce_binary(
-                    lhs.data(), lhs.strides(),
-                    rhs.data(), rhs.strides(), rhs.shape(),
-                    output.data(), output.strides().filter(0),
-                    initial_reduce,
-                    std::forward<PreProcessOp>(pre_process_op),
-                    std::forward<ReduceOp>(reduce_op),
-                    std::forward<PostProcessOp>(post_process_op),
-                    cpu_stream.threads(),
-                    reduce_batch, allow_swap_layout);
+            const i64 threads = cpu_stream.threads();
+            cpu_stream.enqueue([=,
+                                op0 = std::forward<PreProcessOp>(pre_process_op),
+                                op1 = std::forward<ReduceOp>(reduce_op),
+                                op2 = std::forward<PostProcessOp>(post_process_op)]() {
+                noa::cpu::utils::reduce_binary(
+                        lhs.data(), lhs.strides(),
+                        rhs.data(), rhs.strides(), rhs.shape(),
+                        output.data(), output.strides().filter(0),
+                        initial_reduce,
+                        op0, op1, op2,
+                        threads, reduce_batch, allow_swap_layout);
+            });
         } else {
             #ifdef NOA_ENABLE_CUDA
             NOA_THROW("These (combination of) types are not supported by the CUDA backend"); // TODO
