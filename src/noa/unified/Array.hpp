@@ -72,9 +72,6 @@ namespace noa {
         static_assert(!std::is_const_v<value_type>);
         static_assert(!std::is_pointer_v<value_type>);
         static_assert(!std::is_reference_v<value_type>);
-        static_assert(traits::is_numeric_v<value_type> ||
-                      traits::is_vecX_v<value_type> ||
-                      traits::is_matXX_v<value_type>);
 
     public: // Constructors
         /// Creates an empty array.
@@ -84,7 +81,8 @@ namespace noa {
         /// \param elements Number of elements.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
-        constexpr explicit Array(i64 elements, ArrayOption option = {})
+        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+        constexpr explicit Array(Int elements, ArrayOption option = {})
                 : m_shape{1, 1, 1, elements},
                   m_strides{elements, elements, elements, 1},
                   m_options(option) { allocate_(); }
@@ -100,7 +98,8 @@ namespace noa {
         /// \param[in,out] data Data to encapsulate.
         /// \param elements     Number of elements in \p data.
         /// \param option       Options of \p data.
-        constexpr Array(const shared_type& data, i64 elements, ArrayOption option = {})
+        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
+        constexpr Array(const shared_type& data, Int elements, ArrayOption option = {})
                 : m_shape{1, 1, 1, elements},
                   m_strides{elements, elements, elements, 1},
                   m_shared(data),
@@ -162,7 +161,8 @@ namespace noa {
 
         /// Returns the number of elements in the array.
         [[nodiscard]] constexpr index_type elements() const noexcept { return shape().elements(); }
-        [[nodiscard]] constexpr index_type size() const noexcept { return shape().elements(); }
+        [[nodiscard]] constexpr index_type ssize() const noexcept { return shape().elements(); }
+        [[nodiscard]] constexpr size_t size() const noexcept { return static_cast<size_t>(ssize()); }
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
@@ -203,6 +203,13 @@ namespace noa {
         ///          reading/writing to this pointer may be illegal or create a data race.
         [[nodiscard]] constexpr const shared_type& share() const noexcept { return m_shared; }
 
+        /// Returns a (const-)span of the array.
+        template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
+                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<T>>>
+        [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
+            return view().template span<U, SIZE, I>();
+        }
+
         /// Returns a new Accessor and its corresponding shape.
         /// \details While constructing the accessor, this function can also reinterpret the current value type.
         ///          This is only well defined in cases where View::as<U>() is well defined.
@@ -212,6 +219,18 @@ namespace noa {
                  StridesTraits StridesTrait = StridesTraits::STRIDED>
         [[nodiscard]] constexpr auto accessor_and_shape() const noexcept {
             return view().template accessor_and_shape<U, N, I, PointerTrait, StridesTrait>();
+        }
+
+        /// Returns a (const-)view of the array.
+        template<typename U = value_type, typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type>>>
+        [[nodiscard]] constexpr View<U> view() const noexcept {
+            return View<U>(get(), shape(), strides(), options());
+        }
+
+        /// Releases the array. *this is left empty.
+        /// \note Moving an array using std::move() is effectively equivalent.
+        Array release() noexcept {
+            return std::exchange(*this, Array{});
         }
 
         [[nodiscard]] constexpr accessor_type accessor() const noexcept {
@@ -235,18 +254,6 @@ namespace noa {
                  PointerTraits PointerTrait = PointerTraits::DEFAULT>
         [[nodiscard]] constexpr auto accessor_contiguous_1d() const noexcept {
             return accessor_contiguous<U, 1, I, PointerTrait>();
-        }
-
-        /// Returns a (const-)view of the array.
-        template<typename U = value_type, typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type>>>
-        [[nodiscard]] constexpr View<U> view() const noexcept {
-            return View<U>(get(), shape(), strides(), options());
-        }
-
-        /// Releases the array. *this is left empty.
-        /// \note Moving an array using std::move() is effectively equivalent.
-        Array release() noexcept {
-            return std::exchange(*this, Array{});
         }
 
     public: // Deep copy
@@ -304,7 +311,7 @@ namespace noa {
         ///          the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the current
         ///         GPU is used in that case.
         [[nodiscard]] Array as(DeviceType type) const {
-            return Array(share(), shape(), strides(), options().device(view().as(type).device()));
+            return Array(share(), shape(), strides(), options().set_device(view().as(type).device()));
         }
 
         /// Reshapes the array.

@@ -67,7 +67,7 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
                 // For nearest neighbour, the border can be off by one pixel,
                 // so here just check the total difference.
                 output.eval();
-                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.ssize());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 // Otherwise it is usually around 2e-5, but there are some outliers...
@@ -84,7 +84,7 @@ TEST_CASE("unified::geometry::transform_2d, symmetry", "[noa][unified][assets]")
 
             if (interp == noa::InterpMode::NEAREST) {
                 output.eval();
-                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.ssize());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 5e-4));
@@ -152,7 +152,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
                 // For nearest neighbour, the border can be off by one pixel,
                 // so here just check the total difference.
                 output.eval();
-                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.ssize());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 // Otherwise it is usually around 2e-5, but there are some outliers...
@@ -169,7 +169,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
 
             if (interp == noa::InterpMode::NEAREST) {
                 output.eval();
-                const f32 diff = test::get_difference(expected.get(), output.get(), expected.size());
+                const f32 diff = test::get_difference(expected.get(), output.get(), expected.ssize());
                 REQUIRE_THAT(diff, Catch::WithinAbs(0, 1e-6));
             } else {
                 REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 5e-4));

@@ -38,9 +38,6 @@ namespace noa {
 
         static_assert(!std::is_pointer_v<value_type>);
         static_assert(!std::is_reference_v<value_type>);
-        static_assert(traits::is_numeric_v<value_type> ||
-                      traits::is_vecX_v<value_type> ||
-                      traits::is_matXX_v<value_type>);
 
     public: // Constructors
         // Creates an empty view.
@@ -91,7 +88,8 @@ namespace noa {
 
         /// Returns the number of elements in the viewed array.
         [[nodiscard]] NOA_HD constexpr index_type elements() const noexcept { return shape().elements(); }
-        [[nodiscard]] NOA_HD constexpr index_type size() const noexcept { return elements(); }
+        [[nodiscard]] NOA_HD constexpr index_type ssize() const noexcept { return elements(); }
+        [[nodiscard]] NOA_HD constexpr size_t size() const noexcept { return static_cast<size_t>(elements()); }
 
         template<char ORDER = 'C'>
         [[nodiscard]] NOA_HD constexpr bool are_contiguous() const noexcept {
@@ -131,6 +129,23 @@ namespace noa {
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
         [[nodiscard]] NOA_HD constexpr pointer_type share() const noexcept { return get(); }
+
+        /// Returns a (const-)span of the array.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing through this Span may be illegal or create a data race.
+        template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
+                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<T>>>
+        [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
+            NOA_CHECK(are_contiguous(),
+                      "Cannot create a Span from a non-contiguous view (shape={}, strides={})",
+                      shape(), strides());
+            if constexpr (SIZE >= 0) {
+                NOA_CHECK(elements() == SIZE,
+                          "Cannot create a Span with a static size of {} from a view with {} elements",
+                          SIZE, elements());
+            }
+            return Span<U, SIZE, I>(get(), elements());
+        }
 
         /// Returns a new Accessor and its corresponding shape.
         /// \details While constructing the accessor, this function can also reinterpret the current value type.
@@ -255,7 +270,7 @@ namespace noa {
                           alloc == Allocator::MANAGED_GLOBAL,
                           "GPU memory-region with the allocator {} cannot be reinterpreted as a CPU memory-region. "
                           "This is only supported for pinned and managed memory-regions", alloc);
-                return View(get(), shape(), strides(), ArrayOption(m_options).device(Device(type)));
+                return View(get(), shape(), strides(), ArrayOption(m_options).set_device(Device(type)));
 
             } else if (device().is_cpu() && type == DeviceType::GPU) { // CPU -> GPU
                 NOA_CHECK(Device::is_any(DeviceType::GPU), "No GPU detected");
@@ -286,7 +301,7 @@ namespace noa {
                 #else
                 NOA_THROW("No GPU backend detected");
                 #endif
-                return View(get(), shape(), strides(), ArrayOption(m_options).device(gpu));
+                return View(get(), shape(), strides(), ArrayOption(m_options).set_device(gpu));
             } else {
                 return *this;
             }

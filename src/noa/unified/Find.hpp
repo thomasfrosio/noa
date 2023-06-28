@@ -49,7 +49,7 @@ namespace noa {
         [[maybe_unused]] const i64 required_size = reduce_batch ? 1 : input.shape()[0]; // TODO >=1 ?
         NOA_CHECK(noa::indexing::is_vector(offsets.shape()) &&
                   offsets.are_contiguous() &&
-                  offsets.size() == required_size,
+                  offsets.elements() == required_size,
                   "The output offsets should be specified as a contiguous vector of {} elements, "
                   "but got strides:{} and shape:{}", required_size, offsets.strides(), offsets.shape());
 

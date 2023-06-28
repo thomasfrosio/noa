@@ -18,16 +18,21 @@ namespace noa {
         constexpr /*implicit*/ ArrayOption(Allocator allocator) : m_allocator(allocator) {}
 
     public: // Setters
-        constexpr ArrayOption& device(Device device) noexcept {
+        constexpr ArrayOption& set_device(Device device) noexcept {
             m_device = device;
             return *this;
         }
 
-        constexpr ArrayOption& allocator(Allocator allocator) noexcept {
+        constexpr ArrayOption& set_allocator(Allocator allocator) noexcept {
             m_allocator = allocator;
             return *this;
         }
 
+    public: // Getters
+        [[nodiscard]] constexpr Device device() const noexcept { return m_device; }
+        [[nodiscard]] constexpr Allocator allocator() const noexcept { return m_allocator; }
+
+    public: // Query
         /// Whether the allocated data can be accessed by CPU threads.
         /// \note While it indicates whether the managed data can be read/written on the CPU, it does not indicate
         ///       how the managed data is used. This choice is purely made on the device currently associated with
@@ -38,10 +43,6 @@ namespace noa {
             return m_device.is_cpu() || m_allocator == Allocator::PINNED ||
                    m_allocator == Allocator::MANAGED || m_allocator == Allocator::MANAGED_GLOBAL;
         }
-
-    public: // Getters
-        [[nodiscard]] constexpr Device device() const noexcept { return m_device; }
-        [[nodiscard]] constexpr Allocator allocator() const noexcept { return m_allocator; }
 
     private:
         Device m_device{};

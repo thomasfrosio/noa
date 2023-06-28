@@ -26,7 +26,7 @@ namespace noa::memory {
         NOA_CHECK(input.device() == output.device(),
                   "The input and output should be on the same device, but got input={} and output={}",
                   input.device(), output.device());
-        NOA_CHECK(noa::indexing::is_contiguous_vector(batch_indexes) && output.shape()[0] == batch_indexes.size(),
+        NOA_CHECK(noa::indexing::is_contiguous_vector(batch_indexes) && output.shape()[0] == batch_indexes.elements(),
                   "The indexes should be specified as a contiguous vector of size {}, but got shape={} and strides={}",
                   output.shape()[0], batch_indexes.shape(), batch_indexes.strides());
         NOA_CHECK(batch_indexes.device().is_cpu(),

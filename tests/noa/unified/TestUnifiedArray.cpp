@@ -33,7 +33,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
         return;
 
     const Device gpu("gpu:0");
-    Array<TestType> b(shape, ArrayOption{}.device(gpu).allocator(alloc));
+    Array<TestType> b(shape, ArrayOption{}.set_device(gpu).set_allocator(alloc));
     REQUIRE(b.device().is_gpu());
     REQUIRE(b.allocator() == alloc);
     REQUIRE(all(b.shape() == shape));
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
     if (!Device::is_any(DeviceType::GPU))
         return;
     const Device gpu("gpu:0");
-    a = Array<TestType>(shape, ArrayOption{}.device(gpu).allocator(alloc));
+    a = Array<TestType>(shape, ArrayOption{}.set_device(gpu).set_allocator(alloc));
     REQUIRE(a.device().is_gpu());
     REQUIRE(a.allocator() == alloc);
     REQUIRE(a.get());
@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
     REQUIRE(a.get());
     REQUIRE(a.get() != b.get());
 
-    a = b.to(ArrayOption{}.device(gpu).allocator(Allocator::PITCHED));
+    a = b.to(ArrayOption{}.set_device(gpu).set_allocator(Allocator::PITCHED));
     REQUIRE(a.device().is_gpu());
     REQUIRE(a.allocator() == Allocator::PITCHED);
     REQUIRE(a.get());
