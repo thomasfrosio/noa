@@ -10,7 +10,7 @@ namespace noa::fft {
     /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
     template<typename Real = float, typename Int, typename std::enable_if_t<std::is_integral_v<Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr Real highest_normalized_frequency(Int size) noexcept {
-        // even: the highest frequency is always 0.5, ie Nyquist. Eg. size=64, 32/64=0.5
+        // even: the highest frequency is always 0.5, i.e. Nyquist. E.g. size=64, 32/64=0.5
         // odd: Nyquist cannot be reached. Eg. size=63, 31/63 = 0.49206
         const auto max_index = size / 2; // integer division
         return static_cast<Real>(max_index) / static_cast<Real>(size);

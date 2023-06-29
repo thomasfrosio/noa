@@ -86,22 +86,21 @@ namespace noa::cpu::geometry::fft {
     template<noa::fft::Remap REMAP, typename Input, typename Output, typename Weight, typename>
     void rotational_average(
             const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
-            Output* output, Weight* weight, bool average, i64 threads) {
-
-        const auto shell_count = noa::math::min(input_shape.filter(2, 3)) / 2 + 1;
+            Output* output, Weight* weight, i64 n_output_shells,
+            const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads) {
 
         // When computing the average, the weights must be valid.
         using unique_t = typename noa::cpu::memory::PtrHost<Weight>::calloc_unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
         if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cpu::memory::PtrHost<Weight>::calloc(input_shape[0] * shell_count);
+            weight_buffer = noa::cpu::memory::PtrHost<Weight>::calloc(input_shape[0] * n_output_shells);
             weight_ptr = weight_buffer.get();
         }
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         if (input_shape.ndim() == 2) {
-            // Reorder HW dimensions to rightmost.
+            // Reorder HW-dimensions to rightmost.
             const auto order = noa::indexing::order(input_strides.filter(2, 3), input_shape.filter(2, 3));
             if (noa::any(order != Vec2<i64>{0, 1})) {
                 std::swap(input_strides[2], input_strides[3]);
@@ -109,7 +108,8 @@ namespace noa::cpu::geometry::fft {
             }
 
             const auto kernel = noa::algorithm::geometry::rotational_average_2d<REMAP>(
-                    input, input_strides, input_shape, output, weight_ptr, shell_count);
+                    input, input_strides, input_shape, output, weight_ptr, n_output_shells,
+                    frequency_range, frequency_range_endpoint);
 
             auto iwise_shape = input_shape.filter(0, 2, 3);
             if constexpr (IS_HALF)
@@ -126,20 +126,21 @@ namespace noa::cpu::geometry::fft {
             }
 
             const auto kernel = noa::algorithm::geometry::rotational_average_3d<REMAP>(
-                    input, input_strides, input_shape, output, weight_ptr, shell_count);
+                    input, input_strides, input_shape, output, weight_ptr, n_output_shells,
+                    frequency_range, frequency_range_endpoint);
 
             noa::cpu::utils::iwise_4d(IS_HALF ? input_shape.rfft() : input_shape, kernel, threads);
         }
 
         if (average) {
-            // The weights are necessarily larger than zero, so do a simple division to take the mean.
-            const auto shell_shape = Shape4<i64>{input_shape[0], 1, 1, shell_count};
+            // Since n_output_shells can be larger than min(input_shape)/2+1 (oversampling case), some shells can be 0.
+            const auto shell_shape = Shape4<i64>{input_shape[0], 1, 1, n_output_shells};
             const auto shell_strides = shell_shape.strides();
             noa::cpu::utils::ewise_binary(
                     output, shell_strides,
                     weight_ptr, shell_strides,
                     output, shell_strides, shell_shape,
-                    noa::divide_t{}, threads);
+                    noa::divide_safe_t{}, threads);
         }
     }
 
@@ -159,7 +160,8 @@ namespace noa::cpu::geometry::fft {
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Output, Weight)    \
     template void rotational_average<Remap, Input, Output, Weight, void>(       \
             const Input*, Strides4<i64>, Shape4<i64>,                           \
-            Output*, Weight*, bool, i64)
+            Output*, Weight*, i64,                                              \
+            const Vec2<f32>&, bool, bool, i64)
 
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(Input, Output, Weight)             \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(noa::fft::Remap::H2H, Input, Output, Weight);    \

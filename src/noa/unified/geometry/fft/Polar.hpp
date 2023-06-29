@@ -71,21 +71,33 @@ namespace noa::geometry::fft::details {
         }
     }
 
+    inline void set_frequency_range_to_default(
+            const Shape4<i64>& shape,
+            Vec2<f32>& frequency_range
+    ) {
+        if (noa::all(frequency_range == Vec2<f32>{})) { // default value
+            // Find smallest non-empty dimension.
+            i64 min_size = shape[1] > 1 ? shape[1] : noa::math::Limits<i64>::max();
+            min_size = shape[2] > 1 ? std::min(min_size, shape[2]) : min_size;
+            min_size = shape[3] > 1 ? std::min(min_size, shape[3]) : min_size;
+
+            // Get the max normalized frequency (if odd, it's not 0.5).
+            frequency_range = {0, noa::fft::highest_normalized_frequency(min_size)};
+        }
+    }
+
     inline void set_polar_window_range_to_default(
             const Shape4<i64>& cartesian_shape,
             Vec2<f32>& frequency_range,
             Vec2<f32>& angle_range
     ) {
-        if (noa::all(frequency_range == Vec2<f32>{})) {
-            const auto size = noa::math::min(cartesian_shape.filter(2, 3));
-            frequency_range = {0, noa::fft::highest_normalized_frequency(size)};
-        }
+        set_frequency_range_to_default(cartesian_shape, frequency_range);
         if (noa::all(angle_range == Vec2<f32>{}))
             angle_range = {0.f, noa::math::Constant<f32>::PI};
     }
 
     template<typename Input, typename Output, typename Weight>
-    void rotational_average_check_parameters(
+    i64 rotational_average_check_parameters(
             const Input& input,
             const Output& output,
             const Weight& weights,
@@ -97,7 +109,7 @@ namespace noa::geometry::fft::details {
         NOA_CHECK(shape[0] == input.shape()[0] &&
                   shape[0] == output.shape()[0] &&
                   (weights_is_empty || shape[0] == weights.shape()[0]),
-                  "The numbers of batches do not match. "
+                  "The numbers of batches between arrays do not match. "
                   "Got expected={}, input={}, output={}",
                   shape[0], input.shape()[0], output.shape()[0],
                   weights_is_empty ? "" : noa::string::format(" and weights={}", weights.shape()[0]));
@@ -106,13 +118,7 @@ namespace noa::geometry::fft::details {
                   "The output must be a contiguous (batched) vector, but got shape={} and strides={}",
                   output.shape(), output.strides());
 
-        const i64 input_shell_count = noa::math::min(shape.filter(2, 3)) / 2 + 1;
         const i64 output_shell_count = output.shape().pop_front().elements();
-        NOA_CHECK(input_shell_count == output_shell_count,
-                  "The number of shells does not match the input shape. "
-                  "Got output shells={} and input (shape={}, shells={})",
-                  output_shell_count, shape, input_shell_count);
-
         if (!weights_is_empty) {
             NOA_CHECK(noa::indexing::is_contiguous_vector_batched(weights),
                       "The weights must be a contiguous (batched) vector, but got shape={} and strides={}",
@@ -127,9 +133,11 @@ namespace noa::geometry::fft::details {
 
         NOA_CHECK(input.device() == output.device() &&
                   (weights_is_empty || weights.device() == output.device()),
-                  "The arrays must be on the same device, but got input={}, output={}",
+                  "The arrays must be on the same device, but got input={}, output={}{}",
                   input.device(), output.device(),
                   weights_is_empty ? "" : noa::string::format(" and weights={}", weights.device()));
+
+        return output_shell_count;
     }
 }
 
@@ -207,7 +215,7 @@ namespace noa::geometry::fft {
              REMAP == Remap::HC2FC>>
     void cartesian2polar(const Texture<Input>& cartesian, const Shape4<i64>& cartesian_shape, const Output& polar,
                          Vec2<f32> frequency_range = {},
-                         bool frequency_endpoint = false,
+                         bool frequency_endpoint = true,
                          Vec2<f32> angle_range = {},
                          bool angle_endpoint = false) {
         const Device device = polar.device();
@@ -243,14 +251,19 @@ namespace noa::geometry::fft {
     }
 
     /// Computes the rotational sum/average of a 2d or 3d dft.
-    /// \tparam REMAP       Should be either H2H, HC2H, F2H or FC2H. The output layout is "H" to emphasize that
-    ///                     the output shape is the half dimension size.
-    /// \param[in] input    Input dft to reduce. Can be real or complex.
-    /// \param[out] output  Rotational sum/average. Should be a (batched) contiguous vector of size min(shape) // 2 + 1.
-    ///                     If real and \p input is complex, `abs(input)^2` is first computed.
-    /// \param[out] weights Rotational weights. Can be empty. Otherwise, the weights are directly added to this array.
-    /// \param shape        BDHW logical shape.
-    /// \param average      Whether the rotational average should be computed instead of the rotational sum.
+    /// \tparam REMAP               Should be either H2H, HC2H, F2H or FC2H. The output layout is "H" for no
+    ///                             particularly good reasons other than the fact that the number of output shells
+    ///                             is often (but not limited to) the half dimension size, i.e. min(shape) // 2 + 1.
+    /// \param[in] input            Input dft to reduce. Can be real or complex.
+    /// \param shape                BDHW logical shape of \p input.
+    /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
+    ///                             If real and \p input is complex, `abs(input)^2` is first computed.
+    /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
+    ///                             If valid, the output weights are also saved to this array.
+    /// \param frequency_range      Output normalized frequency range. The output shells span over this range.
+    ///                             Defaults to the full frequency range, i.e. [0, highest_normalized_frequency].
+    /// \param frequency_endpoint   Whether \p frequency_range's endpoint should be included in the range.
+    /// \param average              Whether the rotational average should be computed instead of the rotational sum.
     ///
     /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
     template<noa::fft::Remap REMAP, typename Input, typename Output,
@@ -259,12 +272,15 @@ namespace noa::geometry::fft {
              details::is_valid_rotational_average_v<REMAP, Input, Output, Weight>>>
     void rotational_average(
             const Input& input,
-            const Output& output,
             const Shape4<i64>& shape,
+            const Output& output,
             const Weight& weights = {},
+            Vec2<f32> frequency_range = {},
+            bool frequency_endpoint = true,
             bool average = true
     ) {
-        details::rotational_average_check_parameters(input, output, weights, shape);
+        const i64 n_output_shells = details::rotational_average_check_parameters(input, output, weights, shape);
+        details::set_frequency_range_to_default(shape, frequency_range);
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -274,14 +290,16 @@ namespace noa::geometry::fft {
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::rotational_average<REMAP>(
                         input.get(), input.strides(), shape,
-                        output.get(), weights.get(), average, threads);
+                        output.get(), weights.get(), n_output_shells,
+                        frequency_range, frequency_endpoint, average, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             cuda::geometry::fft::rotational_average<REMAP>(
                     input.get(), input.strides(), shape,
-                    output.get(), weights.get(), average, cuda_stream);
+                    output.get(), weights.get(), n_output_shells,
+                    frequency_range, frequency_endpoint, average, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
             #else
             NOA_THROW("No GPU backend detected");

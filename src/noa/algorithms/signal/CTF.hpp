@@ -111,8 +111,8 @@ namespace noa::algorithm::signal::fft {
                   m_frequency_start(frequency_range[0]),
                   m_ctf_abs(ctf_abs),
                   m_ctf_squared(ctf_squared) {
-            // If frequency end is negative, defaults to the highest frequency.
-            // If the frequency start is 0, this results in no rescale and is identical
+            // If frequency-end is negative, defaults to the highest frequency.
+            // If the frequency-start is 0, this results in no rescaling and is identical
             // to the frequency range in the IS_INPUT_OUTPUT mode.
             for (size_t i = 0; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
@@ -127,10 +127,10 @@ namespace noa::algorithm::signal::fft {
 
     public:
         template<typename Void = void, typename = std::enable_if_t<(N == 1) && std::is_void_v<Void>>>
-        NOA_HD void operator()(index_type batch, index_type x) const noexcept {
+        NOA_HD void operator()(index_type batch, index_type ox) const noexcept {
             // Get the output normalized frequency.
             auto frequency = static_cast<coord_type>(
-                    DST_IS_HALF ? x : noa::fft::index2frequency<DST_IS_CENTERED>(x, m_shape[0]));
+                    DST_IS_HALF ? ox : noa::fft::index2frequency<DST_IS_CENTERED>(ox, m_shape[0]));
             frequency *= m_frequency_step[0];
             if constexpr (!std::is_empty_v<coord_type_or_empty>)
                 frequency += m_frequency_start;
@@ -140,21 +140,21 @@ namespace noa::algorithm::signal::fft {
             if constexpr (IS_INPUT_OUTPUT) {
                 // Get the input index corresponding to this output index.
                 // In the mode, there's no user defined range, so a remap is enough to get the input index.
-                const auto x_input = DST_IS_HALF ? x : noa::fft::remap_index<REMAP, true>(x, m_shape[0]);
+                const auto ix = DST_IS_HALF ? ox : noa::fft::remap_index<REMAP, true>(ox, m_shape[0]);
 
                 // Multiply the ctf with the input value.
-                m_output(batch, x) = get_input_value_and_apply_ctf_(ctf, batch, x_input);
+                m_output(batch, ox) = get_input_value_and_apply_ctf_(ctf, batch, ix);
             } else {
-                m_output(batch, x) = ctf;
+                m_output(batch, ox) = ctf;
             }
         }
 
         template<typename Void = void, typename = std::enable_if_t<(N == 2) && std::is_void_v<Void>>>
-        NOA_HD void operator()(index_type batch, index_type y, index_type x) const noexcept {
+        NOA_HD void operator()(index_type batch, index_type oy, index_type ox) const noexcept {
             // Get the output normalized frequency.
             auto frequency = coord_nd_type{
-                    noa::fft::index2frequency<DST_IS_CENTERED>(y, m_shape[0]),
-                    DST_IS_HALF ? x : noa::fft::index2frequency<DST_IS_CENTERED>(x, m_shape[1])};
+                    noa::fft::index2frequency<DST_IS_CENTERED>(oy, m_shape[0]),
+                    DST_IS_HALF ? ox : noa::fft::index2frequency<DST_IS_CENTERED>(ox, m_shape[1])};
             frequency *= m_frequency_step;
             if constexpr (!std::is_empty_v<coord_type_or_empty>)
                 frequency += m_frequency_start;
@@ -167,21 +167,21 @@ namespace noa::algorithm::signal::fft {
                 ctf = get_ctf_value_(frequency, batch);
 
             if constexpr (IS_INPUT_OUTPUT) {
-                const auto y_input = noa::fft::remap_index<REMAP, true>(y, m_shape[0]);
-                const auto x_input = DST_IS_HALF ? x : noa::fft::remap_index<REMAP, true>(x, m_shape[1]);
-                m_output(batch, y, x) = get_input_value_and_apply_ctf_(ctf, batch, y_input, x_input);
+                const auto iy = noa::fft::remap_index<REMAP, true>(oy, m_shape[0]);
+                const auto ix = DST_IS_HALF ? ox : noa::fft::remap_index<REMAP, true>(ox, m_shape[1]);
+                m_output(batch, oy, ox) = get_input_value_and_apply_ctf_(ctf, batch, iy, ix);
             } else {
-                m_output(batch, y, x) = ctf;
+                m_output(batch, oy, ox) = ctf;
             }
         }
 
         template<typename Void = void, typename = std::enable_if_t<(N == 3) && std::is_void_v<Void>>>
-        NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const noexcept {
+        NOA_HD void operator()(index_type batch, index_type oz, index_type oy, index_type ox) const noexcept {
             // Get the output normalized frequency.
             auto frequency = coord_nd_type{
-                    noa::fft::index2frequency<DST_IS_CENTERED>(z, m_shape[0]),
-                    noa::fft::index2frequency<DST_IS_CENTERED>(y, m_shape[1]),
-                    DST_IS_HALF ? x : noa::fft::index2frequency<DST_IS_CENTERED>(x, m_shape[2])};
+                    noa::fft::index2frequency<DST_IS_CENTERED>(oz, m_shape[0]),
+                    noa::fft::index2frequency<DST_IS_CENTERED>(oy, m_shape[1]),
+                    DST_IS_HALF ? ox : noa::fft::index2frequency<DST_IS_CENTERED>(ox, m_shape[2])};
             frequency *= m_frequency_step;
             if constexpr (!std::is_empty_v<coord_type_or_empty>)
                 frequency += m_frequency_start;
@@ -190,13 +190,12 @@ namespace noa::algorithm::signal::fft {
             const auto ctf = get_ctf_value_(noa::math::norm(frequency), batch);
 
             if constexpr (IS_INPUT_OUTPUT) {
-                const auto z_input = noa::fft::remap_index<REMAP, true>(z, m_shape[0]);
-                const auto y_input = noa::fft::remap_index<REMAP, true>(y, m_shape[1]);
-                const auto x_input = DST_IS_HALF ? x : noa::fft::remap_index<REMAP, true>(x, m_shape[2]);
-                m_output(batch, z, y, x) = get_input_value_and_apply_ctf_(
-                        ctf, batch, z_input, y_input, x_input);
+                const auto iz = noa::fft::remap_index<REMAP, true>(oz, m_shape[0]);
+                const auto iy = noa::fft::remap_index<REMAP, true>(oy, m_shape[1]);
+                const auto ix = DST_IS_HALF ? ox : noa::fft::remap_index<REMAP, true>(ox, m_shape[2]);
+                m_output(batch, oz, oy, ox) = get_input_value_and_apply_ctf_(ctf, batch, iz, iy, ix);
             } else {
-                m_output(batch, z, y, x) = ctf;
+                m_output(batch, oz, oy, ox) = ctf;
             }
         }
 

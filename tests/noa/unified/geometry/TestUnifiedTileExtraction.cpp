@@ -223,13 +223,11 @@ TEST_CASE("example: tile extraction", "[.]") {
     const auto rotational_average = noa::memory::zeros<f32>(rotational_average_shape, image.options());
     const auto rotational_average_mean = noa::memory::zeros<f32>(rotational_average_size, image.options());
     noa::geometry::fft::rotational_average<fft::H2H>(
-            patches_rfft_ps,
-            rotational_average,
-            patches.shape());
+            patches_rfft_ps, patches.shape(),
+            rotational_average);
     noa::geometry::fft::rotational_average<fft::H2H>(
-            patches_rfft_ps_mean,
-            rotational_average_mean,
-            patches.shape().set<0>(1));
+            patches_rfft_ps_mean, patches.shape().set<0>(1),
+            rotational_average_mean);
 
     save_txt_1d(rotational_average.view(), working_directory / "rotational_average.mrc");
     save_txt_1d(rotational_average_mean.view(), working_directory / "rotational_average_mean.mrc");
