@@ -31,10 +31,10 @@ TEMPLATE_TEST_CASE("unified::math::randomize()", "[noa][unified]", f32, f64) {
         data = device.is_cpu() ? data : data.to(options);
 
         const auto subregion = data.subregion(
-                noa::indexing::full_extent_t{},
-                noa::indexing::slice_t{0, subregion_shape[1]},
-                noa::indexing::slice_t{0, subregion_shape[2]},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::FullExtent{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         math::randomize(math::uniform_t{}, subregion, value_t{-10}, value_t{10});
         const auto min = math::min(subregion);

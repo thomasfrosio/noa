@@ -345,7 +345,8 @@ namespace noa {
             return *this;
         }
 
-    public: // Indexing & Subregion
+    public:
+        /// Element access. For efficient access, prefer to use Span or Accessor.
         template<typename I0, typename I1, typename I2, typename I3>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
             NOA_ASSERT(is_dereferenceable());
@@ -356,37 +357,13 @@ namespace noa {
             return m_accessor(i0, i1, i2, i3);
         }
 
-    public: // Subregion
-        template<typename A,
-                 typename B = indexing::full_extent_t,
-                 typename C = indexing::full_extent_t,
-                 typename D = indexing::full_extent_t,
-                 typename = std::enable_if_t<indexing::Subregion::are_indexer_v<A, B, C, D>>>
-        [[nodiscard]] constexpr View subregion(A&& i0, B&& i1 = {}, C&& i2 = {}, D&& i3 = {}) const {
-            const auto indexer = indexing::Subregion(shape(), strides()).extract(i0, i1, i2, i3);
+        /// Subregion indexing. Extracts a subregion from the current array.
+        /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
+        template<typename... Ts>
+        [[nodiscard]] constexpr View subregion(Ts&&... indexes) const {
+            const auto indexer = noa::indexing::SubregionIndexer(shape(), strides())
+                    .extract_subregion(std::forward<Ts>(indexes)...);
             return View(get() + indexer.offset, indexer.shape, indexer.strides, options());
-        }
-
-        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t) const {
-            return *this;
-        }
-
-        template<typename A,
-                 typename = std::enable_if_t<indexing::Subregion::is_indexer_v<A>>>
-        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t, A&& i3) const {
-            return subregion(indexing::full_extent_t{}, indexing::full_extent_t{}, indexing::full_extent_t{}, i3);
-        }
-
-        template<typename A, typename B,
-                 typename = std::enable_if_t<indexing::Subregion::are_indexer_v<A, B>>>
-        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t, A&& i2, B&& i3) const {
-            return subregion(indexing::full_extent_t{}, indexing::full_extent_t{}, i2, i3);
-        }
-
-        template<typename A, typename B, typename C,
-                 typename = std::enable_if_t<indexing::Subregion::are_indexer_v<A, B, C>>>
-        [[nodiscard]] constexpr View subregion(indexing::ellipsis_t, A&& i1, B&& i2, C&& i3) const {
-            return subregion(indexing::full_extent_t{}, i1, i2, i3);
         }
 
     private:

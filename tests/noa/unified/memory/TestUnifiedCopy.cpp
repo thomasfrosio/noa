@@ -53,7 +53,7 @@ TEST_CASE("unified::memory::copy, strided data from GPU to CPU", "[noa][unified]
 
     // Select top half
     using namespace ::noa::indexing;
-    const auto gpu_array_top = gpu_array_full.subregion(ellipsis_t{}, slice_t{5, 10}, full_extent_t{});
+    const auto gpu_array_top = gpu_array_full.subregion(Ellipsis{}, Slice{5, 10}, FullExtent{});
     REQUIRE(all(gpu_array_top.shape() == Shape4<i64>{1, 10, 5, 10}));
 
     // Try to copy to CPU
@@ -62,6 +62,6 @@ TEST_CASE("unified::memory::copy, strided data from GPU to CPU", "[noa][unified]
 
     // Check the copy was successful.
     const auto cpu_array_full = memory::arange(shape, 0, 1);
-    const auto cpu_array_expected_top = cpu_array_full.subregion(ellipsis_t{}, slice_t{5, 10}, full_extent_t{});
+    const auto cpu_array_expected_top = cpu_array_full.subregion(Ellipsis{}, Slice{5, 10}, FullExtent{});
     REQUIRE(test::Matcher(test::MATCH_ABS, cpu_array_top, cpu_array_expected_top, 1e-7));
 }

@@ -57,7 +57,7 @@ namespace noa::memory {
         // this becomes a slice operation. So try to identify this case:
         if (index > 0) {
             NOA_ASSERT(batch_indexes_1d[0] + batches_to_copy == index);
-            const auto slice = noa::indexing::slice_t{batch_indexes_1d[0], index};
+            const auto slice = noa::indexing::Slice{batch_indexes_1d[0], index};
             return input.subregion(slice).to(output);
         }
 

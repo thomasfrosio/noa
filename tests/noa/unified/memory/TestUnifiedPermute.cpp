@@ -81,10 +81,10 @@ TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", i32, f32, f64, 
         }
         Array<TestType> data = noa::math::random<TestType>(noa::math::uniform_t{}, padded_shape, -5, 5, options);
         data = data.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, shape[1]},
-                noa::indexing::slice_t{0, shape[2]},
-                noa::indexing::slice_t{0, shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, shape[1]},
+                noa::indexing::Slice{0, shape[2]},
+                noa::indexing::Slice{0, shape[3]});
 
         for (const auto& permutation: permutations) {
             if (ndim == 2 && !(all(permutation == Vec4<i64>{0, 1, 2, 3}) || all(permutation == Vec4<i64>{0, 1, 3, 2})))

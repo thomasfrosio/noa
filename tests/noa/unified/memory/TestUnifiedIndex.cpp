@@ -80,10 +80,10 @@ TEMPLATE_TEST_CASE("unified::memory::extract_{unary|binary}(), insert_elements()
             const auto physical_shape = shape + test::Randomizer<i64>(5, 10).get() * Shape4<i64>{shape != 1};
             auto padded = noa::memory::fill<TestType>(physical_shape, 2, options);
             padded = padded.subregion(
-                    noa::indexing::slice_t{0, shape[0]},
-                    noa::indexing::slice_t{0, shape[1]},
-                    noa::indexing::slice_t{0, shape[2]},
-                    noa::indexing::slice_t{0, shape[3]});
+                    noa::indexing::Slice{0, shape[0]},
+                    noa::indexing::Slice{0, shape[1]},
+                    noa::indexing::Slice{0, shape[2]},
+                    noa::indexing::Slice{0, shape[3]});
 
             const auto extracted = noa::memory::extract_binary<TestType, i64>(
                     padded, padded, TestType{1}, greater_t{}, false, true);

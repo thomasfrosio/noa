@@ -56,10 +56,10 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
             // Initialize input and output:
             auto input = noa::memory::zeros<f32>(padded_shape);
             input = input.subregion(
-                    noa::indexing::ellipsis_t{},
-                    noa::indexing::slice_t{0, input_shape[1]},
-                    noa::indexing::slice_t{0, input_shape[2]},
-                    noa::indexing::slice_t{0, input_shape[3]});
+                    noa::indexing::Ellipsis{},
+                    noa::indexing::Slice{0, input_shape[1]},
+                    noa::indexing::Slice{0, input_shape[2]},
+                    noa::indexing::Slice{0, input_shape[3]});
             noa::memory::arange(input);
             input.eval();
             if (is_centered) {

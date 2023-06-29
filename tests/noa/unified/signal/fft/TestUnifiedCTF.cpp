@@ -126,7 +126,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, range", "[noa][unified]") {
             const Vec2<f64>& fitting_range, // angstrom
             const Vec2<f64>& spacing, // angstrom/pixel
             i64 logical_size
-    ) -> std::tuple<i64, noa::indexing::slice_t, Vec2<f64>> {
+    ) -> std::tuple<i64, noa::indexing::Slice, Vec2<f64>> {
         const auto logical_size_f = static_cast<f64>(logical_size);
         auto frequency_cutoff = noa::math::round(spacing / fitting_range * logical_size_f);
         const auto index_cutoff = frequency_cutoff.as<i64>();
@@ -140,7 +140,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, range", "[noa][unified]") {
         const auto new_size = index_cutoff[1] - index_cutoff[0];
         const auto new_logical_size = (new_size - 1) * 2;
 
-        return {new_logical_size, noa::indexing::slice_t{index_cutoff[0], index_cutoff[1]}, actual_fitting_range};
+        return {new_logical_size, noa::indexing::Slice{index_cutoff[0], index_cutoff[1]}, actual_fitting_range};
     };
 
     // Generate full range.
@@ -151,7 +151,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, range", "[noa][unified]") {
     // Get the truncated range and truncate the full range.
     const auto [trimmed_size, trimmed_slice, trimmed_resolution_range] =
             trimmed_range(resolution_range, Vec2<f64>(ctf.pixel_size()), shape.elements());
-    const auto output_truncated = output.subregion(noa::indexing::ellipsis_t{}, trimmed_slice);
+    const auto output_truncated = output.subregion(noa::indexing::Ellipsis{}, trimmed_slice);
 
     // Generate the truncated
     const auto output_range = noa::memory::empty<f32>(trimmed_size / 2 + 1);

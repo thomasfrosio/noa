@@ -47,19 +47,19 @@ TEST_CASE("common: View - indexing", "[noa][common]") {
     REQUIRE(v0(1) == buffer[at(1, v0.strides())]);
 
     AND_THEN("full extent") {
-        const View<int, size_t> v1 = v0.subregion(ellipsis_t{}, 15);
+        const View<int, size_t> v1 = v0.subregion(Ellipsis{}, 15);
         REQUIRE(all(v1.shape() == size4_t{3, 50, 40, 1}));
         REQUIRE(v0(0, 0, 0, 15) == v1(0));
 
-        const View<int, size_t> v2 = v0.subregion(ellipsis_t{}, 39, full_extent_t{});
+        const View<int, size_t> v2 = v0.subregion(Ellipsis{}, 39, FullExtent{});
         REQUIRE(all(v2.shape() == size4_t{3, 50, 1, 60}));
         REQUIRE(v0(1, 1, 39, 3) == v2(1, 1, 0, 3));
 
-        const View<int, size_t> v3 = v0.subregion(ellipsis_t{}, 9, full_extent_t{}, full_extent_t{});
+        const View<int, size_t> v3 = v0.subregion(Ellipsis{}, 9, FullExtent{}, FullExtent{});
         REQUIRE(all(v3.shape() == size4_t{3, 1, 40, 60}));
         REQUIRE(v0(1, 9, 25, 14) == v3(1, 0, 25, 14));
 
-        const View<int, size_t> v4 = v0.subregion(1, full_extent_t{}, full_extent_t{}, full_extent_t{});
+        const View<int, size_t> v4 = v0.subregion(1, FullExtent{}, FullExtent{}, FullExtent{});
         const View<int, size_t> v5 = v0.subregion(1);
         REQUIRE(all(v4.shape() == size4_t{1, 50, 40, 60}));
         REQUIRE(all(v4.shape() == v5.shape()));
@@ -68,36 +68,36 @@ TEST_CASE("common: View - indexing", "[noa][common]") {
     }
 
     AND_THEN("slice") {
-        const View<int, size_t> v1 = v0.subregion(ellipsis_t{}, slice_t{});
+        const View<int, size_t> v1 = v0.subregion(Ellipsis{}, Slice{});
         REQUIRE(all(v1.shape() == v0.shape()));
 
-        const View<int, size_t> v2 = v0.subregion(ellipsis_t{}, slice_t{5, 45});
-        const View<int, size_t> v3 = v0.subregion(ellipsis_t{}, slice_t{5, -15});
+        const View<int, size_t> v2 = v0.subregion(Ellipsis{}, Slice{5, 45});
+        const View<int, size_t> v3 = v0.subregion(Ellipsis{}, Slice{5, -15});
         REQUIRE(all(v2.shape() == size4_t{3, 50, 40, 40}));
         REQUIRE(all(v3.shape() == size4_t{3, 50, 40, 40}));
         REQUIRE(v2(1, 1, 1, 4) == v0(1, 1, 1, 9));
         REQUIRE(v2(2, 32, 14, 7) == v3(2, 32, 14, 7));
 
-        const View<int, size_t> v4 = v3.subregion(slice_t{0, -1},
-                                          slice_t{1, 100}, // clamp
-                                          slice_t{10, 15},
-                                          slice_t{-25, -10});
+        const View<int, size_t> v4 = v3.subregion(Slice{0, -1},
+                                          Slice{1, 100}, // clamp
+                                          Slice{10, 15},
+                                          Slice{-25, -10});
         REQUIRE(all(v4.shape() == size4_t{2, 49, 5, 15}));
         REQUIRE(v4(1, 2, 2, 0) == v3(1, 3, 12, 15));
     }
 
     AND_THEN("stride") {
-        const View<int, size_t> v1 = v0.subregion(ellipsis_t{}, slice_t{0, 60, 2});
+        const View<int, size_t> v1 = v0.subregion(Ellipsis{}, Slice{0, 60, 2});
         REQUIRE(all(v1.shape() == size4_t{3, 50, 40, 30}));
         REQUIRE(v0(1, 6, 3, 10) == v1(1, 6, 3, 5));
         REQUIRE(v0(1, 6, 3, 28) == v1(1, 6, 3, 14));
     }
 
     AND_THEN("empty or oob") {
-        const View<int, size_t> v1 = v0.subregion(slice_t{3, 3},
-                                          slice_t{30, 20},
-                                          slice_t{10, 10},
-                                          slice_t{-10, -20});
+        const View<int, size_t> v1 = v0.subregion(Slice{3, 3},
+                                          Slice{30, 20},
+                                          Slice{10, 10},
+                                          Slice{-10, -20});
         REQUIRE(all(v1.shape() == size4_t{}));
         REQUIRE(v1.empty());
 

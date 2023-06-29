@@ -99,10 +99,10 @@ TEMPLATE_TEST_CASE("unified::find_offset(), padded", "[noa][unified]",
 
         Array<value_t> data(shape, options);
         const auto data_padded = data.subregion(
-                noa::indexing::full_extent_t{},
-                noa::indexing::slice_t{0, subregion_shape[1]},
-                noa::indexing::slice_t{0, subregion_shape[2]},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::FullExtent{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3]});
         test::Randomizer<value_t> randomizer(-100., 100.);
         test::randomize(data.get(), data.elements(), randomizer);
         data = data_padded.copy();

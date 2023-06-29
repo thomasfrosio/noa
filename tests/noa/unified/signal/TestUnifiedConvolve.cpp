@@ -35,7 +35,7 @@ TEST_CASE("unified::signal::convolve()", "[asset][noa][unified]") {
             const auto expected = noa::io::load_data<f32>(filename_expected, false, options);
             auto filter = noa::io::load_data<f32>(filename_filter, false, options);
             if (filter.shape()[1] == 1 && filter.shape()[2] == 2) // for 1d case, the MRC file as an extra row to make it 2D.
-                filter = filter.subregion(0, 0, 0, noa::indexing::full_extent_t{});
+                filter = filter.subregion(0, 0, 0, noa::indexing::FullExtent{});
 
             const auto result = noa::memory::like(data);
             noa::signal::convolve(data, result, filter);
@@ -71,7 +71,7 @@ TEST_CASE("unified::signal::convolve_separable()", "[asset][noa][unified]") {
             // Input
             const auto data = noa::io::load_data<f32>(filename_input, false, options);
             const auto filter = noa::io::load_data<f32>(filename_filter, false, options)
-                    .subregion(0, 0, 0, noa::indexing::full_extent_t{});
+                    .subregion(0, 0, 0, noa::indexing::FullExtent{});
             const auto expected = noa::io::load_data<f32>(filename_expected, false, options);
 
             View<const f32> filter0;

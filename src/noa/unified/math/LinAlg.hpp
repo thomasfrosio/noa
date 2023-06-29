@@ -126,9 +126,9 @@ namespace noa::math {
         if (x.get() != b.get()) {
             // Copy the NxK solution matrix in x:
             auto b_output = b.subregion(
-                    noa::indexing::ellipsis_t{},
-                    noa::indexing::slice_t{0, n_variables},
-                    noa::indexing::full_extent_t{});
+                    noa::indexing::Ellipsis{},
+                    noa::indexing::Slice{0, n_variables},
+                    noa::indexing::FullExtent{});
             b_output.to(x);
         }
     }

@@ -110,25 +110,26 @@ namespace noa::algorithm::memory {
             const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
             const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
             const Vec4<i64>& border_left, const Vec4<i64>& border_right
-    ) -> std::pair<indexing::Subregion, indexing::Subregion> {
+    ) -> std::pair<noa::indexing::SubregionIndexer, noa::indexing::SubregionIndexer> {
+        using namespace noa::indexing;
 
         // Exclude the regions in the input that don't end up in the output.
         const auto crop_left = noa::math::min(border_left, i64{0}) * -1;
         const auto crop_right = noa::math::min(border_right, i64{0}) * -1;
-        const auto cropped_input = noa::indexing::Subregion(input_shape, input_strides)
-                .extract(noa::indexing::slice_t{crop_left[0], input_shape[0] - crop_right[0]},
-                         noa::indexing::slice_t{crop_left[1], input_shape[1] - crop_right[1]},
-                         noa::indexing::slice_t{crop_left[2], input_shape[2] - crop_right[2]},
-                         noa::indexing::slice_t{crop_left[3], input_shape[3] - crop_right[3]});
+        const auto cropped_input = SubregionIndexer(input_shape, input_strides)
+                .extract_subregion(Slice{crop_left[0], input_shape[0] - crop_right[0]},
+                                   Slice{crop_left[1], input_shape[1] - crop_right[1]},
+                                   Slice{crop_left[2], input_shape[2] - crop_right[2]},
+                                   Slice{crop_left[3], input_shape[3] - crop_right[3]});
 
         // Exclude the regions in the output that are not from the input.
         const auto pad_left = noa::math::max(border_left, i64{0});
         const auto pad_right = noa::math::max(border_right, i64{0});
-        const auto cropped_output = noa::indexing::Subregion(output_shape, output_strides)
-                .extract(noa::indexing::slice_t{pad_left[0], output_shape[0] - pad_right[0]},
-                         noa::indexing::slice_t{pad_left[1], output_shape[1] - pad_right[1]},
-                         noa::indexing::slice_t{pad_left[2], output_shape[2] - pad_right[2]},
-                         noa::indexing::slice_t{pad_left[3], output_shape[3] - pad_right[3]});
+        const auto cropped_output = SubregionIndexer(output_shape, output_strides)
+                .extract_subregion(Slice{pad_left[0], output_shape[0] - pad_right[0]},
+                                   Slice{pad_left[1], output_shape[1] - pad_right[1]},
+                                   Slice{pad_left[2], output_shape[2] - pad_right[2]},
+                                   Slice{pad_left[3], output_shape[3] - pad_right[3]});
 
         // One can now copy cropped_input -> cropped_output.
         NOA_ASSERT(noa::all(cropped_input.shape == cropped_output.shape));

@@ -222,7 +222,7 @@ TEST_CASE("unified::Array, overlap", "[noa][unified]") {
     rhs = Array<f32>(4);
     REQUIRE_FALSE(indexing::are_overlapped(lhs, rhs));
 
-    rhs = lhs.subregion(indexing::ellipsis_t{}, 1);
+    rhs = lhs.subregion(indexing::Ellipsis{}, 1);
     REQUIRE(indexing::are_overlapped(lhs, rhs));
     REQUIRE(indexing::are_overlapped(rhs, lhs));
 }

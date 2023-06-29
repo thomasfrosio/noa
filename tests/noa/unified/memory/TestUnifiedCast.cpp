@@ -26,10 +26,10 @@ TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
 
         auto results = Array<TestType>(shape, options);
         results = results.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[1]},
-                noa::indexing::slice_t{0, subregion_shape[2]},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         const Array data0 = math::random<i32>(math::uniform_t{}, results.shape(), -50, 50, options);
         memory::cast(data0, results);

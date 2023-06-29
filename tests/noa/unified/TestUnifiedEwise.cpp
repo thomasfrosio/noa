@@ -55,8 +55,8 @@ TEMPLATE_TEST_CASE("unified::ewise_unary", "[noa][unified]",
         // Create output and ewise.
         const Array<result_t> result_padded(shape, options);
         auto result = result_padded.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         ewise_unary(i_input, result, op_t{});
         REQUIRE(test::Matcher(test::MATCH_ABS, result, expected, 5e-6));
@@ -106,8 +106,8 @@ TEMPLATE_TEST_CASE("unified::ewise_unary, large", "[noa][unified]",
         const Array i_input = device.is_cpu() ? input : input.to(options);
         const Array<result_t> result_padded(shape, options);
         auto result = result_padded.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[3]});
         ewise_unary(i_input, result, op_t{});
         REQUIRE(test::Matcher(test::MATCH_ABS, result, expected, 5e-6));
     }
@@ -161,8 +161,8 @@ TEMPLATE_TEST_CASE("unified::ewise_binary", "[noa][unified]",
         // Create output and ewise.
         const Array<result_t> result_padded(shape, options);
         auto result = result_padded.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         ewise_binary(i_lhs, i_rhs, result, op_t{});
         REQUIRE(test::Matcher(test::MATCH_ABS, result, expected, 5e-6));
@@ -221,8 +221,8 @@ TEMPLATE_TEST_CASE("unified::ewise_binary, large", "[noa][unified]",
         // Create output and ewise.
         const Array<result_t> result_padded(shape, options);
         auto result = result_padded.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         ewise_binary(i_lhs, i_rhs, result, op_t{});
         REQUIRE(test::Matcher(test::MATCH_ABS, result, expected, 5e-6));
@@ -284,8 +284,8 @@ TEMPLATE_TEST_CASE("unified::ewise_trinary", "[noa][unified]",
         // Create output and ewise.
         const Array<result_t> result_padded(shape, options);
         auto result = result_padded.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         ewise_trinary(i_lhs, i_mhs, i_rhs, result, op_t{});
         REQUIRE(test::Matcher(test::MATCH_ABS, result, expected, 1e-6));
@@ -350,8 +350,8 @@ TEMPLATE_TEST_CASE("unified::ewise_trinary, large", "[noa][unified]",
         // Create output and ewise.
         const Array<result_t> result_padded(shape, options);
         auto result = result_padded.subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         ewise_trinary(i_lhs, i_mhs, i_rhs, result, op_t{});
         REQUIRE(test::Matcher(test::MATCH_ABS, result, expected, 1e-6));

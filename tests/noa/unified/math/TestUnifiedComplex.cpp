@@ -32,10 +32,10 @@ TEMPLATE_TEST_CASE("unified::math::decompose() and complex()", "[noa][unified]",
         data = device == data.device() ? data : data.to(options);
 
         const auto subregion = data.subregion(
-                noa::indexing::full_extent_t{},
-                noa::indexing::slice_t{0, subregion_shape[1]},
-                noa::indexing::slice_t{0, subregion_shape[2]},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::FullExtent{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
         const auto [d_real, d_imag] = math::decompose(subregion.eval());
         const auto real = math::real(subregion.eval());

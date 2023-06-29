@@ -57,18 +57,18 @@ namespace {
 
         // Encode the original input layout:
         using namespace noa::indexing;
-        const auto original = Subregion(shape_fft, input_strides);
+        const auto original = SubregionIndexer(shape_fft, input_strides);
 
         // Reduce unique chunk:
         T factor0;
-        auto subregion = original.extract(ellipsis_t{}, slice_t{1, original.shape[3] - even});
+        auto subregion = original.extract_subregion(Ellipsis{}, Slice{1, original.shape[3] - even});
         noa::cpu::utils::reduce_unary(
                 input + subregion.offset, subregion.strides, subregion.shape,
                 &factor0, Strides1<i64>{1}, T{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {}, threads);
 
         // Reduce common column/plane containing the DC:
-        subregion = original.extract(ellipsis_t{}, 0);
+        subregion = original.extract_subregion(Ellipsis{}, 0);
         T factor1;
         noa::cpu::utils::reduce_unary(
                 input + subregion.offset, subregion.strides, subregion.shape,
@@ -79,7 +79,7 @@ namespace {
         T factor2{0};
         if (even) {
             // Reduce common column/plane containing the real Nyquist:
-            subregion = original.extract(ellipsis_t{}, -1);
+            subregion = original.extract_subregion(Ellipsis{}, -1);
             noa::cpu::utils::reduce_unary(
                     input + subregion.offset, subregion.strides, subregion.shape,
                     &factor2, Strides1<i64>{1}, T{0},

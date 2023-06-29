@@ -136,10 +136,10 @@ TEMPLATE_TEST_CASE("unified::memory:: factories, cpu vs gpu", "[noa][unified]",
 
     auto results = Array<TestType>(shape, options);
     results = results.subregion(
-            noa::indexing::ellipsis_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::Ellipsis{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
 
     AND_THEN("arange") {
         const TestType start = test::Randomizer<TestType>(0, 3).get();

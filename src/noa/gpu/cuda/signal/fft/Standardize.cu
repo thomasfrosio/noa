@@ -1,4 +1,5 @@
 #include "noa/core/fft/Frequency.hpp"
+#include "noa/core/utils/Indexing.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/Set.hpp"
 #include "noa/gpu/cuda/signal/fft/Standardize.hpp"
@@ -63,11 +64,11 @@ namespace {
 
         // Encode the original input layout:
         using namespace noa::indexing;
-        const auto original = Subregion(shape_fft, input_strides);
+        const auto original = SubregionIndexer(shape_fft, input_strides);
 
         // Reduce unique chunk:
         T factor0;
-        auto subregion = original.extract(ellipsis_t{}, slice_t{1, original.shape[3] - even});
+        auto subregion = original.extract_subregion(Ellipsis{}, Slice{1, original.shape[3] - even});
         stream.synchronize();
         noa::cuda::utils::reduce_unary(
                 "standardize_ifft",
@@ -77,7 +78,7 @@ namespace {
                 true, true, stream);
 
         // Reduce common column/plane containing the DC:
-        subregion = original.extract(ellipsis_t{}, 0);
+        subregion = original.extract_subregion(Ellipsis{}, 0);
         T factor1;
         noa::cuda::utils::reduce_unary(
                 "standardize_ifft",
@@ -91,7 +92,7 @@ namespace {
         T factor2{0};
         if (even) {
             // Reduce common column/plane containing the real Nyquist:
-            subregion = original.extract(ellipsis_t{}, -1);
+            subregion = original.extract_subregion(Ellipsis{}, -1);
             noa::cuda::utils::reduce_unary(
                     "standardize_ifft",
                     input + subregion.offset, subregion.strides, subregion.shape,

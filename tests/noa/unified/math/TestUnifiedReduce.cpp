@@ -145,15 +145,15 @@ TEMPLATE_TEST_CASE("unified::math:: reductions, cpu vs gpu", "[noa][unified]", i
     auto gpu_data = cpu_data.to(ArrayOption(Device("gpu"), Allocator::DEFAULT_ASYNC));
 
     cpu_data = cpu_data.subregion(
-            noa::indexing::full_extent_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::FullExtent{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-            noa::indexing::full_extent_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::FullExtent{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(5e-5) : static_cast<real_t>(1e-10);
@@ -319,15 +319,15 @@ TEMPLATE_TEST_CASE("unified::math:: batched reductions, cpu vs gpu", "[noa][unif
     auto gpu_data = cpu_data.to(ArrayOption(Device("gpu"), Allocator::MANAGED));
 
     cpu_data = cpu_data.subregion(
-            noa::indexing::full_extent_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::FullExtent{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-            noa::indexing::full_extent_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::FullExtent{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(1e-4) : static_cast<real_t>(1e-10);
@@ -490,15 +490,15 @@ TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified
     auto gpu_data = cpu_data.to(ArrayOption(Device("gpu"), Allocator::MANAGED));
 
     cpu_data = cpu_data.subregion(
-            noa::indexing::full_extent_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::FullExtent{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-            noa::indexing::full_extent_t{},
-            noa::indexing::slice_t{0, subregion_shape[1]},
-            noa::indexing::slice_t{0, subregion_shape[2]},
-            noa::indexing::slice_t{0, subregion_shape[3]});
+            noa::indexing::FullExtent{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(5e-5) : static_cast<real_t>(1e-10);

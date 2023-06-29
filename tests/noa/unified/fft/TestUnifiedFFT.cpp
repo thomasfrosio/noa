@@ -33,17 +33,17 @@ TEMPLATE_TEST_CASE("unified::fft::r2c() -> c2r()", "[noa][unified]", f32, f64) {
         AND_THEN("out-of-place") {
             Array expected = noa::math::random<TestType>(noa::math::uniform_t{}, shape, -5, 5, options);
             expected = expected.subregion(
-                    noa::indexing::ellipsis_t{},
-                    noa::indexing::slice_t{0, subregion_shape[1]},
-                    noa::indexing::slice_t{0, subregion_shape[2]},
-                    noa::indexing::slice_t{0, subregion_shape[3]});
+                    noa::indexing::Ellipsis{},
+                    noa::indexing::Slice{0, subregion_shape[1]},
+                    noa::indexing::Slice{0, subregion_shape[2]},
+                    noa::indexing::Slice{0, subregion_shape[3]});
 
             Array fft = noa::memory::empty<Complex<TestType>>(shape.rfft(), options);
             fft = fft.subregion(
-                    noa::indexing::ellipsis_t{},
-                    noa::indexing::slice_t{0, subregion_shape[1]},
-                    noa::indexing::slice_t{0, subregion_shape[2]},
-                    noa::indexing::slice_t{0, subregion_shape[3] / 2 + 1});
+                    noa::indexing::Ellipsis{},
+                    noa::indexing::Slice{0, subregion_shape[1]},
+                    noa::indexing::Slice{0, subregion_shape[2]},
+                    noa::indexing::Slice{0, subregion_shape[3] / 2 + 1});
 
             noa::fft::r2c(expected, fft);
             const auto result = noa::fft::c2r(fft, expected.shape());
@@ -87,10 +87,10 @@ TEMPLATE_TEST_CASE("unified::fft::r2c/c2r(), cpu vs gpu", "[noa][unified]", f32,
         const auto cpu_real = noa::math::random<TestType>(noa::math::uniform_t{}, subregion_shape, -5, 5);
         const auto gpu_buffer = noa::memory::empty<TestType>(shape, ArrayOption(Device("gpu"), Allocator::MANAGED));
         const auto gpu_real = gpu_buffer.view().subregion(
-                noa::indexing::ellipsis_t{},
-                noa::indexing::slice_t{0, subregion_shape[1]},
-                noa::indexing::slice_t{0, subregion_shape[2]},
-                noa::indexing::slice_t{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3]});
         cpu_real.to(gpu_real);
 
         const auto cpu_fft = noa::fft::r2c(cpu_real);
@@ -149,10 +149,10 @@ TEMPLATE_TEST_CASE("unified::fft::c2c()", "[noa][unified]", f32, f64) {
         AND_THEN("out-of-place") {
             Array expected = noa::math::random<complex_t>(noa::math::uniform_t{}, shape, -5, 5, options);
             expected = expected.subregion(
-                    noa::indexing::ellipsis_t{},
-                    noa::indexing::slice_t{0, subregion_shape[1]},
-                    noa::indexing::slice_t{0, subregion_shape[2]},
-                    noa::indexing::slice_t{0, subregion_shape[3]});
+                    noa::indexing::Ellipsis{},
+                    noa::indexing::Slice{0, subregion_shape[1]},
+                    noa::indexing::Slice{0, subregion_shape[2]},
+                    noa::indexing::Slice{0, subregion_shape[3]});
             const auto fft = noa::fft::c2c(expected, noa::fft::Sign::FORWARD);
             const auto result = noa::fft::c2c(fft, noa::fft::Sign::BACKWARD);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, result, abs_epsilon));
