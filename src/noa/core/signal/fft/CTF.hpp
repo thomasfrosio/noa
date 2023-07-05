@@ -49,14 +49,15 @@ namespace noa::signal::fft {
                 value_type amplitude,
                 value_type cs,
                 value_type phase_shift,
-                value_type bfactor) noexcept
-                : m_pixel_size(pixel_size),
-                  m_defocus_angstroms(-defocus * static_cast<Real>(1e4)), // micrometers -> angstroms
-                  m_phase_shift(phase_shift),
-                  m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
-                  m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
-                  m_amplitude(amplitude),
-                  m_bfactor(bfactor) {
+                value_type bfactor
+        ) noexcept:
+                m_pixel_size(pixel_size),
+                m_defocus_angstroms(-defocus * static_cast<Real>(1e4)), // micrometers -> angstroms
+                m_phase_shift(phase_shift),
+                m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
+                m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
+                m_amplitude(amplitude),
+                m_bfactor(bfactor) {
             set_lambda_and_cs_();
             set_amplitude_fraction_();
         }
@@ -180,17 +181,32 @@ namespace noa::signal::fft {
                 value_type amplitude,
                 value_type cs,
                 value_type phase_shift,
-                value_type bfactor) noexcept
-                : m_pixel_size(pixel_size),
-                  m_phase_shift(phase_shift),
-                  m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
-                  m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
-                  m_amplitude(amplitude),
-                  m_bfactor(bfactor) {
+                value_type bfactor
+        ) noexcept:
+                m_pixel_size(pixel_size),
+                m_phase_shift(phase_shift),
+                m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
+                m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
+                m_amplitude(amplitude),
+                m_bfactor(bfactor) {
             set_defocus(defocus);
             set_lambda_and_cs_();
             set_amplitude_fraction_();
         }
+
+        NOA_HD constexpr explicit CTFAnisotropic(
+                const CTFIsotropic<Real>& ctf_isotropic,
+                value_type defocus_astigmatic_value = 0,
+                value_type defocus_astigmatic_angle = 0
+        ) noexcept:
+                CTFAnisotropic(
+                        pixel_size_type{ctf_isotropic.pixel_size()},
+                        defocus_type{ctf_isotropic.defocus(), defocus_astigmatic_value, defocus_astigmatic_angle},
+                        ctf_isotropic.voltage(),
+                        ctf_isotropic.amplitude(),
+                        ctf_isotropic.cs(),
+                        ctf_isotropic.phase_shift(),
+                        ctf_isotropic.bfactor()) {}
 
     public: // getters
         [[nodiscard]] NOA_HD constexpr pixel_size_type pixel_size() const noexcept { return m_pixel_size; }
@@ -217,7 +233,7 @@ namespace noa::signal::fft {
         NOA_HD constexpr void set_defocus(defocus_type defocus) noexcept {
             m_defocus_angstroms.value = -defocus.value * static_cast<Real>(1e4); // micrometers -> angstroms
             m_defocus_angstroms.astigmatism = defocus.astigmatism * static_cast<Real>(1e4); // micrometers -> angstroms
-            m_defocus_angstroms = defocus.angle;
+            m_defocus_angstroms.angle = defocus.angle;
         }
         NOA_HD constexpr void set_cs(value_type cs) noexcept {
             m_cs_angstroms = cs * * static_cast<Real>(1e7);
@@ -263,6 +279,35 @@ namespace noa::signal::fft {
             return ctf;
         }
 
+        template<typename Coord, typename = std::enable_if_t<std::is_floating_point_v<Coord>>>
+        [[nodiscard]] NOA_HD constexpr value_type isotropic_fftfreq(Vec2<Coord> fftfreq_2d) const noexcept {
+            const auto fftfreq_2d_scaled = fftfreq_2d.template as<value_type>() / m_pixel_size;
+            const auto phi = noa::geometry::cartesian2phi<false>(fftfreq_2d_scaled);
+            const auto rho = noa::geometry::cartesian2rho(fftfreq_2d_scaled);
+
+            const auto r1 = rho;
+            const auto r2 = r1 * r1;
+            const auto r4 = r2 * r2;
+            const auto l1 = m_lambda_angstroms;
+            const auto l2 = l1 * l1;
+            const auto l4 = l2 * l2;
+            const auto c1 = m_cs_angstroms;
+            const auto c2 = c1 * c1;
+            const auto d1 = m_defocus_angstroms.value;
+            const auto d2 = d1 * d1;
+
+            // Astigmatic-defocus correction.
+            const auto t0 = d2 + c2 * l4 * r4 - 2 * c1 * l2 * r2 * phi2defocus_(phi);
+            const auto t1 = noa::math::sqrt(c1 * (d1 - noa::math::sqrt(t0)));
+            const auto rho_corrected = t1 / (c1 * l1);
+
+            // Scale back to fftfreq using average spacing.
+            const auto average_spacing = noa::math::sum(m_pixel_size) / 2;
+            const auto fftfreq = rho_corrected * average_spacing;
+
+            return fftfreq;
+        }
+
     private:
         [[nodiscard]] NOA_HD constexpr value_type phi2defocus_(value_type phi) const noexcept {
             const auto ellipse_angle = (phi - m_defocus_angstroms.angle);
@@ -271,10 +316,10 @@ namespace noa::signal::fft {
 
         NOA_HD void set_lambda_and_cs_() noexcept {
             const auto voltage = static_cast<f64>(m_voltage_volts);
-            const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
+            m_lambda_angstroms = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
             constexpr f64 PI = noa::math::Constant<f64>::PI;
-            m_k1 = PI * lambda;
-            m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;
+            m_k1 = PI * m_lambda_angstroms;
+            m_k2 = PI * 0.5 * m_cs_angstroms * m_lambda_angstroms * m_lambda_angstroms * m_lambda_angstroms;
         }
 
         NOA_HD constexpr void set_amplitude_fraction_() noexcept {
@@ -290,6 +335,7 @@ namespace noa::signal::fft {
         value_type m_amplitude{};
         value_type m_bfactor{};
 
+        value_type m_lambda_angstroms;
         value_type m_k1;
         value_type m_k2;
         value_type m_k3;
