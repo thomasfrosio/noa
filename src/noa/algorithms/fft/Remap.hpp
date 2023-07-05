@@ -1,7 +1,9 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
+#include "noa/core/fft/Enums.hpp"
 #include "noa/core/fft/Frequency.hpp"
+#include "noa/core/traits/Utilities.hpp"
 
 namespace noa::algorithm::fft {
     // FFT remapping.
@@ -11,8 +13,7 @@ namespace noa::algorithm::fft {
         using value_type = Value;
         using index_type = Index;
         using offset_type = Offset;
-        using index3_type = Shape3<index_type>;
-        using dhw_shape_type = std::conditional_t<REMAP == noa::fft::F2H, Empty, index3_type>;
+        using dhw_shape_type = Shape3<index_type>;
         using input_accessor_type = AccessorRestrict<const value_type, 4, offset_type>;
         using output_accessor_type = AccessorRestrict<value_type, 4, offset_type>;
 
@@ -20,12 +21,9 @@ namespace noa::algorithm::fft {
               const output_accessor_type& output,
               const Shape3<index_type>& shape)
                 : m_input(input),
-                  m_output(output) {
+                  m_output(output),
+                  m_shape(shape) {
             NOA_ASSERT(input.get() != output.get());
-            if constexpr (!std::is_empty_v<dhw_shape_type>)
-                m_shape = shape;
-            else
-                (void) shape;
         }
 
         NOA_HD constexpr void operator()(index_type oi, index_type oj, index_type ok, index_type ol) const noexcept {
@@ -50,6 +48,24 @@ namespace noa::algorithm::fft {
                 const auto ik = noa::fft::ifftshift(ok, m_shape[1]);
                 const auto il = noa::fft::ifftshift(ol, m_shape[2]);
                 m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, il);
+
+            } else if constexpr (REMAP == noa::fft::F2H) {
+                m_output(oi, oj, ok, ol) = m_input(oi, oj, ok, ol); // copy
+
+            } else if constexpr (REMAP == noa::fft::F2HC) {
+                const auto ij = noa::fft::ifftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::ifftshift(ok, m_shape[1]);
+                m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, ol);
+
+            } else if constexpr (REMAP == noa::fft::FC2H) {
+                const auto ij = noa::fft::fftshift(oj, m_shape[0]);
+                const auto ik = noa::fft::fftshift(ok, m_shape[1]);
+                const auto il = noa::fft::fftshift(ol, m_shape[2]);
+                m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, il);
+
+            } else if constexpr (REMAP == noa::fft::FC2HC) {
+                const auto il = noa::fft::fftshift(ol, m_shape[2]);
+                m_output(oi, oj, ok, ol) = m_input(oi, oj, ok, il);
 
             } else if constexpr (REMAP == noa::fft::HC2F || REMAP == noa::fft::HC2FC) {
                 value_type value;
@@ -77,21 +93,6 @@ namespace noa::algorithm::fft {
                     m_output(oi, ooj, ook, ool) = value;
                 }
 
-            } else if constexpr (REMAP == noa::fft::F2HC) {
-                const auto ij = noa::fft::ifftshift(oj, m_shape[0]);
-                const auto ik = noa::fft::ifftshift(ok, m_shape[1]);
-                m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, ol);
-
-            } else if constexpr (REMAP == noa::fft::FC2H) {
-                const auto ij = noa::fft::fftshift(oj, m_shape[0]);
-                const auto ik = noa::fft::fftshift(ok, m_shape[1]);
-                const auto il = noa::fft::fftshift(ol, m_shape[2]);
-                m_output(oi, oj, ok, ol) = m_input(oi, ij, ik, il);
-
-            } else if constexpr (REMAP == noa::fft::FC2HC) {
-                const auto il = noa::fft::fftshift(ol, m_shape[2]);
-                m_output(oi, oj, ok, ol) = m_input(oi, oj, ok, il);
-
             } else if constexpr (REMAP == noa::fft::H2F || REMAP == noa::fft::H2FC) {
                 value_type value;
                 if (ol < m_shape[2] / 2 + 1) {
@@ -115,10 +116,6 @@ namespace noa::algorithm::fft {
                     const auto ool = noa::fft::fftshift(ol, m_shape[2]);
                     m_output(oi, ooj, ook, ool) = value;
                 }
-
-            } else if constexpr (REMAP == noa::fft::F2H) {
-                m_output(oi, oj, ok, ol) = m_input(oi, oj, ok, ol); // copy
-
             } else {
                 static_assert(noa::traits::always_false_v<value_type>);
             }
@@ -127,7 +124,7 @@ namespace noa::algorithm::fft {
     private:
         input_accessor_type m_input;
         output_accessor_type m_output;
-        NOA_NO_UNIQUE_ADDRESS dhw_shape_type m_shape;
+        dhw_shape_type m_shape;
     };
 
     template<noa::fft::Remap REMAP, typename Value, typename Index, typename Offset>

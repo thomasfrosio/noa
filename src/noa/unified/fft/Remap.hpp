@@ -14,6 +14,18 @@ namespace noa::fft {
     /// \param[out] output  Remapped fft.
     /// \param shape        BDHW logical shape.
     /// \note If \p remap is \c H2HC, \p input can be equal to \p output, iff the height and depth are even or 1.
+    ///
+    /// \bug See noa/docs/rfft_remap.md.
+    ///      Remapping a 2d/3d rfft from/to a 2d/3d fft, i.e. \p remap of \c H(C)2F(C) or \c F(C)2H(C), should be
+    ///      used with care. If \p input has an anisotropic field, with an anisotropic angle that is not a multiple
+    ///      of \c pi/2, and has even-sized dimensions, the remapping will not be correct for the real-Nyquist
+    ///      frequencies, except the ones on the cartesian axes. This situation is rare but can happen if a geometric
+    ///      scaling factor is applied to the \p input, or with CTFs with astigmatic defocus.
+    ///      While this could be fixed for the remapping fft->rfft, i.e. \c F(C)2H(C), it cannot be fixed for
+    ///      the opposite rfft->fft, i.e. \c H(C)2F(C). This shouldn't be a big issue since, 1) these remapping should
+    ///      only be done for debugging and visualization anyway, 2) if the remap is done directly after a dft,
+    ///      it will work since the field is isotropic in this case, and 3) the problematic frequencies are
+    ///      past the Nyquist, so lowpass filtering to Nyquist (fftfreq=0.5) fixes this issue.
     template<typename Input, typename Output, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
