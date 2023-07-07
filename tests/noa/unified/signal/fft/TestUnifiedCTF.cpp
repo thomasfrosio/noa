@@ -29,7 +29,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, assets", "[noa][unified][assets]
 
         const auto& test = tests[nb];
         const auto filename_asset = path_base / test["output"].as<Path>();
-        const auto shape = test["shape"].as < Shape4 < i64 >> ();
+        const auto shape = test["shape"].as<Shape4<i64>>();
         const auto pixel_size = test["pixel_size"].as<f64>();
         const auto defocus = test["defocus"].as<f64>();
         const auto voltage = test["voltage"].as<f64>();
@@ -180,9 +180,9 @@ TEST_CASE("unified::signal::fft::ctf_anisotropic, assets", "[noa][unified][asset
 
         const auto& test = tests[nb];
         const auto filename_asset = path_base / test["output"].as<Path>();
-        const auto shape = test["shape"].as < Shape4 < i64 >> ();
-        const auto pixel_size = test["pixel_size"].as < Vec2 < f64 >> ();
-        const auto defocus = test["defocus"].as < Vec3 < f64 >> ();
+        const auto shape = test["shape"].as<Shape4<i64>>();
+        const auto pixel_size = test["pixel_size"].as<Vec2<f64>>();
+        const auto defocus = test["defocus"].as<Vec3<f64>>();
         const auto voltage = test["voltage"].as<f64>();
         const auto amplitude = test["amplitude"].as<f64>();
         const auto cs = test["cs"].as<f64>();
@@ -193,8 +193,8 @@ TEST_CASE("unified::signal::fft::ctf_anisotropic, assets", "[noa][unified][asset
         const auto ctf = CTFAnisotropic64(pixel_size, defocus_astigmatic, voltage, amplitude, cs, phase_shift, bfactor);
 
         if constexpr (COMPUTE_ASSETS) {
-            const auto input = noa::memory::empty<f32>(shape.rfft());
-            noa::signal::fft::ctf_anisotropic<fft::H2H>({}, input, shape, ctf);
+            const auto input = noa::memory::empty<f32>(shape);
+            noa::signal::fft::ctf_anisotropic<fft::FC2FC>({}, input, shape, ctf);
             noa::io::save(input, filename_asset);
         } else {
             for (auto device: devices) {
@@ -202,27 +202,27 @@ TEST_CASE("unified::signal::fft::ctf_anisotropic, assets", "[noa][unified][asset
                 const auto options = ArrayOption(device, Allocator::MANAGED);
                 const auto result_fft = noa::memory::empty<f32>(shape, options);
                 const auto result_rfft = noa::memory::empty<f32>(shape.rfft(), options);
-                const auto expected_rfft = noa::io::load_data<f32>(filename_asset, false, options);
+                const auto expected_fft = noa::io::load_data<f32>(filename_asset, false, options);
 
                 // Check against asset.
-                noa::signal::fft::ctf_anisotropic<fft::H2H>({}, result_rfft, shape, ctf);
-                REQUIRE(test::Matcher(test::MATCH_ABS, result_rfft, expected_rfft, 1e-4));
+                noa::signal::fft::ctf_anisotropic<fft::FC2FC>(result_fft, shape, ctf);
+                REQUIRE(test::Matcher(test::MATCH_ABS, result_fft, expected_fft, 1e-4));
 
                 // Remap
-                noa::signal::fft::ctf_anisotropic<fft::HC2HC>({}, result_rfft, shape, ctf);
-                auto expected_hc = noa::fft::remap(fft::H2HC, expected_rfft, shape);
-                REQUIRE(test::Matcher(test::MATCH_ABS, result_rfft, expected_hc.release(), 1e-4));
+                noa::signal::fft::ctf_anisotropic<fft::F2F>(result_fft, shape, ctf);
+                auto expected_f = noa::fft::remap(fft::FC2F, expected_fft, shape);
+                REQUIRE(test::Matcher(test::MATCH_ABS, result_fft, expected_f.release(), 1e-4));
 
                 // If it is astigmatic and angle is not a multiple of pi/2, the astigmatic field breaks
                 // the remapping after Nyquist for even size. This is documented in noa::fft::remap().
                 if (defocus_astigmatic.angle == 0) {
-                    noa::signal::fft::ctf_anisotropic<fft::F2F>({}, result_fft, shape, ctf);
-                    auto expected_f = noa::fft::remap(fft::H2F, expected_rfft, shape);
-                    REQUIRE(test::Matcher(test::MATCH_ABS, result_fft, expected_f.release(), 1e-4));
+                    noa::signal::fft::ctf_anisotropic<fft::H2H>(result_rfft, shape, ctf);
+                    auto expected_r = noa::fft::remap(fft::FC2H, expected_fft, shape);
+                    REQUIRE(test::Matcher(test::MATCH_ABS, result_rfft, expected_r.release(), 1e-4));
 
-                    noa::signal::fft::ctf_anisotropic<fft::FC2FC>({}, result_fft, shape, ctf);
-                    auto expected_fc = noa::fft::remap(fft::H2FC, expected_rfft, shape);
-                    REQUIRE(test::Matcher(test::MATCH_ABS, result_fft, expected_fc.release(), 1e-4));
+                    noa::signal::fft::ctf_anisotropic<fft::HC2HC>(result_rfft, shape, ctf);
+                    auto expected_hc = noa::fft::remap(fft::FC2HC, expected_fft, shape);
+                    REQUIRE(test::Matcher(test::MATCH_ABS, result_rfft, expected_hc.release(), 1e-4));
                 }
 
                 // Remap-Multiply.

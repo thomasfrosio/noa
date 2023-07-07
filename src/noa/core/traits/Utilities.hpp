@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <utility>
+#include "noa/core/Definitions.hpp"
 
 namespace noa::traits {
     template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
@@ -21,7 +22,7 @@ namespace noa::traits {
     using empty_t = Empty;
 
     template<typename T>
-    constexpr auto to_underlying(T value) noexcept {
+    NOA_FHD constexpr auto to_underlying(T value) noexcept {
         return static_cast<std::underlying_type_t<T>>(value);
     }
 }

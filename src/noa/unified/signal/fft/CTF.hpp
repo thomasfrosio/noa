@@ -86,6 +86,9 @@ namespace noa::signal::fft::details {
                       "The CTFs should be specified as a contiguous vector with {} elements, "
                       "but got shape {} and strides {}",
                       shape[0], ctf.shape(), ctf.strides());
+            NOA_CHECK(ctf.device() == output.device(),
+                      "The ctf and output arrays must be on the same device, but got ctf={} and output={}",
+                      ctf.device(), output.device());
         }
         if constexpr (ctf_parser_t<CTF>::IS_ANISOTROPIC) {
             NOA_CHECK(shape.ndim() == 2,
