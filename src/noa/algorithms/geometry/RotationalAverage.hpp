@@ -1,8 +1,10 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
+#include "noa/core/signal/fft/CTF.hpp"
 #include "noa/core/utils/Atomic.hpp"
 #include "noa/core/fft/Frequency.hpp"
+#include "noa/algorithms/signal/CTF.hpp"
 
 namespace noa::algorithm::geometry {
     // Rotational average implementation.
@@ -14,7 +16,7 @@ namespace noa::algorithm::geometry {
     // * If input is complex and output real, the input is preprocessed to abs(input)^2.
     template<noa::fft::Remap REMAP, size_t N,
              typename Coord, typename Index, typename Offset,
-             typename Input, typename Output>
+             typename Input, typename Output, typename CTF = Empty>
     class RotationalAverage {
     public:
         static_assert(REMAP == noa::fft::H2H || REMAP == noa::fft::HC2H ||
@@ -26,6 +28,8 @@ namespace noa::algorithm::geometry {
                        noa::traits::are_real_or_complex_v<Input, Output>) ||
                       (noa::traits::is_complex_v<Input> &&
                        noa::traits::is_real_v<Output>));
+        static_assert((N == 2 && noa::algorithm::signal::fft::is_valid_aniso_ctf_v<CTF>) ||
+                      std::is_empty_v<CTF>);
 
         static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
         static constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
@@ -36,6 +40,7 @@ namespace noa::algorithm::geometry {
         using input_type = Input;
         using output_type = Output;
         using real_type = noa::traits::value_type_t<output_type>;
+        using ctf_type = CTF;
 
         using shape_type = Shape<index_type, N - IS_HALF>;
         using coord_nd_type = Vec<coord_type, N>;
@@ -48,12 +53,13 @@ namespace noa::algorithm::geometry {
     public:
         RotationalAverage(const input_accessor_type& input,
                           const shape_nd_type& input_shape,
+                          const ctf_type& input_ctf,
                           const output_accessor_type& output,
                           const weight_accessor_type& weight,
                           index_type n_output_shells,
                           coord2_type frequency_range,
                           bool frequency_range_endpoint)
-                : m_input(input), m_output(output), m_weight(weight),
+                : m_input(input), m_output(output), m_weight(weight), m_ctf(input_ctf),
                   m_max_shell_index(n_output_shells - 1),
                   m_fftfreq_step(coord_type{1} / static_cast<coord_nd_type>(input_shape.vec())) {
 
@@ -63,7 +69,10 @@ namespace noa::algorithm::geometry {
                         n_output_shells, frequency_range[0], frequency_range[1], false);
                 frequency_range[1] -= step;
             }
-            m_frequency_range_sqd = frequency_range * frequency_range;
+            if constexpr (std::is_empty_v<ctf_type>)
+                m_frequency_range_sqd = frequency_range * frequency_range;
+            else
+                m_frequency_range_sqd = frequency_range;
             m_frequency_range_start = frequency_range[0];
             m_frequency_range_span = frequency_range[1] - frequency_range[0];
 
@@ -74,22 +83,33 @@ namespace noa::algorithm::geometry {
         }
 
         // Batched 2d.
-        template<typename Void = void, typename = std::enable_if_t<(N == 2) && std::is_void_v<Void>>>
+        template<typename Void = void, std::enable_if_t<(N == 2) && std::is_void_v<Void>, bool> = true>
         NOA_HD void operator()(index_type batch, index_type iy, index_type ix) const noexcept {
             // Compute the normalized frequency.
-            auto frequency = coord_nd_type{
+            const auto frequency = coord_nd_type{
                     noa::fft::index2frequency<IS_CENTERED>(iy, m_shape[0]),
                     IS_HALF ? ix : noa::fft::index2frequency<IS_CENTERED>(ix, m_shape[1])};
-            frequency *= m_fftfreq_step;
+            const auto fftfreq_2d = frequency * m_fftfreq_step;
 
-            // Exclude everything that is not within the output frequency range.
-            const auto fftfreq_sqd = noa::math::dot(frequency, frequency);
-            if (fftfreq_sqd < m_frequency_range_sqd[0] ||
-                fftfreq_sqd > m_frequency_range_sqd[1])
+            coord_type fftfreq;
+            if constexpr (std::is_empty_v<ctf_type>) {
+                fftfreq = noa::math::dot(fftfreq_2d, fftfreq_2d);
+            } else {
+                // Correct for anisotropic pixel size and defocus.
+                if constexpr (std::is_pointer_v<ctf_type>)
+                    fftfreq = static_cast<coord_type>(m_ctf[batch].isotropic_fftfreq(fftfreq_2d));
+                else
+                    fftfreq = static_cast<coord_type>(m_ctf.isotropic_fftfreq(fftfreq_2d));
+            }
+
+            if (fftfreq < m_frequency_range_sqd[0] || fftfreq > m_frequency_range_sqd[1])
                 return;
 
+            if constexpr (std::is_empty_v<ctf_type>)
+                fftfreq = noa::math::sqrt(fftfreq);
+
             const auto output = input_to_output_(m_input(batch, iy, ix));
-            add_to_output_(batch, fftfreq_sqd, output);
+            add_to_output_(batch, fftfreq, output);
         }
 
         // Batched 3d.
@@ -108,7 +128,7 @@ namespace noa::algorithm::geometry {
                 return;
 
             const auto output = input_to_output_(m_input(batch, iz, iy, ix));
-            add_to_output_(batch, fftfreq_sqd, output);
+            add_to_output_(batch, noa::math::sqrt(fftfreq_sqd), output);
         }
 
     private:
@@ -121,9 +141,7 @@ namespace noa::algorithm::geometry {
             }
         }
 
-        NOA_HD void add_to_output_(index_type batch, coord_type fftfreq_sqd, output_type value) const noexcept {
-            const auto fftfreq = noa::math::sqrt(fftfreq_sqd);
-
+        NOA_HD void add_to_output_(index_type batch, coord_type fftfreq, output_type value) const noexcept {
             // Scale the normalized frequency back to the corresponding output shell.
             const auto scaled_fftfreq = (fftfreq - m_frequency_range_start) / m_frequency_range_span;
             const auto radius = scaled_fftfreq * static_cast<coord_type>(m_max_shell_index);
@@ -152,6 +170,7 @@ namespace noa::algorithm::geometry {
         input_accessor_type m_input;
         output_accessor_type m_output;
         weight_accessor_type m_weight;
+        NOA_NO_UNIQUE_ADDRESS ctf_type m_ctf;
 
         shape_type m_shape; // width is removed
         index_type m_max_shell_index;
@@ -159,13 +178,15 @@ namespace noa::algorithm::geometry {
         coord2_type m_frequency_range_sqd;
         coord_type m_frequency_range_start;
         coord_type m_frequency_range_span;
+
     };
 
     template<noa::fft::Remap REMAP,
              typename Index, typename Offset, typename Coord,
-             typename Input, typename Output, typename Weight>
+             typename Input, typename Output, typename Weight, typename Ctf>
     auto rotational_average_2d(
-            const Input* input, const Strides4<Offset>& input_strides, const Shape4<Index>& input_shape,
+            const Input* input, const Strides4<Offset>& input_strides,
+            const Shape4<Index>& input_shape, const Ctf& input_ctf,
             Output* output, Weight* weight, Index n_output_shells,
             Vec2<Coord> frequency_range, bool frequency_range_endpoint
     ) {
@@ -174,8 +195,8 @@ namespace noa::algorithm::geometry {
         const auto output_accessor = AccessorRestrictContiguous<Output, 2, Offset>(output, shell_strides);
         const auto weight_accessor = AccessorRestrictContiguous<Weight, 2, Offset>(weight, shell_strides);
 
-        return RotationalAverage<REMAP, 2, Coord, Index, Offset, Input, Output>(
-                input_accessor, input_shape.filter(2, 3), output_accessor, weight_accessor,
+        return RotationalAverage<REMAP, 2, Coord, Index, Offset, Input, Output, Ctf>(
+                input_accessor, input_shape.filter(2, 3), input_ctf, output_accessor, weight_accessor,
                 n_output_shells, frequency_range, frequency_range_endpoint);
     }
 
@@ -192,8 +213,8 @@ namespace noa::algorithm::geometry {
         const auto output_accessor = AccessorRestrictContiguous<Output, 2, Offset>(output, shell_strides);
         const auto weight_accessor = AccessorRestrictContiguous<Weight, 2, Offset>(weight, shell_strides);
 
-        return RotationalAverage<REMAP, 3, Coord, Index, Offset, Input, Output>(
-                input_accessor, input_shape.filter(1, 2, 3), output_accessor, weight_accessor,
+        return RotationalAverage<REMAP, 3, Coord, Index, Offset, Input, Output, Empty>(
+                input_accessor, input_shape.filter(1, 2, 3), {}, output_accessor, weight_accessor,
                 n_output_shells, frequency_range, frequency_range_endpoint);
     }
 }

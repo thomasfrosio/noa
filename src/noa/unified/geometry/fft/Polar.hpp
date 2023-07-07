@@ -1,13 +1,17 @@
 #pragma once
 
+#include "noa/core/Types.hpp"
 #include "noa/cpu/geometry/fft/Polar.hpp"
+
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/geometry/fft/Polar.hpp"
 #endif
 
 #include "noa/core/fft/Frequency.hpp"
 #include "noa/unified/Array.hpp"
+#include "noa/unified/Indexing.hpp"
 #include "noa/unified/Texture.hpp"
+#include "noa/unified/signal/fft/CTF.hpp"
 
 // TODO Add polar2cartesian
 // TODO Add rotation_average() for 2d only with frequency and angle range.
@@ -18,16 +22,18 @@ namespace noa::geometry::fft::details {
     using Remap = noa::fft::Remap;
     namespace nt = noa::traits;
 
-    template<Remap REMAP, typename Input, typename Output, typename Weight>
+    template<Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight>
     struct is_valid_rotational_average {
-        using input_value_type = nt::value_type_t<Input>;
+        using input_value_type = nt::mutable_value_type_t<Input>; // allow const
         using output_value_type = nt::value_type_t<Output>;
         using weight_value_type = nt::value_type_t<Weight>;
+        using ctf_parser = noa::signal::fft::details::ctf_parser_t<Ctf>;
+
         static constexpr bool is_valid_remap =
                 REMAP == Remap::H2H || REMAP == Remap::HC2H ||
                 REMAP == Remap::F2H || REMAP == Remap::FC2H;
         static constexpr bool value =
-                is_valid_remap &&
+                is_valid_remap && (ctf_parser::IS_ANISOTROPIC || std::is_empty_v<Ctf>) &&
                 (nt::are_same_value_type_v<input_value_type, output_value_type, weight_value_type> &&
                  ((nt::are_all_same_v<input_value_type, output_value_type> &&
                    nt::are_real_or_complex_v<input_value_type, output_value_type>) ||
@@ -35,8 +41,9 @@ namespace noa::geometry::fft::details {
                    nt::is_real_v<output_value_type>)));
     };
 
-    template<Remap REMAP, typename Input, typename Output, typename Weight>
-    constexpr bool is_valid_rotational_average_v = is_valid_rotational_average<REMAP, Input, Output, Weight>::value;
+    template<Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight>
+    constexpr bool is_valid_rotational_average_v =
+            is_valid_rotational_average<REMAP, Input, Ctf, Output, Weight>::value;
 
     template<typename Input, typename Value>
     void cartesian2polar_check_parameters(
@@ -96,12 +103,13 @@ namespace noa::geometry::fft::details {
             angle_range = {0.f, noa::math::Constant<f32>::PI};
     }
 
-    template<typename Input, typename Output, typename Weight>
+    template<typename Input, typename Output, typename Weight, typename Ctf = Empty>
     i64 rotational_average_check_parameters(
             const Input& input,
+            const Shape4<i64>& shape,
+            const Ctf& input_ctf,
             const Output& output,
-            const Weight& weights,
-            const Shape4<i64>& shape
+            const Weight& weights
     ) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         const bool weights_is_empty = weights.is_empty();
@@ -137,7 +145,33 @@ namespace noa::geometry::fft::details {
                   input.device(), output.device(),
                   weights_is_empty ? "" : noa::string::format(" and weights={}", weights.device()));
 
+        if constexpr (!std::is_empty_v<Ctf>) {
+            NOA_CHECK(shape.ndim() == 2,
+                      "Only (batched) 2d arrays are supported with anisotropic CTFs, but got shape {}",
+                      shape);
+        }
+        if constexpr (noa::traits::is_array_or_view_v<Ctf>) {
+            NOA_CHECK(noa::indexing::is_contiguous_vector(input_ctf) && input_ctf.elements() == shape[0],
+                      "The anisotropic input ctfs, specified as a contiguous vector, should have the same number of "
+                      "elements as there are input batches. Got ctf (strides={}, shape={}), input batches={}",
+                      input_ctf.strides(), input_ctf.shape(), shape[0]);
+            NOA_CHECK(input_ctf.device() == output.device(),
+                      "The input and output arrays must be on the same device, but got input_ctf={} and output={}",
+                      input_ctf.device(), output.device());
+        }
+
         return output_shell_count;
+    }
+
+    template<typename Ctf>
+    auto extract_ctf(const Ctf& ctf) {
+        using namespace noa::signal::fft;
+        if constexpr (noa::traits::is_almost_any_v<Ctf, Empty, CTFAnisotropic<f32>, CTFAnisotropic<f64>>) {
+            return ctf;
+        } else {
+            using ptr_t = const noa::traits::value_type_t<Ctf>*;
+            return ptr_t(ctf.get());
+        }
     }
 }
 
@@ -255,7 +289,7 @@ namespace noa::geometry::fft {
     ///                             particularly good reasons other than the fact that the number of output shells
     ///                             is often (but not limited to) the half dimension size, i.e. min(shape) // 2 + 1.
     /// \param[in] input            Input dft to reduce. Can be real or complex.
-    /// \param shape                BDHW logical shape of \p input.
+    /// \param input_shape          BDHW logical shape of \p input.
     /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
     ///                             If real and \p input is complex, `abs(input)^2` is first computed.
     /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
@@ -269,18 +303,19 @@ namespace noa::geometry::fft {
     template<noa::fft::Remap REMAP, typename Input, typename Output,
              typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
              noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output, Weight> &&
-             details::is_valid_rotational_average_v<REMAP, Input, Output, Weight>>>
+             details::is_valid_rotational_average_v<REMAP, Input, Empty, Output, Weight>>>
     void rotational_average(
             const Input& input,
-            const Shape4<i64>& shape,
+            const Shape4<i64>& input_shape,
             const Output& output,
             const Weight& weights = {},
             Vec2<f32> frequency_range = {},
             bool frequency_endpoint = true,
             bool average = true
     ) {
-        const i64 n_output_shells = details::rotational_average_check_parameters(input, output, weights, shape);
-        details::set_frequency_range_to_default(shape, frequency_range);
+        const i64 n_output_shells = details::rotational_average_check_parameters(
+                input, input_shape, {}, output, weights);
+        details::set_frequency_range_to_default(input_shape, frequency_range);
 
         const Device device = output.device();
         Stream& stream = Stream::current(device);
@@ -289,7 +324,7 @@ namespace noa::geometry::fft {
             const auto threads = cpu_stream.threads();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::rotational_average<REMAP>(
-                        input.get(), input.strides(), shape,
+                        input.get(), input.strides(), input_shape, Empty{},
                         output.get(), weights.get(), n_output_shells,
                         frequency_range, frequency_endpoint, average, threads);
             });
@@ -297,10 +332,75 @@ namespace noa::geometry::fft {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             cuda::geometry::fft::rotational_average<REMAP>(
-                    input.get(), input.strides(), shape,
+                    input.get(), input.strides(), input_shape, Empty{},
                     output.get(), weights.get(), n_output_shells,
                     frequency_range, frequency_endpoint, average, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
+            #else
+            NOA_THROW("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Computes the rotational sum/average of a 2d dft, while correcting for the distorsion from the anisotropic ctf.
+    /// \tparam REMAP               Should be either H2H, HC2H, F2H or FC2H. The output layout is "H" for no
+    ///                             particularly good reasons other than the fact that the number of output shells
+    ///                             is often (but not limited to) the half dimension size, i.e. min(shape) // 2 + 1.
+    /// \param[in] input            Input dft to reduce. Can be real or complex.
+    /// \param input_shape          BDHW logical shape of \p input.
+    /// \param input_ctf            Anisotropic CTF(s). The anisotropic spacing and astigmatic field of the defocus
+    ///                             are accounted for, resulting in an isotropic rotational average(s).
+    ///                             If an array/view is passed, there should be one CTF per input batch.
+    ///                             Otherwise, the same CTF is assigned to every batch.
+    /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
+    ///                             If real and \p input is complex, `abs(input)^2` is first computed.
+    /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
+    ///                             If valid, the output weights are also saved to this array.
+    /// \param frequency_range      Output normalized frequency range. The output shells span over this range.
+    ///                             Defaults to the full frequency range, i.e. [0, highest_normalized_frequency].
+    /// \param frequency_endpoint   Whether \p frequency_range's endpoint should be included in the range.
+    /// \param average              Whether the rotational average should be computed instead of the rotational sum.
+    ///
+    /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
+    template<noa::fft::Remap REMAP, typename Input, typename Ctf, typename Output,
+             typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
+             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output, Weight> &&
+             details::is_valid_rotational_average_v<REMAP, Input, Ctf, Output, Weight>>>
+    void rotational_average_anisotropic(
+            const Input& input,
+            const Shape4<i64>& input_shape,
+            const Ctf& input_ctf,
+            const Output& output,
+            const Weight& weights = {},
+            Vec2<f32> frequency_range = {},
+            bool frequency_endpoint = true,
+            bool average = true
+    ) {
+        const i64 n_output_shells = details::rotational_average_check_parameters(
+                input, input_shape, input_ctf, output, weights);
+        details::set_frequency_range_to_default(input_shape, frequency_range);
+
+        const Device device = output.device();
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.threads();
+            cpu_stream.enqueue([=]() {
+                cpu::geometry::fft::rotational_average<REMAP>(
+                        input.get(), input.strides(), input_shape, details::extract_ctf(input_ctf),
+                        output.get(), weights.get(), n_output_shells,
+                        frequency_range, frequency_endpoint, average, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            auto& cuda_stream = stream.cuda();
+            cuda::geometry::fft::rotational_average<REMAP>(
+                    input.get(), input.strides(), input_shape, details::extract_ctf(input_ctf),
+                    output.get(), weights.get(), n_output_shells,
+                    frequency_range, frequency_endpoint, average, cuda_stream);
+            cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
+            if constexpr (noa::traits::is_array_or_view_v<Ctf>)
+                cuda_stream.enqueue_attach(input_ctf.share());
             #else
             NOA_THROW("No GPU backend detected");
             #endif

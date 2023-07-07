@@ -1,6 +1,7 @@
 #include "noa/algorithms/geometry/PolarTransformRFFT.hpp"
 #include "noa/algorithms/geometry/RotationalAverage.hpp"
 #include "noa/core/geometry/Interpolator.hpp"
+#include "noa/core/signal/fft/CTF.hpp"
 #include "noa/cpu/geometry/fft/Polar.hpp"
 #include "noa/cpu/memory/PtrHost.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
@@ -83,9 +84,9 @@ namespace noa::cpu::geometry::fft {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename Weight, typename>
+    template<noa::fft::Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight, typename>
     void rotational_average(
-            const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape, const Ctf& input_ctf,
             Output* output, Weight* weight, i64 n_output_shells,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads) {
 
@@ -108,7 +109,7 @@ namespace noa::cpu::geometry::fft {
             }
 
             const auto kernel = noa::algorithm::geometry::rotational_average_2d<REMAP>(
-                    input, input_strides, input_shape, output, weight_ptr, n_output_shells,
+                    input, input_strides, input_shape, input_ctf, output, weight_ptr, n_output_shells,
                     frequency_range, frequency_range_endpoint);
 
             auto iwise_shape = input_shape.filter(0, 2, 3);
@@ -157,17 +158,24 @@ namespace noa::cpu::geometry::fft {
     NOA_INSTANTIATE_POLAR(c32, f32);
     NOA_INSTANTIATE_POLAR(c64, f64);
 
-    #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Output, Weight)    \
-    template void rotational_average<Remap, Input, Output, Weight, void>(       \
-            const Input*, Strides4<i64>, Shape4<i64>,                           \
-            Output*, Weight*, i64,                                              \
+    #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Ctf, Output, Weight)   \
+    template void rotational_average<Remap, Input, Ctf, Output, Weight, void>(      \
+            const Input*, Strides4<i64>, Shape4<i64>, Ctf const&,                   \
+            Output*, Weight*, i64,                                                  \
             const Vec2<f32>&, bool, bool, i64)
 
-    #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(Input, Output, Weight)             \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(noa::fft::Remap::H2H, Input, Output, Weight);    \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(noa::fft::Remap::HC2H, Input, Output, Weight);   \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(noa::fft::Remap::F2H, Input, Output, Weight);    \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(noa::fft::Remap::FC2H, Input, Output, Weight)
+    #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(Remap, Input, Output, Weight)                                \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, noa::traits::Empty, Output, Weight);                       \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f32>, Output, Weight);         \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f64>, Output, Weight);         \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, const signal::fft::CTFAnisotropic<f32>*, Output, Weight);  \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, const signal::fft::CTFAnisotropic<f64>*, Output, Weight)
+
+    #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(Input, Output, Weight)                 \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::H2H, Input, Output, Weight);    \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::HC2H, Input, Output, Weight);   \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::F2H, Input, Output, Weight);    \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::FC2H, Input, Output, Weight)
 
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(f32, f32, f32);
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(f64, f64, f64);
