@@ -13,9 +13,11 @@ namespace {
 
     template<typename T, i32 FILTER_LEN>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve_3d_square_(AccessorRestrict<const T, 4, u32> input,
-                             AccessorRestrict<T, 4, u32> output,
-                             Shape3<i32> shape, u32 blocks_x) {
+    void convolve_3d_square_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape3<i32> shape, u32 blocks_x
+    ) {
         static_assert(FILTER_LEN % 2); // only support odd windows.
         constexpr i32 PADDING = FILTER_LEN - 1; // assume odd
         constexpr i32 HALO = FILTER_LEN / 2;
@@ -69,9 +71,11 @@ namespace {
     // Version with filter_length not fixed at compile time.
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve_3d_(AccessorRestrict<const T, 4, u32> input,
-                      AccessorRestrict<T, 4, u32> output,
-                      Shape3<i32> shape, Shape3<i32> filter_length, u32 blocks_x) {
+    void convolve_3d_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape3<i32> shape, Shape3<i32> filter_length, u32 blocks_x
+    ) {
         const auto padding = Vec3<i32>(filter_length.vec() - 1); // assume odd
         const auto halo = padding / 2;
         const auto shared_shape = Vec3<i32>(filter_length[0], BLOCK_SIZE.y + padding[1], BLOCK_SIZE.x + padding[2]);
@@ -120,9 +124,11 @@ namespace {
 
 namespace noa::cuda::signal {
     template<typename T, typename U, typename>
-    void convolve_3d(const T* input, const Strides4<i64>& input_strides,
-                     T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                     const U* filter, const Shape3<i64>& filter_shape, Stream& stream) {
+    void convolve_3d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const U* filter, const Shape3<i64>& filter_shape, Stream& stream
+    ) {
         NOA_ASSERT(input != output && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());

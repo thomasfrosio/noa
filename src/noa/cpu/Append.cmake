@@ -45,6 +45,7 @@ set(NOA_CPU_HEADERS
     cpu/signal/Median.hpp
 
     # noa::cpu::memory
+    cpu/memory/AllocatorHeap.hpp
     cpu/memory/Arange.hpp
     cpu/memory/Cast.hpp
     cpu/memory/Copy.hpp
@@ -52,7 +53,6 @@ set(NOA_CPU_HEADERS
     cpu/memory/Iota.hpp
     cpu/memory/Linspace.hpp
     cpu/memory/Permute.hpp
-    cpu/memory/PtrHost.hpp
     cpu/memory/Resize.hpp
     cpu/memory/Set.hpp
     cpu/memory/Subregion.hpp

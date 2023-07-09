@@ -7,9 +7,9 @@
 #include "noa/gpu/cuda/geometry/Interpolator.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/Set.hpp"
-#include "noa/gpu/cuda/memory/PtrArray.hpp"
-#include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/memory/PtrTexture.hpp"
+#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevice.hpp"
+#include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/EwiseBinary.cuh"
 
@@ -22,7 +22,8 @@ namespace {
             Output* polar, const Strides4<i64>& polar_strides, const Shape4<i64>& polar_shape,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint,
             const Vec2<f32>& angle_range, bool angle_range_endpoint,
-            cuda::Stream& stream) {
+            noa::cuda::Stream& stream
+    ) {
         NOA_ASSERT(polar_shape[1] == 1);
         NOA_ASSERT((LAYERED && polar_shape[0] == cartesian_shape[0]) ||
                    (!LAYERED && cartesian_shape[0] == 1));
@@ -38,40 +39,40 @@ namespace {
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator_t(cartesian), i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::LINEAR: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Input, false, LAYERED>;
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator_t(cartesian), i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::COSINE: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::COSINE, Input, false, LAYERED>;
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator_t(cartesian), i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::LINEAR_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Input, false, LAYERED>;
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator_t(cartesian), i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::COSINE_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::COSINE_FAST, Input, false, LAYERED>;
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator_t(cartesian), i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC:
             case InterpMode::CUBIC_BSPLINE:
             case InterpMode::CUBIC_BSPLINE_FAST:
-                NOA_THROW_FUNC("cartesian2polar_rfft", "{} is not supported", cartesian_interp);
+                NOA_THROW("{} is not supported", cartesian_interp);
         }
     }
 }
@@ -83,7 +84,8 @@ namespace noa::cuda::geometry::fft {
             Output* polar, const Strides4<i64>& polar_strides, const Shape4<i64>& polar_shape,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint,
             const Vec2<f32>& angle_range, bool angle_range_endpoint,
-            InterpMode interp_mode, Stream& stream) {
+            InterpMode interp_mode, Stream& stream
+    ) {
         NOA_ASSERT(cartesian && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT_DEVICE_PTR(polar, stream.device());
         NOA_ASSERT(cartesian_shape[0] == 1 || cartesian_shape[0] == polar_shape[0]);
@@ -110,7 +112,7 @@ namespace noa::cuda::geometry::fft {
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator, i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(polar_shape_2d, kernel, stream);
             }
             case InterpMode::LINEAR: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR>(
@@ -118,7 +120,7 @@ namespace noa::cuda::geometry::fft {
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator, i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(polar_shape_2d, kernel, stream);
             }
             case InterpMode::COSINE: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::COSINE>(
@@ -126,7 +128,7 @@ namespace noa::cuda::geometry::fft {
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator, i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(polar_shape_2d, kernel, stream);
             }
             case InterpMode::LINEAR_FAST: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::LINEAR_FAST>(
@@ -134,7 +136,7 @@ namespace noa::cuda::geometry::fft {
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator, i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(polar_shape_2d, kernel, stream);
             }
             case InterpMode::COSINE_FAST: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::COSINE_FAST>(
@@ -142,7 +144,7 @@ namespace noa::cuda::geometry::fft {
                 const auto kernel = noa::algorithm::geometry::cartesian2polar_rfft(
                         interpolator, i_cartesian_shape, polar_accessor, i_polar_shape,
                         frequency_range, frequency_range_endpoint, angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("cartesian2polar_rfft", polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(polar_shape_2d, kernel, stream);
             }
             case InterpMode::CUBIC:
             case InterpMode::CUBIC_BSPLINE:
@@ -158,12 +160,13 @@ namespace noa::cuda::geometry::fft {
             Output* polar, const Strides4<i64>& polar_strides, const Shape4<i64>& polar_shape,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint,
             const Vec2<f32>& angle_range, bool angle_range_endpoint,
-            Stream& stream) {
+            Stream& stream
+    ) {
         NOA_ASSERT(array && cartesian && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT_DEVICE_PTR(polar, stream.device());
 
-        const bool is_layered = noa::cuda::memory::PtrArray<Output>::is_layered(array);
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(cartesian) == array);
+        const bool is_layered = noa::cuda::memory::AllocatorArray<Output>::is_layered(array);
+        NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(cartesian) == array);
 
         if (is_layered) {
             launch_cartesian2polar_rfft_<true, Input>(
@@ -184,16 +187,16 @@ namespace noa::cuda::geometry::fft {
     void rotational_average(
             const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape, const Ctf& input_ctf,
             Output* output, Weight* weight, i64 n_output_shells,
-            const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, Stream& stream) {
-
+            const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, Stream& stream
+    ) {
         const auto shell_batch_size = n_output_shells * input_shape[0];
 
         // When computing the average, the weights must be valid.
-        using unique_t = typename noa::cuda::memory::PtrDevice<Weight>::unique_type;
+        using unique_t = typename noa::cuda::memory::AllocatorDevice<Weight>::unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
         if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cuda::memory::PtrDevice<Weight>::alloc(shell_batch_size, stream);
+            weight_buffer = noa::cuda::memory::AllocatorDevice<Weight>::allocate_async(shell_batch_size, stream);
             weight_ptr = weight_buffer.get();
             noa::cuda::memory::set(weight_ptr, shell_batch_size, Weight{0}, stream);
         }
@@ -214,7 +217,7 @@ namespace noa::cuda::geometry::fft {
             auto iwise_shape = input_shape.filter(0, 2, 3);
             if constexpr (IS_HALF)
                 iwise_shape = iwise_shape.rfft();
-            noa::cuda::utils::iwise_3d("rotational_average", iwise_shape, kernel, stream);
+            noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
 
         } else {
             // Reorder BHW dimensions to rightmost.
@@ -229,8 +232,7 @@ namespace noa::cuda::geometry::fft {
                     input, input_strides, input_shape, output, weight_ptr, n_output_shells,
                     frequency_range, frequency_range_endpoint);
 
-            noa::cuda::utils::iwise_4d(
-                    "rotational_average", IS_HALF ? input_shape.rfft() : input_shape, kernel, stream);
+            noa::cuda::utils::iwise_4d(IS_HALF ? input_shape.rfft() : input_shape, kernel, stream);
         }
 
         if (average) {
@@ -238,7 +240,6 @@ namespace noa::cuda::geometry::fft {
             const auto shell_shape = Shape4<i64>{input_shape[0], 1, 1, n_output_shells};
             const auto shell_strides = shell_shape.strides();
             noa::cuda::utils::ewise_binary(
-                    "rotational_average",
                     output, shell_strides,
                     weight_ptr, shell_strides,
                     output, shell_strides, shell_shape,

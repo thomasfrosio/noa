@@ -15,7 +15,7 @@ namespace noa::cuda::memory {
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const auto [kernel, step] = noa::algorithm::memory::linspace_1d<i64, i64>(
                 src, elements, start, stop, endpoint);
-        noa::cuda::utils::iwise_1d("linspace", elements, kernel, stream);
+        noa::cuda::utils::iwise_1d(elements, kernel, stream);
         return step;
     }
 
@@ -31,7 +31,7 @@ namespace noa::cuda::memory {
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const auto [kernel, step] = noa::algorithm::memory::linspace_4d<i64, i64>(
                 src, strides, shape, start, stop, endpoint);
-        noa::cuda::utils::iwise_4d("linspace", shape, kernel, stream);
+        noa::cuda::utils::iwise_4d(shape, kernel, stream);
         return step;
     }
 

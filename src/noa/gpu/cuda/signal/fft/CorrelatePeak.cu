@@ -4,8 +4,8 @@
 #include "noa/core/math/LeastSquare.hpp"
 
 #include "noa/gpu/cuda/Find.hpp"
-#include "noa/gpu/cuda/memory/PtrManaged.hpp"
-#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/memory/AllocatorManaged.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevice.hpp"
 #include "noa/gpu/cuda/signal/fft/Correlate.hpp"
 #include "noa/gpu/cuda/geometry/fft/Shape.hpp"
 
@@ -17,11 +17,13 @@
 
 namespace {
     using namespace ::noa;
+    using namespace ::noa::cuda;
 
     template<fft::Remap REMAP, typename T>
     __global__ void mask_ellipse_1d_(
             Accessor<T, 2, u32> xmap, u32 size,
-            noa::geometry::LineSmooth<T> line) {
+            noa::geometry::LineSmooth<T> line
+    ) {
         const uint gid = blockIdx.x * blockDim.x + threadIdx.x;
         if (gid >= size)
             return;
@@ -33,7 +35,8 @@ namespace {
     void enforce_max_radius_inplace_1d_(
             T* xmap, f32 max_radius,
             const Shape2<u32>& shape_1d, const Strides2<u32>& strides_1d,
-            cuda::Stream& stream) {
+            Stream& stream
+    ) {
         const auto center = static_cast<f32>(shape_1d[1] / 2);
         const auto edge_size = static_cast<f32>(shape_1d[1]) * 0.05f;
         const auto accessor = Accessor<T, 2, u32>(xmap, strides_1d);
@@ -41,21 +44,20 @@ namespace {
 
         const u32 threads = noa::math::min(128u, math::next_multiple_of(shape_1d[1], 32u));
         const dim3 blocks(noa::math::divide_up(shape_1d[1], threads), shape_1d[0]);
-        const cuda::LaunchConfig config{blocks, threads};
+        const LaunchConfig config{blocks, threads};
         stream.enqueue("xpeak_1d_mask", mask_ellipse_1d_<REMAP, T>, config,
                        accessor, shape_1d[1], line);
     }
 }
 
 namespace {
-    using namespace ::noa;
-
     // Copy the window of the peak. The number of threads should be >= than the window size.
     // The read to global memory only coalesces if the stride is 1.
     template<fft::Remap REMAP, typename Real>
     constexpr NOA_FD Real copy_window_parabola_1d_(
             const Real* xmap, u32 xmap_stride, i32 xmap_size,
-            i32 peak_index, i32 peak_radius, i32 tid) {
+            i32 peak_index, i32 peak_radius, i32 tid
+    ) {
         Real value = 0;
         const i32 elements = peak_radius * 2 + 1;
         if (tid < elements) {
@@ -80,7 +82,8 @@ namespace {
             AccessorRestrict<const Real, N + 1, u32> xmap_batched, Shape<i32, N> xmap_shape,
             AccessorRestrictContiguous<const u32, 1, u32> peak_offset, Vec<i32, N> peak_window_radius,
             AccessorRestrictContiguous<Vec<f32, N>, 1, u32> output_peak_coordinate,
-            AccessorRestrictContiguous<Real, 1, u32> output_peak_value) {
+            AccessorRestrictContiguous<Real, 1, u32> output_peak_value
+    ) {
         const u32 batch = blockIdx.x;
         const auto thread_index = static_cast<i32>(threadIdx.x);
 
@@ -141,8 +144,8 @@ namespace {
             AccessorRestrict<const Real, N + 1, u32> xmap_batched, Shape<i32, N> xmap_shape,
             AccessorRestrictContiguous<const u32, 1, u32> peak_offset, Vec<i32, N> peak_window_radius,
             AccessorRestrictContiguous<Vec<f32, N>, 1, u32> output_peak_coordinate,
-            AccessorRestrictContiguous<Real, 1, u32> output_peak_value) {
-
+            AccessorRestrictContiguous<Real, 1, u32> output_peak_value
+    ) {
         const u32 batch = blockIdx.x;
         const auto xmap = xmap_batched[batch];
         const auto xmap_strides = xmap_batched.strides().pop_front();
@@ -161,7 +164,7 @@ namespace {
         Real thread_peak_window_min{0};
 
         const auto thread_index = static_cast<i32>(threadIdx.x);
-        constexpr i32 WARP_SIZE = cuda::Constant::WARP_SIZE;
+        constexpr i32 WARP_SIZE = noa::cuda::Constant::WARP_SIZE;
         NOA_ASSERT(WARP_SIZE == blockDim.x);
 
         if constexpr (REMAP == fft::FC2FC) {
@@ -246,10 +249,12 @@ namespace {
 
 namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename Real, typename>
-    void xpeak_1d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
-                  Vec1<f32>* output_peak_coordinates, Real* output_peak_values,
-                  PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream) {
+    void xpeak_1d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
+            Vec1<f32>* output_peak_coordinates, Real* output_peak_values,
+            PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream
+    ) {
         const bool is_column = shape[3] == 1;
         NOA_ASSERT(peak_radius[0] > 0);
         NOA_ASSERT(strides[3 - is_column] > 0);
@@ -270,7 +275,7 @@ namespace noa::cuda::signal::fft {
         }
 
         // Find the maximum value.
-        const auto peak_offsets = cuda::memory::PtrDevice<u32>::alloc(shape[0], stream);
+        const auto peak_offsets = noa::cuda::memory::AllocatorDevice<u32>::allocate_async(shape[0], stream);
         noa::cuda::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, stream);
 
         const auto peak_window_size = (peak_radius * 2 + 1).as_clamp<u32>()[0];
@@ -304,13 +309,15 @@ namespace noa::cuda::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    auto xpeak_1d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
-                  PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream) -> std::pair<Vec1<f32>, Real> {
+    auto xpeak_1d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
+            PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream
+    ) -> std::pair<Vec1<f32>, Real> {
         NOA_CHECK(shape[0] == 1, "This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        const auto peak_coordinate = memory::PtrManaged<Vec1<f32>>::alloc(1, stream);
-        const auto peak_value = memory::PtrManaged<Real>::alloc(1, stream);
+        const auto peak_coordinate = noa::cuda::memory::AllocatorManaged<Vec1<f32>>::allocate(1, stream);
+        const auto peak_value = noa::cuda::memory::AllocatorManaged<Real>::allocate(1, stream);
 
         xpeak_1d<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
                         peak_coordinate.get(), peak_value.get(),
@@ -320,10 +327,12 @@ namespace noa::cuda::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    void xpeak_2d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
-                  Vec2<f32>* output_peak_coordinates, Real* output_peak_values,
-                  PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream) {
+    void xpeak_2d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
+            Vec2<f32>* output_peak_coordinates, Real* output_peak_values,
+            PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream
+    ) {
         NOA_ASSERT(noa::all(peak_radius > 0));
         NOA_ASSERT(noa::all(shape > 0) && shape[1] == 1);
         NOA_ASSERT_DEVICE_PTR(xmap, stream.device());
@@ -347,7 +356,7 @@ namespace noa::cuda::signal::fft {
         }
 
         // Find the maximum value.
-        const auto peak_offsets = cuda::memory::PtrDevice<u32>::alloc(shape[0], stream);
+        const auto peak_offsets = noa::cuda::memory::AllocatorDevice<u32>::allocate_async(shape[0], stream);
         noa::cuda::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, stream);
 
         const auto peak_window_shape = (peak_radius * 2 + 1).as_clamp<u32>();
@@ -383,13 +392,15 @@ namespace noa::cuda::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    auto xpeak_2d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
-                  PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream) -> std::pair<Vec2<f32>, Real> {
+    auto xpeak_2d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
+            PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream
+    ) -> std::pair<Vec2<f32>, Real> {
         NOA_CHECK(shape[0] == 1, "This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        const auto peak_coordinate = memory::PtrManaged<Vec2<f32>>::alloc(1, stream);
-        const auto peak_value = memory::PtrManaged<Real>::alloc(1, stream);
+        const auto peak_coordinate = noa::cuda::memory::AllocatorManaged<Vec2<f32>>::allocate(1, stream);
+        const auto peak_value = noa::cuda::memory::AllocatorManaged<Real>::allocate(1, stream);
 
         xpeak_2d<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
                         peak_coordinate.get(), peak_value.get(),
@@ -399,10 +410,12 @@ namespace noa::cuda::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    void xpeak_3d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
-                  Vec3<f32>* output_peak_coordinates, Real* output_peak_values,
-                  PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream) {
+    void xpeak_3d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
+            Vec3<f32>* output_peak_coordinates, Real* output_peak_values,
+            PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream
+    ) {
         NOA_ASSERT(noa::all(peak_radius > 0));
         NOA_ASSERT(noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(xmap, stream.device());
@@ -425,7 +438,7 @@ namespace noa::cuda::signal::fft {
         }
 
         // Find the maximum value.
-        const auto peak_offsets = cuda::memory::PtrDevice<u32>::alloc(shape[0], stream);
+        const auto peak_offsets = noa::cuda::memory::AllocatorDevice<u32>::allocate_async(shape[0], stream);
         noa::cuda::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, stream);
 
         const auto peak_window_shape = (peak_radius * 2 + 1).as_clamp<u32>();
@@ -465,13 +478,15 @@ namespace noa::cuda::signal::fft {
     }
 
     template<Remap REMAP, typename Real, typename>
-    auto xpeak_3d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
-                  PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream) -> std::pair<Vec3<f32>, Real> {
+    auto xpeak_3d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
+            PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream
+    ) -> std::pair<Vec3<f32>, Real> {
         NOA_CHECK(shape[0] == 1, "This overload does not support batched arrays, but got {} batches", shape[0]);
 
-        const auto peak_coordinate = memory::PtrManaged<Vec3<f32>>::alloc(1, stream);
-        const auto peak_value = memory::PtrManaged<Real>::alloc(1, stream);
+        const auto peak_coordinate = memory::AllocatorManaged<Vec3<f32>>::allocate(1, stream);
+        const auto peak_value = memory::AllocatorManaged<Real>::allocate(1, stream);
 
         xpeak_3d<REMAP>(xmap, strides, shape, xmap_ellipse_radius,
                         peak_coordinate.get(), peak_value.get(),

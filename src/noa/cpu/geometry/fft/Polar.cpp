@@ -3,7 +3,7 @@
 #include "noa/core/geometry/Interpolator.hpp"
 #include "noa/core/signal/fft/CTF.hpp"
 #include "noa/cpu/geometry/fft/Polar.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 #include "noa/cpu/utils/EwiseBinary.hpp"
 
@@ -91,11 +91,11 @@ namespace noa::cpu::geometry::fft {
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads) {
 
         // When computing the average, the weights must be valid.
-        using unique_t = typename noa::cpu::memory::PtrHost<Weight>::calloc_unique_type;
+        using unique_t = typename noa::cpu::memory::AllocatorHeap<Weight>::calloc_unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
         if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cpu::memory::PtrHost<Weight>::calloc(input_shape[0] * n_output_shells);
+            weight_buffer = noa::cpu::memory::AllocatorHeap<Weight>::calloc(input_shape[0] * n_output_shells);
             weight_ptr = weight_buffer.get();
         }
 

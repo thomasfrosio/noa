@@ -9,8 +9,8 @@ namespace noa::cuda::memory {
             const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
             Value* subregions, Strides4<i64> subregion_strides, Shape4<i64> subregion_shape,
             const Vec4<Index>* origins, BorderMode border_mode, Value border_value,
-            Stream& stream) {
-
+            Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(subregions, stream.device());
         NOA_ASSERT_DEVICE_PTR(origins, stream.device());
@@ -32,49 +32,49 @@ namespace noa::cuda::memory {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::NOTHING, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
             case BorderMode::ZERO: {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::ZERO, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
             case BorderMode::VALUE: {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::VALUE, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order, border_value);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
             case BorderMode::CLAMP: {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::CLAMP, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
             case BorderMode::MIRROR: {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::MIRROR, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
             case BorderMode::PERIODIC: {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::PERIODIC, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
             case BorderMode::REFLECT: {
                 const auto kernel = noa::algorithm::memory::extract_subregion<BorderMode::REFLECT, i64, i64>(
                         input, input_strides, input_shape, subregions, subregion_strides,
                         origins, order);
-                noa::cuda::utils::iwise_4d("extract_subregion", subregion_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
                 break;
             }
         }
@@ -85,8 +85,8 @@ namespace noa::cuda::memory {
             const Value* subregions, Strides4<i64> subregion_strides, Shape4<i64> subregion_shape,
             Value* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
             const Vec4<Index>* origins,
-            Stream& stream) {
-
+            Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(subregions, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         NOA_ASSERT_DEVICE_PTR(origins, stream.device());
@@ -107,7 +107,7 @@ namespace noa::cuda::memory {
                 subregions, subregion_strides,
                 output, output_strides, output_shape,
                 origins, order);
-        noa::cuda::utils::iwise_4d("insert_subregions", subregion_shape, kernel, stream);
+        noa::cuda::utils::iwise_4d(subregion_shape, kernel, stream);
     }
 
     #define NOA_INSTANTIATE_EXTRACT_INSERT_(T, I)   \

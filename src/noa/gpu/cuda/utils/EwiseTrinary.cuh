@@ -13,12 +13,13 @@ namespace noa::cuda::utils::details {
              typename Index, typename TrinaryOp, typename Config,
              u32 VECTOR_SIZE, PointerTraits PointerTrait, StridesTraits StridesTrait>
     __global__ __launch_bounds__(Config::BLOCK_SIZE)
-    void ewise_trinary_1d(Accessor<const Lhs, 2, Index, PointerTrait, StridesTrait> lhs_batched,
-                          Accessor<const Mhs, 2, Index, PointerTrait, StridesTrait> mhs_batched,
-                          Accessor<const Rhs, 2, Index, PointerTrait, StridesTrait> rhs_batched,
-                          Accessor<Output, 2, Index, PointerTrait, StridesTrait> output_batched,
-                          Index elements, TrinaryOp trinary_op) {
-
+    void ewise_trinary_1d(
+            Accessor<const Lhs, 2, Index, PointerTrait, StridesTrait> lhs_batched,
+            Accessor<const Mhs, 2, Index, PointerTrait, StridesTrait> mhs_batched,
+            Accessor<const Rhs, 2, Index, PointerTrait, StridesTrait> rhs_batched,
+            Accessor<Output, 2, Index, PointerTrait, StridesTrait> output_batched,
+            Index elements, TrinaryOp trinary_op
+    ) {
         constexpr Index BLOCK_SIZE = Config::BLOCK_SIZE;
         constexpr Index EPT = noa::math::max(Config::ELEMENTS_PER_THREAD, VECTOR_SIZE);
         constexpr Index BLOCK_WORK_SIZE = BLOCK_SIZE * EPT;
@@ -69,12 +70,13 @@ namespace noa::cuda::utils::details {
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename Index, typename TrinaryOp,
              typename Config, PointerTraits PointerTrait, StridesTraits StridesTrait>
     __global__ __launch_bounds__(Config::BLOCK_SIZE)
-    void ewise_trinary_4d(Accessor<const Lhs, 4, Index, PointerTrait, StridesTrait> lhs_batched,
-                          Accessor<const Mhs, 4, Index, PointerTrait, StridesTrait> mhs_batched,
-                          Accessor<const Rhs, 4, Index, PointerTrait, StridesTrait> rhs_batched,
-                          Accessor<Output, 4, Index, PointerTrait, StridesTrait> output_batched,
-                          Shape2 <Index> shape, TrinaryOp trinary_op, Index blocks_x) {
-
+    void ewise_trinary_4d(
+            Accessor<const Lhs, 4, Index, PointerTrait, StridesTrait> lhs_batched,
+            Accessor<const Mhs, 4, Index, PointerTrait, StridesTrait> mhs_batched,
+            Accessor<const Rhs, 4, Index, PointerTrait, StridesTrait> rhs_batched,
+            Accessor<Output, 4, Index, PointerTrait, StridesTrait> output_batched,
+            Shape2<Index> shape, TrinaryOp trinary_op, Index blocks_x
+    ) {
         const auto index = noa::indexing::offset2index(static_cast<Index>(blockIdx.x), blocks_x);
         const auto gid = Vec4<Index>{
                 blockIdx.z, blockIdx.y,
@@ -107,13 +109,14 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       const Lhs* lhs, Strides4<Index> lhs_strides,
-                       const Mhs* mhs, Strides4<Index> mhs_strides,
-                       const Rhs* rhs, Strides4<Index> rhs_strides,
-                       Output* output, Strides4<Index> output_strides,
-                       Shape4<Index> shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            const Lhs* lhs, Strides4<Index> lhs_strides,
+            const Mhs* mhs, Strides4<Index> mhs_strides,
+            const Rhs* rhs, Strides4<Index> rhs_strides,
+            Output* output, Strides4<Index> output_strides,
+            Shape4<Index> shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
         NOA_ASSERT_DEVICE_PTR(mhs, stream.device());
@@ -172,7 +175,7 @@ namespace noa::cuda::utils {
                 const auto mhs_accessor = mhs_accessor_t(mhs, mhs_strides_2d);
                 const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides_2d);
                 const auto output_accessor = output_accessor_t(output, output_strides_2d);
-                return stream.enqueue(name,
+                return stream.enqueue(
                         details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 1, PointerTrait, StridesTrait>,
                         config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
             } else {
@@ -185,15 +188,15 @@ namespace noa::cuda::utils {
                 const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides_2d);
                 const auto output_accessor = output_accessor_t(output, output_strides_2d);
                 if (vector_size == 2) {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 2, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
                 } else if (vector_size == 4) {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 4, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
                 } else {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_trinary_1d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, 8, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, elements, trinary_op);
                 }
@@ -213,7 +216,7 @@ namespace noa::cuda::utils {
             const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
 
-            stream.enqueue(name,
+            stream.enqueue(
                     details::ewise_trinary_4d<Lhs, Mhs, Rhs, Output, Index, TrinaryOp, Config, PointerTrait, StridesTrait>,
                     config, lhs_accessor, mhs_accessor, rhs_accessor, output_accessor, shape.filter(2, 3), trinary_op, blocks_x);
         }
@@ -224,15 +227,16 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       const Lhs* lhs, const Strides4<Index>& lhs_strides,
-                       Mhs mhs,
-                       Rhs rhs,
-                       Output* output, const Strides4<Index>& output_strides,
-                       const Shape4<Index>& shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            const Lhs* lhs, const Strides4<Index>& lhs_strides,
+            Mhs mhs,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         ewise_unary<PointerTrait, StridesTrait>(
-                name, lhs, lhs_strides, output, output_strides, shape, stream,
+                lhs, lhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Lhs lhs_value) { return trinary_op(lhs_value, mhs, rhs); });
     }
 
@@ -241,15 +245,16 @@ namespace noa::cuda::utils {
             typename Config = EwiseStaticConfigDefault,
             typename Lhs, typename Mhs, typename Rhs, typename Output,
             typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       Lhs lhs,
-                       const Mhs* mhs, const Strides4<Index>& mhs_strides,
-                       Rhs rhs,
-                       Output* output, const Strides4<Index>& output_strides,
-                       const Shape4<Index>& shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            Lhs lhs,
+            const Mhs* mhs, const Strides4<Index>& mhs_strides,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         ewise_unary<PointerTrait, StridesTrait>(
-                name, mhs, mhs_strides, output, output_strides, shape, stream,
+                mhs, mhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Mhs mhs_value) { return trinary_op(lhs, mhs_value, rhs); });
     }
 
@@ -258,15 +263,16 @@ namespace noa::cuda::utils {
             typename Config = EwiseStaticConfigDefault,
             typename Lhs, typename Mhs, typename Rhs, typename Output,
             typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       Lhs lhs,
-                       Mhs mhs,
-                       const Rhs* rhs, const Strides4<Index>& rhs_strides,
-                       Output* output, const Strides4<Index>& output_strides,
-                       const Shape4<Index>& shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            Lhs lhs,
+            Mhs mhs,
+            const Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         ewise_unary<PointerTrait, StridesTrait>(
-                name, rhs, rhs_strides, output, output_strides, shape, stream,
+                rhs, rhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Rhs rhs_value) { return trinary_op(lhs, mhs, rhs_value); });
     }
 
@@ -275,15 +281,16 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       const Lhs* lhs, const Strides4<Index>& lhs_strides,
-                       const Mhs* mhs, const Strides4<Index>& mhs_strides,
-                       Rhs rhs,
-                       Output* output, const Strides4<Index>& output_strides,
-                       const Shape4<Index>& shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            const Lhs* lhs, const Strides4<Index>& lhs_strides,
+            const Mhs* mhs, const Strides4<Index>& mhs_strides,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         ewise_binary<PointerTrait, StridesTrait>(
-                name, lhs, lhs_strides, mhs, mhs_strides, output, output_strides, shape, stream,
+                lhs, lhs_strides, mhs, mhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Lhs lhs_value, Mhs mhs_value) { return trinary_op(lhs_value, mhs_value, rhs); });
     }
 
@@ -292,15 +299,16 @@ namespace noa::cuda::utils {
             typename Config = EwiseStaticConfigDefault,
             typename Lhs, typename Mhs, typename Rhs, typename Output,
             typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       const Lhs* lhs, const Strides4<Index>& lhs_strides,
-                       Mhs mhs,
-                       const Rhs* rhs, const Strides4<Index>& rhs_strides,
-                       Output* output, const Strides4<Index>& output_strides,
-                       const Shape4<Index>& shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            const Lhs* lhs, const Strides4<Index>& lhs_strides,
+            Mhs mhs,
+            const Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         ewise_binary<PointerTrait, StridesTrait>(
-                name, lhs, lhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
+                lhs, lhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Lhs lhs_value, Rhs rhs_value) { return trinary_op(lhs_value, mhs, rhs_value); });
     }
 
@@ -309,15 +317,16 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Mhs, typename Rhs, typename Output,
              typename Index, typename TrinaryOp>
-    void ewise_trinary(const char* name,
-                       Lhs lhs,
-                       const Mhs* mhs, const Strides4<Index>& mhs_strides,
-                       const Rhs* rhs, const Strides4<Index>& rhs_strides,
-                       Output* output, const Strides4<Index>& output_strides,
-                       const Shape4<Index>& shape, Stream& stream,
-                       TrinaryOp trinary_op) {
+    void ewise_trinary(
+            Lhs lhs,
+            const Mhs* mhs, const Strides4<Index>& mhs_strides,
+            const Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            TrinaryOp trinary_op
+    ) {
         ewise_binary<PointerTrait, StridesTrait>(
-                name, mhs, mhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
+                mhs, mhs_strides, rhs, rhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Mhs mhs_value, Rhs rhs_value) { return trinary_op(lhs, mhs_value, rhs_value); });
     }
 }
@@ -331,7 +340,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs, lhs_strides,                                                                       \
                 mhs, mhs_strides,                                                                       \
                 rhs, rhs_strides,                                                                       \
@@ -346,7 +354,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs,                                                                                    \
                 mhs, mhs_strides,                                                                       \
                 rhs, rhs_strides,                                                                       \
@@ -361,7 +368,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs, lhs_strides,                                                                       \
                 mhs,                                                                                    \
                 rhs, rhs_strides,                                                                       \
@@ -376,7 +382,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs, lhs_strides,                                                                       \
                 mhs, mhs_strides,                                                                       \
                 rhs,                                                                                    \
@@ -391,7 +396,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs, lhs_strides,                                                                       \
                 mhs,                                                                                    \
                 rhs,                                                                                    \
@@ -406,7 +410,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs,                                                                                    \
                 mhs, mhs_strides,                                                                       \
                 rhs,                                                                                    \
@@ -421,7 +424,6 @@ namespace noa::cuda {                                                           
                        Out* output, const Strides4<i64>& output_strides,                                \
                        const Shape4<i64>& shape, TrinaryOp trinary_op, Stream& stream) {                \
         noa::cuda::utils::ewise_trinary(                                                                \
-                "ewise_trinary",                                                                        \
                 lhs,                                                                                    \
                 mhs,                                                                                    \
                 rhs, rhs_strides,                                                                       \

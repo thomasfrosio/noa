@@ -2,8 +2,8 @@
 
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
-#include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/memory/PtrManaged.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevice.hpp"
+#include "noa/gpu/cuda/memory/AllocatorManaged.hpp"
 
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
@@ -252,11 +252,10 @@ namespace noa::cuda::utils::details {
              typename Input, typename Reduced, typename Output, typename Index,
              typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     void launch_reduce_unary_small_1d(
-            const char* name,
             const Input* input, Strides4<Index> input_strides, u32 batches, Index elements,
             AccessorRestrict<Output, 1, Index> output_accessor, Reduced initial_reduce,
             PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
-            cuda::Stream& stream) {
+            Stream& stream) {
 
         const auto input_strides_2d = input_strides.filter(0, 3);
 
@@ -273,39 +272,39 @@ namespace noa::cuda::utils::details {
         if (vector_size > 1) {
             const auto input_accessor = AccessorRestrictContiguous<const Input, 2, Index>(input, input_strides_2d);
             if (vector_size == 8) {
-                stream.enqueue(name,
-                               details::reduce_unary_1d_small<
-                                       Input, Reduced, Output, Index,
-                                       PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, 8>,
-                               config, input_accessor, elements, initial_reduce, output_accessor,
-                               pre_process_op, reduce_op, post_process_op);
+                stream.enqueue(
+                        details::reduce_unary_1d_small<
+                                Input, Reduced, Output, Index,
+                                PreProcessOp, ReduceOp, PostProcessOp,
+                                StridesTraits::CONTIGUOUS, Config, 8>,
+                        config, input_accessor, elements, initial_reduce, output_accessor,
+                        pre_process_op, reduce_op, post_process_op);
             } else if (vector_size == 4) {
-                stream.enqueue(name,
-                               details::reduce_unary_1d_small<
-                                       Input, Reduced, Output, Index,
-                                       PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, 4>,
-                               config, input_accessor, elements, initial_reduce, output_accessor,
-                               pre_process_op, reduce_op, post_process_op);
+                stream.enqueue(
+                        details::reduce_unary_1d_small<
+                                Input, Reduced, Output, Index,
+                                PreProcessOp, ReduceOp, PostProcessOp,
+                                StridesTraits::CONTIGUOUS, Config, 4>,
+                        config, input_accessor, elements, initial_reduce, output_accessor,
+                        pre_process_op, reduce_op, post_process_op);
             } else {
-                stream.enqueue(name,
-                               details::reduce_unary_1d_small<
-                                       Input, Reduced, Output, Index,
-                                       PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, 2>,
-                               config, input_accessor, elements, initial_reduce, output_accessor,
-                               pre_process_op, reduce_op, post_process_op);
+                stream.enqueue(
+                        details::reduce_unary_1d_small<
+                                Input, Reduced, Output, Index,
+                                PreProcessOp, ReduceOp, PostProcessOp,
+                                StridesTraits::CONTIGUOUS, Config, 2>,
+                        config, input_accessor, elements, initial_reduce, output_accessor,
+                        pre_process_op, reduce_op, post_process_op);
             }
         } else {
             const auto input_accessor = AccessorRestrict<const Input, 2, Index, StridesTrait>(input, input_strides_2d);
-            stream.enqueue(name,
-                           details::reduce_unary_1d_small<
-                                   Input, Reduced, Output, Index,
-                                   PreProcessOp, ReduceOp, PostProcessOp,
-                                   StridesTrait, Config, 1>,
-                           config, input_accessor, elements, initial_reduce, output_accessor,
-                           pre_process_op, reduce_op, post_process_op);
+            stream.enqueue(
+                    details::reduce_unary_1d_small<
+                            Input, Reduced, Output, Index,
+                            PreProcessOp, ReduceOp, PostProcessOp,
+                            StridesTrait, Config, 1>,
+                    config, input_accessor, elements, initial_reduce, output_accessor,
+                    pre_process_op, reduce_op, post_process_op);
         }
     }
 
@@ -314,11 +313,11 @@ namespace noa::cuda::utils::details {
              typename Input, typename Reduced, typename Output, typename Index,
              typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     void launch_reduce_unary_large_1d(
-            const char* name,
             const Input* input, Strides4<Index> input_strides, u32 batches, Index elements,
             AccessorRestrict<Output, 1, Index> output_accessor, Reduced initial_reduce,
             PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
-            cuda::Stream& stream) {
+            Stream& stream
+    ) {
         // In this config, the input can be interpreted as a 1D array. If the innermost dimension is contiguous,
         // i.e. if all elements to reduce are contiguous, we can vectorize loads for the first kernel.
         // Here we use 1D blocks to go through each batch (if reduce_batch=true, there's only one batch).
@@ -349,7 +348,8 @@ namespace noa::cuda::utils::details {
                 noa::math::is_power_of_2(sizeof(Reduced)) ?
                 noa::math::clamp(i64{16 / sizeof(Reduced)}, i64{1}, i64{8}) : 1;
         const u32 pitch = noa::math::next_multiple_of(blocks.x, REDUCE_VECTOR_SIZE);
-        const auto reduced_buffer = noa::cuda::memory::PtrDevice<Reduced>::alloc(pitch * blocks.y, stream);
+        const auto reduced_buffer = noa::cuda::memory::AllocatorDevice<Reduced>::allocate_async(
+                pitch * blocks.y, stream);
         const auto reduced_accessor = AccessorRestrictContiguous<Reduced, 2, Index>(
                 reduced_buffer.get(), Strides2<Index>{pitch, 1});
 
@@ -357,50 +357,50 @@ namespace noa::cuda::utils::details {
         if (input_vector_size > 1) {
             const auto input_accessor = AccessorRestrictContiguous<const Input, 2, Index>(input, input_strides_2d);
             if (input_vector_size == 8) {
-                stream.enqueue(name,
-                               details::reduce_unary_1d_large<
-                                       Input, Reduced, Index,
-                                       PreProcessOp, ReduceOp,
-                                       StridesTraits::CONTIGUOUS, Config, 8>,
-                               first_config, input_accessor, elements, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_1d_large<
+                                Input, Reduced, Index,
+                                PreProcessOp, ReduceOp,
+                                StridesTraits::CONTIGUOUS, Config, 8>,
+                        first_config, input_accessor, elements, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else if (input_vector_size == 4) {
-                stream.enqueue(name,
-                               details::reduce_unary_1d_large<
-                                       Input, Reduced, Index,
-                                       PreProcessOp, ReduceOp,
-                                       StridesTraits::CONTIGUOUS, Config, 4>,
-                               first_config, input_accessor, elements, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_1d_large<
+                                Input, Reduced, Index,
+                                PreProcessOp, ReduceOp,
+                                StridesTraits::CONTIGUOUS, Config, 4>,
+                        first_config, input_accessor, elements, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else {
-                stream.enqueue(name,
-                               details::reduce_unary_1d_large<
-                                       Input, Reduced, Index,
-                                       PreProcessOp, ReduceOp,
-                                       StridesTraits::CONTIGUOUS, Config, 2>,
-                               first_config, input_accessor, elements, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_1d_large<
+                                Input, Reduced, Index,
+                                PreProcessOp, ReduceOp,
+                                StridesTraits::CONTIGUOUS, Config, 2>,
+                        first_config, input_accessor, elements, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             }
         } else {
             const auto input_accessor = AccessorRestrict<const Input, 2, Index, StridesTrait>(input, input_strides_2d);
-            stream.enqueue(name,
-                           details::reduce_unary_1d_large<
-                                   Input, Reduced, Index,
-                                   PreProcessOp, ReduceOp,
-                                   StridesTrait, Config, 1>,
-                           first_config, input_accessor, elements, initial_reduce,
-                           reduced_accessor, pre_process_op, reduce_op);
+            stream.enqueue(
+                    details::reduce_unary_1d_large<
+                            Input, Reduced, Index,
+                            PreProcessOp, ReduceOp,
+                            StridesTrait, Config, 1>,
+                    first_config, input_accessor, elements, initial_reduce,
+                    reduced_accessor, pre_process_op, reduce_op);
         }
 
         // (blocks.x * blocks.y) -> (blocks.y) elements.
         const auto const_reduced_accessor = AccessorRestrictContiguous<const Reduced, 2, Index>(reduced_accessor);
-        stream.enqueue(name,
-                       details::reduce_unary_1d_small<
-                               Reduced, Reduced, Output, Index,
-                               noa::copy_t, ReduceOp, PostProcessOp,
-                               StridesTraits::CONTIGUOUS, Config, REDUCE_VECTOR_SIZE>,
-                       second_config, const_reduced_accessor, blocks.x, initial_reduce, output_accessor,
-                       noa::copy_t{}, reduce_op, post_process_op);
+        stream.enqueue(
+                details::reduce_unary_1d_small<
+                        Reduced, Reduced, Output, Index,
+                        noa::copy_t, ReduceOp, PostProcessOp,
+                        StridesTraits::CONTIGUOUS, Config, REDUCE_VECTOR_SIZE>,
+                second_config, const_reduced_accessor, blocks.x, initial_reduce, output_accessor,
+                noa::copy_t{}, reduce_op, post_process_op);
     }
 
     template<StridesTraits StridesTrait = StridesTraits::STRIDED,
@@ -408,12 +408,11 @@ namespace noa::cuda::utils::details {
             typename Input, typename Reduced, typename Output, typename Index,
             typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     void launch_reduce_unary_large_4d(
-            const char* name,
             const Input* input, Strides4<Index> input_strides,
             Shape4<Index> shape, u32 batches, bool reduce_batch,
             AccessorRestrict<Output, 1, Index> output_accessor, Reduced initial_reduce,
             PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
-            cuda::Stream& stream) {
+            Stream& stream) {
         // In this config, the input cannot be easily interpreted as a 1D array.
         // As such, the 3 outermost dimensions are batched in a set of rows. Each block reduces at least one row.
         // Since the reduceUnaryLarge4D_ kernel will decompose the "row index" back to a (W,Z,Y) index, the 3 outermost
@@ -442,81 +441,82 @@ namespace noa::cuda::utils::details {
                 noa::math::is_power_of_2(sizeof(Reduced)) ?
                 noa::math::clamp(i64{16 / sizeof(Reduced)}, i64{1}, i64{8}) : 1;
         const u32 pitch = noa::math::next_multiple_of(blocks.x, REDUCE_VECTOR_SIZE);
-        const auto reduced_buffer = noa::cuda::memory::PtrDevice<Reduced>::alloc(pitch * blocks.y, stream);
+        const auto reduced_buffer = noa::cuda::memory::AllocatorDevice<Reduced>::allocate_async(
+                pitch * blocks.y, stream);
         const auto reduced_accessor = AccessorRestrictContiguous<Reduced, 2, Index>(
                 reduced_buffer.get(), Strides2<Index>{pitch, 1});
 
         const auto input_accessor = AccessorRestrict<const Input, 4, Index, StridesTrait>(input, input_strides);
         if (threads.x == 256) {
             if (input_vector_size == 8) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 256, 8>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 256, 8>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else if (input_vector_size == 4) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 256, 4>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 256, 4>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else if (input_vector_size == 2) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 256, 2>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 256, 2>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 256, 1>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 256, 1>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             }
         } else {
             if (input_vector_size == 8) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 64, 8>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 64, 8>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else if (input_vector_size == 4) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 64, 4>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 64, 4>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else if (input_vector_size == 2) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 64, 2>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 64, 2>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             } else {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_large<
-                                       Input, Reduced, Index, PreProcessOp, ReduceOp,
-                                       StridesTrait, Config, 64, 1>,
-                               first_config, input_accessor, shape, rows, initial_reduce,
-                               reduced_accessor, pre_process_op, reduce_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_large<
+                                Input, Reduced, Index, PreProcessOp, ReduceOp,
+                                StridesTrait, Config, 64, 1>,
+                        first_config, input_accessor, shape, rows, initial_reduce,
+                        reduced_accessor, pre_process_op, reduce_op);
             }
         }
 
         const auto const_reduced_accessor = AccessorRestrictContiguous<const Reduced, 2, Index>(reduced_accessor);
-        stream.enqueue(name,
-                       details::reduce_unary_1d_small<
-                               Reduced, Reduced, Output, Index,
-                               noa::copy_t, ReduceOp, PostProcessOp,
-                               StridesTraits::CONTIGUOUS, Config, REDUCE_VECTOR_SIZE>,
-                       second_config, const_reduced_accessor, blocks.x, initial_reduce, output_accessor,
-                       noa::copy_t{}, reduce_op, post_process_op);
+        stream.enqueue(
+                details::reduce_unary_1d_small<
+                        Reduced, Reduced, Output, Index,
+                        noa::copy_t, ReduceOp, PostProcessOp,
+                        StridesTraits::CONTIGUOUS, Config, REDUCE_VECTOR_SIZE>,
+                second_config, const_reduced_accessor, blocks.x, initial_reduce, output_accessor,
+                noa::copy_t{}, reduce_op, post_process_op);
     }
 
     template<StridesTraits StridesTrait = StridesTraits::STRIDED,
@@ -524,12 +524,11 @@ namespace noa::cuda::utils::details {
             typename Input, typename Reduced, typename Output, typename Index,
             typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     void launch_reduce_unary_small_4d(
-            const char* name,
             const Input* input, Strides4<Index> input_strides,
             Shape4<Index> shape, u32 batches, bool reduce_batch,
             AccessorRestrict<Output, 1, Index> output_accessor, Reduced initial_reduce,
             PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
-            cuda::Stream& stream) {
+            Stream& stream) {
 
         constexpr u32 BLOCK_DIM_X = noa::cuda::Constant::WARP_SIZE; // FIXME?
         const dim3 threads(BLOCK_DIM_X, std::max(Config::BLOCK_SIZE / BLOCK_DIM_X, u32{1}));
@@ -549,39 +548,39 @@ namespace noa::cuda::utils::details {
         if (input_vector_size > 1) {
             const auto input_accessor = AccessorRestrictContiguous<const Input, 4, Index>(input, input_strides);
             if (input_vector_size == 8) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_small<
-                                       Input, Reduced, Output, Index,
-                                       PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 8>,
-                               config, input_accessor, shape, rows, initial_reduce, output_accessor,
-                               pre_process_op, reduce_op, post_process_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_small<
+                                Input, Reduced, Output, Index,
+                                PreProcessOp, ReduceOp, PostProcessOp,
+                                StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 8>,
+                        config, input_accessor, shape, rows, initial_reduce, output_accessor,
+                        pre_process_op, reduce_op, post_process_op);
             } else if (input_vector_size == 4) {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_small<
-                                       Input, Reduced, Output, Index,
-                                       PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 4>,
-                               config, input_accessor, shape, rows, initial_reduce, output_accessor,
-                               pre_process_op, reduce_op, post_process_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_small<
+                                Input, Reduced, Output, Index,
+                                PreProcessOp, ReduceOp, PostProcessOp,
+                                StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 4>,
+                        config, input_accessor, shape, rows, initial_reduce, output_accessor,
+                        pre_process_op, reduce_op, post_process_op);
             } else {
-                stream.enqueue(name,
-                               details::reduce_unary_4d_small<
-                                       Input, Reduced, Output, Index,
-                                       PreProcessOp, ReduceOp, PostProcessOp,
-                                       StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 2>,
-                               config, input_accessor, shape, rows, initial_reduce, output_accessor,
-                               pre_process_op, reduce_op, post_process_op);
+                stream.enqueue(
+                        details::reduce_unary_4d_small<
+                                Input, Reduced, Output, Index,
+                                PreProcessOp, ReduceOp, PostProcessOp,
+                                StridesTraits::CONTIGUOUS, Config, BLOCK_DIM_X, 2>,
+                        config, input_accessor, shape, rows, initial_reduce, output_accessor,
+                        pre_process_op, reduce_op, post_process_op);
             }
         } else {
             const auto input_accessor = AccessorRestrict<const Input, 4, Index, StridesTrait>(input, input_strides);
-            stream.enqueue(name,
-                           details::reduce_unary_4d_small<
-                                   Input, Reduced, Output, Index,
-                                   PreProcessOp, ReduceOp, PostProcessOp,
-                                   StridesTrait, Config, BLOCK_DIM_X, 1>,
-                           config, input_accessor, shape, rows, initial_reduce, output_accessor,
-                           pre_process_op, reduce_op, post_process_op);
+            stream.enqueue(
+                    details::reduce_unary_4d_small<
+                            Input, Reduced, Output, Index,
+                            PreProcessOp, ReduceOp, PostProcessOp,
+                            StridesTrait, Config, BLOCK_DIM_X, 1>,
+                    config, input_accessor, shape, rows, initial_reduce, output_accessor,
+                    pre_process_op, reduce_op, post_process_op);
         }
     }
 }
@@ -609,11 +608,12 @@ namespace noa::cuda::utils {
              typename Config = ReduceUnaryConfigDefault,
              typename Input, typename Reduced, typename Output, typename Index,
              typename PreProcessOp = noa::copy_t, typename ReduceOp, typename PostProcessOp = noa::copy_t>
-    void reduce_unary(const char* name,
-                      const Input* input, Strides4<Index> input_strides, Shape4<Index> shape,
-                      Output* output, Strides1<Index> output_stride, Reduced initial_reduce,
-                      PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
-                      bool reduce_batch, bool swap_layout, cuda::Stream& stream) {
+    void reduce_unary(
+            const Input* input, Strides4<Index> input_strides, Shape4<Index> shape,
+            Output* output, Strides1<Index> output_stride, Reduced initial_reduce,
+            PreProcessOp pre_process_op, ReduceOp reduce_op, PostProcessOp post_process_op,
+            bool reduce_batch, bool swap_layout, Stream& stream
+    ) {
         NOA_ASSERT(output && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
 
@@ -639,13 +639,13 @@ namespace noa::cuda::utils {
 
         // The output pointers are allowed to not be on the stream's device,
         // so make sure device memory is allocated for the output.
-        using output_unique_t = typename noa::cuda::memory::PtrDevice<Output>::unique_type;
+        using output_unique_t = typename noa::cuda::memory::AllocatorDevice<Output>::unique_type;
         output_unique_t output_buffer;
         Output* output_ptr = device_pointer(output, stream.device());
         Strides1<Index> output_ptr_stride = output_stride;
         if (!output_ptr) {
             output_ptr_stride = 1;
-            output_buffer = noa::cuda::memory::PtrDevice<Output>::alloc(batches, stream);
+            output_buffer = noa::cuda::memory::AllocatorDevice<Output>::allocate_async(batches, stream);
             output_ptr = output_buffer.get();
         }
         const auto output_accessor = AccessorRestrict<Output, 1, Index>(output_ptr, output_ptr_stride);
@@ -654,21 +654,21 @@ namespace noa::cuda::utils {
         if (is_contiguous[0] && is_contiguous[1] && is_contiguous[2]) {
             if (elements <= SMALL_THRESHOLD) {
                 details::launch_reduce_unary_small_1d<StridesTrait, Config>(
-                        name, input, input_strides, batches, elements, output_accessor, initial_reduce,
+                        input, input_strides, batches, elements, output_accessor, initial_reduce,
                         pre_process_op, reduce_op, post_process_op, stream);
             } else {
                 details::launch_reduce_unary_large_1d<StridesTrait, Config>(
-                        name, input, input_strides, batches, elements,
+                        input, input_strides, batches, elements,
                         output_accessor, initial_reduce, pre_process_op, reduce_op, post_process_op, stream);
             }
         } else {
             if (elements <= SMALL_THRESHOLD) {
                 details::launch_reduce_unary_small_4d<StridesTrait, Config>(
-                        name, input, input_strides, shape, batches, reduce_batch,
+                        input, input_strides, shape, batches, reduce_batch,
                         output_accessor, initial_reduce, pre_process_op, reduce_op, post_process_op, stream);
             } else {
                 details::launch_reduce_unary_large_4d<StridesTrait, Config>(
-                        name, input, input_strides, shape, batches, reduce_batch,
+                        input, input_strides, shape, batches, reduce_batch,
                         output_accessor, initial_reduce, pre_process_op, reduce_op, post_process_op, stream);
             }
         }
@@ -700,21 +700,20 @@ namespace noa::cuda::utils {
     // input and output should stay valid until completion.
     template<bool STD, typename Input, typename Output, typename Index>
     void reduce_variance(
-            const char* name,
             const Input* input, const Strides4<Index>& input_strides,
             const Shape4<Index>& shape,
             Input* output_mean, Strides1<Index> output_mean_stride,
             Output* output_variance, Strides1<Index> output_variance_stride,
-            i64 ddof, bool reduce_batch, bool swap_layout, Stream& stream) {
-
+            i64 ddof, bool reduce_batch, bool swap_layout, Stream& stream
+    ) {
         const Index batches = reduce_batch ? 1 : shape[0];
         const auto shape_to_reduce = reduce_batch ? shape : Shape4<Index>{1, shape[1], shape[2], shape[3]};
         const Index elements = shape_to_reduce.elements();
 
         // Get the sum:
         // FIXME We could refactor and use output_mean as buffer.
-        const auto sums = noa::cuda::memory::PtrManaged<Input>::alloc(batches, stream);
-        reduce_unary(name, input, input_strides, shape,
+        const auto sums = noa::cuda::memory::AllocatorManaged<Input>::allocate(batches, stream);
+        reduce_unary(input, input_strides, shape,
                      sums.get(), Strides1<Index>{1}, Input{0},
                      {}, noa::plus_t{}, {},
                      reduce_batch, swap_layout, stream);
@@ -747,7 +746,7 @@ namespace noa::cuda::utils {
                 const Input mean = sum * inv_count;
                 noa::cuda::memory::copy(&mean, output_mean + output_mean_stride[0] * batch, 1, stream);
             }
-            reduce_unary(name, input + input_strides[0] * batch, input_strides, shape_to_reduce,
+            reduce_unary(input + input_strides[0] * batch, input_strides, shape_to_reduce,
                          output_variance + output_variance_stride[0] * batch, Strides1<Index>{1}, Output{0},
                          pre_process_op, noa::plus_t{}, post_process_op,
                          true, swap_layout, stream);

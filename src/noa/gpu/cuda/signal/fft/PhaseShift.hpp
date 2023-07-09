@@ -17,23 +17,27 @@ namespace noa::cuda::signal::fft {
     using Remap = noa::fft::Remap;
 
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void phase_shift_2d(const T* input, const Strides4<i64>& input_strides,
-                        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                        const Vec2<f32>* shifts, f32 cutoff, Stream& stream);
+    void phase_shift_2d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec2<f32>* shifts, f32 cutoff, Stream& stream);
 
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void phase_shift_2d(const T* input, const Strides4<i64>& input_strides,
-                        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                        const Vec2<f32>& shift, f32 cutoff, Stream& stream);
+    void phase_shift_2d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec2<f32>& shift, f32 cutoff, Stream& stream);
 
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void phase_shift_3d(const T* input, const Strides4<i64>& input_strides,
-                        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                        const Vec3<f32>* shifts, f32 cutoff, Stream& stream);
+    void phase_shift_3d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec3<f32>* shifts, f32 cutoff, Stream& stream);
 
     template<Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_shift_v<REMAP, T>>>
-    void phase_shift_3d(const T* input, const Strides4<i64>& input_strides,
-                        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                        const Vec3<f32>& shift, f32 cutoff, Stream& stream);
+    void phase_shift_3d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec3<f32>& shift, f32 cutoff, Stream& stream);
 }
 

@@ -2,10 +2,12 @@
 
 namespace noa::cuda::geometry::fft {
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor, typename CValue, typename>
-    void rectangle(const Value* input, Strides4<i64> input_strides,
-                   Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
-                   Vec2<f32> center, Vec2<f32> radius, f32 edge_size,
-                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
+    void rectangle(
+            const Value* input, Strides4<i64> input_strides,
+            Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
+            Vec2<f32> center, Vec2<f32> radius, f32 edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
         Matrix matrices = inv_matrix;
         if constexpr (!std::is_pointer_v<Matrix>) {
             const auto order_2d = noa::indexing::order(output_strides.filter(2, 3), shape.filter(2, 3));
@@ -37,12 +39,13 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<fft::Remap REMAP, typename Value, typename Matrix, typename Functor, typename CValue, typename>
-    void rectangle(const Value* input, Strides4<i64> input_strides,
-                   Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
-                   Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
-                   const Matrix& inv_matrix, Functor functor, CValue cvalue,
-                   bool invert, Stream& stream) {
-
+    void rectangle(
+            const Value* input, Strides4<i64> input_strides,
+            Value* output, Strides4<i64> output_strides, Shape4<i64> shape,
+            Vec3<f32> center, Vec3<f32> radius, f32 edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue,
+            bool invert, Stream& stream
+    ) {
         Matrix matrices = inv_matrix;
         if constexpr (!std::is_pointer_v<Matrix>) {
             const auto order_3d = noa::indexing::order(output_strides.pop_front(), shape.pop_front());

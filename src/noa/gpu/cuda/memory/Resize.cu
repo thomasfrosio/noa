@@ -8,11 +8,12 @@
 
 namespace noa::cuda::memory {
     template<typename T, typename>
-    void resize(const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
-                Vec4<i64> border_left, Vec4<i64> border_right,
-                T* output, Strides4<i64> output_strides,
-                BorderMode border_mode, T border_value, Stream& stream) {
-
+    void resize(
+            const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            Vec4<i64> border_left, Vec4<i64> border_right,
+            T* output, Strides4<i64> output_strides,
+            BorderMode border_mode, T border_value, Stream& stream
+    ) {
         if (noa::all(border_left == 0) && noa::all(border_right == 0))
             return copy(input, input_strides, output, output_strides, input_shape, stream);
 
@@ -22,14 +23,14 @@ namespace noa::cuda::memory {
         NOA_ASSERT(noa::all(output_shape >= 1));
 
         // Rearrange:
-        const auto order = indexing::order(output_strides, output_shape);
+        const auto order = noa::indexing::order(output_strides, output_shape);
         if (noa::any(order != Vec4<i64>{0, 1, 2, 3})) {
-            input_strides = indexing::reorder(input_strides, order);
-            input_shape = indexing::reorder(input_shape, order);
-            border_left = indexing::reorder(border_left, order);
-            border_right = indexing::reorder(border_right, order);
-            output_strides = indexing::reorder(output_strides, order);
-            output_shape = indexing::reorder(output_shape, order);
+            input_strides = noa::indexing::reorder(input_strides, order);
+            input_shape = noa::indexing::reorder(input_shape, order);
+            border_left = noa::indexing::reorder(border_left, order);
+            border_right = noa::indexing::reorder(border_right, order);
+            output_strides = noa::indexing::reorder(output_strides, order);
+            output_shape = noa::indexing::reorder(output_shape, order);
         }
 
         switch (border_mode) {
@@ -51,7 +52,7 @@ namespace noa::cuda::memory {
                         input, input_strides, input_shape,
                         output, output_strides, output_shape,
                         border_left, border_right);
-                noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(output_shape, kernel, stream);
                 break;
             }
             case BorderMode::VALUE: {
@@ -59,7 +60,7 @@ namespace noa::cuda::memory {
                         input, input_strides, input_shape,
                         output, output_strides, output_shape,
                         border_left, border_right, border_value);
-                noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(output_shape, kernel, stream);
                 break;
             }
             case BorderMode::CLAMP: {
@@ -67,7 +68,7 @@ namespace noa::cuda::memory {
                         input, input_strides, input_shape,
                         output, output_strides, output_shape,
                         border_left, border_right);
-                noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(output_shape, kernel, stream);
                 break;
             }
             case BorderMode::PERIODIC: {
@@ -75,7 +76,7 @@ namespace noa::cuda::memory {
                         input, input_strides, input_shape,
                         output, output_strides, output_shape,
                         border_left, border_right);
-                noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(output_shape, kernel, stream);
                 break;
             }
             case BorderMode::REFLECT: {
@@ -83,7 +84,7 @@ namespace noa::cuda::memory {
                         input, input_strides, input_shape,
                         output, output_strides, output_shape,
                         border_left, border_right);
-                noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(output_shape, kernel, stream);
                 break;
             }
             case BorderMode::MIRROR: {
@@ -91,7 +92,7 @@ namespace noa::cuda::memory {
                         input, input_strides, input_shape,
                         output, output_strides, output_shape,
                         border_left, border_right);
-                noa::cuda::utils::iwise_4d("resize", output_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(output_shape, kernel, stream);
                 break;
             }
             default:

@@ -3,8 +3,8 @@
 #include "noa/algorithms/geometry/ProjectionsFFT.hpp"
 
 #include "noa/gpu/cuda/Exception.hpp"
-#include "noa/gpu/cuda/memory/PtrArray.hpp"
-#include "noa/gpu/cuda/memory/PtrTexture.hpp"
+#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
+#include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/geometry/Interpolator.hpp"
@@ -19,8 +19,8 @@ namespace {
             Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
             const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
             f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
-            f32 slice_z_radius, cuda::Stream& stream) {
-
+            f32 slice_z_radius, noa::cuda::Stream& stream
+    ) {
         const auto i_grid_shape = grid_shape.as_safe<i32>();
         const auto grid_strides_3d = grid_strides.filter(1, 2, 3).as_safe<u32>();
         const auto grid_accessor = AccessorRestrict<Value, 3, u32>(grid, grid_strides_3d);
@@ -34,13 +34,13 @@ namespace {
                     slice_interpolator, slice_shape.as_safe<i32>(), grid_accessor, i_grid_shape,
                     fwd_scaling_matrices, inv_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), ews_radius, slice_z_radius);
-            return cuda::utils::iwise_3d("geometry::fft::insert_interpolate_3d", iwise_shape, kernel, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
         } else {
             const auto kernel = noa::algorithm::geometry::fourier_insertion_interpolate<REMAP, i32>(
                     slice_interpolator, slice_shape.as_safe<i32>(), grid_accessor, i_grid_shape,
                     Empty{}, inv_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), Empty{}, slice_z_radius);
-            return cuda::utils::iwise_3d("geometry::fft::insert_interpolate_3d", iwise_shape, kernel, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
         }
     }
 
@@ -49,8 +49,8 @@ namespace {
             Interpolator grid, const Shape4<i64>& grid_shape,
             Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
             const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, cuda::Stream& stream) {
-
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, noa::cuda::Stream& stream
+    ) {
         const auto i_slice_shape = slice_shape.as_safe<i32>();
         const auto iwise_shape = i_slice_shape.filter(0, 2, 3).rfft();
         const auto slice_strides_3d = slice_strides.filter(0, 2, 3).as_safe<u32>();
@@ -64,13 +64,13 @@ namespace {
                     grid, grid_shape.as_safe<i32>(), slice_accessor, i_slice_shape,
                     inv_scaling_matrices, fwd_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), ews_radius);
-            cuda::utils::iwise_3d("geometry::fft::extract_3d", iwise_shape, functor, stream);
+            noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         } else {
             const auto functor = noa::algorithm::geometry::fourier_extraction<REMAP>(
                     grid, grid_shape.as_safe<i32>(), slice_accessor, i_slice_shape,
                     Empty{}, fwd_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), Empty{});
-            cuda::utils::iwise_3d("geometry::fft::extract_3d", iwise_shape, functor, stream);
+            noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         }
     }
 
@@ -81,8 +81,8 @@ namespace {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, cuda::Stream& stream) {
-
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, noa::cuda::Stream& stream
+    ) {
         const auto output_slice_strides_2d = output_slice_strides.filter(0, 2, 3).as_safe<u32>();
         const auto output_slice_accessor = AccessorRestrict<Value, 3, u32>(output_slice, output_slice_strides_2d);
         const auto i_output_slice_shape = output_slice_shape.as_safe<i32>();
@@ -98,7 +98,7 @@ namespace {
                     insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     cutoff, ews_radius, slice_z_radius, add_to_output);
-            return noa::cuda::utils::iwise_3d("insert_interpolate_and_extract_3d", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         } else {
             const auto functor = noa::algorithm::geometry::fourier_insert_and_extraction<REMAP, i32>(
                     input_slice_interpolator, input_slice_shape.as_safe<i32>(),
@@ -106,7 +106,7 @@ namespace {
                     Empty{}, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     cutoff, Empty{}, slice_z_radius, add_to_output);
-            return noa::cuda::utils::iwise_3d("insert_interpolate_and_extract_3d", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         }
     }
 }
@@ -117,8 +117,8 @@ namespace noa::cuda::geometry::fft {
             const Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
             Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
             const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
-
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(slice, stream.device());
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
@@ -137,13 +137,13 @@ namespace noa::cuda::geometry::fft {
                     slice_accessor, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
                     inv_scaling_matrices, fwd_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), ews_radius);
-            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         } else {
             const auto functor = noa::algorithm::geometry::fourier_insertion_rasterize<REMAP, i32>(
                     slice_accessor, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
                     Empty{}, fwd_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), Empty{});
-            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         }
     }
 
@@ -152,8 +152,8 @@ namespace noa::cuda::geometry::fft {
             Value slice, const Shape4<i64>& slice_shape,
             Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
             const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
-
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
         const auto i_slice_shape = slice_shape.as_safe<i32>();
@@ -168,13 +168,13 @@ namespace noa::cuda::geometry::fft {
                     slice, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
                     inv_scaling_matrices, fwd_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), ews_radius);
-            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         } else {
             const auto functor = noa::algorithm::geometry::fourier_insertion_rasterize<REMAP>(
                     slice, i_slice_shape, grid_accessor, grid_shape.as_safe<i32>(),
                     Empty{}, fwd_rotation_matrices,
                     cutoff, target_shape.as_safe<i32>(), Empty{});
-            return noa::cuda::utils::iwise_3d("insert_rasterize_3d", iwise_shape, functor, stream);
+            return noa::cuda::utils::iwise_3d(iwise_shape, functor, stream);
         }
     }
 
@@ -184,7 +184,8 @@ namespace noa::cuda::geometry::fft {
             Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
             const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
             f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
-            f32 slice_z_radius, Stream& stream) {
+            f32 slice_z_radius, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
         NOA_ASSERT_DEVICE_PTR(slice, stream.device());
 
@@ -205,7 +206,8 @@ namespace noa::cuda::geometry::fft {
             Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
             const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
             f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
-            f32 slice_z_radius, Stream& stream) {
+            f32 slice_z_radius, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
         const auto slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
@@ -224,24 +226,24 @@ namespace noa::cuda::geometry::fft {
             Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
             const Scale& fwd_scaling_matrices, const Rotate& inv_rotation_matrices,
             f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius,
-            f32 slice_z_radius, Stream& stream) {
-
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(slice) == array);
+            f32 slice_z_radius, Stream& stream
+    ) {
+        NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(slice) == array);
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
         NOA_CHECK(slice_interpolation_mode == InterpMode::LINEAR || slice_interpolation_mode == InterpMode::LINEAR_FAST,
                   "The interpolation mode should be {} or {}, got {}",
                   InterpMode::LINEAR, InterpMode::LINEAR_FAST, slice_interpolation_mode);
 
-        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(array);
+        const bool is_layered = noa::cuda::memory::AllocatorArray<Value>::is_layered(array);
         if (is_layered) {
             if (slice_interpolation_mode == InterpMode::LINEAR) {
-                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, true>;
+                using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, true>;
                 insert_interpolate_3d_<REMAP>(
                         interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
                         slice_z_radius, stream);
             } else {
-                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, true>;
+                using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, true>;
                 insert_interpolate_3d_<REMAP>(
                         interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
@@ -249,13 +251,13 @@ namespace noa::cuda::geometry::fft {
             }
         } else {
             if (slice_interpolation_mode == InterpMode::LINEAR) {
-                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value>;
+                using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value>;
                 insert_interpolate_3d_<REMAP>(
                         interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
                         slice_z_radius, stream);
             } else {
-                using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value>;
+                using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value>;
                 insert_interpolate_3d_<REMAP>(
                         interpolator_t(slice), slice_shape, grid, grid_strides, grid_shape,
                         fwd_scaling_matrices, inv_rotation_matrices, cutoff, target_shape, ews_radius,
@@ -265,10 +267,12 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void extract_3d(const Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
-                    Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
-                    const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                    f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
+    void extract_3d(
+            const Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(slice, stream.device());
         NOA_ASSERT_DEVICE_PTR(grid, stream.device());
 
@@ -282,12 +286,14 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate, typename>
-    void extract_3d(cudaArray* array, cudaTextureObject_t grid,
-                    InterpMode grid_interpolation_mode, const Shape4<i64>& grid_shape,
-                    Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
-                    const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                    f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream) {
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(grid) == array);
+    void extract_3d(
+            cudaArray* array, cudaTextureObject_t grid,
+            InterpMode grid_interpolation_mode, const Shape4<i64>& grid_shape,
+            Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream
+    ) {
+        NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(grid) == array);
         NOA_ASSERT_DEVICE_PTR(slice, stream.device());
         NOA_CHECK(grid_interpolation_mode == InterpMode::LINEAR || grid_interpolation_mode == InterpMode::LINEAR_FAST,
                   "The interpolation mode should be {} or {}, got {}",
@@ -317,7 +323,8 @@ namespace noa::cuda::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream) {
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
         NOA_ASSERT_DEVICE_PTR(input_slice, stream.device());
 
@@ -342,7 +349,8 @@ namespace noa::cuda::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream) {
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
 
         const auto input_slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
@@ -365,17 +373,17 @@ namespace noa::cuda::geometry::fft {
             Value* output_slice, const Strides4<i64>& output_slice_strides, const Shape4<i64>& output_slice_shape,
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
-            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream) {
-
+            f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream
+    ) {
         // Input texture requirements:
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(input_slice_texture) == input_slice_array);
+        NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(input_slice_texture) == input_slice_array);
         NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
         NOA_CHECK(input_slice_interpolation_mode == InterpMode::LINEAR ||
                   input_slice_interpolation_mode == InterpMode::LINEAR_FAST,
                   "The interpolation mode should be {} or {}, got {}",
                   InterpMode::LINEAR, InterpMode::LINEAR_FAST, input_slice_interpolation_mode);
 
-        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(input_slice_array);
+        const bool is_layered = noa::cuda::memory::AllocatorArray<Value>::is_layered(input_slice_array);
         if (is_layered) {
             if (input_slice_interpolation_mode == InterpMode::LINEAR) {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, true>;
@@ -416,9 +424,11 @@ namespace noa::cuda::geometry::fft {
     }
 
     template<typename Value, typename>
-    void gridding_correction(const Value* input, const Strides4<i64>& input_strides,
-                             Value* output, const Strides4<i64>& output_strides,
-                             const Shape4<i64>& shape, bool post_correction, Stream& stream) {
+    void gridding_correction(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, bool post_correction, Stream& stream
+    ) {
         NOA_ASSERT(noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
@@ -430,11 +440,11 @@ namespace noa::cuda::geometry::fft {
         if (post_correction) {
             const auto kernel = noa::algorithm::geometry::gridding_correction<true>(
                     input_accessor, output_accessor, i_shape);
-            noa::cuda::utils::iwise_4d("geometry::fft::gridding_correction", i_shape, kernel, stream);
+            noa::cuda::utils::iwise_4d(i_shape, kernel, stream);
         } else {
             const auto kernel = noa::algorithm::geometry::gridding_correction<false>(
                     input_accessor, output_accessor, i_shape);
-            noa::cuda::utils::iwise_4d("geometry::fft::gridding_correction", i_shape, kernel, stream);
+            noa::cuda::utils::iwise_4d(i_shape, kernel, stream);
         }
     }
     template void gridding_correction<f32, void>(const f32*, const Strides4<i64>&, f32*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);

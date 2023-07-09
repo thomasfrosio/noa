@@ -118,8 +118,8 @@ namespace noa::cuda::math {
         (void) rhs_n;
 
         T output{};
-        using real_t = traits::value_type_t<T>;
-        if constexpr (traits::is_real_v<T>) {
+        using real_t = noa::traits::value_type_t<T>;
+        if constexpr (noa::traits::is_real_v<T>) {
             NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
             NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
 
@@ -149,8 +149,7 @@ namespace noa::cuda::math {
             // These functions block the host thread until completion, so no need to sync the stream.
             CUBLAS_THROW_IF_(err);
         } else {
-            cuda::utils::reduce_binary( // sum(lhs * rhs)
-                    "dot",
+            noa::cuda::utils::reduce_binary(
                     lhs, Strides4<i64>{lhs_s},
                     rhs, Strides4<i64>{rhs_s},
                     Shape4<i64>{1, 1, 1, lhs_n},
@@ -182,7 +181,6 @@ namespace noa::cuda::math {
         const auto lhs_strides_4d = Strides4<i64>{lhs_strides[0], lhs_strides[0], lhs_strides[0], lhs_s};
         const auto rhs_strides_4d = Strides4<i64>{rhs_strides[0], rhs_strides[0], rhs_strides[0], rhs_s};
         cuda::utils::reduce_binary(
-                "dot", // sum(lhs * rhs)
                 lhs, lhs_strides_4d,
                 rhs, rhs_strides_4d,
                 Shape4<i64>{batches, 1, 1, lhs_n},

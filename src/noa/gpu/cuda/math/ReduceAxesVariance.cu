@@ -20,7 +20,8 @@ namespace {
             AccessorRestrict<const Input, 4, u32> input, Shape2<u32> shape_hw,
             AccessorRestrict<Input, 3, u32> output_mean,
             AccessorRestrict<Output, 3, u32> output,
-            Output inv_count, Output inv_count_ddof) {
+            Output inv_count, Output inv_count_ddof
+    ) {
         const u32 tid = threadIdx.y * BLOCK_DIM_X + threadIdx.x;
         const Vec4<u32> gid{blockIdx.z,
                             blockIdx.y,
@@ -36,19 +37,19 @@ namespace {
             reduced += input_row[tidx]; // TODO Save input values to shared memory?
 
         // Each row in shared memory is reduced to one value.
-        auto* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
+        auto* s_data = noa::cuda::utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
         s_data[tid] = reduced;
-        utils::block_synchronize();
-        Input sum = utils::block_reduce_shared<BLOCK_DIM_X>(
+        noa::cuda::utils::block_synchronize();
+        Input sum = noa::cuda::utils::block_reduce_shared<BLOCK_DIM_X>(
                 s_data + BLOCK_DIM_X * threadIdx.y, gid[3], noa::plus_t{});
 
         // Share the mean of the row to all threads within that row.
         // But first, make sure the entire block is done with the reduction before saving
         // to the shared buffer.
-        utils::block_synchronize();
+        noa::cuda::utils::block_synchronize();
         if (gid[3] == 0)
             s_data[threadIdx.y] = sum * inv_count_ddof;
-        utils::block_synchronize();
+        noa::cuda::utils::block_synchronize();
         const Input mean = s_data[threadIdx.y]; // bank-conflict...
 
         // Now get the variance:
@@ -65,11 +66,11 @@ namespace {
         }
 
         // Make sure all threads in the block have read their mean before writing again.
-        utils::block_synchronize();
+        noa::cuda::utils::block_synchronize();
         auto* s_data_real = reinterpret_cast<Output*>(s_data);
         s_data_real[tid] = reduced_dist2;
-        utils::block_synchronize();
-        Output var = utils::block_reduce_shared<BLOCK_DIM_X>(
+        noa::cuda::utils::block_synchronize();
+        Output var = noa::cuda::utils::block_reduce_shared<BLOCK_DIM_X>(
                 s_data_real + BLOCK_DIM_X * threadIdx.y, gid[3], noa::plus_t{});
 
         if (gid[3] == 0 && is_valid_row) {
@@ -93,7 +94,8 @@ namespace {
             const Input* __restrict__ input, Strides4<u32> input_strides, Shape2<u32> shape,
             Input* __restrict__ output_mean, Strides4<u32> output_mean_strides,
             Output* __restrict__ output, Strides4<u32> output_strides,
-            Output inv_count, Output inv_count_ddof) {
+            Output inv_count, Output inv_count_ddof
+    ) {
         const u32 tid = threadIdx.y * blockDim.x + threadIdx.x;
         const Vec4<u32> gid{blockIdx.z,
                             blockIdx.y,
@@ -101,23 +103,23 @@ namespace {
                             blockIdx.x * BLOCK_SIZE_2D.x + threadIdx.x};
         const bool is_valid_column = gid[3] < shape[1];
 
-        input += indexing::at(gid[0], gid[1], 0, gid[3], input_strides);
+        input += noa::indexing::at(gid[0], gid[1], 0, gid[3], input_strides);
 
         // Get the sum:
         Input reduced_sum{0};
         for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) // compute entire height
             reduced_sum += input[tidy * input_strides[2]]; // TODO Save input values to shared memory?
 
-        auto* s_data = utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
+        auto* s_data = noa::cuda::utils::block_dynamic_shared_resource<Input>(); // BLOCK_SIZE elements.
         Input* s_data_tid = s_data + tid;
         *s_data_tid = reduced_sum;
-        utils::block_synchronize();
+        noa::cuda::utils::block_synchronize();
 
         #pragma unroll
         for (u32 SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
                 *s_data_tid += s_data_tid[BLOCK_SIZE_2D.x * (SIZE / 2)];
-            utils::block_synchronize();
+            noa::cuda::utils::block_synchronize();
         }
         const Input sum = s_data[threadIdx.x]; // bank-conflict
         const Input mean = sum * inv_count_ddof;
@@ -136,17 +138,17 @@ namespace {
         }
 
         // Make sure all threads in the block have read their mean before writing again.
-        utils::block_synchronize();
+        noa::cuda::utils::block_synchronize();
         auto* s_data_real = reinterpret_cast<Output*>(s_data);
         Output* s_data_real_tid = s_data_real + tid;
         *s_data_real_tid = reduced_dist2;
-        utils::block_synchronize();
+        noa::cuda::utils::block_synchronize();
 
         #pragma unroll
         for (u32 SIZE = BLOCK_SIZE_2D.y; SIZE >= 2; SIZE /= 2) {
             if (gid[2] < SIZE / 2)
                 *s_data_real_tid += s_data_real_tid[BLOCK_SIZE_2D.x * (SIZE / 2)];
-            utils::block_synchronize();
+            noa::cuda::utils::block_synchronize();
         }
 
         if (gid[2] == 0 && is_valid_column) {
@@ -154,29 +156,29 @@ namespace {
             var *= inv_count_ddof;
             if constexpr (STDDEV)
                 var = noa::math::sqrt(var);
-            output[indexing::at(gid[0], gid[1], 0, gid[3], output_strides)] = var;
+            output[noa::indexing::at(gid[0], gid[1], 0, gid[3], output_strides)] = var;
             if (output_mean)
-                output_mean[indexing::at(gid[0], gid[1], 0, gid[3], output_mean_strides)] = sum * inv_count;
+                output_mean[noa::indexing::at(gid[0], gid[1], 0, gid[3], output_mean_strides)] = sum * inv_count;
         }
     }
 
     template<bool STDDEV, typename Input, typename Output>
-    void reduce_variance_axis_(const char* name,
-                               const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                               Input* output_mean, const Strides4<i64>& output_mean_strides,
-                               Output* output, const Strides4<i64>& output_strides,
-                               const Shape4<i64>& output_shape,
-                               const Vec4<bool>& mask, int32_t ddof, Stream& stream) {
+    void reduce_variance_axis_(
+            const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+            Input* output_mean, const Strides4<i64>& output_mean_strides,
+            Output* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& output_shape,
+            const Vec4<bool>& mask, int32_t ddof, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         NOA_ASSERT_DEVICE_OR_NULL_PTR(output_mean, stream.device());
         NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
 
         if (noa::math::sum(mask.as<i32>()) > 1) {
-            NOA_THROW_FUNC(name,
-                           "Reducing more than one axis at a time is only supported if the reduction results in "
-                           "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "
-                           "Got input:{}, output:{}, reduce:{}", input_shape, output_shape, mask);
+            NOA_THROW("Reducing more than one axis at a time is only supported if the reduction results in "
+                      "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "
+                      "Got input:{}, output:{}, reduce:{}", input_shape, output_shape, mask);
         }
 
         const auto u_input_strides = input_strides.as_safe<u32>();
@@ -197,11 +199,11 @@ namespace {
             const AccessorRestrict<Input, 3, u32> output_mean_accessor(output_mean, u_output_mean_strides.pop_back());
             const AccessorRestrict<Output, 3, u32> output_accessor(output, u_output_strides.pop_back());
             if (threads.x == 256) {
-                stream.enqueue(name, reduce_variance_width_<Input, Output, STDDEV, 256>, config,
+                stream.enqueue(reduce_variance_width_<Input, Output, STDDEV, 256>, config,
                                input_accessor, u_input_shape.pop_front<2>(),
                                output_mean_accessor, output_accessor, inv_count, inv_count_ddof);
             } else {
-                stream.enqueue(name, reduce_variance_width_<Input, Output, STDDEV, 64>, config,
+                stream.enqueue(reduce_variance_width_<Input, Output, STDDEV, 64>, config,
                                input_accessor, u_input_shape.pop_front<2>(),
                                output_mean_accessor, output_accessor, inv_count, inv_count_ddof);
             }
@@ -212,7 +214,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[1], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
-            stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
+            stream.enqueue(reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides, u_input_shape.filter(2, 3),
                            output_mean, u_output_mean_strides,
                            output, u_output_strides,
@@ -224,7 +226,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[0]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
-            stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
+            stream.enqueue(reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides.filter(0, 2, 1, 3), u_input_shape.filter(1, 3),
                            output_mean, u_output_mean_strides.filter(0, 2, 1, 3),
                            output, u_output_strides.filter(0, 2, 1, 3),
@@ -236,7 +238,7 @@ namespace {
             const u32 blocks_x = noa::math::divide_up(u_input_shape[3], BLOCK_WORK_SIZE_2D.x);
             const dim3 blocks(blocks_x, u_input_shape[2], u_input_shape[1]);
             const LaunchConfig config{blocks, BLOCK_SIZE_2D, BLOCK_SIZE * sizeof(Input)};
-            stream.enqueue(name, reduce_variance_height_<Input, Output, STDDEV>, config,
+            stream.enqueue(reduce_variance_height_<Input, Output, STDDEV>, config,
                            input, u_input_strides.filter(1, 2, 0, 3), u_input_shape.filter(0, 3),
                            output_mean, u_output_mean_strides.filter(1, 2, 0, 3),
                            output, u_output_strides.filter(1, 2, 0, 3),
@@ -244,12 +246,11 @@ namespace {
         }
     }
 
-    Vec4<bool> get_mask_(const char* func, const Shape4<i64>& input_shape, const Shape4<i64>& output_shape) {
+    Vec4<bool> get_mask_(const Shape4<i64>& input_shape, const Shape4<i64>& output_shape) {
         const Vec4<bool> mask{input_shape != output_shape};
         if (noa::any(mask && (output_shape != 1))) {
-            NOA_THROW_FUNC(func,
-                           "Dimensions should match the input shape, or be 1, indicating the dimension should be "
-                           "reduced to one element. Got input:{}, output:{}", input_shape, output_shape);
+            NOA_THROW("Dimensions should match the input shape, or be 1, indicating the dimension should be "
+                      "reduced to one element. Got input:{}, output:{}", input_shape, output_shape);
         }
         return mask;
     }
@@ -257,30 +258,30 @@ namespace {
 
 namespace noa::cuda::math {
     template<typename Input, typename Output, typename>
-    void var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream) {
-        const char* name = "math::var";
-        const auto mask = get_mask_(name, input_shape, output_shape);
+    void var(
+            const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+            Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            i64 ddof, Stream& stream
+    ) {
+        const auto mask = get_mask_(input_shape, output_shape);
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!noa::any(mask)) {
             if constexpr (noa::traits::is_complex_v<Input>)
-                ewise_unary(input, input_strides, output, output_strides, output_shape, noa::abs_t{}, stream);
+                noa::cuda::ewise_unary(input, input_strides, output, output_strides, output_shape, noa::abs_t{}, stream);
             else
-                memory::copy(input, input_strides, output, output_strides, output_shape, stream);
+                noa::cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             Input* null{};
-            utils::reduce_variance<false>(
-                    name, input, input_strides, input_shape,
+            noa::cuda::utils::reduce_variance<false>(
+                    input, input_strides, input_shape,
                     null, output_strides.filter(0),
                     output, output_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
         } else {
             Input* null{};
             reduce_variance_axis_<false>(
-                    name,
                     input, input_strides, input_shape,
                     null, {}, output, output_strides,
                     output_shape, mask, ddof, stream);
@@ -288,30 +289,30 @@ namespace noa::cuda::math {
     }
 
     template<typename Input, typename Output, typename>
-    void std(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-             i64 ddof, Stream& stream) {
-        const char* name = "math::std";
-        const auto mask = get_mask_(name, input_shape, output_shape);
+    void std(
+            const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+            Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            i64 ddof, Stream& stream
+    ) {
+        const auto mask = get_mask_(input_shape, output_shape);
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!any(mask)) {
             if constexpr (noa::traits::is_complex_v<Input>)
-                ewise_unary(input, input_strides, output, output_strides, output_shape, noa::abs_t{}, stream);
+                noa::cuda::ewise_unary(input, input_strides, output, output_strides, output_shape, noa::abs_t{}, stream);
             else
-                memory::copy(input, input_strides, output, output_strides, output_shape, stream);
+                noa::cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
             Input* null{};
-            utils::reduce_variance<true>(
-                    name, input, input_strides, input_shape,
+            noa::cuda::utils::reduce_variance<true>(
+                    input, input_strides, input_shape,
                     null, output_strides.filter(0),
                     output, output_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
         } else {
             Input* null{};
             reduce_variance_axis_<true>(
-                    name,
                     input, input_strides, input_shape,
                     null, {}, output, output_strides,
                     output_shape, mask, ddof, stream);
@@ -319,32 +320,32 @@ namespace noa::cuda::math {
     }
 
     template<typename Input, typename Output, typename>
-    void mean_var(const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                  Input* mean, const Strides4<i64>& mean_strides,
-                  Output* variance, const Strides4<i64>& variance_strides,
-                  const Shape4<i64>& output_shape, i64 ddof, Stream& stream) {
-        const char* name = "math::mean_var";
-        const auto mask = get_mask_(name, input_shape, output_shape);
+    void mean_var(
+            const Input* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+            Input* mean, const Strides4<i64>& mean_strides,
+            Output* variance, const Strides4<i64>& variance_strides,
+            const Shape4<i64>& output_shape, i64 ddof, Stream& stream
+    ) {
+        const auto mask = get_mask_(input_shape, output_shape);
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!noa::any(mask)) {
             if constexpr (noa::traits::is_complex_v<Input>) {
-                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
-                ewise_unary(input, input_strides, variance, variance_strides, output_shape, noa::abs_t{}, stream);
+                noa::cuda::memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                noa::cuda::ewise_unary(input, input_strides, variance, variance_strides, output_shape, noa::abs_t{}, stream);
             } else {
-                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
-                memory::copy(input, input_strides, variance, variance_strides, output_shape, stream);
+                noa::cuda::memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                noa::cuda::memory::copy(input, input_strides, variance, variance_strides, output_shape, stream);
             }
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            utils::reduce_variance<false>(
-                    name, input, input_strides, input_shape,
+            noa::cuda::utils::reduce_variance<false>(
+                    input, input_strides, input_shape,
                     mean, mean_strides.filter(0),
                     variance, variance_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
         } else {
             reduce_variance_axis_<false>(
-                    name,
                     input, input_strides, input_shape,
                     mean, mean_strides,
                     variance, variance_strides,
@@ -357,28 +358,26 @@ namespace noa::cuda::math {
                   Input* mean, const Strides4<i64>& mean_strides,
                   Output* stddev, const Strides4<i64>& stddev_strides,
                   const Shape4<i64>& output_shape, i64 ddof, Stream& stream) {
-        const char* name = "math::mean_std";
-        const auto mask = get_mask_(name, input_shape, output_shape);
+        const auto mask = get_mask_(input_shape, output_shape);
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!noa::any(mask)) {
             if constexpr (noa::traits::is_complex_v<Input>) {
-                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
-                ewise_unary(input, input_strides, stddev, stddev_strides, output_shape, noa::abs_t{}, stream);
+                noa::cuda::memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                noa::cuda::ewise_unary(input, input_strides, stddev, stddev_strides, output_shape, noa::abs_t{}, stream);
             } else {
-                memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
-                memory::copy(input, input_strides, stddev, stddev_strides, output_shape, stream);
+                noa::cuda::memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
+                noa::cuda::memory::copy(input, input_strides, stddev, stddev_strides, output_shape, stream);
             }
 
         } else if (is_or_should_reduce[1] && is_or_should_reduce[2] && is_or_should_reduce[3]) {
-            utils::reduce_variance<true>(
-                    name, input, input_strides, input_shape,
+            noa::cuda::utils::reduce_variance<true>(
+                    input, input_strides, input_shape,
                     mean, mean_strides.filter(0),
                     stddev, stddev_strides.filter(0),
                     ddof, is_or_should_reduce[0], true, stream);
         } else {
             reduce_variance_axis_<true>(
-                    name,
                     input, input_strides, input_shape,
                     mean, mean_strides,
                     stddev, stddev_strides,

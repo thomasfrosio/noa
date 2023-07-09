@@ -7,7 +7,8 @@ namespace noa::cuda::signal::fft {
     void ctf_isotropic(
             const Input* input, Strides4<i64> input_strides,
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
-            const CTFIsotropic& ctf, bool ctf_abs, bool ctf_square, Stream& stream) {
+            const CTFIsotropic& ctf, bool ctf_abs, bool ctf_square, Stream& stream
+    ) {
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         switch (shape.ndim()) {
             case 1: {
@@ -20,7 +21,7 @@ namespace noa::cuda::signal::fft {
                 auto iwise_shape = shape.filter(0, index);
                 if constexpr (IS_HALF)
                     iwise_shape = iwise_shape.rfft();
-                noa::cuda::utils::iwise_2d("ctf_isotropic", iwise_shape, kernel, stream);
+                noa::cuda::utils::iwise_2d(iwise_shape, kernel, stream);
                 break;
             }
             case 2: {
@@ -39,7 +40,7 @@ namespace noa::cuda::signal::fft {
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (IS_HALF)
                     iwise_shape = iwise_shape.rfft();
-                noa::cuda::utils::iwise_3d("ctf_isotropic", iwise_shape, kernel, stream);
+                noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
                 break;
             }
             case 3: {
@@ -59,7 +60,7 @@ namespace noa::cuda::signal::fft {
                 auto iwise_shape = shape;
                 if constexpr (IS_HALF)
                     iwise_shape = iwise_shape.rfft();
-                noa::cuda::utils::iwise_4d("ctf_isotropic", iwise_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
                 break;
             }
         }
@@ -69,7 +70,8 @@ namespace noa::cuda::signal::fft {
     void ctf_isotropic(
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
             const CTFIsotropic& ctf, bool ctf_abs, bool ctf_square,
-            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, Stream& stream) {
+            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, Stream& stream
+    ) {
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         switch (shape.ndim()) {
             case 1: {
@@ -82,7 +84,7 @@ namespace noa::cuda::signal::fft {
                 auto iwise_shape = shape.filter(0, index);
                 if constexpr (IS_HALF)
                     iwise_shape = iwise_shape.rfft();
-                noa::cuda::utils::iwise_2d("ctf_isotropic", iwise_shape, kernel, stream);
+                noa::cuda::utils::iwise_2d(iwise_shape, kernel, stream);
                 break;
             }
             case 2: {
@@ -100,7 +102,7 @@ namespace noa::cuda::signal::fft {
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (IS_HALF)
                     iwise_shape = iwise_shape.rfft();
-                noa::cuda::utils::iwise_3d("ctf_isotropic", iwise_shape, kernel, stream);
+                noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
                 break;
             }
             case 3: {
@@ -119,7 +121,7 @@ namespace noa::cuda::signal::fft {
                 auto iwise_shape = shape;
                 if constexpr (IS_HALF)
                     iwise_shape = iwise_shape.rfft();
-                noa::cuda::utils::iwise_4d("ctf_isotropic", iwise_shape, kernel, stream);
+                noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
                 break;
             }
         }
@@ -129,7 +131,8 @@ namespace noa::cuda::signal::fft {
     void ctf_anisotropic(
             const Input* input, const Strides4<i64>& input_strides,
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-            const CTFAnisotropic& ctf, bool ctf_abs, bool ctf_square, Stream& stream) {
+            const CTFAnisotropic& ctf, bool ctf_abs, bool ctf_square, Stream& stream
+    ) {
         NOA_ASSERT(shape.ndim() == 2);
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
@@ -141,14 +144,15 @@ namespace noa::cuda::signal::fft {
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (IS_HALF)
             iwise_shape = iwise_shape.rfft();
-        noa::cuda::utils::iwise_3d("ctf_anisotropic", iwise_shape, kernel, stream);
+        noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
     }
 
     template<noa::fft::Remap REMAP, typename Output, typename CTFAnisotropic, typename>
     void ctf_anisotropic(
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
             const CTFAnisotropic& ctf, bool ctf_abs, bool ctf_square,
-            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, Stream& stream) {
+            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, Stream& stream
+    ) {
         NOA_ASSERT(shape.ndim() == 2);
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
@@ -160,7 +164,7 @@ namespace noa::cuda::signal::fft {
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (IS_HALF)
             iwise_shape = iwise_shape.rfft();
-        noa::cuda::utils::iwise_3d("ctf_anisotropic", iwise_shape, kernel, stream);
+        noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
     }
 
     #define NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, CTF)    \

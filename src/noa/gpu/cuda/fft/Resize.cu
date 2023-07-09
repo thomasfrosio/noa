@@ -8,9 +8,11 @@
 
 namespace noa::cuda::fft {
     template<noa::fft::Remap REMAP, typename T, typename>
-    void resize(const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
-                T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
-                Stream& stream) {
+    void resize(
+            const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
+            Stream& stream
+    ) {
         if (noa::all(input_shape == output_shape))
             return noa::cuda::memory::copy(input, input_strides, output, output_strides, input_shape, stream);
 
@@ -74,25 +76,25 @@ namespace noa::cuda::fft {
                 constexpr auto MODE = noa::algorithm::fft::ResizeMode::PAD_H2H;
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
                         input, input_strides, input_shape, output, output_strides, output_shape);
-                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case noa::algorithm::fft::ResizeMode::PAD_F2F: {
                 constexpr auto MODE = noa::algorithm::fft::ResizeMode::PAD_F2F;
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
                         input, input_strides, input_shape, output, output_strides, output_shape);
-                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case noa::algorithm::fft::ResizeMode::CROP_H2H: {
                 constexpr auto MODE = noa::algorithm::fft::ResizeMode::CROP_H2H;
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
                         input, input_strides, input_shape, output, output_strides, output_shape);
-                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case noa::algorithm::fft::ResizeMode::CROP_F2F: {
                 constexpr auto MODE = noa::algorithm::fft::ResizeMode::CROP_F2F;
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::resize<MODE>(
                         input, input_strides, input_shape, output, output_strides, output_shape);
-                return noa::cuda::utils::iwise_4d("resize", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
         }
     }

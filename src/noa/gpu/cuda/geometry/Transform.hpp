@@ -24,31 +24,35 @@ namespace noa::cuda::geometry::details {
 namespace noa::cuda::geometry {
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<2, Value, Matrix>>>
-    void transform_2d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
-                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                      const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
-                      Value cvalue, Stream& stream);
+    void transform_2d(
+            const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
+            Value cvalue, Stream& stream);
 
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_v<3, Value, Matrix>>>
-    void transform_3d(const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
-                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                      const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
-                      Value cvalue, Stream& stream);
+    void transform_3d(
+            const Value* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Matrix& inv_matrices, InterpMode interp_mode, BorderMode border_mode,
+            Value cvalue, Stream& stream);
 
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<2, Value, Matrix>>>
-    void transform_2d(cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
-                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                      const Matrix& inv_matrices, Stream& stream);
+    void transform_2d(
+            cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
+            InterpMode texture_interp_mode, BorderMode texture_border_mode,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Matrix& inv_matrices, Stream& stream);
 
     template<typename Value, typename Matrix,
              typename = std::enable_if_t<details::is_valid_transform_texture_v<3, Value, Matrix>>>
-    void transform_3d(cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
-                      InterpMode texture_interp_mode, BorderMode texture_border_mode,
-                      Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                      const Matrix& inv_matrices, Stream& stream);
+    void transform_3d(
+            cudaArray* array, cudaTextureObject_t texture, const Shape4<i64>& texture_shape,
+            InterpMode texture_interp_mode, BorderMode texture_border_mode,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Matrix& inv_matrices, Stream& stream);
 }
 
 namespace noa::cuda::geometry {
@@ -71,16 +75,18 @@ namespace noa::cuda::geometry {
             InterpMode interp_mode, bool normalize, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
-    void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
-                       Value* output, const Strides4<i64>& output_strides,
-                       const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
-                       InterpMode interp_mode, bool normalize, Stream& stream);
+    void symmetrize_2d(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
+            InterpMode interp_mode, bool normalize, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64, c32, c64>>>
-    void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
-                       Value* output, const Strides4<i64>& output_strides,
-                       const Shape4<i64>& shape, const Symmetry& symmetry, const Vec3<f32>& center,
-                       InterpMode interp_mode, bool normalize, Stream& stream);
+    void symmetrize_3d(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, const Symmetry& symmetry, const Vec3<f32>& center,
+            InterpMode interp_mode, bool normalize, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
     void transform_and_symmetrize_2d(
@@ -101,16 +107,18 @@ namespace noa::cuda::geometry {
             bool normalize, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
-    void symmetrize_2d(cudaArray* array,
-                       cudaTextureObject_t texture,
-                       InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
-                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                       const Symmetry& symmetry, const Vec2<f32>& center, bool normalize, Stream& stream);
+    void symmetrize_2d(
+            cudaArray* array,
+            cudaTextureObject_t texture,
+            InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Symmetry& symmetry, const Vec2<f32>& center, bool normalize, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, c32>>>
-    void symmetrize_3d(cudaArray* array,
-                       cudaTextureObject_t texture,
-                       InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
-                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                       const Symmetry& symmetry, const Vec3<f32>& center, bool normalize, Stream& stream);
+    void symmetrize_3d(
+            cudaArray* array,
+            cudaTextureObject_t texture,
+            InterpMode texture_interp_mode, const Shape4<i64>& texture_shape,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            const Symmetry& symmetry, const Vec3<f32>& center, bool normalize, Stream& stream);
 }

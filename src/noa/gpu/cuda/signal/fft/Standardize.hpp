@@ -13,7 +13,8 @@ namespace noa::cuda::signal::fft::details {
 
 namespace noa::cuda::signal::fft {
     template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_std_v<REMAP, T>>>
-    void standardize_ifft(const T* input, const Strides4<i64>& input_strides,
-                          T* output, const Strides4<i64>& output_strides,
-                          const Shape4<i64>& shape, noa::fft::Norm norm, Stream& stream);
+    void standardize_ifft(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, noa::fft::Norm norm, Stream& stream);
 }

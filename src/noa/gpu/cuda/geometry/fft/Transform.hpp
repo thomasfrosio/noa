@@ -107,20 +107,24 @@ namespace noa::cuda::geometry::fft {
 
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
-    void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
-                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                       const Symmetry& symmetry, const Vec2<f32>& shift,
-                       f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+    void symmetrize_2d(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Symmetry& symmetry, const Vec2<f32>& shift,
+            f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream
+    ) {
         transform_2d<REMAP>(input, input_strides, output, output_strides, shape, Float22{}, symmetry,
                             shift, cutoff, interp_mode, normalize, stream);
     }
 
     template<noa::fft::Remap REMAP, typename Value,
              typename = std::enable_if_t<details::is_valid_transform_sym_v<REMAP, Value>>>
-    void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
-                       Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                       const Symmetry& symmetry, const Vec3<f32>& shift,
-                       f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream) {
+    void symmetrize_3d(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Symmetry& symmetry, const Vec3<f32>& shift,
+            f32 cutoff, InterpMode interp_mode, bool normalize, Stream& stream
+    ) {
         transform_3d<REMAP>(input, input_strides, output, output_strides, shape, Float33{}, symmetry,
                             shift, cutoff, interp_mode, normalize, stream);
     }

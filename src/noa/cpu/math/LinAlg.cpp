@@ -2,7 +2,7 @@
 #define lapack_complex_double std::complex<double>
 #include <lapacke.h>
 
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/memory/Copy.hpp"
 #include "noa/cpu/math/LinAlg.hpp"
 
@@ -22,10 +22,10 @@ namespace {
         using lapack_complex_type = std::conditional_t<sizeof(real_type) <= 4, lapack_complex_float, lapack_complex_double>;
         using lapack_compute_type = std::conditional_t<traits::is_complex_v<input_type>, lapack_complex_type, input_type>;
 
-        using work_unique_type = typename cpu::memory::PtrHost<input_type>::alloc_unique_type;
-        using rwork_unique_type = typename cpu::memory::PtrHost<real_type>::alloc_unique_type;
-        using jpvt_unique_type = typename cpu::memory::PtrHost<i32>::calloc_unique_type;
-        using iwork_unique_type = typename cpu::memory::PtrHost<i32>::alloc_unique_type;
+        using work_unique_type = typename cpu::memory::AllocatorHeap<input_type>::alloc_unique_type;
+        using rwork_unique_type = typename cpu::memory::AllocatorHeap<real_type>::alloc_unique_type;
+        using jpvt_unique_type = typename cpu::memory::AllocatorHeap<i32>::calloc_unique_type;
+        using iwork_unique_type = typename cpu::memory::AllocatorHeap<i32>::alloc_unique_type;
 
     public:
         LinearLeastSquareSolver(
@@ -45,7 +45,7 @@ namespace {
 
             // Check workspaces are allocated:
             if (m_driver == GELSY && !m_jpvt)
-                m_jpvt = cpu::memory::PtrHost<int>::calloc(m_n);
+                m_jpvt = cpu::memory::AllocatorHeap<int>::calloc(m_n);
 
             if (!m_work) {
                 T work_query;
@@ -65,14 +65,14 @@ namespace {
                     if (info)
                         NOA_THROW_FUNC("lstsq-gelsd",
                                        "Invalid value in the {}-th argument during workspace initialization", -info);
-                    m_iwork = cpu::memory::PtrHost<i32>::alloc(std::max(1, iwork_query));
+                    m_iwork = cpu::memory::AllocatorHeap<i32>::allocate(std::max(1, iwork_query));
                 }
                 m_lwork = std::max(1, static_cast<i32>(*reinterpret_cast<real_type*>(&work_query)));
-                m_work = cpu::memory::PtrHost<T>::alloc(m_lwork);
+                m_work = cpu::memory::AllocatorHeap<T>::allocate(m_lwork);
             }
 
             if (traits::is_complex_v<T> && !m_rwork)
-                m_rwork = cpu::memory::PtrHost<real_type>::alloc(std::max(1, 2 * m_n));
+                m_rwork = cpu::memory::AllocatorHeap<real_type>::allocate(std::max(1, 2 * m_n));
 
             // Decompose and solve:
             if (m_driver == GELSY) {
@@ -149,7 +149,7 @@ namespace {
     template<LAPACKDriver DRIVER, typename T>
     class SurfaceFitter {
     public:
-        using unique_type = typename cpu::memory::PtrHost<T>::alloc_unique_type;
+        using unique_type = typename cpu::memory::AllocatorHeap<T>::alloc_unique_type;
 
     public:
         SurfaceFitter(const T* input, const Strides4<i64>& strides, const Shape4<i64>& shape, i64 order)
@@ -160,7 +160,7 @@ namespace {
             NOA_ASSERT(shape[1] == 1);
 
             // Compute the column-major m-by-n matrix representing the regular grid of the data:
-            m_A = cpu::memory::PtrHost<T>::alloc(m_m * m_n);
+            m_A = cpu::memory::AllocatorHeap<T>::allocate(m_m * m_n);
             compute_regular_grid_();
 
             // Prepare the F-contiguous target column vector(s):
@@ -170,7 +170,7 @@ namespace {
             //      i.e. p[0] + p[1]*x + p[2]*y + ...
             //      For now, the cpu::memory::copy will enforce the current row-major layout, which results
             //      in a permutation if the input is passed as column-major.
-            m_b = cpu::memory::PtrHost<T>::alloc(m_m * m_nrhs);
+            m_b = cpu::memory::AllocatorHeap<T>::allocate(m_m * m_nrhs);
             cpu::memory::copy(input, strides, m_b.get(), shape.strides(), shape, 1);
 
             // Solve x by minimizing (A @ x - b):

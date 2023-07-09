@@ -138,7 +138,7 @@ namespace noa::cuda::utils {
             i32 thread_index,
             ReduceOp reduce_op
     ) {
-        constexpr i32 WARP_SIZE = cuda::Constant::WARP_SIZE;
+        constexpr i32 WARP_SIZE = noa::cuda::Constant::WARP_SIZE;
         static_assert(!(BLOCK_SIZE % WARP_SIZE) && !((BLOCK_SIZE / WARP_SIZE) % 2));
 
         // Reduce shared data.

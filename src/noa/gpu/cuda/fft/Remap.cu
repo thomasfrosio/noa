@@ -34,10 +34,12 @@ namespace {
 
 namespace noa::cuda::fft {
     template<typename T, typename>
-    void remap(Remap remap,
-               const T* input, Strides4<i64> input_strides,
-               T* output, Strides4<i64> output_strides,
-               Shape4<i64> shape, Stream& stream) {
+    void remap(
+            Remap remap,
+            const T* input, Strides4<i64> input_strides,
+            T* output, Strides4<i64> output_strides,
+            Shape4<i64> shape, Stream& stream
+    ) {
         NOA_ASSERT(noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
@@ -81,63 +83,63 @@ namespace noa::cuda::fft {
                 } else {
                     const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2HC>(
                             input, input_strides, output, output_strides, shape);
-                    return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                    return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
                 }
             }
             case Remap::HC2H: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2H>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::H2F: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2F>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::F2H: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::F2H>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::F2FC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::F2FC>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::FC2F: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::FC2F>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::HC2F: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2F>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::F2HC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::F2HC>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::FC2H: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::FC2H>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case Remap::FC2HC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::FC2HC>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case noa::fft::Remap::HC2FC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::HC2FC>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
             case noa::fft::Remap::H2FC: {
                 const auto [kernel, iwise_shape] = noa::algorithm::fft::remap<Remap::H2FC>(
                         input, input_strides, output, output_strides, shape);
-                return noa::cuda::utils::iwise_4d("remap", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_4d(iwise_shape, kernel, stream);
             }
         }
     }

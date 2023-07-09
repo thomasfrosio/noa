@@ -59,9 +59,11 @@ namespace {
     }
 
     template<typename T>
-    __device__ void to_coeffs_(const T* __restrict__ input, i32 input_stride,
-                               T* __restrict__ output, i32 output_stride,
-                               i32 shape) {
+    __device__ void to_coeffs_(
+            const T* __restrict__ input, i32 input_stride,
+            T* __restrict__ output, i32 output_stride,
+            i32 shape
+    ) {
         // compute the overall gain
         const f32 lambda = (1.0f - POLE) * (1.0f - 1.0f / POLE);
 
@@ -96,9 +98,11 @@ namespace {
     }
 
     template<typename T>
-    __global__ void to_coeffs_1d_x_(const T* __restrict__ input, Strides2<u32> input_strides,
-                                    T* __restrict__ output, Strides2<u32> output_strides,
-                                    Shape2<u32> shape) {
+    __global__ void to_coeffs_1d_x_(
+            const T* __restrict__ input, Strides2<u32> input_strides,
+            T* __restrict__ output, Strides2<u32> output_strides,
+            Shape2<u32> shape
+    ) {
         // process lines in x-direction
         const u32 batch = blockIdx.x * blockDim.x + threadIdx.x;
         if (batch >= shape[0])
@@ -121,9 +125,11 @@ namespace {
     }
 
     template<typename T>
-    __global__ void to_coeffs_2d_x_(AccessorRestrict<const T, 3, u32> input,
-                                    AccessorRestrict<T, 3, u32> output,
-                                    Shape2<u32> shape) {
+    __global__ void to_coeffs_2d_x_(
+            AccessorRestrict<const T, 3, u32> input,
+            AccessorRestrict<T, 3, u32> output,
+            Shape2<u32> shape
+    ) {
         // process lines in x-direction
         const u32 y = blockIdx.x * blockDim.x + threadIdx.x;
         if (y >= shape[0])
@@ -158,9 +164,11 @@ namespace {
     }
 
     template<typename T>
-    __global__ void to_coeffs_3d_x_(AccessorRestrict<const T, 4, u32> input,
-                                    AccessorRestrict<T, 4, u32> output,
-                                    Shape3<u32> shape) {
+    __global__ void to_coeffs_3d_x_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape3<u32> shape
+    ) {
         // process lines in x-direction
         const u32 y = blockIdx.x * blockDim.x + threadIdx.x;
         const u32 z = blockIdx.y * blockDim.y + threadIdx.y;
@@ -179,7 +187,7 @@ namespace {
         const u32 z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] || x >= shape[2])
             return;
-        input += indexing::at(blockIdx.z, z, strides) + x * strides[3];
+        input += noa::indexing::at(blockIdx.z, z, strides) + x * strides[3];
         to_coeffs_(input, strides[2], shape[1]);
     }
 
@@ -202,14 +210,16 @@ namespace {
     }
 
     template<typename T>
-    void prefilter_1d_(const T* input, const Strides2<u32>& input_strides,
-                       T* output, const Strides2<u32>& output_strides,
-                       const Shape2<u32>& shape, cuda::Stream& stream) {
+    void prefilter_1d_(
+            const T* input, const Strides2<u32>& input_strides,
+            T* output, const Strides2<u32>& output_strides,
+            const Shape2<u32>& shape, noa::cuda::Stream& stream
+    ) {
         // Each threads processes an entire batch.
         // This has the same problem as the toCoeffs2DX_ and toCoeffs3DX_, memory reads/writes are not coalesced.
         const u32 threads = noa::math::next_multiple_of(shape[0], 32U);
         const u32 blocks = noa::math::divide_up(shape[0], threads);
-        const auto config = cuda::LaunchConfig{blocks, threads};
+        const auto config = noa::cuda::LaunchConfig{blocks, threads};
 
         if (input == output) {
             stream.enqueue("cubic_bspline_prefilter", to_coeffs_1d_x_inplace_<T>, config,
@@ -221,16 +231,18 @@ namespace {
     }
 
     template<typename T>
-    void prefilter_2d_(const T* input, const Strides3<u32>& input_strides,
-                       T* output, const Strides3<u32>& output_strides,
-                       const Shape3<u32>& shape, cuda::Stream& stream) {
+    void prefilter_2d_(
+            const T* input, const Strides3<u32>& input_strides,
+            T* output, const Strides3<u32>& output_strides,
+            const Shape3<u32>& shape, noa::cuda::Stream& stream
+    ) {
         // Each threads processes an entire line. The line is first x, then y.
         const u32 threads_x = shape[1] <= 32U ? 32U : 64U;
         const u32 threads_y = shape[2] <= 32U ? 32U : 64U;
         const dim3 blocks_x(noa::math::divide_up(shape[1], threads_x), shape[0]);
         const dim3 blocks_y(noa::math::divide_up(shape[2], threads_y), shape[0]);
-        const auto config_x = cuda::LaunchConfig{blocks_x, threads_x};
-        const auto config_y = cuda::LaunchConfig{blocks_y, threads_y};
+        const auto config_x = noa::cuda::LaunchConfig{blocks_x, threads_x};
+        const auto config_y = noa::cuda::LaunchConfig{blocks_y, threads_y};
 
         if (input == output) {
             const auto accessor = Accessor<T, 3, u32>(output, output_strides);
@@ -247,9 +259,11 @@ namespace {
     }
 
     template<typename T>
-    void prefilter_3d_(const T* input, const Strides4<u32>& input_strides,
-                       T* output, const Strides4<u32>& output_strides,
-                       const Shape4<u32>& shape, cuda::Stream& stream) {
+    void prefilter_3d_(
+            const T* input, const Strides4<u32>& input_strides,
+            T* output, const Strides4<u32>& output_strides,
+            const Shape4<u32>& shape, noa::cuda::Stream& stream
+    ) {
         // Try to determine the optimal block dimensions
         dim3 threads;
         dim3 blocks;
@@ -280,9 +294,11 @@ namespace {
 
 namespace noa::cuda::geometry {
     template<typename Value, typename>
-    void cubic_bspline_prefilter(const Value* input, Strides4<i64> input_strides,
-                                 Value* output, Strides4<i64> output_strides,
-                                 Shape4<i64> shape, Stream& stream) {
+    void cubic_bspline_prefilter(
+            const Value* input, Strides4<i64> input_strides,
+            Value* output, Strides4<i64> output_strides,
+            Shape4<i64> shape, Stream& stream
+    ) {
         NOA_ASSERT(noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());

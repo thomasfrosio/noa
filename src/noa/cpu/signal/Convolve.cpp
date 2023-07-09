@@ -1,5 +1,5 @@
 #include "noa/cpu/Ewise.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/signal/Convolve.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
@@ -139,12 +139,12 @@ namespace {
     template<typename T>
     auto get_filter_(const T* filter, i64 filter_size) {
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        using buffer_t = typename noa::cpu::memory::PtrHost<compute_t>::alloc_unique_type;
+        using buffer_t = typename noa::cpu::memory::AllocatorHeap<compute_t>::alloc_unique_type;
         using accessor_t = AccessorRestrictContiguous<const compute_t, 1, i64>;
         buffer_t buffer{};
 
         if constexpr (std::is_same_v<f16, T>) {
-            buffer = noa::cpu::memory::PtrHost<compute_t>::alloc(filter_size);
+            buffer = noa::cpu::memory::AllocatorHeap<compute_t>::allocate(filter_size);
             for (size_t i = 0; i < static_cast<size_t>(filter_size); ++i)
                 buffer[i] = static_cast<compute_t>(filter[i]);
             return std::pair{accessor_t{buffer.get()}, std::move(buffer)};
@@ -268,10 +268,10 @@ namespace noa::cpu::signal {
             count += 1;
         if (filter_width)
             count += 1;
-        using allocator_t = noa::cpu::memory::PtrHost<T>;
+        using allocator_t = noa::cpu::memory::AllocatorHeap<T>;
         typename allocator_t::alloc_unique_type buffer{};
         if (!tmp && count > 1) {
-            buffer = allocator_t::alloc(shape.elements());
+            buffer = allocator_t::allocate(shape.elements());
             tmp = buffer.get();
             tmp_strides = shape.strides();
         }

@@ -4,7 +4,7 @@
 #include "noa/core/types/Functors.hpp"
 #include "noa/cpu/math/Reduce.hpp"
 #include "noa/cpu/memory/Copy.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/utils/ReduceUnary.hpp"
 #include "noa/cpu/utils/ReduceBinary.hpp"
 
@@ -439,12 +439,12 @@ namespace noa::cpu::math {
         // Allocate buffer only if necessary.
         const auto elements = shape.elements();
         Value* to_sort;
-        using buffer_t = typename noa::cpu::memory::PtrHost<Value>::alloc_unique_type ;
+        using buffer_t = typename noa::cpu::memory::AllocatorHeap<Value>::alloc_unique_type ;
         buffer_t buffer;
         if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
             to_sort = input;
         } else {
-            buffer = noa::cpu::memory::PtrHost<Value>::alloc(elements);
+            buffer = noa::cpu::memory::AllocatorHeap<Value>::allocate(elements);
             noa::cpu::memory::copy(input, strides, buffer.get(), shape.strides(), shape, 1);
             to_sort = buffer.get();
         }

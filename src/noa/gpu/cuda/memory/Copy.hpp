@@ -5,7 +5,7 @@
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
-#include "noa/gpu/cuda/memory/PtrArray.hpp"
+#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
 
 // TODO Add nvrtc to support any type.
 
@@ -154,8 +154,8 @@ namespace noa::cuda::memory {
                 // We have a new shape, so compute the new strides.
                 Strides4<i64> new_src_strides;
                 Strides4<i64> new_dst_strides;
-                if (indexing::reshape(shape, src_strides, collapsed_shape, new_src_strides) &&
-                    indexing::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
+                if (noa::indexing::reshape(shape, src_strides, collapsed_shape, new_src_strides) &&
+                    noa::indexing::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
                     // Update and try again.
                     shape = collapsed_shape;
                     src_strides = new_src_strides;
@@ -173,8 +173,8 @@ namespace noa::cuda::memory {
         static_assert(cudaMemoryTypeHost == 1);
         static_assert(cudaMemoryTypeDevice == 2);
         static_assert(cudaMemoryTypeManaged == 3);
-        const cudaPointerAttributes src_attr = cuda::utils::pointer_attributes(src);
-        const cudaPointerAttributes dst_attr = cuda::utils::pointer_attributes(dst);
+        const cudaPointerAttributes src_attr = noa::cuda::utils::pointer_attributes(src);
+        const cudaPointerAttributes dst_attr = noa::cuda::utils::pointer_attributes(dst);
 
         if (src_attr.type == 2 && dst_attr.type == 2) {
             // Both regions are on the same device, we can therefore launch our copy kernel.
@@ -212,7 +212,7 @@ namespace noa::cuda::memory {
                               shape, stream);
             else
                 NOA_THROW("Copying strided regions, other than in the height dimension, "
-                          "is not supported for type {}", string::human<T>());
+                          "is not supported for type {}", noa::string::human<T>());
 
         } else if ((src_attr.type <= 1 || src_attr.type == 3) &&
                    (dst_attr.type <= 1 || dst_attr.type == 3)) {
@@ -279,9 +279,9 @@ namespace noa::cuda::memory {
     template<typename T>
     void copy(const T* src, const Strides4<i64>& src_strides, cudaArray* dst,
               const Shape4<i64>& shape, Stream& stream) {
-        const auto[desc_, actual_extent, flags] = PtrArray<T>::info(dst);
+        const auto[desc_, actual_extent, flags] = AllocatorArray<T>::info(dst);
         const bool is_layered = flags & cudaArrayLayered;
-        const cudaExtent expected_extent = PtrArray<T>::shape2extent(shape, is_layered);
+        const cudaExtent expected_extent = AllocatorArray<T>::shape2extent(shape, is_layered);
 
         NOA_CHECK(expected_extent.depth == actual_extent.depth &&
                   expected_extent.height == actual_extent.height &&
@@ -312,9 +312,9 @@ namespace noa::cuda::memory {
 
     template<typename T>
     void copy(cudaArray* src, T* dst, const Strides4<i64>& dst_strides, const Shape4<i64>& shape, Stream& stream) {
-        const auto[desc_, actual_extent, flags] = PtrArray<T>::info(src);
+        const auto[desc_, actual_extent, flags] = AllocatorArray<T>::info(src);
         const bool is_layered = flags & cudaArrayLayered;
-        const cudaExtent expected_extent = PtrArray<T>::shape2extent(shape, is_layered);
+        const cudaExtent expected_extent = AllocatorArray<T>::shape2extent(shape, is_layered);
 
         NOA_CHECK(expected_extent.depth == actual_extent.depth &&
                   expected_extent.height == actual_extent.height &&

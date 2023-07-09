@@ -27,6 +27,12 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/utils/Warp.cuh
 
     # noa::cuda::memory
+    gpu/cuda/memory/AllocatorArray.hpp
+    gpu/cuda/memory/AllocatorDevice.hpp
+    gpu/cuda/memory/AllocatorDevicePadded.hpp
+    gpu/cuda/memory/AllocatorManaged.hpp
+    gpu/cuda/memory/AllocatorPinned.hpp
+    gpu/cuda/memory/AllocatorTexture.hpp
     gpu/cuda/memory/Arange.hpp
     gpu/cuda/memory/Cast.hpp
     gpu/cuda/memory/Copy.hpp
@@ -35,12 +41,6 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/memory/Linspace.hpp
     gpu/cuda/memory/MemoryPool.hpp
     gpu/cuda/memory/Permute.hpp
-    gpu/cuda/memory/PtrArray.hpp
-    gpu/cuda/memory/PtrDevice.hpp
-    gpu/cuda/memory/PtrDevicePadded.hpp
-    gpu/cuda/memory/PtrManaged.hpp
-    gpu/cuda/memory/PtrPinned.hpp
-    gpu/cuda/memory/PtrTexture.hpp
     gpu/cuda/memory/Resize.hpp
     gpu/cuda/memory/Set.hpp
     gpu/cuda/memory/Subregion.hpp

@@ -50,7 +50,8 @@ namespace {
     template<typename T, BorderMode BORDER_MODE, i32 HALO>
     __device__ void load_to_shared_1d_(
             AccessorReference<const T, 1, u32> input_row,
-            T* s_mem, i32 shape_x, i32 gx) {
+            T* s_mem, i32 shape_x, i32 gx
+    ) {
         if constexpr (BORDER_MODE == BorderMode::REFLECT) {
             if (gx < 0)
                 *s_mem = input_row[-gx]; // pad left; requires shape_x >= HALO + 1, since gx >= -HALO
@@ -72,9 +73,11 @@ namespace {
 
     template<typename T, BorderMode BORDER_MODE, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void median_filter_1d_(Accessor<const T, 4, u32> input,
-                           Accessor<T, 4, u32> output,
-                           Shape2<i32> shape, u32 blocks_x) {
+    void median_filter_1d_(
+            Accessor<const T, 4, u32> input,
+            Accessor<T, 4, u32> output,
+            Shape2<i32> shape, u32 blocks_x
+    ) {
         static_assert(WINDOW_SIZE % 2); // only support odd windows.
         constexpr i32 PADDING = WINDOW_SIZE - 1; // assume odd
         constexpr i32 HALO = PADDING / 2;
@@ -148,7 +151,8 @@ namespace {
     template<typename T, BorderMode BORDER_MODE, i32 HALO>
     __device__ void load_to_shared_2d_(
             AccessorReference<const T, 2, u32> input_slice, T* s_mem,
-            i32 shape_y, i32 gy, i32 shape_x, i32 gx) {
+            i32 shape_y, i32 gy, i32 shape_x, i32 gx
+    ) {
         if constexpr (BORDER_MODE == BorderMode::REFLECT) {
             if (gx < 0)
                 gx *= -1;
@@ -178,9 +182,11 @@ namespace {
 
     template<typename T, BorderMode BORDER_MODE, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void median_filter_2d_(Accessor<const T, 4, u32> input,
-                           Accessor<T, 4, u32> output,
-                           Shape2<i32> shape, u32 blocks_x) {
+    void median_filter_2d_(
+            Accessor<const T, 4, u32> input,
+            Accessor<T, 4, u32> output,
+            Shape2<i32> shape, u32 blocks_x
+    ) {
         static_assert(WINDOW_SIZE % 2); // only support odd windows.
         constexpr i32 TILE_SIZE = WINDOW_SIZE * WINDOW_SIZE;
         constexpr i32 PADDING = WINDOW_SIZE - 1; // assume odd
@@ -249,7 +255,8 @@ namespace {
     template<typename T, BorderMode BORDER_MODE, i32 HALO>
     __device__ void load_to_shared_3d(
             AccessorReference<const T, 3, u32> input, T* s_mem,
-            i32 shape_z, i32 gz, i32 shape_y, i32 gy, i32 shape_x, i32 gx) {
+            i32 shape_z, i32 gz, i32 shape_y, i32 gy, i32 shape_x, i32 gx
+    ) {
         if constexpr (BORDER_MODE == BorderMode::REFLECT) {
             if (gx < 0) {
                 gx *= -1;
@@ -289,9 +296,11 @@ namespace {
     // The launch config and block size is like median_filter_1d_.
     template<typename T, BorderMode BORDER_MODE, u32 WINDOW_SIZE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void median_filter_3d_(Accessor<const T, 4, u32> input,
-                           Accessor<T, 4, u32> output,
-                           Shape3<i32> shape, u32 blocks_x) {
+    void median_filter_3d_(
+            Accessor<const T, 4, u32> input,
+            Accessor<T, 4, u32> output,
+            Shape3<i32> shape, u32 blocks_x
+    ) {
         static_assert(WINDOW_SIZE % 2); // only support odd windows.
         constexpr i32 TILE_SIZE = WINDOW_SIZE * WINDOW_SIZE * WINDOW_SIZE;
         constexpr i32 PADDING = WINDOW_SIZE - 1; // assume odd
@@ -360,9 +369,11 @@ namespace {
 
 namespace noa::cuda::signal {
     template<typename T, typename>
-    void median_filter_1d(const T* input, const Strides4<i64>& input_strides,
-                          T* output, const Strides4<i64>& output_strides,
-                          const Shape4<i64>& shape, BorderMode border_mode, i64 window_size, Stream& stream) {
+    void median_filter_1d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, BorderMode border_mode, i64 window_size, Stream& stream
+    ) {
         NOA_ASSERT(input != output && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
@@ -461,9 +472,11 @@ namespace noa::cuda::signal {
     }
 
     template<typename T, typename>
-    void median_filter_2d(const T* input, Strides4<i64> input_strides,
-                          T* output, Strides4<i64> output_strides,
-                          Shape4<i64> shape, BorderMode border_mode, i64 window_size, Stream& stream) {
+    void median_filter_2d(
+            const T* input, Strides4<i64> input_strides,
+            T* output, Strides4<i64> output_strides,
+            Shape4<i64> shape, BorderMode border_mode, i64 window_size, Stream& stream
+    ) {
         NOA_ASSERT(input != output && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
@@ -534,9 +547,11 @@ namespace noa::cuda::signal {
     }
 
     template<typename T, typename>
-    void median_filter_3d(const T* input, Strides4<i64> input_strides,
-                          T* output, Strides4<i64> output_strides,
-                          Shape4<i64> shape, BorderMode border_mode, i64 window_size, Stream& stream) {
+    void median_filter_3d(
+            const T* input, Strides4<i64> input_strides,
+            T* output, Strides4<i64> output_strides,
+            Shape4<i64> shape, BorderMode border_mode, i64 window_size, Stream& stream
+    ) {
         NOA_ASSERT(input != output && all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());

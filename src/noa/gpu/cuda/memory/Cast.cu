@@ -15,7 +15,7 @@ namespace noa::cuda::memory {
             const auto shape = Shape4<i64>{1, 1, 1, elements};
             const auto strides = shape.strides();
             ::noa::cuda::utils::ewise_unary(
-                    "memory::cast", input, strides, output, strides, shape, stream,
+                    input, strides, output, strides, shape, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
         }
     }
@@ -30,7 +30,7 @@ namespace noa::cuda::memory {
             NOA_ASSERT_DEVICE_PTR(input, stream.device());
             NOA_ASSERT_DEVICE_PTR(output, stream.device());
             ::noa::cuda::utils::ewise_unary(
-                    "memory::cast", input, input_strides, output, output_strides, shape, stream,
+                    input, input_strides, output, output_strides, shape, stream,
                     [clamp] __device__(T a) { return clamp ? clamp_cast<U>(a) : static_cast<U>(a); });
         }
     }

@@ -5,10 +5,12 @@
 
 namespace noa::cuda::math {
     template<typename T, typename _>
-    void decompose(const Complex<T>* input, Strides4<i64> input_strides,
-                   T* real, Strides4<i64> real_strides,
-                   T* imag, Strides4<i64> imag_strides,
-                   Shape4<i64> shape, Stream& stream) {
+    void decompose(
+            const Complex<T>* input, Strides4<i64> input_strides,
+            T* real, Strides4<i64> real_strides,
+            T* imag, Strides4<i64> imag_strides,
+            Shape4<i64> shape, Stream& stream
+    ) {
         NOA_ASSERT(real != imag && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(real, stream.device());
@@ -37,8 +39,7 @@ namespace noa::cuda::math {
                 real_accessor[i] = complex.real;
                 imag_accessor[i] = complex.imag;
             };
-            noa::cuda::utils::iwise_1d(
-                    "math::decompose", shape.elements(), kernel, stream);
+            noa::cuda::utils::iwise_1d(shape.elements(), kernel, stream);
         } else {
             const AccessorRestrict<const Complex<T>, 4, i64> input_accessor(input, input_strides);
             const AccessorRestrict<T, 4, i64> real_accessor(real, real_strides);
@@ -48,18 +49,18 @@ namespace noa::cuda::math {
                 real_accessor(i, j, k, l) = complex.real;
                 imag_accessor(i, j, k, l) = complex.imag;
             };
-            noa::cuda::utils::iwise_4d(
-                    "math::decompose", shape, kernel, stream);
+            noa::cuda::utils::iwise_4d(shape, kernel, stream);
         }
     }
 
     template<typename T, typename _>
-    void complex(const T* real, const Strides4<i64>& real_strides,
-                 const T* imag, const Strides4<i64>& imag_strides,
-                 Complex<T>* output, const Strides4<i64>& output_strides,
-                 const Shape4<i64>& shape, Stream& stream) {
+    void complex(
+            const T* real, const Strides4<i64>& real_strides,
+            const T* imag, const Strides4<i64>& imag_strides,
+            Complex<T>* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         noa::cuda::utils::ewise_binary(
-                "memory::complex",
                 real, real_strides,
                 imag, imag_strides,
                 output, output_strides,

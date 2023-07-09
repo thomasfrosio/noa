@@ -25,7 +25,6 @@ namespace noa::cuda {
         NOA_ASSERT(is_safe_cast<Offset>(noa::indexing::at((shape - 1).vec(), strides)));
         const Value INITIAL_REDUCE = get_initial_reduce<ReduceOp, Value>();
         noa::cuda::utils::reduce_unary(
-                "find_offsets",
                 input, strides, shape,
                 offsets, Strides1<i64>{1}, Pair<Value, Offset>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,
@@ -44,7 +43,6 @@ namespace noa::cuda {
 
         i64 offset{};
         noa::cuda::utils::reduce_unary(
-                "find_offset",
                 input, strides, shape,
                 &offset, Strides1<i64>{1}, Pair<Value, i64>{INITIAL_REDUCE, 0},
                 preprocess_op, reduce_op, postprocess_op,

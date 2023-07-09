@@ -12,11 +12,13 @@ namespace {
     using Norm = noa::fft::Norm;
 
     template<Remap REMAP, typename T>
-    void standardize_full_(const Complex<T>* input, const Strides4<i64>& input_strides,
-                           Complex<T>* output, const Strides4<i64>& output_strides,
-                           const Shape4<i64>& shape, Norm norm, cuda::Stream& stream) {
+    void standardize_full_(
+            const Complex<T>* input, const Strides4<i64>& input_strides,
+            Complex<T>* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Norm norm, noa::cuda::Stream& stream
+    ) {
         const auto count = static_cast<T>(shape.elements());
-        const auto scale = norm == Norm::FORWARD ? 1 : norm == Norm::ORTHO ? math::sqrt(count) : count;
+        const auto scale = norm == Norm::FORWARD ? 1 : norm == Norm::ORTHO ? noa::math::sqrt(count) : count;
 
         Vec4<i64> index_dc{0};
         if constexpr (REMAP == Remap::FC2FC) {
@@ -29,7 +31,6 @@ namespace {
         // Compute the energy of the input.
         T factor;
         noa::cuda::utils::reduce_unary(
-                "standardize_ifft",
                 input, input_strides, shape, &factor, Strides1<i64>{1},
                 T{0}, noa::abs_squared_t{}, noa::plus_t{}, {},
                 true, true, stream);
@@ -39,17 +40,18 @@ namespace {
         factor = 1 / (noa::math::sqrt(factor - noa::abs_squared_t{}(dc)) / scale); // anticipate dc=0
 
         noa::cuda::utils::ewise_binary(
-                "standardize_ifft",
                 input, input_strides, factor, output, output_strides,
                 shape, stream, noa::multiply_t{});
-        cuda::memory::set(output + noa::indexing::at(index_dc, output_strides), 1, Complex<T>{0}, stream);
+        noa::cuda::memory::set(output + noa::indexing::at(index_dc, output_strides), 1, Complex<T>{0}, stream);
     }
 
     template<Remap REMAP, typename T>
-    void standardize_half_(const Complex<T>* input, const Strides4<i64>& input_strides,
-                           Complex<T>* output, const Strides4<i64>& output_strides,
-                           const Shape4<i64>& shape, const Shape4<i64>& shape_fft,
-                           Norm norm, cuda::Stream& stream) {
+    void standardize_half_(
+            const Complex<T>* input, const Strides4<i64>& input_strides,
+            Complex<T>* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, const Shape4<i64>& shape_fft,
+            Norm norm, noa::cuda::Stream& stream
+    ) {
         const auto count = static_cast<T>(shape.elements());
         const auto scale = norm == Norm::FORWARD ? 1 : norm == Norm::ORTHO ? math::sqrt(count) : count;
 
@@ -71,7 +73,6 @@ namespace {
         auto subregion = original.extract_subregion(Ellipsis{}, Slice{1, original.shape[3] - even});
         stream.synchronize();
         noa::cuda::utils::reduce_unary(
-                "standardize_ifft",
                 input + subregion.offset, subregion.strides, subregion.shape,
                 &factor0, Strides1<i64>{1}, T{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {},
@@ -81,7 +82,6 @@ namespace {
         subregion = original.extract_subregion(Ellipsis{}, 0);
         T factor1;
         noa::cuda::utils::reduce_unary(
-                "standardize_ifft",
                 input + subregion.offset, subregion.strides, subregion.shape,
                 &factor1, Strides1<i64>{1}, T{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {},
@@ -94,7 +94,6 @@ namespace {
             // Reduce common column/plane containing the real Nyquist:
             subregion = original.extract_subregion(Ellipsis{}, -1);
             noa::cuda::utils::reduce_unary(
-                    "standardize_ifft",
                     input + subregion.offset, subregion.strides, subregion.shape,
                     &factor2, Strides1<i64>{1}, T{0},
                     noa::abs_squared_t{}, noa::plus_t{}, {},
@@ -107,7 +106,6 @@ namespace {
         const T factor = scale / math::sqrt(2 * factor0 + factor1 + factor2);
 
         noa::cuda::utils::ewise_binary(
-                "standardize_ifft",
                 input, input_strides, factor,
                 output, output_strides, shape_fft,
                 stream, noa::multiply_t{});
@@ -117,9 +115,11 @@ namespace {
 
 namespace noa::cuda::signal::fft {
     template<noa::fft::Remap REMAP, typename T, typename>
-    void standardize_ifft(const T* input, const Strides4<i64>& input_strides,
-                          T* output, const Strides4<i64>& output_strides,
-                          const Shape4<i64>& shape, noa::fft::Norm norm, Stream& stream) {
+    void standardize_ifft(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, noa::fft::Norm norm, Stream& stream
+    ) {
         const auto shape_unbatched = shape.pop_front().push_front(1);
         const auto shape_unbatched_fft =
                 REMAP == noa::fft::F2F || REMAP == noa::fft::FC2FC ?

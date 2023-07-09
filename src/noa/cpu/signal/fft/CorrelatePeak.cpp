@@ -4,7 +4,7 @@
 #include "noa/core/math/LeastSquare.hpp"
 #include "noa/cpu/geometry/fft/Shape.hpp"
 #include "noa/cpu/Find.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/signal/fft/Correlate.hpp"
 
 // TODO If centered, select subregion within xmap_ellipse_radius.
@@ -213,7 +213,7 @@ namespace noa::cpu::signal::fft {
         if (xmap_ellipse_radius[0] > 0)
             enforce_max_radius_inplace_1d_<REMAP>(xmap, strides, shape, xmap_ellipse_radius[0]);
 
-        const auto peak_offsets = cpu::memory::PtrHost<i64>::alloc(shape[0]);
+        const auto peak_offsets = cpu::memory::AllocatorHeap<i64>::allocate(shape[0]);
         noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, threads);
 
         const bool is_column = shape[3] == 1;
@@ -286,7 +286,7 @@ namespace noa::cpu::signal::fft {
                     Float22{}, noa::multiply_t{}, cvalue, false, threads);
         }
 
-        const auto peak_offsets = cpu::memory::PtrHost<i64>::alloc(shape[0]);
+        const auto peak_offsets = cpu::memory::AllocatorHeap<i64>::allocate(shape[0]);
         noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, threads);
 
         for (i64 batch = 0; batch < shape[0]; ++batch) {
@@ -351,7 +351,7 @@ namespace noa::cpu::signal::fft {
                     Float33{}, noa::multiply_t{}, cvalue, false, threads);
         }
 
-        const auto peak_offsets = cpu::memory::PtrHost<i64>::alloc(shape[0]);
+        const auto peak_offsets = cpu::memory::AllocatorHeap<i64>::allocate(shape[0]);
         noa::cpu::find_offsets(noa::first_max_t{}, xmap, strides, shape, peak_offsets.get(), false, true, threads);
 
         for (i64 batch = 0; batch < shape[0]; ++batch) {

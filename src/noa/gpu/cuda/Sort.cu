@@ -5,7 +5,7 @@
 #include <cub/device/device_radix_sort.cuh>
 
 #include "noa/gpu/cuda/Sort.hpp"
-#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevice.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #include "noa/gpu/cuda/memory/Iota.hpp"
 
@@ -16,7 +16,7 @@ namespace {
     cudaError cub_radix_sort_keys_(
             void* temp_storage, size_t& temp_storage_bytes,
             cub::DoubleBuffer<T>& keys,
-            i32 size, bool ascending, cuda::Stream& stream) {
+            i32 size, bool ascending, noa::cuda::Stream& stream) {
         // f16 can be safely reinterpreted to CUDA's __half.
         using cubT = std::conditional_t<std::is_same_v<T, f16>, __half, T>;
 
@@ -39,7 +39,7 @@ namespace {
     cudaError cub_radix_sort_pairs_(
             void* temp_storage, size_t& temp_storage_bytes,
             cub::DoubleBuffer<T>& keys, cub::DoubleBuffer<U>& values,
-            i32 size, bool ascending, cuda::Stream& stream) {
+            i32 size, bool ascending, noa::cuda::Stream& stream) {
         // f16 can be safely reinterpreted to CUDA's __half.
         using cubT = std::conditional_t<std::is_same_v<T, f16>, __half, T>;
         using cubU = std::conditional_t<std::is_same_v<U, f16>, __half, U>;
@@ -67,7 +67,7 @@ namespace {
     template<typename T>
     void sort_iterative_(
             T* values, const Strides4<i64>& strides, const Shape4<i64>& shape,
-            i32 dim, bool ascending, cuda::Stream& stream) {
+            i32 dim, bool ascending, noa::cuda::Stream& stream) {
         NOA_ASSERT(strides[dim] > 0); // nothing to sort if dim is broadcast
 
         const bool dim_is_contiguous = strides[dim] == 1;
@@ -79,15 +79,15 @@ namespace {
         // TODO Do one single allocation for buffer(s) and tmp storage. Problem is the alignment?
 
         // Prepare the alternate buffer.
-        using unique_t = typename cuda::memory::PtrDevice<T>::unique_type;
+        using unique_t = typename noa::cuda::memory::AllocatorDevice<T>::unique_type;
         unique_t key_buffer;
         unique_t key_buffer_alt;
         if (dim_is_contiguous) {
             key_buffer = nullptr;
-            key_buffer_alt = cuda::memory::PtrDevice<T>::alloc(dim_size, stream);
+            key_buffer_alt = noa::cuda::memory::AllocatorDevice<T>::allocate_async(dim_size, stream);
         } else {
-            key_buffer = cuda::memory::PtrDevice<T>::alloc(dim_size, stream);
-            key_buffer_alt = cuda::memory::PtrDevice<T>::alloc(dim_size, stream);
+            key_buffer = noa::cuda::memory::AllocatorDevice<T>::allocate_async(dim_size, stream);
+            key_buffer_alt = noa::cuda::memory::AllocatorDevice<T>::allocate_async(dim_size, stream);
         }
         cub::DoubleBuffer<T> keys(key_buffer.get(), key_buffer_alt.get());
 
@@ -95,7 +95,7 @@ namespace {
         using namespace ::noa::cuda; // error2string
         size_t temp_storage_bytes{};
         NOA_THROW_IF(cub_radix_sort_keys_<T>(nullptr, temp_storage_bytes, keys, dim_size, ascending, stream));
-        const auto temp_storage = cuda::memory::PtrDevice<Byte>::alloc(
+        const auto temp_storage = noa::cuda::memory::AllocatorDevice<Byte>::allocate_async(
                 static_cast<i64>(temp_storage_bytes), stream);
 
         // Prepare the iterations.
@@ -160,30 +160,30 @@ namespace {
     template<typename T>
     void sort_batched_(
             T* values, const Strides4<i64>& strides, const Shape4<i64>& shape,
-            i32 dim, bool ascending, cuda::Stream& stream) {
+            i32 dim, bool ascending, noa::cuda::Stream& stream) {
         const bool contiguous = noa::indexing::are_contiguous(strides, shape);
         const auto elements = safe_cast<i32>(shape.elements());
 
         // Prepare the keys.
         Vec4<i64> tile = shape.vec();
         tile[dim] = 1; // mark elements with their original axis.
-        const auto key_buffer = cuda::memory::PtrDevice<u32>::alloc(elements, stream);
-        const auto key_buffer_alt = cuda::memory::PtrDevice<u32>::alloc(elements, stream);
-        cuda::memory::iota(key_buffer.get(), shape.strides(), shape, tile, stream);
+        const auto key_buffer = noa::cuda::memory::AllocatorDevice<u32>::allocate_async(elements, stream);
+        const auto key_buffer_alt = noa::cuda::memory::AllocatorDevice<u32>::allocate_async(elements, stream);
+        noa::cuda::memory::iota(key_buffer.get(), shape.strides(), shape, tile, stream);
 
         // Prepare the values.
-        using unique_t = typename cuda::memory::PtrDevice<T>::unique_type;
+        using unique_t = typename noa::cuda::memory::AllocatorDevice<T>::unique_type;
         unique_t val_buffer;
         unique_t val_buffer_alt;
         T* val_ptr;
         if (contiguous) {
             val_ptr = values;
-            val_buffer_alt = cuda::memory::PtrDevice<T>::alloc(elements, stream);
+            val_buffer_alt = noa::cuda::memory::AllocatorDevice<T>::allocate_async(elements, stream);
         } else {
-            val_buffer = cuda::memory::PtrDevice<T>::alloc(elements, stream);
+            val_buffer = noa::cuda::memory::AllocatorDevice<T>::allocate_async(elements, stream);
             val_ptr = val_buffer.get();
-            val_buffer_alt = cuda::memory::PtrDevice<T>::alloc(elements, stream);
-            cuda::memory::copy(values, strides, val_ptr, shape.strides(), shape, stream);
+            val_buffer_alt = noa::cuda::memory::AllocatorDevice<T>::allocate_async(elements, stream);
+            noa::cuda::memory::copy(values, strides, val_ptr, shape.strides(), shape, stream);
         }
 
         // Gather them in the cub interface.
@@ -203,7 +203,7 @@ namespace {
         }
 
         tmp_bytes0 = std::max(tmp_bytes0, tmp_bytes1);
-        const auto tmp = cuda::memory::PtrDevice<Byte>::alloc(static_cast<i64>(tmp_bytes0), stream);
+        const auto tmp = noa::cuda::memory::AllocatorDevice<Byte>::allocate_async(static_cast<i64>(tmp_bytes0), stream);
 
         // Sort the entire array based on the values, but updates the original indexes.
         // It is important that the second sort is stable, which is the case with radix sort.
@@ -229,16 +229,19 @@ namespace {
         // we have to permute in the alternate buffer and then copy the result back to "values"...
         const auto current_strides_permuted = noa::indexing::reorder(input_shape.strides(), permutation);
         if (values == cub_values.Current() && !noa::all(permutation == Vec4<i32>{0, 1, 2, 3})) {
-            cuda::memory::copy(values, current_strides_permuted,
-                               val_buffer_alt.get(), shape.strides(),
-                               shape, stream);
-            cuda::memory::copy(val_buffer_alt.get(), shape.strides(),
-                               values, strides,
-                               shape, stream);
+            noa::cuda::memory::copy(
+                    values, current_strides_permuted,
+                    val_buffer_alt.get(), shape.strides(),
+                    shape, stream);
+            noa::cuda::memory::copy(
+                    val_buffer_alt.get(), shape.strides(),
+                    values, strides,
+                    shape, stream);
         } else {
-            cuda::memory::copy(cub_values.selector == 0 ? val_ptr : val_buffer_alt.get(),
-                               current_strides_permuted,
-                               values, strides, shape, stream);
+            noa::cuda::memory::copy(
+                    cub_values.selector == 0 ? val_ptr : val_buffer_alt.get(),
+                    current_strides_permuted,
+                    values, strides, shape, stream);
         }
     }
 }

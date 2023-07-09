@@ -2,7 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/cpu/Sort.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 
 namespace {
     using namespace ::noa;
@@ -92,7 +92,7 @@ namespace {
         const i64 dim_size = shape[dim];
         const i64 dim_stride = strides[dim];
 
-        const auto buffer = cpu::memory::PtrHost<T>::alloc(dim_is_contiguous ? 0 : dim_size);
+        const auto buffer = cpu::memory::AllocatorHeap<T>::allocate(dim_is_contiguous ? 0 : dim_size);
         for (i64 i = 0; i < shape_[0]; ++i) {
             for (i64 j = 0; j < shape_[1]; ++j) {
                 for (i64 k = 0; k < shape_[2]; ++k) {

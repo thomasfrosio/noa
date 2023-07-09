@@ -2,7 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/cpu/memory/Copy.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 
 namespace noa::cpu::memory {
     template<typename T, typename I>
@@ -20,12 +20,12 @@ namespace noa::cpu::memory::details {
         Extracted<T, O> extracted{};
         extracted.count = static_cast<i64>(noa::math::max(elements.size(), offsets.size()));
         if (!elements.empty()) {
-            extracted.values = PtrHost<T>::alloc(extracted.count);
+            extracted.values = AllocatorHeap<T>::allocate(extracted.count);
             copy(elements.data(), extracted.values.get(), extracted.count);
             elements.clear();
         }
         if (!offsets.empty()) {
-            extracted.offsets = PtrHost<O>::alloc(extracted.count);
+            extracted.offsets = AllocatorHeap<O>::allocate(extracted.count);
             copy(offsets.data(), extracted.offsets.get(), extracted.count);
             offsets.clear();
         }

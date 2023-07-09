@@ -12,7 +12,7 @@ namespace noa::cuda::memory::details {
         auto set_op = [value]__device__(T) { return value; };
         const auto shape = Shape4<i64>{1, 1, 1, elements};
         noa::cuda::utils::ewise_unary<StridesTraits::CONTIGUOUS>(
-                "set", src, shape.strides(), shape, stream, set_op);
+                src, shape.strides(), shape, stream, set_op);
     }
 
     template<typename T, typename _>
@@ -23,7 +23,7 @@ namespace noa::cuda::memory::details {
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         auto set_op = [value]__device__(T) { return value; };
         noa::cuda::utils::ewise_unary<StridesTraits::CONTIGUOUS>(
-                "set", src, strides, shape, stream, set_op);
+                src, strides, shape, stream, set_op);
     }
 
     #define NOA_INSTANTIATE_SET_(T)                     \

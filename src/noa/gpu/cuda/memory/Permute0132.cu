@@ -21,9 +21,11 @@ namespace {
     // XY tile along Z becomes X'Y' (X'=Y, Y'=X) along Z' (Z'=Z)
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute_0132_(AccessorRestrict<const T, 4, u32> input,
-                       AccessorRestrict<T, 4, u32> output,
-                       Shape2<u32> shape_yx, u32 blocks_x) {
+    void permute_0132_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape2<u32> shape_yx, u32 blocks_x
+    ) {
         using uninit_t = noa::cuda::utils::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[TILE_DIM][TILE_DIM + 1]; // +1 so that elements in a column map to different banks.
         T(& tile)[TILE_DIM][TILE_DIM + 1] = *reinterpret_cast<T(*)[TILE_DIM][TILE_DIM + 1]>(&buffer);
@@ -124,9 +126,11 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute_0132(const T* input, const Strides4<i64>& input_strides,
-                      T* output, const Strides4<i64>& output_strides,
-                      const Shape4<i64>& shape, Stream& stream) {
+    void permute_0132(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         const auto u_shape = shape.as_safe<u32>();
@@ -151,7 +155,8 @@ namespace noa::cuda::memory::details {
     template<typename T>
     void permute_0132_inplace(
             T* output, const Strides4<i64>& output_strides,
-            const Shape4<i64>& shape, Stream& stream) {
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         if (shape[3] != shape[2])
             NOA_THROW("For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape:{}", shape);

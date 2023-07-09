@@ -2,17 +2,17 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
-#include "noa/gpu/cuda/memory/PtrArray.hpp"
-#include "noa/gpu/cuda/memory/PtrTexture.hpp"
+#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
+#include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
 
 namespace noa::cuda::geometry::details {
     template<typename Value, InterpMode INTERP_MODE, bool NORMALIZED, bool LAYERED>
     constexpr void validate_texture(cudaTextureObject_t texture) {
-        cudaArray* array = cuda::memory::PtrTexture::array(texture);
-        const bool is_layered = cuda::memory::PtrArray<Value>::is_layered(array);
+        cudaArray* array = noa::cuda::memory::AllocatorTexture::array(texture);
+        const bool is_layered = noa::cuda::memory::AllocatorArray<Value>::is_layered(array);
         NOA_CHECK(is_layered == LAYERED, "The input texture is not layered, but a layered interpolator was created");
 
-        const cudaTextureDesc description = cuda::memory::PtrTexture::description(texture);
+        const cudaTextureDesc description = noa::cuda::memory::AllocatorTexture::description(texture);
         if constexpr (INTERP_MODE == InterpMode::NEAREST ||
                       INTERP_MODE == InterpMode::LINEAR ||
                       INTERP_MODE == InterpMode::COSINE ||
@@ -295,7 +295,7 @@ namespace noa::cuda::geometry {
 
         using value_type = Value;
         using coord_type = Coord;
-        using real_type = traits::value_type_t<value_type>;
+        using real_type = noa::traits::value_type_t<value_type>;
         using real2_type = Vec2<real_type>;
         using real3_type = Vec3<real_type>;
         using coord3_type = Vec3<coord_type>;

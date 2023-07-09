@@ -11,8 +11,7 @@ namespace noa::cuda::math {
               const Shape4<i64>& shape,
               Stream& stream) {
         Value output{};
-        utils::reduce_unary(
-                "math::min",
+        noa::cuda::utils::reduce_unary(
                 input, strides, shape, &output, Strides1<i64>{1},
                 noa::math::Limits<Value>::max(),
                 {}, noa::min_t{}, {}, true, true, stream);
@@ -26,8 +25,7 @@ namespace noa::cuda::math {
               const Shape4<i64>& shape,
               Stream& stream) {
         Value output{};
-        utils::reduce_unary(
-                "math::min",
+        noa::cuda::utils::reduce_unary(
                 input, strides, shape, &output, Strides1<i64>{1},
                 noa::math::Limits<Value>::lowest(),
                 {}, noa::max_t{}, {}, true, true, stream);
@@ -57,8 +55,7 @@ namespace noa::cuda::math {
         };
 
         reduced_t output{};
-        utils::reduce_unary(
-                "math::min_max",
+        noa::cuda::utils::reduce_unary(
                 input, strides, shape, &output, Strides1<i64>{1},
                 initial_reduce,
                 preprocess_operator, reduction_operator, {}, true, true, stream);
@@ -73,8 +70,7 @@ namespace noa::cuda::math {
                 PreProcessOp pre_process_op,
                 Stream& stream) {
         Reduced output{};
-        utils::reduce_unary(
-                "math::sum",
+        noa::cuda::utils::reduce_unary(
                 input, strides, shape, &output, Strides1<i64>{1}, Reduced{0},
                 pre_process_op, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
@@ -88,8 +84,7 @@ namespace noa::cuda::math {
                  PreProcessOp pre_process_op,
                  Stream& stream) {
         Reduced output{};
-        utils::reduce_unary(
-                "math::mean",
+        noa::cuda::utils::reduce_unary(
                 input, strides, shape, &output, Strides1<i64>{1}, Reduced{0},
                 pre_process_op, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
@@ -108,8 +103,7 @@ namespace noa::cuda::math {
                 const Shape4<i64>& shape,
                 Stream& stream) {
         Output output{};
-        utils::reduce_unary(
-                "math::norm",
+        noa::cuda::utils::reduce_unary(
                 input, strides, shape, &output, Strides1<i64>{1}, Output{0},
                 noa::abs_squared_t{}, noa::plus_t{}, noa::sqrt_t{}, true, true, stream);
         stream.synchronize();
@@ -123,8 +117,8 @@ namespace noa::cuda::math {
                i64 ddof, Stream& stream) {
         Input* null{};
         Output output;
-        utils::reduce_variance<false>(
-                "math::var", input, strides, shape,
+        noa::cuda::utils::reduce_variance<false>(
+                input, strides, shape,
                 null, Strides1<i64>{1},
                 &output, Strides1<i64>{1},
                 ddof, true, true, stream);
@@ -139,8 +133,8 @@ namespace noa::cuda::math {
                i64 ddof, Stream& stream) {
         Input* null{};
         Output output;
-        utils::reduce_variance<true>(
-                "math::std", input, strides, shape,
+        noa::cuda::utils::reduce_variance<true>(
+                input, strides, shape,
                 null, Strides1<i64>{1},
                 &output, Strides1<i64>{1},
                 ddof, true, true, stream);
@@ -156,8 +150,8 @@ namespace noa::cuda::math {
     ) -> std::pair<Input, Output> {
         Input mean;
         Output var;
-        utils::reduce_variance<false>(
-                "math::mean_var", input, strides, shape,
+        noa::cuda::utils::reduce_variance<false>(
+                input, strides, shape,
                 &mean, Strides1<i64>{1},
                 &var, Strides1<i64>{1},
                 ddof, true, true, stream);
@@ -173,8 +167,8 @@ namespace noa::cuda::math {
     ) -> std::pair<Input, Output> {
         Input mean;
         Output var;
-        utils::reduce_variance<true>(
-                "math::mean_std", input, strides, shape,
+        noa::cuda::utils::reduce_variance<true>(
+                input, strides, shape,
                 &mean, Strides1<i64>{1},
                 &var, Strides1<i64>{1},
                 ddof, true, true, stream);
@@ -183,11 +177,13 @@ namespace noa::cuda::math {
     }
 
     template<typename Value, typename>
-    Value median(Value* input,
-                 Strides4<i64> strides,
-                 Shape4<i64> shape,
-                 bool overwrite,
-                 Stream& stream) {
+    Value median(
+            Value* input,
+            Strides4<i64> strides,
+            Shape4<i64> shape,
+            bool overwrite,
+            Stream& stream
+    ) {
         NOA_ASSERT(noa::all(shape > 0));
 
         const auto order = noa::indexing::order(strides, shape);
@@ -195,13 +191,13 @@ namespace noa::cuda::math {
         shape = noa::indexing::reorder(shape, order);
 
         const auto elements = shape.elements();
-        using unique_t = typename noa::cuda::memory::PtrDevice<Value>::unique_type;
+        using unique_t = typename noa::cuda::memory::AllocatorDevice<Value>::unique_type;
         unique_t buffer;
         Value* to_sort{};
         if (overwrite && noa::indexing::are_contiguous(strides, shape)) {
             to_sort = input;
         } else {
-            buffer = noa::cuda::memory::PtrDevice<Value>::alloc(elements, stream);
+            buffer = noa::cuda::memory::AllocatorDevice<Value>::allocate_async(elements, stream);
             to_sort = buffer.get();
             noa::cuda::memory::copy(input, strides, to_sort, shape.strides(), shape, stream);
         }
@@ -213,7 +209,7 @@ namespace noa::cuda::math {
         // Retrieve the median.
         const bool is_even = !(elements % 2);
         Value out[2];
-        memory::copy(to_sort + (elements - is_even) / 2, out, 1 + is_even, stream);
+        noa::cuda::memory::copy(to_sort + (elements - is_even) / 2, out, 1 + is_even, stream);
         stream.synchronize();
 
         if (is_even)
@@ -227,8 +223,7 @@ namespace noa::cuda::math {
                const Value* rhs, const Strides4<i64>& rhs_strides,
                const Shape4<i64>& shape, Stream& stream) {
         Value output;
-        utils::reduce_binary(
-                "math::rmsd",
+        noa::cuda::utils::reduce_binary(
                 lhs, lhs_strides, rhs, rhs_strides, shape,
                 &output, Strides1<i64>{1}, Value{0},
                 noa::dist2_t{}, noa::plus_t{}, {}, true, true, stream);

@@ -11,7 +11,7 @@ namespace noa::cuda::memory {
 
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const auto kernel = noa::algorithm::memory::arange_1d<i64, i64>(src, start, step);
-        noa::cuda::utils::iwise_1d("arange", elements, kernel, stream);
+        noa::cuda::utils::iwise_1d(elements, kernel, stream);
     }
 
     template<typename T, typename>
@@ -21,7 +21,7 @@ namespace noa::cuda::memory {
 
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const auto kernel = noa::algorithm::memory::arange_4d<i64, i64>(src, strides, shape, start, step);
-        noa::cuda::utils::iwise_4d("arange", shape, kernel, stream);
+        noa::cuda::utils::iwise_4d(shape, kernel, stream);
     }
 
     #define NOA_INSTANTIATE_ARANGE_(T)                      \

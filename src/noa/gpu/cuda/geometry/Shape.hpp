@@ -19,11 +19,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
-    void ellipse(const Value* input, const Strides4<i64>& input_strides,
-                 Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                 const Vec3<f32>& center, const Vec3<f32>& radius, f32 edge_size,
-                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::ellipse<fft::FC2FC>(
+    void ellipse(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec3<f32>& center, const Vec3<f32>& radius, f32 edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::ellipse<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }
@@ -31,11 +33,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<2, Value, Matrix, Functor, CValue>>>
-    void ellipse(const Value* input, const Strides4<i64>& input_strides,
-                 Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                 const Vec2<f32>& center, const Vec2<f32>& radius, float edge_size,
-                 const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::ellipse<fft::FC2FC>(
+    void ellipse(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec2<f32>& center, const Vec2<f32>& radius, float edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::ellipse<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }
@@ -43,11 +47,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
-    void sphere(const Value* input, const Strides4<i64>& input_strides,
-                Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                const Vec3<f32>& center, float radius, float edge_size,
-                const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::sphere<fft::FC2FC>(
+    void sphere(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec3<f32>& center, float radius, float edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::sphere<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }
@@ -55,11 +61,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<2, Value, Matrix, Functor, CValue>>>
-    void sphere(const Value* input, const Strides4<i64>& input_strides,
-                Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                const Vec2<f32>& center, float radius, float edge_size,
-                const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::sphere<fft::FC2FC>(
+    void sphere(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec2<f32>& center, float radius, float edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::sphere<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }
@@ -67,11 +75,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
-    void rectangle(const Value* input, const Strides4<i64>& input_strides,
-                   Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                   const Vec3<f32>& center, const Vec3<f32>& radius, float edge_size,
-                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::rectangle<fft::FC2FC>(
+    void rectangle(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec3<f32>& center, const Vec3<f32>& radius, float edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::rectangle<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }
@@ -79,11 +89,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<2, Value, Matrix, Functor, CValue>>>
-    void rectangle(const Value* input, const Strides4<i64>& input_strides,
-                   Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                   const Vec2<f32>& center, const Vec2<f32>& radius, float edge_size,
-                   const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::rectangle<fft::FC2FC>(
+    void rectangle(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec2<f32>& center, const Vec2<f32>& radius, float edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::rectangle<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }
@@ -91,11 +103,13 @@ namespace noa::cuda::geometry {
     template<typename Value, typename Matrix, typename Functor,
              typename CValue = traits::value_type_t<Value>,
              typename = std::enable_if_t<details::is_valid_shape_v<3, Value, Matrix, Functor, CValue>>>
-    void cylinder(const Value* input, const Strides4<i64>& input_strides,
-                  Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                  const Vec3<f32>& center, float radius, float length, float edge_size,
-                  const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream) {
-        cuda::geometry::fft::cylinder<fft::FC2FC>(
+    void cylinder(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const Vec3<f32>& center, float radius, float length, float edge_size,
+            const Matrix& inv_matrix, Functor functor, CValue cvalue, bool invert, Stream& stream
+    ) {
+        noa::cuda::geometry::fft::cylinder<fft::FC2FC>(
                 input, input_strides, output, output_strides, shape,
                 center, radius, length, edge_size, inv_matrix, functor, cvalue, invert, stream);
     }

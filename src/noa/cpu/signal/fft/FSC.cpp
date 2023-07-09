@@ -1,5 +1,5 @@
 #include "noa/algorithms/signal/FSC.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/signal/fft/FSC.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
@@ -17,8 +17,8 @@ namespace noa::cpu::signal::fft {
         const auto shell_count = noa::math::min(shape_3d) / 2 + 1;
         const auto s_shape_2d = Shape2<i64>{batches, shell_count};
 
-        const auto denominator_lhs = noa::cpu::memory::PtrHost<Real>::alloc(batches * shell_count);
-        const auto denominator_rhs = noa::cpu::memory::PtrHost<Real>::alloc(batches * shell_count);
+        const auto denominator_lhs = noa::cpu::memory::AllocatorHeap<Real>::allocate(batches * shell_count);
+        const auto denominator_rhs = noa::cpu::memory::AllocatorHeap<Real>::allocate(batches * shell_count);
 
         const auto fsc_reduction = noa::algorithm::signal::isotropic_fsc<REMAP>(
                 lhs, lhs_strides,
@@ -44,8 +44,8 @@ namespace noa::cpu::signal::fft {
         const auto fsc_shape_3d = Shape3<i64>{batches, cone_count, shell_count};
 
         const auto buffer_size = batches * cone_count * shell_count;
-        const auto denominator_lhs = noa::cpu::memory::PtrHost<Real>::alloc(buffer_size);
-        const auto denominator_rhs = noa::cpu::memory::PtrHost<Real>::alloc(buffer_size);
+        const auto denominator_lhs = noa::cpu::memory::AllocatorHeap<Real>::allocate(buffer_size);
+        const auto denominator_rhs = noa::cpu::memory::AllocatorHeap<Real>::allocate(buffer_size);
 
         const auto fsc_reduction = noa::algorithm::signal::anisotropic_fsc<REMAP>(
                 lhs, lhs_strides,

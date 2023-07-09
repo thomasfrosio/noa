@@ -1,5 +1,5 @@
 #include "noa/gpu/cuda/fft/Transforms.hpp"
-#include "noa/gpu/cuda/memory/PtrManaged.hpp"
+#include "noa/gpu/cuda/memory/AllocatorManaged.hpp"
 #include "noa/gpu/cuda/signal/fft/Correlate.hpp"
 #include "noa/gpu/cuda/signal/fft/PhaseShift.hpp"
 
@@ -9,11 +9,13 @@
 
 namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename Real, typename _>
-    void xmap(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-              Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-              Real* output, const Strides4<i64>& output_strides,
-              const Shape4<i64>& shape, CorrelationMode correlation_mode, Norm norm,
-              Complex<Real>* tmp, Strides4<i64> tmp_strides, Stream& stream) {
+    void xmap(
+            const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+            Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+            Real* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, CorrelationMode correlation_mode, Norm norm,
+            Complex<Real>* tmp, Strides4<i64> tmp_strides, Stream& stream
+    ) {
         if (!tmp) {
             tmp = rhs;
             tmp_strides = rhs_strides;
@@ -28,13 +30,11 @@ namespace noa::cuda::signal::fft {
         switch (correlation_mode) {
             case CorrelationMode::CONVENTIONAL:
                 noa::cuda::utils::ewise_binary(
-                        "xmap",
                         lhs, lhs_strides, rhs, rhs_strides, tmp, tmp_strides,
                         shape.rfft(), stream, noa::multiply_conj_t{});
                 break;
             case CorrelationMode::PHASE:
                 noa::cuda::utils::ewise_binary(
-                        "xmap",
                         lhs, lhs_strides, rhs, rhs_strides,
                         tmp, tmp_strides, shape.rfft(), stream,
                         []__device__(const Complex<Real>& l, const Complex<Real>& r) {
@@ -47,7 +47,6 @@ namespace noa::cuda::signal::fft {
                 break;
             case CorrelationMode::DOUBLE_PHASE:
                 noa::cuda::utils::ewise_binary(
-                        "xmap",
                         lhs, lhs_strides, rhs, rhs_strides,
                         tmp, tmp_strides, shape.rfft(), stream,
                         []__device__(const Complex<Real>& l, const Complex<Real>& r) -> Complex<Real> {
@@ -60,7 +59,6 @@ namespace noa::cuda::signal::fft {
                 break;
             case CorrelationMode::MUTUAL:
                 noa::cuda::utils::ewise_binary(
-                        "xmap",
                         lhs, lhs_strides, rhs, rhs_strides,
                         tmp, tmp_strides, shape.rfft(), stream,
                         []__device__(const Complex<Real>& l, const Complex<Real>& r) {
@@ -104,22 +102,24 @@ namespace noa::cuda::signal::fft {
 
 namespace noa::cuda::signal::fft::details {
     template<typename Real>
-    void xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-               const Shape4<i64>& shape, Real* coefficients, Stream& stream) {
+    void xcorr(
+            const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+            const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+            const Shape4<i64>& shape, Real* coefficients, Stream& stream
+    ) {
         const auto batches = shape[0];
-        const auto buffer = cuda::memory::PtrManaged<Real>::alloc(batches * 3, stream);
+        const auto buffer = noa::cuda::memory::AllocatorManaged<Real>::allocate(batches * 3, stream);
         const auto numerator = buffer.get();
         const auto denominator_lhs = buffer.get() + batches;
         const auto denominator_rhs = buffer.get() + batches * 2;
 
         noa::cuda::utils::reduce_unary(
-                "xcorr", lhs, lhs_strides, shape,
+                lhs, lhs_strides, shape,
                 denominator_lhs, Strides1<i64>{1}, Real{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {},
                 false, true, stream);
         noa::cuda::utils::reduce_unary(
-                "xcorr", rhs, rhs_strides, shape,
+                rhs, rhs_strides, shape,
                 denominator_rhs, Strides1<i64>{1}, Real{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {},
                 false, true, stream);
@@ -128,7 +128,7 @@ namespace noa::cuda::signal::fft::details {
             return noa::math::real(l * noa::math::conj(r));
         };
         noa::cuda::utils::reduce_binary(
-                "xcorr", lhs, lhs_strides, rhs, rhs_strides, shape,
+                lhs, lhs_strides, rhs, rhs_strides, shape,
                 numerator, Strides1<i64>{1}, Real{0},
                 preprocess_op, noa::plus_t{}, {},
                 false, true, stream);
@@ -139,19 +139,21 @@ namespace noa::cuda::signal::fft::details {
     }
 
     template<typename Real>
-    Real xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-               const Shape4<i64>& shape, Stream& stream) {
+    Real xcorr(
+            const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
+            const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT(shape[0] == 1);
 
         Real numerator{}, denominator_lhs{}, denominator_rhs{};
         noa::cuda::utils::reduce_unary(
-                "xcorr", lhs, lhs_strides, shape,
+                lhs, lhs_strides, shape,
                 &denominator_lhs, Strides1<i64>{1}, Real{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {},
                 true, true, stream);
         noa::cuda::utils::reduce_unary(
-                "xcorr", rhs, rhs_strides, shape,
+                rhs, rhs_strides, shape,
                 &denominator_rhs, Strides1<i64>{1}, Real{0},
                 noa::abs_squared_t{}, noa::plus_t{}, {},
                 true, true, stream);
@@ -160,7 +162,7 @@ namespace noa::cuda::signal::fft::details {
             return noa::math::real(l * noa::math::conj(r));
         };
         noa::cuda::utils::reduce_binary(
-                "xcorr", lhs, lhs_strides, rhs, rhs_strides, shape,
+                lhs, lhs_strides, rhs, rhs_strides, shape,
                 &numerator, Strides1<i64>{1}, Real{0},
                 preprocess_op, noa::plus_t{}, {},
                 true, true, stream);

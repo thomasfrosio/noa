@@ -155,8 +155,7 @@ namespace noa::cuda::utils {
              StridesTraits StridesTrait = StridesTraits::STRIDED,
              typename Config = EwiseStaticConfigDefault,
              typename Input, typename Output, typename Index, typename UnaryOp>
-    void ewise_unary(const char* name,
-                     const Input* input, Strides4<Index> input_strides,
+    void ewise_unary(const Input* input, Strides4<Index> input_strides,
                      Output* output, Strides4<Index> output_strides,
                      Shape4<Index> shape, Stream& stream,
                      UnaryOp unary_op) {
@@ -202,7 +201,7 @@ namespace noa::cuda::utils {
                 using output_accessor_t = Accessor<Output, 2, Index, PointerTrait, StridesTrait>;
                 const auto input_accessor = input_accessor_t(input, input_strides_2d);
                 const auto output_accessor = output_accessor_t(output, output_strides_2d);
-                return stream.enqueue(name,
+                return stream.enqueue(
                         details::ewise_unary_1d<Input, Output, Index, UnaryOp, Config, 1, PointerTrait, StridesTrait>,
                         config, input_accessor, output_accessor, elements, unary_op);
             } else {
@@ -211,15 +210,15 @@ namespace noa::cuda::utils {
                 const auto input_accessor = input_accessor_t(input, input_strides_2d);
                 const auto output_accessor = output_accessor_t(output, output_strides_2d);
                 if (vector_size == 2) {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_unary_1d<Input, Output, Index, UnaryOp,Config, 2, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, input_accessor, output_accessor, elements, unary_op);
                 } else if (vector_size == 4) {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_unary_1d<Input, Output, Index, UnaryOp,Config, 4, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, input_accessor, output_accessor, elements, unary_op);
                 } else {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_unary_1d<Input, Output, Index, UnaryOp,Config, 8, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, input_accessor, output_accessor, elements, unary_op);
                 }
@@ -236,7 +235,6 @@ namespace noa::cuda::utils {
             const auto output_accessor = output_accessor_t(output, output_strides);
 
             stream.enqueue(
-                    name,
                     details::ewise_unary_4d<Input, Output, Index, UnaryOp, Config, PointerTrait, StridesTrait>,
                     config, input_accessor, output_accessor, shape.filter(2, 3), unary_op, blocks_x);
         }
@@ -245,8 +243,7 @@ namespace noa::cuda::utils {
     template<StridesTraits StridesTrait = StridesTraits::STRIDED,
              typename Config = EwiseStaticConfigDefault,
              typename Value, typename Index, typename UnaryOp>
-    void ewise_unary(const char* name,
-                     Value* array, Strides4<Index> strides,
+    void ewise_unary(Value* array, Strides4<Index> strides,
                      Shape4<Index> shape, Stream& stream,
                      UnaryOp unary_op) {
         NOA_ASSERT(all(shape > 0));
@@ -285,22 +282,22 @@ namespace noa::cuda::utils {
             if (vector_size == 1) {
                 using accessor_t = Accessor<Value, 2, Index, PointerTrait, StridesTrait>;
                 const auto accessor = accessor_t(array, strides_2d);
-                return stream.enqueue(name,
+                return stream.enqueue(
                         details::ewise_unary_1d<Value, Index, UnaryOp, Config, 1, PointerTrait, StridesTrait> ,
                         config, accessor, elements, unary_op);
             } else {
                 using accessor_t = AccessorContiguous<Value, 2, Index, PointerTrait>;
                 const auto accessor = accessor_t(array, strides_2d);
                 if (vector_size == 2) {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_unary_1d<Value, Index, UnaryOp, Config, 2, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, accessor, elements, unary_op);
                 } else if (vector_size == 4) {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_unary_1d<Value, Index, UnaryOp, Config, 4, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, accessor, elements, unary_op);
                 } else {
-                    return stream.enqueue(name,
+                    return stream.enqueue(
                             details::ewise_unary_1d<Value, Index, UnaryOp, Config, 8, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, accessor, elements, unary_op);
                 }
@@ -315,9 +312,9 @@ namespace noa::cuda::utils {
             using accessor_t = Accessor<Value, 4, Index, PointerTrait, StridesTrait>;
             const auto accessor = accessor_t(array, strides);
 
-            stream.enqueue(name,
-                           details::ewise_unary_4d<Value, Value, Index, UnaryOp, Config, PointerTrait, StridesTrait>,
-                           config, accessor, accessor, shape.filter(2, 3), unary_op, blocks_x);
+            stream.enqueue(
+                    details::ewise_unary_4d<Value, Value, Index, UnaryOp, Config, PointerTrait, StridesTrait>,
+                    config, accessor, accessor, shape.filter(2, 3), unary_op, blocks_x);
         }
     }
 }
@@ -329,7 +326,6 @@ namespace noa::cuda {                                                           
                      Out* output, const Strides4<i64>& output_strides,              \
                      const Shape4<i64>& shape, UnaryOp unary_op, Stream& stream) {  \
         noa::cuda::utils::ewise_unary(                                              \
-                "ewise_unary",                                                      \
                 input, input_strides,                                               \
                 output, output_strides,                                             \
                 shape, stream, unary_op);                                           \

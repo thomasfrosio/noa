@@ -1,7 +1,7 @@
 #include "noa/core/Math.hpp"
 #include "noa/gpu/cuda/Ewise.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
-#include "noa/gpu/cuda/memory/PtrDevice.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevice.hpp"
 #include "noa/gpu/cuda/signal/Convolve.hpp"
 #include "noa/gpu/cuda/utils/Block.cuh"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
@@ -18,10 +18,11 @@ namespace {
     // This is identical to the convolve1_ kernel.
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve_separable_x_(AccessorRestrict<const T, 4, u32> input,
-                               AccessorRestrict<T, 4, u32> output,
-                               Shape2<i32> shape_yx, i32 filter_size, u32 blocks_x) {
-
+    void convolve_separable_x_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape2<i32> shape_yx, i32 filter_size, u32 blocks_x
+    ) {
         const auto index = noa::indexing::offset2index(blockIdx.x, blocks_x);
         const auto tid = Vec2<i32>{threadIdx.y, threadIdx.x};
         const auto gid = Vec4<i32>{blockIdx.z,
@@ -59,10 +60,11 @@ namespace {
 
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve_separable_y_(AccessorRestrict<const T, 4, u32> input,
-                               AccessorRestrict<T, 4, u32> output,
-                               Shape2<i32> shape_yx, i32 filter_size, u32 blocks_x) {
-
+    void convolve_separable_y_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape2<i32> shape_yx, i32 filter_size, u32 blocks_x
+    ) {
         const auto index = noa::indexing::offset2index(blockIdx.x, blocks_x);
         const auto tid = Vec2<i32>{threadIdx.y, threadIdx.x};
         const auto gid = Vec4<i32>{blockIdx.z,
@@ -98,9 +100,11 @@ namespace {
 
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve_separable_z_(AccessorRestrict<const T, 4, u32> input,
-                               AccessorRestrict<T, 4, u32> output,
-                               Shape2<i32> shape_zx, i32 filter_size, u32 blocks_x) {
+    void convolve_separable_z_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape2<i32> shape_zx, i32 filter_size, u32 blocks_x
+    ) {
         T* shared = noa::cuda::utils::block_dynamic_shared_resource<T>();
 
         const auto index = noa::indexing::offset2index(blockIdx.x, blocks_x);
@@ -139,7 +143,8 @@ namespace {
     void launch_convolve_separable_x_(
             const T* input, const Strides4<u32>& input_strides,
             T* output, const Strides4<u32>& output_strides, const Shape4<u32>& shape,
-            const T* filter, u32 filter_size, cuda::Stream& stream) {
+            const T* filter, u32 filter_size, Stream& stream
+    ) {
         if (filter_size == 1) {
             T filter_value;
             noa::cuda::memory::copy(filter, &filter_value, 1, stream);
@@ -158,7 +163,7 @@ namespace {
         const u32 blocks_y = noa::math::divide_up(shape[2], BLOCK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const u32 shared_bytes = (BLOCK_SIZE.x + filter_size - 1) * BLOCK_SIZE.y * static_cast<u32>(sizeof(T));
-        const auto config = cuda::LaunchConfig{blocks, BLOCK_SIZE, shared_bytes};
+        const auto config = LaunchConfig{blocks, BLOCK_SIZE, shared_bytes};
 
         const auto input_accessor = AccessorRestrict<const T, 4, u32> (input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, u32> (output, output_strides);
@@ -171,7 +176,8 @@ namespace {
     void launch_convolve_separable_y_(
             const T* input, const Strides4<u32>& input_strides,
             T* output, const Strides4<u32>& output_strides, const Shape4<u32>& shape,
-            const T* filter, u32 filter_size, cuda::Stream& stream) {
+            const T* filter, u32 filter_size, Stream& stream
+    ) {
         if (filter_size == 1) {
             T filter_value;
             noa::cuda::memory::copy(filter, &filter_value, 1, stream);
@@ -190,7 +196,7 @@ namespace {
         const u32 blocks_y = noa::math::divide_up(shape[2], BLOCK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_y, shape[1], shape[0]);
         const u32 shared_bytes = BLOCK_SIZE.x * (BLOCK_SIZE.y + filter_size - 1) * static_cast<u32>(sizeof(T));
-        const auto config = cuda::LaunchConfig{blocks, BLOCK_SIZE, shared_bytes};
+        const auto config = LaunchConfig{blocks, BLOCK_SIZE, shared_bytes};
 
         const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides);
@@ -203,7 +209,8 @@ namespace {
     void launch_convolve_separable_z_(
             const T* input, const Strides4<u32>& input_strides,
             T* output, const Strides4<u32>& output_strides, const Shape4<u32>& shape,
-            const T* filter, u32 filter_size, cuda::Stream& stream) {
+            const T* filter, u32 filter_size, Stream& stream
+    ) {
         if (filter_size == 1) {
             T filter_value;
             noa::cuda::memory::copy(filter, &filter_value, 1, stream);
@@ -222,7 +229,7 @@ namespace {
         const u32 blocks_z = noa::math::divide_up(shape[1], BLOCK_SIZE.y);
         const dim3 blocks(blocks_x * blocks_z, shape[2], shape[0]);
         const u32 shared_bytes = BLOCK_SIZE.x * (BLOCK_SIZE.y + filter_size - 1) * static_cast<u32>(sizeof(T));
-        const auto config = cuda::LaunchConfig{blocks, BLOCK_SIZE, shared_bytes};
+        const auto config = LaunchConfig{blocks, BLOCK_SIZE, shared_bytes};
 
         const auto input_accessor = AccessorRestrict<const T, 4, u32> (input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, u32> (output, output_strides);
@@ -234,12 +241,14 @@ namespace {
 
 namespace noa::cuda::signal {
     template<typename T, typename U, typename>
-    void convolve_separable(const T* input, const Strides4<i64>& input_strides,
-                            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                            const U* filter_depth, i64 filter_depth_size,
-                            const U* filter_height, i64 filter_height_size,
-                            const U* filter_width, i64 filter_width_size,
-                            T* tmp, Strides4<i64> tmp_strides, Stream& stream) {
+    void convolve_separable(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const U* filter_depth, i64 filter_depth_size,
+            const U* filter_height, i64 filter_height_size,
+            const U* filter_width, i64 filter_width_size,
+            T* tmp, Strides4<i64> tmp_strides, Stream& stream
+    ) {
         NOA_ASSERT(input != output && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
@@ -267,10 +276,10 @@ namespace noa::cuda::signal {
             count += 1;
         if (filter_width)
             count += 1;
-        using allocator_t = noa::cuda::memory::PtrDevice<T>;
+        using allocator_t = noa::cuda::memory::AllocatorDevice<T>;
         typename allocator_t::unique_type buffer{};
         if (!tmp && count > 1) {
-            buffer = allocator_t::alloc(shape.elements(), stream);
+            buffer = allocator_t::allocate_async(shape.elements(), stream);
             tmp = buffer.get();
             tmp_strides = shape.strides();
         }
@@ -331,9 +340,11 @@ namespace noa::cuda::signal {
     }
 
     template<typename T, typename U, typename>
-    void convolve(const T* input, const Strides4<i64>& input_strides,
-                  T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                  const U* filter, const Shape3<i64>& filter_shape, Stream& stream) {
+    void convolve(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const U* filter, const Shape3<i64>& filter_shape, Stream& stream
+    ) {
         NOA_ASSERT(noa::all(filter_shape > 0) && noa::all(shape > 0));
 
         // If there's a single dimension, use separable convolution kernels:

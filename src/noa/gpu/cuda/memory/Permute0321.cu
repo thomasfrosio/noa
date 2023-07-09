@@ -14,9 +14,11 @@ namespace {
     // The XZ tile along Y becomes X'Z' (X'=Z, Z'=X) along Y' (Y'=Y)
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute_0321_(AccessorRestrict<const T, 4, u32> input_swapped,
-                       AccessorRestrict<T, 4, u32> output_swapped,
-                       Shape2<u32> shape_zx, u32 blocks_x) {
+    void permute_0321_(
+            AccessorRestrict<const T, 4, u32> input_swapped,
+            AccessorRestrict<T, 4, u32> output_swapped,
+            Shape2<u32> shape_zx, u32 blocks_x
+    ) {
         using uninit_t = noa::cuda::utils::uninitialized_type_t<T>;
         __shared__ uninit_t buffer[TILE_DIM][TILE_DIM + 1];
         T(& tile)[TILE_DIM][TILE_DIM + 1] = *reinterpret_cast<T(*)[TILE_DIM][TILE_DIM + 1]>(&buffer);
@@ -117,9 +119,11 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute_0321(const T* input, const Strides4<i64>& input_strides,
-                      T* output, const Strides4<i64>& output_strides,
-                      const Shape4<i64>& shape, Stream& stream) {
+    void permute_0321(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         const auto u_shape = shape.as_safe<u32>();
@@ -147,8 +151,10 @@ namespace noa::cuda::memory::details {
     }
 
     template<typename T>
-    void permute_0321_inplace(T* output, const Strides4<i64>& output_strides,
-                              const Shape4<i64>& shape, Stream& stream) {
+    void permute_0321_inplace(
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         if (shape[1] != shape[3])
             NOA_THROW("For a \"0321\" in-place permutation, shape[1] should be equal to shape[3]. Got {}", shape);

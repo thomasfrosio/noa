@@ -1,7 +1,7 @@
 #include <algorithm> // std::nth_element
 
 #include "noa/cpu/memory/Copy.hpp"
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/signal/Median.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 
@@ -231,7 +231,7 @@ namespace noa::cpu::signal {
 
         // If half precision, do the sort in single-precision.
         using Value = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        const auto buffer = cpu::memory::PtrHost<Value>::alloc(window_size * threads);
+        const auto buffer = cpu::memory::AllocatorHeap<Value>::allocate(window_size * threads);
 
         const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, i64>(output, output_strides);
@@ -274,7 +274,7 @@ namespace noa::cpu::signal {
 
         // If half precision, do the sort in single-precision.
         using Value = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        const auto buffer = cpu::memory::PtrHost<Value>::alloc(window_size * window_size * threads);
+        const auto buffer = cpu::memory::AllocatorHeap<Value>::allocate(window_size * window_size * threads);
 
         const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, i64>(output, output_strides);
@@ -319,7 +319,7 @@ namespace noa::cpu::signal {
 
         // If half precision, do the sort in single-precision.
         using Value = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        const auto buffer = cpu::memory::PtrHost<Value>::alloc(window_size * window_size * window_size * threads);
+        const auto buffer = cpu::memory::AllocatorHeap<Value>::allocate(window_size * window_size * window_size * threads);
 
         const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, i64>(output, output_strides);

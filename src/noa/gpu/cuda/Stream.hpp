@@ -218,6 +218,29 @@ namespace noa::cuda {
             #endif
         }
 
+        // Enqueues a kernel launch to the stream.
+        template<typename K, typename ...Args>
+        void enqueue([[maybe_unused]] K kernel,
+                     [[maybe_unused]] LaunchConfig config,
+                     [[maybe_unused]] Args&& ... args) {
+            #ifndef __CUDACC__
+            NOA_THROW("To launch kernels, the compilation must be steered by NVCC "
+                      "(i.e. this function should be called from CUDA C/C++ .cu files)");
+            #else
+            NOA_ASSERT(m_core);
+            // Cooperative kernels are not supported by the triple-chevron syntax.
+            const DeviceGuard guard(m_device);
+            if (config.cooperative) {
+                NOA_THROW("Cooperative kernels are not supported yet");
+            } else {
+                kernel<<<config.blocks, config.threads, config.bytes_shared_memory, m_core->handle>>>(::std::forward<Args>(args)...);
+                const auto err = cudaGetLastError();
+                if (err)
+                    NOA_THROW("Failed to launch the kernel, with message: {}", error2string(err));
+            }
+            #endif
+        }
+
         // Attach some shared_ptr to the stream. Anything that is not a std::shared_ptr is ignored.
         // By incrementing the reference count this function guarantees that the memory managed by the shared_ptr(s)
         // stays valid until the stream reaches this point. The attached memory is implicitly released by

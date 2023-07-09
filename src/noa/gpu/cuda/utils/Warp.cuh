@@ -12,7 +12,7 @@ namespace noa::cuda::utils::details {
 
 namespace noa::cuda::utils {
     template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>
-    NOA_FD T warp_shuffle(T value, int32_t source, int32_t width = 32, uint32_t mask = 0xffffffff) {
+    NOA_FD T warp_shuffle(T value, i32 source, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (noa::traits::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_sync(mask, *reinterpret_cast<__half2*>(&value), source, width);
             return *reinterpret_cast<c16*>(&tmp);
@@ -22,7 +22,7 @@ namespace noa::cuda::utils {
             return T(__shfl_sync(mask, value.real, source, width),
                      __shfl_sync(mask, value.imag, source, width));
         } else if (noa::traits::is_int_v<T> && sizeof(T) < 4) {
-            return static_cast<T>(__shfl_sync(mask, static_cast<int32_t>(value), source, width));
+            return static_cast<T>(__shfl_sync(mask, static_cast<i32>(value), source, width));
         } else {
             return __shfl_sync(mask, value, source, width);
         }
@@ -30,7 +30,7 @@ namespace noa::cuda::utils {
     }
 
     template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>
-    NOA_FD T warp_suffle_down(T value, uint32_t delta, int32_t width = 32, uint32_t mask = 0xffffffff) {
+    NOA_FD T warp_suffle_down(T value, u32 delta, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (noa::traits::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_down_sync(mask, *reinterpret_cast<__half2*>(&value), delta, width);
             return *reinterpret_cast<c16*>(&tmp);
@@ -40,7 +40,7 @@ namespace noa::cuda::utils {
             return T(__shfl_down_sync(mask, value.real, delta, width),
                      __shfl_down_sync(mask, value.imag, delta, width));
         } else if (noa::traits::is_int_v<T> && sizeof(T) < 4) {
-            return static_cast<T>(__shfl_down_sync(mask, static_cast<int32_t>(value), delta, width));
+            return static_cast<T>(__shfl_down_sync(mask, static_cast<i32>(value), delta, width));
         } else {
             return __shfl_down_sync(mask, value, delta, width);
         }

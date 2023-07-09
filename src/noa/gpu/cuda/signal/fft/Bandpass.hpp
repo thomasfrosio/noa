@@ -13,17 +13,20 @@ namespace noa::cuda::signal::fft::details {
 
 namespace noa::cuda::signal::fft {
     template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void lowpass(const T* input, const Strides4<i64>& input_strides,
-                 T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                 f32 cutoff, f32 width, Stream& stream);
+    void lowpass(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            f32 cutoff, f32 width, Stream& stream);
 
     template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void highpass(const T* input, const Strides4<i64>& input_strides,
-                  T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                  f32 cutoff, f32 width, Stream& stream);
+    void highpass(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            f32 cutoff, f32 width, Stream& stream);
 
     template<noa::fft::Remap REMAP, typename T, typename = std::enable_if_t<details::is_valid_pass_v<REMAP, T>>>
-    void bandpass(const T* input, const Strides4<i64>& input_strides,
-                  T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                  f32 cutoff_high, f32 cutoff_low, f32 width_high, f32 width_low, Stream& stream);
+    void bandpass(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            f32 cutoff_high, f32 cutoff_low, f32 width_high, f32 width_low, Stream& stream);
 }

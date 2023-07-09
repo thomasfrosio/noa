@@ -17,7 +17,7 @@ namespace noa::cuda::math {
     inline void real(const Complex<T>* input, const Strides4<i64>& input_strides,
                      T* real, const Strides4<i64>& real_strides,
                      const Shape4<i64>& shape, Stream& stream) {
-        cuda::ewise_unary(input, input_strides, real, real_strides, shape, noa::real_t{}, stream);
+        noa::cuda::ewise_unary(input, input_strides, real, real_strides, shape, noa::real_t{}, stream);
     }
 
     // Extracts the imaginary part of complex numbers.
@@ -25,7 +25,7 @@ namespace noa::cuda::math {
     inline void imag(const Complex<T>* input, const Strides4<i64>& input_strides,
                      T* imag, const Strides4<i64>& imag_strides,
                      const Shape4<i64>& shape, Stream& stream) {
-        cuda::ewise_unary(input, input_strides, imag, imag_strides, shape, noa::imag_t{}, stream);
+        noa::cuda::ewise_unary(input, input_strides, imag, imag_strides, shape, noa::imag_t{}, stream);
     }
 
     // Fuses the real and imaginary components.

@@ -3,6 +3,7 @@
 #include "noa/cpu/memory/Arange.hpp"
 #include "noa/cpu/memory/Linspace.hpp"
 #include "noa/cpu/memory/Iota.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 #include "noa/cpu/memory/Set.hpp"
 
 #ifdef NOA_ENABLE_CUDA
@@ -63,7 +64,7 @@ namespace noa::memory {
                 (!Device::is_any(DeviceType::GPU) || (option.allocator() == Allocator::DEFAULT ||
                                                       option.allocator() == Allocator::DEFAULT_ASYNC ||
                                                       option.allocator() == Allocator::PITCHED))) {
-                return Array<Value>(cpu::memory::PtrHost<Value>::calloc(shape.elements()),
+                return Array<Value>(cpu::memory::AllocatorHeap<Value>::calloc(shape.elements()),
                                     shape, shape.strides(), option);
             }
         }

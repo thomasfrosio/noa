@@ -8,7 +8,6 @@ namespace noa::cuda::memory::details {
               T* dst, const Strides4<i64>& dst_strides,
               const Shape4<i64>& shape, Stream& stream) {
         noa::cuda::utils::ewise_unary<PointerTraits::RESTRICT>(
-                "memory::copy",
                 src, src_strides,
                 dst, dst_strides,
                 shape, stream, noa::copy_t{});

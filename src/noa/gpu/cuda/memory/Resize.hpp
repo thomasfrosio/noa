@@ -15,9 +15,11 @@ namespace noa::cuda::memory {
 
     // Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
     template<typename T, typename = std::enable_if_t<traits::is_restricted_numeric_v<T>>>
-    void resize(const T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-                T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                BorderMode border_mode, T border_value, Stream& stream) {
+    void resize(
+            const T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            BorderMode border_mode, T border_value, Stream& stream
+    ) {
         auto [border_left, border_right] = noa::algorithm::memory::borders(input_shape, output_shape);
         resize(input, input_strides, input_shape,
                border_left, border_right,

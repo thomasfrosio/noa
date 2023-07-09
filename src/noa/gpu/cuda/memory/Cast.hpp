@@ -7,9 +7,9 @@
 namespace noa::cuda::memory::details {
     template<typename T, typename U>
     constexpr bool is_valid_cast_v =
-            ((traits::is_restricted_scalar_v<T> || std::is_same_v<T, bool>) &&
-             (traits::is_restricted_scalar_v<U> || std::is_same_v<U, bool>)) ||
-            (traits::is_complex_v<T> && traits::is_complex_v<U>);
+            ((noa::traits::is_restricted_scalar_v<T> || std::is_same_v<T, bool>) &&
+             (noa::traits::is_restricted_scalar_v<U> || std::is_same_v<U, bool>)) ||
+            (noa::traits::is_complex_v<T> && noa::traits::is_complex_v<U>);
 }
 
 namespace noa::cuda::memory {

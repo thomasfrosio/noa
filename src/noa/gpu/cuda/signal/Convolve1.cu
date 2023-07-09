@@ -13,10 +13,11 @@ namespace {
 
     template<typename T>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void convolve_1d_(AccessorRestrict<const T, 4, u32> input,
-                      AccessorRestrict<T, 4, u32> output,
-                      Shape2<i32> shape, i32 filter_size, u32 blocks_x) {
-
+    void convolve_1d_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output,
+            Shape2<i32> shape, i32 filter_size, u32 blocks_x
+    ) {
         const auto index = noa::indexing::offset2index(blockIdx.x, blocks_x);
         const auto tid = Vec2<i32>{threadIdx.y, threadIdx.x};
         const auto gid = Vec4<i32>{blockIdx.z,
@@ -54,9 +55,11 @@ namespace {
 
 namespace noa::cuda::signal {
     template<typename T, typename U, typename>
-    void convolve_1d(const T* input, const Strides4<i64>& input_strides,
-                     T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-                     const U* filter, const Shape1<i64>& filter_shape, Stream& stream) {
+    void convolve_1d(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+            const U* filter, const Shape1<i64>& filter_shape, Stream& stream
+    ) {
         NOA_ASSERT(input != output && noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());

@@ -12,7 +12,7 @@ namespace noa::cuda::memory {
 
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const auto kernel = noa::algorithm::memory::iota_1d<i64, i64>(src, tile);
-        noa::cuda::utils::iwise_1d("iota", elements, kernel, stream);
+        noa::cuda::utils::iwise_1d(elements, kernel, stream);
     }
 
     template<typename T, typename>
@@ -23,7 +23,7 @@ namespace noa::cuda::memory {
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(src, stream.device());
         const auto kernel = noa::algorithm::memory::iota_4d<i64, i64>(src, strides, shape, tile);
-        noa::cuda::utils::iwise_4d("iota", shape, kernel, stream);
+        noa::cuda::utils::iwise_4d(shape, kernel, stream);
     }
 
     #define NOA_INSTANTIATE_IOTA_(T)                    \

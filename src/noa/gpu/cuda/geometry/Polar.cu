@@ -4,8 +4,8 @@
 
 #include "noa/gpu/cuda/geometry/Interpolator.hpp"
 #include "noa/gpu/cuda/geometry/Polar.hpp"
-#include "noa/gpu/cuda/memory/PtrArray.hpp"
-#include "noa/gpu/cuda/memory/PtrTexture.hpp"
+#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
+#include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 
@@ -19,8 +19,8 @@ namespace {
             const Vec2<f32>& cartesian_center,
             const Vec2<f32>& radius_range, bool radius_range_endpoint,
             const Vec2<f32>& angle_range, bool angle_range_endpoint,
-            cuda::Stream& stream) {
-
+            noa::cuda::Stream& stream
+    ) {
         const auto i_polar_shape = polar_shape.as_safe<i32>();
         const auto iwise_shape = i_polar_shape.filter(0, 2, 3);
         const auto polar_accessor = AccessorRestrict<Value, 3, i32>(polar, polar_strides.filter(0, 2, 3).as_safe<i32>());
@@ -32,7 +32,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::LINEAR: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, LAYERED>;
@@ -40,7 +40,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::COSINE: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::COSINE, Value, false, LAYERED>;
@@ -48,7 +48,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::CUBIC, Value, false, LAYERED>;
@@ -56,7 +56,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC_BSPLINE: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::CUBIC_BSPLINE, Value, false, LAYERED>;
@@ -64,7 +64,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::LINEAR_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, LAYERED>;
@@ -72,7 +72,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::COSINE_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::COSINE_FAST, Value, false, LAYERED>;
@@ -80,7 +80,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC_BSPLINE_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::CUBIC_BSPLINE_FAST, Value, false, LAYERED>;
@@ -88,7 +88,7 @@ namespace {
                         interpolator_t(cartesian), polar_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
         }
     }
@@ -100,8 +100,8 @@ namespace {
             const Vec2<f32>& cartesian_center,
             const Vec2<f32>& radius_range, bool radius_range_endpoint,
             const Vec2<f32>& angle_range, bool angle_range_endpoint,
-            cuda::Stream& stream) {
-
+            noa::cuda::Stream& stream
+    ) {
         const auto i_polar_shape = polar_shape.as_safe<i32>();
         const auto iwise_shape = cartesian_shape.filter(0, 2, 3).as_safe<i32>();
         const auto cartesian_accessor = AccessorRestrict<Value, 3, i32>(
@@ -114,7 +114,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::LINEAR: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR, Value, false, LAYERED>;
@@ -122,7 +122,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::COSINE: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::COSINE, Value, false, LAYERED>;
@@ -130,7 +130,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::CUBIC, Value, false, LAYERED>;
@@ -138,7 +138,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC_BSPLINE: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::CUBIC_BSPLINE, Value, false, LAYERED>;
@@ -146,7 +146,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::LINEAR_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, LAYERED>;
@@ -154,7 +154,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::COSINE_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::COSINE_FAST, Value, false, LAYERED>;
@@ -162,7 +162,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
             case InterpMode::CUBIC_BSPLINE_FAST: {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::CUBIC_BSPLINE_FAST, Value, false, LAYERED>;
@@ -170,7 +170,7 @@ namespace {
                         interpolator_t(polar), i_polar_shape, cartesian_accessor, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::polar2cartesian", iwise_shape, kernel, stream);
+                return noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
             }
         }
     }
@@ -178,12 +178,14 @@ namespace {
 
 namespace noa::cuda::geometry {
     template<typename Value, typename>
-    void cartesian2polar(const Value* cartesian, Strides4<i64> cartesian_strides, Shape4<i64> cartesian_shape,
-                         Value* polar, Strides4<i64> polar_strides, Shape4<i64> polar_shape,
-                         Vec2<f32> cartesian_center,
-                         const Vec2<f32>& radius_range, bool radius_range_endpoint,
-                         const Vec2<f32>& angle_range, bool angle_range_endpoint,
-                         InterpMode interp_mode, Stream& stream) {
+    void cartesian2polar(
+            const Value* cartesian, Strides4<i64> cartesian_strides, Shape4<i64> cartesian_shape,
+            Value* polar, Strides4<i64> polar_strides, Shape4<i64> polar_shape,
+            Vec2<f32> cartesian_center,
+            const Vec2<f32>& radius_range, bool radius_range_endpoint,
+            const Vec2<f32>& angle_range, bool angle_range_endpoint,
+            InterpMode interp_mode, Stream& stream
+    ) {
         NOA_ASSERT(cartesian != polar && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT_DEVICE_PTR(cartesian, stream.device());
         NOA_ASSERT_DEVICE_PTR(polar, stream.device());
@@ -222,7 +224,7 @@ namespace noa::cuda::geometry {
                         interpolator, output_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", i_polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(i_polar_shape_2d, kernel, stream);
             }
             case InterpMode::LINEAR_FAST:
             case InterpMode::LINEAR: {
@@ -232,7 +234,7 @@ namespace noa::cuda::geometry {
                         interpolator, output_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", i_polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(i_polar_shape_2d, kernel, stream);
             }
             case InterpMode::COSINE_FAST:
             case InterpMode::COSINE: {
@@ -242,7 +244,7 @@ namespace noa::cuda::geometry {
                         interpolator, output_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", i_polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(i_polar_shape_2d, kernel, stream);
             }
             case InterpMode::CUBIC: {
                 const auto interpolator = noa::geometry::interpolator_2d<BorderMode::ZERO, InterpMode::CUBIC>(
@@ -251,7 +253,7 @@ namespace noa::cuda::geometry {
                         interpolator, output_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", i_polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(i_polar_shape_2d, kernel, stream);
             }
             case InterpMode::CUBIC_BSPLINE_FAST:
             case InterpMode::CUBIC_BSPLINE: {
@@ -261,26 +263,28 @@ namespace noa::cuda::geometry {
                         interpolator, output_accessor, i_polar_shape, cartesian_center,
                         radius_range, radius_range_endpoint,
                         angle_range, angle_range_endpoint);
-                return noa::cuda::utils::iwise_3d("geometry::cartesian2polar", i_polar_shape_2d, kernel, stream);
+                return noa::cuda::utils::iwise_3d(i_polar_shape_2d, kernel, stream);
             }
         }
     }
 
     template<typename Value, typename>
-    void cartesian2polar(cudaArray* array,
-                         cudaTextureObject_t cartesian,
-                         InterpMode cartesian_interp, const Shape4<i64>& cartesian_shape,
-                         Value* polar, const Strides4<i64>& polar_strides, const Shape4<i64>& polar_shape,
-                         const Vec2<f32>& cartesian_center,
-                         const Vec2<f32>& radius_range, bool radius_range_endpoint,
-                         const Vec2<f32>& angle_range, bool angle_range_endpoint,
-                         Stream& stream) {
+    void cartesian2polar(
+            cudaArray* array,
+            cudaTextureObject_t cartesian,
+            InterpMode cartesian_interp, const Shape4<i64>& cartesian_shape,
+            Value* polar, const Strides4<i64>& polar_strides, const Shape4<i64>& polar_shape,
+            const Vec2<f32>& cartesian_center,
+            const Vec2<f32>& radius_range, bool radius_range_endpoint,
+            const Vec2<f32>& angle_range, bool angle_range_endpoint,
+            Stream& stream
+    ) {
         NOA_ASSERT(array && cartesian && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT_DEVICE_PTR(polar, stream.device());
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(cartesian) == array);
+        NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(cartesian) == array);
         NOA_ASSERT(polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[1] == 1);
-        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(array);
+        const bool is_layered = noa::cuda::memory::AllocatorArray<Value>::is_layered(array);
 
         if (is_layered) {
             NOA_ASSERT(cartesian_shape[0] == polar_shape[0]);
@@ -346,7 +350,7 @@ namespace noa::cuda::geometry {
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i32>(
                         interpolator, i_polar_shape, output_accessor, cartesian_center,
                         radius_range, radius_range_endpoint, angle_range, angle_range_endpoint);
-                noa::cuda::utils::iwise_3d("geometry::polar2cartesian", cartesian_shape_2d, kernel, stream);
+                noa::cuda::utils::iwise_3d(cartesian_shape_2d, kernel, stream);
                 break;
             }
             case InterpMode::LINEAR_FAST:
@@ -356,7 +360,7 @@ namespace noa::cuda::geometry {
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i32>(
                         interpolator, i_polar_shape, output_accessor, cartesian_center,
                         radius_range, radius_range_endpoint, angle_range, angle_range_endpoint);
-                noa::cuda::utils::iwise_3d("geometry::polar2cartesian", cartesian_shape_2d, kernel, stream);
+                noa::cuda::utils::iwise_3d(cartesian_shape_2d, kernel, stream);
                 break;
             }
             case InterpMode::COSINE_FAST:
@@ -366,7 +370,7 @@ namespace noa::cuda::geometry {
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i32>(
                         interpolator, i_polar_shape, output_accessor, cartesian_center,
                         radius_range, radius_range_endpoint, angle_range, angle_range_endpoint);
-                noa::cuda::utils::iwise_3d("geometry::polar2cartesian", cartesian_shape_2d, kernel, stream);
+                noa::cuda::utils::iwise_3d(cartesian_shape_2d, kernel, stream);
                 break;
             }
             case InterpMode::CUBIC: {
@@ -375,7 +379,7 @@ namespace noa::cuda::geometry {
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i32>(
                         interpolator, i_polar_shape, output_accessor, cartesian_center,
                         radius_range, radius_range_endpoint, angle_range, angle_range_endpoint);
-                noa::cuda::utils::iwise_3d("geometry::polar2cartesian", cartesian_shape_2d, kernel, stream);
+                noa::cuda::utils::iwise_3d(cartesian_shape_2d, kernel, stream);
                 break;
             }
             case InterpMode::CUBIC_BSPLINE_FAST:
@@ -385,25 +389,27 @@ namespace noa::cuda::geometry {
                 const auto kernel = noa::algorithm::geometry::polar2cartesian<i32>(
                         interpolator, i_polar_shape, output_accessor, cartesian_center,
                         radius_range, radius_range_endpoint, angle_range, angle_range_endpoint);
-                noa::cuda::utils::iwise_3d("geometry::polar2cartesian", cartesian_shape_2d, kernel, stream);
+                noa::cuda::utils::iwise_3d(cartesian_shape_2d, kernel, stream);
                 break;
             }
         }
     }
 
     template<typename Value, typename>
-    void polar2cartesian(cudaArray* array,
-                         cudaTextureObject_t polar,
-                         InterpMode polar_interp, const Shape4<i64>& polar_shape,
-                         Value* cartesian, const Strides4<i64>& cartesian_strides, const Shape4<i64>& cartesian_shape,
-                         const Vec2<f32>& cartesian_center,
-                         const Vec2<f32>& radius_range, bool radius_range_endpoint,
-                         const Vec2<f32>& angle_range, bool angle_range_endpoint,
-                         Stream& stream) {
+    void polar2cartesian(
+            cudaArray* array,
+            cudaTextureObject_t polar,
+            InterpMode polar_interp, const Shape4<i64>& polar_shape,
+            Value* cartesian, const Strides4<i64>& cartesian_strides, const Shape4<i64>& cartesian_shape,
+            const Vec2<f32>& cartesian_center,
+            const Vec2<f32>& radius_range, bool radius_range_endpoint,
+            const Vec2<f32>& angle_range, bool angle_range_endpoint,
+            Stream& stream
+    ) {
         NOA_ASSERT(array && cartesian && noa::all(cartesian_shape > 0) && noa::all(polar_shape > 0));
         NOA_ASSERT_DEVICE_PTR(cartesian, stream.device());
-        const bool is_layered = noa::cuda::memory::PtrArray<Value>::is_layered(array);
-        NOA_ASSERT(noa::cuda::memory::PtrTexture::array(polar) == array);
+        const bool is_layered = noa::cuda::memory::AllocatorArray<Value>::is_layered(array);
+        NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(polar) == array);
         NOA_ASSERT(polar_shape[1] == 1);
         NOA_ASSERT(cartesian_shape[1] == 1);
 

@@ -167,8 +167,7 @@ namespace noa::cuda::utils {
     // shared-memory. These functions also support dynamic shared-memory.
 
     template<typename Config = IwiseStaticConfigDefault2D, typename Index, typename IwiseOp>
-    void iwise_4d(const char* name,
-                  const Vec4<Index>& start,
+    void iwise_4d(const Vec4<Index>& start,
                   const Vec4<Index>& end,
                   IwiseOp&& iwise_op,
                   Stream& stream,
@@ -181,15 +180,13 @@ namespace noa::cuda::utils {
         } else {
             const auto [config, blocks_x] = details::iwise_4d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = end.filter(2, 3);
-            stream.enqueue(name,
-                           details::iwise_4d_static<iwise_op_value_t, Index, Vec4<Index>, Config>,
+            stream.enqueue(details::iwise_4d_static<iwise_op_value_t, Index, Vec4<Index>, Config>,
                            config, std::forward<IwiseOp>(iwise_op), start, end_2d, blocks_x);
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault2D, typename Index, typename IwiseOp>
-    void iwise_4d(const char* name,
-                  const Shape4<Index>& shape,
+    void iwise_4d(const Shape4<Index>& shape,
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
@@ -199,15 +196,13 @@ namespace noa::cuda::utils {
         } else {
             const auto[config, blocks_x] = details::iwise_4d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = shape.filter(2, 3).vec();
-            stream.enqueue(name,
-                           details::iwise_4d_static<iwise_op_value_t, Index, Empty, Config>,
+            stream.enqueue(details::iwise_4d_static<iwise_op_value_t, Index, Empty, Config>,
                            config, std::forward<IwiseOp>(iwise_op), Empty{}, end_2d, blocks_x);
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault2D, typename Index, typename IwiseOp>
-    void iwise_3d(const char* name,
-                  const Vec3<Index>& start,
+    void iwise_3d(const Vec3<Index>& start,
                   const Vec3<Index>& end,
                   IwiseOp&& iwise_op,
                   Stream& stream,
@@ -220,15 +215,13 @@ namespace noa::cuda::utils {
         } else {
             const auto config = details::iwise_3d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = end.pop_front();
-            stream.enqueue(name,
-                           details::iwise_3d_static<iwise_op_value_t, Index, Vec3<Index>, Config>,
+            stream.enqueue(details::iwise_3d_static<iwise_op_value_t, Index, Vec3<Index>, Config>,
                            config, std::forward<IwiseOp>(iwise_op), start, end_2d);
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault2D, typename Index, typename IwiseOp>
-    void iwise_3d(const char* name,
-                  const Shape3<Index>& shape,
+    void iwise_3d(const Shape3<Index>& shape,
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
@@ -238,15 +231,13 @@ namespace noa::cuda::utils {
         } else {
             const auto config = details::iwise_3d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = shape.pop_front().vec();
-            stream.enqueue(name,
-                           details::iwise_3d_static<iwise_op_value_t, Index, Empty, Config>,
+            stream.enqueue(details::iwise_3d_static<iwise_op_value_t, Index, Empty, Config>,
                            config, std::forward<IwiseOp>(iwise_op), Empty{}, end_2d);
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault2D, typename Index, typename IwiseOp>
-    void iwise_2d(const char* name,
-                  const Vec2<Index>& start,
+    void iwise_2d(const Vec2<Index>& start,
                   const Vec2<Index>& end,
                   IwiseOp&& iwise_op,
                   Stream& stream,
@@ -258,15 +249,13 @@ namespace noa::cuda::utils {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_2d_static_config<Config>(shape, bytes_shared_memory);
-            stream.enqueue(name,
-                           details::iwise_2d_static<iwise_op_value_t, Index, Vec2<Index>, Config>,
+            stream.enqueue(details::iwise_2d_static<iwise_op_value_t, Index, Vec2<Index>, Config>,
                            config, std::forward<IwiseOp>(iwise_op), start, end);
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault2D, typename Index, typename IwiseOp>
-    void iwise_2d(const char* name,
-                  const Shape2<Index>& shape,
+    void iwise_2d(const Shape2<Index>& shape,
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
@@ -275,15 +264,13 @@ namespace noa::cuda::utils {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_2d_static_config<Config>(shape, bytes_shared_memory);
-            stream.enqueue(name,
-                           details::iwise_2d_static<iwise_op_value_t, Index, Empty, Config>,
+            stream.enqueue(details::iwise_2d_static<iwise_op_value_t, Index, Empty, Config>,
                            config, std::forward<IwiseOp>(iwise_op), Empty{}, shape.vec());
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault1D, typename Index, typename IwiseOp>
-    void iwise_1d(const char* name,
-                  Index start,
+    void iwise_1d(Index start,
                   Index end,
                   IwiseOp&& iwise_op,
                   Stream& stream,
@@ -295,15 +282,13 @@ namespace noa::cuda::utils {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_1d_static_config<Config>(size, bytes_shared_memory);
-            stream.enqueue(name,
-                           details::iwise_1d_static<iwise_op_value_t, Index, Index, Config>,
+            stream.enqueue(details::iwise_1d_static<iwise_op_value_t, Index, Index, Config>,
                            config, std::forward<IwiseOp>(iwise_op), start, end);
         }
     }
 
     template<typename Config = IwiseStaticConfigDefault1D, typename Index, typename IwiseOp>
-    void iwise_1d(const char* name,
-                  Index size,
+    void iwise_1d(Index size,
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
@@ -312,8 +297,7 @@ namespace noa::cuda::utils {
             static_assert(noa::traits::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_1d_static_config<Config>(size, bytes_shared_memory);
-            stream.enqueue(name,
-                           details::iwise_1d_static<iwise_op_value_t, Index, Empty, Config>,
+            stream.enqueue(details::iwise_1d_static<iwise_op_value_t, Index, Empty, Config>,
                            config, std::forward<IwiseOp>(iwise_op), Empty{}, size);
         }
     }

@@ -16,9 +16,11 @@ namespace {
     //  - input_strides[2]->output_strides[1]
     template<typename T, bool IS_MULTIPLE_OF_TILE>
     __global__ __launch_bounds__(BLOCK_SIZE.x * BLOCK_SIZE.y)
-    void permute_0213_(AccessorRestrict<const T, 4, u32> input,
-                       AccessorRestrict<T, 4, u32> output_swapped,
-                       Shape2<u32> shape_yx, u32 blocks_x) {
+    void permute_0213_(
+            AccessorRestrict<const T, 4, u32> input,
+            AccessorRestrict<T, 4, u32> output_swapped,
+            Shape2<u32> shape_yx, u32 blocks_x
+    ) {
         const Vec2<u32> tid{threadIdx.y, threadIdx.x};
         const Vec2<u32> index = noa::indexing::offset2index(blockIdx.x, blocks_x);
         const Vec2<u32> gid = TILE_DIM * index + tid;
@@ -74,9 +76,11 @@ namespace {
 
 namespace noa::cuda::memory::details {
     template<typename T>
-    void permute_0213(const T* input, const Strides4<i64>& input_strides,
-                      T* output, const Strides4<i64>& output_strides,
-                      const Shape4<i64>& shape, Stream& stream) {
+    void permute_0213(
+            const T* input, const Strides4<i64>& input_strides,
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         const auto u_shape = shape.as_safe<u32>();
@@ -101,8 +105,10 @@ namespace noa::cuda::memory::details {
     }
 
     template<typename T>
-    void permute_0213_inplace(T* output, const Strides4<i64>& output_strides,
-                              const Shape4<i64>& shape, Stream& stream) {
+    void permute_0213_inplace(
+            T* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, Stream& stream
+    ) {
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
         if (shape[1] != shape[2])
             NOA_THROW("For a \"0213\" in-place permutation, shape[1] should be equal to shape[2]. Got {}", shape);

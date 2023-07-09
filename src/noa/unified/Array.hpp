@@ -4,14 +4,14 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Indexing.hpp"
 
-#include "noa/cpu/memory/PtrHost.hpp"
+#include "noa/cpu/memory/AllocatorHeap.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/memory/Permute.hpp"
-#include "noa/gpu/cuda/memory/PtrDevice.hpp"
-#include "noa/gpu/cuda/memory/PtrDevicePadded.hpp"
-#include "noa/gpu/cuda/memory/PtrManaged.hpp"
-#include "noa/gpu/cuda/memory/PtrPinned.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevice.hpp"
+#include "noa/gpu/cuda/memory/AllocatorDevicePadded.hpp"
+#include "noa/gpu/cuda/memory/AllocatorManaged.hpp"
+#include "noa/gpu/cuda/memory/AllocatorPinned.hpp"
 #include "noa/gpu/cuda/utils/Pointers.hpp"
 #endif
 
@@ -388,87 +388,91 @@ namespace noa {
                 return;
             }
 
+            using namespace noa::cpu::memory;
+            #ifdef NOA_ENABLE_CUDA
+            using namespace noa::cuda::memory;
+            #endif
+
             const Device device = m_options.device();
             switch (m_options.allocator()) {
                 case Allocator::NONE:
                     break;
                 case Allocator::DEFAULT:
                     if (device.is_cpu()) {
-                        m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
+                        m_shared = AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
-                        m_shared = cuda::memory::PtrDevice<value_type>::alloc(elements);
+                        m_shared = AllocatorDevice<value_type>::allocate(elements);
                         #endif
                     }
                     break;
                 case Allocator::DEFAULT_ASYNC:
                     if (device.is_cpu()) {
-                        m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
+                        m_shared = AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        m_shared = cuda::memory::PtrDevice<value_type>::alloc(elements, Stream::current(device).cuda());
+                        m_shared = AllocatorDevice<value_type>::allocate_async(
+                                elements, Stream::current(device).cuda());
                         #endif
                     }
                     break;
                 case Allocator::PITCHED:
                     if (device.is_cpu()) {
-                        m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
+                        m_shared = AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
-                        // PtrDevicePadded requires sizeof(T) <= 16 bytes.
-                        // We could remove this restriction, but for now since it is only for
-                        // static vectors and matrices, just switch to classic cudaMalloc.
+                        // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
                         if constexpr (noa::traits::is_numeric_v<value_type>) {
-                            auto [ptr, pitch] = cuda::memory::PtrDevicePadded<value_type>::alloc(m_shape);
+                            auto [ptr, strides] = AllocatorDevicePadded<value_type>::allocate(m_shape);
                             m_shared = std::move(ptr);
-                            m_strides = Shape4<i64>{m_shape[0], m_shape[1], m_shape[2], pitch}.strides();
+                            m_strides = strides;
                         } else {
-                            m_shared = cuda::memory::PtrDevice<value_type>::alloc(elements);
+                            m_shared = AllocatorDevice<value_type>::allocate(elements);
                         }
                         #endif
                     }
                     break;
                 case Allocator::PINNED: {
                     if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
-                        m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
+                        m_shared = AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
-                        m_shared = cuda::memory::PtrPinned<value_type>::alloc(elements);
+                        m_shared = AllocatorPinned<value_type>::allocate(elements);
                         #endif
                     }
                     break;
                 }
                 case Allocator::MANAGED: {
                     if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
-                        m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
+                        m_shared = AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const Device gpu = device.is_gpu() ? device : Device::current(DeviceType::GPU);
                         const DeviceGuard guard(gpu); // could be helpful when retrieving device
-                        cuda::Stream& cuda_stream = Stream::current(gpu).cuda();
-                        m_shared = cuda::memory::PtrManaged<value_type>::alloc(elements, cuda_stream);
+                        auto& cuda_stream = Stream::current(gpu).cuda();
+                        m_shared = AllocatorManaged<value_type>::allocate(elements, cuda_stream);
                         #endif
                     }
                     break;
                 }
                 case Allocator::MANAGED_GLOBAL: {
                     if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
-                        m_shared = cpu::memory::PtrHost<value_type>::alloc(elements);
+                        m_shared = AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
-                        m_shared = cuda::memory::PtrManaged<value_type>::alloc(elements);
+                        m_shared = AllocatorManaged<value_type>::allocate_global(elements);
                         #endif
                     }
                     break;
                 }
                 case Allocator::CUDA_ARRAY:
-                    NOA_THROW("CUDA arrays are not supported by the Array allocator. See Texture instead");
+                    NOA_THROW("CUDA arrays are not supported by the Array's allocator. Use Texture instead");
                 default:
-                    NOA_THROW("Allocator {} is not supported by the Array allocator", m_options.allocator());
+                    NOA_THROW("Allocator {} is not supported by the Array's allocator", m_options.allocator());
             }
         }
 
@@ -480,9 +484,9 @@ namespace noa {
 
             if (option.device().is_cpu()) {
                 if (!Device::is_any(DeviceType::GPU))
-                    return; // Everything is allocated using PtrHost
+                    return; // Everything is allocated using AllocatorHeap
                 #ifdef NOA_ENABLE_CUDA
-                const cudaPointerAttributes attr = cuda::utils::pointer_attributes(ptr);
+                const cudaPointerAttributes attr = noa::cuda::utils::pointer_attributes(ptr);
                 switch (attr.type) {
                     case cudaMemoryTypeUnregistered:
                         if (alloc != Allocator::DEFAULT &&
@@ -513,7 +517,7 @@ namespace noa {
 
             } else if (option.device().is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                const cudaPointerAttributes attr = cuda::utils::pointer_attributes(ptr);
+                const cudaPointerAttributes attr = noa::cuda::utils::pointer_attributes(ptr);
                 switch (attr.type) {
                     case cudaMemoryTypeUnregistered:
                         NOA_THROW("GPU array is pointing to a CPU-only pointer");

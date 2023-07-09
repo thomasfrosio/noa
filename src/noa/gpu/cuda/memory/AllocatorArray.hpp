@@ -1,25 +1,23 @@
 #pragma once
 
-#include <type_traits>
-#include <utility>      // std::exchange
-
 #include "noa/core/Definitions.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 
 // CUDA arrays:
-//  -   Data resides in global memory. The host can cudaMemcpy to it and the device can only access it through texture
-//      reads or surface reads and writes.
-//  -   They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
-//      2 components). Elements are associated with a type (components have the same type), that may be signed or
-//      unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
-//  -   They are either 1D, 2D or 3D. Note that an "empty" dimension is noted as 0 in the CUDA API, but PtrArray is
-//      following noa's "shape" convention (i.e. "empty" dimensions are noted as 1).
+//  - Data resides in global memory. The host can cudaMemcpy to it, and the device can only access it
+//    through texture reads or surface reads and writes.
+//  - They are usually associated with a type: each element can have 1, 2 or 4 components (e.g. complex types have
+//    2 components). Elements are associated with a type (components have the same type), that may be signed or
+//    unsigned 8-, 16-, or 32-bit integers, 16-bit floats, or 32-bit floats.
+//  - They are either 1D, 2D or 3D. Note that an "empty" dimension is noted as 0 in the CUDA API, but AllocatorArray
+//    is following our "shape" convention (i.e. "empty" dimensions are noted as 1). See shape2extent.
 //
 // Notes:
-//  - They are cache optimized for 2D/3D spatial locality.
+//  - They are cached-optimized for 2D/3D spatial locality.
 //  - Surfaces and textures can be bound to same CUDA array.
-//  - They are mostly used if the content changes rarely. Although reusing them with cudaMemcpy is possible.
+//  - They are mostly used when the content changes rarely.
+//    Although reusing them with cudaMemcpy is possible and surfaces can write to it.
 
 // Add specialization for our complex types.
 // Used for CUDA arrays and textures.
@@ -28,21 +26,21 @@ template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { retu
 template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
 
 namespace noa::cuda::memory {
-    struct PtrArrayDeleter {
+    struct AllocatorArrayDeleter {
         void operator()(cudaArray* array) const noexcept {
             [[maybe_unused]] const cudaError_t err = cudaFreeArray(array);
             NOA_ASSERT(err == cudaSuccess);
         }
     };
 
-    // A ND CUDA array of integers (excluding u64, i64), f32 or c32.
+    // A {1|2|3}d cuda array of i32, u32, f32, or c32.
     template<typename Value>
-    class PtrArray {
+    class AllocatorArray {
     public:
-        static_assert(traits::is_any_v<Value, i32, u32, f32, c32>);
+        static_assert(noa::traits::is_any_v<Value, i32, u32, f32, c32>);
         using value_type = Value;
+        using deleter_type = AllocatorArrayDeleter;
         using shared_type = Shared<cudaArray>;
-        using deleter_type = PtrArrayDeleter;
         using unique_type = Unique<cudaArray, deleter_type>;
 
     public: // static functions
@@ -96,7 +94,7 @@ namespace noa::cuda::memory {
             return flags & cudaArrayLayered;
         }
 
-        static unique_type alloc(const Shape4<i64>& shape, u32 flag = cudaArrayDefault) {
+        static unique_type allocate(const Shape4<i64>& shape, u32 flag = cudaArrayDefault) {
             const cudaExtent extent = shape2extent(shape, flag & cudaArrayLayered);
 
             cudaArray* ptr{};
@@ -104,43 +102,5 @@ namespace noa::cuda::memory {
             NOA_THROW_IF(cudaMalloc3DArray(&ptr, &desc, extent, flag));
             return unique_type{ptr};
         }
-
-    public: // member functions
-        // Creates an empty instance. Use one of the operator assignment to allocate new data.
-        constexpr PtrArray() = default;
-        constexpr /*implicit*/ PtrArray(std::nullptr_t) {}
-
-        // Allocates a CUDA array with a given BDHW shape on the current device using cudaMalloc3DArray.
-        explicit PtrArray(const Shape4<i64>& shape, u32 flags = cudaArrayDefault)
-                : m_ptr(alloc(shape, flags)), m_shape(shape) {}
-
-    public:
-        [[nodiscard]] constexpr cudaArray* get() const noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr cudaArray* data() const noexcept { return m_ptr.get(); }
-        [[nodiscard]] constexpr const shared_type& share() const noexcept { return m_ptr; }
-        [[nodiscard]] constexpr const Shape4<i64>& shape() const noexcept { return m_shape; }
-        [[nodiscard]] bool is_layered() const noexcept { return is_layered(get()); }
-        [[nodiscard]] constexpr bool is_empty() const noexcept { return m_ptr == nullptr; }
-        [[nodiscard]] constexpr explicit operator bool() const noexcept { return !is_empty(); }
-
-        // Attach the lifetime of the managed object with an alias.
-        // Constructs a shared_ptr which shares ownership information with the managed object,
-        // but holds an unrelated and unmanaged pointer alias. If the returned shared_ptr is
-        // the last of the group to go out of scope, it will call the stored deleter for the
-        // managed object of this instance. However, calling get() on this shared_ptr will always
-        // return a copy of alias. It is the responsibility of the programmer to make sure that
-        // alias remains valid as long as the managed object exists.
-        template<typename T>
-        [[nodiscard]] constexpr Shared<T[]> attach(T* alias) const noexcept { return {m_ptr, alias}; }
-
-        // Releases the ownership of the managed array, if any.
-        shared_type release() noexcept {
-            m_shape = 0;
-            return std::exchange(m_ptr, nullptr);
-        }
-
-    private:
-        shared_type m_ptr{nullptr};
-        Shape4<i64> m_shape{};
     };
 }

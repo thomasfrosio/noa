@@ -8,8 +8,8 @@
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/memory/PtrArray.hpp"
-#include "noa/gpu/cuda/memory/PtrTexture.hpp"
+#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
+#include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
 #include "noa/gpu/cuda/memory/Copy.hpp"
 #else
 namespace noa::cuda {
@@ -119,9 +119,9 @@ namespace noa {
                     const auto guard = DeviceGuard(device_target);
 
                     gpu_texture_type texture;
-                    texture.array = noa::cuda::memory::PtrArray<value_type>::alloc(
+                    texture.array = noa::cuda::memory::AllocatorArray<value_type>::allocate(
                             array.shape(), layered ? cudaArrayLayered : cudaArrayDefault);
-                    texture.texture = noa::cuda::memory::PtrTexture::alloc(
+                    texture.texture = noa::cuda::memory::AllocatorTexture::allocate(
                             texture.array.get(), interp_mode, border_mode);
 
                     if (device_target != array.device())
@@ -172,15 +172,15 @@ namespace noa {
                 m_texture = cpu_texture_type{{}, nullptr, cvalue};
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                if constexpr (sizeof(traits::value_type_t<value_type>) >= 8) {
+                if constexpr (sizeof(noa::traits::value_type_t<value_type>) >= 8) {
                     NOA_THROW("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     const auto guard = DeviceGuard(device_target);
 
                     gpu_texture_type texture;
-                    texture.array = noa::cuda::memory::PtrArray<value_type>::alloc(
+                    texture.array = noa::cuda::memory::AllocatorArray<value_type>::allocate(
                             shape, layered ? cudaArrayLayered : cudaArrayDefault);
-                    texture.texture = noa::cuda::memory::PtrTexture::alloc(
+                    texture.texture = noa::cuda::memory::AllocatorTexture::allocate(
                             texture.array.get(), interp_mode, border_mode);
                     m_texture = texture;
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
@@ -240,7 +240,7 @@ namespace noa {
 
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                if constexpr (sizeof(traits::value_type_t<value_type>) >= 8) {
+                if constexpr (sizeof(noa::traits::value_type_t<value_type>) >= 8) {
                     NOA_THROW("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     if (device_target != array.device())
@@ -248,7 +248,7 @@ namespace noa {
 
                     gpu_texture_type& cuda_texture = cuda_();
                     auto& cuda_stream = Stream::current(device_target).cuda();
-                    cuda::memory::copy(
+                    noa::cuda::memory::copy(
                             array.get(), array.strides(),
                             cuda_texture.array.get(),
                             m_shape, cuda_stream);
@@ -343,7 +343,7 @@ namespace noa {
                 return true;
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return noa::cuda::memory::PtrArray<value_type>::is_layered(this->cuda().array.get());
+                return noa::cuda::memory::AllocatorArray<value_type>::is_layered(this->cuda().array.get());
                 #else
                 return false;
                 #endif

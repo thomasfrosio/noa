@@ -67,35 +67,41 @@ namespace noa::cuda::signal::fft {
 
 namespace noa::cuda::signal::fft {
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak_1d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
-                  Vec1<f32>* output_peak_coordinates, Real* output_peak_values,
-                  PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream);
+    void xpeak_1d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
+            Vec1<f32>* output_peak_coordinates, Real* output_peak_values,
+            PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream);
 
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    auto xpeak_1d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
-                  PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream) -> std::pair<Vec1<f32>, Real>;
+    auto xpeak_1d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
+            PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream) -> std::pair<Vec1<f32>, Real>;
 
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak_2d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
-                  Vec2<f32>* output_peak_coordinates, Real* output_peak_values,
-                  PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream);
+    void xpeak_2d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
+            Vec2<f32>* output_peak_coordinates, Real* output_peak_values,
+            PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream);
 
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    auto xpeak_2d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
-                  PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream) -> std::pair<Vec2<f32>, Real>;
+    auto xpeak_2d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
+            PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream) -> std::pair<Vec2<f32>, Real>;
 
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    void xpeak_3d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
-                  Vec3<f32>* output_peak_coordinates, Real* output_peak_values,
-                  PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream);
+    void xpeak_3d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
+            Vec3<f32>* output_peak_coordinates, Real* output_peak_values,
+            PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream);
 
     template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    auto xpeak_3d(Real* xmap, const Strides4<i64>& strides,
-                  const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
-                  PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream) -> std::pair<Vec3<f32>, Real>;
+    auto xpeak_3d(
+            Real* xmap, const Strides4<i64>& strides,
+            const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
+            PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream) -> std::pair<Vec3<f32>, Real>;
 }

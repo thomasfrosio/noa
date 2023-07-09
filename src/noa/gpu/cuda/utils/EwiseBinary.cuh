@@ -11,11 +11,12 @@ namespace noa::cuda::utils::details {
     template<typename Lhs, typename Rhs, typename Output, typename Index, typename BinaryOp, typename Config,
              u32 VECTOR_SIZE, PointerTraits PointerTrait, StridesTraits StridesTrait>
     __global__ __launch_bounds__(Config::BLOCK_SIZE)
-    void ewise_binary_1d(Accessor<const Lhs, 2, Index, PointerTrait, StridesTrait> lhs_batched,
-                         Accessor<const Rhs, 2, Index, PointerTrait, StridesTrait> rhs_batched,
-                         Accessor<Output, 2, Index, PointerTrait, StridesTrait> output_batched,
-                         Index elements, BinaryOp binary_op) {
-
+    void ewise_binary_1d(
+            Accessor<const Lhs, 2, Index, PointerTrait, StridesTrait> lhs_batched,
+            Accessor<const Rhs, 2, Index, PointerTrait, StridesTrait> rhs_batched,
+            Accessor<Output, 2, Index, PointerTrait, StridesTrait> output_batched,
+            Index elements, BinaryOp binary_op
+    ) {
         constexpr Index BLOCK_SIZE = Config::BLOCK_SIZE;
         constexpr Index EPT = noa::math::max(Config::ELEMENTS_PER_THREAD, VECTOR_SIZE);
         constexpr Index BLOCK_WORK_SIZE = BLOCK_SIZE * EPT;
@@ -62,11 +63,12 @@ namespace noa::cuda::utils::details {
     template<typename Lhs, typename Rhs, typename Output, typename Index, typename BinaryOp,
              typename Config, PointerTraits PointerTrait, StridesTraits StridesTrait>
     __global__ __launch_bounds__(Config::BLOCK_SIZE)
-    void ewise_binary_4d(Accessor<const Lhs, 4, Index, PointerTrait, StridesTrait> lhs_batched,
-                         Accessor<const Rhs, 4, Index, PointerTrait, StridesTrait> rhs_batched,
-                         Accessor<Output, 4, Index, PointerTrait, StridesTrait> output_batched,
-                         Shape2<Index> shape, BinaryOp binary_op, Index blocks_x) {
-
+    void ewise_binary_4d(
+            Accessor<const Lhs, 4, Index, PointerTrait, StridesTrait> lhs_batched,
+            Accessor<const Rhs, 4, Index, PointerTrait, StridesTrait> rhs_batched,
+            Accessor<Output, 4, Index, PointerTrait, StridesTrait> output_batched,
+            Shape2<Index> shape, BinaryOp binary_op, Index blocks_x
+    ) {
         const auto index = noa::indexing::offset2index(static_cast<Index>(blockIdx.x), blocks_x);
         const auto gid = Vec4<Index>{
                 blockIdx.z, blockIdx.y,
@@ -98,12 +100,13 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Rhs, typename Output,
              typename Index, typename BinaryOp>
-    void ewise_binary(const char* name,
-                      const Lhs* lhs, Strides4<Index> lhs_strides,
-                      const Rhs* rhs, Strides4<Index> rhs_strides,
-                      Output* output, Strides4<Index> output_strides,
-                      Shape4<Index> shape, Stream& stream,
-                      BinaryOp binary_op) {
+    void ewise_binary(
+            const Lhs* lhs, Strides4<Index> lhs_strides,
+            const Rhs* rhs, Strides4<Index> rhs_strides,
+            Output* output, Strides4<Index> output_strides,
+            Shape4<Index> shape, Stream& stream,
+            BinaryOp binary_op
+    ) {
         NOA_ASSERT(all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
         NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
@@ -155,7 +158,6 @@ namespace noa::cuda::utils {
                 const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides_2d);
                 const auto output_accessor = output_accessor_t(output, output_strides_2d);
                 return stream.enqueue(
-                        name,
                         details::ewise_binary_1d<Lhs, Rhs, Output, Index, BinaryOp, Config, 1, PointerTrait, StridesTrait>,
                         config, lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
             } else {
@@ -167,17 +169,14 @@ namespace noa::cuda::utils {
                 const auto output_accessor = output_accessor_t(output, output_strides_2d);
                 if (vector_size == 2) {
                     return stream.enqueue(
-                            name,
                             details::ewise_binary_1d<Lhs, Rhs, Output, Index, BinaryOp, Config, 2, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
                 } else if (vector_size == 4) {
                     return stream.enqueue(
-                            name,
                             details::ewise_binary_1d<Lhs, Rhs, Output, Index, BinaryOp, Config, 4, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
                 } else {
                     return stream.enqueue(
-                            name,
                             details::ewise_binary_1d<Lhs, Rhs, Output, Index, BinaryOp, Config, 8, PointerTrait, StridesTraits::CONTIGUOUS>,
                             config, lhs_accessor, rhs_accessor, output_accessor, elements, binary_op);
                 }
@@ -195,7 +194,7 @@ namespace noa::cuda::utils {
             const auto rhs_accessor = rhs_accessor_t(rhs, rhs_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
 
-            stream.enqueue(name,
+            stream.enqueue(
                     details::ewise_binary_4d<Lhs, Rhs, Output, Index, BinaryOp, Config, PointerTrait, StridesTrait>,
                     config, lhs_accessor, rhs_accessor, output_accessor, shape.filter(2, 3), binary_op, blocks_x);
         }
@@ -206,14 +205,15 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Rhs, typename Output,
              typename Index, typename BinaryOp>
-    void ewise_binary(const char* name,
-                      Lhs lhs,
-                      const Rhs* rhs, const Strides4<Index>& rhs_strides,
-                      Output* output, const Strides4<Index>& output_strides,
-                      const Shape4<Index>& shape, Stream& stream,
-                      const BinaryOp& binary_op) {
+    void ewise_binary(
+            Lhs lhs,
+            const Rhs* rhs, const Strides4<Index>& rhs_strides,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            const BinaryOp& binary_op
+    ) {
         ewise_unary<PointerTrait, StridesTrait>(
-                name, rhs, rhs_strides, output, output_strides, shape, stream,
+                rhs, rhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Rhs rhs_value) { return binary_op(lhs, rhs_value); });
     }
 
@@ -222,14 +222,15 @@ namespace noa::cuda::utils {
              typename Config = EwiseStaticConfigDefault,
              typename Lhs, typename Rhs, typename Output,
              typename Index, typename BinaryOp>
-    void ewise_binary(const char* name,
-                      const Lhs* lhs, const Strides4<Index>& lhs_strides,
-                      Rhs rhs,
-                      Output* output, const Strides4<Index>& output_strides,
-                      const Shape4<Index>& shape, Stream& stream,
-                      const BinaryOp& binary_op) {
+    void ewise_binary(
+            const Lhs* lhs, const Strides4<Index>& lhs_strides,
+            Rhs rhs,
+            Output* output, const Strides4<Index>& output_strides,
+            const Shape4<Index>& shape, Stream& stream,
+            const BinaryOp& binary_op
+    ) {
         ewise_unary<PointerTrait, StridesTrait>(
-                name, lhs, lhs_strides, output, output_strides, shape, stream,
+                lhs, lhs_strides, output, output_strides, shape, stream,
                 [=] NOA_DEVICE(Lhs lhs_value) { return binary_op(lhs_value, rhs); });
     }
 }
@@ -242,7 +243,6 @@ namespace noa::cuda {                                                           
                       Out* output, const Strides4<i64>& output_strides,                 \
                       const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream) {   \
         noa::cuda::utils::ewise_binary(                                                 \
-                "ewise_binary",                                                         \
                 lhs, lhs_strides,                                                       \
                 rhs, rhs_strides,                                                       \
                 output, output_strides,                                                 \
@@ -255,7 +255,6 @@ namespace noa::cuda {                                                           
                       Out* output, const Strides4<i64>& output_strides,                 \
                       const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream) {   \
         noa::cuda::utils::ewise_binary(                                                 \
-                "ewise_binary",                                                         \
                 lhs, lhs_strides,                                                       \
                 rhs,                                                                    \
                 output, output_strides,                                                 \
@@ -268,7 +267,6 @@ namespace noa::cuda {                                                           
                       Out* output, const Strides4<i64>& output_strides,                 \
                       const Shape4<i64>& shape, BinaryOp binary_op, Stream& stream) {   \
         noa::cuda::utils::ewise_binary(                                                 \
-                "ewise_binary",                                                         \
                 lhs,                                                                    \
                 rhs, rhs_strides,                                                       \
                 output, output_strides,                                                 \

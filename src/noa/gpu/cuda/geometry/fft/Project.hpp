@@ -107,18 +107,20 @@ namespace noa::cuda::geometry::fft {
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_extract_v<REMAP, Value, Scale, Rotate>>>
-    void extract_3d(const Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
-                    Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
-                    const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                    f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream);
+    void extract_3d(
+            const Value* grid, const Strides4<i64>& grid_strides, const Shape4<i64>& grid_shape,
+            Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream);
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_extract_texture_v<REMAP, Value, Scale, Rotate>>>
-    void extract_3d(cudaArray* array, cudaTextureObject_t grid,
-                    InterpMode grid_interpolation_mode, const Shape4<i64>& grid_shape,
-                    Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
-                    const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
-                    f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream);
+    void extract_3d(
+            cudaArray* array, cudaTextureObject_t grid,
+            InterpMode grid_interpolation_mode, const Shape4<i64>& grid_shape,
+            Value* slice, const Strides4<i64>& slice_strides, const Shape4<i64>& slice_shape,
+            const Scale& inv_scaling_matrices, const Rotate& fwd_rotation_matrices,
+            f32 cutoff, const Shape4<i64>& target_shape, const Vec2<f32>& ews_radius, Stream& stream);
 
     template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
              typename = std::enable_if_t<details::is_valid_insert_insert_extract_v<
@@ -152,7 +154,8 @@ namespace noa::cuda::geometry::fft {
             f32 cutoff, const Vec2<f32>& ews_radius, f32 slice_z_radius, bool add_to_output, Stream& stream);
 
     template<typename Value, typename = std::enable_if_t<traits::is_any_v<Value, f32, f64>>>
-    void gridding_correction(const Value* input, const Strides4<i64>& input_strides,
-                             Value* output, const Strides4<i64>& output_strides,
-                             const Shape4<i64>& shape, bool post_correction, Stream& stream);
+    void gridding_correction(
+            const Value* input, const Strides4<i64>& input_strides,
+            Value* output, const Strides4<i64>& output_strides,
+            const Shape4<i64>& shape, bool post_correction, Stream& stream);
 }
