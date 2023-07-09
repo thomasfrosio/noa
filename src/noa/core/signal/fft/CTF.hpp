@@ -32,7 +32,7 @@ namespace noa::signal::fft {
         using value_type = Real;
 
     public: // constructors
-        constexpr CTFIsotropic() = default;
+        NOA_HD constexpr CTFIsotropic() = default;
 
         /// Create an isotropic CTF.
         /// \param pixel_size   Pixel size in A/p.
@@ -173,7 +173,7 @@ namespace noa::signal::fft {
         using defocus_type = DefocusAstigmatic<value_type>;
 
     public: // constructors
-        constexpr CTFAnisotropic() = default;
+        NOA_HD constexpr CTFAnisotropic() = default;
 
         /// Create an anisotropic CTF.
         /// \param pixel_size   HW pixel size in A/p.

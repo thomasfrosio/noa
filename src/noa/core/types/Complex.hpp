@@ -50,7 +50,7 @@ namespace noa {
 
     public: // Default constructors
         // Default constructor initializing the real and imaginary components to 0.
-        constexpr Complex() noexcept = default;
+        NOA_HD constexpr Complex() noexcept = default;
 
         // Implicit constructor, defaulting the imaginary component to 0.
         NOA_HD constexpr /* implicit */ Complex(value_type re, value_type im = value_type{0}) noexcept

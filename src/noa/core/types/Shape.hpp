@@ -23,7 +23,7 @@ namespace noa {
 
     public:
         // Zero-initialized.
-        constexpr Shape() noexcept = default;
+        NOA_HD constexpr Shape() noexcept = default;
 
         // Element-wise conversion constructor.
         template<typename... Ts,
@@ -524,7 +524,7 @@ namespace noa {
 
     public:
         // Zero initialized.
-        constexpr Strides() noexcept = default;
+        NOA_HD constexpr Strides() noexcept = default;
 
         // Explicit element-wise conversion constructor.
         template<typename... Ts,

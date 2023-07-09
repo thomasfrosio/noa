@@ -75,7 +75,7 @@ namespace noa {
 
     public: // --- Constructors --- //
         // Default constructor, with initialization to 0.
-        constexpr Half() noexcept = default;
+        NOA_HD constexpr Half() noexcept = default;
 
         // Conversion constructor. Any explicit initialization from a built-in type goes through that constructor.
         // No conversion warnings will be raised. Works with native_type, Half, float, double, (u)char, (u)short,

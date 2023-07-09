@@ -40,7 +40,7 @@ namespace noa {
         using index_type_or_empty = std::conditional_t<IS_STATIC, noa::traits::Empty, index_type>;
 
     public: // Empty
-        constexpr Span() = default;
+        NOA_HD constexpr Span() = default;
 
         template<typename Int, typename std::enable_if_t<!IS_STATIC && std::is_integral_v<Int>, bool> = true>
         NOA_HD constexpr Span(pointer data, Int size) noexcept

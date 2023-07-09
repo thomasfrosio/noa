@@ -44,7 +44,7 @@ namespace noa {
 
     public:
         // Zero-initialized.
-        constexpr Vec() noexcept = default;
+        NOA_HD constexpr Vec() noexcept = default;
 
         // Element-wise conversion constructor.
         template<typename... Ts,
