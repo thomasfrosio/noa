@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.21)
 project(noa
         LANGUAGES CXX
         VERSION 0.1.0
-        HOMEPAGE_URL https://github.com/ffyr2w/noa
+        HOMEPAGE_URL https://github.com/thomasfrosio/noa
         )
 
 # Friendly heads up. The library only supports static linking:
