@@ -2,35 +2,22 @@
 #include <thread>   // std::this_thread::sleep_for
 #include <chrono>   // std::chrono::milliseconds
 
-#include "noa/core/Session.hpp"
 #include "noa/core/OS.hpp"
 #include "noa/core/io/MRCFile.hpp"
 
 namespace noa::io {
     void MRCFile::set_shape(const Shape4<i64>& new_shape) {
-        if (m_open_mode & OpenMode::READ) {
-            if (m_open_mode & OpenMode::WRITE) {
-                Session::logger.warn("MRCFile: changing the shape of the data in "
-                                     "READ|WRITE mode might corrupt the file");
-            } else {
-                NOA_THROW("Trying to change the shape of the data in read mode is not allowed. "
-                          "Hint: to fix the header of a file, open it in READ|WRITE mode");
-            }
-        }
+        NOA_CHECK(m_open_mode & OpenMode::WRITE,
+                  "Trying to change the shape of the data in read mode is not allowed. "
+                  "Hint: to fix the header of a file, open it in READ|WRITE mode");
         NOA_CHECK(noa::all(new_shape > 0), "The shape should be non-zero positive, but got {}", new_shape);
         m_header.shape = new_shape;
     }
 
     void MRCFile::set_dtype(io::DataType data_type) {
-        if (m_open_mode & io::READ) {
-            if (m_open_mode & OpenMode::WRITE) {
-                Session::logger.warn("MRCFile: changing the data type of the file in "
-                                     "READ|WRITE mode might corrupt the file");
-            } else {
-                NOA_THROW("Trying to change the data type of the file in read mode is not allowed. "
-                          "Hint: to fix the header of a file, open it in READ|WRITE mode");
-            }
-        }
+        NOA_CHECK(m_open_mode & OpenMode::WRITE,
+                  "Trying to change the data type of the file in read mode is not allowed. "
+                  "Hint: to fix the header of a file, open it in READ|WRITE mode");
         switch (data_type) {
             case DataType::U4:
             case DataType::I8:
@@ -49,15 +36,9 @@ namespace noa::io {
     }
 
     void MRCFile::set_pixel_size(Vec3<f32> new_pixel_size) {
-        if (m_open_mode & io::READ) {
-            if (m_open_mode & OpenMode::WRITE) {
-                Session::logger.warn("MRCFile: changing the pixel size of the file in "
-                                     "READ|WRITE mode might corrupt the file");
-            } else {
-                NOA_THROW("Trying to change the pixel size of the file in read mode is not allowed. "
-                          "Hint: to fix the header of a file, open it in READ|WRITE mode");
-            }
-        }
+        NOA_CHECK(m_open_mode & OpenMode::WRITE,
+                  "Trying to change the pixel size of the file in read mode is not allowed. "
+                  "Hint: to fix the header of a file, open it in READ|WRITE mode");
         NOA_CHECK(noa::all(new_pixel_size >= 0), "The pixel size should be positive, got {}", new_pixel_size);
         m_header.pixel_size = new_pixel_size;
     }

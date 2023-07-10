@@ -56,6 +56,7 @@ if (NOA_ENABLE_CUDA)
     include(${PROJECT_SOURCE_DIR}/cmake/ext/cuda-toolkit.cmake)
     target_link_libraries(noa_public_libraries
         INTERFACE
+        CUDA::cuda_driver
         $<IF:$<BOOL:${NOA_CUDA_CUDART_STATIC}>, CUDA::cudart_static, CUDA::cudart>
         $<IF:$<BOOL:${NOA_CUDA_CUFFT_STATIC}>, CUDA::cufft_static, CUDA::cufft>
         )

@@ -44,7 +44,7 @@ namespace noa::signal {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::median_filter_1d(
                         input.get(), input_strides,
@@ -101,7 +101,7 @@ namespace noa::signal {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::median_filter_2d(
                         input.get(), input_strides,
@@ -157,7 +157,7 @@ namespace noa::signal {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::median_filter_3d(
                         input.get(), input_strides,

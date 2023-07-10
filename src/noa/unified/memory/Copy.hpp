@@ -35,7 +35,7 @@ namespace noa::memory {
         const Device output_device = output.device();
         if (input_device.is_cpu() && output_device.is_cpu()) {
             auto& cpu_stream = Stream::current(input_device).cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::memory::copy(input.get(), input_strides,
                                   output.get(), output.strides(),

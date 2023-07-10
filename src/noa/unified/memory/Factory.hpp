@@ -30,7 +30,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::memory::set(output.get(), output.strides(), output.shape(), value, threads);
             });
@@ -148,7 +148,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::memory::arange(output.get(), output.strides(), output.shape(), start, step, threads);
             });
@@ -216,7 +216,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::memory::linspace(output.get(), output.strides(), output.shape(),
                                       start, stop, endpoint, threads);
@@ -285,7 +285,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::memory::iota(output.get(), output.strides(), output.shape(), tile, threads);
             });

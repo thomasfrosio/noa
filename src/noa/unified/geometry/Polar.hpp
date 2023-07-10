@@ -81,7 +81,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::cartesian2polar(
                         cartesian.get(), cartesian.strides(), cartesian.shape(),
@@ -185,7 +185,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::polar2cartesian(
                         polar.get(), polar.strides(), polar.shape(),

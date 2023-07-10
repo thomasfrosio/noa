@@ -25,7 +25,7 @@ namespace noa {
                 return;
             }
         }
-        // At this point we know there's no current stream for that device.
+        // At this point, we know there's no current stream for that device.
         g_current.push_front(stream);
     }
 }

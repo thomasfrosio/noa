@@ -51,7 +51,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::min(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+            return cpu::math::min(array.get(), array.strides(), array.shape(), cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::min(array.get(), array.strides(), array.shape(), stream.cuda());
@@ -72,7 +72,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::max(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+            return cpu::math::max(array.get(), array.strides(), array.shape(), cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::max(array.get(), array.strides(), array.shape(), stream.cuda());
@@ -93,7 +93,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::min_max(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+            return cpu::math::min_max(array.get(), array.strides(), array.shape(), cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::min_max(array.get(), array.strides(), array.shape(), stream.cuda());
@@ -147,7 +147,7 @@ namespace noa::math {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
             return cpu::math::sum(array.get(), array.strides(), array.shape(),
-                                  pre_process_op, cpu_stream.threads());
+                                  pre_process_op, cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::sum(array.get(), array.strides(), array.shape(),
@@ -177,7 +177,7 @@ namespace noa::math {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
             return cpu::math::mean(array.get(), array.strides(), array.shape(),
-                                   pre_process_op, cpu_stream.threads());
+                                   pre_process_op, cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::mean(array.get(), array.strides(), array.shape(),
@@ -202,7 +202,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::norm(array.get(), array.strides(), array.shape(), cpu_stream.threads());
+            return cpu::math::norm(array.get(), array.strides(), array.shape(), cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::norm(array.get(), array.strides(), array.shape(), stream.cuda());
@@ -230,7 +230,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::var(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
+            return cpu::math::var(array.get(), array.strides(), array.shape(), ddof, cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::var(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
@@ -258,7 +258,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
+            return cpu::math::std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::std(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
@@ -286,7 +286,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::mean_var(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
+            return cpu::math::mean_var(array.get(), array.strides(), array.shape(), ddof, cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::mean_var(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
@@ -314,7 +314,7 @@ namespace noa::math {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            return cpu::math::mean_std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.threads());
+            return cpu::math::mean_std(array.get(), array.strides(), array.shape(), ddof, cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::mean_std(array.get(), array.strides(), array.shape(), ddof, stream.cuda());
@@ -346,7 +346,7 @@ namespace noa::math {
             cpu_stream.synchronize();
             return cpu::math::rmsd(
                     lhs.get(), lhs.strides(), rhs.get(), rhs.strides(),
-                    rhs.shape(), cpu_stream.threads());
+                    rhs.shape(), cpu_stream.thread_limit());
         } else {
             #ifdef NOA_ENABLE_CUDA
             return cuda::math::rmsd(
@@ -382,7 +382,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::min(input.get(), input.strides(), input.shape(),
                                output.get(), output.strides(), output.shape(), threads);
@@ -432,7 +432,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::max(input.get(), input.strides(), input.shape(),
                                output.get(), output.strides(), output.shape(), threads);
@@ -486,7 +486,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::sum(input.get(), input.strides(), input.shape(),
                                output.get(), output.strides(), output.shape(),
@@ -540,7 +540,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::mean(input.get(), input.strides(), input.shape(),
                                 output.get(), output.strides(), output.shape(),
@@ -591,7 +591,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::norm(input.get(), input.strides(), input.shape(),
                                 output.get(), output.strides(), output.shape(),
@@ -650,7 +650,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::var(input.get(), input.strides(), input.shape(),
                                output.get(), output.strides(), output.shape(),
@@ -709,7 +709,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::std(input.get(), input.strides(), input.shape(),
                                output.get(), output.strides(), output.shape(),
@@ -776,7 +776,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::mean_var(
                         input.get(), input.strides(), input.shape(),
@@ -849,7 +849,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::mean_std(
                         input.get(), input.strides(), input.shape(),

@@ -146,7 +146,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::ctf_isotropic<REMAP>(
                         output.get(), output.strides(), shape,
@@ -212,7 +212,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::ctf_isotropic<REMAP>(
                         input.get(), input_strides,
@@ -272,7 +272,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::ctf_anisotropic<REMAP>(
                         output.get(), output.strides(), shape,
@@ -338,7 +338,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::ctf_anisotropic<REMAP>(
                         input.get(), input_strides,

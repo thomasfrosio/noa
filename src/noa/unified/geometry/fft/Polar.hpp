@@ -216,7 +216,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::cartesian2polar<REMAP>(
                         cartesian.get(), cartesian.strides(), cartesian_shape,
@@ -321,7 +321,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::rotational_average<REMAP>(
                         input.get(), input.strides(), input_shape, Empty{},
@@ -384,7 +384,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::rotational_average<REMAP>(
                         input.get(), input.strides(), input_shape, details::extract_ctf(input_ctf),

@@ -132,7 +132,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::xmap<REMAP>(
                         lhs.get(), lhs_strides, rhs.get(), rhs_strides,
@@ -188,7 +188,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 if constexpr (N == 1) {
                     cpu::signal::fft::xpeak_1d<REMAP>(
@@ -298,7 +298,7 @@ namespace noa::signal::fft {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             if constexpr (N == 1) {
                 return cpu::signal::fft::xpeak_1d<REMAP>(
                         xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
@@ -407,7 +407,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(lhs.device());
         if (stream.device().is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::xcorr<REMAP>(
                         lhs.get(), lhs_strides, rhs.get(), rhs_strides,
@@ -462,7 +462,7 @@ namespace noa::signal::fft {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             cpu_stream.synchronize();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             return cpu::signal::fft::xcorr<REMAP>(
                     lhs.share(), lhs_strides, rhs.share(), rhs_strides, shape, threads);
         } else {

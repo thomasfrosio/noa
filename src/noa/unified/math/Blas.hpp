@@ -40,7 +40,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.synchronize();
             return cpu::math::dot(lhs.get(), lhs.strides(), lhs.shape(),
                                   rhs.get(), rhs.strides(), rhs.shape(),
@@ -98,7 +98,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::dot(lhs.get(), lhs_stride, lhs.shape(),
                                rhs.get(), rhs_stride, rhs.shape(),
@@ -156,7 +156,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::matmul(lhs.get(), lhs.strides(), lhs.shape(),
                                   rhs.get(), rhs.strides(), rhs.shape(),

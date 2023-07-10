@@ -221,7 +221,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::geometry::fft::insert_rasterize_3d<REMAP>(
                         slice.get(), slice.strides(), slice_shape,
@@ -272,7 +272,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 cpu::geometry::fft::insert_rasterize_3d<REMAP>(
                         slice, slice_shape,
@@ -354,7 +354,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::insert_interpolate_3d<REMAP>(
                         slice.get(), slice.strides(), slice_shape,
@@ -458,7 +458,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::insert_interpolate_3d<REMAP>(
                         slice, slice_shape,
@@ -532,7 +532,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::extract_3d<REMAP>(
                         grid.get(), grid.strides(), grid_shape,
@@ -675,7 +675,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
                         input_slice.get(), input_slice.strides(), input_slice_shape,
@@ -800,7 +800,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
                         input_slice, input_slice_shape,
@@ -878,7 +878,7 @@ namespace noa::geometry::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::gridding_correction(
                         input.get(), input_strides,

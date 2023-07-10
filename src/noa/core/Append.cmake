@@ -6,7 +6,6 @@ set(NOA_CORE_HEADERS
     core/Exception.hpp
     core/Logger.hpp
     core/OS.hpp
-    core/Session.hpp
 
     core/Math.hpp
     core/math/Comparison.hpp
@@ -88,7 +87,6 @@ set(NOA_CORE_HEADERS
 set(NOA_CORE_SOURCES
     core/Exception.cpp
     core/Logger.cpp
-    core/Session.cpp
 
     core/geometry/Euler.cpp
     core/geometry/Symmetry.cpp

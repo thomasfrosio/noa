@@ -39,7 +39,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::decompose(input.get(), input_strides,
                                      real.get(), real.strides(),
@@ -85,7 +85,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::real(input.get(), input_strides,
                                 real.get(), real.strides(),
@@ -129,7 +129,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::imag(input.get(), input_strides,
                                 imag.get(), imag.strides(),
@@ -179,7 +179,7 @@ namespace noa::math {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::math::complex(real.get(), real_strides,
                                    imag.get(), imag_strides,

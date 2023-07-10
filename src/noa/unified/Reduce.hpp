@@ -77,7 +77,7 @@ namespace noa {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const i64 threads = cpu_stream.threads();
+            const i64 threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=,
                                 op0 = std::forward<PreProcessOp>(pre_process_op),
                                 op1 = std::forward<ReduceOp>(reduce_op),
@@ -198,7 +198,7 @@ namespace noa {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const i64 threads = cpu_stream.threads();
+            const i64 threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=,
                                 op0 = std::forward<PreProcessOp>(pre_process_op),
                                 op1 = std::forward<ReduceOp>(reduce_op),

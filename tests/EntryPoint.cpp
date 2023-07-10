@@ -1,7 +1,6 @@
 // This is the entry point to ALL tests.
 
-#include <noa/core/Session.hpp>
-#include <noa/core/Types.hpp>
+#include "noa/unified/Session.hpp"
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
@@ -22,12 +21,13 @@ int main(int argc, char* argv[]) {
     test::NOA_DATA_PATH = path;
     test::NOA_DATA_PATH /= "assets";
 
-    int returnCode = catch_session.applyCommandLine(argc, argv);
+    const int returnCode = catch_session.applyCommandLine(argc, argv);
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 
-    noa::Session noa_session("tests", {}, noa::Logger::SILENT);
-    noa::Session::set_threads(std::min(noa::Session::threads(), noa::i64{8}));
-    int numFailed = catch_session.run();
+    noa::Session::set_cuda_lazy_loading();
+    noa::Session::set_thread_limit(8);
+
+    const int numFailed = catch_session.run();
     return numFailed;
 }

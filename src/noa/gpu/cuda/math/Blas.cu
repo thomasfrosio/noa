@@ -95,14 +95,12 @@ namespace {
     }
 }
 
-namespace noa::cuda::math::details {
+namespace noa::cuda::math {
     void cublas_clear_cache(i32 device) {
         std::unique_ptr<CuBlasHandle>& cached_handle = cublas_cache_handle_(device);
         cached_handle = nullptr;
     }
-}
 
-namespace noa::cuda::math {
     template<typename T, typename>
     T dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
           const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,

@@ -54,7 +54,7 @@ namespace noa::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::fft::resize<REMAP>(
                         input.get(), input.strides(), input_shape,

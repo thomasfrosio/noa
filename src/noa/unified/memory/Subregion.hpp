@@ -50,7 +50,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::memory::extract_subregions(
                         input.get(), input.strides(), input.shape(),
@@ -104,7 +104,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::memory::insert_subregions(
                         subregions.get(), subregions.strides(), subregions.shape(),

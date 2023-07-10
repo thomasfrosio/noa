@@ -2,6 +2,7 @@
 
 #include "noa/core/Definitions.hpp"
 #include "noa/unified/Device.hpp"
+#include "noa/unified/Session.hpp"
 
 #include "noa/cpu/Stream.hpp"
 
@@ -41,35 +42,30 @@ namespace noa {
     ///     or querying a stream, or any of its references, should be done in a thread-safe manner.
     class Stream {
     public:
+        using cpu_stream = noa::cpu::Stream;
+        using gpu_stream = noa::gpu::Stream;
+        using cuda_stream = noa::cuda::Stream;
+
+    public:
         /// Creates a new stream on the given device.
         explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC) : m_device(device) {
             if (m_device.is_cpu()) {
-                const auto cpu_mode = mode == StreamMode::ASYNC ? cpu::StreamMode::ASYNC : cpu::StreamMode::DEFAULT;
-                m_stream = cpu::Stream(cpu_mode);
+                m_stream = cpu_stream(
+                        mode == StreamMode::ASYNC ?
+                        noa::cpu::StreamMode::ASYNC :
+                        noa::cpu::StreamMode::DEFAULT,
+                        static_cast<i32>(Session::thread_limit()));
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                const auto cuda_mode = mode == StreamMode::ASYNC ? cuda::StreamMode::ASYNC : cuda::StreamMode::DEFAULT;
-                m_stream = cuda::Stream(cuda::Device(m_device.id()), cuda_mode);
+                m_stream = gpu_stream(
+                        noa::cuda::Device(m_device.id()),
+                        mode == StreamMode::ASYNC ?
+                        noa::cuda::StreamMode::ASYNC :
+                        noa::cuda::StreamMode::DEFAULT);
                 #else
                 NOA_THROW("No GPU backend detected");
                 #endif
             }
-        }
-
-        /// Encapsulates the given backend stream into a new unified stream.
-        template<typename BackendStream, typename = std::enable_if_t<
-                 noa::traits::is_almost_any_v<BackendStream, cpu::Stream, gpu::Stream>>>
-        explicit Stream(BackendStream&& stream) {
-            if constexpr (noa::traits::is_almost_same_v<BackendStream, cpu::Stream>) {
-                m_device = Device{};
-            } else {
-                #ifdef NOA_ENABLE_CUDA
-                m_device = Device(DeviceType::GPU, stream.device().id(), Device::DeviceUnchecked{});
-                #else
-                NOA_THROW("No GPU backend detected");
-                #endif
-            }
-            m_stream(std::forward<BackendStream>(stream));
         }
 
     public:
@@ -100,17 +96,32 @@ namespace noa {
             return m_device;
         }
 
+        /// Sets the maximum number of threads the CPU backend is allowed to use.
+        void set_thread_limit(i64 n_threads) noexcept {
+            auto* stream = std::get_if<cpu_stream>(&m_stream);
+            if (stream)
+                stream->set_thread_limit(n_threads);
+        }
+
+        [[nodiscard]] i64 thread_limit() const noexcept {
+            const auto* stream = std::get_if<cpu_stream>(&m_stream);
+            if (stream)
+                return stream->thread_limit();
+            return 1;
+        }
+
+    public: // Access backend stream.
         /// Gets the underlying stream, assuming it is a CPU stream (i.e. device is CPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] cpu::Stream& cpu() {
-            auto* cpu_stream = std::get_if<cpu::Stream>(&m_stream);
-            NOA_CHECK(cpu_stream != nullptr, "The stream is not a CPU stream");
-            return *cpu_stream;
+        [[nodiscard]] cpu_stream& cpu() {
+            auto* stream = std::get_if<cpu_stream>(&m_stream);
+            NOA_CHECK(stream != nullptr, "The stream is not a CPU stream");
+            return *stream;
         }
 
         /// Gets the underlying stream, assuming it is a GPU stream (i.e. device is GPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] gpu::Stream& gpu() {
+        [[nodiscard]] gpu_stream& gpu() {
             #ifdef NOA_ENABLE_CUDA
             return cuda();
             #else
@@ -120,18 +131,18 @@ namespace noa {
 
         /// Gets the underlying stream, assuming it is a CUDA stream (i.e. device is a CUDA-capable GPU).
         /// Otherwise, throws an exception.
-        [[nodiscard]] cuda::Stream& cuda() {
+        [[nodiscard]] cuda_stream& cuda() {
             #ifdef NOA_ENABLE_CUDA
-            auto* cuda_stream = std::get_if<cuda::Stream>(&m_stream);
-            NOA_CHECK(cuda_stream != nullptr, "The stream is not a GPU stream");
-            return *cuda_stream;
+            auto* stream = std::get_if<cuda_stream>(&m_stream);
+            NOA_CHECK(stream != nullptr, "The stream is not a GPU stream");
+            return *stream;
             #else
             NOA_THROW("No GPU backend detected");
             #endif
         }
 
     private:
-        std::variant<cpu::Stream, gpu::Stream> m_stream{};
+        std::variant<cpu_stream, gpu_stream> m_stream{};
         Device m_device;
     };
 }

@@ -39,9 +39,13 @@ namespace {
                 m_queue.pop_back();
         }
 
-        void clear_cache() noexcept {
-            while (!m_queue.empty())
+        i32 clear_cache() noexcept {
+            i32 count{0};
+            while (!m_queue.empty()) {
                 m_queue.pop_back();
+                ++count;
+            }
+            return count;
         }
 
         [[nodiscard]] i32 cache_limit() const noexcept { return static_cast<i32>(m_max_size); }
@@ -220,14 +224,6 @@ namespace noa::cuda::fft::details {
         else
             return CufftManager::share(plan);
     }
-
-    void cache_clear(i32 device) noexcept {
-        get_cache_(device).clear_cache();
-    }
-
-    void cache_set_limit(i32 device, i32 count) noexcept {
-        get_cache_(device).set_cache_limit(count);
-    }
 }
 
 namespace noa::cuda::fft {
@@ -239,5 +235,13 @@ namespace noa::cuda::fft {
                 return tmp;
         }
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
+    }
+
+    i32 cufft_clear_cache(i32 device) noexcept {
+        return get_cache_(device).clear_cache();
+    }
+
+    void cufft_cache_limit(i32 device, i32 count) noexcept {
+        get_cache_(device).set_cache_limit(count);
     }
 }

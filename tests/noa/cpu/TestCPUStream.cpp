@@ -21,7 +21,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
     };
 
     SECTION("default stream") {
-        cpu::Stream stream(cpu::StreamMode::DEFAULT);
+        cpu::Stream stream(cpu::StreamMode::DEFAULT, 1);
         stream.enqueue(task1);
         stream.enqueue(task2, 3);
         stream.synchronize();
@@ -38,7 +38,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
     SECTION("async stream") {
         {
-            cpu::Stream stream(cpu::StreamMode::ASYNC);
+            cpu::Stream stream(cpu::StreamMode::ASYNC, 1);
             stream.enqueue(task1);
             stream.enqueue(task2, 3);
             stream.synchronize();
@@ -68,7 +68,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         };
         for (int i = 0; i < 5; ++i) {
             {
-                cpu::Stream async_stream(cpu::StreamMode::ASYNC);
+                cpu::Stream async_stream(cpu::StreamMode::ASYNC, 1);
                 for (int j = 0; j < 50; ++j)
                     async_stream.enqueue(task6);
             }
@@ -78,7 +78,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
         count = 0;
         for (int i = 0; i < 5; ++i) {
-            cpu::Stream async_stream(cpu::StreamMode::ASYNC);
+            cpu::Stream async_stream(cpu::StreamMode::ASYNC, 1);
             for (int j = 0; j < 100; ++j)
                 async_stream.enqueue(task6);
             async_stream.synchronize();
@@ -89,7 +89,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
     SECTION("nested async stream") {
         {
-            cpu::Stream async_stream(cpu::StreamMode::ASYNC);
+            cpu::Stream async_stream(cpu::StreamMode::ASYNC, 1);
             async_stream.enqueue([=]() mutable {
                 async_stream.enqueue([](){});
             });

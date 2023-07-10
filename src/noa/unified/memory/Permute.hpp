@@ -57,7 +57,7 @@ namespace noa::memory {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             noa::cpu::Stream& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=](){
                 noa::cpu::memory::permute(
                         input.get(), input_strides, input_shape,

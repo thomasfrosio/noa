@@ -7,20 +7,22 @@ namespace noa {
         Stream::current(*this).synchronize();
         #ifdef NOA_ENABLE_CUDA
         if (is_gpu())
-            cuda::Device(this->id(), cuda::Device::DeviceUnchecked{}).synchronize();
+            noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{}).synchronize();
         #endif
     }
 
     void Device::reset() const {
         synchronize();
-        Stream stream(*this, StreamMode::DEFAULT);
+
+        // Set the current stream to the default/null stream, potentially freeing user-created streams.
+        const Stream stream(*this, StreamMode::DEFAULT);
         Stream::set_current(stream);
 
         if (is_cpu()) {
-            cpu::Device::reset();
+            noa::cpu::Device::reset();
         } else {
             #ifdef NOA_ENABLE_CUDA
-            cuda::Device(id(), cuda::Device::DeviceUnchecked{}).reset();
+            noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{}).reset();
             #endif
         }
     }

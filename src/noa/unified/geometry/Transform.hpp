@@ -118,7 +118,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::transform_2d(
                         input.get(), input.strides(), input.shape(),
@@ -155,7 +155,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 const cpu::Texture<Value>& texture = input.cpu();
                 cpu::geometry::transform_2d(
@@ -222,7 +222,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::transform_3d(
                         input.get(), input.strides(), input.shape(),
@@ -259,7 +259,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 const cpu::Texture<Value>& texture = input.cpu();
                 cpu::geometry::transform_3d(
@@ -332,7 +332,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::transform_and_symmetrize_2d(
                         input.get(), input.strides(), input.shape(),
@@ -371,7 +371,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 const cpu::Texture<Value>& texture = input.cpu();
                 cpu::geometry::transform_and_symmetrize_2d(
@@ -439,7 +439,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::transform_and_symmetrize_3d(
                         input.get(), input.strides(), input.shape(),
@@ -479,7 +479,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 const cpu::Texture<Value>& texture = input.cpu();
                 cpu::geometry::transform_and_symmetrize_3d(
@@ -535,7 +535,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::symmetrize_2d(
                         input.get(), input_strides,
@@ -570,7 +570,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 const cpu::Texture<Value>& texture = input.cpu();
                 cpu::geometry::symmetrize_2d(
@@ -625,7 +625,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::geometry::symmetrize_3d(
                         input.get(), input_strides,
@@ -660,7 +660,7 @@ namespace noa::geometry {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 const cpu::Texture<Value>& texture = input.cpu();
                 cpu::geometry::symmetrize_3d(

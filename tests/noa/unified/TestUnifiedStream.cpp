@@ -1,6 +1,7 @@
 #include <noa/unified/Stream.hpp>
 
 #include "catch2/catch.hpp"
+#include "noa/unified/Device.hpp"
 
 TEST_CASE("unified::Stream", "[noa][unified]") {
     using namespace ::noa;
@@ -60,5 +61,18 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
             REQUIRE(Stream::current(gpu).device() == gpu);
         }
         REQUIRE(Stream::current(gpu).device() == gpu);
+    }
+
+    // Thread limit.
+    {
+        const i64 old_limit = Session::thread_limit();
+        Session::set_thread_limit(old_limit + 1);
+        Stream f(Device{});
+        REQUIRE(f.thread_limit() == old_limit + 1);
+        REQUIRE(f.cpu().thread_limit() == old_limit + 1);
+        f.set_thread_limit(old_limit + 2);
+        REQUIRE(f.thread_limit() == old_limit + 2);
+        REQUIRE(f.cpu().thread_limit() == old_limit + 2);
+        Session::set_thread_limit(old_limit);
     }
 }

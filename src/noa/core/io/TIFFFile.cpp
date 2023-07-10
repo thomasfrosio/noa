@@ -2,10 +2,11 @@
 
 #include <tiffio.h>
 
-#include "noa/core/Session.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/core/OS.hpp"
 #include "noa/core/io/TIFFFile.hpp"
+
+// TODO Surely there's a more modern library we could use here?
 
 namespace {
     // One string per thread is enough since TIFFFile will immediately throw after the error.
@@ -36,10 +37,8 @@ namespace {
         format_message_tiff_(s_error_buffer, module, fmt, args);
     }
 
-    extern "C" void warningHandler_(const char* module, const char* fmt, va_list args) {
-        std::string tmp;
-        format_message_tiff_(tmp, module, fmt, args);
-        noa::Session::logger.warn(tmp);
+    extern "C" void warningHandler_(const char*, const char*, va_list) {
+        // For now, ignore warnings...
     }
 
     // We don't expose the TIFF* in the API, so cast it here.

@@ -8,6 +8,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Find.hpp
     unified/Indexing.hpp
     unified/Reduce.hpp
+    unified/Session.hpp
     unified/Sort.hpp
     unified/Stream.hpp
     unified/Texture.hpp
@@ -63,6 +64,7 @@ set(NOA_UNIFIED_HEADERS
 
 set(NOA_UNIFIED_SOURCES
     unified/Device.cpp
+    unified/Session.cpp
     unified/Stream.cpp
     )
 

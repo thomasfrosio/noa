@@ -22,9 +22,6 @@ namespace noa::cuda::fft::details {
             const Shape4<i64>& shape,
             i32 device,
             bool save_in_cache);
-
-    void cache_clear(i32 device) noexcept;
-    void cache_set_limit(i32 device, i32 count) noexcept;
 }
 
 namespace noa::cuda::fft {
@@ -34,15 +31,6 @@ namespace noa::cuda::fft {
     // satisfy the aforementioned requirements.
     i64 fast_size(i64 size);
 
-    // Returns the optimum BDHW logical shape.
-    template<typename T, size_t N>
-    Shape<T, N> fast_shape(Shape<T, N> shape) noexcept {
-        for (size_t i = 1; i < N; ++i) // ignore batch dimension
-            if (shape[i] > 1)
-                shape[i] = static_cast<T>(fast_size(static_cast<i64>(shape[i])));
-        return shape;
-    }
-
     // Type of transform to plan for.
     enum Type : i32 {
         R2C = CUFFT_R2C,
@@ -50,13 +38,9 @@ namespace noa::cuda::fft {
         C2C = CUFFT_C2C
     };
 
-    inline void cache_clear(Device device = Device::current()) {
-        details::cache_clear(device.id());
-    }
-
-    inline void cache_set_limit(i32 count, Device device = Device::current()) {
-        details::cache_set_limit(device.id(), count);
-    }
+    // Manages cuFFT plans.
+    i32 cufft_clear_cache(i32 device) noexcept;
+    void cufft_cache_limit(i32 device, i32 count) noexcept;
 
     // Template class managing FFT plans in CUDA using cuFFT.
     // NOTE: For R2C/C2R transforms, the 2D/3D arrays should be in the rightmost order for best performance since the

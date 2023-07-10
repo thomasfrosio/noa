@@ -4,8 +4,6 @@
 #include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::math::details {
-    void cublas_clear_cache(i32 device);
-
     template<typename T>
     constexpr bool is_valid_dot_t = noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
 
@@ -14,6 +12,8 @@ namespace noa::cuda::math::details {
 }
 
 namespace noa::cuda::math {
+    void cublas_clear_cache(i32 device);
+
     // Returns the vector-vector dot product.
     template<typename T, typename = std::enable_if_t<details::is_valid_dot_t<T>>>
     T dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,

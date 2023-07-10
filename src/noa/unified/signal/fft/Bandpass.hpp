@@ -59,7 +59,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::lowpass<REMAP>(
                         input.get(), input_strides,
@@ -107,7 +107,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::highpass<REMAP>(
                         input.get(), input_strides,
@@ -159,7 +159,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::bandpass<REMAP>(
                         input.get(), input_strides,

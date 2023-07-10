@@ -71,7 +71,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::isotropic_fsc<REMAP>(
                         lhs.get(), lhs.strides(),
@@ -145,7 +145,7 @@ namespace noa::signal::fft {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.threads();
+            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 cpu::signal::fft::anisotropic_fsc<REMAP>(
                         lhs.get(), lhs.strides(),
