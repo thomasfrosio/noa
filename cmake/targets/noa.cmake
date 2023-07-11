@@ -6,7 +6,6 @@ message(STATUS "-> noa::noa: configuring public target...")
 # ---------------------------------------------------------------------------------------
 # Common:
 include(${PROJECT_SOURCE_DIR}/cmake/ext/fmt.cmake)
-include(${PROJECT_SOURCE_DIR}/cmake/ext/spdlog.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/ext/half.cmake)
 
 # Interface gathering all of the dependencies of the library.
@@ -16,7 +15,6 @@ add_library(noa_private_libraries INTERFACE)
 target_link_libraries(noa_public_libraries
     INTERFACE
     fmt::fmt
-    spdlog::spdlog
     half::half
     )
 
@@ -122,16 +120,6 @@ if (NOA_ENABLE_PCH)
         <type_traits>
         <complex>
         <bitset>
-
-        # spdlog
-        <spdlog/spdlog.h>
-        <spdlog/sinks/stdout_color_sinks.h>
-        <spdlog/sinks/basic_file_sink.h>
-        <spdlog/fmt/bundled/compile.h>
-        <spdlog/fmt/bundled/ranges.h>
-        <spdlog/fmt/bundled/os.h>
-        <spdlog/fmt/bundled/chrono.h>
-        <spdlog/fmt/bundled/color.h>
         )
 endif ()
 

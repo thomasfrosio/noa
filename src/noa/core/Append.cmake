@@ -4,7 +4,6 @@ set(NOA_CORE_HEADERS
     core/Assert.hpp
     core/Definitions.hpp
     core/Exception.hpp
-    core/Logger.hpp
     core/OS.hpp
 
     core/Math.hpp
@@ -86,7 +85,6 @@ set(NOA_CORE_HEADERS
 
 set(NOA_CORE_SOURCES
     core/Exception.cpp
-    core/Logger.cpp
 
     core/geometry/Euler.cpp
     core/geometry/Symmetry.cpp

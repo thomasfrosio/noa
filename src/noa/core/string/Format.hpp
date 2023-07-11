@@ -11,7 +11,6 @@
     #pragma warning(push, 0)
 #endif
 
-#if defined(SPDLOG_FMT_EXTERNAL)
 #include <fmt/chrono.h>
 #include <fmt/color.h>
 #include <fmt/compile.h>
@@ -21,15 +20,6 @@
 #include <fmt/ostream.h>
 #include <fmt/ranges.h>
 #include <fmt/std.h>
-#else
-#include <spdlog/fmt/fmt.h>
-#include <spdlog/fmt/bundled/chrono.h>
-#include <spdlog/fmt/bundled/color.h>
-#include <spdlog/fmt/bundled/compile.h>
-#include <spdlog/fmt/bundled/os.h>
-#include <spdlog/fmt/bundled/ostream.h>
-#include <spdlog/fmt/bundled/ranges.h>
-#endif
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic pop

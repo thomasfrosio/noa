@@ -15,12 +15,12 @@ list(APPEND CMAKE_MODULE_PATH "${_noa_install_lib_cmake_path}/modules")
 include(CMakeFindDependencyMacro)
 find_dependency(Threads)
 
-# Logging:
-if (NOT TARGET spdlog::spdlog)
-    find_dependency(spdlog REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
+# fmt:
+if (NOT TARGET fmt::fmt)
+    find_dependency(fmt REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
 endif ()
 
-# Half precision:
+# half:
 if (NOT TARGET half::half)
     find_dependency(half REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
 endif ()
