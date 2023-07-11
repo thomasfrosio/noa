@@ -3,8 +3,8 @@
 #endif
 
 #ifdef NOA_ENABLE_CUDA
-    #include "cuda.h"
     #include <cstdlib>
+    #include "cuda.h"
     #include "noa/gpu/cuda/fft/Plan.hpp"
     #include "noa/gpu/cuda/math/Blas.hpp"
 #endif
@@ -51,8 +51,8 @@ namespace noa {
 
         // Check whether lazy mode is already enabled.
         CUmoduleLoadingMode mode;
-        NOA_THROW_IF(cuInit(0));
-        NOA_THROW_IF(cuModuleGetLoadingMode(&mode));
+        NOA_CHECK(cuInit(0) == CUDA_SUCCESS && cuModuleGetLoadingMode(&mode) == CUDA_SUCCESS,
+                  "Failed to initialize and query the CUDA driver");
         return mode == CU_MODULE_LAZY_LOADING;
         #else
         return false;
