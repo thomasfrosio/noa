@@ -231,7 +231,7 @@ namespace noa::cuda::fft {
     i64 fast_size(i64 size) {
         for (auto nice_size: sizes_even_cufft_) {
             const auto tmp = static_cast<i64>(nice_size);
-            if (size < tmp)
+            if (size <= tmp)
                 return tmp;
         }
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number

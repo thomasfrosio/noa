@@ -423,7 +423,7 @@ namespace noa::cpu::fft {
     i64 fast_size(i64 size) {
         for (u16 nice_size: sizes_even_fftw_) {
             const auto tmp = static_cast<i64>(nice_size);
-            if (size < tmp)
+            if (size <= tmp)
                 return tmp;
         }
         return size % 2 ? size : (size + 1); // fall back to next even number
