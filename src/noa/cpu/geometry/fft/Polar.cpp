@@ -4,6 +4,7 @@
 #include "noa/core/signal/fft/CTF.hpp"
 #include "noa/cpu/geometry/fft/Polar.hpp"
 #include "noa/cpu/memory/AllocatorHeap.hpp"
+#include "noa/cpu/memory/Set.hpp"
 #include "noa/cpu/utils/Iwise.hpp"
 #include "noa/cpu/utils/EwiseBinary.hpp"
 
@@ -90,13 +91,21 @@ namespace noa::cpu::geometry::fft {
             Output* output, Weight* weight, i64 n_output_shells,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads) {
 
+        // Output must be zeroed.
+        const i64 n_output_elements = input_shape[0] * n_output_shells;
+        noa::cpu::memory::set(output, n_output_elements, Output{0});
+
         // When computing the average, the weights must be valid.
         using unique_t = typename noa::cpu::memory::AllocatorHeap<Weight>::calloc_unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
-        if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cpu::memory::AllocatorHeap<Weight>::calloc(input_shape[0] * n_output_shells);
-            weight_ptr = weight_buffer.get();
+        if (average) {
+            if (weight_ptr == nullptr) {
+                weight_buffer = noa::cpu::memory::AllocatorHeap<Weight>::calloc(n_output_elements);
+                weight_ptr = weight_buffer.get();
+            } else {
+                noa::cpu::memory::set(weight_ptr, n_output_elements, Weight{0});
+            }
         }
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
@@ -134,7 +143,6 @@ namespace noa::cpu::geometry::fft {
         }
 
         if (average) {
-            // Since n_output_shells can be larger than min(input_shape)/2+1 (oversampling case), some shells can be 0.
             const auto shell_shape = Shape4<i64>{input_shape[0], 1, 1, n_output_shells};
             const auto shell_strides = shell_shape.strides();
             noa::cpu::utils::ewise_binary(

@@ -53,8 +53,8 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
         noa::math::mean(polar, polar_reduced);
 
         // Rotational average.
-        const auto output = noa::memory::zeros<f32>(rotational_average_shape, options);
-        const auto weight = noa::memory::zeros<f32>(rotational_average_shape, options);
+        const auto output = noa::memory::empty<f32>(rotational_average_shape, options);
+        const auto weight = noa::memory::empty<f32>(rotational_average_shape, options);
         noa::geometry::fft::rotational_average<fft::HC2H>(input_rfft, shape, output, weight);
 
 //        fmt::print("{:.3f}\n", fmt::join(polar_reduced.eval().span(), ","));
@@ -65,7 +65,7 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
 
         // Rotational average within a range.
         // Use the same number of shells, so it can be compared with the full range.
-        const auto output_range = noa::memory::zeros<f32>({batches, 1, 1, frequency_range_n_shells}, options);
+        const auto output_range = noa::memory::empty<f32>({batches, 1, 1, frequency_range_n_shells}, options);
         const auto weight_range = noa::memory::like(output_range);
         noa::geometry::fft::rotational_average<fft::HC2H>(
                 input_rfft, shape, output_range, weight_range, frequency_range);
@@ -113,8 +113,8 @@ TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, vs isotropic"
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto simulated_ctf = noa::memory::zeros<f32>(shape.rfft(), options);
-        const auto rotational_averages = noa::memory::zeros<f32>({2, 1, 1, n_shells}, options);
+        const auto simulated_ctf = noa::memory::empty<f32>(shape.rfft(), options);
+        const auto rotational_averages = noa::memory::empty<f32>({2, 1, 1, n_shells}, options);
         const auto result = rotational_averages.subregion(0);
         const auto expected = rotational_averages.subregion(1);
 
@@ -141,8 +141,8 @@ TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, vs isotropic"
         INFO(device);
 
         const auto batched_shape = shape.set<0>(ctfs.size());
-        const auto simulated_ctf = noa::memory::zeros<f32>(batched_shape.rfft(), options);
-        const auto rotational_averages = noa::memory::zeros<f32>({ctfs.size(), 1, 1, n_shells}, options);
+        const auto simulated_ctf = noa::memory::empty<f32>(batched_shape.rfft(), options);
+        const auto rotational_averages = noa::memory::empty<f32>({ctfs.size(), 1, 1, n_shells}, options);
         const auto ctfs_view = View(ctfs.data(), ctfs.size()).to(options);
 
         noa::signal::fft::ctf_anisotropic<fft::H2H>(simulated_ctf, batched_shape, ctfs_view);
@@ -166,7 +166,7 @@ TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, test", "[.]")
     using CTFAnisotropic64 = noa::signal::fft::CTFAnisotropic<f64>;
     const auto ctf_aniso = CTFAnisotropic64({1.8, 2.2}, {1., 0.35, 1.563}, 300, 0., 2.7, 1.570796327, 0);
 
-    const auto ctf = noa::memory::zeros<f32>(shape);
+    const auto ctf = noa::memory::empty<f32>(shape);
     noa::signal::fft::ctf_anisotropic<fft::FC2FC>(ctf, shape, ctf_aniso);
     noa::io::save(ctf, directory / "test_simulated.mrc");
 

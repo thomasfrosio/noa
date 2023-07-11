@@ -189,16 +189,19 @@ namespace noa::cuda::geometry::fft {
             Output* output, Weight* weight, i64 n_output_shells,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, Stream& stream
     ) {
-        const auto shell_batch_size = n_output_shells * input_shape[0];
+        const auto n_output_elements = n_output_shells * input_shape[0];
+        noa::cuda::memory::set(output, n_output_elements, Output{0}, stream);
 
         // When computing the average, the weights must be valid.
         using unique_t = typename noa::cuda::memory::AllocatorDevice<Weight>::unique_type;
         unique_t weight_buffer;
         Weight* weight_ptr = weight;
-        if (weight_ptr == nullptr && average) {
-            weight_buffer = noa::cuda::memory::AllocatorDevice<Weight>::allocate_async(shell_batch_size, stream);
-            weight_ptr = weight_buffer.get();
-            noa::cuda::memory::set(weight_ptr, shell_batch_size, Weight{0}, stream);
+        if (average) {
+            if (weight_ptr == nullptr) {
+                weight_buffer = noa::cuda::memory::AllocatorDevice<Weight>::allocate_async(n_output_elements, stream);
+                weight_ptr = weight_buffer.get();
+            }
+            noa::cuda::memory::set(weight_ptr, n_output_elements, Weight{0}, stream);
         }
 
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;

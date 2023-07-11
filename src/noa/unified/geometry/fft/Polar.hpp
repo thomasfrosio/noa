@@ -293,7 +293,7 @@ namespace noa::geometry::fft {
     /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
     ///                             If real and \p input is complex, `abs(input)^2` is first computed.
     /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
-    ///                             If valid, the output weights are also saved to this array.
+    ///                             If valid, the output weights are also saved in this array.
     /// \param frequency_range      Output normalized frequency range. The output shells span over this range.
     ///                             Defaults to the full frequency range, i.e. [0, highest_normalized_frequency].
     /// \param frequency_endpoint   Whether \p frequency_range's endpoint should be included in the range.
@@ -355,7 +355,7 @@ namespace noa::geometry::fft {
     /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
     ///                             If real and \p input is complex, `abs(input)^2` is first computed.
     /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
-    ///                             If valid, the output weights are also saved to this array.
+    ///                             If valid, the output weights are also saved in this array.
     /// \param frequency_range      Output normalized frequency range. The output shells span over this range.
     ///                             Defaults to the full frequency range, i.e. [0, highest_normalized_frequency].
     /// \param frequency_endpoint   Whether \p frequency_range's endpoint should be included in the range.
