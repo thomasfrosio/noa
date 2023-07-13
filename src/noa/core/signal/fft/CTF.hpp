@@ -26,6 +26,9 @@ namespace noa::signal::fft {
     // TODO Pixel angle?
 
     template<typename Real>
+    class CTFAnisotropic;
+
+    template<typename Real>
     class CTFIsotropic {
     public:
         static_assert(std::is_floating_point_v<Real>);
@@ -61,6 +64,18 @@ namespace noa::signal::fft {
             set_lambda_and_cs_();
             set_amplitude_fraction_();
         }
+
+        NOA_HD constexpr explicit CTFIsotropic(
+                const CTFAnisotropic<Real>& ctf_anisotropic
+        ) : CTFIsotropic(
+                noa::math::sum(ctf_anisotropic.pixel_size()) / 2, // average pixel size
+                ctf_anisotropic.defocus().value, // of course, ignore the astigmatism
+                ctf_anisotropic.voltage(),
+                ctf_anisotropic.amplitude(),
+                ctf_anisotropic.cs(),
+                ctf_anisotropic.phase_shift(),
+                ctf_anisotropic.bfactor()
+        ) {}
 
     public: // getters
         [[nodiscard]] NOA_HD constexpr value_type pixel_size() const noexcept { return m_pixel_size; }
