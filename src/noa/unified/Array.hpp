@@ -310,8 +310,12 @@ namespace noa {
         ///          with the new. This is used to control whether PINNED or MANAGED memory should be accessed by
         ///          the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the current
         ///         GPU is used in that case.
-        [[nodiscard]] Array as(DeviceType type) const {
-            return Array(share(), shape(), strides(), options().set_device(view().as(type).device()));
+        /// \param prefetch Whether to prefetch the memory to the target device. This only affects MANAGED(_GLOBAL)
+        ///                 memory and should be used to anticipate access of that memory region by the target device,
+        ///                 and/or to "move" the memory from the original to the target device. The prefetching is
+        ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
+        [[nodiscard]] Array as(DeviceType type, bool prefetch = false) const {
+            return Array(share(), shape(), strides(), options().set_device(view().as(type, prefetch).device()));
         }
 
         /// Reshapes the array.

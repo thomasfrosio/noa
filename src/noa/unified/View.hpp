@@ -262,7 +262,11 @@ namespace noa {
         ///          with the new device. This is used to control whether PINNED or MANAGED memory should be accessed
         ///          by the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the
         ///          current GPU is used in that case.
-        [[nodiscard]] View as(DeviceType type) const {
+        /// \param prefetch Whether to prefetch the memory to the target device. This only affects MANAGED(_GLOBAL)
+        ///                 memory and should be used to anticipate access of that memory region by the target device,
+        ///                 and/or to "move" the memory from the original to the target device. The prefetching is
+        ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
+        [[nodiscard]] View as(DeviceType type, bool prefetch = false) const {
             const Allocator alloc = m_options.allocator();
             if (device().is_gpu() && type == DeviceType::CPU) { // GPU -> CPU
                 NOA_CHECK(alloc == Allocator::PINNED ||
@@ -270,6 +274,12 @@ namespace noa {
                           alloc == Allocator::MANAGED_GLOBAL,
                           "GPU memory-region with the allocator {} cannot be reinterpreted as a CPU memory-region. "
                           "This is only supported for pinned and managed memory-regions", alloc);
+                #ifdef NOA_ENABLE_CUDA
+                if (prefetch && (alloc == Allocator::MANAGED || alloc == Allocator::MANAGED_GLOBAL)) {
+                    noa::cuda::memory::AllocatorManaged<value_type>::prefetch_to_cpu(
+                            get(), shape().elements(), Stream::current(device()).cuda());
+                }
+                #endif
                 return View(get(), shape(), strides(), ArrayOption(m_options).set_device(Device(type)));
 
             } else if (device().is_cpu() && type == DeviceType::GPU) { // CPU -> GPU
@@ -291,12 +301,15 @@ namespace noa {
                     gpu = Device(DeviceType::GPU, attr.device, Device::DeviceUnchecked{});
                     NOA_ASSERT((alloc == Allocator::PINNED && attr.type == cudaMemoryTypeHost) ||
                                (alloc == Allocator::MANAGED && attr.type == cudaMemoryTypeManaged));
-                    // TODO Add cudaPrefetchAsync when it is added to cuda::PtrManaged.
 
                 } else if (alloc == Allocator::MANAGED_GLOBAL) {
                     // NOTE: This can be accessed from any stream and any GPU. It seems to be better to return the
                     //       current device and not the original device against which the allocation was performed.
                     gpu = Device::current(DeviceType::GPU);
+                }
+                if (prefetch && (alloc == Allocator::MANAGED || alloc == Allocator::MANAGED_GLOBAL)) {
+                    noa::cuda::memory::AllocatorManaged<value_type>::prefetch_to_gpu(
+                            get(), shape().elements(), Stream::current(gpu).cuda());
                 }
                 #else
                 NOA_THROW("No GPU backend detected");

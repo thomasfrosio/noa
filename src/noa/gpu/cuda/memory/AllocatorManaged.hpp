@@ -100,5 +100,19 @@ namespace noa::cuda::memory {
             }
             return nullptr;
         }
+
+        // Prefetches the memory region to the stream's GPU.
+        static void prefetch_to_gpu(const value_type* pointer, i64 n_elements, Stream& stream) {
+            NOA_THROW_IF(cudaMemPrefetchAsync(
+                    pointer, static_cast<size_t>(n_elements) * sizeof(value_type),
+                    stream.device().id(), stream.id()));
+        }
+
+        // Prefetches the memory region to the cpu.
+        static void prefetch_to_cpu(const value_type* pointer, i64 n_elements, Stream& stream) {
+            NOA_THROW_IF(cudaMemPrefetchAsync(
+                    pointer, static_cast<size_t>(n_elements) * sizeof(value_type),
+                    cudaCpuDeviceId, stream.id()));
+        }
     };
 }
