@@ -36,8 +36,14 @@ namespace noa::io {
             open_(filename, mode);
         }
 
+        // No copies.
         ImageFile(const ImageFile&) = delete;
+        ImageFile& operator=(const ImageFile&) = delete;
+
+        // Move.
         ImageFile(ImageFile&&) = default;
+        ImageFile& operator=(ImageFile&&) = default;
+
         ~ImageFile() noexcept(false) {
             try {
                 if (m_header)
