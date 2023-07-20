@@ -10,7 +10,6 @@ macro(noa_set_options_cuda)
     option(NOA_CUDA_CUFFT_STATIC "Use the cuFFT static library" ${NOA_CUDA_ALL_STATIC})
     option(NOA_CUDA_CURAND_STATIC "Use the cuRAND static library" ${NOA_CUDA_ALL_STATIC})
     option(NOA_CUDA_CUBLAS_STATIC "Use the cuBLAS static library" ${NOA_CUDA_ALL_STATIC})
-    option(NOA_CUDA_CUSOLVER_STATIC "Use the cuSOLVER static library" ${NOA_CUDA_ALL_STATIC})
 
     option(NOA_CUDA_ENABLE_ASSERT
            "Enable device assertions, which can be useful for debugging but considerably increases the device link time. This only affects Debug builds, since assertions are turned off in Release"
