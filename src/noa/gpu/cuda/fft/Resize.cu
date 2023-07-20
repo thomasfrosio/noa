@@ -13,8 +13,11 @@ namespace noa::cuda::fft {
             T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
             Stream& stream
     ) {
-        if (noa::all(input_shape == output_shape))
-            return noa::cuda::memory::copy(input, input_strides, output, output_strides, input_shape, stream);
+        if (noa::all(input_shape == output_shape)) {
+            constexpr bool IS_RFFT = (REMAP == noa::fft::HC2HC) || (REMAP == noa::fft::H2H);
+            const auto shape = IS_RFFT ? input_shape.rfft() : input_shape;
+            return noa::cuda::memory::copy(input, input_strides, output, output_strides, shape, stream);
+        }
 
         // For centered layouts, use the memory::resize instead.
         if constexpr (REMAP == noa::fft::HC2HC) {

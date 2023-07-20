@@ -7,11 +7,16 @@
 
 namespace noa::cpu::fft {
     template<noa::fft::Remap REMAP, typename T, typename>
-    void resize(const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
-                T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
-                i64 threads) {
-        if (noa::all(input_shape == output_shape))
-            return noa::cpu::memory::copy(input, input_strides, output, output_strides, input_shape, threads);
+    void resize(
+            const T* input, Strides4<i64> input_strides, Shape4<i64> input_shape,
+            T* output, Strides4<i64> output_strides, Shape4<i64> output_shape,
+            i64 threads
+    ) {
+        if (noa::all(input_shape == output_shape)) {
+            constexpr bool IS_RFFT = (REMAP == noa::fft::HC2HC) || (REMAP == noa::fft::H2H);
+            const auto shape = IS_RFFT ? input_shape.rfft() : input_shape;
+            return noa::cpu::memory::copy(input, input_strides, output, output_strides, shape, threads);
+        }
 
         // For centered layouts, use the memory::resize instead.
         if constexpr (REMAP == noa::fft::HC2HC) {
