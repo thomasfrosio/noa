@@ -46,9 +46,16 @@ namespace noa::indexing {
         return is_vector(input.shape()) && input.are_contiguous();
     }
 
-    /// Whether the input is a contiguous (batched) vector.
+    /// Whether the input is a contiguous vector or a contiguous batch of contiguous vectors.
     template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_v<Input>>>
     [[nodiscard]] constexpr bool is_contiguous_vector_batched(const Input& input) {
         return is_vector(input.shape(), true) && input.are_contiguous();
+    }
+
+    /// Whether the input is a contiguous vector or a contiguous/strided batch of contiguous vectors.
+    /// The batch stride doesn't have to be contiguous.
+    template<typename Input, typename = std::enable_if_t<noa::traits::is_array_or_view_v<Input>>>
+    [[nodiscard]] constexpr bool is_contiguous_vector_batched_strided(const Input& input) {
+        return is_vector(input.shape(), true) && noa::all(input.is_contiguous().pop_front() == Vec3<bool>(true));
     }
 }

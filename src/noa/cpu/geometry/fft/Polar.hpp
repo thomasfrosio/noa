@@ -40,6 +40,6 @@ namespace noa::cpu::geometry::fft {
              typename = std::enable_if_t<details::is_valid_rotational_average_v<REMAP, Input, Ctf, Output, Weight>>>
     void rotational_average(
             const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape, const Ctf& input_ctf,
-            Output* output, Weight* weight, i64 n_output_shells,
+            Output* output, i64 output_batch_stride, Weight* weight, i64 weight_batch_stride, i64 n_shells,
             const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads);
 }

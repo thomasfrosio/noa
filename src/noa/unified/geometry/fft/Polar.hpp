@@ -103,8 +103,14 @@ namespace noa::geometry::fft::details {
             angle_range = {0.f, noa::math::Constant<f32>::PI};
     }
 
+    struct rotational_average_check_parameters_output {
+        i64 n_shells;
+        i64 output_batch_stride;
+        i64 weight_batch_stride;
+    };
+
     template<typename Input, typename Output, typename Weight, typename Ctf = Empty>
-    i64 rotational_average_check_parameters(
+    rotational_average_check_parameters_output rotational_average_check_parameters(
             const Input& input,
             const Shape4<i64>& shape,
             const Ctf& input_ctf,
@@ -122,16 +128,19 @@ namespace noa::geometry::fft::details {
                   shape[0], input.shape()[0], output.shape()[0],
                   weights_is_empty ? "" : noa::string::format(" and weights={}", weights.shape()[0]));
 
-        NOA_CHECK(noa::indexing::is_contiguous_vector_batched(output),
-                  "The output must be a contiguous (batched) vector, but got shape={} and strides={}",
+        const i64 output_batch_stride = output.strides()[0];
+        NOA_CHECK(noa::indexing::is_contiguous_vector_batched_strided(output),
+                  "The output must be a (strided-batched of) contiguous vector(s), but got shape={} and strides={}",
                   output.shape(), output.strides());
 
         const i64 output_shell_count = output.shape().pop_front().elements();
+        i64 weight_batch_stride{0};
         if (!weights_is_empty) {
-            NOA_CHECK(noa::indexing::is_contiguous_vector_batched(weights),
-                      "The weights must be a contiguous (batched) vector, but got shape={} and strides={}",
+            NOA_CHECK(noa::indexing::is_contiguous_vector_batched_strided(weights),
+                      "The weights must be a (strided-batched of) contiguous vector(s), but got shape={} and strides={}",
                       weights.shape(), weights.strides());
 
+            weight_batch_stride = weights.strides()[0];
             const i64 weights_shell_count = weights.shape().pop_front().elements();
             NOA_CHECK(output_shell_count == weights_shell_count,
                       "The number of shells does not match the input shape. "
@@ -160,7 +169,8 @@ namespace noa::geometry::fft::details {
                       input_ctf.device(), output.device());
         }
 
-        return output_shell_count;
+        return rotational_average_check_parameters_output{
+            output_shell_count, output_batch_stride, weight_batch_stride};
     }
 
     template<typename Ctf>
@@ -290,10 +300,11 @@ namespace noa::geometry::fft {
     ///                             is often (but not limited to) the half dimension size, i.e. min(shape) // 2 + 1.
     /// \param[in] input            Input dft to reduce. Can be real or complex.
     /// \param input_shape          BDHW logical shape of \p input.
-    /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
+    /// \param[out] output          Rotational sum/average. Should be a (strided-batched of) contiguous vector(s).
     ///                             If real and \p input is complex, `abs(input)^2` is first computed.
-    /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
-    ///                             If valid, the output weights are also saved in this array.
+    /// \param[out] weights         Rotational weights. Can be empty, or be a (strided-batched of) contiguous vector(s)
+    ///                             with the same shape as the output. If valid, the output weights are also saved
+    ///                             in this array.
     /// \param frequency_range      Output normalized frequency range. The output shells span over this range.
     ///                             Defaults to the full frequency range, i.e. [0, highest_normalized_frequency].
     /// \param frequency_endpoint   Whether \p frequency_range's endpoint should be included in the range.
@@ -313,8 +324,7 @@ namespace noa::geometry::fft {
             bool frequency_endpoint = true,
             bool average = true
     ) {
-        const i64 n_output_shells = details::rotational_average_check_parameters(
-                input, input_shape, {}, output, weights);
+        auto params = details::rotational_average_check_parameters(input, input_shape, {}, output, weights);
         details::set_frequency_range_to_default(input_shape, frequency_range);
 
         const Device device = output.device();
@@ -325,7 +335,8 @@ namespace noa::geometry::fft {
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::rotational_average<REMAP>(
                         input.get(), input.strides(), input_shape, Empty{},
-                        output.get(), weights.get(), n_output_shells,
+                        output.get(), params.output_batch_stride,
+                        weights.get(), params.weight_batch_stride, params.n_shells,
                         frequency_range, frequency_endpoint, average, threads);
             });
         } else {
@@ -333,7 +344,8 @@ namespace noa::geometry::fft {
             auto& cuda_stream = stream.cuda();
             cuda::geometry::fft::rotational_average<REMAP>(
                     input.get(), input.strides(), input_shape, Empty{},
-                    output.get(), weights.get(), n_output_shells,
+                    output.get(), params.output_batch_stride,
+                    weights.get(), params.weight_batch_stride, params.n_shells,
                     frequency_range, frequency_endpoint, average, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
             #else
@@ -352,10 +364,11 @@ namespace noa::geometry::fft {
     ///                             are accounted for, resulting in an isotropic rotational average(s).
     ///                             If an array/view is passed, there should be one CTF per input batch.
     ///                             Otherwise, the same CTF is assigned to every batch.
-    /// \param[out] output          Rotational sum/average. Should be a (batched) contiguous vector.
+    /// \param[out] output          Rotational sum/average. Should be a (strided-batched of) contiguous vector(s).
     ///                             If real and \p input is complex, `abs(input)^2` is first computed.
-    /// \param[out] weights         Rotational weights. Can be empty, or have the same shape as the output.
-    ///                             If valid, the output weights are also saved in this array.
+    /// \param[out] weights         Rotational weights. Can be empty, or be a (strided-batched of) contiguous vector(s)
+    ///                             with the same shape as the output. If valid, the output weights are also saved
+    ///                             in this array.
     /// \param frequency_range      Output normalized frequency range. The output shells span over this range.
     ///                             Defaults to the full frequency range, i.e. [0, highest_normalized_frequency].
     /// \param frequency_endpoint   Whether \p frequency_range's endpoint should be included in the range.
@@ -376,8 +389,7 @@ namespace noa::geometry::fft {
             bool frequency_endpoint = true,
             bool average = true
     ) {
-        const i64 n_output_shells = details::rotational_average_check_parameters(
-                input, input_shape, input_ctf, output, weights);
+        auto params = details::rotational_average_check_parameters(input, input_shape, input_ctf, output, weights);
         details::set_frequency_range_to_default(input_shape, frequency_range);
 
         const Device device = output.device();
@@ -388,7 +400,8 @@ namespace noa::geometry::fft {
             cpu_stream.enqueue([=]() {
                 cpu::geometry::fft::rotational_average<REMAP>(
                         input.get(), input.strides(), input_shape, details::extract_ctf(input_ctf),
-                        output.get(), weights.get(), n_output_shells,
+                        output.get(), params.output_batch_stride,
+                        weights.get(), params.weight_batch_stride, params.n_shells,
                         frequency_range, frequency_endpoint, average, threads);
             });
         } else {
@@ -396,7 +409,8 @@ namespace noa::geometry::fft {
             auto& cuda_stream = stream.cuda();
             cuda::geometry::fft::rotational_average<REMAP>(
                     input.get(), input.strides(), input_shape, details::extract_ctf(input_ctf),
-                    output.get(), weights.get(), n_output_shells,
+                    output.get(), params.output_batch_stride,
+                    weights.get(), params.weight_batch_stride, params.n_shells,
                     frequency_range, frequency_endpoint, average, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
             if constexpr (noa::traits::is_array_or_view_v<Ctf>)

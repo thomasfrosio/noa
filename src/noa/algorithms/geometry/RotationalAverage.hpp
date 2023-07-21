@@ -56,17 +56,17 @@ namespace noa::algorithm::geometry {
                           const ctf_type& input_ctf,
                           const output_accessor_type& output,
                           const weight_accessor_type& weight,
-                          index_type n_output_shells,
+                          index_type n_shells,
                           coord2_type frequency_range,
                           bool frequency_range_endpoint)
                 : m_input(input), m_output(output), m_weight(weight), m_ctf(input_ctf),
-                  m_max_shell_index(n_output_shells - 1),
+                  m_max_shell_index(n_shells - 1),
                   m_fftfreq_step(coord_type{1} / static_cast<coord_nd_type>(input_shape.vec())) {
 
             // Transform to inclusive range so that we only have to deal with one case.
             if (!frequency_range_endpoint) {
                 auto step = noa::algorithm::memory::linspace_step(
-                        n_output_shells, frequency_range[0], frequency_range[1], false);
+                        n_shells, frequency_range[0], frequency_range[1], false);
                 frequency_range[1] -= step;
             }
             if constexpr (std::is_empty_v<ctf_type>)
@@ -187,17 +187,19 @@ namespace noa::algorithm::geometry {
     auto rotational_average_2d(
             const Input* input, const Strides4<Offset>& input_strides,
             const Shape4<Index>& input_shape, const Ctf& input_ctf,
-            Output* output, Weight* weight, Index n_output_shells,
+            Output* output, Offset output_batch_stride,
+            Weight* weight, Offset weight_batch_stride, Index n_shells,
             Vec2<Coord> frequency_range, bool frequency_range_endpoint
     ) {
-        const auto shell_strides = Strides2<Offset>{n_output_shells, 1};
         const auto input_accessor = AccessorRestrict<const Input, 3, Offset>(input, input_strides.filter(0, 2, 3));
-        const auto output_accessor = AccessorRestrictContiguous<Output, 2, Offset>(output, shell_strides);
-        const auto weight_accessor = AccessorRestrictContiguous<Weight, 2, Offset>(weight, shell_strides);
+        const auto output_accessor = AccessorRestrictContiguous<Output, 2, Offset>(
+                output, Strides2<Offset>{output_batch_stride, 1});
+        const auto weight_accessor = AccessorRestrictContiguous<Weight, 2, Offset>(
+                weight, Strides2<Offset>{weight_batch_stride, 1});
 
         return RotationalAverage<REMAP, 2, Coord, Index, Offset, Input, Output, Ctf>(
                 input_accessor, input_shape.filter(2, 3), input_ctf, output_accessor, weight_accessor,
-                n_output_shells, frequency_range, frequency_range_endpoint);
+                n_shells, frequency_range, frequency_range_endpoint);
     }
 
     template<noa::fft::Remap REMAP,
@@ -205,16 +207,18 @@ namespace noa::algorithm::geometry {
              typename Input, typename Output, typename Weight>
     auto rotational_average_3d(
             const Input* input, const Strides4<Offset>& input_strides, const Shape4<Index>& input_shape,
-            Output* output, Weight* weight, Index n_output_shells,
+            Output* output, Offset output_batch_stride,
+            Weight* weight, Offset weight_batch_stride, Index n_shells,
             Vec2<Coord> frequency_range, bool frequency_range_endpoint
     ) {
-        const auto shell_strides = Strides2<Offset>{n_output_shells, 1};
         const auto input_accessor = AccessorRestrict<const Input, 4, Offset>(input, input_strides);
-        const auto output_accessor = AccessorRestrictContiguous<Output, 2, Offset>(output, shell_strides);
-        const auto weight_accessor = AccessorRestrictContiguous<Weight, 2, Offset>(weight, shell_strides);
+        const auto output_accessor = AccessorRestrictContiguous<Output, 2, Offset>(
+                output, Strides2<Offset>{output_batch_stride, 1});
+        const auto weight_accessor = AccessorRestrictContiguous<Weight, 2, Offset>(
+                weight, Strides2<Offset>{weight_batch_stride, 1});
 
         return RotationalAverage<REMAP, 3, Coord, Index, Offset, Input, Output, Empty>(
                 input_accessor, input_shape.filter(1, 2, 3), {}, output_accessor, weight_accessor,
-                n_output_shells, frequency_range, frequency_range_endpoint);
+                n_shells, frequency_range, frequency_range_endpoint);
     }
 }

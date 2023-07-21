@@ -88,12 +88,16 @@ namespace noa::cpu::geometry::fft {
     template<noa::fft::Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight, typename>
     void rotational_average(
             const Input* input, Strides4<i64> input_strides, Shape4<i64> input_shape, const Ctf& input_ctf,
-            Output* output, Weight* weight, i64 n_output_shells,
-            const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads) {
+            Output* output, i64 output_batch_stride, Weight* weight, i64 weight_batch_stride, i64 n_shells,
+            const Vec2<f32>& frequency_range, bool frequency_range_endpoint, bool average, i64 threads
+    ) {
+        const auto n_batches = input_shape[0];
+        const auto shell_shape = Shape4<i64>{n_batches, 1, 1, n_shells};
+        const auto output_strides = Strides4<i64>{output_batch_stride, 0, 0, 1};
+        auto weight_strides = Strides4<i64>{weight_batch_stride, 0, 0, 1};
 
         // Output must be zeroed.
-        const i64 n_output_elements = input_shape[0] * n_output_shells;
-        noa::cpu::memory::set(output, n_output_elements, Output{0});
+        noa::cpu::memory::set(output, output_strides, shell_shape, Output{0}, /*threads=*/ 1);
 
         // When computing the average, the weights must be valid.
         using unique_t = typename noa::cpu::memory::AllocatorHeap<Weight>::calloc_unique_type;
@@ -101,10 +105,11 @@ namespace noa::cpu::geometry::fft {
         Weight* weight_ptr = weight;
         if (average) {
             if (weight_ptr == nullptr) {
-                weight_buffer = noa::cpu::memory::AllocatorHeap<Weight>::calloc(n_output_elements);
+                weight_buffer = noa::cpu::memory::AllocatorHeap<Weight>::calloc(n_batches * n_shells);
                 weight_ptr = weight_buffer.get();
+                weight_strides[0] = n_shells; // contiguous batches
             } else {
-                noa::cpu::memory::set(weight_ptr, n_output_elements, Weight{0});
+                noa::cpu::memory::set(weight_ptr, weight_strides, shell_shape, Weight{0}, /*threads=*/ 1);
             }
         }
 
@@ -118,7 +123,8 @@ namespace noa::cpu::geometry::fft {
             }
 
             const auto kernel = noa::algorithm::geometry::rotational_average_2d<REMAP>(
-                    input, input_strides, input_shape, input_ctf, output, weight_ptr, n_output_shells,
+                    input, input_strides, input_shape, input_ctf,
+                    output, output_strides[0], weight_ptr, weight_strides[0], n_shells,
                     frequency_range, frequency_range_endpoint);
 
             auto iwise_shape = input_shape.filter(0, 2, 3);
@@ -136,19 +142,19 @@ namespace noa::cpu::geometry::fft {
             }
 
             const auto kernel = noa::algorithm::geometry::rotational_average_3d<REMAP>(
-                    input, input_strides, input_shape, output, weight_ptr, n_output_shells,
+                    input, input_strides, input_shape,
+                    output, output_strides[0], weight_ptr, weight_strides[0], n_shells,
                     frequency_range, frequency_range_endpoint);
 
             noa::cpu::utils::iwise_4d(IS_HALF ? input_shape.rfft() : input_shape, kernel, threads);
         }
 
         if (average) {
-            const auto shell_shape = Shape4<i64>{input_shape[0], 1, 1, n_output_shells};
-            const auto shell_strides = shell_shape.strides();
+            // Some shells can be 0, so use divide_safe_t.
             noa::cpu::utils::ewise_binary(
-                    output, shell_strides,
-                    weight_ptr, shell_strides,
-                    output, shell_strides, shell_shape,
+                    output, output_strides,
+                    weight_ptr, weight_strides,
+                    output, output_strides, shell_shape,
                     noa::divide_safe_t{}, threads);
         }
     }
@@ -169,7 +175,7 @@ namespace noa::cpu::geometry::fft {
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Ctf, Output, Weight)   \
     template void rotational_average<Remap, Input, Ctf, Output, Weight, void>(      \
             const Input*, Strides4<i64>, Shape4<i64>, Ctf const&,                   \
-            Output*, Weight*, i64,                                                  \
+            Output*, i64, Weight*, i64, i64,                                        \
             const Vec2<f32>&, bool, bool, i64)
 
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(Remap, Input, Output, Weight)                                \
