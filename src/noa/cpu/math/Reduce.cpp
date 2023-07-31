@@ -133,11 +133,6 @@ namespace {
                 NOA_THROW("Dimensions should match the input shape, or be 1, "
                           "indicating the dimension should be reduced to one element. "
                           "Got shape input:{}, output:{}", input_shape, output_shape);
-            } else if (noa::math::sum(mask.as<i32>()) > 1 && !noa::all(mask == Vec4<bool>{0, 1, 1, 1})) {
-                NOA_THROW("Reducing more than one axis at a time is only supported if the reduction results in "
-                          "one value per batch, i.e. the DHW dimensions are empty after reduction. "
-                          "Got shape input:{}, output:{}, axis reduction:{}",
-                          input_shape, output_shape, mask);
             }
             return mask;
         }
@@ -190,6 +185,13 @@ namespace {
                             pre_process_op, reduce_op, post_process_op, threads, ddof, output_mean_i);
                 }
                 return;
+            }
+
+            if (noa::math::sum(axes_to_reduce.as<i32>()) > 1) {
+                NOA_THROW("Reducing more than one axis at a time is only supported if the reduction results in "
+                          "one value per batch, i.e., the DHW dimensions are empty after reduction. "
+                          "Got shape input:{}, output:{}, reduce:{}",
+                          input_shape, output_shape, axes_to_reduce);
             }
 
             // Reduce one axis.

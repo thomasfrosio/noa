@@ -130,7 +130,7 @@ namespace {
 
         if (noa::math::sum(mask.as<i32>()) > 1) {
             NOA_THROW("Reducing more than one axis at a time is only supported if the reduction results in "
-                      "one value per batch, i.e. the 3 innermost dimensions are shape=1 after reduction. "
+                      "one value per batch, i.e., the DHW dimensions are empty after reduction. "
                       "Got input:{}, output:{}, reduce:{}", input_shape, output_shape, mask);
         }
 
