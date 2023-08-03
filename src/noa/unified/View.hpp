@@ -321,9 +321,9 @@ namespace noa {
         }
 
         /// Reshapes the view (must have the same number of elements as the current view).
-        [[nodiscard]] View reshape(const shape_type& new_shape) const {
+        [[nodiscard]] View reshape(shape_type new_shape) const {
             // Infer the size -1 if needed.
-            const auto n_elements = size();
+            const auto n_elements = ssize();
             NOA_CHECK(noa::indexing::infer_size(new_shape, n_elements),
                       "The desired shape {} is not compatible with the current shape of the array {}, "
                       "or the size inference is invalid or ambiguous", new_shape, shape());

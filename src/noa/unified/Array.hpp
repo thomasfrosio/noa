@@ -326,7 +326,7 @@ namespace noa {
         ///          alias Array constructor instead.
         /// \return An alias of the array with the new shape and strides.
         [[nodiscard]] Array reshape(const shape_type& new_shape) const {
-            auto v = View(nullptr, shape(), strides()).reshape(new_shape);
+            auto v = View<value_type>(nullptr, shape(), strides()).reshape(new_shape);
             return Array(share(), v.shape(), v.strides(), options());
         }
 
