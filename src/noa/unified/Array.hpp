@@ -320,16 +320,14 @@ namespace noa {
 
         /// Reshapes the array.
         /// \details This function performs a "safe" reshape by making sure the new shape contains the same number
-        ///          of elements. If one wants to assign an array to an arbitrary new shape and new strides, one
-        ///          can use the alias Array constructor instead.
+        ///          of elements. The new shape can have one dimension to -1, meaning the size of this dimension
+        ///          should be inferred from the other dimensions and the number of elements.
+        ///          If one wants to assign an array to an arbitrary new shape and new strides, one can use the
+        ///          alias Array constructor instead.
         /// \return An alias of the array with the new shape and strides.
         [[nodiscard]] Array reshape(const shape_type& new_shape) const {
-            strides_type new_stride;
-            if (!noa::indexing::reshape(shape(), strides(), new_shape, new_stride)) {
-                NOA_THROW("An array of shape {} and stride {} cannot be reshaped to an array of shape {}",
-                          shape(), strides(), new_shape);
-            }
-            return Array(share(), new_shape, new_stride, options());
+            auto v = View(nullptr, shape(), strides()).reshape(new_shape);
+            return Array(share(), v.shape(), v.strides(), options());
         }
 
         /// Reshapes the array in a vector along a particular axis.

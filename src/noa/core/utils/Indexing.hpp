@@ -449,7 +449,7 @@ namespace noa::indexing {
             Shape<T, OldN> old_shape, Strides<T, OldN> old_strides,
             Shape<T, NewN> new_shape, Strides<T, NewN>& new_strides
     ) noexcept {
-        // from https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/TensorUtils.cpp
+        // from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
         if (!old_shape.elements())
             return false;
 
@@ -479,8 +479,40 @@ namespace noa::indexing {
         }
         return view_d == -1;
     }
-}
 
+    /// Tries to infer the size of a dimension with size -1, if it exists.
+    /// Also checks that new shape is compatible with the number of elements.
+    /// If the inference failed or if the inferred shape isn't correct, returns false.
+    template<typename T, size_t N>
+    [[nodiscard]] NOA_IH constexpr bool infer_size(Shape<T, N>& shape, T n_elements) noexcept {
+        // Adapted from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/InferSize.h
+        T infer_dim{-1};
+        T new_size{1};
+        for (size_t dim = 0; dim < N; ++dim) {
+            if (shape[dim] == -1) {
+                if (infer_dim != -1)
+                    return false; // only one dimension can be inferred
+                infer_dim = dim;
+            } else if (shape[dim] >= 0) {
+                new_size *= shape[dim];
+            } else {
+                 return false; // invalid shape dimension
+            }
+        }
+
+        // Only the number of elements matters. So non-inferred dimensions can have different sizes
+        // as long as the number of elements is the same. If inference, find the integer multiple to
+        // complete the shape.
+        if (n_elements == new_size) {
+            return true; // nothing to do
+        } else if (infer_dim != -1 && new_size > 0 && n_elements % new_size == 0) {
+            shape[infer_dim] = n_elements / new_size;
+            return true; // inferred
+        } else {
+            return false; // shape and n_elements don't match, or empty array
+        }
+    }
+}
 
 namespace noa::indexing {
     template<typename Int>

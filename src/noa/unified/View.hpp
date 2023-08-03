@@ -175,9 +175,9 @@ namespace noa {
 
                 // Reshape.
                 Strides4<i64> new_stride{};
-                if (!noa::indexing::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride))
-                    NOA_THROW("A view of shape {} and strides {} cannot be reshaped to shape {}",
-                              reinterpreted.shape, reinterpreted.strides, new_shape);
+                NOA_CHECK(noa::indexing::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride),
+                          "A view of shape {} and strides {} cannot be reshaped to shape {}",
+                          reinterpreted.shape, reinterpreted.strides, new_shape);
 
                 // Ignore the outer empty dimensions.
                 output_shape_t output_shape(new_shape.template pop_front<OFFSET>().template as_safe<I>());
@@ -322,11 +322,18 @@ namespace noa {
 
         /// Reshapes the view (must have the same number of elements as the current view).
         [[nodiscard]] View reshape(const shape_type& new_shape) const {
+            // Infer the size -1 if needed.
+            const auto n_elements = size();
+            NOA_CHECK(noa::indexing::infer_size(new_shape, n_elements),
+                      "The desired shape {} is not compatible with the current shape of the array {}, "
+                      "or the size inference is invalid or ambiguous", new_shape, shape());
+
+            // Then reshape.
             strides_type new_stride;
-            if (!noa::indexing::reshape(shape(), strides(), new_shape, new_stride)) {
-                NOA_THROW("A view of shape {} and stride {} cannot be reshaped to a view of shape {}",
-                          shape(), strides(), new_shape);
-            }
+            NOA_CHECK(noa::indexing::reshape(shape(), strides(), new_shape, new_stride),
+                      "An array of shape {} and stride {} cannot be reshaped to an array of shape {}",
+                      shape(), strides(), new_shape);
+
             return View(get(), new_shape, new_stride, options());
         }
 
