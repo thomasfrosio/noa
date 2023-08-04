@@ -235,6 +235,6 @@ TEST_CASE("example: tile extraction", "[.]") {
     auto rotational_average_mean_output = rotational_average_mean.to_cpu();
     noa::signal::convolve(
             rotational_average_mean.to_cpu(), rotational_average_mean_output,
-            noa::signal::gaussian_window<f32>(7, 1.25, true));
+            noa::signal::window_gaussian<f32>(7, 1.25, true));
     save_txt_1d(rotational_average_mean_output.view(), working_directory / "rotational_average_mean_smooth.mrc");
 }

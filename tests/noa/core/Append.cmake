@@ -8,6 +8,8 @@ set(TEST_COMMON_SOURCES
 
     noa/core/string/TestCommonString.cpp
 
+    noa/core/signal/TestCoreWindows.cpp
+
     noa/core/traits/TestCommonTraitsVectors.cpp
 
     noa/core/types/TestCommonAccessor.cpp
