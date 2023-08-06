@@ -31,7 +31,7 @@ set(NOA_CORE_HEADERS
     core/string/Split.hpp
 
     core/Traits.hpp
-    core/traits/ArrayOrView.hpp
+    core/traits/VArray.hpp
     core/traits/Matrix.hpp
     core/traits/Numerics.hpp
     core/traits/Shape.hpp

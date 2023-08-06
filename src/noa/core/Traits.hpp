@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/traits/ArrayOrView.hpp"
+#include "noa/core/traits/VArray.hpp"
 #include "noa/core/traits/Matrix.hpp"
 #include "noa/core/traits/Numerics.hpp"
 #include "noa/core/traits/Shape.hpp"
