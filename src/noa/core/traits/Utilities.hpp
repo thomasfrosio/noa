@@ -25,6 +25,9 @@ namespace noa::traits {
     NOA_FHD constexpr auto to_underlying(T value) noexcept {
         return static_cast<std::underlying_type_t<T>>(value);
     }
+
+    template<bool B>
+    using enable_if_bool_t = ::std::enable_if_t<B, bool>;
 }
 
 namespace noa::traits {
