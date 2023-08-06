@@ -44,6 +44,8 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 namespace noa {
     namespace fs = std::filesystem;
+    namespace nt = noa::traits;
+
     using Path = fs::path;
     using Byte = std::byte;
 
