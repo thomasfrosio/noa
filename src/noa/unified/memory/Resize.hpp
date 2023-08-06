@@ -33,7 +33,7 @@ namespace noa::memory {
     /// \note \p output == \p input is not valid.
     template<typename Input, typename Output,
              typename Value = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output> &&
+             noa::traits::are_varray_of_restricted_numeric_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Output>, Value>>>
     void resize(const Input& input, const Output& output,
@@ -81,7 +81,7 @@ namespace noa::memory {
     /// \param border_mode  Border mode to use. See BorderMode for more details.
     /// \param border_value Border value. Only used for padding if \p mode is BorderMode::VALUE.
     template<typename Input, typename Value = noa::traits::mutable_value_type_t<Input>, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_numeric_v<Input> &&
+             noa::traits::is_varray_of_numeric_v<Input> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value>>>
     [[nodiscard]] auto resize(const Input& input,
                               const Vec4<i64>& border_left, const Vec4<i64>& border_right,
@@ -104,7 +104,7 @@ namespace noa::memory {
     /// \note \p output == \p input is not valid.
     template<typename Input, typename Output,
              typename Value = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Output> &&
+             noa::traits::are_varray_of_restricted_numeric_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value>>>
     void resize(const Input& input, const Output& output,
@@ -119,7 +119,7 @@ namespace noa::memory {
     /// \param border_mode          Border mode to use. See BorderMode for more details.
     /// \param border_value         Border value. Only used if \p mode is BorderMode::VALUE.
     template<typename Input, typename Value = noa::traits::mutable_value_type_t<Input>, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_numeric_v<Input> &&
+             noa::traits::is_varray_of_numeric_v<Input> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value>>>
     [[nodiscard]] auto resize(const Input& input, const Shape4<i64>& output_shape,
                               BorderMode border_mode = BorderMode::ZERO, Value border_value = Value{0}) {

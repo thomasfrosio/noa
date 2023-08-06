@@ -47,7 +47,7 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Input, Output> &&
+                     noa::traits::are_varray_v<Input, Output> &&
                      (details::is_valid_reduce_unary_v<
                              noa::traits::value_type_t<Input>, Reduced,
                              noa::traits::value_type_t<Output>, Index,
@@ -105,7 +105,7 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Input, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
+                     noa::traits::are_varray_v<Input, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
                      (details::is_valid_reduce_unary_v<
                              noa::traits::value_type_t<Input>, Reduced,
                              std::invoke_result_t<PostProcessOp, Reduced>, Index,
@@ -164,7 +164,7 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
+                     noa::traits::are_varray_v<Lhs, Rhs, Output> &&
                      details::is_valid_reduce_binary_v<
                              noa::traits::value_type_t<Lhs>,
                              noa::traits::value_type_t<Rhs>, Reduced,
@@ -227,7 +227,7 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Lhs, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
+                     noa::traits::are_varray_v<Lhs, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
                      details::is_valid_reduce_binary_v<
                              noa::traits::value_type_t<Lhs>,
                              noa::traits::value_type_t<Rhs>, Reduced,

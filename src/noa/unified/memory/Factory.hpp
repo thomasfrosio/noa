@@ -21,7 +21,7 @@ namespace noa::memory {
     /// \param[out] output  Array with evenly spaced values.
     /// \param value        The value to assign.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Output> &&
+             noa::traits::is_varray_v<Output> &&
              std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
     void fill(const Output& output, Value value) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
@@ -140,7 +140,7 @@ namespace noa::memory {
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
     template<typename Output, typename Value = noa::traits::value_type_t<Output>,
-             typename = std::enable_if_t<noa::traits::is_array_or_view_of_any_v<Output, Value>>>
+             typename = std::enable_if_t<noa::traits::is_varray_of_any_v<Output, Value>>>
     void arange(const Output& output, Value start = Value{0}, Value step = Value{1}) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -208,7 +208,7 @@ namespace noa::memory {
     /// \param stop         The end value of the sequence, unless \p endpoint is false.
     /// \param endpoint     Whether the stop is the last simple. Otherwise, it is not included.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value>>>
+             noa::traits::is_varray_of_any_v<Output, Value>>>
     Value linspace(const Output& output, Value start, Value stop, bool endpoint = true) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -277,7 +277,7 @@ namespace noa::memory {
     /// \param tile         Tile shape in each dimension.
     ///                     If the tile is equal to the shape of \p output,
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
-    template<typename Output, typename = std::enable_if_t<noa::traits::is_array_or_view_v<Output>>>
+    template<typename Output, typename = std::enable_if_t<noa::traits::is_varray_v<Output>>>
     void iota(const Output& output, const Vec4<i64>& tile) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -291,7 +291,7 @@ namespace noa::memory {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (noa::traits::is_array_or_view_of_numeric_v<Output>) {
+            if constexpr (noa::traits::is_varray_of_numeric_v<Output>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::iota(output.get(), output.strides(), output.shape(), tile, cuda_stream);
                 cuda_stream.enqueue_attach(output.share());

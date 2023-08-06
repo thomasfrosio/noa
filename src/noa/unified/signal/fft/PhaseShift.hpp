@@ -26,7 +26,7 @@ namespace noa::signal::fft::details {
                       "In-place remapping is not allowed");
         }
 
-        if constexpr (noa::traits::is_array_or_view_v<Shift>) {
+        if constexpr (noa::traits::is_varray_v<Shift>) {
             NOA_CHECK(indexing::is_contiguous_vector(shifts) && shifts.elements() == output.shape()[0],
                       "The input shift(s) should be entered as a 1D contiguous vector, with one shift per output batch, "
                       "but got shift {} and output {}", shifts.shape(), output.shape());
@@ -62,10 +62,10 @@ namespace noa::signal::fft {
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
     template<Remap REMAP, typename Output, typename Shift,
              typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
-             (noa::traits::is_array_or_view_of_almost_any_v<Shift, Vec2<f32>> || std::is_same_v<Shift, Vec2<f32>>) &&
+             (noa::traits::is_varray_of_almost_any_v<Shift, Vec2<f32>> || std::is_same_v<Shift, Vec2<f32>>) &&
              (REMAP == Remap::H2H || REMAP == Remap::H2HC || REMAP == Remap::HC2H || REMAP == Remap::HC2HC)>>
     void phase_shift_2d(const Input& input, const Output& output, const Shape4<i64>& shape,
                         const Shift& shifts, f32 cutoff = 1) {
@@ -98,7 +98,7 @@ namespace noa::signal::fft {
                     details::extract_shift(shifts),
                     cutoff, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_array_or_view_v<Shift>)
+            if constexpr (noa::traits::is_varray_v<Shift>)
                 cuda_stream.enqueue_attach(shifts.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -118,10 +118,10 @@ namespace noa::signal::fft {
     /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
     template<Remap REMAP, typename Output, typename Shift,
              typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
-             (noa::traits::is_array_or_view_of_almost_any_v<Shift, Vec3<f32>> || std::is_same_v<Shift, Vec3<f32>>)&&
+             (noa::traits::is_varray_of_almost_any_v<Shift, Vec3<f32>> || std::is_same_v<Shift, Vec3<f32>>)&&
              (REMAP == Remap::H2H || REMAP == Remap::H2HC || REMAP == Remap::HC2H || REMAP == Remap::HC2HC)>>
     void phase_shift_3d(const Input& input, const Output& output, const Shape4<i64>& shape,
                         const Shift& shifts, f32 cutoff = 1) {
@@ -154,7 +154,7 @@ namespace noa::signal::fft {
                     details::extract_shift(shifts),
                     cutoff, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_array_or_view_v<Shift>)
+            if constexpr (noa::traits::is_varray_v<Shift>)
                 cuda_stream.enqueue_attach(shifts.share());
             #else
             NOA_THROW("No GPU backend detected");

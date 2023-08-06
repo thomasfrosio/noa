@@ -18,8 +18,8 @@ namespace noa::math {
     ///          and solution vectors x can be handled in a single call, in which case they are stored as the columns
     ///          of the matrix b. Furthermore, the entire problem can be batched.
     ///
-    /// \tparam A, B, X         Array or View of f32, f64, c32 or c64.
-    /// \tparam U               Array or View of f32, f64 (should match the precision of A, B and X).
+    /// \tparam A, B, X         VArray of f32, f64, c32 or c64.
+    /// \tparam U               VArray of f32, f64 (should match the precision of A, B and X).
     /// \param[in,out] a        Dense M-by-N matrix, where M >= N. It is overwritten.
     /// \param[in,out] b        Dense M-by-K matrix, where K can be 1. It is overwritten.
     /// \param[out] x           Dense N-by-K solution matrix. Can point to the same memory as \p b.
@@ -38,7 +38,7 @@ namespace noa::math {
              typename MatrixU = View<noa::traits::value_type_twice_t<MatrixA>>,
              typename = std::enable_if_t<
                      noa::traits::is_real_v<Real> &&
-                     noa::traits::are_array_or_view_v<MatrixA, MatrixB, MatrixX, MatrixU> &&
+                     noa::traits::are_varray_v<MatrixA, MatrixB, MatrixX, MatrixU> &&
                      noa::traits::are_same_value_type_v<MatrixA, MatrixB, MatrixX> &&
                      !std::is_const_v<noa::traits::value_type_t<MatrixA>> &&
                      details::is_valid_lstsq_t<MatrixA, MatrixU>>>

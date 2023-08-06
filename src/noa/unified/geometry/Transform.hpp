@@ -14,13 +14,13 @@ namespace noa::geometry::details {
     constexpr bool is_valid_transform_2d_v =
             noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
             (noa::traits::is_almost_any_v<Matrix, Float23, Float33> ||
-             noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float23, Float33>);
+             noa::traits::is_varray_of_almost_any_v<Matrix, Float23, Float33>);
 
     template<typename Value, typename Matrix>
     constexpr bool is_valid_transform_3d_v =
             noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
             (noa::traits::is_almost_any_v<Matrix, Float34, Float44> ||
-             noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float34, Float44>);
+             noa::traits::is_varray_of_almost_any_v<Matrix, Float34, Float44>);
 
 
     template<int32_t NDIM, bool SYMMETRY = false, typename Input, typename Output, typename Matrix>
@@ -53,7 +53,7 @@ namespace noa::geometry::details {
                       "but got matrices:{} and output:{}", matrix.device(), device);
         }
 
-        if constexpr (noa::traits::is_array_or_view_v<Input>) {
+        if constexpr (noa::traits::is_varray_v<Input>) {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
@@ -93,7 +93,7 @@ namespace noa::geometry {
     ///          output batches (1 input -> N output).
     ///
     /// \tparam Value           f32, f64, c32, c64.
-    /// \tparam Matrix          Float23, Float33, or an array or view of these types.
+    /// \tparam Matrix          Float23, Float33, or an varray of these types.
     /// \param[in] input        Input 2D array.
     /// \param[out] output      Output 2D array.
     /// \param[in] inv_matrices 2x3 or 3x3 inverse HW affine matrices.
@@ -104,8 +104,8 @@ namespace noa::geometry {
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     template<typename Input, typename Output, typename Matrix,
              typename Value = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_transform_2d_v<Value, Matrix>>>
     void transform_2d(const Input& input, const Output& output, const Matrix& inv_matrices,
@@ -135,7 +135,7 @@ namespace noa::geometry {
                     details::extract_matrix(inv_matrices),
                     interp_mode, border_mode, value, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+            if constexpr (noa::traits::is_varray_v<Matrix>)
                 cuda_stream.enqueue_attach(inv_matrices.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -146,7 +146,7 @@ namespace noa::geometry {
     /// Applies one or multiple 2D affine transforms.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename Matrix, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             noa::traits::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_2d_v<Value, Matrix>>>
     void transform_2d(const Texture<Value>& input, const Output& output, const Matrix& inv_matrices) {
         details::transform_nd_check_parameters<2>(input, output, inv_matrices);
@@ -178,7 +178,7 @@ namespace noa::geometry {
                         output.get(), output.strides(), output.shape(),
                         details::extract_matrix(inv_matrices), cuda_stream);
                 cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
-                if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+                if constexpr (noa::traits::is_varray_v<Matrix>)
                     cuda_stream.enqueue_attach(inv_matrices.share());
             }
             #else
@@ -197,7 +197,7 @@ namespace noa::geometry {
     ///          output batches (1 input -> N output).
     ///
     /// \tparam Value           f32, f64, c32, c64.
-    /// \tparam Matrix          Float34, Float44, or an array or view of these types.
+    /// \tparam Matrix          Float34, Float44, or an varray of these types.
     /// \param[in] input        Input 3D array.
     /// \param[out] output      Output 3D array.
     /// \param[in] inv_matrices 3x4 or 4x4 inverse DHW affine matrix/matrices.
@@ -208,8 +208,8 @@ namespace noa::geometry {
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     template<typename Input, typename Output, typename Matrix,
              typename Value = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-                    noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output> &&
                     details::is_valid_transform_3d_v<Value, Matrix>>>
     void transform_3d(const Input& input, const Output& output, const Matrix& inv_matrices,
@@ -239,7 +239,7 @@ namespace noa::geometry {
                     details::extract_matrix(inv_matrices),
                     interp_mode, border_mode, value, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+            if constexpr (noa::traits::is_varray_v<Matrix>)
                 cuda_stream.enqueue_attach(inv_matrices.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -250,7 +250,7 @@ namespace noa::geometry {
     /// Applies one or multiple 3D affine transforms.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename Matrix, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             noa::traits::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_3d_v<Value, Matrix>>>
     void transform_3d(const Texture<Value>& input, const Output& output, const Matrix& inv_matrices) {
         details::transform_nd_check_parameters<3>(input, output, inv_matrices);
@@ -282,7 +282,7 @@ namespace noa::geometry {
                         output.get(), output.strides(), output.shape(),
                         details::extract_matrix(inv_matrices), cuda_stream);
                 cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
-                if constexpr (noa::traits::is_array_or_view_v<Matrix>)
+                if constexpr (noa::traits::is_varray_v<Matrix>)
                     cuda_stream.enqueue_attach(inv_matrices.share());
             }
             #else
@@ -317,8 +317,8 @@ namespace noa::geometry {
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void transform_and_symmetrize_2d(
             const Input& input, const Output& output,
@@ -358,7 +358,7 @@ namespace noa::geometry {
     /// Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             noa::traits::is_varray_of_any_v<Output, Value> &&
              noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_2d(
             const Texture<Value>& input, const Output& output,
@@ -424,8 +424,8 @@ namespace noa::geometry {
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void transform_and_symmetrize_3d(
             const Input& input, const Output& output,
@@ -466,7 +466,7 @@ namespace noa::geometry {
     /// \details This overload has the same features and limitations as the overload taking Arrays.
     ///          This is mostly for the GPU, since "CPU textures" are simple Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             noa::traits::is_varray_of_any_v<Output, Value> &&
              noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_3d(
             const Texture<Value>& input, const Output& output,
@@ -519,8 +519,8 @@ namespace noa::geometry {
     ///                     If false, output values end up being scaled by the symmetry count.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void symmetrize_2d(const Input& input, const Output& output,
                        const Symmetry& symmetry, const Vec2<f32>& center,
@@ -559,7 +559,7 @@ namespace noa::geometry {
     /// Symmetrizes the 2D (batched) input array.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+             noa::traits::is_varray_of_any_v<Output, Value> &&
              noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_2d(const Texture<Value>& input, const Output& output,
                        const Symmetry& symmetry, const Vec2<f32>& center,
@@ -609,8 +609,8 @@ namespace noa::geometry {
     ///                     If false, output values end up being scaled by the symmetry count.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void symmetrize_3d(const Input& input, const Output& output,
                        const Symmetry& symmetry, const Vec3<f32>& center,
@@ -649,7 +649,7 @@ namespace noa::geometry {
     /// Symmetrizes the 2D (batched) input array.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_of_any_v<Output, Value> &&
+            noa::traits::is_varray_of_any_v<Output, Value> &&
             noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_3d(const Texture<Value>& input, const Output& output,
                        const Symmetry& symmetry, const Vec3<f32>& center,

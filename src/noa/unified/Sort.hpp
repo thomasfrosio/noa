@@ -16,9 +16,9 @@ namespace noa {
     ///                         dimension in the rightmost order. Otherwise, it should be from 0 to 3, included.
     /// \note All the sort algorithms make temporary copies of the data when sorting along any but the last axis.
     ///       Consequently, sorting along the last axis is faster and uses less space than sorting along any other axis.
-    template<typename ArrayOrView,
-             typename = std::enable_if_t<noa::traits::is_array_or_view_of_restricted_scalar_v<ArrayOrView>>>
-    void sort(const ArrayOrView& array, bool ascending = true, i32 axis = -1) {
+    template<typename VArray,
+             typename = std::enable_if_t<noa::traits::is_varray_of_restricted_scalar_v<VArray>>>
+    void sort(const VArray& array, bool ascending = true, i32 axis = -1) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);

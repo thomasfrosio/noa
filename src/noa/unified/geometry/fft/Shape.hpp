@@ -13,14 +13,14 @@ namespace noa::geometry::fft::details {
     template<Remap REMAP, size_t N, typename Matrix>
     constexpr bool is_valid_shape_v =
             ((N == 2 && (noa::traits::is_any_v<Matrix, Empty, Float22> ||
-                         noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22>)) ||
+                         noa::traits::is_varray_of_almost_any_v<Matrix, Float22>)) ||
              (N == 3 && (noa::traits::is_any_v<Matrix, Empty, Float33> ||
-                         noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float33>))) &&
+                         noa::traits::is_varray_of_almost_any_v<Matrix, Float33>))) &&
             (REMAP == F2F || REMAP == FC2FC);
 
     template<size_t N, typename Matrix>
     constexpr auto extract_matrix(const Matrix& matrix) noexcept {
-        if constexpr (noa::traits::is_array_or_view_of_almost_any_v<Matrix, Float22, Float33>) {
+        if constexpr (noa::traits::is_varray_of_almost_any_v<Matrix, Float22, Float33>) {
             using const_ptr_t = const typename Matrix::mutable_value_type*;
             return const_ptr_t(matrix.get());
         } else if constexpr (std::is_empty_v<Matrix>) {
@@ -57,8 +57,8 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename Output, size_t N, typename Matrix = Empty,
             typename Input = View<const noa::traits::value_type_t<Output>>,
             typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-                    noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
                     details::is_valid_shape_v<REMAP, N, Matrix>>>
     void ellipse(const Input& input, const Output& output,
@@ -123,8 +123,8 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename Output, size_t N, typename Matrix = Empty,
              typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-                    noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
                     details::is_valid_shape_v<REMAP, N, Matrix>>>
     void sphere(const Input& input, const Output& output,
@@ -189,8 +189,8 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename Output, size_t N, typename Matrix = Empty,
              typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-                    noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
                     details::is_valid_shape_v<REMAP, N, Matrix>>>
     void rectangle(const Input& input, const Output& output,
@@ -256,8 +256,8 @@ namespace noa::geometry::fft {
     template<Remap REMAP, typename Output, typename Matrix = Empty,
              typename Input = View<const noa::traits::value_type_t<Output>>,
              typename CValue = traits::value_type_t<Output>, typename = std::enable_if_t<
-                    noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
                     noa::traits::are_almost_same_value_type_v<Input, Output, CValue> &&
                     details::is_valid_shape_v<REMAP, 3, Float33>>>
     void cylinder(const Input& input, const Output& output,

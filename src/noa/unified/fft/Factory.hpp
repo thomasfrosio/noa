@@ -34,9 +34,9 @@ namespace noa::fft {
     }
 
     /// Returns the real-valued alias of \p rfft.
-    /// \param[in] rfft Array or View of the rfft(s) to alias.
+    /// \param[in] rfft VArray of the rfft(s) to alias.
     /// \param shape    BDHW logical shape of \p rfft.
-    template<typename Complex, typename = std::enable_if_t<noa::traits::is_array_or_view_of_complex_v<Complex>>>
+    template<typename Complex, typename = std::enable_if_t<noa::traits::is_varray_of_complex_v<Complex>>>
     [[nodiscard]] auto alias_to_real(const Complex& rfft, const Shape4<i64>& shape) {
         NOA_CHECK(noa::all(rfft.shape() == shape.rfft()),
                   "Given the {} logical shape, the rfft should have a shape of {}, but got {}",

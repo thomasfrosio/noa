@@ -31,7 +31,7 @@ namespace noa {
     ///         \c C = \c f16,f32,f64\n
     ///         \c D = \c c16,c32,c64\n
     template<typename Input, typename Output, typename UnaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Input, Output>>>
+             typename = std::enable_if_t<noa::traits::are_varray_v<Input, Output>>>
     void ewise_unary(const Input& input, const Output& output, UnaryOp&& unary_op) {
         using input_value_t = noa::traits::value_type_t<Input>;
         using output_value_t = noa::traits::value_type_t<Output>;
@@ -85,7 +85,7 @@ namespace noa {
     /// The output is allocated and returned. By default, the output value type is deduced from the operator.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Output = void, typename Input, typename UnaryOp,
-             typename = std::enable_if_t<noa::traits::is_array_or_view_v<Input> &&
+             typename = std::enable_if_t<noa::traits::is_varray_v<Input> &&
                                          (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>)>>
     [[nodiscard]] auto ewise_unary(const Input& input, UnaryOp&& unary_op) {
         using input_value_t = noa::traits::value_type_t<Input>;
@@ -122,7 +122,7 @@ namespace noa {
     ///         \c B = \c f16,f32,f64\n
     ///         \c C = \c c16,c32,c64\n
     template<typename Lhs, typename Rhs, typename Output, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Lhs, Rhs, Output>>>
+             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Rhs, Output>>>
     void ewise_binary(const Lhs& lhs, const Rhs& rhs, const Output& output, BinaryOp&& binary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
         using rhs_value_t = noa::traits::value_type_t<Rhs>;
@@ -184,7 +184,7 @@ namespace noa {
     /// Element-wise transformation using a binary \c operator()(lhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Rhs, typename Output, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Lhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Output> &&
                                          noa::traits::is_numeric_v<Rhs>>>
     void ewise_binary(const Lhs& lhs, Rhs rhs, const Output& output, BinaryOp&& binary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -242,7 +242,7 @@ namespace noa {
     /// Element-wise transformation using a binary \c operator()(lhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Rhs, typename Output, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Rhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Rhs, Output> &&
                                          noa::traits::is_numeric_v<Lhs>>>
     void ewise_binary(Lhs lhs, const Rhs& rhs, const Output& output, BinaryOp&& binary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -303,8 +303,8 @@ namespace noa {
     template<typename Output = void, typename Lhs, typename Rhs, typename BinaryOp,
              typename = std::enable_if_t<
                      (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>) &&
-                     (noa::traits::is_array_or_view_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
-                     (noa::traits::is_array_or_view_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
+                     (noa::traits::is_varray_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
+                     (noa::traits::is_varray_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
     [[nodiscard]] auto ewise_binary(const Lhs& lhs, const Rhs& rhs, BinaryOp&& binary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
         using rhs_value_t = noa::traits::value_type_t<Rhs>;
@@ -312,10 +312,10 @@ namespace noa {
                 std::is_void_v<Output>, std::invoke_result_t<BinaryOp, lhs_value_t, rhs_value_t>, Output>;
         Shape4<i64> shape;
         ArrayOption options;
-        if constexpr (noa::traits::is_array_or_view_v<Lhs>) {
+        if constexpr (noa::traits::is_varray_v<Lhs>) {
             shape = lhs.shape();
             options = lhs.options();
-        } else if constexpr (noa::traits::is_array_or_view_v<Rhs>) {
+        } else if constexpr (noa::traits::is_varray_v<Rhs>) {
             shape = rhs.shape();
             options = rhs.options();
         } else {
@@ -353,7 +353,7 @@ namespace noa {
     ///         \c B = \c f16,f32,f64,c16,c32,c64\n
     ///         \c C = \c c16,c32,c64\n
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Lhs, Mhs, Rhs, Output>>>
+             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Mhs, Rhs, Output>>>
     void ewise_trinary(const Lhs& lhs, const Mhs& mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
         using mhs_value_t = noa::traits::value_type_t<Mhs>;
@@ -424,7 +424,7 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Lhs, Mhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Mhs, Output> &&
                                          noa::traits::is_numeric_v<Rhs>>>
     void ewise_trinary(const Lhs& lhs, const Mhs& mhs, Rhs rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -491,7 +491,7 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Rhs, Output> &&
                                          noa::traits::is_numeric_v<Mhs>>>
     void ewise_trinary(const Lhs& lhs, Mhs mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -558,7 +558,7 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Mhs, Rhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Mhs, Rhs, Output> &&
                                          noa::traits::is_numeric_v<Lhs>>>
     void ewise_trinary(Lhs lhs, const Mhs& mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -625,7 +625,7 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Lhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Output> &&
                                          noa::traits::are_numeric_v<Mhs, Rhs>>>
     void ewise_trinary(const Lhs& lhs, Mhs mhs, Rhs rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -687,7 +687,7 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Mhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Mhs, Output> &&
                                          noa::traits::are_numeric_v<Lhs, Rhs>>>
     void ewise_trinary(Lhs lhs, const Mhs& mhs, Rhs rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -749,7 +749,7 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_v<Rhs, Output> &&
+             typename = std::enable_if_t<noa::traits::are_varray_v<Rhs, Output> &&
                                          noa::traits::are_numeric_v<Lhs, Mhs>>>
     void ewise_trinary(Lhs lhs, Mhs mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
@@ -814,9 +814,9 @@ namespace noa {
     template<typename Output = void, typename Lhs, typename Mhs, typename Rhs, typename TrinaryOp,
              typename = std::enable_if_t<
                      (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>) &&
-                     (noa::traits::is_array_or_view_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
-                     (noa::traits::is_array_or_view_v<Mhs> || noa::traits::is_numeric_v<Mhs>) &&
-                     (noa::traits::is_array_or_view_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
+                     (noa::traits::is_varray_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
+                     (noa::traits::is_varray_v<Mhs> || noa::traits::is_numeric_v<Mhs>) &&
+                     (noa::traits::is_varray_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
     [[nodiscard]] auto ewise_trinary(const Lhs& lhs, const Mhs& mhs, const Rhs& rhs, TrinaryOp&& trinary_op) {
         using lhs_value_t = noa::traits::value_type_t<Lhs>;
         using mhs_value_t = noa::traits::value_type_t<Mhs>;
@@ -825,13 +825,13 @@ namespace noa {
                 std::is_void_v<Output>, std::invoke_result_t<TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>, Output>;
         Shape4<i64> shape;
         ArrayOption options;
-        if constexpr (noa::traits::is_array_or_view_v<Lhs>) {
+        if constexpr (noa::traits::is_varray_v<Lhs>) {
             shape = lhs.shape();
             options = lhs.options();
-        } else if constexpr (noa::traits::is_array_or_view_v<Mhs>) {
+        } else if constexpr (noa::traits::is_varray_v<Mhs>) {
             shape = mhs.shape();
             options = mhs.options();
-        } else if constexpr (noa::traits::is_array_or_view_v<Rhs>) {
+        } else if constexpr (noa::traits::is_varray_v<Rhs>) {
             shape = rhs.shape();
             options = rhs.options();
         } else {

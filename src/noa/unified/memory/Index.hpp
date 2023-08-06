@@ -34,7 +34,7 @@ namespace noa::memory {
     ///         - The input and lhs value type should be equal to \p Value.
     ///         - \p unary_op is limited to \c noa::logical_not_t.
     template<typename Value, typename Offset, typename Input, typename Lhs, typename UnaryOp,
-            typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Lhs>>>
+            typename = std::enable_if_t<noa::traits::are_varray_of_restricted_numeric_v<Input, Lhs>>>
     [[nodiscard]] Extracted<Value, Offset>
     extract_unary(const Input& input, const Lhs& lhs, UnaryOp&& unary_op,
                   bool extract_values = true, bool extract_offsets = true) {
@@ -102,7 +102,7 @@ namespace noa::memory {
     ///         - The input value types should be equal to \p Value.
     ///         - \p binary_op is limited to \c noa::{equal|not_equal|less|less_equal|greater|greater_equal}_t.
     template<typename Value, typename Offset, typename Input, typename Lhs, typename Rhs, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Lhs, Rhs>>>
+             typename = std::enable_if_t<noa::traits::are_varray_of_restricted_numeric_v<Input, Lhs, Rhs>>>
     [[nodiscard]] Extracted<Value, Offset>
     extract_binary(const Input& input, const Lhs& lhs, const Rhs& rhs, BinaryOp&& binary_op,
                    bool extract_values = true, bool extract_offsets = true) {
@@ -157,7 +157,7 @@ namespace noa::memory {
     /// Extracts elements (and/or offsets) from the input array based on a binary bool operator.
     template<typename Value, typename Offset, typename Input, typename Lhs, typename Rhs, typename BinaryOp,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Lhs> &&
+                     noa::traits::are_varray_of_restricted_numeric_v<Input, Lhs> &&
                      noa::traits::is_numeric_v<Rhs>>>
     [[nodiscard]] Extracted<Value, Offset>
     extract_binary(const Input& input, const Lhs& lhs, Rhs rhs, BinaryOp&& binary_op,
@@ -213,7 +213,7 @@ namespace noa::memory {
     /// Extracts elements (and/or offsets) from the input array based on a binary bool operator.
     template<typename Value, typename Offset, typename Input, typename Lhs, typename Rhs, typename BinaryOp,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Rhs> &&
+                     noa::traits::are_varray_of_restricted_numeric_v<Input, Rhs> &&
                      noa::traits::is_numeric_v<Lhs>>>
     [[nodiscard]] Extracted<Value, Offset>
     extract_binary(const Input& input, Lhs lhs, const Rhs& rhs, BinaryOp&& binary_op,
@@ -274,7 +274,7 @@ namespace noa::memory {
     ///         - The values type should be one of i32, i64, u32, u64, f16, f32, f64.
     ///         - The offsets type should be one of i32, i64, u32, u64.
     template<typename Value, typename Offset, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_restricted_numeric_v<Value, Offset, Output>>>
+             noa::traits::are_varray_of_restricted_numeric_v<Value, Offset, Output>>>
     void insert_elements(const Value& values, const Offset& offsets, const Output& output) {
         NOA_CHECK(noa::all(values.shape() == offsets.shape()) &&
                   noa::indexing::is_contiguous_vector(offsets) &&

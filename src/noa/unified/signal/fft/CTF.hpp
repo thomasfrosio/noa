@@ -22,10 +22,10 @@ namespace noa::signal::fft::details {
 
         static constexpr bool IS_ISOTROPIC =
                 nt::is_any_v<CTF, iso32_type, iso64_type> ||
-                nt::is_array_or_view_of_any_v<CTF, iso32_type, iso64_type>;
+                nt::is_varray_of_any_v<CTF, iso32_type, iso64_type>;
         static constexpr bool IS_ANISOTROPIC =
                 nt::is_any_v<CTF, aniso32_type, aniso64_type> ||
-                nt::is_array_or_view_of_any_v<CTF, aniso32_type, aniso64_type>;
+                nt::is_varray_of_any_v<CTF, aniso32_type, aniso64_type>;
         static constexpr bool IS_VALID = IS_ISOTROPIC || IS_ANISOTROPIC;
     };
 
@@ -36,9 +36,9 @@ namespace noa::signal::fft::details {
              REMAP == Remap::F2F || REMAP == Remap::FC2F || REMAP == Remap::F2FC || REMAP == Remap::FC2FC) &&
             (noa::traits::are_same_value_type_v<noa::traits::value_type_t<Input>, noa::traits::value_type_t<Output>> &&
              ((noa::traits::are_same_value_type_v<Input, Output> &&
-               noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output>) ||
-              (noa::traits::is_array_or_view_of_complex_v<Input> &&
-               noa::traits::is_array_or_view_of_real_v<Output>)));
+               noa::traits::are_varray_of_real_or_complex_v<Input, Output>) ||
+              (noa::traits::is_varray_of_complex_v<Input> &&
+               noa::traits::is_varray_of_real_v<Output>)));
 
     template<Remap REMAP>
     constexpr Remap remove_input_layout() {
@@ -81,7 +81,7 @@ namespace noa::signal::fft::details {
             }
         }
 
-        if constexpr (noa::traits::is_array_or_view_v<CTF>) {
+        if constexpr (noa::traits::is_varray_v<CTF>) {
             NOA_CHECK(!ctf.is_empty() && noa::indexing::is_contiguous_vector(ctf) && ctf.elements() == shape[0],
                       "The CTFs should be specified as a contiguous vector with {} elements, "
                       "but got shape {} and strides {}",
@@ -99,7 +99,7 @@ namespace noa::signal::fft::details {
 
     template<typename CTF>
     auto extract_ctf(const CTF& ctf) {
-        if constexpr (nt::is_array_or_view_v<CTF>) {
+        if constexpr (nt::is_varray_v<CTF>) {
             using ptr_t = const noa::traits::value_type_t<CTF>*;
             return ptr_t(ctf.get());
         } else {
@@ -161,7 +161,7 @@ namespace noa::signal::fft {
                     details::extract_ctf(ctf), ctf_abs, ctf_square,
                     fftfreq_range, fftfreq_range_endpoint, cuda_stream);
             cuda_stream.enqueue_attach(output.share());
-            if constexpr (noa::traits::is_array_or_view_v<CTF>)
+            if constexpr (noa::traits::is_varray_v<CTF>)
                 cuda_stream.enqueue_attach(ctf.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -227,7 +227,7 @@ namespace noa::signal::fft {
                     output.get(), output.strides(), shape,
                     details::extract_ctf(ctf), ctf_abs, ctf_square, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_array_or_view_v<CTF>)
+            if constexpr (noa::traits::is_varray_v<CTF>)
                 cuda_stream.enqueue_attach(ctf.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -287,7 +287,7 @@ namespace noa::signal::fft {
                     details::extract_ctf(ctf), ctf_abs, ctf_square,
                     fftfreq_range, fftfreq_range_endpoint, cuda_stream);
             cuda_stream.enqueue_attach(output.share());
-            if constexpr (noa::traits::is_array_or_view_v<CTF>)
+            if constexpr (noa::traits::is_varray_v<CTF>)
                 cuda_stream.enqueue_attach(ctf.share());
             #else
             NOA_THROW("No GPU backend detected");
@@ -353,7 +353,7 @@ namespace noa::signal::fft {
                     output.get(), output.strides(), shape,
                     details::extract_ctf(ctf), ctf_abs, ctf_square, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_array_or_view_v<CTF>)
+            if constexpr (noa::traits::is_varray_v<CTF>)
                 cuda_stream.enqueue_attach(ctf.share());
             #else
             NOA_THROW("No GPU backend detected");

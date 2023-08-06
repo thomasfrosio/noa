@@ -34,7 +34,7 @@ namespace noa::math {
     ///       \p output is reinterpreted to the corresponding real type array,
     ///       requiring its width dimension to be contiguous.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Output> &&
+             noa::traits::is_varray_v<Output> &&
              details::is_valid_random_v<noa::traits::value_type_t<Output>, Value>>>
     void randomize(noa::math::uniform_t, const Output& output, Value min, Value max) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
@@ -74,7 +74,7 @@ namespace noa::math {
     ///       \p output is reinterpreted to the corresponding real type array,
     ///       requiring its width dimension to be contiguous.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Output> &&
+             noa::traits::is_varray_v<Output> &&
              details::is_valid_random_v<noa::traits::value_type_t<Output>, Value>>>
     void randomize(noa::math::normal_t, const Output& output, Value mean = Value{0}, Value stddev = Value{1}) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
@@ -114,7 +114,7 @@ namespace noa::math {
     ///       \p output is reinterpreted to the corresponding real type array,
     ///       requiring its width dimension to be contiguous.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Output> &&
+             noa::traits::is_varray_v<Output> &&
              details::is_valid_random_v<noa::traits::value_type_t<Output>, Value>>>
     void randomize(noa::math::log_normal_t, const Output& output, Value mean = Value{0}, Value stddev = Value{1}) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
@@ -153,7 +153,7 @@ namespace noa::math {
     /// \note If the output value type is complex, \p output is reinterpreted to
     ///       the corresponding real type array, requiring its width dimension to be contiguous.
     template<typename Output, typename Real, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Output> &&
+             noa::traits::is_varray_v<Output> &&
              details::is_valid_random_v<noa::traits::value_type_t<Output>, Real> &&
              noa::traits::is_real_v<Real>>>
     void randomize(noa::math::poisson_t, const Output& output, Real lambda) {

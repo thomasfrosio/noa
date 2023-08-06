@@ -13,8 +13,8 @@ namespace noa::math {
     /// \param[out] real    Real elements.
     /// \param[out] imag    Imaginary elements.
     template<typename Complex, typename Real, typename Imag, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex> &&
-             noa::traits::are_array_or_view_of_real_v<Real, Imag> &&
+             noa::traits::is_varray_of_complex_v<Complex> &&
+             noa::traits::are_varray_of_real_v<Real, Imag> &&
              noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Complex>, Real, Imag>>>
     void decompose(const Complex& input, const Real& real, const Imag& imag) {
         NOA_CHECK(!input.is_empty() && !real.is_empty() && !imag.is_empty(), "Empty array detected");
@@ -64,8 +64,8 @@ namespace noa::math {
     /// \param[in] input    Complex array to decompose.
     /// \param[out] real    Real elements.
     template<typename Complex, typename Real, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex> &&
-             noa::traits::is_array_or_view_of_real_v<Real> &&
+             noa::traits::is_varray_of_complex_v<Complex> &&
+             noa::traits::is_varray_of_real_v<Real> &&
              noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Complex>, Real>>>
     void real(const Complex& input, const Real& real) {
         NOA_CHECK(!input.is_empty() && !real.is_empty(), "Empty array detected");
@@ -108,8 +108,8 @@ namespace noa::math {
     /// \param[in] input    Complex array to decompose.
     /// \param[out] imag    Imaginary elements.
     template<typename Complex, typename Imag, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex> &&
-             noa::traits::is_array_or_view_of_real_v<Imag> &&
+             noa::traits::is_varray_of_complex_v<Complex> &&
+             noa::traits::is_varray_of_real_v<Imag> &&
              noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Complex>, Imag>>>
     void imag(const Complex& input, const Imag& imag) {
         NOA_CHECK(!input.is_empty() && !imag.is_empty(), "Empty array detected");
@@ -153,8 +153,8 @@ namespace noa::math {
     /// \param[in] imag Imaginary elements to interleave.
     /// \param output   Complex array.
     template<typename Complex, typename Real, typename Imag, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex> &&
-             noa::traits::are_array_or_view_of_real_v<Real, Imag> &&
+             noa::traits::is_varray_of_complex_v<Complex> &&
+             noa::traits::are_varray_of_real_v<Real, Imag> &&
              noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Complex>, Real, Imag>>>
     void complex(const Real& real, const Imag& imag, const Complex& output) {
         NOA_CHECK(!output.is_empty() && !real.is_empty() && !imag.is_empty(), "Empty array detected");
@@ -204,7 +204,7 @@ namespace noa::math {
 namespace noa::math {
     /// Extracts the real and imaginary part of complex numbers.
     template<typename Complex, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex>>>
+             noa::traits::is_varray_of_complex_v<Complex>>>
     [[nodiscard]] auto decompose(const Complex& input) {
         using complex_t = noa::traits::value_type_t<Complex>;
         using real_t = noa::traits::value_type_t<complex_t>;
@@ -216,7 +216,7 @@ namespace noa::math {
 
     /// Extracts the real part of complex numbers.
     template<typename Complex, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex>>>
+             noa::traits::is_varray_of_complex_v<Complex>>>
     [[nodiscard]] auto real(const Complex& input) {
         using complex_t = noa::traits::value_type_t<Complex>;
         using real_t = noa::traits::value_type_t<complex_t>;
@@ -227,7 +227,7 @@ namespace noa::math {
 
     /// Extracts the imaginary part of complex numbers.
     template<typename Complex, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_complex_v<Complex>>>
+             noa::traits::is_varray_of_complex_v<Complex>>>
     [[nodiscard]] auto imag(const Complex& input) {
         using complex_t = noa::traits::value_type_t<Complex>;
         using real_t = noa::traits::value_type_t<complex_t>;
@@ -238,7 +238,7 @@ namespace noa::math {
 
     /// Fuses the real and imaginary components.
     template<typename Real, typename Imag, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_v<Real, Imag> &&
+             noa::traits::are_varray_of_real_v<Real, Imag> &&
              noa::traits::are_almost_same_value_type_v<Real, Imag>>>
     [[nodiscard]] auto complex(const Real& real, const Imag& imag) {
         using real_t = noa::traits::mutable_value_type_t<Real>;

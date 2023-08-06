@@ -20,8 +20,8 @@ namespace noa::signal::fft {
     /// \param shape        BDHW logical shape of \p input and \p output.
     /// \param norm         Normalization mode of \p input.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::H2H || REMAP == Remap::HC2HC || REMAP == Remap::F2F || REMAP == Remap::FC2FC)>>
     void standardize_ifft(const Input& input, const Output& output, const Shape4<i64>& shape,

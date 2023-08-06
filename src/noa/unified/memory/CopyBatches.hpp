@@ -12,9 +12,9 @@ namespace noa::memory {
     ///                             are consecutive, or not on the same device, or for types that don't support
     ///                             memory::extract_subregions.
     template<typename Input, typename Output, typename Indexes, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Input, Output> &&
+             noa::traits::are_varray_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
-             noa::traits::is_array_or_view_of_almost_any_v<Indexes, i32, i64>>>
+             noa::traits::is_varray_of_almost_any_v<Indexes, i32, i64>>>
     void copy_batches(const Input& input, const Output& output,
                       const Indexes& batch_indexes,
                       i64 group_copy_at_count = 2) {
@@ -61,7 +61,7 @@ namespace noa::memory {
             return input.subregion(slice).to(output);
         }
 
-        if constexpr (noa::traits::is_array_or_view_of_restricted_numeric_v<Input>) {
+        if constexpr (noa::traits::is_varray_of_restricted_numeric_v<Input>) {
             // If the arrays are on the same device, use extract for
             // better performance (only one iwise call).
             // FIXME Benchmark to check whether this is faster than the simple

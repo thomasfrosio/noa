@@ -61,7 +61,7 @@ namespace noa::geometry::fft::details {
         NOA_CHECK(input.shape()[1] == 1 && output.shape()[1] == 1,
                   "3d arrays are not supported");
 
-        if constexpr (noa::traits::is_array_or_view_v<Input>) {
+        if constexpr (noa::traits::is_varray_v<Input>) {
             NOA_CHECK(output.device() == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input={} and output={}", input.device(), output.device());
@@ -159,7 +159,7 @@ namespace noa::geometry::fft::details {
                       "Only (batched) 2d arrays are supported with anisotropic CTFs, but got shape {}",
                       shape);
         }
-        if constexpr (noa::traits::is_array_or_view_v<Ctf>) {
+        if constexpr (noa::traits::is_varray_v<Ctf>) {
             NOA_CHECK(noa::indexing::is_contiguous_vector(input_ctf) && input_ctf.elements() == shape[0],
                       "The anisotropic input ctfs, specified as a contiguous vector, should have the same number of "
                       "elements as there are input batches. Got ctf (strides={}, shape={}), input batches={}",
@@ -208,8 +208,8 @@ namespace noa::geometry::fft {
     /// \param interp_mode          Interpolation method used to interpolate the values onto the new grid.
     ///                             Cubic interpolations are not supported.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              (noa::traits::are_almost_same_value_type_v<Input, Output> ||
               noa::traits::are_almost_same_value_type_v<Input, noa::traits::value_type_t<Output>>) &&
              REMAP == Remap::HC2FC>>
@@ -253,7 +253,7 @@ namespace noa::geometry::fft {
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
              noa::traits::is_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              (noa::traits::are_almost_same_value_type_v<Texture<Input>, Output> ||
               noa::traits::are_almost_same_value_type_v<Texture<Input>, noa::traits::value_type_t<Output>>) &&
              REMAP == Remap::HC2FC>>
@@ -313,7 +313,7 @@ namespace noa::geometry::fft {
     /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
     template<noa::fft::Remap REMAP, typename Input, typename Output,
              typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output, Weight> &&
+             noa::traits::are_varray_of_real_or_complex_v<Input, Output, Weight> &&
              details::is_valid_rotational_average_v<REMAP, Input, Empty, Output, Weight>>>
     void rotational_average(
             const Input& input,
@@ -377,7 +377,7 @@ namespace noa::geometry::fft {
     /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
     template<noa::fft::Remap REMAP, typename Input, typename Ctf, typename Output,
              typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output, Weight> &&
+             noa::traits::are_varray_of_real_or_complex_v<Input, Output, Weight> &&
              details::is_valid_rotational_average_v<REMAP, Input, Ctf, Output, Weight>>>
     void rotational_average_anisotropic(
             const Input& input,
@@ -413,7 +413,7 @@ namespace noa::geometry::fft {
                     weights.get(), params.weight_batch_stride, params.n_shells,
                     frequency_range, frequency_endpoint, average, cuda_stream);
             cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
-            if constexpr (noa::traits::is_array_or_view_v<Ctf>)
+            if constexpr (noa::traits::is_varray_v<Ctf>)
                 cuda_stream.enqueue_attach(input_ctf.share());
             #else
             NOA_THROW("No GPU backend detected");

@@ -23,7 +23,7 @@ namespace noa::geometry::details {
                   "The input and output arrays must be on the same device, "
                   "but got input:{} and output:{}", input.device(), output.device());
 
-        if constexpr (noa::traits::is_array_or_view_v<Input>) {
+        if constexpr (noa::traits::is_varray_v<Input>) {
             NOA_CHECK(!noa::indexing::are_overlapped(input, output),
                       "Input and output arrays should not overlap");
             NOA_CHECK(noa::indexing::are_elements_unique(output.strides(), output.shape()),
@@ -62,8 +62,8 @@ namespace noa::geometry {
     /// \param interpolation_mode   Interpolation method used to interpolate the values onto the new grid.
     ///                             Out-of-bounds elements are set to zero.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void cartesian2polar(const Input& cartesian, const Output& polar,
                          const Vec2<f32>& cartesian_center,
@@ -111,7 +111,7 @@ namespace noa::geometry {
     /// Transforms 2D array(s) from cartesian to polar coordinates.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value>>>
+             noa::traits::is_varray_of_any_v<Output, Value>>>
     void cartesian2polar(const Texture<Value>& cartesian, const Output& polar,
                          const Vec2<f32>& cartesian_center,
                          Vec2<f32> radius_range = {},
@@ -166,8 +166,8 @@ namespace noa::geometry {
     /// \param interpolation_mode   Interpolation method used to interpolate the values onto the new grid.
     ///                             Out-of-bounds elements are set to zero.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void polar2cartesian(const Input& polar, const Output& cartesian,
                          const Vec2<f32>& cartesian_center,
@@ -211,7 +211,7 @@ namespace noa::geometry {
     /// Transforms 2D array(s) from polar to cartesian coordinates.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Output, Value>>>
+             noa::traits::is_varray_of_any_v<Output, Value>>>
     void polar2cartesian(const Texture<Value>& polar, const Output& cartesian,
                          const Vec2<f32>& cartesian_center,
                          Vec2<f32> radius_range = {},

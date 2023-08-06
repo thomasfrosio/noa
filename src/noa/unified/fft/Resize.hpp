@@ -28,7 +28,7 @@ namespace noa::fft {
     /// \note The batch dimension cannot be resized.
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
+             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_resize<REMAP>>>
     void resize(const Input& input, const Shape4<i64>& input_shape,
@@ -82,7 +82,7 @@ namespace noa::fft {
     /// \note The batch dimension cannot be resized.
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
     template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_real_or_complex_v<Input> &&
+             noa::traits::is_varray_of_real_or_complex_v<Input> &&
              details::is_valid_resize<REMAP>>>
     [[nodiscard]] auto resize(const Input& input,
                               const Shape4<i64>& input_shape,

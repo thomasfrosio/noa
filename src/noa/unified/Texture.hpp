@@ -87,9 +87,9 @@ namespace noa {
         ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is created. See eval().
-        template<typename ArrayOrView, typename = std::enable_if_t<
-                 noa::traits::is_array_or_view_of_any_v<ArrayOrView, value_type>>>
-        Texture(const ArrayOrView& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
+        template<typename VArray, typename = std::enable_if_t<
+                 noa::traits::is_varray_of_any_v<VArray, value_type>>>
+        Texture(const VArray& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
                 value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true)
                 : m_shape(array.shape()), m_interp(interp_mode), m_border(border_mode) {
 
@@ -105,7 +105,7 @@ namespace noa {
                 NOA_CHECK(array.device() == device_target,
                           "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
                           array.device());
-                if constexpr (noa::traits::is_view_v<ArrayOrView>)
+                if constexpr (noa::traits::is_view_v<VArray>)
                     m_texture = cpu_texture_type{array.strides(), Shared<T[]>(array.get(), [](void*) {}), cvalue};
                 else
                     m_texture = cpu_texture_type{array.strides(), array.share(), cvalue};
@@ -210,9 +210,9 @@ namespace noa {
         ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is updated. See eval().
-        template<typename ArrayOrView, typename = std::enable_if_t<
-                 noa::traits::is_array_or_view_of_any_v<ArrayOrView, value_type>>>
-        void update(const ArrayOrView& array, bool prefilter = true) {
+        template<typename VArray, typename = std::enable_if_t<
+                 noa::traits::is_varray_of_any_v<VArray, value_type>>>
+        void update(const VArray& array, bool prefilter = true) {
             NOA_CHECK(!is_empty(), "Trying to update an empty texture is not allowed. Create a valid the texture first");
             NOA_CHECK(!array.is_empty(), "Empty array detected");
             NOA_CHECK(noa::all(array.shape() == m_shape), // TODO Broadcast?
@@ -232,7 +232,7 @@ namespace noa {
                           array.device());
                 cpu_texture_type& cpu_texture = cpu_();
                 cpu_texture.strides = array.strides();
-                if constexpr (noa::traits::is_view_v<ArrayOrView>)
+                if constexpr (noa::traits::is_view_v<VArray>)
                     cpu_texture.ptr = Shared<T[]>(array.get(), [](void*) {});
                 else
                     cpu_texture.ptr = array.share();

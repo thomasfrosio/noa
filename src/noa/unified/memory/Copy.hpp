@@ -19,7 +19,7 @@ namespace noa::memory {
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Input, Output> &&
+             noa::traits::are_varray_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output>>>
     void copy(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");

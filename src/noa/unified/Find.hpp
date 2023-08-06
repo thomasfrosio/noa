@@ -18,8 +18,8 @@ namespace noa::details {
 namespace noa {
     /// Returns the memory offset(s) of a particular kind of value(s).
     /// \tparam ReduceOp    Any of {first|last}_{min|max}_t.
-    /// \tparam Input       Array or View of i32, i64, u32, u64, f16, f32, f64.
-    /// \tparam Offset      Array or View of i32, i64, u32, u64.
+    /// \tparam Input       VArray of i32, i64, u32, u64, f16, f32, f64.
+    /// \tparam Offset      VArray of i32, i64, u32, u64.
     /// \param reduce_op    Search functor.
     /// \param[in] input    Input array.
     /// \param[out] offsets Contiguous vector where the memory offset(s) are saved.
@@ -36,7 +36,7 @@ namespace noa {
     ///       \c noa::indexing::offset2indexes(offset,input).
     template<typename ReduceOp, typename Input, typename Offset,
              typename = std::enable_if_t<
-                     noa::traits::are_array_or_view_v<Input, Offset> &&
+                     noa::traits::are_varray_v<Input, Offset> &&
                      details::is_valid_find_v<ReduceOp, noa::traits::value_type_t<Input>, noa::traits::value_type_t<Offset>>>>
     void find_offsets(ReduceOp reduce_op, const Input& input, const Offset& offsets,
                       bool reduce_batch = false, bool swap_layout = false) {
@@ -79,7 +79,7 @@ namespace noa {
 
     /// Returns the memory offset of a particular kind of value.
     /// \tparam ReduceOp    Any of {first|last}_{min|max}_t.
-    /// \tparam Input       Array or View of i32, i64, u32, u64, f16, f32, f64.
+    /// \tparam Input       VArray of i32, i64, u32, u64, f16, f32, f64.
     /// \param reduce_op    Search functor.
     /// \param[in] input    Input array.
     /// \param swap_layout  Whether the function is allowed to reorder the input for fastest search.
@@ -88,7 +88,7 @@ namespace noa {
     ///                     or row-major. Otherwise, the search is done in the BDHW order.
     template<typename ReduceOp, typename Input,
              typename = std::enable_if_t<
-                     noa::traits::is_array_or_view_v<Input> &&
+                     noa::traits::is_varray_v<Input> &&
                      details::is_valid_find_v<ReduceOp, noa::traits::value_type_t<Input>, i64>>>
     [[nodiscard]] i64 find_offset(ReduceOp reduce_op, const Input& input, bool swap_layout = false) {
         NOA_CHECK(!input.is_empty(), "Empty array detected");

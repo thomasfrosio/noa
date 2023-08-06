@@ -43,7 +43,7 @@ namespace noa::signal::fft {
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename Output,
              typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
+             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
     void lowpass(const Input& input, const Output& output, const Shape4<i64>& shape, f32 cutoff, f32 width) {
@@ -91,7 +91,7 @@ namespace noa::signal::fft {
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename Output,
              typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
+             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
     void highpass(const Input& input, const Output& output, const Shape4<i64>& shape, f32 cutoff, f32 width) {
@@ -142,7 +142,7 @@ namespace noa::signal::fft {
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename Output,
              typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_real_or_complex_v<Input, Output> &&
+             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
              noa::traits::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
     void bandpass(const Input& input, const Output& output, const Shape4<i64>& shape,

@@ -23,8 +23,8 @@ namespace noa::memory {
     /// \note \p input and \p subregions should not overlap.
     template<typename Input, typename Subregion, typename Origin,
              typename Value = noa::traits::mutable_value_type_t<Input>, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_restricted_numeric_v<Input, Subregion> &&
-             noa::traits::is_array_or_view_v<Origin> &&
+             noa::traits::are_varray_of_restricted_numeric_v<Input, Subregion> &&
+             noa::traits::is_varray_v<Origin> &&
              noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
              noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value> &&
              noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
@@ -80,8 +80,8 @@ namespace noa::memory {
     ///                         subregions can be (partially) out-of-bound. This function assumes no overlap between
     ///                         subregions and an overlap may trigger a data race.
     template<typename Subregion, typename Output, typename Origin, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_of_restricted_numeric_v<Output, Subregion> &&
-             noa::traits::is_array_or_view_v<Origin> &&
+             noa::traits::are_varray_of_restricted_numeric_v<Output, Subregion> &&
+             noa::traits::is_varray_v<Origin> &&
              noa::traits::are_almost_same_value_type_v<Output, Subregion> &&
              noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
     void insert_subregions(
@@ -138,7 +138,7 @@ namespace noa::memory {
     ///                         to return only the height and width dimension.
     /// \return                 Atlas shape.
     template<typename Origins, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_v<Origins> &&
+             noa::traits::is_varray_v<Origins> &&
              (noa::traits::is_int2_v<noa::traits::value_type_t<Origins>> ||
               noa::traits::is_int4_v<noa::traits::value_type_t<Origins>>)>>
     Shape4<i64> atlas_layout(const Shape4<i64>& subregion_shape, const Origins& output_origins) {

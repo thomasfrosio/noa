@@ -17,12 +17,12 @@ namespace noa::math::details {
 
 namespace noa::math {
     /// Returns the vector-vector dot product.
-    /// \tparam Lhs, Rhs    Array or View of i32, i64, u32, u64, f32, f64, c32, or c64.
+    /// \tparam Lhs, Rhs    VArray of i32, i64, u32, u64, f32, f64, c32, or c64.
     /// \param[in] lhs      Unbatched row or column vector.
     /// \param[in] rhs      Unbatched row or column vector.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename Lhs, typename Rhs, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Lhs, Rhs> &&
+             noa::traits::are_varray_v<Lhs, Rhs> &&
              noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
              details::is_valid_dot_t<noa::traits::mutable_value_type_t<Lhs>>>>
     [[nodiscard]] auto dot(const Lhs& lhs, const Rhs& rhs) {
@@ -58,13 +58,13 @@ namespace noa::math {
     }
 
     /// Computes the (batched) vector-vector dot product.
-    /// \tparam Lhs, Rhs, Output    Array or View of i32, i64, u32, u64, f32, f64, c32, or c64.
+    /// \tparam Lhs, Rhs, Output    VArray of i32, i64, u32, u64, f32, f64, c32, or c64.
     /// \param[in] lhs              (Batched) row or column vector.
     /// \param[in] rhs              (Batched) row or column vector.
     /// \param[out] output          Output contiguous vector with the dot products. One element per batch.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
+             noa::traits::are_varray_v<Lhs, Rhs, Output> &&
              noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
              details::is_valid_dot_t<noa::traits::value_type_t<Output>>>>
     void dot(const Lhs& lhs, const Rhs& rhs, const Output& output) {
@@ -122,7 +122,7 @@ namespace noa::math {
     ///          As such, it can computes a matrix-vector product, a vector-matrix product and
     ///          the vector-vector outer-product or dot product. The operation is defined as:
     ///          \p output = \p alpha * \p lhs * \p rhs + \p beta * \p output.
-    /// \tparam Lhs, Rhs, Output    Array or View of f32, f64, c32, or c64.
+    /// \tparam Lhs, Rhs, Output    VArray of f32, f64, c32, or c64.
     /// \param[in] lhs              Dense {B,1,M,K} matrix.
     /// \param[in] rhs              Dense {B,1,K,N} matrix.
     /// \param[out] output          Dense {B,1,M,N} matrix.
@@ -137,7 +137,7 @@ namespace noa::math {
     ///       either be row-major or column-major (before transposition). The innermost dimension of the matrices
     ///       (before transposition) should be contiguous and the second-most dimension cannot be broadcast.
     template<typename Lhs, typename Rhs, typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
+             noa::traits::are_varray_v<Lhs, Rhs, Output> &&
              noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
              details::is_valid_matmul_t<noa::traits::value_type_t<Output>> &&
              noa::traits::is_almost_same_v<Value, noa::traits::value_type_t<Output>>>>
@@ -183,7 +183,7 @@ namespace noa::math {
     /// \details This function computes a matrix-matrix product, but it also accepts vectors.
     ///          As such, it can computes a matrix-vector product, a vector-matrix product and
     ///          the vector-vector outer-product or dot product.
-    /// \tparam Lhs, Rhs, Output    Array or View of f32, f64, c32, or c64.
+    /// \tparam Lhs, Rhs, Output    VArray of f32, f64, c32, or c64.
     /// \param[in] lhs              Dense {B,1,M,K} matrix.
     /// \param[in] rhs              Dense {B,1,K,N} matrix.
     /// \param[out] output          Dense {B,1,M,N} matrix.
@@ -191,7 +191,7 @@ namespace noa::math {
     ///       either be row-major or column-major. The innermost dimension of the matrices should be contiguous and
     ///       the second-most dimension cannot be broadcast.
     template<typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::are_array_or_view_v<Lhs, Rhs, Output> &&
+             noa::traits::are_varray_v<Lhs, Rhs, Output> &&
              noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
              details::is_valid_matmul_t<noa::traits::value_type_t<Output>>>>
     void matmul(const Lhs& lhs, const Rhs& rhs, const Output& output) {

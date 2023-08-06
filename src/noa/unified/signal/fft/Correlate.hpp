@@ -31,7 +31,7 @@ namespace noa::signal::fft::details {
                   "The cross-correlation map(s) shape doesn't match the ndim. Got shape {} and expected ndim is {}",
                   xmap.shape(), NDIM);
 
-        if constexpr (noa::traits::is_array_or_view_v<PeakCoord>) {
+        if constexpr (noa::traits::is_varray_v<PeakCoord>) {
             if (!peak_coordinates.is_empty()) {
                 NOA_CHECK(noa::indexing::is_contiguous_vector(peak_coordinates) &&
                           peak_coordinates.elements() == xmap.shape()[0],
@@ -44,7 +44,7 @@ namespace noa::signal::fft::details {
             }
         }
 
-        if constexpr (noa::traits::is_array_or_view_v<PeakValue>) {
+        if constexpr (noa::traits::is_varray_v<PeakValue>) {
             if (!peak_values.is_empty()) {
                 NOA_CHECK(noa::indexing::is_contiguous_vector(peak_values) &&
                           peak_values.elements() == xmap.shape()[0],
@@ -87,9 +87,9 @@ namespace noa::signal::fft {
     ///                         Can be \p lhs or \p rhs. If empty, use \p rhs instead.
     template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<noa::traits::mutable_value_type_t<Rhs>>, typename = std::enable_if_t<
-                    noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Rhs, c32, c64> &&
-                    noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
+                    noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Rhs, c32, c64> &&
+                    noa::traits::is_varray_of_any_v<Output, f32, f64> &&
                     noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Buffer> &&
                     noa::traits::are_same_value_type_v<noa::traits::value_type_t<Rhs>, Output> &&
                     (REMAP == Remap::H2F || REMAP == Remap::H2FC)>>
@@ -171,9 +171,9 @@ namespace noa::signal::fft {
              typename PeakCoord = View<Vec<f32, N>>,
              typename PeakValue = View<noa::traits::mutable_value_type_t<Input>>,
              typename = std::enable_if_t<
-                     noa::traits::is_array_or_view_of_almost_any_v<Input, f32, f64> &&
-                     noa::traits::is_array_or_view_of_any_v<PeakCoord, Vec<f32, N>> &&
-                     noa::traits::is_array_or_view_of_any_v<PeakValue, f32, f64> &&
+                     noa::traits::is_varray_of_almost_any_v<Input, f32, f64> &&
+                     noa::traits::is_varray_of_any_v<PeakCoord, Vec<f32, N>> &&
+                     noa::traits::is_varray_of_any_v<PeakValue, f32, f64> &&
                      noa::traits::are_almost_same_value_type_v<Input, PeakValue> &&
                      details::is_valid_xpeak_v<REMAP, N>>>
     void xpeak(const Input& xmap,
@@ -282,7 +282,7 @@ namespace noa::signal::fft {
     /// \param peak_radius  ((D)H)W radius of the registration window, centered on the peak.
     /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
     template<Remap REMAP, size_t N, typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             noa::traits::is_varray_of_any_v<Input, f32, f64> &&
              details::is_valid_xpeak_v<REMAP, N>>>
     [[nodiscard]] auto xpeak(const Input& xmap,
                              const Vec<f32, N>& xmap_radius = Vec<f32, N>{0},
@@ -335,7 +335,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             noa::traits::is_varray_of_any_v<Input, f32, f64> &&
              details::is_valid_xpeak_v<REMAP, 1>>>
     [[nodiscard]] auto xpeak_1d(const Input& xmap,
                                 const Vec1<f32>& xmap_radius = Vec1<f32>{0},
@@ -345,7 +345,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             noa::traits::is_varray_of_any_v<Input, f32, f64> &&
              details::is_valid_xpeak_v<REMAP, 2>>>
     [[nodiscard]] auto xpeak_2d(const Input& xmap,
                                 const Vec2<f32>& xmap_radius = Vec2<f32>{0},
@@ -355,7 +355,7 @@ namespace noa::signal::fft {
     }
 
     template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_any_v<Input, f32, f64> &&
+             noa::traits::is_varray_of_any_v<Input, f32, f64> &&
              details::is_valid_xpeak_v<REMAP, 3>>>
     [[nodiscard]] auto xpeak_3d(const Input& xmap,
                                 const Vec3<f32>& xmap_radius = Vec3<f32>{0},
@@ -372,9 +372,9 @@ namespace noa::signal::fft {
     /// \param[out] coefficients    Cross-correlation coefficient(s). One per batch.
     ///                             It should be dereferenceable by the CPU.
     template<Remap REMAP, typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
-             noa::traits::is_array_or_view_of_almost_any_v<Rhs, c32, c64> &&
-             noa::traits::is_array_or_view_of_any_v<Output, f32, f64> &&
+             noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+             noa::traits::is_varray_of_almost_any_v<Rhs, c32, c64> &&
+             noa::traits::is_varray_of_any_v<Output, f32, f64> &&
              noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
              noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Lhs>, Output> &&
              details::is_valid_xcorr_remap_v<REMAP>>>
@@ -432,8 +432,8 @@ namespace noa::signal::fft {
     /// \param[in] rhs  Right-hand side FFT.
     /// \param shape    BDHW logical shape. Should not be batched.
     template<Remap REMAP, typename Lhs, typename Rhs, typename = std::enable_if_t<
-            noa::traits::is_array_or_view_of_almost_any_v<Lhs, c32, c64> &&
-            noa::traits::is_array_or_view_of_almost_any_v<Rhs, c32, c64> &&
+            noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+            noa::traits::is_varray_of_almost_any_v<Rhs, c32, c64> &&
             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
             details::is_valid_xcorr_remap_v<REMAP>>>
     [[nodiscard]] auto xcorr(const Lhs& lhs, const Rhs& rhs, const Shape4<i64>& shape) {
