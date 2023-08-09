@@ -13,27 +13,49 @@
 
 // TODO cudaFree(Async) is synchronizing the device/stream or is stream-ordered, so this shouldn't be necessary
 //      for CUDA-managed memory. For unregistered memory that the stream depends on (e.g. CPU<->GPU copies), this
-//      should be useful. Update the documentation to reflex that?
+//      should be useful. Update the documentation to reflect that?
 
 namespace noa::cuda::details {
     template<typename T> struct proclaim_is_shared_ptr : std::false_type {};
     template<typename T> struct proclaim_is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
-    template<typename T> constexpr bool is_shared_ptr_v = std::bool_constant<proclaim_is_shared_ptr<noa::traits::remove_ref_cv_t<T>>::value>::value;
-    template<typename... Ts> constexpr bool is_any_shared_ptr_v = noa::traits::bool_or<is_shared_ptr_v<Ts>...>::value;
+    template<typename T> constexpr bool is_shared_ptr_v = std::bool_constant<proclaim_is_shared_ptr<nt::remove_ref_cv_t<T>>::value>::value;
 
-    // Registry to attach a stream and a shared_ptr, using a FIFO buffer.
+    template<typename T> using has_share = decltype(std::declval<T>().share());
+    template<typename T> constexpr bool has_share_v = nt::is_detected_convertible_v<std::shared_ptr<const void>, has_share, T>;
+
+    template<typename... Ts> constexpr bool is_registrable_v = nt::bool_or<(is_shared_ptr_v<Ts> || has_share_v<Ts>)...>::value;
+
+    // Registry to attach a shared_ptr to a stream, using a FIFO buffer.
+    //
     // Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
-    // kernel is running and when it's done, so that we can make sure the device memory used by this kernel
-    // will never be deleted while the kernel is running. To solve this problem, this registry attaches some
-    // memory regions to a stream and, using callbacks, releases them when the kernel is done executing.
-    // In practice, insert() should be called after the kernel launch and copies the shared_ptr(s) at the
-    // back of the registry. Then a callback is enqueued to the stream. When the kernel is done execution,
-    // the callback is called. The callback is then updating the "callback_count", letting the registry know
-    // that the shared_ptr(s) at the front can be deleted.
-    class StreamMemoryRegistry {
+    // kernel is running and when it's done, so that we can make sure the resources used by this kernel
+    // will never be deleted while the kernel is running. As a solution to this, this registry can attach
+    // resources to a stream and can release (using callbacks) these resources when the kernel is done executing.
+    //
+    // Any type can be passed to try_insert(), but only std::shared_ptr(s) can and will be added to the registry.
+    // Types with a .share() method returning a type that can be converted to a std::shared_ptr (e.g., Array or Texture)
+    // can also be passed, and the returned std::shared_ptr will be added to the registry.
+    //
+    // 1) try_insert() should be called after the kernel launch. It forwards the shared_ptr(s) at the back
+    //    of the registry. Resources are attached to a unique key, and the key is per try_insert() call, meaning that
+    //    all resources passed to the same try_insert() call have the same lifetime.
+    // 2) then a callback is enqueued to the stream. When the kernel is done execution, the callback is
+    //    called. Note that the callback isn't allowed to call the CUDA API, so it cannot remove the registered
+    //    shared_ptr(s) in case one of them calls its deleter (which may use the CUDA API). Instead, the callback
+    //    simply increments the "callback_count", signaling the stream reached this point and the callback was called.
+    // 3) At the next try_insert() or clear() call, "callback_count" is decremented back to zero. For every decrement,
+    //    the resources with the same keys as the first in-used resource at the front of the registry are flagged
+    //    as unused. Unused resources are then cleared from the registry, effectively releasing them.
+    //
+    // try_insert() is meant to be called with a bunch of different types at once, and as mentioned above, it will
+    // filter the types that can be added to the registry from the types that cannot. It is indeed more efficient
+    // to call try_insert() once with many types than to call it once for every type.
+    class StreamResourceRegistry {
     private:
         std::mutex m_mutex;
-        std::vector<std::pair<i32, std::shared_ptr<const void>>> m_registry;
+        std::vector<std::pair<i64, std::shared_ptr<const void>>> m_registry;
+        i64 m_key{0};
+
     public:
         std::atomic<i32> callback_count{0};
 
@@ -42,19 +64,15 @@ namespace noa::cuda::details {
         // The shared_ptr reference count is increased by one.
         // This function also deletes the registry from unused shared_ptr.
         template<typename ...Args>
-        bool insert(Args&& ... args) {
-            if constexpr (is_any_shared_ptr_v<Args...>) {
+        bool try_insert(Args&& ... args) {
+            if constexpr (is_registrable_v<Args...>) {
                 const std::scoped_lock lock(m_mutex);
 
-                i32 count = callback_count.load();
-                while (count != 0 && callback_count.compare_exchange_weak(count, count - 1)) {
-                    update_();
-                    --count;
-                }
-                clear_();
+                purge_callback_count_(); // flag unused resources
+                clear_(); // erase unused resources
 
-                const auto key = static_cast<i32>(m_registry.size());
-                ([&key, this](auto&& input) { this->push_back_(key, input); }(std::forward<Args>(args)), ...);
+                const auto key = get_unique_key_();
+                ([&key, this](auto&& input) { this->add_to_registry_(key, input); }(std::forward<Args>(args)), ...);
                 return true;
             } else {
                 return false;
@@ -65,32 +83,57 @@ namespace noa::cuda::details {
         // The shared_ptr reference count is decreased by one, thus their deleter can be called.
         void clear(bool force = false) {
             const std::scoped_lock lock(m_mutex);
+            if (force)
+                callback_count.store(0);
+            else
+                purge_callback_count_();
             clear_(force);
-            callback_count.store(0);
         }
 
-    private:
-        // Flags as unused, and ready to be deleted from the register, the shared_ptr(s) at the front of registry.
-        // This function needs to make sure to take the "first in", excluding the elements already marked as unused
-        // that haven't been cleared yet.
-        void update_() {
-            i32 key = -1;
+    private: // !! Make sure to lock before calling these functions !!
+        i64 get_unique_key_() {
+            if (m_key == std::numeric_limits<i64>::max())
+                m_key = 0;
+            return m_key++;
+        }
+
+        // Flag unused resources as such.
+        void purge_callback_count_() {
+            // When a callback is called, callback_count is incremented.
+            // For each increment, it means the oldest valid resources are now unused and can be flagged as such.
+            i32 count = callback_count.load();
+            while (count != 0 && callback_count.compare_exchange_weak(count, count - 1)) {
+                flag_front_as_unused_();
+                --count;
+            }
+        }
+
+        // Flags as unused (key == -1) the valid shared_ptr(s) at the front of the registry.
+        // This function can be called from a CUDA callback.
+        void flag_front_as_unused_() {
+            i64 key = -1;
+            // Multiple resources can have the same key (they were enqueued in the same try_insert() call),
+            // so we need to flag the first (from the front) _valid_ resource and flag any other resource with
+            // the same key.
             for (auto& p: m_registry) {
                 if (key == -1 && p.first != -1)
-                    key = p.first;
+                    key = p.first; // oldest valid resource
                 if (key != -1 && p.first == key)
-                    p.first = -1;
+                    p.first = -1; // is now flagged as unused
             }
         }
 
         // Removes the unused elements from the registry.
+        // !! Should not be called from a CUDA callback !!
         void clear_(bool force = false) {
-            if (force)
+            if (force) {
+                m_key = 0; // reset the key (this is optional)
                 return m_registry.clear();
+            }
 
-            // Everything marked with -1 (by update_) is deleted. If it was the last record of that pointer,
-            // the reference count goes to 0 and the deleter of that managed (shared) object is called.
-            // As such, the CUDA API can be called (e.g. cudaFree).
+            // Resources with a key == -1 are deleted. If it was the last record of that shared-pointer,
+            // the reference count goes to 0, and the deleter of that resource is called (which can in
+            // turn call the CUDA API).
             bool something_was_deleted{false};
             for (auto& p: m_registry) {
                 if (p.first == -1) {
@@ -99,42 +142,18 @@ namespace noa::cuda::details {
                 }
             }
 
-            if (something_was_deleted) {
-                // Now that the shared_ptr are set to nullptr, we need to remove them from the registry by
-                // squeezing the remaining elements, i.e. we need to stack valid elements contiguously at
-                // the front of the vector while keeping their original order.
-                size_t last_available = 0;
-                for (size_t i = 0; i < m_registry.size(); ++i) {
-                    if (m_registry[i].second) {
-                        if (i > last_available)
-                            std::swap(m_registry[i], m_registry[last_available]);
-                        ++last_available;
-                    }
-                }
-                // Additionally, we need to reset the keys to make sure they stay unique.
-                size_t count = 0;
-                i32 old_key = m_registry[0].first;
-                i32 new_key = 0;
-                for (; count < m_registry.size(); ++count) {
-                    if (!m_registry[count].second)
-                        break;
-
-                    if (m_registry[count].first != old_key)
-                        new_key = static_cast<i32>(count);
-                    old_key = std::exchange(m_registry[count].first, new_key);
-                }
-                m_registry.resize(count);
-            }
+            if (something_was_deleted)
+                erase_if(m_registry, [](const auto& pair) { return pair.second == nullptr; });
         }
 
         template<typename T>
-        void push_back_(i32 key, const std::shared_ptr<T>& ptr) {
-            // TODO When moving to C++20, use std::forward to remove extra copy if original shared_ptr is a rvalue.
-            m_registry.emplace_back(key, std::reinterpret_pointer_cast<const void>(ptr));
+        void add_to_registry_(i64 key, T&& ptr) {
+            if constexpr (is_shared_ptr_v<T>)
+                m_registry.emplace_back(key, std::forward<T>(ptr));
+            else if constexpr (has_share_v<T>)
+                m_registry.emplace_back(key, std::forward<T>(ptr).share());
+            // else do nothing
         }
-
-        template<typename T>
-        void push_back_(i32, T&&) { /* there is nothing to do */ }
     };
 }
 
@@ -155,7 +174,7 @@ namespace noa::cuda {
     class Stream {
     public:
         struct Core {
-            details::StreamMemoryRegistry registry{};
+            details::StreamResourceRegistry registry{};
             cudaStream_t handle{};
 
             ~Core() {
@@ -175,7 +194,7 @@ namespace noa::cuda {
         explicit Stream(StreamMode mode = StreamMode::ASYNC)
                 : m_core(std::make_shared<Core>()), m_device(Device::current()) {
             if (mode != StreamMode::DEFAULT)
-                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode2u32_(mode)));
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, noa::to_underlying(mode)));
         }
 
         // Creates a new stream on a given device.
@@ -183,7 +202,7 @@ namespace noa::cuda {
                 : m_core(std::make_shared<Core>()), m_device(device) {
             if (mode != StreamMode::DEFAULT) {
                 const DeviceGuard guard(m_device);
-                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, mode2u32_(mode)));
+                NOA_THROW_IF(cudaStreamCreateWithFlags(&m_core->handle, noa::to_underlying(mode)));
             }
         }
 
@@ -241,18 +260,26 @@ namespace noa::cuda {
             #endif
         }
 
-        // Attach some shared_ptr to the stream. Anything that is not a std::shared_ptr is ignored.
-        // By incrementing the reference count this function guarantees that the memory managed by the shared_ptr(s)
-        // stays valid until the stream reaches this point. The attached memory is implicitly released by
-        // synchronize() or next attach() calls, but it can also be explicitly cleared with clear();
+        // Copies some resources into the stream resource registry. A resource is anything that is a `std::shared_ptr`
+        // or a type that has a .share() method returning a `std::shared_ptr`. Anything else is valid but is ignored.
+        // This is used to enforce stream-ordering to resource lifetimes, by incrementing the reference count of
+        // a resource, this function indeed guarantees that the memory managed by the shared_ptr(s) stays valid
+        // until the stream reaches this point. The attached memory is implicitly released by .synchronize() or
+        // next .enqueue_attach() calls, but it can also be explicitly cleared with .clear();
         template<typename ...Args>
         void enqueue_attach(Args&& ... args) {
             NOA_ASSERT(m_core);
-            if (m_core->registry.insert(std::forward<Args>(args)...)) {
+            if (m_core->registry.try_insert(std::forward<Args>(args)...)) {
                 // Something was inserted, so enqueue a "cleaning" callback.
                 void (* fun_ptr)(void*) = &updateRegistryCallback_;
                 NOA_THROW_IF(cudaLaunchHostFunc(m_core->handle, fun_ptr, &m_core->registry));
             }
+        }
+
+        // Clears the registry from any unused attached data.
+        // The registry can be "forced"-clean, removing all resources regardless of whether they are still in use.
+        void clear(bool force = false) const {
+            m_core->registry.clear(force);
         }
 
         // Whether the stream has completed all operations.
@@ -276,11 +303,6 @@ namespace noa::cuda {
             clear(true);
         }
 
-        // Clears the registry from any unused attached data.
-        void clear(bool force = false) const {
-            m_core->registry.clear(force);
-        }
-
         [[nodiscard]] cudaStream_t get() const noexcept {
             NOA_ASSERT(m_core);
             return m_core->handle;
@@ -295,16 +317,14 @@ namespace noa::cuda {
         [[nodiscard]] bool is_empty() const noexcept { return m_core == nullptr; }
 
     private:
-        static u32 mode2u32_(StreamMode mode) { return static_cast<std::underlying_type_t<StreamMode>>(mode); }
-
         // We need to make sure this callback:
         // 1) doesn't call the CUDA API. https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
-        // 2) doesn't lock the StreamMemoryRegistry.
+        // 2) doesn't lock the StreamResourceRegistry.
         // The latter was actually a surprise: cudaFreeArray seems to wait/use the thread that calls the callbacks.
-        // As such, if the StreamMemoryRegistry calls the CUDA API as part of insert() or clear(), since these
-        // function look, the CUDA host thread can deadlock...
+        // As such, if the StreamResourceRegistry calls the CUDA API as part of insert() or clear(), since these
+        // function lock, the CUDA host thread can deadlock...
         static void CUDART_CB updateRegistryCallback_(void* object) {
-            auto* registry = static_cast<details::StreamMemoryRegistry*>(object);
+            auto* registry = static_cast<details::StreamResourceRegistry*>(object);
             ++(registry->callback_count);
         }
 
