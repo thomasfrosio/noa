@@ -82,12 +82,12 @@ namespace noa::cuda::fft {
             NOA_THROW_IF(cufftExecC2C(plan.get(),
                                       reinterpret_cast<cufftComplex*>(input),
                                       reinterpret_cast<cufftComplex*>(output),
-                                      noa::traits::to_underlying(sign)));
+                                      noa::to_underlying(sign)));
         } else {
             NOA_THROW_IF(cufftExecZ2Z(plan.get(),
                                       reinterpret_cast<cufftDoubleComplex*>(input),
                                       reinterpret_cast<cufftDoubleComplex*>(output),
-                                      noa::traits::to_underlying(sign)));
+                                      noa::to_underlying(sign)));
         }
         stream.enqueue_attach(plan.share());
     }

@@ -42,7 +42,7 @@ namespace noa::signal::fft::details {
 
     template<Remap REMAP>
     constexpr Remap remove_input_layout() {
-        constexpr u8 REMAP_u8 = noa::traits::to_underlying(REMAP);
+        constexpr u8 REMAP_u8 = noa::to_underlying(REMAP);
         constexpr bool IS_CENTERED = REMAP_u8 & Layout::DST_CENTERED;
         constexpr bool IS_HALF = REMAP_u8 & Layout::DST_HALF;
         constexpr Remap NEW_REMAP =

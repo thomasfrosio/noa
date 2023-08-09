@@ -17,7 +17,7 @@ namespace noa::cpu::signal::fft {
         NOA_ASSERT(noa::all(tmp_strides > 0));
 
         constexpr auto EPSILON = static_cast<Real>(1e-13);
-        constexpr bool IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto shape_fft = IS_HALF ? shape.rfft() : shape;
 
         // TODO Identify auto-correlation case?

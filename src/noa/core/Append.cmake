@@ -15,11 +15,11 @@ set(NOA_CORE_HEADERS
     core/math/LeastSquare.hpp
     core/math/Range.hpp
 
-    core/utils/Any.hpp
     core/utils/Atomic.hpp
     core/utils/ClampCast.hpp
     core/utils/Indexing.hpp
     core/utils/Irange.hpp
+    core/utils/Misc.hpp
     core/utils/SafeCast.hpp
     core/utils/Sort.hpp
     core/utils/Threadpool.hpp

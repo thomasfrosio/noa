@@ -114,7 +114,7 @@ namespace noa::cuda::fft::details {
         if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
 
-        const auto i_type = noa::traits::to_underlying(type);
+        const auto i_type = noa::to_underlying(type);
         std::string hash;
         if (rank == 2)
             hash = noa::string::format("{}:{},{}:{}:{}", rank, shape_3d[1], shape_3d[2], i_type, batch);
@@ -174,7 +174,7 @@ namespace noa::cuda::fft::details {
         Shape3<i32> o_pitch = o_strides.physical_shape();
         const i32 offset = 3 - rank;
 
-        const auto i_type = noa::traits::to_underlying(type);
+        const auto i_type = noa::to_underlying(type);
         std::string hash;
         {
             std::ostringstream tmp;

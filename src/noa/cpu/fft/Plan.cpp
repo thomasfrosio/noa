@@ -321,8 +321,8 @@ namespace {
     auto get_c2c_(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
                   noa::fft::Sign sign, u32 flag,
                   [[maybe_unused]] i64 threads) {
-        static_assert(noa::traits::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
-        static_assert(noa::traits::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
+        static_assert(noa::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
+        static_assert(noa::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
 
         auto shape_3d = shape.pop_front().as_safe<i32>();
         const i32 rank = shape_3d.ndim();
@@ -346,13 +346,13 @@ namespace {
                         rank, shape_3d.data() + 3 - rank, how_many,
                         reinterpret_cast<fftwf_complex*>(input), nullptr, 1, dist,
                         reinterpret_cast<fftwf_complex*>(output), nullptr, 1, dist,
-                        noa::traits::to_underlying(sign), flag);
+                        noa::to_underlying(sign), flag);
             } else {
                 plan = fftw_plan_many_dft(
                         rank, shape_3d.data() + 3 - rank, how_many,
                         reinterpret_cast<fftw_complex*>(input), nullptr, 1, dist,
                         reinterpret_cast<fftw_complex*>(output), nullptr, 1, dist,
-                        noa::traits::to_underlying(sign), flag);
+                        noa::to_underlying(sign), flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
@@ -367,8 +367,8 @@ namespace {
                   Complex<T>* output, Strides4<i64> output_strides,
                   const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag,
                   [[maybe_unused]] i64 threads) {
-        static_assert(noa::traits::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
-        static_assert(noa::traits::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
+        static_assert(noa::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
+        static_assert(noa::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
 
         auto shape_3d = shape.pop_front().as_safe<i32>();
         if (indexing::is_column_major(input_strides) && indexing::is_column_major(output_strides)) {
@@ -401,13 +401,13 @@ namespace {
                         rank, shape_3d.data() + off, how_many,
                         reinterpret_cast<fftwf_complex*>(input), inembed.data() + off, i_strides[3], i_strides[0],
                         reinterpret_cast<fftwf_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0],
-                        noa::traits::to_underlying(sign), flag);
+                        noa::to_underlying(sign), flag);
             } else {
                 plan = fftw_plan_many_dft(
                         rank, shape_3d.data() + off, how_many,
                         reinterpret_cast<fftw_complex*>(input), inembed.data() + off, i_strides[3], i_strides[0],
                         reinterpret_cast<fftw_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0],
-                        noa::traits::to_underlying(sign), flag);
+                        noa::to_underlying(sign), flag);
             }
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW

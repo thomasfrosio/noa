@@ -28,9 +28,9 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 #include "noa/core/types/Span.hpp"
 #include "noa/core/types/Vec.hpp"
 
-#include "noa/core/utils/Any.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/Irange.hpp"
+#include "noa/core/utils/Misc.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
 

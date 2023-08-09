@@ -34,7 +34,7 @@ namespace noa::fft {
     void resize(const Input& input, const Shape4<i64>& input_shape,
                 const Output& output, const Shape4<i64>& output_shape) {
 
-        constexpr bool IS_FULL = noa::traits::to_underlying(REMAP) & Layout::SRC_FULL;
+        constexpr bool IS_FULL = noa::to_underlying(REMAP) & Layout::SRC_FULL;
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "Input and output arrays should not overlap");
         NOA_CHECK(input.shape()[0] == output.shape()[0], "The batch dimension cannot be resized");
@@ -88,7 +88,7 @@ namespace noa::fft {
                               const Shape4<i64>& input_shape,
                               const Shape4<i64>& output_shape) {
         using value_t = typename Input::value_type;
-        Array<value_t> output(noa::traits::to_underlying(REMAP) & Layout::DST_FULL ?
+        Array<value_t> output(noa::to_underlying(REMAP) & Layout::DST_FULL ?
                               output_shape : output_shape.rfft(),
                               input.options());
         fft::resize<REMAP>(input, input_shape, output, output_shape);

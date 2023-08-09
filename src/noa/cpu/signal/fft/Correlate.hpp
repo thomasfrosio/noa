@@ -45,7 +45,7 @@ namespace noa::cpu::signal::fft {
                const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
                const Shape4<i64>& shape, Real* coefficients, i64 threads) {
         NOA_ASSERT(lhs && rhs && noa::all(shape > 0));
-        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto batches = shape[0];
         const auto input_shape = SRC_IS_HALF ? shape.pop_front() : shape.pop_front().rfft();
         const auto lhs_strides_3d = lhs_strides.pop_front();
@@ -65,7 +65,7 @@ namespace noa::cpu::signal::fft {
                const Shape4<i64>& shape, i64 threads) {
         NOA_ASSERT(lhs && rhs && noa::all(shape > 0));
         NOA_ASSERT(shape[0] == 1);
-        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto input_shape = SRC_IS_HALF ? shape.pop_front() : shape.pop_front().rfft();
         const auto lhs_strides_3d = lhs_strides.pop_front();
         const auto rhs_strides_3d = rhs_strides.pop_front();

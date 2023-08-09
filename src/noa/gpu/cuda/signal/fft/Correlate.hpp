@@ -50,7 +50,7 @@ namespace noa::cuda::signal::fft {
     void xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
                const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
                const Shape4<i64>& shape, Real* coefficients, Stream& stream) {
-        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto shape_fft = SRC_IS_HALF ? shape.rfft() : shape;
         details::xcorr(lhs, lhs_strides, rhs, rhs_strides, shape_fft, coefficients, stream);
     }
@@ -59,7 +59,7 @@ namespace noa::cuda::signal::fft {
     Real xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
                const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
                const Shape4<i64>& shape, Stream& stream) {
-        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto shape_fft = SRC_IS_HALF ? shape.rfft() : shape;
         return details::xcorr(lhs, lhs_strides, rhs, rhs_strides, shape_fft, stream);
     }

@@ -261,12 +261,12 @@ namespace noa::cuda::memory {
 
             // Ensure BorderMode and InterpMode are compatible with
             // cudaTextureAddressMode and cudaTextureFilterMode.
-            static_assert(noa::traits::to_underlying(BorderMode::PERIODIC) == static_cast<i32>(cudaAddressModeWrap));
-            static_assert(noa::traits::to_underlying(BorderMode::CLAMP) == static_cast<i32>(cudaAddressModeClamp));
-            static_assert(noa::traits::to_underlying(BorderMode::MIRROR) == static_cast<i32>(cudaAddressModeMirror));
-            static_assert(noa::traits::to_underlying(BorderMode::ZERO) == static_cast<i32>(cudaAddressModeBorder));
-            static_assert(noa::traits::to_underlying(InterpMode::NEAREST) == static_cast<i32>(cudaFilterModePoint));
-            static_assert(noa::traits::to_underlying(InterpMode::LINEAR) == static_cast<i32>(cudaFilterModeLinear));
+            static_assert(noa::to_underlying(BorderMode::PERIODIC) == static_cast<i32>(cudaAddressModeWrap));
+            static_assert(noa::to_underlying(BorderMode::CLAMP) == static_cast<i32>(cudaAddressModeClamp));
+            static_assert(noa::to_underlying(BorderMode::MIRROR) == static_cast<i32>(cudaAddressModeMirror));
+            static_assert(noa::to_underlying(BorderMode::ZERO) == static_cast<i32>(cudaAddressModeBorder));
+            static_assert(noa::to_underlying(InterpMode::NEAREST) == static_cast<i32>(cudaFilterModePoint));
+            static_assert(noa::to_underlying(InterpMode::LINEAR) == static_cast<i32>(cudaFilterModeLinear));
 
             if (border_mode == BorderMode::PERIODIC || border_mode == BorderMode::MIRROR) {
                 address_mode = static_cast<cudaTextureAddressMode>(border_mode);

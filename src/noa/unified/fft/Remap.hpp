@@ -80,7 +80,7 @@ namespace noa::fft {
     template<typename Input, typename = std::enable_if_t<
              noa::traits::is_varray_of_real_or_complex_v<Input>>>
     [[nodiscard]] auto remap(Remap remap, const Input& input, const Shape4<i64>& shape) {
-        const auto output_shape = noa::traits::to_underlying(remap) & Layout::DST_FULL ? shape : shape.rfft();
+        const auto output_shape = noa::to_underlying(remap) & Layout::DST_FULL ? shape : shape.rfft();
         using value_t = typename Input::value_type;
         Array<value_t> output(output_shape, input.options());
         fft::remap(remap, input, output, shape);

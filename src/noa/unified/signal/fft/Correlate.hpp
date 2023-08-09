@@ -384,7 +384,7 @@ namespace noa::signal::fft {
                   "The number of coefficients, specified as a contiguous vector, should be equal to the number "
                   "of batches. Got {} coefficients and {} output batches", coefficients.elements(), shape[0]);
 
-        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto expected_shape = SRC_IS_HALF ? shape.rfft() : shape;
         auto lhs_strides = lhs.strides();
         if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {
@@ -440,7 +440,7 @@ namespace noa::signal::fft {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty(), "Empty array detected");
         NOA_CHECK(!shape.is_batched(), "The input shape should not be batched");
 
-        constexpr bool SRC_IS_HALF = noa::traits::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
+        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
         const auto expected_shape = SRC_IS_HALF ? shape.rfft() : shape;
         auto lhs_strides = lhs.strides();
         if (!noa::indexing::broadcast(lhs.shape(), lhs_strides, expected_shape)) {

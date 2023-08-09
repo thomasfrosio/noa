@@ -169,7 +169,7 @@ namespace {
         const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
         const auto output_accessor = AccessorRestrict<T, 4, i64>(output, output_strides);
         const auto [filter_accessor, filter_buffer] = get_filter_(filter, filter_size);
-        const auto dim_size = shape.filter(noa::traits::to_underlying(DIM))[0];
+        const auto dim_size = shape.filter(noa::to_underlying(DIM))[0];
 
         auto kernel = ConvolutionSeparable<T, DIM>(
                 input_accessor, output_accessor, filter_accessor, dim_size, filter_size);
