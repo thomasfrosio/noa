@@ -118,7 +118,7 @@ namespace {
 
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
         switch (interp_mode) {
@@ -163,7 +163,7 @@ namespace {
 
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const real_t scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
 
         switch (interp_mode) {

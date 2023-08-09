@@ -18,7 +18,7 @@ namespace noa::signal::details {
         [[nodiscard]] constexpr auto offset() const noexcept -> i64 { return m_offset; }
         [[nodiscard]] constexpr auto center() const noexcept -> f64 { return m_center; }
 
-        template<typename Real, typename = std::enable_if_t<noa::traits::is_real_v<Real>>>
+        template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
         constexpr void generate(Real* output, bool normalize = true) const noexcept {
             f64 sum{0};
             for (i64 i = m_offset; i < m_elements; ++i) {
@@ -102,7 +102,7 @@ namespace noa::signal {
     /// \param normalize    Whether to normalize the sum of the full-window to 1.
     /// \param half_window  Whether to only compute the second half of the window.
     ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<typename Real, typename = std::enable_if_t<noa::traits::is_real_v<Real>>>
+    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
     constexpr void window_gaussian(
             Real* output, i64 elements, f64 stddev,
             bool normalize = false, bool half_window = false

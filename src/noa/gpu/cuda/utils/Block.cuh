@@ -182,8 +182,8 @@ namespace noa::cuda::utils {
             Reduced* __restrict__ reduced,
             Index thread_index, Index global_offset = 0
     ) {
-        constexpr bool EXPECT_OFFSET = noa::traits::is_detected_v<
-                noa::traits::has_binary_operator, PreprocessOp, Input, Index>;
+        constexpr bool EXPECT_OFFSET = nt::is_detected_v<
+                nt::has_binary_operator, PreprocessOp, Input, Index>;
 
         if constexpr (VECTOR_SIZE > 1) {
             (void) stride; // assume contiguous

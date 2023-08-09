@@ -4,6 +4,14 @@
 #include <utility>
 #include "noa/core/Definitions.hpp"
 
+namespace noa::traits {}
+namespace noa {
+    namespace nt = ::noa::traits;
+
+    struct Empty {};
+    using empty_t = Empty;
+}
+
 namespace noa::traits {
     template<typename T> struct remove_ref_cv { using type = typename std::remove_cv_t<typename std::remove_reference_t<T>>; };
     template<typename T> using remove_ref_cv_t = typename remove_ref_cv<T>::type;
@@ -17,9 +25,6 @@ namespace noa::traits {
 
     template<typename T> using always_false = std::false_type;
     template<typename T> constexpr bool always_false_v = always_false<T>::value;
-
-    struct Empty {};
-    using empty_t = Empty;
 
     template<bool B>
     using enable_if_bool_t = ::std::enable_if_t<B, bool>;

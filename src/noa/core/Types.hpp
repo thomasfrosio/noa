@@ -44,8 +44,6 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 namespace noa {
     namespace fs = std::filesystem;
-    namespace nt = noa::traits;
-
     using Path = fs::path;
     using Byte = std::byte;
 
@@ -75,8 +73,6 @@ namespace noa {
     static_assert(alignof(c16) == 4);
     static_assert(alignof(c32) == 8);
     static_assert(alignof(c64) == 16);
-
-    using Empty = noa::traits::Empty;
 
     template<typename T>
     using Shared = std::shared_ptr<T>;

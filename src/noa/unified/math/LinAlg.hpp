@@ -8,8 +8,8 @@
 namespace noa::math::details {
     template<typename T, typename U>
     constexpr bool is_valid_lstsq_t =
-            noa::traits::is_any_v<noa::traits::value_type_t<T>, f32, f64, c32, c64> &&
-            std::is_same_v<noa::traits::value_type_twice_t<T>, noa::traits::value_type_t<U>>;
+            nt::is_any_v<nt::value_type_t<T>, f32, f64, c32, c64> &&
+            std::is_same_v<nt::value_type_twice_t<T>, nt::value_type_t<U>>;
 }
 
 namespace noa::math {
@@ -35,12 +35,12 @@ namespace noa::math {
     ///       contiguous or padded.
     /// \note This function is currently not supported on the GPU.
     template<typename MatrixA, typename MatrixB, typename MatrixX, typename Real = f32,
-             typename MatrixU = View<noa::traits::value_type_twice_t<MatrixA>>,
+             typename MatrixU = View<nt::value_type_twice_t<MatrixA>>,
              typename = std::enable_if_t<
-                     noa::traits::is_real_v<Real> &&
-                     noa::traits::are_varray_v<MatrixA, MatrixB, MatrixX, MatrixU> &&
-                     noa::traits::are_same_value_type_v<MatrixA, MatrixB, MatrixX> &&
-                     !std::is_const_v<noa::traits::value_type_t<MatrixA>> &&
+                     nt::is_real_v<Real> &&
+                     nt::are_varray_v<MatrixA, MatrixB, MatrixX, MatrixU> &&
+                     nt::are_same_value_type_v<MatrixA, MatrixB, MatrixX> &&
+                     !std::is_const_v<nt::value_type_t<MatrixA>> &&
                      details::is_valid_lstsq_t<MatrixA, MatrixU>>>
     void lstsq(const MatrixA& a, const MatrixB& b, const MatrixX& x,
                Real cond = 0, const MatrixU& svd = {}) {

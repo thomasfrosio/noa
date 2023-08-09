@@ -8,24 +8,24 @@ namespace noa::cuda::memory::details {
     template<typename Input, typename Lhs, typename Operator,
              typename ExtractedValue, typename ExtractedOffset>
     constexpr bool is_valid_extract_unary_v =
-            noa::traits::is_any_v<ExtractedValue, i32, i64, u32, u64, f16, f32, f64> &&
-            noa::traits::are_all_same_v<Input, Lhs, ExtractedValue> &&
-            noa::traits::is_any_v<ExtractedOffset, i32, i64, u32, u64> &&
+            nt::is_any_v<ExtractedValue, i32, i64, u32, u64, f16, f32, f64> &&
+            nt::are_all_same_v<Input, Lhs, ExtractedValue> &&
+            nt::is_any_v<ExtractedOffset, i32, i64, u32, u64> &&
             std::is_same_v<Operator, logical_not_t>;
 
     template<typename Input, typename Lhs, typename Rhs, typename Operator,
              typename ExtractedValue, typename ExtractedOffset>
     constexpr bool is_valid_extract_binary_v =
-            noa::traits::is_any_v<ExtractedValue, i32, i64, u32, u64, f16, f32, f64> &&
-            noa::traits::are_all_same_v<Input, Lhs, Rhs, ExtractedValue> &&
-            noa::traits::is_any_v<ExtractedOffset, i32, i64, u32, u64> &&
-            noa::traits::is_any_v<Operator, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t>;
+            nt::is_any_v<ExtractedValue, i32, i64, u32, u64, f16, f32, f64> &&
+            nt::are_all_same_v<Input, Lhs, Rhs, ExtractedValue> &&
+            nt::is_any_v<ExtractedOffset, i32, i64, u32, u64> &&
+            nt::is_any_v<Operator, equal_t, not_equal_t, less_t, less_equal_t, greater_t, greater_equal_t>;
 
     template<typename Input, typename ExtractedOffset, typename ExtractedValue>
     constexpr bool is_valid_insert_v =
-            noa::traits::is_any_v<ExtractedValue, i32, i64, u32, u64, f16, f32, f64> &&
+            nt::is_any_v<ExtractedValue, i32, i64, u32, u64, f16, f32, f64> &&
             std::is_same_v<Input, ExtractedValue> &&
-            noa::traits::is_any_v<ExtractedOffset, i32, i64, u32, u64>;
+            nt::is_any_v<ExtractedOffset, i32, i64, u32, u64>;
 }
 
 namespace noa::cuda::memory {

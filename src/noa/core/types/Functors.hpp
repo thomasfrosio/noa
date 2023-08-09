@@ -133,7 +133,7 @@ namespace noa {
     struct abs_one_log_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
-            using value_t = ::noa::traits::value_type_t<T>;
+            using value_t = nt::value_type_t<T>;
             return ::noa::math::log(value_t{1} + ::noa::math::abs(x));
         }
     };
@@ -141,7 +141,7 @@ namespace noa {
     struct one_log_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
-            using value_t = ::noa::traits::value_type_t<T>;
+            using value_t = nt::value_type_t<T>;
             return ::noa::math::log(value_t{1} + x);
         }
     };
@@ -202,18 +202,18 @@ namespace noa {
     struct divide_safe_t {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const {
-            if constexpr (::noa::traits::are_real_or_complex_v<T, U>) {
-                using epsilon_t = noa::traits::value_type_t<U>;
+            if constexpr (nt::are_real_or_complex_v<T, U>) {
+                using epsilon_t = nt::value_type_t<U>;
                 #if defined(__CUDA_ARCH__)
                 const epsilon_t epsilon = ::noa::math::Limits<epsilon_t>::epsilon();
                 #else
                 constexpr epsilon_t epsilon = ::noa::math::Limits<epsilon_t>::epsilon();
                 #endif
                 return ::noa::math::abs(rhs) < epsilon ? T{0} : lhs / rhs;
-            } else if constexpr (noa::traits::are_int_v<T, U>) {
+            } else if constexpr (nt::are_int_v<T, U>) {
                 return rhs == 0 ? T{0} : T(lhs / rhs); // short is implicitly promoted to int so cast it back
             } else {
-                static_assert(::noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
         }
     };

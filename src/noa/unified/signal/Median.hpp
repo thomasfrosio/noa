@@ -18,9 +18,9 @@ namespace noa::signal {
     ///                     Either BorderMode::ZERO or BorderMode::REFLECT.
     ///                     With BorderMode::REFLECT, the width should be >= than ``window_size/2 + 1``.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f16, f32, f64, i32, i64, u32, u64> &&
-             noa::traits::is_varray_of_any_v<Output, f16, f32, f64, i32, i64, u32, u64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f16, f32, f64, i32, i64, u32, u64> &&
+             nt::is_varray_of_any_v<Output, f16, f32, f64, i32, i64, u32, u64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void median_filter_1d(const Input& input, const Output& output,
                           i64 window_size, BorderMode border_mode = BorderMode::REFLECT) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
@@ -58,7 +58,7 @@ namespace noa::signal {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     border_mode, window_size, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -74,9 +74,9 @@ namespace noa::signal {
     /// \param border_mode  Border mode used for the "implicit padding". Either BorderMode::ZERO or BorderMode::REFLECT.
     ///                     With BorderMode::REFLECT, the height and width should be >= than ``window_size/2 + 1``.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f16, f32, f64, i32, i64, u32, u64> &&
-             noa::traits::is_varray_of_any_v<Output, f16, f32, f64, i32, i64, u32, u64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f16, f32, f64, i32, i64, u32, u64> &&
+             nt::is_varray_of_any_v<Output, f16, f32, f64, i32, i64, u32, u64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void median_filter_2d(const Input& input, const Output& output,
                           i64 window_size, BorderMode border_mode = BorderMode::REFLECT) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
@@ -115,7 +115,7 @@ namespace noa::signal {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     border_mode, window_size, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -131,9 +131,9 @@ namespace noa::signal {
     /// \param border_mode  Border mode used for the "implicit padding". Either BorderMode::ZERO or BorderMode::REFLECT.
     ///                     With BorderMode::REFLECT, the depth, height and width should be >= than ``window_size/2 + 1``.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f16, f32, f64, i32, i64, u32, u64> &&
-             noa::traits::is_varray_of_any_v<Output, f16, f32, f64, i32, i64, u32, u64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f16, f32, f64, i32, i64, u32, u64> &&
+             nt::is_varray_of_any_v<Output, f16, f32, f64, i32, i64, u32, u64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void median_filter_3d(const Input& input, const Output& output,
                           i64 window_size, BorderMode border_mode = BorderMode::REFLECT) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
@@ -171,7 +171,7 @@ namespace noa::signal {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     border_mode, window_size, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

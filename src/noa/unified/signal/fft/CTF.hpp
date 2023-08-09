@@ -10,15 +10,13 @@
 namespace noa::signal::fft::details {
     using Remap = noa::fft::Remap;
     using Layout = noa::fft::Layout;
-    namespace nt = noa::traits;
-    namespace ns = noa::signal;
 
     template<typename CTF>
     struct ctf_parser_t {
-        using iso32_type = ns::fft::CTFIsotropic<f32>;
-        using iso64_type = ns::fft::CTFIsotropic<f64>;
-        using aniso32_type = ns::fft::CTFAnisotropic<f32>;
-        using aniso64_type = ns::fft::CTFAnisotropic<f64>;
+        using iso32_type = noa::signal::fft::CTFIsotropic<f32>;
+        using iso64_type = noa::signal::fft::CTFIsotropic<f64>;
+        using aniso32_type = noa::signal::fft::CTFAnisotropic<f32>;
+        using aniso64_type = noa::signal::fft::CTFAnisotropic<f64>;
 
         static constexpr bool IS_ISOTROPIC =
                 nt::is_any_v<CTF, iso32_type, iso64_type> ||
@@ -34,11 +32,11 @@ namespace noa::signal::fft::details {
             ctf_parser_t<CTF>::IS_VALID &&
             (REMAP == Remap::H2H || REMAP == Remap::HC2H || REMAP == Remap::H2HC || REMAP == Remap::HC2HC ||
              REMAP == Remap::F2F || REMAP == Remap::FC2F || REMAP == Remap::F2FC || REMAP == Remap::FC2FC) &&
-            (noa::traits::are_same_value_type_v<noa::traits::value_type_t<Input>, noa::traits::value_type_t<Output>> &&
-             ((noa::traits::are_same_value_type_v<Input, Output> &&
-               noa::traits::are_varray_of_real_or_complex_v<Input, Output>) ||
-              (noa::traits::is_varray_of_complex_v<Input> &&
-               noa::traits::is_varray_of_real_v<Output>)));
+            (nt::are_same_value_type_v<nt::value_type_t<Input>, nt::value_type_t<Output>> &&
+             ((nt::are_same_value_type_v<Input, Output> &&
+               nt::are_varray_of_real_or_complex_v<Input, Output>) ||
+              (nt::is_varray_of_complex_v<Input> &&
+               nt::is_varray_of_real_v<Output>)));
 
     template<Remap REMAP>
     constexpr Remap remove_input_layout() {
@@ -81,7 +79,7 @@ namespace noa::signal::fft::details {
             }
         }
 
-        if constexpr (noa::traits::is_varray_v<CTF>) {
+        if constexpr (nt::is_varray_v<CTF>) {
             NOA_CHECK(!ctf.is_empty() && noa::indexing::is_contiguous_vector(ctf) && ctf.elements() == shape[0],
                       "The CTFs should be specified as a contiguous vector with {} elements, "
                       "but got shape {} and strides {}",
@@ -100,7 +98,7 @@ namespace noa::signal::fft::details {
     template<typename CTF>
     auto extract_ctf(const CTF& ctf) {
         if constexpr (nt::is_varray_v<CTF>) {
-            using ptr_t = const noa::traits::value_type_t<CTF>*;
+            using ptr_t = const nt::value_type_t<CTF>*;
             return ptr_t(ctf.get());
         } else {
             return ctf;
@@ -129,7 +127,7 @@ namespace noa::signal::fft {
     template<noa::fft::Remap REMAP,
             typename Output, typename CTF,
             typename = std::enable_if_t<
-                    details::is_valid_ctf_v<REMAP, View<noa::traits::value_type_t<Output>>, Output, CTF> &&
+                    details::is_valid_ctf_v<REMAP, View<nt::value_type_t<Output>>, Output, CTF> &&
                     details::ctf_parser_t<CTF>::IS_ISOTROPIC>>
     void ctf_isotropic(
             const Output& output,
@@ -160,9 +158,7 @@ namespace noa::signal::fft {
                     output.get(), output.strides(), shape,
                     details::extract_ctf(ctf), ctf_abs, ctf_square,
                     fftfreq_range, fftfreq_range_endpoint, cuda_stream);
-            cuda_stream.enqueue_attach(output.share());
-            if constexpr (noa::traits::is_varray_v<CTF>)
-                cuda_stream.enqueue_attach(ctf.share());
+            cuda_stream.enqueue_attach(output, ctf);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -184,7 +180,7 @@ namespace noa::signal::fft {
     /// \param ctf_square   Whether the square of the ctf should be computed.
     template<noa::fft::Remap REMAP,
              typename Output, typename CTF,
-             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename Input = View<nt::value_type_t<Output>>,
              typename = std::enable_if_t<
                      details::is_valid_ctf_v<REMAP, Input, Output, CTF> &&
                      details::ctf_parser_t<CTF>::IS_ISOTROPIC>>
@@ -226,9 +222,7 @@ namespace noa::signal::fft {
                     input.get(), input_strides,
                     output.get(), output.strides(), shape,
                     details::extract_ctf(ctf), ctf_abs, ctf_square, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<CTF>)
-                cuda_stream.enqueue_attach(ctf.share());
+            cuda_stream.enqueue_attach(input, output, ctf);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -255,7 +249,7 @@ namespace noa::signal::fft {
     template<noa::fft::Remap REMAP,
              typename Output, typename CTF,
              typename = std::enable_if_t<
-                     details::is_valid_ctf_v<REMAP, View<noa::traits::value_type_t<Output>>, Output, CTF> &&
+                     details::is_valid_ctf_v<REMAP, View<nt::value_type_t<Output>>, Output, CTF> &&
                      details::ctf_parser_t<CTF>::IS_ANISOTROPIC>>
     void ctf_anisotropic(
             const Output& output,
@@ -286,9 +280,7 @@ namespace noa::signal::fft {
                     output.get(), output.strides(), shape,
                     details::extract_ctf(ctf), ctf_abs, ctf_square,
                     fftfreq_range, fftfreq_range_endpoint, cuda_stream);
-            cuda_stream.enqueue_attach(output.share());
-            if constexpr (noa::traits::is_varray_v<CTF>)
-                cuda_stream.enqueue_attach(ctf.share());
+            cuda_stream.enqueue_attach(output, ctf);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -310,7 +302,7 @@ namespace noa::signal::fft {
     /// \param ctf_square   Whether the square of the ctf should be computed.
     template<noa::fft::Remap REMAP,
              typename Output, typename CTF,
-             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename Input = View<nt::value_type_t<Output>>,
              typename = std::enable_if_t<
                      details::is_valid_ctf_v<REMAP, Input, Output, CTF> &&
                      details::ctf_parser_t<CTF>::IS_ANISOTROPIC>>
@@ -352,9 +344,7 @@ namespace noa::signal::fft {
                     input.get(), input_strides,
                     output.get(), output.strides(), shape,
                     details::extract_ctf(ctf), ctf_abs, ctf_square, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<CTF>)
-                cuda_stream.enqueue_attach(ctf.share());
+            cuda_stream.enqueue_attach(input, output, ctf);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

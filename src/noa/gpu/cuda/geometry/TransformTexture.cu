@@ -475,9 +475,9 @@ namespace {
 
     template<typename Matrix>
     auto truncated_matrix_or_const_ptr_(const Matrix& matrix) {
-        if constexpr (noa::traits::is_mat33_v<Matrix> || noa::traits::is_mat44_v<Matrix>) {
+        if constexpr (nt::is_mat33_v<Matrix> || nt::is_mat44_v<Matrix>) {
             return noa::geometry::affine2truncated(matrix);
-        } else if constexpr (noa::traits::is_matXX_v<Matrix>) {
+        } else if constexpr (nt::is_matXX_v<Matrix>) {
             return matrix;
         } else {
             NOA_ASSERT(matrix != nullptr);
@@ -499,7 +499,7 @@ namespace noa::cuda::geometry {
         const bool is_layered = noa::cuda::memory::AllocatorArray<Value>::is_layered(array);
         NOA_ASSERT(noa::cuda::memory::AllocatorTexture::array(texture) == array);
         NOA_ASSERT(texture_shape[1] == 1 && output_shape[1] == 1);
-        if constexpr (!noa::traits::is_matXX_v<Matrix>) {
+        if constexpr (!nt::is_matXX_v<Matrix>) {
             NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 

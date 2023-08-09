@@ -88,7 +88,7 @@ namespace {
         Reduced reduced = initial_reduce;
         for (Index tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) { // compute entire row
             const auto offset = tidy * input_strides[2];
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_binary_operator, PreProcessor, Input, Index>)
+            if constexpr (nt::is_detected_v<nt::has_binary_operator, PreProcessor, Input, Index>)
                 reduced = reduce_op(reduced, pre_process_op(input[offset], offset));
             else
                 reduced = reduce_op(reduced, pre_process_op(input[offset]));
@@ -285,8 +285,8 @@ namespace noa::cuda::math {
                     pre_process_op, noa::plus_t{}, noa::copy_t{},
                     is_or_should_reduce[0], true, stream);
         } else {
-            using reduce64_t = std::conditional_t<noa::traits::is_complex_v<Reduced>, c64,
-                             std::conditional_t<noa::traits::is_real_v<Reduced>, f64, Reduced>>;
+            using reduce64_t = std::conditional_t<nt::is_complex_v<Reduced>, c64,
+                             std::conditional_t<nt::is_real_v<Reduced>, f64, Reduced>>;
             const auto pre_process_op2 = []__device__(const Value& value) -> reduce64_t {
                 return static_cast<reduce64_t>(PreProcessOp{}(value));
             };
@@ -320,10 +320,10 @@ namespace noa::cuda::math {
                     input_shape[1] * input_shape[2] * input_shape[3] *
                     (is_or_should_reduce[0] ? input_shape[0] : 1);
 
-            using real_t = noa::traits::value_type_t<Reduced>;
+            using real_t = nt::value_type_t<Reduced>;
             const auto count = static_cast<real_t>(element_per_batch);
             auto sum_to_mean_op = [count]__device__(Reduced v) -> Reduced {
-                if constexpr (noa::traits::is_int_v<real_t>) {
+                if constexpr (nt::is_int_v<real_t>) {
                     return static_cast<real_t>(noa::math::round(static_cast<f64>(v) / static_cast<f64>(count)));
                 } else {
                     return v / count;
@@ -336,16 +336,16 @@ namespace noa::cuda::math {
                     pre_process_op, noa::plus_t{}, sum_to_mean_op,
                     is_or_should_reduce[0], true, stream);
         } else {
-            using reduce64_t = std::conditional_t<noa::traits::is_complex_v<Reduced>, c64,
-                             std::conditional_t<noa::traits::is_real_v<Reduced>, f64, Reduced>>;
-            using reduce64_real_t = noa::traits::value_type_t<reduce64_t>;
+            using reduce64_t = std::conditional_t<nt::is_complex_v<Reduced>, c64,
+                             std::conditional_t<nt::is_real_v<Reduced>, f64, Reduced>>;
+            using reduce64_real_t = nt::value_type_t<reduce64_t>;
             const auto count = static_cast<reduce64_real_t>(noa::math::sum(input_shape * Shape4<i64>(mask)));
 
             const auto pre_process_op2 = []__device__(const Value& value) -> reduce64_t {
                 return static_cast<reduce64_t>(PreProcessOp{}(value));
             };
             auto sum_to_mean_op = [count]__device__(reduce64_t value) -> Reduced {
-                if constexpr (noa::traits::is_int_v<Reduced>) {
+                if constexpr (nt::is_int_v<Reduced>) {
                     return static_cast<Reduced>(noa::math::round(static_cast<f64>(value) / static_cast<f64>(count)));
                 } else {
                     return static_cast<Reduced>(value / count);

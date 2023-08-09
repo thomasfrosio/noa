@@ -85,7 +85,7 @@ namespace noa::geometry {
 // Cartesian -> Polar
 namespace noa::geometry {
     /// Returns the magnitude rho of a cartesian \p coordinate.
-    template<typename T, typename = std::enable_if_t<traits::is_real2_v<T> || traits::is_real3_v<T>>>
+    template<typename T, typename = std::enable_if_t<nt::is_real2_v<T> || nt::is_real3_v<T>>>
     [[nodiscard]] NOA_IHD auto cartesian2rho(T cartesian_coordinate) {
         return noa::math::norm(cartesian_coordinate);
     }

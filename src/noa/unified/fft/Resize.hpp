@@ -28,8 +28,8 @@ namespace noa::fft {
     /// \note The batch dimension cannot be resized.
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             nt::are_varray_of_real_or_complex_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_resize<REMAP>>>
     void resize(const Input& input, const Shape4<i64>& input_shape,
                 const Output& output, const Shape4<i64>& output_shape) {
@@ -66,7 +66,7 @@ namespace noa::fft {
             cuda::fft::resize<REMAP>(
                     input.get(), input.strides(), input_shape,
                     output.get(), output.strides(), output_shape, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -82,7 +82,7 @@ namespace noa::fft {
     /// \note The batch dimension cannot be resized.
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
     template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             noa::traits::is_varray_of_real_or_complex_v<Input> &&
+             nt::is_varray_of_real_or_complex_v<Input> &&
              details::is_valid_resize<REMAP>>>
     [[nodiscard]] auto resize(const Input& input,
                               const Shape4<i64>& input_shape,

@@ -179,7 +179,7 @@ namespace noa::cuda::memory {
         if (src_attr.type == 2 && dst_attr.type == 2) {
             // Both regions are on the same device, we can therefore launch our copy kernel.
             if (src_attr.device == dst_attr.device) {
-                if constexpr (noa::traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool>)
+                if constexpr (nt::is_restricted_numeric_v<T> || std::is_same_v<T, bool>)
                     details::copy(src, src_strides, dst, dst_strides, shape, stream);
                 else
                     NOA_THROW("Copying strided regions, other than in the height dimension, "
@@ -206,7 +206,7 @@ namespace noa::cuda::memory {
                           "from or to a device that is not the stream's device is not supported");
 
             // FIXME For managed pointers, use cudaMemPrefetchAsync()?
-            if constexpr (noa::traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool>)
+            if constexpr (nt::is_restricted_numeric_v<T> || std::is_same_v<T, bool>)
                 details::copy(reinterpret_cast<const T*>(src_attr.devicePointer), src_strides,
                               reinterpret_cast<T*>(dst_attr.devicePointer), dst_strides,
                               shape, stream);

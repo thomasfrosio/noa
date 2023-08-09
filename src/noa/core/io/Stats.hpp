@@ -10,9 +10,9 @@ namespace noa::io {
     template<typename Value>
     struct Stats {
     public:
-        static_assert(noa::traits::is_real_or_complex_v<Value>);
+        static_assert(nt::is_real_or_complex_v<Value>);
         using value_type = Value;
-        using real_type = noa::traits::value_type_t<Value>;
+        using real_type = nt::value_type_t<Value>;
 
     public: // getters
         [[nodiscard]] NOA_HD constexpr value_type min() const noexcept { return m_min; }

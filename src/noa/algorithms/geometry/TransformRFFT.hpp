@@ -53,8 +53,8 @@ namespace noa::algorithm::geometry {
 
         static_assert(traits::is_any_v<ShiftOrEmpty, Empty, vec_type, const vec_type*>);
         static_assert(
-                (N == 2 && noa::traits::is_any_v<Matrix, Mat22<coord_type>, const Mat22<coord_type>*>) ||
-                (N == 3 && noa::traits::is_any_v<Matrix, Mat33<coord_type>, const Mat33<coord_type>*>));
+                (N == 2 && nt::is_any_v<Matrix, Mat22<coord_type>, const Mat22<coord_type>*>) ||
+                (N == 3 && nt::is_any_v<Matrix, Mat33<coord_type>, const Mat33<coord_type>*>));
 
     public:
         TransformRFFT(const interpolator_type& input,
@@ -109,7 +109,7 @@ namespace noa::algorithm::geometry {
             real_value_type conj = 1;
             if (freq[1] < coord_type{0}) {
                 freq = -freq;
-                if constexpr (noa::traits::is_complex_v<value_type>)
+                if constexpr (nt::is_complex_v<value_type>)
                     conj = -1;
             }
 
@@ -117,13 +117,13 @@ namespace noa::algorithm::geometry {
             freq *= m_f_shape;
             freq[0] += m_center[0];
             auto value = static_cast<value_type>(m_input(freq, batch));
-            if constexpr (noa::traits::is_complex_v<value_type>)
+            if constexpr (nt::is_complex_v<value_type>)
                 value.imag *= conj;
             else
                 (void) conj;
 
             // Phase shift the interpolated value.
-            if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+            if constexpr (nt::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
                     value *= noa::fft::phase_shift<value_type>(shift, vec_type{v, x}); // u == x
@@ -153,7 +153,7 @@ namespace noa::algorithm::geometry {
             real_value_type conj = 1;
             if (freq[2] < coord_type{0}) {
                 freq = -freq;
-                if constexpr (noa::traits::is_complex_v<value_type>)
+                if constexpr (nt::is_complex_v<value_type>)
                     conj = -1;
             }
 
@@ -161,12 +161,12 @@ namespace noa::algorithm::geometry {
             freq[0] += m_center[0];
             freq[1] += m_center[1];
             auto value = static_cast<value_type>(m_input(freq, batch));
-            if constexpr (noa::traits::is_complex_v<value_type>)
+            if constexpr (nt::is_complex_v<value_type>)
                 value.imag *= conj;
             else
                 (void) conj;
 
-            if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+            if constexpr (nt::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
                 if constexpr (std::is_pointer_v<shift_or_empty_type>) {
                     const vec_type shift = m_shift[batch] * m_preshift;
                     value *= noa::fft::phase_shift<value_type>(shift, vec_type{w, v, x}); // u == x
@@ -201,8 +201,8 @@ namespace noa::algorithm::geometry {
                       u8_REMAP & Layout::SRC_HALF &&
                       u8_REMAP & Layout::DST_HALF);
 
-        static_assert(noa::traits::is_real_or_complex_v<Value>);
-        static_assert(noa::traits::is_sint_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Value>);
+        static_assert(nt::is_sint_v<Index>);
 
         using value_type = Value;
         using matrix_or_empty_type = MatrixOrEmpty;
@@ -210,7 +210,7 @@ namespace noa::algorithm::geometry {
         using index_type = Index;
         using offset_type = Offset;
         using shift_or_empty_type = ShiftOrEmpty;
-        using real_value_type = noa::traits::value_type_t<value_type>;
+        using real_value_type = nt::value_type_t<value_type>;
 
         using coord_type = typename Interpolator::coord_type;
         using vec_type = Vec<coord_type, N>;
@@ -219,8 +219,8 @@ namespace noa::algorithm::geometry {
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
         using matrix_type = std::conditional_t<N == 2, Mat22<coord_type>, Mat33<coord_type>>;
-        static_assert(noa::traits::is_any_v<MatrixOrEmpty, Empty, matrix_type>);
-        static_assert(noa::traits::is_any_v<ShiftOrEmpty, Empty, vec_type>);
+        static_assert(nt::is_any_v<MatrixOrEmpty, Empty, matrix_type>);
+        static_assert(nt::is_any_v<ShiftOrEmpty, Empty, vec_type>);
 
     public:
         TransformSymmetryRFFT(
@@ -289,7 +289,7 @@ namespace noa::algorithm::geometry {
             }
 
             value *= m_scaling;
-            if constexpr (noa::traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+            if constexpr (nt::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
                 value *= noa::fft::phase_shift<value_type>(m_shift, vec_type{v, x}); // u == v
             }
 
@@ -338,7 +338,7 @@ namespace noa::algorithm::geometry {
             real_value_type conj = 1;
             if (frequency[N - 1] < coord_type{0}) {
                 frequency = -frequency;
-                if constexpr (noa::traits::is_complex_v<value_type>)
+                if constexpr (nt::is_complex_v<value_type>)
                     conj = -1;
             }
 
@@ -347,7 +347,7 @@ namespace noa::algorithm::geometry {
             if constexpr (N == 3)
                 frequency[1] += m_center[1];
             auto value = static_cast<value_type>(m_input(frequency, batch));
-            if constexpr (noa::traits::is_complex_v<value_type>)
+            if constexpr (nt::is_complex_v<value_type>)
                 value.imag *= conj;
             else
                 (void) conj;

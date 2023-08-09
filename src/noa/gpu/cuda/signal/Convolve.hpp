@@ -5,7 +5,7 @@
 
 namespace noa::cuda::signal::details {
     template<typename T, typename U>
-    constexpr bool is_valid_conv_v = noa::traits::is_real_v<T> && std::is_same_v<T, U>;
+    constexpr bool is_valid_conv_v = nt::is_real_v<T> && std::is_same_v<T, U>;
 }
 
 namespace noa::cuda::signal {

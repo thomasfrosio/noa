@@ -25,7 +25,7 @@ namespace noa::cuda::fft::details {
     template<bool HALF, typename T>
     void normalize(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape,
                    Sign sign, Norm norm, Stream& stream) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = nt::value_type_t<T>;
         const auto count = static_cast<real_t>(noa::math::product(shape.pop_front()));
         const auto scale = norm == Norm::ORTHO ? noa::math::sqrt(count) : count;
         if (sign == Sign::FORWARD && (norm == Norm::FORWARD || norm == Norm::ORTHO)) {

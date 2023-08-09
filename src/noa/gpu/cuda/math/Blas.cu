@@ -116,8 +116,8 @@ namespace noa::cuda::math {
         (void) rhs_n;
 
         T output{};
-        using real_t = noa::traits::value_type_t<T>;
-        if constexpr (noa::traits::is_real_v<T>) {
+        using real_t = nt::value_type_t<T>;
+        if constexpr (nt::is_real_v<T>) {
             NOA_ASSERT_DEVICE_PTR(lhs, stream.device());
             NOA_ASSERT_DEVICE_PTR(rhs, stream.device());
 

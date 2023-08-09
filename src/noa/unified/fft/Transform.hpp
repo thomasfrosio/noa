@@ -18,9 +18,9 @@ namespace noa::fft {
     /// \note In-place transforms are allowed if the \p input is appropriately padded to account
     ///       for the extra one (if odd) or two (if even) real element along the width dimension.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64> &&
-             noa::traits::is_varray_of_any_v<Output, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, noa::traits::value_type_t<Output>>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64> &&
+             nt::is_varray_of_any_v<Output, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, nt::value_type_t<Output>>>>
     void r2c(const Input& input, const Output& output, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(noa::all(output.shape() == input.shape().rfft()),
@@ -48,7 +48,7 @@ namespace noa::fft {
             cuda::fft::r2c(input.get(), input.strides(),
                            output.get(), output.strides(),
                            input.shape(), norm, cache_plan, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -61,7 +61,7 @@ namespace noa::fft {
     /// \param cache_plan   Whether this transform should be cached.
     /// \return Non-redundant non-centered FFT(s).
     template<typename Input, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64>>>
     [[nodiscard]] auto r2c(const Input& input, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         using real_t = typename Input::value_type;
         Array<Complex<real_t>> output(input.shape().rfft(), input.options());
@@ -78,9 +78,9 @@ namespace noa::fft {
     ///       for the extra one (if odd) or two (if even) real element in the width dimension.
     /// \note For multidimensional C2R transforms, the input is not preserved.
     template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::is_varray_of_almost_any_v<Input, c32, c64> &&
-            noa::traits::is_varray_of_any_v<Output, f32, f64> &&
-            noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Input>, Output>>>
+            nt::is_varray_of_almost_any_v<Input, c32, c64> &&
+            nt::is_varray_of_any_v<Output, f32, f64> &&
+            nt::are_almost_same_value_type_v<nt::value_type_t<Input>, Output>>>
     void c2r(const Input& input, const Output& output, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(noa::all(input.shape() == output.shape().rfft()),
@@ -108,7 +108,7 @@ namespace noa::fft {
             cuda::fft::c2r(input.get(), input.strides(),
                            output.get(), output.strides(),
                            output.shape(), norm, cache_plan, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -123,10 +123,10 @@ namespace noa::fft {
     /// \return Real space array.
     /// \note For multidimensional C2R transforms, the input is not preserved.
     template<typename Input, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, c32, c64>>>
+             nt::is_varray_of_almost_any_v<Input, c32, c64>>>
     [[nodiscard]] auto c2r(const Input& input, const Shape4<i64> shape,
                            Norm norm = NORM_DEFAULT, bool cache_plan = true) {
-        using real_t = noa::traits::value_type_t<typename Input::value_type>;
+        using real_t = nt::value_type_t<typename Input::value_type>;
         Array<real_t> output(shape, input.options());
         c2r(input, output, norm, cache_plan);
         return output;
@@ -141,9 +141,9 @@ namespace noa::fft {
     /// \param cache_plan   Whether this transform should be cached.
     /// \note In-place transforms are allowed.
     template<typename Input, typename Output, typename = std::enable_if_t<
-            noa::traits::is_varray_of_almost_any_v<Input, c32, c64> &&
-            noa::traits::is_varray_of_any_v<Output, c32, c64> &&
-            noa::traits::are_almost_same_value_type_v<Input, Output>>>
+            nt::is_varray_of_almost_any_v<Input, c32, c64> &&
+            nt::is_varray_of_any_v<Output, c32, c64> &&
+            nt::are_almost_same_value_type_v<Input, Output>>>
     void c2c(const Input& input, const Output& output, Sign sign,
              Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
@@ -172,7 +172,7 @@ namespace noa::fft {
             cuda::fft::c2c(input.get(), input.strides(),
                            output.get(), output.strides(),
                            input.shape(), sign, norm, cache_plan, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -187,7 +187,7 @@ namespace noa::fft {
     /// \param cache_plan   Whether this transform should be cached.
     /// \return Non-centered FFT(s).
     template<typename Input, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, c32, c64>>>
+             nt::is_varray_of_almost_any_v<Input, c32, c64>>>
     [[nodiscard]] auto c2c(const Input& input, Sign sign, Norm norm = NORM_DEFAULT, bool cache_plan = true) {
         using complex_t = typename Input::value_type;
         Array<complex_t> output(input.shape(), input.options());

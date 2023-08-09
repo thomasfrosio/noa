@@ -25,13 +25,13 @@ namespace noa {
         static constexpr size_t SIZE = COUNT;
         static constexpr int64_t SSIZE = ROWS * COLS;
 
-        template<typename I, typename = std::enable_if_t<noa::traits::is_int_v<I>>>
+        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
         NOA_HD constexpr row_type& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
         }
 
-        template<typename I, typename = std::enable_if_t<noa::traits::is_int_v<I>>>
+        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
         NOA_HD constexpr const row_type& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return m_row[i];
@@ -43,7 +43,7 @@ namespace noa {
                         row_type(0, 1, 0)} {}
 
     public: // (Conversion) Constructors
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat23(U s) noexcept
                 : m_row{row_type(s, 0, 0),
                         row_type(0, s, 0)} {}
@@ -65,7 +65,7 @@ namespace noa {
                 : m_row{row_type(x00, x01, x02),
                         row_type(y10, y11, y12)} {}
 
-        template<typename U, typename = std::enable_if_t<noa::traits::is_scalar_v<U>>>
+        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
         NOA_HD constexpr explicit Mat23(U* ptr) noexcept
                 : m_row{row_type(ptr[0], ptr[1], ptr[2]),
                         row_type(ptr[3], ptr[4], ptr[5])} {}
@@ -186,7 +186,7 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_row[0].data(); }
         [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_row[0].data(); }
 
-        template<typename T, std::enable_if_t<noa::traits::is_real_v<T>, bool> = true>
+        template<typename T, std::enable_if_t<nt::is_real_v<T>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return Mat23<T>(*this);
         }
@@ -203,7 +203,7 @@ namespace noa {
         row_type m_row[ROWS];
     };
 
-    template<typename T> struct traits::proclaim_is_mat23<Mat23<T>> : std::true_type {};
+    template<typename T> struct nt::proclaim_is_mat23<Mat23<T>> : std::true_type {};
 
     using Float23 = Mat23<float>;
     using Double23 = Mat23<double>;

@@ -17,19 +17,19 @@ namespace noa::geometry::fft::details {
 
     template<Remap REMAP, typename Value, typename Matrix, typename Shift>
     constexpr bool is_valid_transform_2d_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> && (REMAP == HC2HC || REMAP == HC2H) &&
-            (noa::traits::is_any_v<Matrix, Float22> || noa::traits::is_varray_of_almost_any_v<Matrix, Float22>) &&
-            (noa::traits::is_any_v<Shift, Vec2<f32>> || noa::traits::is_varray_of_almost_any_v<Shift, Vec2<f32>>);
+            nt::is_any_v<Value, f32, f64, c32, c64> && (REMAP == HC2HC || REMAP == HC2H) &&
+            (nt::is_any_v<Matrix, Float22> || nt::is_varray_of_almost_any_v<Matrix, Float22>) &&
+            (nt::is_any_v<Shift, Vec2<f32>> || nt::is_varray_of_almost_any_v<Shift, Vec2<f32>>);
 
     template<Remap REMAP, typename Value, typename Matrix, typename Shift>
     constexpr bool is_valid_transform_3d_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> && (REMAP == HC2HC || REMAP == HC2H) &&
-            (noa::traits::is_any_v<Matrix, Float33> || noa::traits::is_varray_of_almost_any_v<Matrix, Float33>) &&
-            (noa::traits::is_any_v<Shift, Vec3<f32>> || noa::traits::is_varray_of_almost_any_v<Shift, Vec3<f32>>);
+            nt::is_any_v<Value, f32, f64, c32, c64> && (REMAP == HC2HC || REMAP == HC2H) &&
+            (nt::is_any_v<Matrix, Float33> || nt::is_varray_of_almost_any_v<Matrix, Float33>) &&
+            (nt::is_any_v<Shift, Vec3<f32>> || nt::is_varray_of_almost_any_v<Shift, Vec3<f32>>);
 
     template<Remap REMAP, typename Value>
     constexpr bool is_valid_transform_sym_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
             (REMAP == HC2HC || REMAP == HC2H);
 
 
@@ -74,7 +74,7 @@ namespace noa::geometry::fft::details {
                       "but got shift:{} and output:{}", post_shifts.device(), device);
         }
 
-        if constexpr (noa::traits::is_varray_v<Input>) {
+        if constexpr (nt::is_varray_v<Input>) {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
@@ -133,10 +133,10 @@ namespace noa::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename Input, typename Output, typename Matrix,
              typename Shift = Vec2<f32>, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
-             details::is_valid_transform_2d_v<REMAP, noa::traits::value_type_t<Output>, Matrix, Shift>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
+             details::is_valid_transform_2d_v<REMAP, nt::value_type_t<Output>, Matrix, Shift>>>
     void transform_2d(const Input& input, const Output& output, const Shape4<i64>& shape,
                       const Matrix& inv_matrices, const Shift& post_shifts = {},
                       f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR) {
@@ -167,11 +167,7 @@ namespace noa::geometry::fft {
                     details::extract_matrix_or_shift(inv_matrices),
                     details::extract_matrix_or_shift(post_shifts),
                     cutoff, interp_mode, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrices.share());
-            if constexpr (noa::traits::is_varray_v<Shift>)
-                cuda_stream.enqueue_attach(post_shifts.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrices, post_shifts);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -182,7 +178,7 @@ namespace noa::geometry::fft {
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Value, typename Output,
              typename Matrix, typename Shift = Vec2<f32>, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
+             nt::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_2d_v<REMAP, Value, Matrix, Shift>>>
     void transform_2d(const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
                       const Matrix& inv_matrices, const Shift& post_shifts = {},
@@ -196,7 +192,7 @@ namespace noa::geometry::fft {
             transform_2d<REMAP>(input_array, output, shape, inv_matrices, post_shifts, cutoff, input.interp_mode());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(noa::traits::value_type_t<Value>) >= 8) {
+            if constexpr (sizeof(nt::value_type_t<Value>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
                 details::transform_nd_check_parameters<2>(input, output, shape, inv_matrices, post_shifts);
@@ -208,11 +204,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix_or_shift(inv_matrices),
                         details::extract_matrix_or_shift(post_shifts),
                         cutoff, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
-                if constexpr (noa::traits::is_varray_v<Matrix>)
-                    cuda_stream.enqueue_attach(inv_matrices.share());
-                if constexpr (noa::traits::is_varray_v<Shift>)
-                    cuda_stream.enqueue_attach(post_shifts.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output, inv_matrices, post_shifts);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -248,10 +240,10 @@ namespace noa::geometry::fft {
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename Input, typename Output, typename Matrix,
              typename Shift = Vec3<f32>, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
-             details::is_valid_transform_3d_v<REMAP, noa::traits::value_type_t<Output>, Matrix, Shift>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
+             details::is_valid_transform_3d_v<REMAP, nt::value_type_t<Output>, Matrix, Shift>>>
     void transform_3d(const Input& input, const Output& output, const Shape4<i64>& shape,
                       const Matrix& inv_matrices, const Shift& post_shifts = {},
                       f32 cutoff = 0.5f, InterpMode interp_mode = InterpMode::LINEAR) {
@@ -282,11 +274,7 @@ namespace noa::geometry::fft {
                     details::extract_matrix_or_shift(inv_matrices),
                     details::extract_matrix_or_shift(post_shifts),
                     cutoff, interp_mode, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrices.share());
-            if constexpr (noa::traits::is_varray_v<Shift>)
-                cuda_stream.enqueue_attach(post_shifts.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrices, post_shifts);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -297,7 +285,7 @@ namespace noa::geometry::fft {
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Value, typename Output,
              typename Matrix, typename Shift = Vec3<f32>, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
+             nt::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_3d_v<REMAP, Value, Matrix, Shift>>>
     void transform_3d(const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
                       const Matrix& inv_matrices, const Shift& post_shifts = {},
@@ -311,7 +299,7 @@ namespace noa::geometry::fft {
             transform_3d<REMAP>(input_array, output, shape, inv_matrices, post_shifts, cutoff, input.interp_mode());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (sizeof(noa::traits::value_type_t<Value>) >= 8) {
+            if constexpr (sizeof(nt::value_type_t<Value>) >= 8) {
                 NOA_THROW("Double-precision floating-points are not supported");
             } else {
                 details::transform_nd_check_parameters<3>(input, output, shape, inv_matrices, post_shifts);
@@ -323,11 +311,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix_or_shift(inv_matrices),
                         details::extract_matrix_or_shift(post_shifts),
                         cutoff, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
-                if constexpr (noa::traits::is_varray_v<Matrix>)
-                    cuda_stream.enqueue_attach(inv_matrices.share());
-                if constexpr (noa::traits::is_varray_v<Shift>)
-                    cuda_stream.enqueue_attach(post_shifts.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output, inv_matrices, post_shifts);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -358,9 +342,9 @@ namespace noa::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void transform_and_symmetrize_2d(
             const Input& input, const Output& output, const Shape4<i64>& shape,
@@ -391,7 +375,7 @@ namespace noa::geometry::fft {
                     output.get(), output.strides(), shape,
                     inv_matrix, symmetry, post_shift, cutoff,
                     interp_mode, normalize, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -401,7 +385,7 @@ namespace noa::geometry::fft {
     /// Rotates/scales and then symmetrizes a non-redundant 2D (batched) FFT.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
+             nt::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform_and_symmetrize_2d(
             const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
@@ -427,7 +411,7 @@ namespace noa::geometry::fft {
                         texture.array.get(), *texture.texture, input.interp_mode(),
                         output.get(), output.strides(), shape,
                         inv_matrix, symmetry, post_shift, cutoff, normalize, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -456,9 +440,9 @@ namespace noa::geometry::fft {
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void transform_and_symmetrize_3d(
             const Input& input, const Output& output, const Shape4<i64>& shape,
@@ -489,7 +473,7 @@ namespace noa::geometry::fft {
                     output.get(), output.strides(), shape,
                     inv_matrix, symmetry, post_shift, cutoff,
                     interp_mode, normalize, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -499,7 +483,7 @@ namespace noa::geometry::fft {
     /// Rotates/scales and then symmetrizes a non-redundant 3D (batched) FFT.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Value, typename Output, typename = std::enable_if_t<
-            noa::traits::is_varray_of_any_v<Output, Value> &&
+            nt::is_varray_of_any_v<Output, Value> &&
             details::is_valid_transform_sym_v<REMAP, Value>>>
     void transform_and_symmetrize_3d(
             const Texture<Value>& input, const Output& output, const Shape4<i64>& shape,
@@ -525,7 +509,7 @@ namespace noa::geometry::fft {
                         texture.array.get(), *texture.texture, input.interp_mode(),
                         output.get(), output.strides(), shape,
                         inv_matrix, symmetry, post_shift, cutoff, normalize, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -547,9 +531,9 @@ namespace noa::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void symmetrize_2d(const Input& input, const Output& output, const Shape4<i64>& shape,
                       const Symmetry& symmetry, const Vec2<f32>& post_shift = {},
@@ -573,9 +557,9 @@ namespace noa::geometry::fft {
     /// \param normalize        Whether \p output should be normalized to have the same range as \p input.
     ///                         If false, output values end up being scaled by the symmetry count.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              (REMAP == Remap::HC2HC || REMAP == Remap::HC2H)>>
     void symmetrize_3d(const Input& input, const Output& output, const Shape4<i64>& shape,
                        const Symmetry& symmetry, const Vec3<f32>& post_shift = {},

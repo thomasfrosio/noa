@@ -12,15 +12,15 @@
 namespace noa::geometry::details {
     template<typename Value, typename Matrix>
     constexpr bool is_valid_transform_2d_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            (noa::traits::is_almost_any_v<Matrix, Float23, Float33> ||
-             noa::traits::is_varray_of_almost_any_v<Matrix, Float23, Float33>);
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            (nt::is_almost_any_v<Matrix, Float23, Float33> ||
+             nt::is_varray_of_almost_any_v<Matrix, Float23, Float33>);
 
     template<typename Value, typename Matrix>
     constexpr bool is_valid_transform_3d_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            (noa::traits::is_almost_any_v<Matrix, Float34, Float44> ||
-             noa::traits::is_varray_of_almost_any_v<Matrix, Float34, Float44>);
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            (nt::is_almost_any_v<Matrix, Float34, Float44> ||
+             nt::is_varray_of_almost_any_v<Matrix, Float34, Float44>);
 
 
     template<int32_t NDIM, bool SYMMETRY = false, typename Input, typename Output, typename Matrix>
@@ -53,7 +53,7 @@ namespace noa::geometry::details {
                       "but got matrices:{} and output:{}", matrix.device(), device);
         }
 
-        if constexpr (noa::traits::is_varray_v<Input>) {
+        if constexpr (nt::is_varray_v<Input>) {
             NOA_CHECK(device == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input:{} and output:{}", input.device(), device);
@@ -75,7 +75,7 @@ namespace noa::geometry::details {
         if constexpr (traits::is_matXX_v<Matrix>) {
             return matrix;
         } else {
-            using ptr_t = const noa::traits::value_type_t<Matrix>*;
+            using ptr_t = const nt::value_type_t<Matrix>*;
             return ptr_t(matrix.get());
         }
     }
@@ -103,10 +103,10 @@ namespace noa::geometry {
     /// \param value            Constant value to use for out-of-bounds coordinates.
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     template<typename Input, typename Output, typename Matrix,
-             typename Value = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             typename Value = nt::value_type_t<Output>, typename = std::enable_if_t<
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_transform_2d_v<Value, Matrix>>>
     void transform_2d(const Input& input, const Output& output, const Matrix& inv_matrices,
                       InterpMode interp_mode = InterpMode::LINEAR,
@@ -134,9 +134,7 @@ namespace noa::geometry {
                     output.get(), output.strides(), output.shape(),
                     details::extract_matrix(inv_matrices),
                     interp_mode, border_mode, value, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrices.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrices);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -146,7 +144,7 @@ namespace noa::geometry {
     /// Applies one or multiple 2D affine transforms.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename Matrix, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
+             nt::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_2d_v<Value, Matrix>>>
     void transform_2d(const Texture<Value>& input, const Output& output, const Matrix& inv_matrices) {
         details::transform_nd_check_parameters<2>(input, output, inv_matrices);
@@ -177,9 +175,7 @@ namespace noa::geometry {
                         input.shape(), input.interp_mode(), input.border_mode(),
                         output.get(), output.strides(), output.shape(),
                         details::extract_matrix(inv_matrices), cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
-                if constexpr (noa::traits::is_varray_v<Matrix>)
-                    cuda_stream.enqueue_attach(inv_matrices.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output, inv_matrices);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -207,10 +203,10 @@ namespace noa::geometry {
     /// \param value            Constant value to use for out-of-bounds coordinates.
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     template<typename Input, typename Output, typename Matrix,
-             typename Value = noa::traits::value_type_t<Output>, typename = std::enable_if_t<
-                    noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                    noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                    noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             typename Value = nt::value_type_t<Output>, typename = std::enable_if_t<
+                    nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                    nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+                    nt::are_almost_same_value_type_v<Input, Output> &&
                     details::is_valid_transform_3d_v<Value, Matrix>>>
     void transform_3d(const Input& input, const Output& output, const Matrix& inv_matrices,
                       InterpMode interp_mode = InterpMode::LINEAR,
@@ -238,9 +234,7 @@ namespace noa::geometry {
                     output.get(), output.strides(), output.shape(),
                     details::extract_matrix(inv_matrices),
                     interp_mode, border_mode, value, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrices.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrices);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -250,7 +244,7 @@ namespace noa::geometry {
     /// Applies one or multiple 3D affine transforms.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename Matrix, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
+             nt::is_varray_of_any_v<Output, Value> &&
              details::is_valid_transform_3d_v<Value, Matrix>>>
     void transform_3d(const Texture<Value>& input, const Output& output, const Matrix& inv_matrices) {
         details::transform_nd_check_parameters<3>(input, output, inv_matrices);
@@ -271,7 +265,7 @@ namespace noa::geometry {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 auto& cuda_stream = stream.cuda();
@@ -281,9 +275,7 @@ namespace noa::geometry {
                         input.shape(), input.interp_mode(), input.border_mode(),
                         output.get(), output.strides(), output.shape(),
                         details::extract_matrix(inv_matrices), cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
-                if constexpr (noa::traits::is_varray_v<Matrix>)
-                    cuda_stream.enqueue_attach(inv_matrices.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output, inv_matrices);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -317,9 +309,9 @@ namespace noa::geometry {
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void transform_and_symmetrize_2d(
             const Input& input, const Output& output,
             const Vec2<f32>& shift, const Float22& inv_matrix,
@@ -348,7 +340,7 @@ namespace noa::geometry {
                     output.get(), output.strides(), output.shape(),
                     shift, inv_matrix, symmetry, center, interp_mode,
                     normalize, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -358,8 +350,8 @@ namespace noa::geometry {
     /// Shifts, then rotates/scales and applies the symmetry on the 2D input array.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
-             noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+             nt::is_varray_of_any_v<Output, Value> &&
+             nt::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_2d(
             const Texture<Value>& input, const Output& output,
             const Vec2<f32>& shift, const Float22& inv_matrix,
@@ -382,7 +374,7 @@ namespace noa::geometry {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 auto& cuda_stream = stream.cuda();
@@ -393,7 +385,7 @@ namespace noa::geometry {
                         output.get(), output.strides(), output.shape(),
                         shift, inv_matrix, symmetry, center,
                         normalize, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -424,9 +416,9 @@ namespace noa::geometry {
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void transform_and_symmetrize_3d(
             const Input& input, const Output& output,
             const Vec3<f32>& shift, const Float33& inv_matrix,
@@ -455,7 +447,7 @@ namespace noa::geometry {
                     output.get(), output.strides(), output.shape(),
                     shift, inv_matrix, symmetry, center, interp_mode,
                     normalize, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -466,8 +458,8 @@ namespace noa::geometry {
     /// \details This overload has the same features and limitations as the overload taking Arrays.
     ///          This is mostly for the GPU, since "CPU textures" are simple Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
-             noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+             nt::is_varray_of_any_v<Output, Value> &&
+             nt::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_3d(
             const Texture<Value>& input, const Output& output,
             const Vec3<f32>& shift, const Float33& inv_matrix,
@@ -490,7 +482,7 @@ namespace noa::geometry {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 auto& cuda_stream = stream.cuda();
@@ -501,7 +493,7 @@ namespace noa::geometry {
                         output.get(), output.strides(), output.shape(),
                         shift, inv_matrix, symmetry, center,
                         normalize, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -519,9 +511,9 @@ namespace noa::geometry {
     ///                     If false, output values end up being scaled by the symmetry count.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void symmetrize_2d(const Input& input, const Output& output,
                        const Symmetry& symmetry, const Vec2<f32>& center,
                        InterpMode interp_mode = InterpMode::LINEAR,
@@ -549,7 +541,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     symmetry, center, interp_mode, normalize, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -559,8 +551,8 @@ namespace noa::geometry {
     /// Symmetrizes the 2D (batched) input array.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value> &&
-             noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+             nt::is_varray_of_any_v<Output, Value> &&
+             nt::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_2d(const Texture<Value>& input, const Output& output,
                        const Symmetry& symmetry, const Vec2<f32>& center,
                        bool normalize = true) {
@@ -581,7 +573,7 @@ namespace noa::geometry {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 auto& cuda_stream = stream.cuda();
@@ -591,7 +583,7 @@ namespace noa::geometry {
                         input.interp_mode(), input.shape(),
                         output.get(), output.strides(), output.shape(),
                         symmetry, center, normalize, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -609,9 +601,9 @@ namespace noa::geometry {
     ///                     If false, output values end up being scaled by the symmetry count.
     /// \note During transformation, out-of-bound elements are set to 0, i.e. BorderMode::ZERO is used.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void symmetrize_3d(const Input& input, const Output& output,
                        const Symmetry& symmetry, const Vec3<f32>& center,
                        InterpMode interp_mode = InterpMode::LINEAR,
@@ -639,7 +631,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     symmetry, center, interp_mode, normalize, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -649,8 +641,8 @@ namespace noa::geometry {
     /// Symmetrizes the 2D (batched) input array.
     /// This overload has the same features and limitations as the overload taking Arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-            noa::traits::is_varray_of_any_v<Output, Value> &&
-            noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+            nt::is_varray_of_any_v<Output, Value> &&
+            nt::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_3d(const Texture<Value>& input, const Output& output,
                        const Symmetry& symmetry, const Vec3<f32>& center,
                        bool normalize = true) {
@@ -671,7 +663,7 @@ namespace noa::geometry {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, textures don't support double-precision floating-points");
             } else {
                 auto& cuda_stream = stream.cuda();
@@ -681,7 +673,7 @@ namespace noa::geometry {
                         input.interp_mode(), input.shape(),
                         output.get(), output.strides(), output.shape(),
                         symmetry, center, normalize, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, output.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, output);
             }
             #else
             NOA_THROW("No GPU backend detected");

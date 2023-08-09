@@ -20,7 +20,6 @@
 
 namespace noa::geometry::fft::details {
     using Remap = noa::fft::Remap;
-    namespace nt = noa::traits;
 
     template<Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight>
     struct is_valid_rotational_average {
@@ -61,7 +60,7 @@ namespace noa::geometry::fft::details {
         NOA_CHECK(input.shape()[1] == 1 && output.shape()[1] == 1,
                   "3d arrays are not supported");
 
-        if constexpr (noa::traits::is_varray_v<Input>) {
+        if constexpr (nt::is_varray_v<Input>) {
             NOA_CHECK(output.device() == input.device(),
                       "The input and output arrays must be on the same device, "
                       "but got input={} and output={}", input.device(), output.device());
@@ -159,7 +158,7 @@ namespace noa::geometry::fft::details {
                       "Only (batched) 2d arrays are supported with anisotropic CTFs, but got shape {}",
                       shape);
         }
-        if constexpr (noa::traits::is_varray_v<Ctf>) {
+        if constexpr (nt::is_varray_v<Ctf>) {
             NOA_CHECK(noa::indexing::is_contiguous_vector(input_ctf) && input_ctf.elements() == shape[0],
                       "The anisotropic input ctfs, specified as a contiguous vector, should have the same number of "
                       "elements as there are input batches. Got ctf (strides={}, shape={}), input batches={}",
@@ -176,10 +175,10 @@ namespace noa::geometry::fft::details {
     template<typename Ctf>
     auto extract_ctf(const Ctf& ctf) {
         using namespace noa::signal::fft;
-        if constexpr (noa::traits::is_almost_any_v<Ctf, Empty, CTFAnisotropic<f32>, CTFAnisotropic<f64>>) {
+        if constexpr (nt::is_almost_any_v<Ctf, Empty, CTFAnisotropic<f32>, CTFAnisotropic<f64>>) {
             return ctf;
         } else {
-            using ptr_t = const noa::traits::value_type_t<Ctf>*;
+            using ptr_t = const nt::value_type_t<Ctf>*;
             return ptr_t(ctf.get());
         }
     }
@@ -208,10 +207,10 @@ namespace noa::geometry::fft {
     /// \param interp_mode          Interpolation method used to interpolate the values onto the new grid.
     ///                             Cubic interpolations are not supported.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             (noa::traits::are_almost_same_value_type_v<Input, Output> ||
-              noa::traits::are_almost_same_value_type_v<Input, noa::traits::value_type_t<Output>>) &&
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             (nt::are_almost_same_value_type_v<Input, Output> ||
+              nt::are_almost_same_value_type_v<Input, nt::value_type_t<Output>>) &&
              REMAP == Remap::HC2FC>>
     void cartesian2polar(const Input& cartesian, const Shape4<i64>& cartesian_shape, const Output& polar,
                          Vec2<f32> frequency_range = {},
@@ -242,7 +241,7 @@ namespace noa::geometry::fft {
                     polar.get(), polar.strides(), polar.shape(),
                     frequency_range, frequency_endpoint, angle_range, angle_endpoint,
                     interp_mode, cuda_stream);
-            cuda_stream.enqueue_attach(cartesian.share(), polar.share());
+            cuda_stream.enqueue_attach(cartesian, polar);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -252,10 +251,10 @@ namespace noa::geometry::fft {
     /// Transforms 2d dft(s) to polar coordinates.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<Remap REMAP, typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             (noa::traits::are_almost_same_value_type_v<Texture<Input>, Output> ||
-              noa::traits::are_almost_same_value_type_v<Texture<Input>, noa::traits::value_type_t<Output>>) &&
+             nt::is_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             (nt::are_almost_same_value_type_v<Texture<Input>, Output> ||
+              nt::are_almost_same_value_type_v<Texture<Input>, nt::value_type_t<Output>>) &&
              REMAP == Remap::HC2FC>>
     void cartesian2polar(const Texture<Input>& cartesian, const Shape4<i64>& cartesian_shape, const Output& polar,
                          Vec2<f32> frequency_range = {},
@@ -274,7 +273,7 @@ namespace noa::geometry::fft {
                     cartesian.interp_mode());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Input, f32, c32>) {
+            if constexpr (!nt::is_any_v<Input, f32, c32>) {
                 NOA_THROW("In the CUDA backend, double-precision floating-points are not supported by this function");
             } else {
                 details::cartesian2polar_check_parameters(cartesian, cartesian_shape, polar);
@@ -286,7 +285,7 @@ namespace noa::geometry::fft {
                         texture.array.get(), *texture.texture, cartesian.interp_mode(), cartesian_shape,
                         polar.get(), polar.strides(), polar.shape(),
                         frequency_range, frequency_endpoint, angle_range, angle_endpoint, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, polar.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, polar);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -312,8 +311,8 @@ namespace noa::geometry::fft {
     ///
     /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
     template<noa::fft::Remap REMAP, typename Input, typename Output,
-             typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output, Weight> &&
+             typename Weight = View<nt::value_type_t<Input>>, typename = std::enable_if_t<
+             nt::are_varray_of_real_or_complex_v<Input, Output, Weight> &&
              details::is_valid_rotational_average_v<REMAP, Input, Empty, Output, Weight>>>
     void rotational_average(
             const Input& input,
@@ -347,7 +346,7 @@ namespace noa::geometry::fft {
                     output.get(), params.output_batch_stride,
                     weights.get(), params.weight_batch_stride, params.n_shells,
                     frequency_range, frequency_endpoint, average, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
+            cuda_stream.enqueue_attach(input, output, weights);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -376,8 +375,8 @@ namespace noa::geometry::fft {
     ///
     /// \note If \p weights is empty and \p average is true, a temporary vector like \p output is allocated.
     template<noa::fft::Remap REMAP, typename Input, typename Ctf, typename Output,
-             typename Weight = View<noa::traits::value_type_t<Input>>, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output, Weight> &&
+             typename Weight = View<nt::value_type_t<Input>>, typename = std::enable_if_t<
+             nt::are_varray_of_real_or_complex_v<Input, Output, Weight> &&
              details::is_valid_rotational_average_v<REMAP, Input, Ctf, Output, Weight>>>
     void rotational_average_anisotropic(
             const Input& input,
@@ -412,9 +411,7 @@ namespace noa::geometry::fft {
                     output.get(), params.output_batch_stride,
                     weights.get(), params.weight_batch_stride, params.n_shells,
                     frequency_range, frequency_endpoint, average, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share(), weights.share());
-            if constexpr (noa::traits::is_varray_v<Ctf>)
-                cuda_stream.enqueue_attach(input_ctf.share());
+            cuda_stream.enqueue_attach(input, output, weights, input_ctf);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

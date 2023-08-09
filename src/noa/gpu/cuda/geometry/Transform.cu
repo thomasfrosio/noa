@@ -139,7 +139,7 @@ namespace {
             const geometry::Symmetry& symmetry, const Vec2<f32>& center,
             InterpMode interp_mode, bool normalize, noa::cuda::Stream& stream
     ) {
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const auto scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
         const auto symmetry_matrices = noa::cuda::memory::AllocatorDevice<Float33>::allocate_async(symmetry_count, stream);
@@ -275,9 +275,9 @@ namespace {
 
     template<typename Matrix>
     auto truncated_matrix_or_const_ptr_(const Matrix& matrix) {
-        if constexpr (noa::traits::is_mat33_v<Matrix> || noa::traits::is_mat44_v<Matrix>) {
+        if constexpr (nt::is_mat33_v<Matrix> || nt::is_mat44_v<Matrix>) {
             return noa::geometry::affine2truncated(matrix);
-        } else if constexpr (noa::traits::is_matXX_v<Matrix>) {
+        } else if constexpr (nt::is_matXX_v<Matrix>) {
             return matrix;
         } else {
             NOA_ASSERT(matrix != nullptr);
@@ -300,7 +300,7 @@ namespace noa::cuda::geometry {
         NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
         NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
-        if constexpr (!noa::traits::is_matXX_v<Matrix>) {
+        if constexpr (!nt::is_matXX_v<Matrix>) {
             NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 
@@ -329,7 +329,7 @@ namespace noa::cuda::geometry {
         NOA_ASSERT(input != output);
         NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
         NOA_ASSERT(input_shape[0] == 1 || input_shape[0] == output_shape[0]);
-        if constexpr (!noa::traits::is_matXX_v<Matrix>) {
+        if constexpr (!nt::is_matXX_v<Matrix>) {
             NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 
@@ -371,7 +371,7 @@ namespace noa::cuda::geometry {
         const auto input_accessor = AccessorRestrict<const Value, 3, u32>(input, input_strides.filter(0, 2, 3).as_safe<u32>());
         const auto output_accessor = AccessorRestrict<Value, 3, u32>(output, output_strides.filter(0, 2, 3).as_safe<u32>());
 
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const auto scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
         const auto symmetry_matrices = noa::cuda::memory::AllocatorDevice<Float33>::allocate_async(symmetry_count, stream);
@@ -448,7 +448,7 @@ namespace noa::cuda::geometry {
         const auto input_accessor = AccessorRestrict<const Value, 4, u32>(input, input_strides.as_safe<u32>());
         const auto output_accessor = AccessorRestrict<Value, 4, u32>(output, output_strides.as_safe<u32>());
 
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const auto scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
         const auto symmetry_matrices = noa::cuda::memory::AllocatorDevice<Float33>::allocate_async(symmetry_count, stream);

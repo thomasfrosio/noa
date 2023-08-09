@@ -407,7 +407,7 @@ namespace noa::math {
             noa::cuda::math::min(
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -465,7 +465,7 @@ namespace noa::math {
             noa::cuda::math::max(
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -528,7 +528,7 @@ namespace noa::math {
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(),
                     pre_process_op, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -590,7 +590,7 @@ namespace noa::math {
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(),
                     pre_process_op, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -649,7 +649,7 @@ namespace noa::math {
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(),
                     cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -716,7 +716,7 @@ namespace noa::math {
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(),
                     ddof, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -783,7 +783,7 @@ namespace noa::math {
                     input.get(), input.strides(), input.shape(),
                     output.get(), output.strides(), output.shape(),
                     ddof, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -861,7 +861,7 @@ namespace noa::math {
                     mean.get(), mean.strides(),
                     variance.get(), variance.strides(),
                     variance.shape(), ddof, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), mean.share(), variance.share());
+            cuda_stream.enqueue_attach(input, mean, variance);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -941,7 +941,7 @@ namespace noa::math {
                     mean.get(), mean.strides(),
                     stddev.get(), stddev.strides(),
                     stddev.shape(), ddof, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), mean.share(), stddev.share());
+            cuda_stream.enqueue_attach(input, mean, stddev);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

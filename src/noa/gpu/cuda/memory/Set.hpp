@@ -8,13 +8,13 @@
 namespace noa::cuda::memory::details {
     template<typename T>
     constexpr bool is_valid_set_v =
-            noa::traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool> ||
-            noa::traits::is_vecX_v<T> || noa::traits::is_matXX_v<T>;
+            nt::is_restricted_numeric_v<T> || std::is_same_v<T, bool> ||
+            nt::is_vecX_v<T> || nt::is_matXX_v<T>;
 
-    template<typename T, typename = std::enable_if_t<noa::traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool>>>
+    template<typename T, typename = std::enable_if_t<nt::is_restricted_numeric_v<T> || std::is_same_v<T, bool>>>
     void set(T* src, i64 elements, T value, Stream& stream);
 
-    template<typename T, typename = std::enable_if_t<noa::traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool>>>
+    template<typename T, typename = std::enable_if_t<nt::is_restricted_numeric_v<T> || std::is_same_v<T, bool>>>
     void set(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, Stream& stream);
 }
 
@@ -25,12 +25,12 @@ namespace noa::cuda::memory {
     // One must make sure src stays valid until completion.
     template<typename T, typename = std::enable_if_t<details::is_valid_set_v<T>>>
     void set(T* src, i64 elements, T value, Stream& stream) {
-        if constexpr (noa::traits::is_restricted_numeric_v<T> || std::is_same_v<T, bool>) {
+        if constexpr (nt::is_restricted_numeric_v<T> || std::is_same_v<T, bool>) {
             if (value == T{0})
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, static_cast<size_t>(elements) * sizeof(T), stream.id()));
             else
                 details::set(src, elements, value, stream);
-        } else if constexpr (noa::traits::is_vecX_v<T> || noa::traits::is_matXX_v<T>) {
+        } else if constexpr (nt::is_vecX_v<T> || nt::is_matXX_v<T>) {
             if (noa::all(value == T{0})) {
                 NOA_THROW_IF(cudaMemsetAsync(src, 0, static_cast<size_t>(elements) * sizeof(T), stream.id()));
             } else {

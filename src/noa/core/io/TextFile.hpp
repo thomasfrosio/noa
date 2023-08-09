@@ -179,7 +179,7 @@ namespace noa::io {
         [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
     private:
-        static_assert(noa::traits::is_any_v<Stream, std::ifstream, std::ofstream, std::fstream>);
+        static_assert(nt::is_any_v<Stream, std::ifstream, std::ofstream, std::fstream>);
         Stream m_fstream{};
         Path m_path{};
 

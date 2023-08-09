@@ -134,7 +134,7 @@ namespace noa {
                 } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
                     return __ull2half_rn(arg);
                 } else {
-                    static_assert(noa::traits::always_false_v<T>);
+                    static_assert(nt::always_false_v<T>);
                 }
             } else if constexpr (std::is_same_v<U, native_type>) { // native_type -> built-in
                 if constexpr (std::is_same_v<T, float>) {
@@ -162,10 +162,10 @@ namespace noa {
                 } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
                     return static_cast<T>(__half2ull_rn(arg));
                 } else {
-                    static_assert(noa::traits::always_false_v<T>);
+                    static_assert(nt::always_false_v<T>);
                 }
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
             return T(0); // unreachable
             #else
@@ -185,7 +185,7 @@ namespace noa {
                 }
                 return half_float::half_cast<T>(arg);
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
             return T(0); // unreachable
             #endif
@@ -385,7 +385,7 @@ namespace noa {
     [[nodiscard]] NOA_IH std::string string::human<Half>() { return "f16"; }
 
     template<>
-    struct noa::traits::proclaim_is_real<Half> : std::true_type {};
+    struct nt::proclaim_is_real<Half> : std::true_type {};
 
     namespace math {
         template<typename T>

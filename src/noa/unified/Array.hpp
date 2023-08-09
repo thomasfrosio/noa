@@ -205,7 +205,7 @@ namespace noa {
 
         /// Returns a (const-)span of the array.
         template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
-                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
+                 typename = std::enable_if_t<nt::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
         [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
             return view().template span<U, SIZE, I>();
         }
@@ -222,7 +222,7 @@ namespace noa {
         }
 
         /// Returns a (const-)view of the array.
-        template<typename U = value_type, typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type>>>
+        template<typename U = value_type, typename = std::enable_if_t<nt::is_almost_same_v<U, value_type>>>
         [[nodiscard]] constexpr View<U> view() const noexcept {
             return View<U>(get(), shape(), strides(), options());
         }
@@ -264,8 +264,8 @@ namespace noa {
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param[out] output  Destination. It should not overlap with this array.
         template<typename Output, typename = std::enable_if_t<
-                 noa::traits::is_varray_v<Output> &&
-                 noa::traits::are_almost_same_value_type_v<Array, Output>>>
+                 nt::is_varray_v<Output> &&
+                 nt::are_almost_same_value_type_v<Array, Output>>>
         void to(const Output& output) const {
             noa::memory::copy(*this, output);
         }
@@ -426,7 +426,7 @@ namespace noa {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
-                        if constexpr (noa::traits::is_numeric_v<value_type>) {
+                        if constexpr (nt::is_numeric_v<value_type>) {
                             auto [ptr, strides] = AllocatorDevicePadded<value_type>::allocate(m_shape);
                             m_shared = std::move(ptr);
                             m_strides = strides;

@@ -15,10 +15,10 @@ namespace noa::algorithm::geometry {
         static constexpr bool IS_SRC_CENTERED = u8_REMAP & Layout::SRC_CENTERED;
         static_assert(!(u8_REMAP & Layout::SRC_HALF || u8_REMAP & Layout::DST_HALF));
 
-        static_assert(noa::traits::is_any_v<MatrixOrEmpty,
+        static_assert(nt::is_any_v<MatrixOrEmpty,
                 Mat33<Coord>, Mat34<Coord>, const Mat33<Coord>*, const Mat34<Coord>*, Empty>);
-        static_assert(noa::traits::are_int_v<Index, Offset>);
-        static_assert(noa::traits::is_real_v<Coord>);
+        static_assert(nt::are_int_v<Index, Offset>);
+        static_assert(nt::is_real_v<Coord>);
 
         using index_type = Index;
         using offset_type = Offset;
@@ -104,10 +104,10 @@ namespace noa::algorithm::geometry {
         static constexpr bool IS_SRC_CENTERED = u8_REMAP & Layout::SRC_CENTERED;
         static_assert(!(u8_REMAP & Layout::SRC_HALF || u8_REMAP & Layout::DST_HALF));
 
-        static_assert(noa::traits::is_any_v<MatrixOrEmpty,
+        static_assert(nt::is_any_v<MatrixOrEmpty,
                 Mat22<Coord>, Mat23<Coord>, const Mat22<Coord>*, const Mat23<Coord>*, Empty>);
-        static_assert(noa::traits::are_int_v<Index, Offset>);
-        static_assert(noa::traits::is_real_v<Coord>);
+        static_assert(nt::are_int_v<Index, Offset>);
+        static_assert(nt::is_real_v<Coord>);
 
         using index_type = Index;
         using offset_type = Offset;

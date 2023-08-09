@@ -6,8 +6,8 @@ namespace noa::algorithm::memory {
     template<typename Value>
     std::tuple<i64, Value, Value> linspace_range(i64 elements, Value start, Value stop, bool endpoint = true) {
         using compute_t =
-                std::conditional_t<noa::traits::is_complex_v<Value>, c64,
-                std::conditional_t<noa::traits::is_real_v<Value>, f64, Value>>;
+                std::conditional_t<nt::is_complex_v<Value>, c64,
+                std::conditional_t<nt::is_real_v<Value>, f64, Value>>;
         const auto count = elements - static_cast<i64>(endpoint);
         const auto delta = static_cast<compute_t>(stop) - static_cast<compute_t>(start);
         const auto step = delta / static_cast<compute_t>(count);

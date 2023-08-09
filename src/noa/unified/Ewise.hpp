@@ -31,13 +31,13 @@ namespace noa {
     ///         \c C = \c f16,f32,f64\n
     ///         \c D = \c c16,c32,c64\n
     template<typename Input, typename Output, typename UnaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Input, Output>>>
+             typename = std::enable_if_t<nt::are_varray_v<Input, Output>>>
     void ewise_unary(const Input& input, const Output& output, UnaryOp&& unary_op) {
-        using input_value_t = noa::traits::value_type_t<Input>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using input_value_t = nt::value_type_t<Input>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_input_value_t = std::remove_const_t<input_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_unary_operator, UnaryOp, input_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_unary_operator, UnaryOp, input_value_t>);
 
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -65,12 +65,12 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_unary_v<
                     mutable_input_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<UnaryOp>>) {
+                    nt::remove_ref_cv_t<UnaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_unary(input.get(), input_strides,
                                   output.get(), output.strides(), output.shape(),
                                   unary_op, cuda_stream);
-                cuda_stream.enqueue_attach(input.share(), output.share());
+                cuda_stream.enqueue_attach(input, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_unary(...) for more details");
@@ -85,10 +85,10 @@ namespace noa {
     /// The output is allocated and returned. By default, the output value type is deduced from the operator.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Output = void, typename Input, typename UnaryOp,
-             typename = std::enable_if_t<noa::traits::is_varray_v<Input> &&
-                                         (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>)>>
+             typename = std::enable_if_t<nt::is_varray_v<Input> &&
+                                         (std::is_void_v<Output> || nt::is_numeric_v<Output>)>>
     [[nodiscard]] auto ewise_unary(const Input& input, UnaryOp&& unary_op) {
-        using input_value_t = noa::traits::value_type_t<Input>;
+        using input_value_t = nt::value_type_t<Input>;
         using return_value_t = std::conditional_t<
                 std::is_void_v<Output>, std::invoke_result_t<UnaryOp, input_value_t>, Output>;
         Array<return_value_t> output(input.shape(), input.options());
@@ -122,15 +122,15 @@ namespace noa {
     ///         \c B = \c f16,f32,f64\n
     ///         \c C = \c c16,c32,c64\n
     template<typename Lhs, typename Rhs, typename Output, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Rhs, Output>>>
+             typename = std::enable_if_t<nt::are_varray_v<Lhs, Rhs, Output>>>
     void ewise_binary(const Lhs& lhs, const Rhs& rhs, const Output& output, BinaryOp&& binary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_binary_operator, BinaryOp, lhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_binary_operator, BinaryOp, lhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -164,13 +164,13 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_binary_v<
                     mutable_lhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<BinaryOp>>) {
+                    nt::remove_ref_cv_t<BinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_binary(lhs.get(), lhs_strides,
                                    rhs.get(), rhs_strides,
                                    output.get(), output.strides(), output.shape(),
                                    binary_op, cuda_stream);
-                cuda_stream.enqueue_attach(lhs.share(), rhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs, rhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_binary(...) for more details");
@@ -184,16 +184,16 @@ namespace noa {
     /// Element-wise transformation using a binary \c operator()(lhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Rhs, typename Output, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Output> &&
-                                         noa::traits::is_numeric_v<Rhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Lhs, Output> &&
+                                         nt::is_numeric_v<Rhs>>>
     void ewise_binary(const Lhs& lhs, Rhs rhs, const Output& output, BinaryOp&& binary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_binary_operator, BinaryOp, lhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_binary_operator, BinaryOp, lhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!lhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -222,13 +222,13 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_binary_v<
                     mutable_lhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<BinaryOp>>) {
+                    nt::remove_ref_cv_t<BinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_binary(lhs.get(), lhs_strides,
                                    rhs,
                                    output.get(), output.strides(), output.shape(),
                                    binary_op, cuda_stream);
-                cuda_stream.enqueue_attach(lhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_binary(...) for more details");
@@ -242,16 +242,16 @@ namespace noa {
     /// Element-wise transformation using a binary \c operator()(lhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Rhs, typename Output, typename BinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Rhs, Output> &&
-                                         noa::traits::is_numeric_v<Lhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Rhs, Output> &&
+                                         nt::is_numeric_v<Lhs>>>
     void ewise_binary(Lhs lhs, const Rhs& rhs, const Output& output, BinaryOp&& binary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_binary_operator, BinaryOp, lhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_binary_operator, BinaryOp, lhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -280,13 +280,13 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_binary_v<
                     mutable_lhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<BinaryOp>>) {
+                    nt::remove_ref_cv_t<BinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_binary(lhs,
                                    rhs.get(), rhs_strides,
                                    output.get(), output.strides(), output.shape(),
                                    binary_op, cuda_stream);
-                cuda_stream.enqueue_attach(rhs.share(), output.share());
+                cuda_stream.enqueue_attach(rhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_binary(...) for more details");
@@ -302,24 +302,24 @@ namespace noa {
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Output = void, typename Lhs, typename Rhs, typename BinaryOp,
              typename = std::enable_if_t<
-                     (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>) &&
-                     (noa::traits::is_varray_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
-                     (noa::traits::is_varray_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
+                     (std::is_void_v<Output> || nt::is_numeric_v<Output>) &&
+                     (nt::is_varray_v<Lhs> || nt::is_numeric_v<Lhs>) &&
+                     (nt::is_varray_v<Rhs> || nt::is_numeric_v<Rhs>)>>
     [[nodiscard]] auto ewise_binary(const Lhs& lhs, const Rhs& rhs, BinaryOp&& binary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
         using return_value_t = std::conditional_t<
                 std::is_void_v<Output>, std::invoke_result_t<BinaryOp, lhs_value_t, rhs_value_t>, Output>;
         Shape4<i64> shape;
         ArrayOption options;
-        if constexpr (noa::traits::is_varray_v<Lhs>) {
+        if constexpr (nt::is_varray_v<Lhs>) {
             shape = lhs.shape();
             options = lhs.options();
-        } else if constexpr (noa::traits::is_varray_v<Rhs>) {
+        } else if constexpr (nt::is_varray_v<Rhs>) {
             shape = rhs.shape();
             options = rhs.options();
         } else {
-            static_assert(noa::traits::always_false_v<BinaryOp>);
+            static_assert(nt::always_false_v<BinaryOp>);
         }
         Array<return_value_t> output(shape, options);
         ewise_binary(lhs, rhs, output, binary_op);
@@ -353,17 +353,17 @@ namespace noa {
     ///         \c B = \c f16,f32,f64,c16,c32,c64\n
     ///         \c C = \c c16,c32,c64\n
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Mhs, Rhs, Output>>>
+             typename = std::enable_if_t<nt::are_varray_v<Lhs, Mhs, Rhs, Output>>>
     void ewise_trinary(const Lhs& lhs, const Mhs& mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!lhs.is_empty() && !mhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -403,14 +403,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs.get(), mhs_strides,
                                     rhs.get(), rhs_strides,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(lhs.share(), mhs.share(), rhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs, mhs, rhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -424,18 +424,18 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Mhs, Output> &&
-                                         noa::traits::is_numeric_v<Rhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Lhs, Mhs, Output> &&
+                                         nt::is_numeric_v<Rhs>>>
     void ewise_trinary(const Lhs& lhs, const Mhs& mhs, Rhs rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!lhs.is_empty() && !mhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -470,14 +470,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs.get(), mhs_strides,
                                     rhs,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(lhs.share(), mhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs, mhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -491,18 +491,18 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Rhs, Output> &&
-                                         noa::traits::is_numeric_v<Mhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Lhs, Rhs, Output> &&
+                                         nt::is_numeric_v<Mhs>>>
     void ewise_trinary(const Lhs& lhs, Mhs mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -537,14 +537,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs,
                                     rhs.get(), rhs_strides,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(lhs.share(), rhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs, rhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -558,18 +558,18 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Mhs, Rhs, Output> &&
-                                         noa::traits::is_numeric_v<Lhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Mhs, Rhs, Output> &&
+                                         nt::is_numeric_v<Lhs>>>
     void ewise_trinary(Lhs lhs, const Mhs& mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!mhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -604,14 +604,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs,
                                     mhs.get(), mhs_strides,
                                     rhs.get(), rhs_strides,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(mhs.share(), rhs.share(), output.share());
+                cuda_stream.enqueue_attach(mhs, rhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -625,18 +625,18 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Output> &&
-                                         noa::traits::are_numeric_v<Mhs, Rhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Lhs, Output> &&
+                                         nt::are_numeric_v<Mhs, Rhs>>>
     void ewise_trinary(const Lhs& lhs, Mhs mhs, Rhs rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!lhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -666,14 +666,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs.get(), lhs_strides,
                                     mhs,
                                     rhs,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(lhs.share(), output.share());
+                cuda_stream.enqueue_attach(lhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -687,18 +687,18 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Mhs, Output> &&
-                                         noa::traits::are_numeric_v<Lhs, Rhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Mhs, Output> &&
+                                         nt::are_numeric_v<Lhs, Rhs>>>
     void ewise_trinary(Lhs lhs, const Mhs& mhs, Rhs rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!mhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -728,14 +728,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs,
                                     mhs.get(), mhs_strides,
                                     rhs,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(mhs.share(), output.share());
+                cuda_stream.enqueue_attach(mhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -749,18 +749,18 @@ namespace noa {
     /// Element-wise transformation using a trinary \c operator()(lhs,mhs,rhs)->output.
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Lhs, typename Mhs, typename Rhs, typename Output, typename TrinaryOp,
-             typename = std::enable_if_t<noa::traits::are_varray_v<Rhs, Output> &&
-                                         noa::traits::are_numeric_v<Lhs, Mhs>>>
+             typename = std::enable_if_t<nt::are_varray_v<Rhs, Output> &&
+                                         nt::are_numeric_v<Lhs, Mhs>>>
     void ewise_trinary(Lhs lhs, Mhs mhs, const Rhs& rhs, const Output& output, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
-        using output_value_t = noa::traits::value_type_t<Output>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
+        using output_value_t = nt::value_type_t<Output>;
         using mutable_lhs_value_t = std::remove_const_t<lhs_value_t>;
         using mutable_mhs_value_t = std::remove_const_t<mhs_value_t>;
         using mutable_rhs_value_t = std::remove_const_t<rhs_value_t>;
-        static_assert(noa::traits::is_detected_convertible_v<
-                output_value_t, noa::traits::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
+        static_assert(nt::is_detected_convertible_v<
+                output_value_t, nt::has_trinary_operator, TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>);
 
         NOA_CHECK(!rhs.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -790,14 +790,14 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (cuda::details::is_valid_ewise_trinary_v<
                     mutable_lhs_value_t, mutable_mhs_value_t, mutable_rhs_value_t, output_value_t,
-                    noa::traits::remove_ref_cv_t<TrinaryOp>>) {
+                    nt::remove_ref_cv_t<TrinaryOp>>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::ewise_trinary(lhs,
                                     mhs,
                                     rhs.get(), rhs_strides,
                                     output.get(), output.strides(), output.shape(),
                                     trinary_op, cuda_stream);
-                cuda_stream.enqueue_attach(rhs.share(), output.share());
+                cuda_stream.enqueue_attach(rhs, output);
             } else {
                 NOA_THROW("These types of operands are not supported by the CUDA backend. "
                           "See documentation or noa::cuda::ewise_trinary(...) for more details");
@@ -813,29 +813,29 @@ namespace noa {
     /// \note On the GPU, the same operators and types are supported as in the overload above.
     template<typename Output = void, typename Lhs, typename Mhs, typename Rhs, typename TrinaryOp,
              typename = std::enable_if_t<
-                     (std::is_void_v<Output> || noa::traits::is_numeric_v<Output>) &&
-                     (noa::traits::is_varray_v<Lhs> || noa::traits::is_numeric_v<Lhs>) &&
-                     (noa::traits::is_varray_v<Mhs> || noa::traits::is_numeric_v<Mhs>) &&
-                     (noa::traits::is_varray_v<Rhs> || noa::traits::is_numeric_v<Rhs>)>>
+                     (std::is_void_v<Output> || nt::is_numeric_v<Output>) &&
+                     (nt::is_varray_v<Lhs> || nt::is_numeric_v<Lhs>) &&
+                     (nt::is_varray_v<Mhs> || nt::is_numeric_v<Mhs>) &&
+                     (nt::is_varray_v<Rhs> || nt::is_numeric_v<Rhs>)>>
     [[nodiscard]] auto ewise_trinary(const Lhs& lhs, const Mhs& mhs, const Rhs& rhs, TrinaryOp&& trinary_op) {
-        using lhs_value_t = noa::traits::value_type_t<Lhs>;
-        using mhs_value_t = noa::traits::value_type_t<Mhs>;
-        using rhs_value_t = noa::traits::value_type_t<Rhs>;
+        using lhs_value_t = nt::value_type_t<Lhs>;
+        using mhs_value_t = nt::value_type_t<Mhs>;
+        using rhs_value_t = nt::value_type_t<Rhs>;
         using return_value_t = std::conditional_t<
                 std::is_void_v<Output>, std::invoke_result_t<TrinaryOp, lhs_value_t, mhs_value_t, rhs_value_t>, Output>;
         Shape4<i64> shape;
         ArrayOption options;
-        if constexpr (noa::traits::is_varray_v<Lhs>) {
+        if constexpr (nt::is_varray_v<Lhs>) {
             shape = lhs.shape();
             options = lhs.options();
-        } else if constexpr (noa::traits::is_varray_v<Mhs>) {
+        } else if constexpr (nt::is_varray_v<Mhs>) {
             shape = mhs.shape();
             options = mhs.options();
-        } else if constexpr (noa::traits::is_varray_v<Rhs>) {
+        } else if constexpr (nt::is_varray_v<Rhs>) {
             shape = rhs.shape();
             options = rhs.options();
         } else {
-            static_assert(noa::traits::always_false_v<TrinaryOp>);
+            static_assert(nt::always_false_v<TrinaryOp>);
         }
         Array<return_value_t> output(shape, options);
         ewise_trinary(lhs, mhs, rhs, output, trinary_op);

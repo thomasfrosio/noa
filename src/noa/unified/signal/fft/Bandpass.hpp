@@ -42,9 +42,9 @@ namespace noa::signal::fft {
     /// \param width        Width of the Hann window, in cycle/pix.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename Output,
-             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             typename Input = View<const nt::value_type_t<Output>>, typename = std::enable_if_t<
+             nt::are_varray_of_real_or_complex_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
     void lowpass(const Input& input, const Output& output, const Shape4<i64>& shape, f32 cutoff, f32 width) {
         details::check_bandpass_parameters<REMAP>(input, output, shape);
@@ -73,7 +73,7 @@ namespace noa::signal::fft {
                     input.get(), input_strides,
                     output.get(), output.strides(),
                     shape, cutoff, width, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -90,9 +90,9 @@ namespace noa::signal::fft {
     /// \param width        Width of the Hann window, in cycle/pix.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename Output,
-             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             typename Input = View<const nt::value_type_t<Output>>, typename = std::enable_if_t<
+             nt::are_varray_of_real_or_complex_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
     void highpass(const Input& input, const Output& output, const Shape4<i64>& shape, f32 cutoff, f32 width) {
         details::check_bandpass_parameters<REMAP>(input, output, shape);
@@ -121,7 +121,7 @@ namespace noa::signal::fft {
                     input.get(), input_strides,
                     output.get(), output.strides(),
                     shape, cutoff, width, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -141,9 +141,9 @@ namespace noa::signal::fft {
     /// \param width_low    Frequency width, in cycle/pix, of the Hann window between \p cutoff_low and 0.5.
     /// \note \p input can be equal to \p output iff there's no remapping, i.e. with H2H or HC2HC.
     template<Remap REMAP, typename Output,
-             typename Input = View<const noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output> &&
+             typename Input = View<const nt::value_type_t<Output>>, typename = std::enable_if_t<
+             nt::are_varray_of_real_or_complex_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output> &&
              details::is_valid_pass_remap_v<REMAP>>>
     void bandpass(const Input& input, const Output& output, const Shape4<i64>& shape,
                   f32 cutoff_high, f32 cutoff_low, f32 width_high, f32 width_low) {
@@ -173,7 +173,7 @@ namespace noa::signal::fft {
                     input.get(), input_strides,
                     output.get(), output.strides(),
                     shape, cutoff_high, cutoff_low, width_high, width_low, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

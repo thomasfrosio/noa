@@ -13,10 +13,10 @@ namespace noa::algorithm::signal {
     class IsotropicFSC {
     public:
         static_assert(REMAP == noa::fft::H2H || REMAP == noa::fft::HC2HC);
-        static_assert(noa::traits::is_sint_v<Index>);
-        static_assert(noa::traits::is_int_v<Offset>);
-        static_assert(noa::traits::is_real_v<Coord>);
-        static_assert(noa::traits::is_real_v<Real>);
+        static_assert(nt::is_sint_v<Index>);
+        static_assert(nt::is_int_v<Offset>);
+        static_assert(nt::is_real_v<Coord>);
+        static_assert(nt::is_real_v<Real>);
         static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
@@ -120,10 +120,10 @@ namespace noa::algorithm::signal {
     class AnisotropicFSC {
     public:
         static_assert(REMAP == noa::fft::H2H || REMAP == noa::fft::HC2HC);
-        static_assert(noa::traits::is_sint_v<Index>);
-        static_assert(noa::traits::is_int_v<Offset>);
-        static_assert(noa::traits::is_real_v<Coord>);
-        static_assert(noa::traits::is_real_v<Real>);
+        static_assert(nt::is_sint_v<Index>);
+        static_assert(nt::is_int_v<Offset>);
+        static_assert(nt::is_real_v<Coord>);
+        static_assert(nt::is_real_v<Real>);
         static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;

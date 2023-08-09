@@ -27,7 +27,7 @@ namespace noa::algorithm::math {
             *global_error += local_error;
         }
     };
-    static_assert(noa::traits::is_detected_v<noa::traits::has_closure, AccuratePlusReal>);
+    static_assert(nt::is_detected_v<nt::has_closure, AccuratePlusReal>);
 
     // Same but for complex numbers.
     struct AccuratePlusComplex {
@@ -49,18 +49,18 @@ namespace noa::algorithm::math {
             *global_error += local_error;
         }
     };
-    static_assert(noa::traits::is_detected_v<noa::traits::has_closure, AccuratePlusComplex>);
+    static_assert(nt::is_detected_v<nt::has_closure, AccuratePlusComplex>);
 
     // This is used as preprocessing operator to compute the variance.
     // The actual reduction operator is just noa::plus_t{}.
     template<typename Value>
     struct AccurateVariance {
-        using output_type = noa::traits::value_type_t<Value>;
+        using output_type = nt::value_type_t<Value>;
         Value mean{};
 
         template<typename Input>
         NOA_FHD constexpr output_type operator()(Input value) const noexcept {
-            if constexpr (noa::traits::is_complex_v<Input>) {
+            if constexpr (nt::is_complex_v<Input>) {
                 const auto tmp = static_cast<c64>(value);
                 const auto distance = noa::math::abs(tmp - mean);
                 return distance * distance;

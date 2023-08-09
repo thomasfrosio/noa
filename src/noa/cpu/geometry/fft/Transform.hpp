@@ -6,18 +6,18 @@
 namespace noa::cpu::geometry::fft::details {
     template<i32 NDIM, noa::fft::Remap REMAP, typename Value, typename Matrix, typename Shift>
     constexpr bool is_valid_transform_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
             (REMAP == noa::fft::HC2HC || REMAP == noa::fft::HC2H) &&
             ((NDIM == 2 &&
-              noa::traits::is_any_v<Matrix, Float22, const Float22*> &&
-              noa::traits::is_any_v<Shift, Vec2<f32>, const Vec2<f32>*>) ||
+              nt::is_any_v<Matrix, Float22, const Float22*> &&
+              nt::is_any_v<Shift, Vec2<f32>, const Vec2<f32>*>) ||
              (NDIM == 3 &&
-              noa::traits::is_any_v<Matrix, Float33, const Float33*> &&
-              noa::traits::is_any_v<Shift, Vec3<f32>, const Vec3<f32>*>));
+              nt::is_any_v<Matrix, Float33, const Float33*> &&
+              nt::is_any_v<Shift, Vec3<f32>, const Vec3<f32>*>));
 
     template<noa::fft::Remap REMAP, typename Value>
     constexpr bool is_valid_transform_sym_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
             (REMAP == noa::fft::HC2HC || REMAP == noa::fft::HC2H);
 }
 

@@ -167,16 +167,16 @@ namespace noa::math {
 
     template<typename T>
     [[nodiscard]] NOA_FHD T abs(T x) {
-        if constexpr (noa::traits::is_uint_v<T>) {
+        if constexpr (nt::is_uint_v<T>) {
             return x;
-        } else if constexpr (noa::traits::is_int_v<T>) {
-            if constexpr (noa::traits::is_almost_same_v<T, long>)
+        } else if constexpr (nt::is_int_v<T>) {
+            if constexpr (nt::is_almost_same_v<T, long>)
                 return ::labs(x);
-            else if constexpr (noa::traits::is_almost_same_v<T, long long>)
+            else if constexpr (nt::is_almost_same_v<T, long long>)
                 return ::llabs(x);
-            else if constexpr (noa::traits::is_almost_same_v<T, int8_t>)
+            else if constexpr (nt::is_almost_same_v<T, int8_t>)
                 return static_cast<int8_t>(::abs(x));
-            else if constexpr (noa::traits::is_almost_same_v<T, int16_t>)
+            else if constexpr (nt::is_almost_same_v<T, int16_t>)
                 return static_cast<int16_t>(::abs(x));
             return ::abs(x);
         } else {

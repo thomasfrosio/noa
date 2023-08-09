@@ -6,7 +6,7 @@ namespace noa::cpu::signal::fft::details {
     using namespace ::noa::fft;
     template<Remap REMAP, typename T>
     constexpr bool is_valid_pass_v =
-            noa::traits::is_real_or_complex_v<T> &&
+            nt::is_real_or_complex_v<T> &&
             (REMAP == H2H || REMAP == H2HC || REMAP == HC2H || REMAP == HC2HC);
 }
 

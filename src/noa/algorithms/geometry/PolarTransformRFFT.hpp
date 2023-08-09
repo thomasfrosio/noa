@@ -14,12 +14,12 @@ namespace noa::algorithm::geometry {
         using index_type = Index;
         using offset_type = Offset;
 
-        static_assert(noa::traits::is_int_v<Index>);
-        static_assert((noa::traits::are_all_same_v<input_type, output_type> &&
-                       noa::traits::are_real_or_complex_v<input_type, output_type>) ||
-                      (noa::traits::is_complex_v<input_type> &&
-                       noa::traits::is_real_v<output_type> &&
-                       noa::traits::are_same_value_type_v<input_type, output_type>));
+        static_assert(nt::is_int_v<Index>);
+        static_assert((nt::are_all_same_v<input_type, output_type> &&
+                       nt::are_real_or_complex_v<input_type, output_type>) ||
+                      (nt::is_complex_v<input_type> &&
+                       nt::is_real_v<output_type> &&
+                       nt::are_same_value_type_v<input_type, output_type>));
 
         using coord_type = typename Interpolator::coord_type;
         using coord2_type = Vec2<coord_type>;
@@ -63,7 +63,7 @@ namespace noa::algorithm::geometry {
             real_type conj = 1;
             if (cartesian_coordinates[1] < 0) {
                 cartesian_coordinates = -cartesian_coordinates;
-                if constexpr (noa::traits::is_complex_v<input_type>)
+                if constexpr (nt::is_complex_v<input_type>)
                     conj = -1;
             } else {
                 (void) conj;
@@ -71,10 +71,10 @@ namespace noa::algorithm::geometry {
             cartesian_coordinates[0] += m_height_dc_center;
 
             input_type value = m_cartesian(cartesian_coordinates, batch);
-            if constexpr (noa::traits::are_complex_v<input_type, output_type>)
+            if constexpr (nt::are_complex_v<input_type, output_type>)
                 value.imag *= conj;
 
-            if constexpr (noa::traits::is_complex_v<input_type> && noa::traits::is_real_v<output_type>)
+            if constexpr (nt::is_complex_v<input_type> && nt::is_real_v<output_type>)
                 m_polar(batch, y, x) = noa::math::abs(value);
             else
                 m_polar(batch, y, x) = value;

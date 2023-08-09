@@ -56,7 +56,7 @@ namespace {
         Output reduced_dist2{0};
         for (u32 tidx = gid[3]; tidx < shape_hw[1] && is_valid_row; tidx += BLOCK_DIM_X) { // compute entire width
             Input tmp = input_row[tidx];
-            if constexpr (noa::traits::is_complex_v<Input>) {
+            if constexpr (nt::is_complex_v<Input>) {
                 Output distance = noa::math::abs(tmp - mean);
                 reduced_dist2 += distance * distance;
             } else {
@@ -128,7 +128,7 @@ namespace {
         Output reduced_dist2{0};
         for (u32 tidy = gid[2]; tidy < shape[0] && is_valid_column; tidy += BLOCK_SIZE_2D.y) { // compute entire height
             Input tmp = input[tidy * input_strides[2]];
-            if constexpr (noa::traits::is_complex_v<Input>) {
+            if constexpr (nt::is_complex_v<Input>) {
                 Output distance = noa::math::abs(tmp - mean);
                 reduced_dist2 += distance * distance;
             } else {
@@ -267,7 +267,7 @@ namespace noa::cuda::math {
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!noa::any(mask)) {
-            if constexpr (noa::traits::is_complex_v<Input>)
+            if constexpr (nt::is_complex_v<Input>)
                 noa::cuda::ewise_unary(input, input_strides, output, output_strides, output_shape, noa::abs_t{}, stream);
             else
                 noa::cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
@@ -298,7 +298,7 @@ namespace noa::cuda::math {
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!any(mask)) {
-            if constexpr (noa::traits::is_complex_v<Input>)
+            if constexpr (nt::is_complex_v<Input>)
                 noa::cuda::ewise_unary(input, input_strides, output, output_strides, output_shape, noa::abs_t{}, stream);
             else
                 noa::cuda::memory::copy(input, input_strides, output, output_strides, output_shape, stream);
@@ -330,7 +330,7 @@ namespace noa::cuda::math {
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!noa::any(mask)) {
-            if constexpr (noa::traits::is_complex_v<Input>) {
+            if constexpr (nt::is_complex_v<Input>) {
                 noa::cuda::memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
                 noa::cuda::ewise_unary(input, input_strides, variance, variance_strides, output_shape, noa::abs_t{}, stream);
             } else {
@@ -362,7 +362,7 @@ namespace noa::cuda::math {
         const auto is_or_should_reduce(output_shape == 1 || mask);
 
         if (!noa::any(mask)) {
-            if constexpr (noa::traits::is_complex_v<Input>) {
+            if constexpr (nt::is_complex_v<Input>) {
                 noa::cuda::memory::copy(input, input_strides, mean, mean_strides, output_shape, stream);
                 noa::cuda::ewise_unary(input, input_strides, stddev, stddev_strides, output_shape, noa::abs_t{}, stream);
             } else {

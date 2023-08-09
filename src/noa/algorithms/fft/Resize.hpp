@@ -77,7 +77,7 @@ namespace noa::algorithm::fft {
                 m_output(i, oj, ok, ol) = m_input(i, j, k, l);
 
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -110,7 +110,7 @@ namespace noa::algorithm::fft {
         } else if constexpr (MODE == ResizeMode::PAD_F2F) {
             iwise_shape = input_shape;
         } else {
-            static_assert(noa::traits::always_false_v<Value>);
+            static_assert(nt::always_false_v<Value>);
         }
 
         return std::pair{kernel, iwise_shape};

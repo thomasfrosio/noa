@@ -99,7 +99,7 @@ namespace {
                     input, strides, shape, pre_process_op_to_reduced,
                     accurate_sum_t{}, noa::copy_t{}, threads);
             if (output_mean) {
-                *output_mean = sum / static_cast<noa::traits::value_type_t<Reduced>>(shape.elements());
+                *output_mean = sum / static_cast<nt::value_type_t<Reduced>>(shape.elements());
             }
 
             const auto count = static_cast<f64>(shape.elements() - ddof);
@@ -153,9 +153,9 @@ namespace {
 
             // No reduction.
             if (!noa::any(axes_to_reduce)) {
-                if constexpr (noa::traits::is_almost_any_v<ReduceOp, accurate_variance_t, accurate_stddev_t> &&
-                              noa::traits::is_complex_v<Input>) {
-                    static_assert(noa::traits::is_almost_same_v<PreProcessOp, noa::copy_t>);
+                if constexpr (nt::is_almost_any_v<ReduceOp, accurate_variance_t, accurate_stddev_t> &&
+                              nt::is_complex_v<Input>) {
+                    static_assert(nt::is_almost_same_v<PreProcessOp, noa::copy_t>);
                     noa::cpu::utils::ewise_unary(
                             input, input_strides, output, output_strides,
                             output_shape, noa::abs_t{}, threads);

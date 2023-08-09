@@ -67,7 +67,7 @@ namespace {
             else
                 *s_mem = input_row[gx];
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(nt::always_false_v<T>);
         }
     }
 
@@ -176,7 +176,7 @@ namespace {
             else
                 *s_mem = input_slice(gy, gx);
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(nt::always_false_v<T>);
         }
     }
 
@@ -289,7 +289,7 @@ namespace {
             else
                 *s_mem = input(gz, gy, gx);
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(nt::always_false_v<T>);
         }
     }
 

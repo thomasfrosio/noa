@@ -254,7 +254,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT(noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
-        if constexpr (!noa::traits::is_matXX_v<Matrix>) {
+        if constexpr (!nt::is_matXX_v<Matrix>) {
             NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 
@@ -275,7 +275,7 @@ namespace noa::cuda::geometry::fft {
         NOA_ASSERT(noa::all(shape > 0));
         NOA_ASSERT_DEVICE_PTR(input, stream.device());
         NOA_ASSERT_DEVICE_PTR(output, stream.device());
-        if constexpr (!noa::traits::is_matXX_v<Matrix>) {
+        if constexpr (!nt::is_matXX_v<Matrix>) {
             NOA_ASSERT_DEVICE_PTR(inv_matrices, stream.device());
         }
 

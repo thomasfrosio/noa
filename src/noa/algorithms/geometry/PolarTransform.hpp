@@ -7,8 +7,8 @@ namespace noa::algorithm::geometry {
     template<typename Index, typename Data, typename Interpolator, typename Offset>
     class Cartesian2Polar {
     public:
-        static_assert(noa::traits::is_real_or_complex_v<Data>);
-        static_assert(noa::traits::is_int_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Data>);
+        static_assert(nt::is_int_v<Index>);
 
         using value_type = Data;
         using interpolator_type = Interpolator;
@@ -66,8 +66,8 @@ namespace noa::algorithm::geometry {
     template<typename Index, typename Value, typename Interpolator, typename Offset>
     class Polar2Cartesian {
     public:
-        static_assert(noa::traits::is_real_or_complex_v<Value>);
-        static_assert(noa::traits::is_int_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Value>);
+        static_assert(nt::is_int_v<Index>);
 
         using value_type = Value;
         using interpolator_type = Interpolator;

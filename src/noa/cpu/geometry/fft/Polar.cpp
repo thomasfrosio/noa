@@ -179,7 +179,7 @@ namespace noa::cpu::geometry::fft {
             const Vec2<f32>&, bool, bool, i64)
 
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(Remap, Input, Output, Weight)                                \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, noa::traits::Empty, Output, Weight);                       \
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Empty, Output, Weight);                                    \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f32>, Output, Weight);         \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f64>, Output, Weight);         \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, const signal::fft::CTFAnisotropic<f32>*, Output, Weight);  \

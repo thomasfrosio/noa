@@ -733,7 +733,7 @@ namespace noa::cuda::utils {
             const Input sum = sums[batch];
             const Input mean_ddof = sum * inv_count_ddof;
             auto pre_process_op = [mean_ddof]__device__(Input value) -> Output {
-                if constexpr (noa::traits::is_complex_v<Input>) {
+                if constexpr (nt::is_complex_v<Input>) {
                     const auto distance = noa::math::abs(value - mean_ddof);
                     return distance * distance;
                 } else {

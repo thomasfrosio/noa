@@ -116,7 +116,7 @@ namespace noa::cpu::signal::fft {
                         input, input_strides, output, output_strides,
                         shape_unbatched, shape_unbatched_fft, norm, threads);
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
         }
     }

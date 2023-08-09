@@ -63,7 +63,7 @@ namespace noa {
                 : m_accessor(view.data(), view.strides()), m_shape(view.shape()), m_options(view.options()) {}
 
         // Creates a view from an Array.
-        template<typename U, typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type>>>
+        template<typename U, typename = std::enable_if_t<nt::is_almost_same_v<U, value_type>>>
         constexpr explicit View(const Array<U>& array)
                 : m_accessor(array.get(), array.strides()), m_shape(array.shape()), m_options(array.options()) {}
 
@@ -134,7 +134,7 @@ namespace noa {
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing through this Span may be illegal or create a data race.
         template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
-                 typename = std::enable_if_t<noa::traits::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
+                 typename = std::enable_if_t<nt::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
         [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
             NOA_CHECK(are_contiguous(),
                       "Cannot create a Span from a non-contiguous view (shape={}, strides={})",
@@ -216,8 +216,8 @@ namespace noa {
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param[out] output  Destination. It should not overlap with this view.
         template<typename Output, typename = std::enable_if_t<
-                 noa::traits::is_varray_v<Output> &&
-                 noa::traits::are_almost_same_value_type_v<View, Output>>>
+                 nt::is_varray_v<Output> &&
+                 nt::are_almost_same_value_type_v<View, Output>>>
         void to(const Output& output) const {
             noa::memory::copy(*this, output);
         }

@@ -7,9 +7,9 @@
 namespace noa::cuda::details {
     template<typename ReduceOp, typename Value, typename Offset>
     constexpr bool is_valid_find_v =
-            noa::traits::is_any_v<Value, u32, u64, i32, i64, f16, f32, f64> &&
-            noa::traits::is_any_v<Offset, u32, u64, i32, i64> &&
-            noa::traits::is_any_v<ReduceOp, noa::first_min_t, noa::first_max_t, noa::last_min_t, noa::last_max_t>;
+            nt::is_any_v<Value, u32, u64, i32, i64, f16, f32, f64> &&
+            nt::is_any_v<Offset, u32, u64, i32, i64> &&
+            nt::is_any_v<ReduceOp, noa::first_min_t, noa::first_max_t, noa::last_min_t, noa::last_max_t>;
 }
 
 namespace noa::cuda {

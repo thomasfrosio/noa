@@ -34,7 +34,7 @@ namespace noa::cpu::utils::details {
         {
             const i64 thread_id = omp_get_thread_num();
             Reduced local_reduce = initial_reduce;
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, ReduceOp>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, ReduceOp>)
                 reduce_op.initialize(thread_id);
 
             #pragma omp for collapse(4)
@@ -42,8 +42,8 @@ namespace noa::cpu::utils::details {
                 for (Index j = 0; j < shape[1]; ++j) {
                     for (Index k = 0; k < shape[2]; ++k) {
                         for (Index l = 0; l < shape[3]; ++l) {
-                            if constexpr (noa::traits::is_detected_v<
-                                    noa::traits::has_binary_operator, PreProcessOp, Input, Index>) {
+                            if constexpr (nt::is_detected_v<
+                                    nt::has_binary_operator, PreProcessOp, Input, Index>) {
                                 const auto offset = noa::indexing::at(i, j, k, l, input.strides());
                                 auto& value = input.get()[offset];
                                 local_reduce = reduce_op(local_reduce, pre_process_op(value, offset));
@@ -57,7 +57,7 @@ namespace noa::cpu::utils::details {
             #pragma omp critical
             {
                 final_reduce = reduce_op(final_reduce, local_reduce);
-                if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, ReduceOp>)
+                if constexpr (nt::is_detected_v<nt::has_closure, ReduceOp>)
                     reduce_op.closure(thread_id);
             }
         }
@@ -82,12 +82,12 @@ namespace noa::cpu::utils::details {
         {
             const i64 thread_id = omp_get_thread_num();
             Reduced local_reduce = initial_reduce;
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, ReduceOp>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, ReduceOp>)
                 reduce_op.initialize(thread_id);
 
             #pragma omp for
             for (Index i = 0; i < size; ++i) {
-                if constexpr (noa::traits::is_detected_v<noa::traits::has_binary_operator, PreProcessOp, Input, Index>)
+                if constexpr (nt::is_detected_v<nt::has_binary_operator, PreProcessOp, Input, Index>)
                     local_reduce = reduce_op(local_reduce, pre_process_op(input[i], i));
                 else
                     local_reduce = reduce_op(local_reduce, pre_process_op(input[i]));
@@ -96,7 +96,7 @@ namespace noa::cpu::utils::details {
             #pragma omp critical
             {
                 final_reduce = reduce_op(final_reduce, local_reduce);
-                if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, ReduceOp>)
+                if constexpr (nt::is_detected_v<nt::has_closure, ReduceOp>)
                     reduce_op.closure(thread_id);
             }
         }
@@ -116,14 +116,14 @@ namespace noa::cpu::utils::details {
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op) {
         auto reduce = initial_reduce;
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, ReduceOp>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, ReduceOp>)
             reduce_op.initialize(0);
         for (Index i = 0; i < shape[0]; ++i) {
             for (Index j = 0; j < shape[1]; ++j) {
                 for (Index k = 0; k < shape[2]; ++k) {
                     for (Index l = 0; l < shape[3]; ++l) {
-                        if constexpr (noa::traits::is_detected_v<
-                                noa::traits::has_binary_operator, PreProcessOp, Input, Index>) {
+                        if constexpr (nt::is_detected_v<
+                                nt::has_binary_operator, PreProcessOp, Input, Index>) {
                             const auto offset = noa::indexing::at(i, j, k, l, input.strides());
                             auto& value = input.get()[offset];
                             reduce = reduce_op(reduce, pre_process_op(value, offset));
@@ -134,7 +134,7 @@ namespace noa::cpu::utils::details {
                 }
             }
         }
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, ReduceOp>)
+        if constexpr (nt::is_detected_v<nt::has_closure, ReduceOp>)
             reduce_op.closure(0);
         return post_process_op(reduce);
     }
@@ -149,16 +149,16 @@ namespace noa::cpu::utils::details {
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op) {
         auto reduce = initial_reduce;
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, ReduceOp>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, ReduceOp>)
             reduce_op.initialize(0);
         for (Index i = 0; i < size; ++i) {
-            if constexpr (noa::traits::is_detected_v<
-                    noa::traits::has_binary_operator, PreProcessOp, Input, Index>)
+            if constexpr (nt::is_detected_v<
+                    nt::has_binary_operator, PreProcessOp, Input, Index>)
                 reduce = reduce_op(reduce, pre_process_op(input[i], i));
             else
                 reduce = reduce_op(reduce, pre_process_op(input[i]));
         }
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, ReduceOp>)
+        if constexpr (nt::is_detected_v<nt::has_closure, ReduceOp>)
             reduce_op.closure(0);
         return post_process_op(reduce);
     }

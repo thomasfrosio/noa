@@ -37,7 +37,7 @@ namespace noa {
         using const_iterator = const_pointer;
 
         static constexpr bool IS_STATIC = SIZE >= 0;
-        using index_type_or_empty = std::conditional_t<IS_STATIC, noa::traits::Empty, index_type>;
+        using index_type_or_empty = std::conditional_t<IS_STATIC, Empty, index_type>;
 
     public: // Empty
         NOA_HD constexpr Span() = default;
@@ -133,7 +133,7 @@ namespace noa {
 namespace noa {
     template<typename T>
     inline std::ostream& operator<<(std::ostream& os, const Span<T>& v) {
-        if constexpr (noa::traits::is_real_or_complex_v<T>)
+        if constexpr (nt::is_real_or_complex_v<T>)
             os << string::format("{::.3f}", v); // {fmt} ranges
         else
             os << string::format("{}", v);

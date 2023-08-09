@@ -13,22 +13,22 @@ namespace noa::geometry::details {
     using namespace ::noa::fft;
     template<i32 NDIM, typename Value, typename Matrix, typename Functor, typename CValue>
     constexpr bool is_valid_shape_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            std::is_same_v<CValue, noa::traits::value_type_t<Value>> &&
-            noa::traits::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            std::is_same_v<CValue, nt::value_type_t<Value>> &&
+            nt::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
             (NDIM == 2 &&
-             (noa::traits::is_any_v<Matrix, Float22, Float23, Float33> ||
-              noa::traits::is_varray_of_almost_any_v<Matrix, Float22, Float23>) ||
+             (nt::is_any_v<Matrix, Float22, Float23, Float33> ||
+              nt::is_varray_of_almost_any_v<Matrix, Float22, Float23>) ||
              NDIM == 3 &&
-             (noa::traits::is_any_v<Matrix, Float33, Float34, Float44> ||
-              noa::traits::is_varray_of_almost_any_v<Matrix, Float33, Float34>));
+             (nt::is_any_v<Matrix, Float33, Float34, Float44> ||
+              nt::is_varray_of_almost_any_v<Matrix, Float33, Float34>));
 
     template<i32 NDIM, typename Matrix>
     constexpr auto extract_linear_or_truncated_matrix(const Matrix& matrix) noexcept {
-        if constexpr ((NDIM == 2 && noa::traits::is_mat33_v<Matrix>) ||
-                      (NDIM == 3 && noa::traits::is_mat44_v<Matrix>)) {
+        if constexpr ((NDIM == 2 && nt::is_mat33_v<Matrix>) ||
+                      (NDIM == 3 && nt::is_mat44_v<Matrix>)) {
             return noa::geometry::affine2truncated(matrix);
-        } else if constexpr (noa::traits::is_varray_of_almost_any_v<Matrix, Float22, Float23, Float33, Float34>) {
+        } else if constexpr (nt::is_varray_of_almost_any_v<Matrix, Float22, Float23, Float33, Float34>) {
             using const_ptr_t = const typename Matrix::mutable_value_type*;
             return const_ptr_t(matrix.get());
         } else {
@@ -67,7 +67,7 @@ namespace noa::geometry::details {
                       "Cannot broadcast an array of shape {} into an array of shape {}",
                       input.shape(), output.shape());
         }
-        if constexpr (noa::traits::is_varray_v<Matrix>) {
+        if constexpr (nt::is_varray_v<Matrix>) {
             if (!is_output_batched) { // case 2, 6
                 final_shape[0] = inv_matrices.elements();
                 input_strides[0] = 0;
@@ -80,7 +80,7 @@ namespace noa::geometry::details {
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
 
-        if constexpr (noa::traits::is_varray_v<Matrix>) {
+        if constexpr (nt::is_varray_v<Matrix>) {
             NOA_CHECK(!inv_matrices.is_empty(), "Empty array detected");
             NOA_CHECK(inv_matrices.device() == device,
                       "The input and output arrays must be on the same device, but got inv_matrices:{}, output:{}",
@@ -121,14 +121,14 @@ namespace noa::geometry {
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
     template<typename Output,
-             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename Input = View<nt::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_twice_t<Output>, size_t N,
+             typename CValue = nt::value_type_twice_t<Output>, size_t N,
              typename = std::enable_if_t<
-                     noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     noa::traits::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<N, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
+                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+                     nt::are_almost_same_value_type_v<Input, Output> &&
+                     details::is_valid_shape_v<N, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
     void ellipse(const Input& input, const Output& output,
                  const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
                  const Matrix& inv_matrix = {}, Functor functor = {},
@@ -162,9 +162,7 @@ namespace noa::geometry {
                     center, radius, edge_size,
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrix.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrix);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -195,14 +193,14 @@ namespace noa::geometry {
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
     template<typename Output,
-             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename Input = View<nt::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_twice_t<Output>, size_t N,
+             typename CValue = nt::value_type_twice_t<Output>, size_t N,
              typename = std::enable_if_t<
-                     noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     noa::traits::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<N, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
+                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+                     nt::are_almost_same_value_type_v<Input, Output> &&
+                     details::is_valid_shape_v<N, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
     void sphere(const Input& input, const Output& output,
                 const Vec<f32, N>& center, f32 radius, f32 edge_size,
                 const Matrix& inv_matrix = {}, Functor functor = {},
@@ -236,9 +234,7 @@ namespace noa::geometry {
                     center, radius, edge_size,
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrix.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrix);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -269,14 +265,14 @@ namespace noa::geometry {
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
     template<typename Output,
-             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename Input = View<nt::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_twice_t<Output>, size_t N,
+             typename CValue = nt::value_type_twice_t<Output>, size_t N,
              typename = std::enable_if_t<
-                     noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     noa::traits::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<N, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
+                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+                     nt::are_almost_same_value_type_v<Input, Output> &&
+                     details::is_valid_shape_v<N, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
     void rectangle(const Input& input, const Output& output,
                    const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
                    const Matrix& inv_matrix = {}, Functor functor = {},
@@ -310,9 +306,7 @@ namespace noa::geometry {
                     center, radius, edge_size,
                     details::extract_linear_or_truncated_matrix<N>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrix.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrix);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -343,14 +337,14 @@ namespace noa::geometry {
     /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
     ///                     and elements outside the mask are set to \p cvalue.
     template<typename Output,
-             typename Input = View<noa::traits::value_type_t<Output>>,
+             typename Input = View<nt::value_type_t<Output>>,
              typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = noa::traits::value_type_twice_t<Output>,
+             typename CValue = nt::value_type_twice_t<Output>,
              typename = std::enable_if_t<
-                     noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     noa::traits::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<3, noa::traits::value_type_t<Output>, Matrix, Functor, CValue>>>
+                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+                     nt::are_almost_same_value_type_v<Input, Output> &&
+                     details::is_valid_shape_v<3, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
     void cylinder(const Input& input, const Output& output,
                   const Vec3<f32>& center, f32 radius, f32 length, f32 edge_size,
                   const Matrix& inv_matrix = {}, Functor functor = {},
@@ -384,9 +378,7 @@ namespace noa::geometry {
                     center, radius, length, edge_size,
                     details::extract_linear_or_truncated_matrix<3>(inv_matrix),
                     functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
-            if constexpr (noa::traits::is_varray_v<Matrix>)
-                cuda_stream.enqueue_attach(inv_matrix.share());
+            cuda_stream.enqueue_attach(input, output, inv_matrix);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

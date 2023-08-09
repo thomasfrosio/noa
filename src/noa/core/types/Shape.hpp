@@ -13,7 +13,7 @@ namespace noa {
     template<typename Int, size_t N>
     class Shape {
     public:
-        static_assert(noa::traits::is_restricted_int_v<Int>);
+        static_assert(nt::is_restricted_int_v<Int>);
         static_assert(N <= 4);
         using vector_type = Vec<Int, N>;
         using value_type = typename vector_type::value_type;
@@ -29,19 +29,19 @@ namespace noa {
         template<typename... Ts,
                  typename = std::enable_if_t<
                          sizeof...(Ts) == SSIZE && (sizeof...(Ts) > 1) &&
-                         noa::traits::are_int_v<Ts...>>>
+                         nt::are_int_v<Ts...>>>
         NOA_HD constexpr /*implicit*/ Shape(Ts... ts) noexcept : m_vec(std::forward<Ts>(ts)...) {}
 
         // Explicit fill conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_int_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_int_v<T>>>
         NOA_HD constexpr explicit Shape(T value) noexcept : m_vec(value) {}
 
         // Explicit conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_int_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_int_v<T>>>
         NOA_HD constexpr explicit Shape(const Vec<T, N>& vector) noexcept : m_vec(vector) {}
 
         // Explicit conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_int_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_int_v<T>>>
         NOA_HD constexpr explicit Shape(const Shape<T, N>& shape) noexcept : m_vec(shape.vec()) {}
 
         // Explicit construction from a pointer.
@@ -274,17 +274,17 @@ namespace noa {
         }
 
     public: // Type casts
-        template<typename TTo, typename = std::enable_if_t<noa::traits::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return static_cast<Shape<TTo, SIZE>>(*this);
         }
 
-        template<typename TTo, typename = std::enable_if_t<noa::traits::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             return clamp_cast<Shape<TTo, SIZE>>(*this);
         }
 
-        template<typename TTo, typename = std::enable_if_t<noa::traits::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Shape<TTo, SIZE>>(*this);
         }
@@ -320,7 +320,7 @@ namespace noa {
             return Shape<value_type, NEW_SIZE>(m_vec.push_back(vector));
         }
 
-        template<typename... Ts, typename = std::enable_if_t<noa::traits::are_restricted_int_v<Ts...>>>
+        template<typename... Ts, typename = std::enable_if_t<nt::are_restricted_int_v<Ts...>>>
         [[nodiscard]] NOA_HD constexpr auto filter(Ts... ts) const noexcept {
             return Shape<value_type, sizeof...(Ts)>((*this)[ts]...);
         }
@@ -329,7 +329,7 @@ namespace noa {
             return Shape(m_vec.flip());
         }
 
-        template<typename I = value_type, typename = std::enable_if_t<noa::traits::is_restricted_int_v<I>>>
+        template<typename I = value_type, typename = std::enable_if_t<nt::is_restricted_int_v<I>>>
         [[nodiscard]] NOA_HD constexpr Shape reorder(const Vec<I, SIZE>& order) const noexcept {
             return Shape(m_vec.reorder(order));
         }
@@ -421,7 +421,7 @@ namespace noa {
                     return output_strides(1);
                 }
             } else {
-                static_assert(noa::traits::always_false_v<void_>);
+                static_assert(nt::always_false_v<void_>);
             }
         }
 
@@ -514,7 +514,7 @@ namespace noa {
     template<typename Int, size_t N>
     class Strides {
     public:
-        static_assert(noa::traits::is_restricted_int_v<Int>);
+        static_assert(nt::is_restricted_int_v<Int>);
         static_assert(N <= 4);
         using vector_type = Vec<Int, N>;
         using value_type = typename vector_type::value_type;
@@ -531,19 +531,19 @@ namespace noa {
                  typename = std::enable_if_t<
                          sizeof...(Ts) == SSIZE &&
                          (sizeof...(Ts) > 1) &&
-                         noa::traits::are_int_v<Ts...>>>
+                         nt::are_int_v<Ts...>>>
         NOA_HD constexpr /*implicit*/ Strides(Ts... ts) noexcept : m_vec(std::forward<Ts>(ts)...) {}
 
         // Explicit fill conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_int_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_int_v<T>>>
         NOA_HD constexpr explicit Strides(T value) noexcept : m_vec(value) {}
 
         // Explicit conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_int_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_int_v<T>>>
         NOA_HD constexpr explicit Strides(const Vec<T, N>& vector) noexcept : m_vec(vector) {}
 
         // Explicit conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_int_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_int_v<T>>>
         NOA_HD constexpr explicit Strides(const Strides<T, N>& shape) noexcept : m_vec(shape.vec()) {}
 
         // Explicit construction from a pointer.
@@ -776,17 +776,17 @@ namespace noa {
         }
 
     public: // Type casts
-        template<typename TTo, typename = std::enable_if_t<noa::traits::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return static_cast<Strides<TTo, SIZE>>(*this);
         }
 
-        template<typename TTo, typename = std::enable_if_t<noa::traits::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             return clamp_cast<Strides<TTo, SIZE>>(*this);
         }
 
-        template<typename TTo, typename = std::enable_if_t<noa::traits::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Strides<TTo, SIZE>>(*this);
         }
@@ -822,7 +822,7 @@ namespace noa {
             return Strides<value_type, NEW_SIZE>(m_vec.push_back(vector));
         }
 
-        template<typename... Ts, typename = std::enable_if_t<noa::traits::are_restricted_int_v<Ts...>>>
+        template<typename... Ts, typename = std::enable_if_t<nt::are_restricted_int_v<Ts...>>>
         [[nodiscard]] NOA_HD constexpr auto filter(Ts... ts) const noexcept {
             return Strides<value_type, sizeof...(Ts)>((*this)[ts]...);
         }
@@ -831,7 +831,7 @@ namespace noa {
             return Strides(m_vec.flip());
         }
 
-        template<typename I = value_type, typename = std::enable_if_t<noa::traits::is_restricted_int_v<I>>>
+        template<typename I = value_type, typename = std::enable_if_t<nt::is_restricted_int_v<I>>>
         [[nodiscard]] NOA_HD constexpr Strides reorder(const Vec<I, SIZE>& order) const noexcept {
             return Strides(m_vec.reorder(order));
         }
@@ -899,7 +899,7 @@ namespace noa {
                     return output_shape(m_vec[1]);
                 }
             } else {
-                static_assert(noa::traits::always_false_v<Void>);
+                static_assert(nt::always_false_v<Void>);
             }
         }
 
@@ -958,8 +958,8 @@ namespace noa {
 
 // Type traits:
 namespace noa::traits {
-    static_assert(noa::traits::is_detected_convertible_v<std::string, has_name, Shape<int, 1>>);
-    static_assert(noa::traits::is_detected_convertible_v<std::string, has_name, Strides<int, 1>>);
+    static_assert(nt::is_detected_convertible_v<std::string, has_name, Shape<int, 1>>);
+    static_assert(nt::is_detected_convertible_v<std::string, has_name, Strides<int, 1>>);
 
     template<typename T, size_t N> struct proclaim_is_shape<Shape<T, N>> : std::true_type {};
     template<typename V1, size_t N, typename V2> struct proclaim_is_shape_of_type<Shape<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
@@ -973,7 +973,7 @@ namespace noa::traits {
 namespace noa {
     // -- Modulo Operator --
     template<typename ShapeOrStrides,
-             typename std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> =  true>
+             typename std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> =  true>
     [[nodiscard]] NOA_HD constexpr ShapeOrStrides operator%(ShapeOrStrides lhs, const ShapeOrStrides& rhs) noexcept {
         for (int64_t i = 0; i < ShapeOrStrides::SSIZE; ++i)
             lhs[i] %= rhs[i];
@@ -981,54 +981,54 @@ namespace noa {
     }
 
     template<typename ShapeOrStrides, typename Int,
-             typename std::enable_if_t<noa::traits::is_restricted_int_v<Int> &&
-                                       noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             typename std::enable_if_t<nt::is_restricted_int_v<Int> &&
+                                       nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_HD constexpr ShapeOrStrides operator%(const ShapeOrStrides& lhs, Int rhs) noexcept {
         return lhs % ShapeOrStrides(rhs);
     }
 
     template<typename ShapeOrStrides, typename Int,
-             typename std::enable_if_t<noa::traits::is_restricted_int_v<Int> &&
-                                       noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             typename std::enable_if_t<nt::is_restricted_int_v<Int> &&
+                                       nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_HD constexpr ShapeOrStrides operator%(Int lhs, const ShapeOrStrides& rhs) noexcept {
         return ShapeOrStrides(lhs) % rhs;
     }
 
     // Cast Shape->Shape
     template<typename TTo, typename TFrom, size_t N,
-             std::enable_if_t<noa::traits::is_shapeN_v<TTo, N>, bool> = true>
+             std::enable_if_t<nt::is_shapeN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Shape<TFrom, N>& src) noexcept {
         return is_safe_cast<typename TTo::vector_type>(src.vec());
     }
 
     template<typename TTo, typename TFrom, size_t N,
-             std::enable_if_t<noa::traits::is_shapeN_v<TTo, N>, bool> = true>
+             std::enable_if_t<nt::is_shapeN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Shape<TFrom, N>& src) noexcept {
         return TTo(clamp_cast<typename TTo::vector_type>(src.vec()));
     }
 
     // Cast Strides->Strides
     template<typename TTo, typename TFrom, size_t N,
-             std::enable_if_t<noa::traits::is_stridesN_v<TTo, N>, bool> = true>
+             std::enable_if_t<nt::is_stridesN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Strides<TFrom, N>& src) noexcept {
         return is_safe_cast<typename TTo::vector_type>(src.vec());
     }
 
     template<typename TTo, typename TFrom, size_t N,
-             std::enable_if_t<noa::traits::is_stridesN_v<TTo, N>, bool> = true>
+             std::enable_if_t<nt::is_stridesN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Strides<TFrom, N>& src) noexcept {
         return TTo(clamp_cast<typename TTo::vector_type>(src.vec()));
     }
 
     // Cast Vec->Shape/Strides
     template<typename TTo, typename TFrom, size_t N,
-             std::enable_if_t<noa::traits::is_shapeN_or_stridesN_v<TTo, N>, bool> = true>
+             std::enable_if_t<nt::is_shapeN_or_stridesN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Vec<TFrom, N>& src) noexcept {
         return is_safe_cast<typename TTo::vector_type>(src);
     }
 
     template<typename TTo, typename TFrom, size_t N,
-             std::enable_if_t<noa::traits::is_shapeN_or_stridesN_v<TTo, N>, bool> = true>
+             std::enable_if_t<nt::is_shapeN_or_stridesN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Vec<TFrom, N>& src) noexcept {
         return TTo(clamp_cast<typename TTo::vector_type>(src));
     }
@@ -1036,81 +1036,81 @@ namespace noa {
 
 namespace noa::math {
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto abs(ShapeOrStrides shape) noexcept {
         return ShapeOrStrides(abs(shape.vec()));
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto sum(const ShapeOrStrides& shape) noexcept {
         return sum(shape.vec());
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto product(const ShapeOrStrides& shape) noexcept {
         return product(shape.vec());
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const ShapeOrStrides& shape) noexcept {
         return min(shape.vec());
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const ShapeOrStrides& lhs, const ShapeOrStrides& rhs) noexcept {
         return ShapeOrStrides(min(lhs.vec(), rhs.vec()));
     }
 
     template<typename Int, typename ShapeOrStrides,
              std::enable_if_t<
-                     noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
+                     nt::is_shape_or_strides_v<ShapeOrStrides> &&
+                     nt::is_almost_same_v<nt::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const ShapeOrStrides& lhs, Int rhs) noexcept {
         return min(lhs, ShapeOrStrides(rhs));
     }
 
     template<typename Int, typename ShapeOrStrides,
              std::enable_if_t<
-                     noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
+                     nt::is_shape_or_strides_v<ShapeOrStrides> &&
+                     nt::is_almost_same_v<nt::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(Int lhs, const ShapeOrStrides& rhs) noexcept {
         return min(ShapeOrStrides(lhs), rhs);
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(const ShapeOrStrides& shape) noexcept {
         return max(shape.vec());
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(const ShapeOrStrides& lhs, const ShapeOrStrides& rhs) noexcept {
         return ShapeOrStrides(max(lhs.vec(), rhs.vec()));
     }
 
     template<typename Int, typename ShapeOrStrides,
              std::enable_if_t<
-                     noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
+                     nt::is_shape_or_strides_v<ShapeOrStrides> &&
+                     nt::is_almost_same_v<nt::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(const ShapeOrStrides& lhs, Int rhs) noexcept {
         return max(lhs, ShapeOrStrides(rhs));
     }
 
     template<typename Int, typename ShapeOrStrides,
              std::enable_if_t<
-                     noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
+                     nt::is_shape_or_strides_v<ShapeOrStrides> &&
+                     nt::is_almost_same_v<nt::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto max(Int lhs, const ShapeOrStrides& rhs) noexcept {
         return max(ShapeOrStrides(lhs), rhs);
     }
 
     template<typename ShapeOrStrides,
-             std::enable_if_t<noa::traits::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
+             std::enable_if_t<nt::is_shape_or_strides_v<ShapeOrStrides>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto clamp(const ShapeOrStrides& lhs,
                                                const ShapeOrStrides& low,
                                                const ShapeOrStrides& high) noexcept {
@@ -1119,8 +1119,8 @@ namespace noa::math {
 
     template<typename Int, typename ShapeOrStrides,
              std::enable_if_t<
-                     noa::traits::is_shape_or_strides_v<ShapeOrStrides> &&
-                     noa::traits::is_almost_same_v<noa::traits::value_type_t<ShapeOrStrides>, Int>, bool> = true>
+                     nt::is_shape_or_strides_v<ShapeOrStrides> &&
+                     nt::is_almost_same_v<nt::value_type_t<ShapeOrStrides>, Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto clamp(const ShapeOrStrides& lhs, Int low, Int high) noexcept {
         return min(max(lhs, low), high);
     }

@@ -6,7 +6,7 @@
 namespace noa::algorithm::signal {
     template<typename Real, typename SInt, size_t N>
     constexpr NOA_HD auto peak_parabola_1d(const Real* window_values, const Vec<SInt, N>& window_radius) {
-        static_assert(noa::traits::is_sint_v<SInt>);
+        static_assert(nt::is_sint_v<SInt>);
 
         // Add sub-pixel position by fitting a 1D parabola to the peak and its two adjacent points.
         f64 peak_value{0};

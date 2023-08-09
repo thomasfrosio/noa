@@ -28,7 +28,7 @@ namespace noa::cuda {
         Device() : m_id(Device::current().m_id) {}
 
         // Creates a CUDA device from an ID.
-        template<typename Int = i64, typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
+        template<typename Int = i64, typename = std::enable_if_t<nt::is_restricted_int_v<Int>>>
         constexpr explicit Device(Int id) : m_id(static_cast<i32>(id)) {
             validate_(m_id);
         }
@@ -39,7 +39,7 @@ namespace noa::cuda {
             validate_(m_id);
         }
 
-        template<typename Int = i64, typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
+        template<typename Int = i64, typename = std::enable_if_t<nt::is_restricted_int_v<Int>>>
         constexpr explicit Device(Int id, DeviceUnchecked) : m_id(static_cast<i32>(id)) {}
 
         explicit Device(std::string_view name, DeviceUnchecked) : m_id(parse_id_(name)) {}

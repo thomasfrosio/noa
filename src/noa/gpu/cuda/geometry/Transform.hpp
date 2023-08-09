@@ -10,15 +10,15 @@
 namespace noa::cuda::geometry::details {
     template<int NDIM, typename T, typename M>
     constexpr bool is_valid_transform_v =
-            noa::traits::is_any_v<T, f32, f64, c32, c64> &&
-            ((NDIM == 2 && noa::traits::is_any_v<M, Float23, Float33, const Float23*, const Float33*>) ||
-             (NDIM == 3 && noa::traits::is_any_v<M, Float34, Float44, const Float34*, const Float44*>));
+            nt::is_any_v<T, f32, f64, c32, c64> &&
+            ((NDIM == 2 && nt::is_any_v<M, Float23, Float33, const Float23*, const Float33*>) ||
+             (NDIM == 3 && nt::is_any_v<M, Float34, Float44, const Float34*, const Float44*>));
 
     template<int NDIM, typename T, typename M>
     constexpr bool is_valid_transform_texture_v =
-            noa::traits::is_any_v<T, f32, c32> &&
-            ((NDIM == 2 && noa::traits::is_any_v<M, Float23, Float33, const Float23*, const Float33*>) ||
-             (NDIM == 3 && noa::traits::is_any_v<M, Float34, Float44, const Float34*, const Float44*>));
+            nt::is_any_v<T, f32, c32> &&
+            ((NDIM == 2 && nt::is_any_v<M, Float23, Float33, const Float23*, const Float33*>) ||
+             (NDIM == 3 && nt::is_any_v<M, Float34, Float44, const Float34*, const Float44*>));
 }
 
 namespace noa::cuda::geometry {

@@ -15,7 +15,7 @@ namespace noa::math {
     /// For large sizes, prefer to use the more stable math::lstsq().
     template<bool ACCURATE_SUM = true, typename Real, typename Int>
     constexpr NOA_HD void lstsq_fit_quadratic(const Real* y, Int size, double* a, double* b, double* c) {
-        static_assert(noa::traits::is_real_v<Real> && noa::traits::is_int_v<Int>);
+        static_assert(nt::is_real_v<Real> && nt::is_int_v<Int>);
         if (!y || size < 3)
             return;
 

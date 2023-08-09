@@ -13,18 +13,18 @@ namespace noa::cpu::signal::fft::details {
              (!IS_ANISOTROPIC && noa::algorithm::signal::fft::is_valid_iso_ctf_v<CTF>)) &&
             (REMAP == Remap::H2H || REMAP == Remap::HC2H || REMAP == Remap::H2HC || REMAP == Remap::HC2HC ||
              REMAP == Remap::F2F || REMAP == Remap::FC2F || REMAP == Remap::F2FC || REMAP == Remap::FC2FC) &&
-            (noa::traits::are_same_value_type_v<Input, Output> &&
-             ((noa::traits::are_all_same_v<Input, Output> &&
-               noa::traits::are_real_or_complex_v<Input, Output>) ||
-              (noa::traits::is_complex_v<Input> &&
-               noa::traits::is_real_v<Output>)));
+            (nt::are_same_value_type_v<Input, Output> &&
+             ((nt::are_all_same_v<Input, Output> &&
+               nt::are_real_or_complex_v<Input, Output>) ||
+              (nt::is_complex_v<Input> &&
+               nt::is_real_v<Output>)));
 
     template<Remap REMAP, bool IS_ANISOTROPIC, typename Output, typename CTF>
     constexpr bool is_valid_ctf_range_v =
             ((IS_ANISOTROPIC && noa::algorithm::signal::fft::is_valid_aniso_ctf_v<CTF>) ||
              (!IS_ANISOTROPIC && noa::algorithm::signal::fft::is_valid_iso_ctf_v<CTF>)) &&
             (REMAP == Remap::H2H || REMAP == Remap::HC2HC || REMAP == Remap::F2F || REMAP == Remap::FC2FC) &&
-            noa::traits::is_any_v<Output, f32, f64>;
+            nt::is_any_v<Output, f32, f64>;
 }
 
 namespace noa::cpu::signal::fft {

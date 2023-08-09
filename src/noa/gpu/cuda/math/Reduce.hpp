@@ -7,25 +7,25 @@
 namespace noa::cuda::math::details {
     template<typename T>
     constexpr bool is_valid_min_max_median_v =
-            noa::traits::is_any_v<T, i16, i32, i64, u16, u32, u64, f16, f32, f64>;
+            nt::is_any_v<T, i16, i32, i64, u16, u32, u64, f16, f32, f64>;
 
     // invoke_result could be used, but I think noa::nonzero_t would return bool and not T.
     template<typename T, typename PreProcessOp>
     using sum_mean_return_t = std::conditional_t<
-            noa::traits::is_any_v<PreProcessOp, noa::copy_t, noa::square_t>,
-            T, noa::traits::value_type_t<T>>;
+            nt::is_any_v<PreProcessOp, noa::copy_t, noa::square_t>,
+            T, nt::value_type_t<T>>;
 
     template<typename T, typename PreProcessOp = noa::copy_t, typename R = sum_mean_return_t<T, PreProcessOp>>
     constexpr bool is_valid_sum_mean_v =
-            noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64> &&
+            nt::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64> &&
             std::is_same_v<R, sum_mean_return_t<T, PreProcessOp>> &&
-            noa::traits::is_any_v<PreProcessOp,
+            nt::is_any_v<PreProcessOp,
                                   noa::copy_t, noa::nonzero_t, noa::square_t,
                                   noa::abs_t, noa::abs_squared_t>;
 
     template<typename T, typename U>
     constexpr bool is_valid_var_std_v =
-            noa::traits::is_any_v<T, f32, f64, c32, c64> &&
+            nt::is_any_v<T, f32, f64, c32, c64> &&
             std::is_same_v<U, traits::value_type_t<T>>;
 }
 
@@ -72,7 +72,7 @@ namespace noa::cuda::math {
             PreProcessOp pre_process_op,
             Stream& stream);
 
-    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+    template<typename Input, typename Output = nt::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] Output norm(
             const Input* input,
@@ -80,7 +80,7 @@ namespace noa::cuda::math {
             const Shape4<i64>& shape,
             Stream& stream);
 
-    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+    template<typename Input, typename Output = nt::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] Output var(
             const Input* input,
@@ -88,7 +88,7 @@ namespace noa::cuda::math {
             const Shape4<i64>& shape,
             i64 ddof, Stream& stream);
 
-    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+    template<typename Input, typename Output = nt::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] Output std(
             const Input* input,
@@ -96,7 +96,7 @@ namespace noa::cuda::math {
             const Shape4<i64>& shape,
             i64 ddof, Stream& stream);
 
-    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+    template<typename Input, typename Output = nt::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] auto mean_var(
             const Input* input,
@@ -104,7 +104,7 @@ namespace noa::cuda::math {
             const Shape4<i64>& shape,
             i64 ddof, Stream& stream) -> std::pair<Input, Output>;
 
-    template<typename Input, typename Output = noa::traits::value_type_t<Input>,
+    template<typename Input, typename Output = nt::value_type_t<Input>,
              typename = std::enable_if_t<details::is_valid_var_std_v<Input, Output>>>
     [[nodiscard]] auto mean_std(
             const Input* input,
@@ -120,7 +120,7 @@ namespace noa::cuda::math {
             bool overwrite,
             Stream& stream);
 
-    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    template<typename Value, typename = std::enable_if_t<nt::is_any_v<Value, f32, f64, c32, c64>>>
     [[nodiscard]] Value rmsd(
             const Value* lhs, const Strides4<i64>& lhs_strides,
             const Value* rhs, const Strides4<i64>& rhs_strides,

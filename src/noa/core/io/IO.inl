@@ -94,42 +94,42 @@ namespace noa::io {
 
     template<typename ToSerialize>
     constexpr DataType dtype() noexcept {
-        if constexpr (noa::traits::is_almost_same_v<ToSerialize, i8>) {
+        if constexpr (nt::is_almost_same_v<ToSerialize, i8>) {
             return DataType::I8;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u8>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, u8>) {
             return DataType::U8;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, i16>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, i16>) {
             return DataType::I16;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u16>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, u16>) {
             return DataType::U16;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, i32>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, i32>) {
             return DataType::I32;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u32>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, u32>) {
             return DataType::U32;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, i64>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, i64>) {
             return DataType::I64;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, u64>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, u64>) {
             return DataType::U64;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, f16>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, f16>) {
             return DataType::F16;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, f32>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, f32>) {
             return DataType::F32;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, f64>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, f64>) {
             return DataType::F64;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, c16>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, c16>) {
             return DataType::C16;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, c32>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, c32>) {
             return DataType::C32;
-        } else if constexpr (noa::traits::is_almost_same_v<ToSerialize, c64>) {
+        } else if constexpr (nt::is_almost_same_v<ToSerialize, c64>) {
             return DataType::C64;
         } else {
-            static_assert(noa::traits::always_false_v<ToSerialize>);
+            static_assert(nt::always_false_v<ToSerialize>);
         }
     }
 
     template<typename Numeric>
     constexpr auto type_range(DataType data_type) noexcept -> std::pair<Numeric, Numeric> {
-        if constexpr (noa::traits::is_scalar_v<Numeric>) {
+        if constexpr (nt::is_scalar_v<Numeric>) {
             switch (data_type) {
                 case DataType::U4:
                     return {Numeric{0}, Numeric{15}};
@@ -175,12 +175,12 @@ namespace noa::io {
                 default:
                     break;
             }
-        } else if constexpr (noa::traits::is_complex_v<Numeric>) {
-            using real_t = noa::traits::value_type_t<Numeric>;
+        } else if constexpr (nt::is_complex_v<Numeric>) {
+            using real_t = nt::value_type_t<Numeric>;
             auto[min, max] = type_range<real_t>(data_type);
             return {Numeric{min, min}, Numeric{max, max}};
         } else {
-            static_assert(noa::traits::always_false_v<Numeric>);
+            static_assert(nt::always_false_v<Numeric>);
         }
         return {}; // unreachable
     }

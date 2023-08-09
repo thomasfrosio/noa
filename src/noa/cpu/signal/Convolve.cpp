@@ -65,7 +65,7 @@ namespace {
                     }
                 }
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             m_output(i, j, k, l) = static_cast<value_type>(conv);
         }

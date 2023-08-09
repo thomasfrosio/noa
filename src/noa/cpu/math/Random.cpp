@@ -130,16 +130,16 @@ namespace noa::cpu::math {
                    U min, U max, i64 threads) {
         NOA_ASSERT(output && all(shape > 0));
 
-        if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_real_v<U>) {
-                using real_t = noa::traits::value_type_t<T>;
+        if constexpr (nt::is_complex_v<T>) {
+            if constexpr (nt::is_real_v<U>) {
+                using real_t = nt::value_type_t<T>;
                 using supported_float = std::conditional_t<std::is_same_v<real_t, f16>, f32, real_t>;
                 const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
                 randomize(noa::math::uniform_t{}, reinterpret_cast<real_t*>(output),
                           reinterpreted.strides, reinterpreted.shape,
                           static_cast<supported_float>(min), static_cast<supported_float>(max), threads);
             } else {
-                using real_t = noa::traits::value_type_t<T>;
+                using real_t = nt::value_type_t<T>;
                 using distributor_t = uniform_distributor_t<real_t>;
                 using result_t = typename distributor_t::result_type;
                 auto min_ = static_cast<result_t>(min.real);
@@ -150,7 +150,7 @@ namespace noa::cpu::math {
                 const distributor_t distributor_imag(min_, max_);
 
                 RandomOperatorComplex randomizer(distributor_real, distributor_imag);
-                static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+                static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
                 noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
             }
         } else {
@@ -160,7 +160,7 @@ namespace noa::cpu::math {
             const auto max_ = static_cast<result_t>(max);
             const distributor_t distributor(min_, max_);
             RandomOperator randomizer(distributor);
-            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
             noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
@@ -171,16 +171,16 @@ namespace noa::cpu::math {
                    U mean, U stddev, i64 threads) {
         NOA_ASSERT(output && all(shape > 0));
 
-        if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_real_v<U>) {
-                using real_t = noa::traits::value_type_t<T>;
+        if constexpr (nt::is_complex_v<T>) {
+            if constexpr (nt::is_real_v<U>) {
+                using real_t = nt::value_type_t<T>;
                 using supported_float = std::conditional_t<std::is_same_v<real_t, f16>, f32, real_t>;
                 const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
                 randomize(noa::math::normal_t{}, reinterpret_cast<real_t*>(output),
                           reinterpreted.strides, reinterpreted.shape,
                           static_cast<supported_float>(mean), static_cast<supported_float>(stddev), threads);
             } else {
-                using real_t = noa::traits::value_type_t<T>;
+                using real_t = nt::value_type_t<T>;
                 using distributor_t = normal_distributor_t<real_t>;
                 using result_t = typename distributor_t::result_type;
                 auto mean_ = static_cast<result_t>(mean.real);
@@ -191,7 +191,7 @@ namespace noa::cpu::math {
                 const distributor_t distributor_imag(mean_, stddev_);
 
                 RandomOperatorComplex randomizer(distributor_real, distributor_imag);
-                static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+                static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
                 noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
             }
         } else {
@@ -201,7 +201,7 @@ namespace noa::cpu::math {
             const auto stddev_ = static_cast<result_t>(stddev);
             const distributor_t distributor(mean_, stddev_);
             RandomOperator randomizer(distributor);
-            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
             noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
@@ -212,16 +212,16 @@ namespace noa::cpu::math {
                    U mean, U stddev, i64 threads) {
         NOA_ASSERT(output && all(shape > 0));
 
-        if constexpr (noa::traits::is_complex_v<T>) {
-            if constexpr (noa::traits::is_real_v<U>) {
-                using real_t = noa::traits::value_type_t<T>;
+        if constexpr (nt::is_complex_v<T>) {
+            if constexpr (nt::is_real_v<U>) {
+                using real_t = nt::value_type_t<T>;
                 using supported_float = std::conditional_t<std::is_same_v<real_t, f16>, f32, real_t>;
                 const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
                 randomize(noa::math::log_normal_t{}, reinterpret_cast<real_t*>(output),
                           reinterpreted.strides, reinterpreted.shape,
                           static_cast<supported_float>(mean), static_cast<supported_float>(stddev), threads);
             } else {
-                using real_t = noa::traits::value_type_t<T>;
+                using real_t = nt::value_type_t<T>;
                 using distributor_t = lognormal_distributor_t<real_t>;
                 using result_t = typename distributor_t::result_type;
                 auto mean_ = static_cast<result_t>(mean.real);
@@ -232,7 +232,7 @@ namespace noa::cpu::math {
                 const distributor_t distributor_imag(mean_, stddev_);
 
                 RandomOperatorComplex randomizer(distributor_real, distributor_imag);
-                static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+                static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
                 noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
             }
         } else {
@@ -242,7 +242,7 @@ namespace noa::cpu::math {
             const auto stddev_ = static_cast<result_t>(stddev);
             const distributor_t distributor(mean_, stddev_);
             RandomOperator randomizer(distributor);
-            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
             noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }
@@ -253,8 +253,8 @@ namespace noa::cpu::math {
                    f32 lambda, i64 threads) {
         NOA_ASSERT(output && all(shape > 0));
 
-        if constexpr (noa::traits::is_complex_v<T>) {
-            using real_t = noa::traits::value_type_t<T>;
+        if constexpr (nt::is_complex_v<T>) {
+            using real_t = nt::value_type_t<T>;
             const auto reinterpreted = indexing::Reinterpret(shape, strides, output).template as<real_t>();
             randomize(noa::math::poisson_t{}, reinterpret_cast<real_t*>(output),
                       reinterpreted.strides, reinterpreted.shape, lambda, threads);
@@ -262,7 +262,7 @@ namespace noa::cpu::math {
             using distributor_t = poisson_distributor_t<T>;
             const distributor_t distributor(static_cast<double>(lambda));
             RandomOperator randomizer(distributor);
-            static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, decltype(randomizer)>);
+            static_assert(nt::is_detected_v<nt::has_initialize, decltype(randomizer)>);
             noa::cpu::utils::ewise_unary(output, strides, shape, randomizer, threads);
         }
     }

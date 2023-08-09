@@ -88,11 +88,11 @@ namespace noa::cuda::math {
                 input, strides, shape, &output, Strides1<i64>{1}, Reduced{0},
                 pre_process_op, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
-        if constexpr (noa::traits::is_int_v<Reduced>) {
+        if constexpr (nt::is_int_v<Reduced>) {
             return static_cast<Reduced>(noa::math::round(
                     static_cast<f64>(output) / static_cast<f64>(shape.elements())));
         } else {
-            using real_t = noa::traits::value_type_t<Value>;
+            using real_t = nt::value_type_t<Value>;
             return output / static_cast<real_t>(shape.elements());
         }
     }
@@ -228,7 +228,7 @@ namespace noa::cuda::math {
                 &output, Strides1<i64>{1}, Value{0},
                 noa::dist2_t{}, noa::plus_t{}, {}, true, true, stream);
         stream.synchronize();
-        return noa::math::sqrt(output / static_cast<noa::traits::value_type_t<Value>>(shape.elements()));
+        return noa::math::sqrt(output / static_cast<nt::value_type_t<Value>>(shape.elements()));
     }
 
     #define NOA_INSTANTIATE_REDUCE_MIN_MAX_(T)                                                              \

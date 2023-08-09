@@ -32,7 +32,7 @@ namespace noa {
     template<typename Value, size_t N>
     class alignas(details::VecAlignment<Value, N>::VALUE) Vec {
     public:
-        static_assert(noa::traits::is_numeric_v<Value>, "Only numeric types are supported");
+        static_assert(nt::is_numeric_v<Value>, "Only numeric types are supported");
         static_assert(!std::is_const_v<Value>, "The value type must be mutable");
         static_assert(!std::is_reference_v<Value>, "The value type must be a value");
         static_assert(N > 0, "Empty vectors are not supported");
@@ -50,7 +50,7 @@ namespace noa {
         template<typename... Ts,
                  typename = std::enable_if_t<
                         sizeof...(Ts) == SSIZE && (sizeof...(Ts) > 1) &&
-                        noa::traits::are_numeric_v<Ts...>>>
+                        nt::are_numeric_v<Ts...>>>
         NOA_HD constexpr /*implicit*/ Vec(Ts... ts) noexcept : m_data{static_cast<value_type>(ts)...} {
             for (auto& e: m_data) {
                 NOA_ASSERT(is_safe_cast<value_type>(e));
@@ -59,7 +59,7 @@ namespace noa {
         }
 
         // Explicit fill conversion constructor.
-        template<typename T, typename = std::enable_if_t<noa::traits::are_numeric_v<T>>>
+        template<typename T, typename = std::enable_if_t<nt::are_numeric_v<T>>>
         NOA_HD constexpr explicit Vec(T value) noexcept {
             NOA_ASSERT(is_safe_cast<value_type>(value));
             const auto value_cast = static_cast<value_type>(value);
@@ -453,7 +453,7 @@ namespace noa {
         }
 
     public: // Type casts
-        template<typename T, std::enable_if_t<noa::traits::is_numeric_v<T>, bool> = true>
+        template<typename T, std::enable_if_t<nt::is_numeric_v<T>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             Vec<T, SIZE> output;
             for (size_t i = 0; i < SIZE; ++i)
@@ -461,7 +461,7 @@ namespace noa {
             return output;
         }
 
-        template<typename T, std::enable_if_t<noa::traits::is_numeric_v<T>, bool> = true>
+        template<typename T, std::enable_if_t<nt::is_numeric_v<T>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             Vec<T, SIZE> output;
             for (size_t i = 0; i < SIZE; ++i)
@@ -469,7 +469,7 @@ namespace noa {
             return output;
         }
 
-        template<typename T, std::enable_if_t<noa::traits::is_numeric_v<T>, bool> = true>
+        template<typename T, std::enable_if_t<nt::is_numeric_v<T>, bool> = true>
         [[nodiscard]] constexpr auto as_safe() const {
             Vec<T, SIZE> output;
             for (size_t i = 0; i < SIZE; ++i)
@@ -524,7 +524,7 @@ namespace noa {
             return output;
         }
 
-        template<typename... Indexes, typename = std::enable_if_t<noa::traits::are_restricted_int_v<Indexes...>>>
+        template<typename... Indexes, typename = std::enable_if_t<nt::are_restricted_int_v<Indexes...>>>
         [[nodiscard]] NOA_HD constexpr auto filter(Indexes... indexes) const noexcept {
             // TODO This can do a lot more than "filter" based on indexes. Rename?
             return Vec<value_type, sizeof...(Indexes)>((*this)[indexes]...);
@@ -537,8 +537,8 @@ namespace noa {
             return output;
         }
 
-        template<typename Int = std::conditional_t<noa::traits::is_int_v<value_type>, value_type, int64_t>,
-                 typename = std::enable_if_t<noa::traits::is_restricted_int_v<Int>>>
+        template<typename Int = std::conditional_t<nt::is_int_v<value_type>, value_type, int64_t>,
+                 typename = std::enable_if_t<nt::is_restricted_int_v<Int>>>
         [[nodiscard]] NOA_HD constexpr Vec reorder(const Vec<Int, SIZE>& order) const noexcept {
             Vec output;
             for (size_t i = 0; i < SIZE; ++i)
@@ -599,7 +599,7 @@ namespace std {
 namespace noa {
     template<typename T, size_t N>
     inline std::ostream& operator<<(std::ostream& os, const Vec<T, N>& v) {
-        if constexpr (noa::traits::is_real_or_complex_v<T>)
+        if constexpr (nt::is_real_or_complex_v<T>)
             os << string::format("{::.3f}", v); // {fmt} ranges
         else
             os << string::format("{}", v);
@@ -609,7 +609,7 @@ namespace noa {
 
 // Type traits:
 namespace noa::traits {
-    static_assert(noa::traits::is_detected_convertible_v<std::string, has_name, Vec<bool, 1>>);
+    static_assert(nt::is_detected_convertible_v<std::string, has_name, Vec<bool, 1>>);
     template<typename T, size_t N> struct proclaim_is_vec<Vec<T, N>> : std::true_type {};
     template<typename V1, size_t N, typename V2> struct proclaim_is_vec_of_type<Vec<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
     template<typename V, size_t N1, size_t N2> struct proclaim_is_vec_of_size<Vec<V, N1>, N2> : std::bool_constant<N1 == N2> {};
@@ -660,7 +660,7 @@ namespace noa {
 
 namespace noa {
     // -- Modulo Operator --
-    template<typename Vec, typename std::enable_if_t<noa::traits::is_intX_v<Vec>, bool> = true>
+    template<typename Vec, typename std::enable_if_t<nt::is_intX_v<Vec>, bool> = true>
     [[nodiscard]] NOA_HD constexpr Vec operator%(Vec lhs, const Vec& rhs) noexcept {
         for (int64_t i = 0; i < Vec::SSIZE; ++i)
             lhs[i] %= rhs[i];
@@ -668,19 +668,19 @@ namespace noa {
     }
 
     template<typename Vec, typename Int,
-             typename std::enable_if_t<noa::traits::is_intX_v<Vec> && noa::traits::is_int_v<Int>, bool> = true>
+             typename std::enable_if_t<nt::is_intX_v<Vec> && nt::is_int_v<Int>, bool> = true>
     [[nodiscard]] NOA_HD constexpr Vec operator%(const Vec& lhs, Int rhs) noexcept {
         return lhs % Vec(rhs);
     }
 
     template<typename Vec, typename Int,
-             typename std::enable_if_t<noa::traits::is_intX_v<Vec> && noa::traits::is_int_v<Int>, bool> = true>
+             typename std::enable_if_t<nt::is_intX_v<Vec> && nt::is_int_v<Int>, bool> = true>
     [[nodiscard]] NOA_HD constexpr Vec operator%(Int lhs, const Vec& rhs) noexcept {
         return Vec(lhs) % rhs;
     }
 
     // -- Cast--
-    template<typename TTo, typename TFrom, size_t N, std::enable_if_t<noa::traits::is_vecN_v<TTo, N>, bool> = true>
+    template<typename TTo, typename TFrom, size_t N, std::enable_if_t<nt::is_vecN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_HD constexpr bool is_safe_cast(const Vec<TFrom, N>& src) noexcept {
         bool output = is_safe_cast<typename TTo::value_type>(src[0]);
         for (size_t i = 1; i < N; ++i)
@@ -688,7 +688,7 @@ namespace noa {
         return output;
     }
 
-    template<typename TTo, typename TFrom, size_t N, std::enable_if_t<noa::traits::is_vecN_v<TTo, N>, bool> = true>
+    template<typename TTo, typename TFrom, size_t N, std::enable_if_t<nt::is_vecN_v<TTo, N>, bool> = true>
     [[nodiscard]] NOA_HD constexpr TTo clamp_cast(const Vec<TFrom, N>& src) noexcept {
         TTo output;
         for (size_t i = 0; i < N; ++i)
@@ -706,7 +706,7 @@ namespace noa {
 }
 
 namespace noa::math {
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto cos(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -721,7 +721,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto sin(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -736,14 +736,14 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD Vec<T, 2> sincos(T x) {
         Vec<T, 2> sin_cos;
         noa::math::sincos(x, sin_cos.data(), sin_cos.data() + 1);
         return sin_cos; // auto [sin, cos] = noa::math::sincos(x);
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto sinc(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return sinc(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -753,7 +753,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto tan(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return tan(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -763,7 +763,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto acos(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return acos(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -773,7 +773,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto asin(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return asin(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -783,7 +783,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto atan(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return atan(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -793,7 +793,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto rad2deg(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return rad2deg(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -803,7 +803,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto deg2rad(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return deg2rad(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -813,7 +813,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto cosh(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return cosh(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -823,7 +823,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto sinh(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return sinh(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -833,7 +833,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto tanh(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return tanh(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -843,7 +843,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto acosh(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return acosh(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -853,7 +853,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto asinh(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return asinh(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -863,7 +863,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto atanh(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             return atanh(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -873,7 +873,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto exp(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -888,7 +888,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto log(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -903,7 +903,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto log10(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -918,7 +918,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto log1p(Vec<T, N> vector) noexcept {
         if constexpr (std::is_same_v<T, Half>)
             return log1p(vector.template as<typename T::arithmetic_type>()).template as<T>();
@@ -928,7 +928,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto sqrt(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -943,7 +943,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto rsqrt(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -958,7 +958,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto round(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -973,7 +973,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto rint(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2))
@@ -984,7 +984,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto ceil(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -999,7 +999,7 @@ namespace noa::math {
         return vector;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto floor(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         if constexpr (std::is_same_v<T, Half> && !(N % 2)) {
@@ -1064,7 +1064,7 @@ namespace noa::math {
         return output;
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto norm(const Vec<T, N>& vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             const auto tmp = vector.template as<typename T::arithmetic_type>();
@@ -1074,7 +1074,7 @@ namespace noa::math {
         return sqrt(dot(vector, vector)); // euclidean norm
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto normalize(const Vec<T, N>& vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             const auto tmp = vector.template as<typename T::arithmetic_type>();
@@ -1214,7 +1214,7 @@ namespace noa::math {
     }
 
     template<int32_t ULP = 2, typename Real, size_t N,
-             typename = std::enable_if_t<noa::traits::is_real_v<Real>>>
+             typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr auto
     are_almost_equal(const Vec<Real, N>& lhs,
                      const Vec<Real, N>& rhs,
@@ -1226,7 +1226,7 @@ namespace noa::math {
     }
 
     template<int32_t ULP = 2, typename Real, size_t N,
-             typename = std::enable_if_t<noa::traits::is_real_v<Real>>>
+             typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr auto
     are_almost_equal(const Vec<Real, N>& lhs,
                      Real rhs,
@@ -1235,7 +1235,7 @@ namespace noa::math {
     }
 
     template<int32_t ULP = 2, typename Real, size_t N,
-             typename = std::enable_if_t<noa::traits::is_real_v<Real>>>
+             typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr auto
     are_almost_equal(Real lhs,
                      const Vec<Real, N>& rhs,

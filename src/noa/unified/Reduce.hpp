@@ -7,8 +7,6 @@
 #include "noa/unified/Ewise.hpp"
 
 namespace noa::details {
-    namespace nt = noa::traits;
-
     template<typename Input, typename Reduced, typename Output, typename Index,
              typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     constexpr bool is_valid_reduce_unary_v =
@@ -47,10 +45,10 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_varray_v<Input, Output> &&
+                     nt::are_varray_v<Input, Output> &&
                      (details::is_valid_reduce_unary_v<
-                             noa::traits::value_type_t<Input>, Reduced,
-                             noa::traits::value_type_t<Output>, Index,
+                             nt::value_type_t<Input>, Reduced,
+                             nt::value_type_t<Output>, Index,
                              PreProcessOp, ReduceOp, PostProcessOp>)>>
     constexpr void reduce_unary(
             const Input& input, const Output& output,
@@ -105,9 +103,9 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_varray_v<Input, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
+                     nt::are_varray_v<Input, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
                      (details::is_valid_reduce_unary_v<
-                             noa::traits::value_type_t<Input>, Reduced,
+                             nt::value_type_t<Input>, Reduced,
                              std::invoke_result_t<PostProcessOp, Reduced>, Index,
                              PreProcessOp, ReduceOp, PostProcessOp>)>>
     constexpr auto reduce_unary(
@@ -164,11 +162,11 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_varray_v<Lhs, Rhs, Output> &&
+                     nt::are_varray_v<Lhs, Rhs, Output> &&
                      details::is_valid_reduce_binary_v<
-                             noa::traits::value_type_t<Lhs>,
-                             noa::traits::value_type_t<Rhs>, Reduced,
-                             noa::traits::value_type_t<Output>, Index,
+                             nt::value_type_t<Lhs>,
+                             nt::value_type_t<Rhs>, Reduced,
+                             nt::value_type_t<Output>, Index,
                              PreProcessOp, ReduceOp, PostProcessOp>>>
     constexpr void reduce_binary(
             const Lhs& lhs, const Rhs& rhs, const Output& output,
@@ -227,10 +225,10 @@ namespace noa {
              typename ReduceOp,
              typename PostProcessOp = noa::copy_t,
              typename = std::enable_if_t<
-                     noa::traits::are_varray_v<Lhs, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
+                     nt::are_varray_v<Lhs, View<std::invoke_result_t<PostProcessOp, Reduced>>> &&
                      details::is_valid_reduce_binary_v<
-                             noa::traits::value_type_t<Lhs>,
-                             noa::traits::value_type_t<Rhs>, Reduced,
+                             nt::value_type_t<Lhs>,
+                             nt::value_type_t<Rhs>, Reduced,
                              std::invoke_result_t<PostProcessOp, Reduced>, Index,
                              PreProcessOp, ReduceOp, PostProcessOp>>>
     constexpr auto reduce_binary(

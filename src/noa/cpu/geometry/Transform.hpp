@@ -8,9 +8,9 @@
 namespace noa::cpu::geometry::details {
     template<i32 NDIM, typename Value, typename Matrix>
     constexpr bool is_valid_transform_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            ((NDIM == 2 && noa::traits::is_any_v<Matrix, Float23, Float33, const Float23*, const Float33*>) ||
-             (NDIM == 3 && noa::traits::is_any_v<Matrix, Float34, Float44, const Float34*, const Float44*>));
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            ((NDIM == 2 && nt::is_any_v<Matrix, Float23, Float33, const Float23*, const Float33*>) ||
+             (NDIM == 3 && nt::is_any_v<Matrix, Float34, Float44, const Float34*, const Float44*>));
 }
 
 namespace noa::cpu::geometry {
@@ -32,7 +32,7 @@ namespace noa::cpu::geometry {
 namespace noa::cpu::geometry {
     using Symmetry = ::noa::geometry::Symmetry;
 
-    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    template<typename Value, typename = std::enable_if_t<nt::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_2d(
             const Value* input, Strides4 <i64> input_strides, Shape4<i64> input_shape,
             Value* output, const Strides4 <i64>& output_strides, const Shape4<i64>& output_shape,
@@ -40,7 +40,7 @@ namespace noa::cpu::geometry {
             const Symmetry& symmetry, const Vec2<f32>& center,
             InterpMode interp_mode, bool normalize, i64 threads);
 
-    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    template<typename Value, typename = std::enable_if_t<nt::is_any_v<Value, f32, f64, c32, c64>>>
     void transform_and_symmetrize_3d(
             const Value* input, Strides4 <i64> input_strides, Shape4<i64> input_shape,
             Value* output, const Strides4 <i64>& output_strides, const Shape4<i64>& output_shape,
@@ -48,13 +48,13 @@ namespace noa::cpu::geometry {
             const Symmetry& symmetry, const Vec3<f32>& center,
             InterpMode interp_mode, bool normalize, i64 threads);
 
-    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    template<typename Value, typename = std::enable_if_t<nt::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_2d(const Value* input, const Strides4<i64>& input_strides,
                        Value* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, const Symmetry& symmetry, const Vec2<f32>& center,
                        InterpMode interp_mode, bool normalize, i64 threads);
 
-    template<typename Value, typename = std::enable_if_t<noa::traits::is_any_v<Value, f32, f64, c32, c64>>>
+    template<typename Value, typename = std::enable_if_t<nt::is_any_v<Value, f32, f64, c32, c64>>>
     void symmetrize_3d(const Value* input, const Strides4<i64>& input_strides,
                        Value* output, const Strides4<i64>& output_strides,
                        const Shape4<i64>& shape, const Symmetry& symmetry, const Vec3<f32>& center,

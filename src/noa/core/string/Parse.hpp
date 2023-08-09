@@ -13,19 +13,19 @@
 namespace noa::string::details {
     template<typename T>
     constexpr bool can_be_parsed_v =
-            std::bool_constant<noa::traits::is_string_v<T> ||
-                               noa::traits::is_numeric_v<T>>::value;
+            std::bool_constant<nt::is_string_v<T> ||
+                               nt::is_numeric_v<T>>::value;
 
-    template<typename T = int, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
+    template<typename T = int, typename = std::enable_if_t<nt::is_int_v<T>>>
     T to_int(const std::string& str);
 
-    template<typename T = int, typename = std::enable_if_t<noa::traits::is_int_v<T>>>
+    template<typename T = int, typename = std::enable_if_t<nt::is_int_v<T>>>
     T to_int(const std::string& str, int& error) noexcept;
 
-    template<typename T = float, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T = float, typename = std::enable_if_t<nt::is_real_v<T>>>
     T to_real(const std::string& str);
 
-    template<typename T = float, typename = std::enable_if_t<noa::traits::is_real_v<T>>>
+    template<typename T = float, typename = std::enable_if_t<nt::is_real_v<T>>>
     T to_real(const std::string& str, int& error) noexcept;
 
     inline bool to_bool(const std::string& str);

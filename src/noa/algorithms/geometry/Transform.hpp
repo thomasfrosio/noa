@@ -21,8 +21,8 @@ namespace noa::algorithm::geometry {
     template<size_t N, typename Index, typename Value, typename Matrix, typename Interpolator, typename Offset>
     class Transform {
     public:
-        static_assert(noa::traits::is_int_v<Index>);
-        static_assert(noa::traits::is_real_or_complex_v<Value>);
+        static_assert(nt::is_int_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Value>);
         static_assert(N == 2 || N == 3);
 
         using index_type = Index;
@@ -38,8 +38,8 @@ namespace noa::algorithm::geometry {
         using mat44_type = Mat44<coord_type>;
 
         static_assert(std::is_same_v<coord_type, typename std::remove_pointer_t<Matrix>::value_type>);
-        static_assert((N == 2 && noa::traits::is_any_v<Matrix, mat23_type, const mat23_type*, const mat33_type*>) ||
-                      (N == 3 && noa::traits::is_any_v<Matrix, mat34_type, const mat34_type*, const mat44_type*>));
+        static_assert((N == 2 && nt::is_any_v<Matrix, mat23_type, const mat23_type*, const mat33_type*>) ||
+                      (N == 3 && nt::is_any_v<Matrix, mat34_type, const mat34_type*, const mat44_type*>));
 
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
@@ -64,11 +64,11 @@ namespace noa::algorithm::geometry {
                 const auto inv_matrix = noa::geometry::affine2truncated(m_inv_matrix[batch]);
                 m_output(batch, y, x) = static_cast<value_type>(m_input(inv_matrix * coordinates, batch));
 
-            } else if constexpr (noa::traits::is_mat23_v<matrix_type>) {
+            } else if constexpr (nt::is_mat23_v<matrix_type>) {
                 m_output(batch, y, x) = static_cast<value_type>(m_input(m_inv_matrix * coordinates, batch));
 
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -83,11 +83,11 @@ namespace noa::algorithm::geometry {
                 const auto inv_matrix = noa::geometry::affine2truncated(m_inv_matrix[batch]);
                 m_output(batch, z, y, x) = static_cast<value_type>(m_input(inv_matrix * coordinates, batch));
 
-            } else if constexpr (noa::traits::is_mat34_v<matrix_type>) {
+            } else if constexpr (nt::is_mat34_v<matrix_type>) {
                 m_output(batch, z, y, x) = static_cast<value_type>(m_input(m_inv_matrix * coordinates, batch));
 
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -103,8 +103,8 @@ namespace noa::algorithm::geometry {
     template<size_t N, typename Index, typename Value, typename Interpolator, typename Offset>
     class TransformSymmetry {
     public:
-        static_assert(noa::traits::is_int_v<Index>);
-        static_assert(noa::traits::is_real_or_complex_v<Value>);
+        static_assert(nt::is_int_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Value>);
         static_assert(N == 2 || N == 3);
 
         using index_type = Index;
@@ -116,7 +116,7 @@ namespace noa::algorithm::geometry {
         using vec_type = Vec<coord_type, N>;
         using matrix_type = std::conditional_t<N == 2, Mat22<coord_type>, Mat33<coord_type>>;
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
-        using real_value_type = noa::traits::value_type_t<value_type>;
+        using real_value_type = nt::value_type_t<value_type>;
 
     public:
         TransformSymmetry(
@@ -176,8 +176,8 @@ namespace noa::algorithm::geometry {
     template<size_t N, typename Index, typename Value, typename Interpolator, typename Offset>
     class Symmetry {
     public:
-        static_assert(noa::traits::is_real_or_complex_v<Value>);
-        static_assert(noa::traits::is_int_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Value>);
+        static_assert(nt::is_int_v<Index>);
         static_assert(N == 2 || N == 3);
 
         using index_type = Index;

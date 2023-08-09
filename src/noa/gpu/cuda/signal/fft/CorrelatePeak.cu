@@ -204,7 +204,7 @@ namespace {
                 peak_window_values[i] = value;
             }
         } else {
-            static_assert(noa::traits::always_false_v<Real>);
+            static_assert(nt::always_false_v<Real>);
         }
 
         // Compute the min of the peak window.

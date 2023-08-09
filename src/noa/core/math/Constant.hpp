@@ -11,7 +11,7 @@ namespace noa::math {
     /// Some constants.
     template<typename Real>
     struct Constant {
-        static_assert(noa::traits::is_real_v<Real>);
+        static_assert(nt::is_real_v<Real>);
         static constexpr Real PI = static_cast<Real>(3.1415926535897932384626433832795);
         static constexpr Real PLANCK = static_cast<Real>(6.62607015e-34); // J.Hz-1
         static constexpr Real SPEED_OF_LIGHT = static_cast<Real>(299792458.0); // m.s
@@ -30,7 +30,7 @@ namespace noa::math {
             } else if constexpr (std::is_same_v<T, double>) {
                 return DBL_EPSILON;
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
             return T{0}; // unreachable
         }
@@ -56,7 +56,7 @@ namespace noa::math {
             } else if constexpr (std::is_same_v<T, long long>) {
                 return LLONG_MIN;
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
             return T{0}; // unreachable
             #else
@@ -93,7 +93,7 @@ namespace noa::math {
             } else if constexpr (std::is_same_v<T, long long>) {
                 return LLONG_MAX;
             } else {
-                static_assert(noa::traits::always_false_v<T>);
+                static_assert(nt::always_false_v<T>);
             }
             return T{0}; // unreachable
             #else
@@ -103,7 +103,7 @@ namespace noa::math {
 
         NOA_FHD static constexpr T lowest() {
             #ifdef __CUDA_ARCH__
-            if constexpr (noa::traits::is_real_v<T>) {
+            if constexpr (nt::is_real_v<T>) {
                 return -max();
             } else {
                 return min();

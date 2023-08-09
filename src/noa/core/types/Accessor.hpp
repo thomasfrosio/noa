@@ -148,7 +148,7 @@ namespace noa {
         template<typename Int0, typename Int1,
                  typename = std::enable_if_t<
                          StridesTraits::STRIDED == StridesTrait &&
-                         noa::traits::are_int_v<Int0, Int1>>>
+                         nt::are_int_v<Int0, Int1>>>
         [[nodiscard]] NOA_HD constexpr Accessor swap_dimensions(Int0 d0, Int1 d1) const noexcept {
             Accessor out = *this;
             noa::details::swap(out.strides()[d0], out.strides()[d1]);
@@ -189,7 +189,7 @@ namespace noa {
         }
 
         template<typename Pointer, typename Int0, typename Int1,
-                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && nt::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
         offset_pointer(Pointer pointer, Int0 i0, Int1 i1) const noexcept {
             pointer += indexing::at(i0, stride<0>());
@@ -198,7 +198,7 @@ namespace noa {
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2,
-                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && nt::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
         offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2) const noexcept {
             pointer += indexing::at(i0, stride<0>());
@@ -208,7 +208,7 @@ namespace noa {
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2, typename Int3,
-                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && nt::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
         offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
             pointer += indexing::at(i0, stride<0>());
@@ -226,21 +226,21 @@ namespace noa {
         }
 
         template<typename Int0, typename Int1,
-                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && nt::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1);
         }
 
         template<typename Int0, typename Int1, typename Int2,
-                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && nt::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1, i2);
         }
 
         template<typename Int0, typename Int1, typename Int2, typename Int3,
-                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && nt::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1, i2, i3);
@@ -374,7 +374,7 @@ namespace noa {
         }
 
         template<typename Pointer, typename Int0, typename Int1,
-                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && nt::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
         offset_pointer(Pointer pointer, Int0 i0, Int1 i1) const noexcept {
             pointer += indexing::at(i0, stride<0>());
@@ -383,7 +383,7 @@ namespace noa {
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2,
-                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && nt::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
         offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2) const noexcept {
             pointer += indexing::at(i0, stride<0>());
@@ -393,7 +393,7 @@ namespace noa {
         }
 
         template<typename Pointer, typename Int0, typename Int1, typename Int2, typename Int3,
-                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && nt::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr auto
         offset_pointer(Pointer pointer, Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
             pointer += indexing::at(i0, stride<0>());
@@ -411,21 +411,21 @@ namespace noa {
         }
 
         template<typename Int0, typename Int1,
-                 std::enable_if_t<(SIZE >= 2) && traits::are_int_v<Int0, Int1>, bool> = true>
+                 std::enable_if_t<(SIZE >= 2) && nt::are_int_v<Int0, Int1>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1);
         }
 
         template<typename Int0, typename Int1, typename Int2,
-                 std::enable_if_t<(SIZE >= 3) && traits::are_int_v<Int0, Int1, Int2>, bool> = true>
+                 std::enable_if_t<(SIZE >= 3) && nt::are_int_v<Int0, Int1, Int2>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1, i2);
         }
 
         template<typename Int0, typename Int1, typename Int2, typename Int3,
-                 std::enable_if_t<SIZE == 4 && traits::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
+                 std::enable_if_t<SIZE == 4 && nt::are_int_v<Int0, Int1, Int2, Int3>, bool> = true>
         [[nodiscard]] NOA_HD constexpr value_type& operator()(Int0 i0, Int1 i1, Int2 i2, Int3 i3) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, i0, i1, i2, i3);

@@ -80,7 +80,7 @@ namespace noa::algorithm::fft {
                     const auto ij = noa::fft::fftshift(oj != 0 ? m_shape[0] - oj : oj, m_shape[0]);
                     const auto ik = noa::fft::fftshift(ok != 0 ? m_shape[1] - ok : ok, m_shape[1]);
                     value = m_input(oi, ij, ik, m_shape[2] - ol);
-                    if constexpr (noa::traits::is_complex_v<value_type>)
+                    if constexpr (nt::is_complex_v<value_type>)
                         value = noa::math::conj(value);
                 }
 
@@ -104,7 +104,7 @@ namespace noa::algorithm::fft {
                     const auto ij = oj != 0 ? m_shape[0] - oj : oj;
                     const auto ik = ok != 0 ? m_shape[1] - ok : ok;
                     value = m_input(oi, ij, ik, m_shape[2] - ol);
-                    if constexpr (noa::traits::is_complex_v<value_type>)
+                    if constexpr (nt::is_complex_v<value_type>)
                         value = noa::math::conj(value);
                 }
 
@@ -117,7 +117,7 @@ namespace noa::algorithm::fft {
                     m_output(oi, ooj, ook, ool) = value;
                 }
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 

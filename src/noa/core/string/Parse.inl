@@ -11,7 +11,7 @@ namespace noa::string::details {
         char* end{};
         T out;
 
-        if constexpr (traits::is_uint_v<T>) {
+        if constexpr (nt::is_uint_v<T>) {
             // Shortcut: empty string or negative number.
             size_t idx = str.find_first_not_of(" \t");
             if (idx == std::string::npos) {
@@ -33,7 +33,7 @@ namespace noa::string::details {
                 }
                 out = static_cast<T>(tmp);
             }
-        } else if constexpr (traits::is_int_v<T>) {
+        } else if constexpr (nt::is_int_v<T>) {
             if constexpr (std::is_same_v<T, long long>) {
                 out = std::strtoll(str.data(), &end, 10);
             } else if constexpr (std::is_same_v<T, long>) {
@@ -47,7 +47,7 @@ namespace noa::string::details {
                 out = static_cast<T>(tmp);
             }
         } else {
-            static_assert(noa::traits::always_false_v<T>, "DEV: this should not be possible");
+            static_assert(nt::always_false_v<T>, "DEV: this should not be possible");
         }
 
         if (end == str.data())
@@ -72,12 +72,12 @@ namespace noa::string::details {
         error = 0;
         char* end{};
         T out;
-        if constexpr (noa::traits::is_almost_same_v<T, float>) {
+        if constexpr (nt::is_almost_same_v<T, float>) {
             out = std::strtof(str.data(), &end);
-        } else if constexpr (noa::traits::is_almost_same_v<T, double>) {
+        } else if constexpr (nt::is_almost_same_v<T, double>) {
             out = std::strtod(str.data(), &end);
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(nt::always_false_v<T>);
         }
 
         if (end == str.data())
@@ -126,17 +126,17 @@ namespace noa::string::details {
 namespace noa::string {
     template<typename T, typename>
     T parse(const std::string& string, int& error) noexcept {
-        if constexpr (noa::traits::is_string_v<T>) {
+        if constexpr (nt::is_string_v<T>) {
             error = 0;
             return string;
-        } else if constexpr (noa::traits::is_real_v<T>) {
+        } else if constexpr (nt::is_real_v<T>) {
             return details::to_real<T>(string, error);
-        } else if constexpr (noa::traits::is_bool_v<T>) {
+        } else if constexpr (nt::is_bool_v<T>) {
             return details::to_bool(string, error);
-        } else if constexpr (noa::traits::is_int_v<T>) {
+        } else if constexpr (nt::is_int_v<T>) {
             return details::to_int<T>(string, error);
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(nt::always_false_v<T>);
         }
     }
 
@@ -152,20 +152,20 @@ namespace noa::string {
     template<typename T, typename>
     std::vector<T> parse(const std::vector<std::string>& vector, int& error) noexcept {
         error = 0;
-        if constexpr (noa::traits::is_string_v<T>) {
+        if constexpr (nt::is_string_v<T>) {
             return vector;
         } else {
             std::vector<T> output;
             for (const auto& string: vector) {
                 T value;
-                if constexpr (noa::traits::is_real_v<T>) {
+                if constexpr (nt::is_real_v<T>) {
                     value = details::to_real<T>(string, error);
-                } else if constexpr (noa::traits::is_bool_v<T>) {
+                } else if constexpr (nt::is_bool_v<T>) {
                     value = details::to_bool(string, error);
-                } else if constexpr (noa::traits::is_int_v<T>) {
+                } else if constexpr (nt::is_int_v<T>) {
                     value = details::to_int<T>(string, error);
                 } else {
-                    static_assert(noa::traits::always_false_v<T>);
+                    static_assert(nt::always_false_v<T>);
                 }
                 if (error)
                     break;

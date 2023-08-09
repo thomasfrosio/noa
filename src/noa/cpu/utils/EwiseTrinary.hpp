@@ -18,7 +18,7 @@ namespace noa::cpu::utils::details {
             Shape4<Index> shape, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(lhs, mhs, rhs, output, shape) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for
@@ -28,7 +28,7 @@ namespace noa::cpu::utils::details {
                         for (Index l = 0; l < shape[3]; ++l)
                             output(i, j, k, l) = static_cast<Output>(op(lhs(i, j, k, l), mhs(i, j, k, l), rhs(i, j, k, l)));
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
@@ -41,14 +41,14 @@ namespace noa::cpu::utils::details {
             Accessor<Rhs, 4, Index> rhs,
             Accessor<Output, 4, Index> output,
             Shape4<Index> shape, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = 0; i < shape[0]; ++i)
             for (Index j = 0; j < shape[1]; ++j)
                 for (Index k = 0; k < shape[2]; ++k)
                     for (Index l = 0; l < shape[3]; ++l)
                         output(i, j, k, l) = static_cast<Output>(op(lhs(i, j, k, l), mhs(i, j, k, l), rhs(i, j, k, l)));
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 
@@ -58,14 +58,14 @@ namespace noa::cpu::utils::details {
                                    Index size, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(lhs, mhs, rhs, output, size) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for
             for (Index i = 0; i < size; ++i)
                 output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
@@ -74,11 +74,11 @@ namespace noa::cpu::utils::details {
              typename Output, typename Index, typename Operator>
     void ewise_trinary_1d_serial(Lhs* lhs, Mhs* mhs, Rhs* rhs, Output* output,
                                  Index size, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = 0; i < size; ++i)
             output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 
@@ -92,14 +92,14 @@ namespace noa::cpu::utils::details {
             Index size, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(lhs, mhs, rhs, output, size) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for
             for (Index i = 0; i < size; ++i)
                 output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
@@ -112,11 +112,11 @@ namespace noa::cpu::utils::details {
             Rhs* __restrict rhs,
             Output* __restrict output,
             Index size, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = 0; i < size; ++i)
             output[i] = static_cast<Output>(op(lhs[i], mhs[i], rhs[i]));
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 }
@@ -158,7 +158,7 @@ namespace noa::cpu::utils {
                 noa::indexing::are_contiguous(rhs_strides, shape) &&
                 noa::indexing::are_contiguous(output_strides, shape);
         if (is_contiguous) {
-            constexpr bool ARE_SAME_TYPE = noa::traits::are_all_same_v<
+            constexpr bool ARE_SAME_TYPE = nt::are_all_same_v<
                     std::remove_cv_t<Lhs>, std::remove_cv_t<Mhs>,
                     std::remove_cv_t<Rhs>, Output>;
             if constexpr (ARE_SAME_TYPE) {

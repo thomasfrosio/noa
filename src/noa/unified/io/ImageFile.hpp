@@ -176,11 +176,11 @@ namespace noa::io {
         ///                     Should match the shape of the file.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
-        template<typename Output, typename = std::enable_if_t<noa::traits::is_varray_of_numeric_v<Output>>>
+        template<typename Output, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Output>>>
         void read(const Output& output, bool clamp = true) {
             NOA_CHECK(is_open(), "The file should be opened");
             NOA_ASSERT(m_header);
-            using value_t = noa::traits::value_type_t<Output>;
+            using value_t = nt::value_type_t<Output>;
 
             if (output.is_dereferenceable()) {
                 m_header->read_all(output.eval().get(), output.strides(), output.shape(), io::dtype<value_t>(), clamp);
@@ -219,11 +219,11 @@ namespace noa::io {
         /// \param start        Index of the slice, in the file, where the deserialization starts.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
-        template<typename Output, typename = std::enable_if_t<noa::traits::is_varray_of_numeric_v<Output>>>
+        template<typename Output, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Output>>>
         void read_slice(const Output& output, i64 start, bool clamp = true) {
             NOA_CHECK(is_open(), "The file should be opened");
             NOA_ASSERT(m_header);
-            using value_t = noa::traits::value_type_t<Output>;
+            using value_t = nt::value_type_t<Output>;
 
             if (output.is_dereferenceable()) {
                 m_header->read_slice(
@@ -247,11 +247,11 @@ namespace noa::io {
         /// \param[in] input    VArray, of any numeric type, to serialize.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
-        template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_of_numeric_v<Input>>>
+        template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
         void write(const Input& input, bool clamp = true) {
             NOA_CHECK(is_open(), "The file should be opened");
             NOA_ASSERT(m_header);
-            using value_t = noa::traits::value_type_t<Input>;
+            using value_t = nt::value_type_t<Input>;
 
             if (!input.is_dereferenceable()) {
                 Array tmp = input.to_cpu();
@@ -272,11 +272,11 @@ namespace noa::io {
         /// \param start        Index of the slice, in the file, where the serialization starts.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
-        template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_of_numeric_v<Input>>>
+        template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
         void write_slice(const Input& input, i64 start, bool clamp = true) {
             NOA_CHECK(is_open(), "The file should be opened");
             NOA_ASSERT(m_header);
-            using value_t = noa::traits::value_type_t<Input>;
+            using value_t = nt::value_type_t<Input>;
 
             if (!input.is_dereferenceable()) {
                 Array tmp = input.to_cpu();
@@ -386,12 +386,12 @@ namespace noa::io {
     ///                     truncation or loss of precision happens.
     template<typename Input, typename PixelSize,
              typename = std::enable_if_t<
-                     noa::traits::is_varray_of_numeric_v<Input> &&
-                     (noa::traits::is_real2_v<PixelSize> || noa::traits::is_real3_v<PixelSize>)>>
+                     nt::is_varray_of_numeric_v<Input> &&
+                     (nt::is_real2_v<PixelSize> || nt::is_real3_v<PixelSize>)>>
     void save(const Input& input, const PixelSize& pixel_size,
               const Path& filename, DataType data_type = DataType::UNKNOWN) {
         auto file = ImageFile(filename, io::WRITE);
-        if constexpr (noa::traits::is_vec2_v<PixelSize>)
+        if constexpr (nt::is_vec2_v<PixelSize>)
             file.set_pixel_size(pixel_size.push_front(1).template as<f32>());
         else
             file.set_pixel_size(pixel_size.template as<f32>());
@@ -402,7 +402,7 @@ namespace noa::io {
 
     /// Saves the input array into a new file.
     /// Same as the above overload, but without setting a pixel size.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_of_numeric_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
     void save(const Input& input, const Path& filename, DataType data_type = DataType::UNKNOWN) {
         auto file = ImageFile(filename, io::WRITE);
         if (data_type != DataType::UNKNOWN)

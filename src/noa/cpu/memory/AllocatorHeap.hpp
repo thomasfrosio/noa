@@ -13,7 +13,7 @@ namespace noa::cpu::memory {
     template<typename T>
     struct AllocatorHeapDeleter {
         void operator()(T* ptr) noexcept {
-            if constexpr(noa::traits::is_numeric_v<T>)
+            if constexpr(nt::is_numeric_v<T>)
                 std::free(ptr);
             else
                 delete[] ptr;
@@ -37,8 +37,8 @@ namespace noa::cpu::memory {
     public:
         static_assert(!std::is_pointer_v<Value> && !std::is_reference_v<Value> && !std::is_const_v<Value>);
         static constexpr size_t ALIGNMENT =
-                noa::traits::is_real_or_complex_v<Value> ? 128 :
-                noa::traits::is_int_v<Value> ? 64 : alignof(Value);
+                nt::is_real_or_complex_v<Value> ? 128 :
+                nt::is_int_v<Value> ? 64 : alignof(Value);
 
         using value_type = Value;
         using shared_type = Shared<value_type[]>;
@@ -53,7 +53,7 @@ namespace noa::cpu::memory {
             if (elements <= 0)
                 return {};
             value_type* out;
-            if constexpr (noa::traits::is_numeric_v<value_type>) {
+            if constexpr (nt::is_numeric_v<value_type>) {
                 out = static_cast<value_type*>(std::aligned_alloc(
                         ALIGNMENT, static_cast<size_t>(elements) * sizeof(value_type)));
             } else {

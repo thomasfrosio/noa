@@ -58,11 +58,11 @@ namespace noa::signal::fft {
     /// \param shape    Logical shape of \p lhs and \p rhs.
     ///                 It should be a cubic or rectangular (batched) volume.
     template<noa::fft::Remap REMAP, typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
-             noa::traits::is_varray_of_almost_any_v<Rhs, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
-             noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Lhs>, Output> &&
+             nt::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+             nt::is_varray_of_almost_any_v<Rhs, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs> &&
+             nt::are_almost_same_value_type_v<nt::value_type_t<Lhs>, Output> &&
              (REMAP == noa::fft::Remap::H2H || REMAP == noa::fft::Remap::HC2HC)>>
     void isotropic_fsc(const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4<i64>& shape) {
         details::check_fsc_parameters(lhs, rhs, fsc, shape);
@@ -87,7 +87,7 @@ namespace noa::signal::fft {
                     rhs.get(), rhs.strides(),
                     fsc.get(), shape,
                     cuda_stream);
-            cuda_stream.enqueue_attach(lhs.share(), rhs.share(), fsc.share());
+            cuda_stream.enqueue_attach(lhs, rhs, fsc);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -102,9 +102,9 @@ namespace noa::signal::fft {
     ///                 It should be a cubic or rectangular (batched) volume.
     /// \return A (batched) row vector with the FSC. The number of shells is min(shape) // 2 + 1.
     template<noa::fft::Remap REMAP, typename Lhs, typename Rhs, typename = std::enable_if_t<
-            noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
-            noa::traits::is_varray_of_almost_any_v<Rhs, c32, c64> &&
-            noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
+            nt::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+            nt::is_varray_of_almost_any_v<Rhs, c32, c64> &&
+            nt::are_almost_same_value_type_v<Lhs, Rhs> &&
             (REMAP == noa::fft::Remap::H2H || REMAP == noa::fft::Remap::HC2HC)>>
     auto isotropic_fsc(const Lhs& lhs, const Rhs& rhs, const Shape4<i64>& shape) {
         const auto shell_count = noa::math::min(lhs.shape()) / 2 + 1;
@@ -130,12 +130,12 @@ namespace noa::signal::fft {
     /// \param cone_aperture        Cone aperture, in radians.
     template<noa::fft::Remap REMAP, typename Lhs, typename Rhs,
              typename Output, typename Cones, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
-             noa::traits::is_varray_of_almost_any_v<Rhs, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
-             noa::traits::are_almost_same_value_type_v<noa::traits::value_type_t<Lhs>, Output> &&
-             noa::traits::is_varray_of_almost_any_v<Cones, Vec3<f32>> &&
+             nt::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+             nt::is_varray_of_almost_any_v<Rhs, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs> &&
+             nt::are_almost_same_value_type_v<nt::value_type_t<Lhs>, Output> &&
+             nt::is_varray_of_almost_any_v<Cones, Vec3<f32>> &&
              (REMAP == noa::fft::Remap::H2H || REMAP == noa::fft::Remap::HC2HC)>>
     void anisotropic_fsc(const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4<i64>& shape,
                          const Cones& cone_directions, f32 cone_aperture) {
@@ -163,7 +163,7 @@ namespace noa::signal::fft {
                     fsc.get(), shape,
                     cone_directions.get(), cone_directions.elements(), cone_aperture,
                     cuda_stream);
-            cuda_stream.enqueue_attach(lhs.share(), rhs.share(), fsc.share(), cone_directions.share());
+            cuda_stream.enqueue_attach(lhs, rhs, fsc, cone_directions);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -183,10 +183,10 @@ namespace noa::signal::fft {
     ///         Each column is a shell, with the number of shells set to min(shape) // 2 + 1.
     ///         There's one table per input batch.
     template<noa::fft::Remap REMAP, typename Lhs, typename Rhs, typename Cones, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Lhs, c32, c64> &&
-             noa::traits::is_varray_of_almost_any_v<Rhs, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
-             noa::traits::is_varray_of_almost_any_v<Cones, Vec3<f32>> &&
+             nt::is_varray_of_almost_any_v<Lhs, c32, c64> &&
+             nt::is_varray_of_almost_any_v<Rhs, c32, c64> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs> &&
+             nt::is_varray_of_almost_any_v<Cones, Vec3<f32>> &&
              (REMAP == noa::fft::Remap::H2H || REMAP == noa::fft::Remap::HC2HC)>>
     auto anisotropic_fsc(const Lhs& lhs, const Rhs& rhs, const Shape4<i64>& shape,
                          const Cones& cone_directions, f32 cone_aperture) {

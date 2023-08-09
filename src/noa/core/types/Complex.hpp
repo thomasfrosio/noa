@@ -18,7 +18,7 @@ namespace noa {
     template<typename Real>
     class alignas(sizeof(Real) * 2) Complex {
     public:
-        static_assert(traits::is_real_v<Real>);
+        static_assert(nt::is_real_v<Real>);
         Real real{}, imag{};
 
     public:
@@ -30,7 +30,7 @@ namespace noa {
         static constexpr size_t SIZE = 2;
         static constexpr int64_t SSIZE = 2;
 
-        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
+        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
         NOA_HD constexpr value_type& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))
@@ -39,7 +39,7 @@ namespace noa {
                 return this->real;
         }
 
-        template<typename I, typename = std::enable_if_t<traits::is_int_v<I>>>
+        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
         NOA_HD constexpr const value_type& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < COUNT);
             if (i == I(1))

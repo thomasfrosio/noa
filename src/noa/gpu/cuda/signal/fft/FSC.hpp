@@ -5,7 +5,7 @@
 
 namespace noa::cuda::signal::fft {
     template<noa::fft::Remap REMAP, typename Real,
-             typename = std::enable_if_t<noa::traits::is_any_v<Real, f32, f64>>>
+             typename = std::enable_if_t<nt::is_any_v<Real, f32, f64>>>
     void isotropic_fsc(
             const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
             const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
@@ -14,7 +14,7 @@ namespace noa::cuda::signal::fft {
             Stream& stream);
 
     template<noa::fft::Remap REMAP, typename Real,
-             typename = std::enable_if_t<noa::traits::is_any_v<Real, f32, f64>>>
+             typename = std::enable_if_t<nt::is_any_v<Real, f32, f64>>>
     void anisotropic_fsc(
             const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
             const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,

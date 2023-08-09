@@ -173,10 +173,10 @@ namespace noa::cuda::utils {
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         const auto shape = Shape4<Index>(end - start);
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto [config, blocks_x] = details::iwise_4d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = end.filter(2, 3);
@@ -190,9 +190,9 @@ namespace noa::cuda::utils {
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto[config, blocks_x] = details::iwise_4d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = shape.filter(2, 3).vec();
@@ -208,10 +208,10 @@ namespace noa::cuda::utils {
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         const auto shape = Shape3<Index>(end - start);
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_3d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = end.pop_front();
@@ -225,9 +225,9 @@ namespace noa::cuda::utils {
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_3d_static_config<Config>(shape, bytes_shared_memory);
             const auto end_2d = shape.pop_front().vec();
@@ -243,10 +243,10 @@ namespace noa::cuda::utils {
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         const auto shape = Shape2<Index>(end - start);
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_2d_static_config<Config>(shape, bytes_shared_memory);
             stream.enqueue(details::iwise_2d_static<iwise_op_value_t, Index, Vec2<Index>, Config>,
@@ -259,9 +259,9 @@ namespace noa::cuda::utils {
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_2d_static_config<Config>(shape, bytes_shared_memory);
             stream.enqueue(details::iwise_2d_static<iwise_op_value_t, Index, Empty, Config>,
@@ -276,10 +276,10 @@ namespace noa::cuda::utils {
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
         NOA_ASSERT(noa::all(end >= 0) && noa::all(end > start));
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         const auto size = end - start;
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_1d_static_config<Config>(size, bytes_shared_memory);
             stream.enqueue(details::iwise_1d_static<iwise_op_value_t, Index, Index, Config>,
@@ -292,9 +292,9 @@ namespace noa::cuda::utils {
                   IwiseOp&& iwise_op,
                   Stream& stream,
                   size_t bytes_shared_memory = 0) {
-        using iwise_op_value_t = noa::traits::remove_ref_cv_t<IwiseOp>;
+        using iwise_op_value_t = nt::remove_ref_cv_t<IwiseOp>;
         if constexpr (std::is_same_v<Config, IwiseDynamicConfig>) {
-            static_assert(noa::traits::always_false_v<Index>, "TODO");
+            static_assert(nt::always_false_v<Index>, "TODO");
         } else {
             const auto config = details::iwise_1d_static_config<Config>(size, bytes_shared_memory);
             stream.enqueue(details::iwise_1d_static<iwise_op_value_t, Index, Empty, Config>,

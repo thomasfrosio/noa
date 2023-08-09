@@ -21,7 +21,7 @@ namespace noa::algorithm::signal {
         using shape4_type = Shape4<index_type>;
         using input_accessor_type = Accessor<const value_type, 4, offset_type>;
         using output_accessor_type = Accessor<value_type, 4, offset_type>;
-        using real_type = noa::traits::value_type_t<value_type>;
+        using real_type = nt::value_type_t<value_type>;
 
     public:
         PhaseShiftHalf(const input_accessor_type& input,
@@ -54,8 +54,8 @@ namespace noa::algorithm::signal {
         static constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
         static constexpr bool IS_SRC_CENTERED = u8_REMAP & Layout::SRC_CENTERED;
         static_assert(u8_REMAP & Layout::SRC_HALF && u8_REMAP & Layout::DST_HALF);
-        static_assert((NDIM == 2 && noa::traits::is_any_v<Shift, Vec2<Coord>, const Vec2<Coord>*>) ||
-                      (NDIM == 3 && noa::traits::is_any_v<Shift, Vec3<Coord>, const Vec3<Coord>*>));
+        static_assert((NDIM == 2 && nt::is_any_v<Shift, Vec2<Coord>, const Vec2<Coord>*>) ||
+                      (NDIM == 3 && nt::is_any_v<Shift, Vec3<Coord>, const Vec3<Coord>*>));
 
         using index_type = Index;
         using offset_type = Offset;

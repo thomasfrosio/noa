@@ -10,7 +10,7 @@ namespace noa::cpu::utils::details {
     void iwise_4d_parallel(const Vec4<Index>& start, const Vec4<Index>& end, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for collapse(4)
@@ -20,21 +20,21 @@ namespace noa::cpu::utils::details {
                         for (Index l = start[3]; l < end[3]; ++l)
                             op(i, j, k, l);
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
 
     template<typename Index, typename Operator>
     void iwise_4d_serial(const Vec4<Index>& start, const Vec4<Index>& end, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = start[0]; i < end[0]; ++i)
             for (Index j = start[1]; j < end[1]; ++j)
                 for (Index k = start[2]; k < end[2]; ++k)
                     for (Index l = start[3]; l < end[3]; ++l)
                         op(i, j, k, l);
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 
@@ -52,7 +52,7 @@ namespace noa::cpu::utils::details {
     void iwise_3d_parallel(const Vec3<Index>& start, const Vec3<Index>& end, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for collapse(3)
@@ -61,20 +61,20 @@ namespace noa::cpu::utils::details {
                     for (Index k = start[2]; k < end[2]; ++k)
                         op(i, j, k);
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
 
     template<typename Index, typename Operator>
     void iwise_3d_serial(const Vec3<Index>& start, const Vec3<Index>& end, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = start[0]; i < end[0]; ++i)
             for (Index j = start[1]; j < end[1]; ++j)
                 for (Index k = start[2]; k < end[2]; ++k)
                     op(i, j, k);
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 
@@ -92,7 +92,7 @@ namespace noa::cpu::utils::details {
     void iwise_2d_parallel(const Vec2<Index>& start, const Vec2<Index>& end, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for collapse(2)
@@ -100,19 +100,19 @@ namespace noa::cpu::utils::details {
                 for (Index j = start[1]; j < end[1]; ++j)
                     op(i, j);
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
 
     template<typename Index, typename Operator>
     void iwise_2d_serial(const Vec2<Index>& start, const Vec2<Index>& end, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = start[0]; i < end[0]; ++i)
             for (Index j = start[1]; j < end[1]; ++j)
                 op(i, j);
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 
@@ -130,25 +130,25 @@ namespace noa::cpu::utils::details {
     void iwise_1d_parallel(const Vec1<Index>& start, const Vec1<Index>& end, Operator&& op, i64 threads) {
         #pragma omp parallel default(none) num_threads(threads) shared(start, end) firstprivate(op)
         {
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
                 op.initialize(omp_get_thread_num());
 
             #pragma omp for
             for (Index i = start[0]; i < end[0]; ++i)
                 op(i);
 
-            if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+            if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
                 op.closure(omp_get_thread_num());
         }
     }
 
     template<typename Index, typename Operator>
     void iwise_1d_serial(const Vec1<Index>& start, const Vec1<Index>& end, Operator&& op) {
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_initialize, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = start[0]; i < end[0]; ++i)
             op(i);
-        if constexpr (noa::traits::is_detected_v<noa::traits::has_closure, Operator>)
+        if constexpr (nt::is_detected_v<nt::has_closure, Operator>)
             op.closure(0);
     }
 

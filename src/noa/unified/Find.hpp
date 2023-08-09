@@ -36,12 +36,12 @@ namespace noa {
     ///       \c noa::indexing::offset2indexes(offset,input).
     template<typename ReduceOp, typename Input, typename Offset,
              typename = std::enable_if_t<
-                     noa::traits::are_varray_v<Input, Offset> &&
-                     details::is_valid_find_v<ReduceOp, noa::traits::value_type_t<Input>, noa::traits::value_type_t<Offset>>>>
+                     nt::are_varray_v<Input, Offset> &&
+                     details::is_valid_find_v<ReduceOp, nt::value_type_t<Input>, nt::value_type_t<Offset>>>>
     void find_offsets(ReduceOp reduce_op, const Input& input, const Offset& offsets,
                       bool reduce_batch = false, bool swap_layout = false) {
         NOA_CHECK(!input.is_empty() && !offsets.is_empty(), "Empty array detected");
-        NOA_CHECK(is_safe_cast<noa::traits::value_type_t<Offset>>(
+        NOA_CHECK(is_safe_cast<nt::value_type_t<Offset>>(
                   noa::indexing::at((input.shape() - 1).vec(), input.strides())),
                   "The input is too large (shape:{}) for the desired offset type {}",
                   input.shape(), noa::string::human<Offset>());
@@ -70,7 +70,7 @@ namespace noa {
             auto& cuda_stream = stream.cuda();
             cuda::find_offsets(reduce_op, input.get(), input.strides(), input.shape(),
                                offsets.get(), reduce_batch, swap_layout, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), offsets.share());
+            cuda_stream.enqueue_attach(input, offsets);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -88,8 +88,8 @@ namespace noa {
     ///                     or row-major. Otherwise, the search is done in the BDHW order.
     template<typename ReduceOp, typename Input,
              typename = std::enable_if_t<
-                     noa::traits::is_varray_v<Input> &&
-                     details::is_valid_find_v<ReduceOp, noa::traits::value_type_t<Input>, i64>>>
+                     nt::is_varray_v<Input> &&
+                     details::is_valid_find_v<ReduceOp, nt::value_type_t<Input>, i64>>>
     [[nodiscard]] i64 find_offset(ReduceOp reduce_op, const Input& input, bool swap_layout = false) {
         NOA_CHECK(!input.is_empty(), "Empty array detected");
 

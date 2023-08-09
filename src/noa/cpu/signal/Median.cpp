@@ -213,9 +213,9 @@ namespace {
         i64 m_window_half;
     };
 
-    static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, MedianFilter1D<f32, BorderMode::REFLECT>>);
-    static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, MedianFilter2D<f32, BorderMode::REFLECT>>);
-    static_assert(noa::traits::is_detected_v<noa::traits::has_initialize, MedianFilter3D<f32, BorderMode::REFLECT>>);
+    static_assert(nt::is_detected_v<nt::has_initialize, MedianFilter1D<f32, BorderMode::REFLECT>>);
+    static_assert(nt::is_detected_v<nt::has_initialize, MedianFilter2D<f32, BorderMode::REFLECT>>);
+    static_assert(nt::is_detected_v<nt::has_initialize, MedianFilter3D<f32, BorderMode::REFLECT>>);
 }
 
 namespace noa::cpu::signal {

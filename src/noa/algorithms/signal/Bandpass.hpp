@@ -26,7 +26,7 @@ namespace noa::algorithm::signal {
         using coord3_type = Vec3<coord_type>;
         using shape2_type = Shape2<index_type>;
         using shape4_type = Shape4<index_type>;
-        using real_type = noa::traits::value_type_t<value_type>;
+        using real_type = nt::value_type_t<value_type>;
 
         using input_accessor_type = Accessor<const value_type, 4, offset_type>;
         using output_accessor_type = Accessor<value_type, 4, offset_type>;
@@ -133,7 +133,7 @@ namespace noa::algorithm::signal {
                     filter = (coord_type{1} + tmp) * coord_type{0.5};
                 }
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             return filter;
         }
@@ -154,7 +154,7 @@ namespace noa::algorithm::signal {
                 else
                     filter = 1;
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             return filter;
         }

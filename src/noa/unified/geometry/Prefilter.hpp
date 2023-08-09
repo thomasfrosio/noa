@@ -19,9 +19,9 @@ namespace noa::geometry {
     /// \see http://www2.cs.uregina.ca/~anima/408/Notes/Interpolation/UniformBSpline.htm
     /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void cubic_bspline_prefilter(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -53,7 +53,7 @@ namespace noa::geometry {
                     input.get(), input_strides,
                     output.get(), output.strides(),
                     output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

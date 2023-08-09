@@ -12,7 +12,6 @@ namespace {
     }
 }
 
-
 namespace noa::cuda {
     template<typename ReduceOp, typename Value, typename Offset, typename _>
     void find_offsets(

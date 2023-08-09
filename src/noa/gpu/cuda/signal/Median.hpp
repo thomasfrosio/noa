@@ -5,7 +5,7 @@
 
 namespace noa::cuda::signal::details {
     template<typename T>
-    constexpr bool is_valid_median_v = noa::traits::is_real_v<T> || noa::traits::is_any_v<T, u32, u64, i32, i64>;
+    constexpr bool is_valid_median_v = nt::is_real_v<T> || nt::is_any_v<T, u32, u64, i32, i64>;
 }
 
 namespace noa::cuda::signal {

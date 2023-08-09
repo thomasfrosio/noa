@@ -45,7 +45,7 @@ namespace noa {
             if (comp(begin[3], begin[2]))
                 details::swap(begin[3], begin[2]);
         } else {
-            static_assert(noa::traits::always_false_v<T>);
+            static_assert(nt::always_false_v<T>);
         }
     }
 

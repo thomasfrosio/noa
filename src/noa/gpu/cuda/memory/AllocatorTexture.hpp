@@ -47,7 +47,7 @@ namespace noa::cuda::memory {
     class AllocatorTexture {
     public:
         template<typename T>
-        static constexpr bool is_valid_type_v = noa::traits::is_any_v<
+        static constexpr bool is_valid_type_v = nt::is_any_v<
                 T, i8, i16, i32, u8, u16, u32, f16, f32, c16, c32>;
 
         using value_type = cudaTextureObject_t;

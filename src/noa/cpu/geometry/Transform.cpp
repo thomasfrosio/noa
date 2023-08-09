@@ -130,7 +130,7 @@ namespace {
                           Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                           const geometry::Symmetry& symmetry, const Vec2<f32>& center,
                           InterpMode interp_mode, bool normalize, i64 threads) {
-        using value_t = noa::traits::value_type_t<Value>;
+        using value_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<value_t>(symmetry_count + 1) : 1;
@@ -187,7 +187,7 @@ namespace {
                           Value* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
                           const geometry::Symmetry& symmetry, const Vec3<f32>& center,
                           InterpMode interp_mode, bool normalize, i64 threads) {
-        using value_t = noa::traits::value_type_t<Value>;
+        using value_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<value_t>(symmetry_count + 1) : 1;
@@ -257,9 +257,9 @@ namespace {
 
     template<typename Matrix>
     auto truncated_matrix_or_const_ptr_(const Matrix& matrix) {
-        if constexpr (noa::traits::is_mat33_v<Matrix> || noa::traits::is_mat44_v<Matrix>) {
+        if constexpr (nt::is_mat33_v<Matrix> || nt::is_mat44_v<Matrix>) {
             return noa::geometry::affine2truncated(matrix);
-        } else if constexpr (noa::traits::is_matXX_v<Matrix>) {
+        } else if constexpr (nt::is_matXX_v<Matrix>) {
             return matrix;
         } else {
             NOA_ASSERT(matrix != nullptr);
@@ -336,7 +336,7 @@ namespace noa::cpu::geometry {
         const auto input_shape_2d = input_shape.filter(2, 3);
         const auto output_shape_2d = output_shape.filter(0, 2, 3);
 
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;
@@ -409,7 +409,7 @@ namespace noa::cpu::geometry {
         const auto output_accessor = AccessorRestrict<Value, 4, i64>(output, output_strides);
         const auto input_shape_3d = input_shape.pop_front();
 
-        using real_t = noa::traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const auto symmetry_count = symmetry.count();
         const Float33* symmetry_matrices = symmetry.get();
         const auto scaling = normalize ? 1 / static_cast<real_t>(symmetry_count + 1) : 1;

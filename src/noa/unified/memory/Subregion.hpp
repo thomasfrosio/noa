@@ -22,12 +22,12 @@ namespace noa::memory {
     ///                         Only used if \p border_mode is BorderMode::VALUE.
     /// \note \p input and \p subregions should not overlap.
     template<typename Input, typename Subregion, typename Origin,
-             typename Value = noa::traits::mutable_value_type_t<Input>, typename = std::enable_if_t<
-             noa::traits::are_varray_of_restricted_numeric_v<Input, Subregion> &&
-             noa::traits::is_varray_v<Origin> &&
-             noa::traits::are_almost_same_value_type_v<Input, Subregion> &&
-             noa::traits::is_almost_same_v<noa::traits::value_type_t<Input>, Value> &&
-             noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
+             typename Value = nt::mutable_value_type_t<Input>, typename = std::enable_if_t<
+             nt::are_varray_of_restricted_numeric_v<Input, Subregion> &&
+             nt::is_varray_v<Origin> &&
+             nt::are_almost_same_value_type_v<Input, Subregion> &&
+             nt::is_almost_same_v<nt::value_type_t<Input>, Value> &&
+             nt::is_almost_any_v<nt::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
     void extract_subregions(
             const Input& input,
             const Subregion& subregions,
@@ -64,7 +64,7 @@ namespace noa::memory {
                     input.get(), input.strides(), input.shape(),
                     subregions.get(), subregions.strides(), subregions.shape(),
                     origins.get(), border_mode, border_value, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), subregions.share(), origins.share());
+            cuda_stream.enqueue_attach(input, subregions, origins);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -80,10 +80,10 @@ namespace noa::memory {
     ///                         subregions can be (partially) out-of-bound. This function assumes no overlap between
     ///                         subregions and an overlap may trigger a data race.
     template<typename Subregion, typename Output, typename Origin, typename = std::enable_if_t<
-             noa::traits::are_varray_of_restricted_numeric_v<Output, Subregion> &&
-             noa::traits::is_varray_v<Origin> &&
-             noa::traits::are_almost_same_value_type_v<Output, Subregion> &&
-             noa::traits::is_almost_any_v<noa::traits::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
+             nt::are_varray_of_restricted_numeric_v<Output, Subregion> &&
+             nt::is_varray_v<Origin> &&
+             nt::are_almost_same_value_type_v<Output, Subregion> &&
+             nt::is_almost_any_v<nt::value_type_t<Origin>, Vec4<i32>, Vec4<i64>>>>
     void insert_subregions(
             const Subregion& subregions,
             const Output& output,
@@ -118,7 +118,7 @@ namespace noa::memory {
                     subregions.get(), subregions.strides(), subregions.shape(),
                     output.get(), output.strides(), output.shape(),
                     origins.get(), cuda_stream);
-            cuda_stream.enqueue_attach(output.share(), subregions.share(), origins.share());
+            cuda_stream.enqueue_attach(output, subregions, origins);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -138,9 +138,9 @@ namespace noa::memory {
     ///                         to return only the height and width dimension.
     /// \return                 Atlas shape.
     template<typename Origins, typename = std::enable_if_t<
-             noa::traits::is_varray_v<Origins> &&
-             (noa::traits::is_int2_v<noa::traits::value_type_t<Origins>> ||
-              noa::traits::is_int4_v<noa::traits::value_type_t<Origins>>)>>
+             nt::is_varray_v<Origins> &&
+             (nt::is_int2_v<nt::value_type_t<Origins>> ||
+              nt::is_int4_v<nt::value_type_t<Origins>>)>>
     Shape4<i64> atlas_layout(const Shape4<i64>& subregion_shape, const Origins& output_origins) {
         NOA_ASSERT(noa::all(subregion_shape > 0));
         NOA_CHECK(!output_origins.is_empty(), "Empty array detected");
@@ -167,7 +167,7 @@ namespace noa::memory {
                 const i64 idx = y * columns + x;
                 if (idx >= subregion_shape[0])
                     break;
-                if constexpr (noa::traits::is_int4_v<typename Origins::value_type>)
+                if constexpr (nt::is_int4_v<typename Origins::value_type>)
                     origins_1d[idx] = {0, 0, y * subregion_shape[2], x * subregion_shape[3]};
                 else
                     origins_1d[idx] = {y * subregion_shape[2], x * subregion_shape[3]};
@@ -177,7 +177,7 @@ namespace noa::memory {
     }
 
     template<typename Int = i64, size_t N = 4, typename = std::enable_if_t<
-             noa::traits::is_any_v<Int, i32, i64> && (N == 2 || N == 4)>>
+             nt::is_any_v<Int, i32, i64> && (N == 2 || N == 4)>>
     auto atlas_layout(const Shape4<i64>& subregion_shape) -> std::pair<Shape4<i64>, Array<Vec<Int, N>>> {
         Array<Vec<Int, N>> output_subregion_origins(subregion_shape.batch());
         return {atlas_layout(subregion_shape, output_subregion_origins), output_subregion_origins};

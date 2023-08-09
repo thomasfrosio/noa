@@ -27,8 +27,8 @@ namespace noa::fft {
     ///      it will work since the field is isotropic in this case, and 3) the problematic frequencies are
     ///      past the Nyquist, so lowpass filtering to Nyquist (fftfreq=0.5) fixes this issue.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_of_real_or_complex_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::are_varray_of_real_or_complex_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void remap(Remap remap, const Input& input, const Output& output, const Shape4<i64>& shape) {
         const auto u8_remap = static_cast<u8>(remap);
         const bool is_src_full = u8_remap & Layout::SRC_FULL;
@@ -69,7 +69,7 @@ namespace noa::fft {
             cuda::fft::remap(remap, input.get(), input.strides(),
                              output.get(), output.strides(),
                              shape, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -78,7 +78,7 @@ namespace noa::fft {
 
     /// Remaps fft(s).
     template<typename Input, typename = std::enable_if_t<
-             noa::traits::is_varray_of_real_or_complex_v<Input>>>
+             nt::is_varray_of_real_or_complex_v<Input>>>
     [[nodiscard]] auto remap(Remap remap, const Input& input, const Shape4<i64>& shape) {
         const auto output_shape = noa::to_underlying(remap) & Layout::DST_FULL ? shape : shape.rfft();
         using value_t = typename Input::value_type;

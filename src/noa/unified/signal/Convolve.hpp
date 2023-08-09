@@ -36,10 +36,10 @@ namespace noa::signal {
     /// \bug This function modifies the GPU state via the usage of constant memory. As such, there should be no
     ///      concurrent calls from different streams associated to the same GPU.
     template<typename Input, typename Output, typename Filter, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f16, f32, f64> &&
-             noa::traits::is_varray_of_any_v<Output, f16, f32, f64> &&
-             noa::traits::is_varray_of_almost_any_v<Filter, f16, f32, f64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output, Filter>>>
+             nt::is_varray_of_almost_any_v<Input, f16, f32, f64> &&
+             nt::is_varray_of_any_v<Output, f16, f32, f64> &&
+             nt::is_varray_of_almost_any_v<Filter, f16, f32, f64> &&
+             nt::are_almost_same_value_type_v<Input, Output, Filter>>>
     void convolve(const Input& input, const Output& output, const Filter& filter) {
         NOA_CHECK(!input.is_empty() && !output.is_empty() && !filter.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output array should not overlap");
@@ -88,7 +88,7 @@ namespace noa::signal {
                     input.get(), input_strides,
                     output.get(), output.strides(), output.shape(),
                     filter.get(), filter_shape, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share(), filter.share());
+            cuda_stream.enqueue_attach(input, output, filter);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -112,14 +112,14 @@ namespace noa::signal {
     /// \bug This function modifies the GPU state via the usage of constant memory. As such, there should be no
     ///      concurrent calls from different streams associated to the same GPU.
     template<typename Input, typename Output, typename FilterDepth, typename FilterHeight, typename FilterWidth,
-             typename Buffer = View<noa::traits::value_type_t<Output>>, typename = std::enable_if_t<
-                    noa::traits::is_varray_of_almost_any_v<Input, f16, f32, f64> &&
-                    noa::traits::is_varray_of_any_v<Output, f16, f32, f64> &&
-                    noa::traits::is_varray_of_almost_any_v<FilterDepth, f16, f32, f64> &&
-                    noa::traits::is_varray_of_almost_any_v<FilterHeight, f16, f32, f64> &&
-                    noa::traits::is_varray_of_almost_any_v<FilterWidth, f16, f32, f64> &&
-                    noa::traits::is_varray_of_any_v<Buffer, f16, f32, f64> &&
-                    noa::traits::are_almost_same_value_type_v<Input, Output, FilterDepth, FilterHeight, FilterWidth, Buffer>>>
+             typename Buffer = View<nt::value_type_t<Output>>, typename = std::enable_if_t<
+                    nt::is_varray_of_almost_any_v<Input, f16, f32, f64> &&
+                    nt::is_varray_of_any_v<Output, f16, f32, f64> &&
+                    nt::is_varray_of_almost_any_v<FilterDepth, f16, f32, f64> &&
+                    nt::is_varray_of_almost_any_v<FilterHeight, f16, f32, f64> &&
+                    nt::is_varray_of_almost_any_v<FilterWidth, f16, f32, f64> &&
+                    nt::is_varray_of_any_v<Buffer, f16, f32, f64> &&
+                    nt::are_almost_same_value_type_v<Input, Output, FilterDepth, FilterHeight, FilterWidth, Buffer>>>
     void convolve_separable(const Input& input, const Output& output,
                             const FilterDepth& filter_depth,
                             const FilterHeight& filter_height,
@@ -184,8 +184,7 @@ namespace noa::signal {
                     filter_width.get(), filter_width.elements(),
                     buffer.get(), buffer.strides(), cuda_stream);
             cuda_stream.enqueue_attach(
-                    input.share(), output.share(),
-                    filter_depth.share(), filter_height.share(), filter_width.share());
+                    input, output, filter_depth, filter_height, filter_width);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

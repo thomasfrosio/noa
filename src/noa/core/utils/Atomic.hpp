@@ -59,7 +59,7 @@ namespace noa::cpu::details {
     // FIXME C++20 atomic_ref
     template<typename Pointer, typename Value>
     NOA_FD void atomic_add(Pointer pointer, Value value) {
-        if constexpr (noa::traits::is_complex_v<Value>) {
+        if constexpr (nt::is_complex_v<Value>) {
             #pragma omp atomic
             (*pointer)[0] += value[0];
             #pragma omp atomic
@@ -76,8 +76,8 @@ namespace noa::details {
     // Atomic add for CUDA and OpenMP.
     template<typename Pointer, typename Value,
              typename = std::enable_if_t<
-                     std::is_pointer_v<Pointer> && noa::traits::is_numeric_v<Value> &&
-                     noa::traits::is_almost_same_v<std::remove_pointer_t<Pointer>, Value>>>
+                     std::is_pointer_v<Pointer> && nt::is_numeric_v<Value> &&
+                     nt::is_almost_same_v<std::remove_pointer_t<Pointer>, Value>>>
     NOA_FHD void atomic_add(Pointer pointer, Value value) {
         #if defined(__CUDA_ARCH__)
         ::noa::cuda::details::atomic_add(pointer, value);
@@ -90,8 +90,8 @@ namespace noa::details {
              PointerTraits PointerTrait, StridesTraits StridesTrait,
              typename = std::enable_if_t<
                 sizeof...(Indexes) == N &&
-                noa::traits::are_int_v<Indexes...> &&
-                noa::traits::is_numeric_v<Value>>>
+                nt::are_int_v<Indexes...> &&
+                nt::is_numeric_v<Value>>>
     NOA_FHD void atomic_add(const Accessor<Value, N, Offset, PointerTrait, StridesTrait>& accessor,
                             Value value, Indexes... indexes) {
         auto pointer = accessor.offset_pointer(accessor.get(), indexes...);

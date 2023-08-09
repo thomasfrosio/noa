@@ -6,33 +6,33 @@ namespace noa::cpu::geometry::fft::details {
     using Remap = noa::fft::Remap;
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
     constexpr bool is_valid_insert_rasterize_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            noa::traits::is_any_v<Scale, const Float22*, Float22> &&
-            noa::traits::is_any_v<Rotate, const Float33*, Float33> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Scale, const Float22*, Float22> &&
+            nt::is_any_v<Rotate, const Float33*, Float33> &&
             (REMAP == Remap::H2H || REMAP == Remap::H2HC ||
              REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
     constexpr bool is_valid_insert_interpolate_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            noa::traits::is_any_v<Scale, const Float22*, Float22> &&
-            noa::traits::is_any_v<Rotate, const Float33*, Float33> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Scale, const Float22*, Float22> &&
+            nt::is_any_v<Rotate, const Float33*, Float33> &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Value, typename Scale, typename Rotate>
     constexpr bool is_valid_extract_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            noa::traits::is_any_v<Scale, const Float22*, Float22> &&
-            noa::traits::is_any_v<Rotate, const Float33*, Float33> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Scale, const Float22*, Float22> &&
+            nt::is_any_v<Rotate, const Float33*, Float33> &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1>
     constexpr bool is_valid_insert_insert_extract_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            noa::traits::is_any_v<Scale0, const Float22*, Float22> &&
-            noa::traits::is_any_v<Scale1, const Float22*, Float22> &&
-            noa::traits::is_any_v<Rotate0, const Float33*, Float33> &&
-            noa::traits::is_any_v<Rotate1, const Float33*, Float33> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Scale0, const Float22*, Float22> &&
+            nt::is_any_v<Scale1, const Float22*, Float22> &&
+            nt::is_any_v<Rotate0, const Float33*, Float33> &&
+            nt::is_any_v<Rotate1, const Float33*, Float33> &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 }
 

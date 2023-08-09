@@ -37,12 +37,12 @@ namespace noa::cuda::geometry {
              bool NORMALIZED = false, bool LAYERED = false, typename Coord = f32>
     class Interpolator2D {
     public:
-        static_assert(noa::traits::is_any_v<Value, f32, c32> && !std::is_const_v<Value>);
-        static_assert(noa::traits::is_real_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(nt::is_any_v<Value, f32, c32> && !std::is_const_v<Value>);
+        static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
         static_assert(!NORMALIZED || (INTERP_MODE == InterpMode::NEAREST || INTERP_MODE == InterpMode::LINEAR_FAST));
 
         using value_type = Value;
-        using real_type = noa::traits::value_type_t<value_type>;
+        using real_type = nt::value_type_t<value_type>;
         using real2_type = Vec2<real_type>;
         using coord_type = Coord;
         using coord2_type = Vec2<coord_type>;
@@ -63,7 +63,7 @@ namespace noa::cuda::geometry {
             details::validate_texture<value_type, INTERP_MODE, NORMALIZED, LAYERED>(m_texture);
         }
 
-        template<typename Int, typename = std::enable_if_t<noa::traits::is_int_v<Int>>>
+        template<typename Int, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_HD value_type operator()(coord2_type coordinate, Int layer = Int{0}) const noexcept {
             if constexpr (!LAYERED) {
                 if constexpr (INTERP_MODE == InterpMode::NEAREST) {
@@ -83,7 +83,7 @@ namespace noa::cuda::geometry {
                 } else if constexpr (INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_bspline_fast_(coordinate, 0);
                 } else {
-                    static_assert(noa::traits::always_false_v<value_type>);
+                    static_assert(nt::always_false_v<value_type>);
                 }
             } else {
                 if constexpr (INTERP_MODE == InterpMode::NEAREST) {
@@ -103,18 +103,18 @@ namespace noa::cuda::geometry {
                 } else if constexpr (INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_bspline_fast_(coordinate, static_cast<i32>(layer));
                 } else {
-                    static_assert(noa::traits::always_false_v<value_type>);
+                    static_assert(nt::always_false_v<value_type>);
                 }
             }
             return value_type{};
         }
 
-        template<typename Int = i32, typename = std::enable_if_t<noa::traits::is_int_v<Int>>>
+        template<typename Int = i32, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_FHD value_type at(Int batch, Int y, Int x) const noexcept {
             return (*this)(coord2_type{y, x}, batch);
         }
 
-        template<typename Int = i32, typename = std::enable_if_t<!LAYERED && noa::traits::is_int_v<Int>>>
+        template<typename Int = i32, typename = std::enable_if_t<!LAYERED && nt::is_int_v<Int>>>
         constexpr NOA_FHD value_type at(Int y, Int x) const noexcept {
             return (*this)(coord2_type{y, x});
         }
@@ -139,7 +139,7 @@ namespace noa::cuda::geometry {
                     return {tmp.x, tmp.y};
                 }
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             #else
             (void) x;
@@ -289,13 +289,13 @@ namespace noa::cuda::geometry {
              bool NORMALIZED = false, typename Coord = float>
     class Interpolator3D {
     public:
-        static_assert(noa::traits::is_any_v<Value, f32, c32> && !std::is_const_v<Value>);
-        static_assert(noa::traits::is_real_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(nt::is_any_v<Value, f32, c32> && !std::is_const_v<Value>);
+        static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
         static_assert(!NORMALIZED || (INTERP_MODE == InterpMode::NEAREST || INTERP_MODE == InterpMode::LINEAR_FAST));
 
         using value_type = Value;
         using coord_type = Coord;
-        using real_type = noa::traits::value_type_t<value_type>;
+        using real_type = nt::value_type_t<value_type>;
         using real2_type = Vec2<real_type>;
         using real3_type = Vec3<real_type>;
         using coord3_type = Vec3<coord_type>;
@@ -335,17 +335,17 @@ namespace noa::cuda::geometry {
             } else if constexpr (INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                 return cubic_bspline_fast_(coordinate);
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             return value_type{};
         }
 
-        template<typename Int = i32, typename = std::enable_if_t<noa::traits::is_int_v<Int>>>
+        template<typename Int = i32, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_FHD value_type at(Int, Int z, Int y, Int x) const noexcept {
             return (*this)(coord3_type{z, y, x});
         }
 
-        template<typename Int = i32, typename = std::enable_if_t<noa::traits::is_int_v<Int>>>
+        template<typename Int = i32, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_FHD value_type at(Int z, Int y, Int x) const noexcept {
             return (*this)(coord3_type{z, y, x});
         }
@@ -365,7 +365,7 @@ namespace noa::cuda::geometry {
                                            static_cast<f32>(z));
                 return {tmp.x, tmp.y};
             } else {
-                static_assert(noa::traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             #else
             (void) x;

@@ -116,7 +116,7 @@ namespace {
 namespace {
     template<typename Plan>
     void add_to_cache_(Plan plan, bool clear) {
-        static_assert(noa::traits::is_any_v<Plan, fftwf_plan, fftw_plan>);
+        static_assert(nt::is_any_v<Plan, fftwf_plan, fftw_plan>);
 
         // FFTW accumulates a "wisdom" automatically. This circular buffer is here
         // in case fftw_destroy_plan destructs that wisdom.

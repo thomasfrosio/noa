@@ -11,32 +11,32 @@ namespace noa::cuda::geometry::fft::details {
     template<i32 NDIM, typename Matrix, typename Shift>
     constexpr bool is_valid_matrix_and_shift_v =
             (NDIM == 2 &&
-             noa::traits::is_any_v<Matrix, Float22, const Float22*> &&
-             noa::traits::is_any_v<Shift, Vec2<f32>, const Vec2<f32>*>) ||
+             nt::is_any_v<Matrix, Float22, const Float22*> &&
+             nt::is_any_v<Shift, Vec2<f32>, const Vec2<f32>*>) ||
             (NDIM == 3 &&
-             noa::traits::is_any_v<Matrix, Float33, const Float33*> &&
-             noa::traits::is_any_v<Shift, Vec3<f32>, const Vec3<f32>*>);
+             nt::is_any_v<Matrix, Float33, const Float33*> &&
+             nt::is_any_v<Shift, Vec3<f32>, const Vec3<f32>*>);
 
     template<i32 NDIM, Remap REMAP, typename Value, typename Matrix, typename Shift>
     constexpr bool is_valid_transform_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
             (REMAP == HC2HC || REMAP == HC2H) &&
             is_valid_matrix_and_shift_v<NDIM, Matrix, Shift>;
 
     template<i32 NDIM, Remap REMAP, typename Value, typename Matrix, typename Shift>
     constexpr bool is_valid_transform_texture_v =
-            noa::traits::is_any_v<Value, f32, c32> &&
+            nt::is_any_v<Value, f32, c32> &&
             (REMAP == HC2HC || REMAP == HC2H) &&
             is_valid_matrix_and_shift_v<NDIM, Matrix, Shift>;
 
     template<Remap REMAP, typename Value>
     constexpr bool is_valid_transform_sym_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
             (REMAP == HC2HC || REMAP == HC2H);
 
     template<Remap REMAP, typename Value>
     constexpr bool is_valid_transform_sym_texture_v =
-            noa::traits::is_any_v<Value, f32, c32> &&
+            nt::is_any_v<Value, f32, c32> &&
             (REMAP == HC2HC || REMAP == HC2H);
 }
 

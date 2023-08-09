@@ -5,8 +5,8 @@
 namespace noa::cpu::math::details {
     template<typename T, typename U>
     constexpr bool is_valid_lstsq_t =
-            noa::traits::is_any_v<T, f32, f64, c32, c64> &&
-            noa::traits::is_almost_same_v<noa::traits::value_type_t<T>, U>;
+            nt::is_any_v<T, f32, f64, c32, c64> &&
+            nt::is_almost_same_v<nt::value_type_t<T>, U>;
 }
 
 namespace noa::cpu::math {

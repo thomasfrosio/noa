@@ -20,21 +20,21 @@ namespace noa {
     /// \note If the output type has a wider range than the input type, this function should have no runtime
     ///       overhead compared to static_cast.
     template<typename TTo, typename TFrom,
-             typename std::enable_if_t<noa::traits::is_numeric_v<TTo> &&
-                                       noa::traits::is_numeric_v<TFrom>, bool> = true>
+             typename std::enable_if_t<nt::is_numeric_v<TTo> &&
+                                       nt::is_numeric_v<TFrom>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
         if constexpr (std::is_same_v<TTo, TFrom>) {
             return src;
 
-        } else if constexpr(noa::traits::is_complex_v<TFrom>) {
-            static_assert(noa::traits::is_complex_v<TTo>, "Cannot cast a complex value to a non-complex value");
+        } else if constexpr(nt::is_complex_v<TFrom>) {
+            static_assert(nt::is_complex_v<TTo>, "Cannot cast a complex value to a non-complex value");
             return {clamp_cast<typename TTo::value_type>(src.real),
                     clamp_cast<typename TTo::value_type>(src.imag)};
 
-        } else if constexpr(noa::traits::is_complex_v<TTo>) {
+        } else if constexpr(nt::is_complex_v<TTo>) {
             return clamp_cast<typename TTo::value_type>(src); // calls implicit constructor Complex(U); imaginary is 0.
 
-        } else if constexpr(noa::traits::is_real_v<TTo>) {
+        } else if constexpr(nt::is_real_v<TTo>) {
             // Floating-point conversions:
             //      - If smaller -> larger type, it is a promotion and the value does not change.
             //      - The larger type may be represented exactly by the smaller type. In this case, the value doesn't
@@ -72,7 +72,7 @@ namespace noa {
                                             TFrom(noa::math::Limits<TTo>::max())));
             }
 
-        } else if constexpr (std::is_integral_v<TTo> && noa::traits::is_real_v<TFrom>) {
+        } else if constexpr (std::is_integral_v<TTo> && nt::is_real_v<TFrom>) {
             // Floating-point to integral conversions:
             //      - Floating-point type can be converted to any integer type. The fractional part is truncated.
             //      - If bool, this is a bool conversion, i.e. a value of zero gives false, anything else gives true.

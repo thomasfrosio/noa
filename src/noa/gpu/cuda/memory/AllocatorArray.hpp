@@ -37,7 +37,7 @@ namespace noa::cuda::memory {
     template<typename Value>
     class AllocatorArray {
     public:
-        static_assert(noa::traits::is_any_v<Value, i32, u32, f32, c32>);
+        static_assert(nt::is_any_v<Value, i32, u32, f32, c32>);
         using value_type = Value;
         using deleter_type = AllocatorArrayDeleter;
         using shared_type = Shared<cudaArray>;

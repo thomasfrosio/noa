@@ -174,7 +174,7 @@ namespace {
             }
             NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
         } else {
-            static_assert(noa::traits::always_false_v<Real>);
+            static_assert(nt::always_false_v<Real>);
         }
 
         // Deal with negative values by setting the min to 0.

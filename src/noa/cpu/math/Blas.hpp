@@ -4,10 +4,10 @@
 
 namespace noa::cpu::math::details {
     template<typename T>
-    constexpr bool is_valid_dot_t = noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
+    constexpr bool is_valid_dot_t = nt::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
 
     template<typename T>
-    constexpr bool is_valid_matmul_t = noa::traits::is_any_v<T, f32, f64, c32, c64>;
+    constexpr bool is_valid_matmul_t = nt::is_any_v<T, f32, f64, c32, c64>;
 }
 
 namespace noa::cpu::math {

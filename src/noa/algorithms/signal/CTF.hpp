@@ -78,8 +78,8 @@ namespace noa::algorithm::signal::fft {
         using frequency_range_type = Vec2<coord_type>;
         using input_accessor_type = Accessor<const input_type, N + 1, offset_type>;
         using output_accessor_type = Accessor<output_type, N + 1, offset_type>;
-        using input_accessor_type_or_empty = std::conditional_t<IS_INPUT_OUTPUT, input_accessor_type, nt::Empty>;
-        using coord_type_or_empty = std::conditional_t<IS_INPUT_OUTPUT, nt::Empty, coord_type>;
+        using input_accessor_type_or_empty = std::conditional_t<IS_INPUT_OUTPUT, input_accessor_type, Empty>;
+        using coord_type_or_empty = std::conditional_t<IS_INPUT_OUTPUT, Empty, coord_type>;
 
     public:
         template<typename Void = void, typename = std::enable_if_t<IS_INPUT_OUTPUT && std::is_void_v<Void>>>

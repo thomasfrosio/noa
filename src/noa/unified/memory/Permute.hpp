@@ -11,7 +11,7 @@
 
 namespace noa::memory {
     /// Permutes the input by reordering its dimensions. The returned object points to the same data.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
     Input permute(const Input& input, const Vec4<i64>& permutation) {
         const auto permuted_shape = noa::indexing::reorder(input.shape(), permutation);
         const auto permuted_strides = noa::indexing::reorder(input.strides(), permutation);
@@ -30,8 +30,8 @@ namespace noa::memory {
     /// \note On the GPU, the following permutations are optimized: 0123, 0132, 0312, 0321, 0213, 0231.
     ///       Anything else calls copy(), which is slower.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_of_restricted_numeric_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::are_varray_of_restricted_numeric_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void permute_copy(const Input& input, const Output& output, const Vec4<i64>& permutation) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
 
@@ -71,7 +71,7 @@ namespace noa::memory {
                     input.get(), input_strides, input_shape,
                     output.get(), output.strides(),
                     permutation, cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -81,9 +81,9 @@ namespace noa::memory {
     /// Permutes the input by performing a deep-copy. The returned Array is a new C-contiguous array.
     /// \param[in] input    VArray to permute.
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_of_numeric_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
     auto permute_copy(const Input& input, const Vec4<i64>& permutation) {
-        using mutable_value_type = noa::traits::mutable_value_type_t<Input>;
+        using mutable_value_type = nt::mutable_value_type_t<Input>;
         const auto permuted_shape = noa::indexing::reorder(input.shape(), permutation);
         auto output = Array<mutable_value_type>(permuted_shape, input.options());
         permute_copy(input, output, permutation);

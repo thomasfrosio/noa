@@ -18,17 +18,17 @@ namespace noa::cuda::signal::fft::details {
 
     template<Remap REMAP, typename Real>
     constexpr bool is_valid_xmap_v =
-            noa::traits::is_any_v<Real, f32, f64> &&
+            nt::is_any_v<Real, f32, f64> &&
             (REMAP == Remap::H2F || REMAP == Remap::H2FC);
 
     template<Remap REMAP, typename Real>
     constexpr bool is_valid_xpeak_v =
-            noa::traits::is_any_v<Real, f32, f64> &&
+            nt::is_any_v<Real, f32, f64> &&
             (REMAP == Remap::F2F || REMAP == Remap::FC2FC);
 
     template<Remap REMAP, typename Real>
     constexpr bool is_valid_xcorr_v =
-            noa::traits::is_any_v<Real, f32, f64> &&
+            nt::is_any_v<Real, f32, f64> &&
             (REMAP == Remap::H2H || REMAP == Remap::HC2HC ||
              REMAP == Remap::F2F || REMAP == Remap::FC2FC);
 }

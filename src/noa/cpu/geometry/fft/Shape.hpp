@@ -6,12 +6,12 @@ namespace noa::cpu::geometry::fft::details {
     using namespace ::noa::fft;
     template<size_t NDIM, Remap REMAP, typename Value, typename Matrix, typename Functor, typename CValue>
     constexpr bool is_valid_shape_v =
-            noa::traits::is_any_v<Value, f32, f64, c32, c64> &&
-            std::is_same_v<CValue, noa::traits::value_type_t<Value>> &&
+            nt::is_any_v<Value, f32, f64, c32, c64> &&
+            std::is_same_v<CValue, nt::value_type_t<Value>> &&
             (REMAP == F2F || REMAP == FC2FC || REMAP == F2FC || REMAP == FC2F) &&
-            noa::traits::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
-            (NDIM == 2 && noa::traits::is_any_v<Matrix, Float22, Float23, const Float22*, const Float23*> ||
-             NDIM == 3 && noa::traits::is_any_v<Matrix, Float33, Float34, const Float33*, const Float34*>);
+            nt::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
+            (NDIM == 2 && nt::is_any_v<Matrix, Float22, Float23, const Float22*, const Float23*> ||
+             NDIM == 3 && nt::is_any_v<Matrix, Float33, Float34, const Float33*, const Float34*>);
 }
 
 namespace noa::cpu::geometry::fft {

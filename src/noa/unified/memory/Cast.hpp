@@ -13,7 +13,7 @@ namespace noa::memory {
     /// \param[out] output  Array with the casted values.
     /// \param clamp        Whether the input values should be clamped to the output range before casting.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_of_restricted_numeric_v<Input, Output>>>
+             nt::are_varray_of_restricted_numeric_v<Input, Output>>>
     void cast(const Input& input, const Output& output, bool clamp = false) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output arrays should not overlap");
@@ -39,13 +39,13 @@ namespace noa::memory {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            using input_t = noa::traits::value_type_t<Input>;
-            using output_t = noa::traits::value_type_t<Output>;
+            using input_t = nt::value_type_t<Input>;
+            using output_t = nt::value_type_t<Output>;
             if constexpr (cuda::memory::details::is_valid_cast_v<input_t, output_t>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::cast(input.get(), input_strides, output.get(), output.strides(),
                                    output.shape(), clamp, cuda_stream);
-                cuda_stream.enqueue_attach(input.share(), output.share());
+                cuda_stream.enqueue_attach(input, output);
             } else {
                 // TODO Add nvrtc to support all types.
                 NOA_THROW("This cast ({} -> {}) is not supported by the CUDA backend",

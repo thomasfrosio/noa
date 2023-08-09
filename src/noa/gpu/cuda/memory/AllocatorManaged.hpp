@@ -87,7 +87,7 @@ namespace noa::cuda::memory {
 
         // Returns the stream handle used to allocate the resource.
         // If the data was created synchronously using allocate() or if it's empty, return the null stream.
-        template<typename R, std::enable_if_t<noa::traits::is_any_v<R, shared_type, unique_type>, bool> = true>
+        template<typename R, std::enable_if_t<nt::is_any_v<R, shared_type, unique_type>, bool> = true>
         [[nodiscard]] cudaStream_t attached_stream_handle(const R& resource) const {
             if (resource) {
                 const Shared<Stream::Core> stream;

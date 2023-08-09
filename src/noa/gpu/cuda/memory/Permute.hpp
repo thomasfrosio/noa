@@ -44,7 +44,7 @@ namespace noa::cuda::memory::details {
 
 namespace noa::cuda::memory {
     // Permutes, in memory, the axes of an array.
-    template<typename T, typename = std::enable_if_t<noa::traits::is_restricted_numeric_v<T>>>
+    template<typename T, typename = std::enable_if_t<nt::is_restricted_numeric_v<T>>>
     void permute(const T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
                  T* output, const Strides4<i64>& output_strides,
                  const Vec4<i64>& permutation, Stream& stream

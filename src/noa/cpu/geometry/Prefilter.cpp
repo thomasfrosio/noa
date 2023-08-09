@@ -17,7 +17,7 @@ namespace {
 
     template<typename T>
     T initial_causal_coefficient_(const T* c, i64 strides, i64 shape) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = nt::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
         const i64 horizon = noa::math::min(i64{12}, shape);
 
@@ -35,7 +35,7 @@ namespace {
     template<typename T>
     T initial_anticausal_coefficient_(const T* c) {
         // this initialization corresponds to clamping boundaries
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = nt::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
         return ((POLE / (POLE - 1)) * *c);
     }
@@ -43,7 +43,7 @@ namespace {
     // float/double or cfloat_t/cdouble_t
     template<typename T>
     void to_coeffs_(T* output, i64 strides, i64 shape) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = nt::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
         constexpr auto LAMBDA = (1 - POLE) * (1 - 1 / POLE); // compute the overall gain
 
@@ -67,7 +67,7 @@ namespace {
     template<typename T>
     // float/double or cfloat_t/cdouble_t
     void to_coeffs_(const T* input, i64 input_strides, T* output, i64 output_strides, i64 shape) {
-        using real_t = noa::traits::value_type_t<T>;
+        using real_t = nt::value_type_t<T>;
         constexpr auto POLE = static_cast<real_t>(POLE_);
         constexpr auto LAMBDA = (1 - POLE) * (1 - 1 / POLE); // compute the overall gain
 

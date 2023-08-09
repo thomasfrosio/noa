@@ -24,9 +24,9 @@ namespace noa::geometry {
              StridesTraits StridesTrait = StridesTraits::STRIDED>
     class Interpolator2D {
     public:
-        static_assert(traits::is_any_v<Offset, i32, i64, u32, u64>);
-        static_assert(traits::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
-        static_assert(traits::is_real_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(nt::is_any_v<Offset, i32, i64, u32, u64>);
+        static_assert(nt::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
+        static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
         static_assert(ACCESSOR_NDIM == 2 || ACCESSOR_NDIM == 3);
 
         using value_type = Value;
@@ -37,7 +37,7 @@ namespace noa::geometry {
         using index2_type = Vec2<index_type>;
         using coord2_type = Vec2<coord_type>;
         using shape2_type = Shape2<index_type>;
-        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, traits::Empty>;
+        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, Empty>;
         using accessor_type = Accessor<const value_type, ACCESSOR_NDIM, offset_type, PointerTrait, StridesTrait>;
 
     public:
@@ -53,7 +53,7 @@ namespace noa::geometry {
 
         // 2D interpolation on a given batch.
         // The batch is ignored if the accessor is 2D, effectively broadcasting the batch dimension.
-        template<typename Int = index_type, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        template<typename Int = index_type, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_HD value_type operator()(coord2_type coordinate, Int batch = Int{0}) const noexcept {
             if constexpr (ACCESSOR_NDIM == 2) {
                 if constexpr (INTERP_MODE == InterpMode::NEAREST) {
@@ -68,7 +68,7 @@ namespace noa::geometry {
                                      INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data, coordinate);
                 } else {
-                    static_assert(traits::always_false_v<value_type>);
+                    static_assert(nt::always_false_v<value_type>);
                 }
             } else {
                 if constexpr (INTERP_MODE == InterpMode::NEAREST) {
@@ -83,7 +83,7 @@ namespace noa::geometry {
                                      INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data[batch], coordinate);
                 } else {
-                    static_assert(traits::always_false_v<value_type>);
+                    static_assert(nt::always_false_v<value_type>);
                 }
             }
         }
@@ -121,7 +121,7 @@ namespace noa::geometry {
                 return accessor(indexing::at<BORDER_MODE>(index[0], m_shape[0]),
                                 indexing::at<BORDER_MODE>(index[1], m_shape[1]));
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -160,7 +160,7 @@ namespace noa::geometry {
                 values[3] = accessor(tmp[3], tmp[1]); // v11
 
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
 
             const coord2_type fraction{coordinate - static_cast<coord2_type>(idx0)};
@@ -211,7 +211,7 @@ namespace noa::geometry {
                         square[j][i] = accessor(tmp_y[j], tmp_x[i]);
 
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
             const coord2_type fraction{coordinate - static_cast<coord2_type>(idx)};
             if constexpr (INTERP_MODE == InterpMode::CUBIC_BSPLINE || INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST)
@@ -229,8 +229,8 @@ namespace noa::geometry {
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
              typename Value, typename Offset, typename Index, size_t NDIM,
              PointerTraits PointerTrait, StridesTraits StridesTrait,
-             typename CValue = traits::remove_ref_cv_t<Value>,
-             typename = std::enable_if_t<traits::is_almost_same_v<Value, CValue> &&
+             typename CValue = nt::remove_ref_cv_t<Value>,
+             typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
     constexpr auto interpolator_2d(const Accessor<Value, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
                                    Shape2<Index> shape,
@@ -252,9 +252,9 @@ namespace noa::geometry {
              StridesTraits StridesTrait = StridesTraits::STRIDED>
     class Interpolator3D {
     public:
-        static_assert(traits::is_any_v<Offset, i32, i64, u32, u64>);
-        static_assert(traits::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
-        static_assert(traits::is_real_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(nt::is_any_v<Offset, i32, i64, u32, u64>);
+        static_assert(nt::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
+        static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
         static_assert(ACCESSOR_NDIM == 3 || ACCESSOR_NDIM == 4);
 
         using value_type = Value;
@@ -265,7 +265,7 @@ namespace noa::geometry {
         using index3_type = Vec3<index_type>;
         using coord3_type = Vec3<coord_type>;
         using shape3_type = Shape3<index_type>;
-        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, traits::Empty>;
+        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, Empty>;
         using accessor_type = Accessor<const value_type, ACCESSOR_NDIM, offset_type, PointerTrait, StridesTrait>;
 
     public:
@@ -281,7 +281,7 @@ namespace noa::geometry {
 
         // 3D interpolation on a given batch.
         // The batch is ignored if the accessor is 3D, effectively broadcasting the batch dimension.
-        template<typename Int = index_type, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        template<typename Int = index_type, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_HD value_type operator()(coord3_type coordinate, Int batch = Int{0}) const noexcept {
             if constexpr (ACCESSOR_NDIM == 3) {
                 if constexpr (INTERP_MODE == InterpMode::NEAREST) {
@@ -296,7 +296,7 @@ namespace noa::geometry {
                                      INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data, coordinate);
                 } else {
-                    static_assert(traits::always_false_v<value_type>);
+                    static_assert(nt::always_false_v<value_type>);
                 }
             } else {
                 if constexpr (INTERP_MODE == InterpMode::NEAREST) {
@@ -311,7 +311,7 @@ namespace noa::geometry {
                                      INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                     return cubic_(m_data[batch], coordinate);
                 } else {
-                    static_assert(traits::always_false_v<value_type>);
+                    static_assert(nt::always_false_v<value_type>);
                 }
             }
         }
@@ -352,7 +352,7 @@ namespace noa::geometry {
                                 indexing::at<BORDER_MODE>(index[1], m_shape[1]),
                                 indexing::at<BORDER_MODE>(index[2], m_shape[2]));
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -401,7 +401,7 @@ namespace noa::geometry {
                 values[6] = accessor(tmp[5], tmp[3], tmp[0]); // v110
                 values[7] = accessor(tmp[5], tmp[3], tmp[1]); // v111
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
 
             const coord3_type fraction{coordinate - static_cast<coord3_type>(idx[0])};
@@ -471,7 +471,7 @@ namespace noa::geometry {
                             values[i][j][k] = accessor(tmp_z[i], tmp_y[j], tmp_x[k]);
 
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
 
             const coord3_type fraction{coordinate - static_cast<coord3_type>(idx)};
@@ -490,8 +490,8 @@ namespace noa::geometry {
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
              typename Value, typename Offset, typename Index, size_t NDIM,
              PointerTraits PointerTrait, StridesTraits StridesTrait,
-             typename CValue = traits::remove_ref_cv_t<Value>,
-             typename = std::enable_if_t<traits::is_almost_same_v<Value, CValue> &&
+             typename CValue = nt::remove_ref_cv_t<Value>,
+             typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
     constexpr auto interpolator_3d(const Accessor<Value, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
                                    Shape3<Index> shape,

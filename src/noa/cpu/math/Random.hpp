@@ -6,10 +6,10 @@
 namespace noa::cpu::math::details {
     template<typename T, typename U>
     constexpr bool is_valid_random_v =
-            noa::traits::is_any_v<T, i16, i32, i64, u16, u32, u64, f16, f32, f64, c16, c32, c64> &&
-            (std::is_same_v<noa::traits::value_type_t<T>, U> || std::is_same_v<T, U> ||
-             (std::is_same_v<T, f16> && noa::traits::is_real_v<U>) ||
-             (std::is_same_v<T, c16> && noa::traits::is_real_v<noa::traits::value_type_t<U>>));
+            nt::is_any_v<T, i16, i32, i64, u16, u32, u64, f16, f32, f64, c16, c32, c64> &&
+            (std::is_same_v<nt::value_type_t<T>, U> || std::is_same_v<T, U> ||
+             (std::is_same_v<T, f16> && nt::is_real_v<U>) ||
+             (std::is_same_v<T, c16> && nt::is_real_v<nt::value_type_t<U>>));
 }
 
 namespace noa::cpu::math {

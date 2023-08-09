@@ -9,10 +9,10 @@
 
 namespace noa::math::details {
     template<typename T>
-    constexpr bool is_valid_dot_t = noa::traits::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
+    constexpr bool is_valid_dot_t = nt::is_any_v<T, i32, i64, u32, u64, f32, f64, c32, c64>;
 
     template<typename T>
-    constexpr bool is_valid_matmul_t = noa::traits::is_any_v<T, f32, f64, c32, c64>;
+    constexpr bool is_valid_matmul_t = nt::is_any_v<T, f32, f64, c32, c64>;
 }
 
 namespace noa::math {
@@ -22,9 +22,9 @@ namespace noa::math {
     /// \param[in] rhs      Unbatched row or column vector.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename Lhs, typename Rhs, typename = std::enable_if_t<
-             noa::traits::are_varray_v<Lhs, Rhs> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs> &&
-             details::is_valid_dot_t<noa::traits::mutable_value_type_t<Lhs>>>>
+             nt::are_varray_v<Lhs, Rhs> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs> &&
+             details::is_valid_dot_t<nt::mutable_value_type_t<Lhs>>>>
     [[nodiscard]] auto dot(const Lhs& lhs, const Rhs& rhs) {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty(), "Empty array detected");
         NOA_CHECK(!lhs.shape().is_batched() && lhs.shape().ndim() <= 2 &&
@@ -64,9 +64,9 @@ namespace noa::math {
     /// \param[out] output          Output contiguous vector with the dot products. One element per batch.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_v<Lhs, Rhs, Output> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
-             details::is_valid_dot_t<noa::traits::value_type_t<Output>>>>
+             nt::are_varray_v<Lhs, Rhs, Output> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
+             details::is_valid_dot_t<nt::value_type_t<Output>>>>
     void dot(const Lhs& lhs, const Rhs& rhs, const Output& output) {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(noa::indexing::is_vector(lhs.shape(), true) &&
@@ -110,7 +110,7 @@ namespace noa::math {
             cuda::math::dot(lhs.get(), lhs_stride, lhs.shape(),
                             rhs.get(), rhs_stride, rhs.shape(),
                             output.get(), cuda_stream);
-            cuda_stream.enqueue_attach(lhs.share(), rhs.share(), output.share());
+            cuda_stream.enqueue_attach(lhs, rhs, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -137,10 +137,10 @@ namespace noa::math {
     ///       either be row-major or column-major (before transposition). The innermost dimension of the matrices
     ///       (before transposition) should be contiguous and the second-most dimension cannot be broadcast.
     template<typename Lhs, typename Rhs, typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::are_varray_v<Lhs, Rhs, Output> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
-             details::is_valid_matmul_t<noa::traits::value_type_t<Output>> &&
-             noa::traits::is_almost_same_v<Value, noa::traits::value_type_t<Output>>>>
+             nt::are_varray_v<Lhs, Rhs, Output> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
+             details::is_valid_matmul_t<nt::value_type_t<Output>> &&
+             nt::is_almost_same_v<Value, nt::value_type_t<Output>>>>
     void matmul(const Lhs& lhs, const Rhs& rhs, const Output& output,
                 Value alpha, Value beta, bool lhs_transpose = false, bool rhs_transpose = false) {
         NOA_CHECK(!lhs.is_empty() && !rhs.is_empty() && !output.is_empty(), "Empty array detected");
@@ -172,7 +172,7 @@ namespace noa::math {
                                alpha, beta, lhs_transpose, rhs_transpose,
                                output.get(), output.strides(), output.shape(),
                                cuda_stream);
-            cuda_stream.enqueue_attach(lhs.share(), rhs.share(), output.share());
+            cuda_stream.enqueue_attach(lhs, rhs, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -191,11 +191,11 @@ namespace noa::math {
     ///       either be row-major or column-major. The innermost dimension of the matrices should be contiguous and
     ///       the second-most dimension cannot be broadcast.
     template<typename Lhs, typename Rhs, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_v<Lhs, Rhs, Output> &&
-             noa::traits::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
-             details::is_valid_matmul_t<noa::traits::value_type_t<Output>>>>
+             nt::are_varray_v<Lhs, Rhs, Output> &&
+             nt::are_almost_same_value_type_v<Lhs, Rhs, Output> &&
+             details::is_valid_matmul_t<nt::value_type_t<Output>>>>
     void matmul(const Lhs& lhs, const Rhs& rhs, const Output& output) {
-        using value_t = noa::traits::value_type_t<Output>;
+        using value_t = nt::value_type_t<Output>;
         matmul(lhs, rhs, output, value_t{1}, value_t{0});
     }
 }

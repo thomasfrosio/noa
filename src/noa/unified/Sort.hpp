@@ -17,7 +17,7 @@ namespace noa {
     /// \note All the sort algorithms make temporary copies of the data when sorting along any but the last axis.
     ///       Consequently, sorting along the last axis is faster and uses less space than sorting along any other axis.
     template<typename VArray,
-             typename = std::enable_if_t<noa::traits::is_varray_of_restricted_scalar_v<VArray>>>
+             typename = std::enable_if_t<nt::is_varray_of_restricted_scalar_v<VArray>>>
     void sort(const VArray& array, bool ascending = true, i32 axis = -1) {
         NOA_CHECK(!array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -31,7 +31,7 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             cuda::sort(array.get(), array.strides(), array.shape(), ascending, axis, cuda_stream);
-            cuda_stream.enqueue_attach(array.share());
+            cuda_stream.enqueue_attach(array);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

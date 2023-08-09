@@ -8,22 +8,22 @@ namespace noa::cuda::geometry::fft::details {
 
     template<Remap REMAP, typename Input, typename Output>
     constexpr bool is_valid_polar_xform_v =
-            noa::traits::is_any_v<Input, f32, f64, c32, c64> &&
-            (noa::traits::are_all_same_v<Input, Output> ||
-             (noa::traits::is_complex_v<Input> &&
-              noa::traits::is_real_v<Output> &&
-              noa::traits::are_same_value_type_v<Input, Output>)) &&
+            nt::is_any_v<Input, f32, f64, c32, c64> &&
+            (nt::are_all_same_v<Input, Output> ||
+             (nt::is_complex_v<Input> &&
+              nt::is_real_v<Output> &&
+              nt::are_same_value_type_v<Input, Output>)) &&
             REMAP == HC2FC;
 
     template<Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight>
     constexpr bool is_valid_rotational_average_v =
             (REMAP == Remap::H2H || REMAP == Remap::HC2H || REMAP == Remap::F2H || REMAP == Remap::FC2H) &&
             (noa::algorithm::signal::fft::is_valid_aniso_ctf_v<Ctf> || std::is_empty_v<Ctf>) &&
-            (noa::traits::are_same_value_type_v<Input, Output, Weight> &&
-             ((noa::traits::are_all_same_v<Input, Output> &&
-               noa::traits::are_real_or_complex_v<Input, Output>) ||
-              (noa::traits::is_complex_v<Input> &&
-               noa::traits::is_real_v<Output>)));
+            (nt::are_same_value_type_v<Input, Output, Weight> &&
+             ((nt::are_all_same_v<Input, Output> &&
+               nt::are_real_or_complex_v<Input, Output>) ||
+              (nt::is_complex_v<Input> &&
+               nt::is_real_v<Output>)));
 }
 
 namespace noa::cuda::geometry::fft {
@@ -39,7 +39,7 @@ namespace noa::cuda::geometry::fft {
             InterpMode interp, Stream& stream);
 
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_any_v<Output, f32, c32> ||
+             nt::is_any_v<Output, f32, c32> ||
              details::is_valid_polar_xform_v<noa::fft::HC2FC, Input, Output>>>
     void cartesian2polar(
             cudaArray* array, cudaTextureObject_t cartesian,

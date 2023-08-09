@@ -13,9 +13,9 @@ namespace noa::geometry {
              typename Value, typename Index, typename Coord>
     class InterpolatorValue2D {
     public:
-        static_assert(traits::is_any_v<Index, i32, i64>);
-        static_assert(traits::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
-        static_assert(traits::is_real_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(nt::is_any_v<Index, i32, i64>);
+        static_assert(nt::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
+        static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
 
         using value_type = Value;
         using index_type = Index;
@@ -24,7 +24,7 @@ namespace noa::geometry {
         using index2_type = Vec2<index_type>;
         using coord2_type = Vec2<coord_type>;
         using shape2_type = Shape2<index_type>;
-        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, traits::Empty>;
+        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, Empty>;
 
     public:
         constexpr InterpolatorValue2D() = default;
@@ -39,7 +39,7 @@ namespace noa::geometry {
 
         // 2D interpolation on a given batch.
         // The batch is ignored, effectively broadcasting the batch dimension.
-        template<typename Int = index_type, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        template<typename Int = index_type, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_HD value_type operator()(coord2_type coordinate, Int = Int{0}) const noexcept {
             if constexpr (BORDER_MODE != BorderMode::ZERO && BORDER_MODE != BorderMode::VALUE)
                 return m_data;
@@ -56,7 +56,7 @@ namespace noa::geometry {
                                  INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                 return cubic_(coordinate);
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -150,8 +150,8 @@ namespace noa::geometry {
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
              typename Value, typename Index,
-             typename CValue = traits::remove_ref_cv_t<Value>,
-             typename = std::enable_if_t<traits::is_almost_same_v<Value, CValue>>>
+             typename CValue = nt::remove_ref_cv_t<Value>,
+             typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue>>>
     constexpr auto interpolator_value_2d(Value data,
                                          const Shape2<Index>& shape,
                                          CValue cvalue = CValue{0}) {
@@ -167,9 +167,9 @@ namespace noa::geometry {
              typename Value, typename Index, typename Coord>
     class InterpolatorValue3D {
     public:
-        static_assert(traits::is_any_v<Index, i32, i64>);
-        static_assert(traits::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
-        static_assert(traits::is_real_v<Coord> && !std::is_const_v<Coord>);
+        static_assert(nt::is_any_v<Index, i32, i64>);
+        static_assert(nt::is_real_or_complex_v<Value> && !std::is_const_v<Value>);
+        static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
 
         using value_type = Value;
         using index_type = Index;
@@ -178,7 +178,7 @@ namespace noa::geometry {
         using index3_type = Vec3<index_type>;
         using coord3_type = Vec3<coord_type>;
         using shape3_type = Shape3<index_type>;
-        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, traits::Empty>;
+        using value_or_empty_type = std::conditional_t<BORDER_MODE == BorderMode::VALUE, value_type, Empty>;
 
     public:
         constexpr InterpolatorValue3D() = default;
@@ -193,7 +193,7 @@ namespace noa::geometry {
 
         // 3D interpolation on a given batch.
         // The batch is ignored if the accessor is 3D, effectively broadcasting the batch dimension.
-        template<typename Int = index_type, typename = std::enable_if_t<traits::is_int_v<Int>>>
+        template<typename Int = index_type, typename = std::enable_if_t<nt::is_int_v<Int>>>
         constexpr NOA_HD value_type operator()(coord3_type coordinate, Int = Int{0}) const noexcept {
             if constexpr (BORDER_MODE != BorderMode::ZERO && BORDER_MODE != BorderMode::VALUE)
                 return m_data;
@@ -210,7 +210,7 @@ namespace noa::geometry {
                                  INTERP_MODE == InterpMode::CUBIC_BSPLINE_FAST) {
                 return cubic_(coordinate);
             } else {
-                static_assert(traits::always_false_v<value_type>);
+                static_assert(nt::always_false_v<value_type>);
             }
         }
 
@@ -324,8 +324,8 @@ namespace noa::geometry {
 
     template<BorderMode BORDER_MODE, InterpMode INTERP_MODE, typename Coord = f32,
              typename Value, typename Index,
-             typename CValue = traits::remove_ref_cv_t<Value>,
-             typename = std::enable_if_t<traits::is_almost_same_v<Value, CValue>>>
+             typename CValue = nt::remove_ref_cv_t<Value>,
+             typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue>>>
     constexpr auto interpolator_value_3d(Value data,
                                          const Shape3<Index>& shape,
                                          CValue cvalue = CValue{0}) {

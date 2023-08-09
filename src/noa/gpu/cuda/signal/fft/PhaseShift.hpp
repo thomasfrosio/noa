@@ -9,7 +9,7 @@ namespace noa::cuda::signal::fft::details {
     using namespace ::noa::fft;
     template<Remap REMAP, typename T>
     constexpr bool is_valid_shift_v =
-            noa::traits::is_any_v<T, c32, c64> &&
+            nt::is_any_v<T, c32, c64> &&
             (REMAP == H2H || REMAP == H2HC || REMAP == HC2H || REMAP == HC2HC);
 }
 

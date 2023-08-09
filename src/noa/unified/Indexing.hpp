@@ -10,7 +10,7 @@ namespace noa {
 
 namespace noa::indexing {
     /// Broadcasts an array to a given shape.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
     [[nodiscard]] Input broadcast(const Input& input, const Shape4<i64>& shape) {
         auto strides = input.strides();
         if (!broadcast(input.shape(), strides, shape))
@@ -19,7 +19,7 @@ namespace noa::indexing {
     }
 
     /// Whether \p lhs and \p rhs overlap in memory.
-    template<typename Lhs, typename Rhs, typename = std::enable_if_t<noa::traits::are_varray_v<Lhs, Rhs>>>
+    template<typename Lhs, typename Rhs, typename = std::enable_if_t<nt::are_varray_v<Lhs, Rhs>>>
     [[nodiscard]] bool are_overlapped(const Lhs& lhs, const Rhs& rhs) {
         if (lhs.is_empty() || rhs.is_empty())
             return false;
@@ -32,7 +32,7 @@ namespace noa::indexing {
 
     /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
     /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
     [[nodiscard]] constexpr Vec4<i64> offset2index(i64 offset, const Input& array) {
         NOA_CHECK(!any(array.strides() == 0),
                   "Cannot retrieve the 4D index from a broadcast array. Got strides:{}",
@@ -41,20 +41,20 @@ namespace noa::indexing {
     }
 
     /// Whether the input is a contiguous vector.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
     [[nodiscard]] constexpr bool is_contiguous_vector(const Input& input) {
         return is_vector(input.shape()) && input.are_contiguous();
     }
 
     /// Whether the input is a contiguous vector or a contiguous batch of contiguous vectors.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
     [[nodiscard]] constexpr bool is_contiguous_vector_batched(const Input& input) {
         return is_vector(input.shape(), true) && input.are_contiguous();
     }
 
     /// Whether the input is a contiguous vector or a contiguous/strided batch of contiguous vectors.
     /// The batch stride doesn't have to be contiguous.
-    template<typename Input, typename = std::enable_if_t<noa::traits::is_varray_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
     [[nodiscard]] constexpr bool is_contiguous_vector_batched_strided(const Input& input) {
         return is_vector(input.shape(), true) && noa::all(input.is_contiguous().pop_front() == Vec3<bool>(true));
     }

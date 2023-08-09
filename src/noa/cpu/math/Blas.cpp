@@ -29,7 +29,7 @@ namespace {
                     safe_cast<blasint>(n),
                     lhs, safe_cast<blasint>(lhs_strides),
                     rhs, safe_cast<blasint>(rhs_strides));
-        } else if constexpr (noa::traits::is_complex_v<T>) {
+        } else if constexpr (nt::is_complex_v<T>) {
             const auto shape = Shape4<i64>{1, 1, 1, n};
             const auto lhs_strides_4d = shape.strides() * lhs_strides;
             const auto rhs_strides_4d = shape.strides() * rhs_strides;

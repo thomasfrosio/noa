@@ -19,8 +19,8 @@ namespace noa::memory {
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::are_varray_v<Input, Output> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::are_varray_v<Input, Output> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void copy(const Input& input, const Output& output) {
         NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
         NOA_CHECK(!noa::indexing::are_overlapped(input, output), "The input and output should not overlap");
@@ -48,7 +48,7 @@ namespace noa::memory {
             cuda::memory::copy(input.get(), input_strides,
                                output.get(), output.strides(),
                                output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             cuda_stream.synchronize();
             #else
             NOA_THROW("No GPU backend detected");
@@ -61,7 +61,7 @@ namespace noa::memory {
             cuda::memory::copy(input.get(), input_strides,
                                output.get(), output.strides(),
                                output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input.share(), output.share());
+            cuda_stream.enqueue_attach(input, output);
             #else
             NOA_THROW("No GPU backend detected");
             #endif

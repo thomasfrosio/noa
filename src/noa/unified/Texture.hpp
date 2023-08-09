@@ -42,7 +42,7 @@ namespace noa {
     template<typename T>
     class Texture {
     public:
-        static_assert(noa::traits::is_any_v<T, f32, f64, c32, c64>);
+        static_assert(nt::is_any_v<T, f32, f64, c32, c64>);
 
         using value_type = T;
         using shape_type = Shape4<i64>;
@@ -88,7 +88,7 @@ namespace noa {
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is created. See eval().
         template<typename VArray, typename = std::enable_if_t<
-                 noa::traits::is_varray_of_any_v<VArray, value_type>>>
+                 nt::is_varray_of_any_v<VArray, value_type>>>
         Texture(const VArray& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
                 value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true)
                 : m_shape(array.shape()), m_interp(interp_mode), m_border(border_mode) {
@@ -105,7 +105,7 @@ namespace noa {
                 NOA_CHECK(array.device() == device_target,
                           "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
                           array.device());
-                if constexpr (noa::traits::is_view_v<VArray>)
+                if constexpr (nt::is_view_v<VArray>)
                     m_texture = cpu_texture_type{array.strides(), Shared<T[]>(array.get(), [](void*) {}), cvalue};
                 else
                     m_texture = cpu_texture_type{array.strides(), array.share(), cvalue};
@@ -113,7 +113,7 @@ namespace noa {
 
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                if constexpr (sizeof(noa::traits::value_type_t<value_type>) >= 8) {
+                if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     NOA_THROW("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     const auto guard = DeviceGuard(device_target);
@@ -131,7 +131,7 @@ namespace noa {
                             array.get(), array.strides(),
                             texture.array.get(), array.shape(),
                             cuda_stream);
-                    cuda_stream.enqueue_attach(array.share(), texture.array);
+                    cuda_stream.enqueue_attach(array, texture.array);
 
                     m_texture = texture;
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
@@ -172,7 +172,7 @@ namespace noa {
                 m_texture = cpu_texture_type{{}, nullptr, cvalue};
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                if constexpr (sizeof(noa::traits::value_type_t<value_type>) >= 8) {
+                if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     NOA_THROW("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     const auto guard = DeviceGuard(device_target);
@@ -211,7 +211,7 @@ namespace noa {
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is updated. See eval().
         template<typename VArray, typename = std::enable_if_t<
-                 noa::traits::is_varray_of_any_v<VArray, value_type>>>
+                 nt::is_varray_of_any_v<VArray, value_type>>>
         void update(const VArray& array, bool prefilter = true) {
             NOA_CHECK(!is_empty(), "Trying to update an empty texture is not allowed. Create a valid the texture first");
             NOA_CHECK(!array.is_empty(), "Empty array detected");
@@ -232,7 +232,7 @@ namespace noa {
                           array.device());
                 cpu_texture_type& cpu_texture = cpu_();
                 cpu_texture.strides = array.strides();
-                if constexpr (noa::traits::is_view_v<VArray>)
+                if constexpr (nt::is_view_v<VArray>)
                     cpu_texture.ptr = Shared<T[]>(array.get(), [](void*) {});
                 else
                     cpu_texture.ptr = array.share();
@@ -240,7 +240,7 @@ namespace noa {
 
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                if constexpr (sizeof(noa::traits::value_type_t<value_type>) >= 8) {
+                if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     NOA_THROW("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     if (device_target != array.device())
@@ -252,7 +252,7 @@ namespace noa {
                             array.get(), array.strides(),
                             cuda_texture.array.get(),
                             m_shape, cuda_stream);
-                    cuda_stream.enqueue_attach(array.share(), cuda_texture.array);
+                    cuda_stream.enqueue_attach(array, cuda_texture.array);
                 }
                 #else
                 NOA_THROW("No GPU backend detected");

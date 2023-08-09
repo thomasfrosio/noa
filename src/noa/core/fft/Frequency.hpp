@@ -18,13 +18,13 @@ namespace noa::fft {
 
     /// Returns the fft centered index of the corresponding fft non-centered index.
     /// Should satisfy `0 <= index < size`.
-    template<typename Int, typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
+    template<typename Int, typename std::enable_if_t<nt::is_int_v<Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr Int fftshift(Int index, Int size) noexcept {
         // n=10: [0, 1, 2, 3, 4,-5,-4,-3,-2,-1] -> [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4]
         // n=11: [0, 1, 2, 3, 4, 5,-5,-4,-3,-2,-1] -> [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4, 5]
         return (index < (size + 1) / 2) ? index + size / 2 : index - (size + 1) / 2; // or (index + size / 2) % size
     }
-    template<typename VecInt, typename std::enable_if_t<noa::traits::is_intX_v<VecInt>, bool> = true>
+    template<typename VecInt, typename std::enable_if_t<nt::is_intX_v<VecInt>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr VecInt fftshift(VecInt indexes, VecInt sizes) noexcept {
         VecInt shifted_indexes;
         for (size_t i = 0; i < VecInt::SIZE; ++i)
@@ -41,13 +41,13 @@ namespace noa::fft {
 
     /// Returns the fft non-centered index of the corresponding centered fft index.
     /// Should be within `0 <= index < size`.
-    template<typename Int, typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
+    template<typename Int, typename std::enable_if_t<nt::is_int_v<Int>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr Int ifftshift(Int index, Int size) noexcept {
         // n=10: [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4] -> [0, 1, 2, 3, 4,-5,-4,-3,-2,-1]
         // n=11: [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4, 5] -> [0, 1, 2, 3, 4, 5,-5,-4,-3,-2,-1]
         return (index < size / 2) ? index + (size + 1) / 2 : index - size / 2; // or (index + (size + 1) / 2) % size
     }
-    template<typename VecInt, typename std::enable_if_t<noa::traits::is_intX_v<VecInt>, bool> = true>
+    template<typename VecInt, typename std::enable_if_t<nt::is_intX_v<VecInt>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr VecInt ifftshift(VecInt indexes, VecInt sizes) {
         VecInt shifted_indexes;
         for (size_t i = 0; i < VecInt::SIZE; ++i)
@@ -66,7 +66,7 @@ namespace noa::fft {
     /// \warning This function is only intended to be used for full dimensions!
     ///          For a rfft's half dimension (which is not supported by this function),
     ///          the index is equal to the frequency, regardless of the centering.
-    template<bool IS_CENTERED, typename SInt, typename std::enable_if_t<noa::traits::is_sint_v<SInt>, bool> = true>
+    template<bool IS_CENTERED, typename SInt, typename std::enable_if_t<nt::is_sint_v<SInt>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr SInt index2frequency(SInt index, SInt size) noexcept {
         // n=5: [0, 1, 2, 3, 4] -> centered=[-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-2,-1]
         // n=6: [0, 1, 2, 3, 4, 5] -> centered=[-3,-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-3,-2,-1]
@@ -79,7 +79,7 @@ namespace noa::fft {
     /// For the rfft, the index along the width (ie rightmost dimension) is the frequency, so the width
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT = false, typename SInt, size_t N0, size_t N1, typename std::enable_if_t<
-             noa::traits::is_sint_v<SInt> && ((N0 == N1) || (IS_RFFT && N0 == N1 - 1)), bool> = true>
+             nt::is_sint_v<SInt> && ((N0 == N1) || (IS_RFFT && N0 == N1 - 1)), bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto index2frequency(
             const Vec<SInt, N0>& indexes,
             const Shape<SInt, N1>& shape
@@ -98,7 +98,7 @@ namespace noa::fft {
     /// \warning This function is only intended to be used for full dimensions!
     ///          For a rfft's half dimension (which is not supported by this function),
     ///          the index is equal to the frequency, regardless of the centering.
-    template<bool IS_CENTERED, typename SInt, typename std::enable_if_t<noa::traits::is_sint_v<SInt>, bool> = true>
+    template<bool IS_CENTERED, typename SInt, typename std::enable_if_t<nt::is_sint_v<SInt>, bool> = true>
     [[nodiscard]] NOA_FHD constexpr SInt frequency2index(SInt frequency, SInt size) noexcept {
         // n=5: [0, 1, 2, 3, 4] -> centered=[-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-2,-1]
         // n=6: [0, 1, 2, 3, 4, 5] -> centered=[-3,-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-3,-2,-1]
@@ -111,7 +111,7 @@ namespace noa::fft {
     /// For the rfft, the index along the width (ie rightmost dimension) is the frequency, so the width
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT = false, typename SInt, size_t N0, size_t N1, typename std::enable_if_t<
-             noa::traits::is_sint_v<SInt> && ((N0 == N1) || (IS_RFFT && N0 == N1 - 1)), bool> = true>
+             nt::is_sint_v<SInt> && ((N0 == N1) || (IS_RFFT && N0 == N1 - 1)), bool> = true>
     [[nodiscard]] NOA_FHD constexpr auto frequency2index(
             const Vec<SInt, N0>& indexes,
             const Shape<SInt, N1>& shape
@@ -137,7 +137,7 @@ namespace noa::fft {
     /// Returns the multidimensional centered index given the multidimensional (non-)centered index, assuming ((D)H)W order.
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<bool IS_CENTERED, bool IS_RFFT = false, typename Int, size_t N0, size_t N1, typename std::enable_if_t<
-             noa::traits::is_int_v<Int> && ((N0 == N1) || (IS_RFFT && N0 == N1 - 1)), bool> = true>
+             nt::is_int_v<Int> && ((N0 == N1) || (IS_RFFT && N0 == N1 - 1)), bool> = true>
     NOA_FHD constexpr auto to_centered_indexes(
             const Vec<Int, N0>& indexes,
             const Shape<Int, N1>& shape
@@ -175,7 +175,7 @@ namespace noa::fft {
     /// This function is limited to input/output being both rffts or both ffts.
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<Remap REMAP, bool FLIP_REMAP = false, typename Int, size_t N0, size_t N1,
-             typename std::enable_if_t<noa::traits::is_int_v<Int>, bool> = true>
+             typename std::enable_if_t<nt::is_int_v<Int>, bool> = true>
     NOA_FHD constexpr auto remap_indexes(
             const Vec<Int, N0>& indexes,
             const Shape<Int, N1>& shape
@@ -208,7 +208,7 @@ namespace noa::fft {
     /// Computes the phase shift at a given normalized-frequency.
     /// \warning \p shift should already be pre-multiplied;
     template<typename Complex, typename Coord, size_t N, typename std::enable_if_t<
-            noa::traits::is_complex_v<Complex> && (N == 2 || N == 3), bool> = true>
+            nt::is_complex_v<Complex> && (N == 2 || N == 3), bool> = true>
     [[nodiscard]] NOA_FHD Complex phase_shift(
             const Vec<Coord, N>& shift,
             const Vec<Coord, N>& normalized_frequency

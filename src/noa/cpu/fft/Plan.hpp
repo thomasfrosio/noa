@@ -74,7 +74,7 @@ namespace noa::cpu::fft {
     template<typename T>
     class Plan {
     public:
-        static_assert(noa::traits::is_any_v<T, f32, f64>);
+        static_assert(nt::is_any_v<T, f32, f64>);
         static constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
         using fftw_plan_type = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
         using fftw_complex_type = std::conditional_t<IS_SINGLE_PRECISION, fftwf_complex, fftw_complex>;

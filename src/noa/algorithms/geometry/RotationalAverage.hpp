@@ -21,13 +21,13 @@ namespace noa::algorithm::geometry {
     public:
         static_assert(REMAP == noa::fft::H2H || REMAP == noa::fft::HC2H ||
                       REMAP == noa::fft::F2H || REMAP == noa::fft::FC2H);
-        static_assert(noa::traits::is_sint_v<Index>);
-        static_assert(noa::traits::is_int_v<Offset>);
-        static_assert(noa::traits::is_real_v<Coord>);
-        static_assert((noa::traits::are_all_same_v<Input, Output> &&
-                       noa::traits::are_real_or_complex_v<Input, Output>) ||
-                      (noa::traits::is_complex_v<Input> &&
-                       noa::traits::is_real_v<Output>));
+        static_assert(nt::is_sint_v<Index>);
+        static_assert(nt::is_int_v<Offset>);
+        static_assert(nt::is_real_v<Coord>);
+        static_assert((nt::are_all_same_v<Input, Output> &&
+                       nt::are_real_or_complex_v<Input, Output>) ||
+                      (nt::is_complex_v<Input> &&
+                       nt::is_real_v<Output>));
         static_assert((N == 2 && noa::algorithm::signal::fft::is_valid_aniso_ctf_v<CTF>) ||
                       std::is_empty_v<CTF>);
 
@@ -39,7 +39,7 @@ namespace noa::algorithm::geometry {
         using coord_type = Coord;
         using input_type = Input;
         using output_type = Output;
-        using real_type = noa::traits::value_type_t<output_type>;
+        using real_type = nt::value_type_t<output_type>;
         using ctf_type = CTF;
 
         using shape_type = Shape<index_type, N - IS_HALF>;
@@ -133,8 +133,8 @@ namespace noa::algorithm::geometry {
 
     private:
         NOA_HD static output_type input_to_output_(input_type input) noexcept {
-            if constexpr (noa::traits::is_complex_v<input_type> &&
-                          noa::traits::is_real_v<output_type>) {
+            if constexpr (nt::is_complex_v<input_type> &&
+                          nt::is_real_v<output_type>) {
                 return noa::abs_squared_t{}(input);
             } else {
                 return input;

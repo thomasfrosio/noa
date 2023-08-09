@@ -6,7 +6,7 @@
 
 namespace noa::geometry::interpolate::details {
     template<typename Value, typename Coord>
-    constexpr bool is_valid_interp_v = traits::is_real_or_complex_v<Value> && traits::is_real_v<Coord>;
+    constexpr bool is_valid_interp_v = nt::is_real_or_complex_v<Value> && nt::is_real_v<Coord>;
 
     template<typename Value, typename Coord>
     using enable_if_valid_interp_t = std::enable_if_t<details::is_valid_interp_v<Value, Coord>>;
@@ -30,7 +30,7 @@ namespace noa::geometry::interpolate::details {
 namespace noa::geometry::interpolate {
     template<typename Value, typename Coord, typename = details::enable_if_valid_interp_t<Value, Coord>>
     constexpr NOA_FHD Value lerp_1d(Value v0, Value v1, Coord r) noexcept {
-        using value_t = traits::value_type_t<Value>;
+        using value_t = nt::value_type_t<Value>;
         return static_cast<value_t>(r) * (v1 - v0) + v0;
     }
 
@@ -89,7 +89,7 @@ namespace noa::geometry::interpolate {
         const Value a2 = v2 - v0;
         // a3 = v1
 
-        using real_t = traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         const auto r1 = static_cast<real_t>(r);
         const auto r2 = r1 * r1;
         const auto r3 = r2 * r1;
@@ -126,7 +126,7 @@ namespace noa::geometry::interpolate {
 namespace noa::geometry::interpolate {
     template<typename Value, typename Coord, typename = details::enable_if_valid_interp_t<Value, Coord>>
     constexpr NOA_IHD Value cubic_bspline_1d(Value v0, Value v1, Value v2, Value v3, Coord r) {
-        using real_t = traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         real_t w0, w1, w2, w3;
         details::bspline_weights(r, &w0, &w1, &w2, &w3);
         return v0 * w0 + v1 * w1 + v2 * w2 + v3 * w3;
@@ -134,7 +134,7 @@ namespace noa::geometry::interpolate {
 
     template<typename Value, typename Coord, typename = details::enable_if_valid_interp_t<Value, Coord>>
     constexpr NOA_HD Value cubic_bspline_2d(Value v[4][4], Coord rx, Coord ry) {
-        using real_t = traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         real_t w0, w1, w2, w3;
         details::bspline_weights(rx, &w0, &w1, &w2, &w3);
         const Value a0 = v[0][0] * w0 + v[0][1] * w1 + v[0][2] * w2 + v[0][3] * w3;
@@ -147,7 +147,7 @@ namespace noa::geometry::interpolate {
 
     template<typename Value, typename Coord, typename = details::enable_if_valid_interp_t<Value, Coord>>
     constexpr NOA_HD Value cubic_bspline_3d(Value v[4][4][4], Coord rx, Coord ry, Coord rz) {
-        using real_t = traits::value_type_t<Value>;
+        using real_t = nt::value_type_t<Value>;
         real_t wx0, wx1, wx2, wx3;
         real_t wy0, wy1, wy2, wy3;
         details::bspline_weights(rx, &wx0, &wx1, &wx2, &wx3);

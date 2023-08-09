@@ -21,8 +21,8 @@ namespace noa::memory {
     /// \param[out] output  Array with evenly spaced values.
     /// \param value        The value to assign.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_varray_v<Output> &&
-             std::is_same_v<noa::traits::value_type_t<Output>, Value>>>
+             nt::is_varray_v<Output> &&
+             std::is_same_v<nt::value_type_t<Output>, Value>>>
     void fill(const Output& output, Value value) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -39,7 +39,7 @@ namespace noa::memory {
             if constexpr (cuda::memory::details::is_valid_set_v<Value>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::set(output.get(), output.strides(), output.shape(), value, cuda_stream);
-                cuda_stream.enqueue_attach(output.share());
+                cuda_stream.enqueue_attach(output);
             } else {
                 NOA_THROW("The CUDA backend does not support this type ({})", noa::string::human<Value>());
             }
@@ -57,9 +57,9 @@ namespace noa::memory {
     template<typename Value>
     [[nodiscard]] Array<Value> fill(const Shape4<i64>& shape, Value value, ArrayOption option = {}) {
         // Try to shortcut with calloc().
-        if constexpr (noa::traits::is_numeric_v<Value> ||
-                      noa::traits::is_vecX_v<Value> ||
-                      noa::traits::is_matXX_v<Value>) {
+        if constexpr (nt::is_numeric_v<Value> ||
+                      nt::is_vecX_v<Value> ||
+                      nt::is_matXX_v<Value>) {
             if (value == Value{0} && option.device().is_cpu() &&
                 (!Device::is_any(DeviceType::GPU) || (option.allocator() == Allocator::DEFAULT ||
                                                       option.allocator() == Allocator::DEFAULT_ASYNC ||
@@ -128,7 +128,7 @@ namespace noa::memory {
     /// The value type can be set explicitly. By default, it is set to the mutable value type of \p array.
     template<typename Value = Empty, typename Input>
     [[nodiscard]] auto like(const Input& array) {
-        using value_t = std::conditional_t<std::is_empty_v<Value>, noa::traits::mutable_value_type_t<Input>, Value>;
+        using value_t = std::conditional_t<std::is_empty_v<Value>, nt::mutable_value_type_t<Input>, Value>;
         return Array<value_t>(array.shape(), array.options());
     }
 }
@@ -139,8 +139,8 @@ namespace noa::memory {
     /// \param[out] output  Array with evenly spaced values.
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
-    template<typename Output, typename Value = noa::traits::value_type_t<Output>,
-             typename = std::enable_if_t<noa::traits::is_varray_of_any_v<Output, Value>>>
+    template<typename Output, typename Value = nt::value_type_t<Output>,
+             typename = std::enable_if_t<nt::is_varray_of_any_v<Output, Value>>>
     void arange(const Output& output, Value start = Value{0}, Value step = Value{1}) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -157,7 +157,7 @@ namespace noa::memory {
             if constexpr (traits::is_restricted_numeric_v<Value>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::arange(output.get(), output.strides(), output.shape(), start, step, cuda_stream);
-                cuda_stream.enqueue_attach(output.share());
+                cuda_stream.enqueue_attach(output);
             } else {
                 NOA_THROW("The CUDA backend does not support this type ({})", noa::string::human<Value>());
             }
@@ -208,7 +208,7 @@ namespace noa::memory {
     /// \param stop         The end value of the sequence, unless \p endpoint is false.
     /// \param endpoint     Whether the stop is the last simple. Otherwise, it is not included.
     template<typename Output, typename Value, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value>>>
+             nt::is_varray_of_any_v<Output, Value>>>
     Value linspace(const Output& output, Value start, Value stop, bool endpoint = true) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -227,7 +227,7 @@ namespace noa::memory {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::linspace(output.get(), output.strides(), output.shape(),
                                        start, stop, endpoint, cuda_stream);
-                cuda_stream.enqueue_attach(output.share());
+                cuda_stream.enqueue_attach(output);
             } else {
                 NOA_THROW("The CUDA backend does not support this type ({})", noa::string::human<Value>());
             }
@@ -277,7 +277,7 @@ namespace noa::memory {
     /// \param tile         Tile shape in each dimension.
     ///                     If the tile is equal to the shape of \p output,
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
-    template<typename Output, typename = std::enable_if_t<noa::traits::is_varray_v<Output>>>
+    template<typename Output, typename = std::enable_if_t<nt::is_varray_v<Output>>>
     void iota(const Output& output, const Vec4<i64>& tile) {
         NOA_CHECK(!output.is_empty(), "Empty array detected");
 
@@ -291,13 +291,13 @@ namespace noa::memory {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (noa::traits::is_varray_of_numeric_v<Output>) {
+            if constexpr (nt::is_varray_of_numeric_v<Output>) {
                 auto& cuda_stream = stream.cuda();
                 cuda::memory::iota(output.get(), output.strides(), output.shape(), tile, cuda_stream);
-                cuda_stream.enqueue_attach(output.share());
+                cuda_stream.enqueue_attach(output);
             } else {
                 NOA_THROW("The CUDA backend does not support this type ({})",
-                          noa::string::human<noa::traits::value_type_t<Output>>());
+                          noa::string::human<nt::value_type_t<Output>>());
             }
             #else
             NOA_THROW("No GPU backend detected");

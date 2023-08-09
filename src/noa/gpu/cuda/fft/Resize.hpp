@@ -7,7 +7,7 @@ namespace noa::cuda::fft::details {
     using Remap = ::noa::fft::Remap;
     template<Remap REMAP, typename T>
     constexpr bool is_valid_resize =
-            (noa::traits::is_real_or_complex_v<T>) &&
+            (nt::is_real_or_complex_v<T>) &&
             (REMAP == Remap::H2H || REMAP == Remap::F2F ||
              REMAP == Remap::HC2HC || REMAP == Remap::FC2FC);
 }

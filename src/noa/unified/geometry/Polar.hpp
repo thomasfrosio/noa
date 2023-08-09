@@ -23,7 +23,7 @@ namespace noa::geometry::details {
                   "The input and output arrays must be on the same device, "
                   "but got input:{} and output:{}", input.device(), output.device());
 
-        if constexpr (noa::traits::is_varray_v<Input>) {
+        if constexpr (nt::is_varray_v<Input>) {
             NOA_CHECK(!noa::indexing::are_overlapped(input, output),
                       "Input and output arrays should not overlap");
             NOA_CHECK(noa::indexing::are_elements_unique(output.strides(), output.shape()),
@@ -62,9 +62,9 @@ namespace noa::geometry {
     /// \param interpolation_mode   Interpolation method used to interpolate the values onto the new grid.
     ///                             Out-of-bounds elements are set to zero.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void cartesian2polar(const Input& cartesian, const Output& polar,
                          const Vec2<f32>& cartesian_center,
                          Vec2<f32> radius_range = {},
@@ -101,7 +101,7 @@ namespace noa::geometry {
                     radius_range, radius_endpoint,
                     angle_range, angle_endpoint,
                     interpolation_mode, cuda_stream);
-            cuda_stream.enqueue_attach(cartesian.share(), polar.share());
+            cuda_stream.enqueue_attach(cartesian, polar);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -111,7 +111,7 @@ namespace noa::geometry {
     /// Transforms 2D array(s) from cartesian to polar coordinates.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value>>>
+             nt::is_varray_of_any_v<Output, Value>>>
     void cartesian2polar(const Texture<Value>& cartesian, const Output& polar,
                          const Vec2<f32>& cartesian_center,
                          Vec2<f32> radius_range = {},
@@ -129,7 +129,7 @@ namespace noa::geometry {
                             cartesian.interp_mode());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
             } else {
                 details::polar_check_parameters(cartesian, polar);
@@ -143,7 +143,7 @@ namespace noa::geometry {
                         texture.array.get(), *texture.texture, cartesian.interp_mode(), cartesian.shape(),
                         polar.get(), polar.strides(), polar.shape(), cartesian_center,
                         radius_range, radius_endpoint, angle_range, angle_endpoint, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, polar.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, polar);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -166,9 +166,9 @@ namespace noa::geometry {
     /// \param interpolation_mode   Interpolation method used to interpolate the values onto the new grid.
     ///                             Out-of-bounds elements are set to zero.
     template<typename Input, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             noa::traits::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-             noa::traits::are_almost_same_value_type_v<Input, Output>>>
+             nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
+             nt::are_almost_same_value_type_v<Input, Output>>>
     void polar2cartesian(const Input& polar, const Output& cartesian,
                          const Vec2<f32>& cartesian_center,
                          Vec2<f32> radius_range = {},
@@ -201,7 +201,7 @@ namespace noa::geometry {
                     cartesian.get(), cartesian.strides(), cartesian.shape(),
                     cartesian_center, radius_range, radius_endpoint, angle_range, angle_endpoint,
                     interpolation_mode, cuda_stream);
-            cuda_stream.enqueue_attach(polar.share(), cartesian.share());
+            cuda_stream.enqueue_attach(polar, cartesian);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -211,7 +211,7 @@ namespace noa::geometry {
     /// Transforms 2D array(s) from polar to cartesian coordinates.
     /// This functions has the same features and limitations as the overload taking arrays.
     template<typename Value, typename Output, typename = std::enable_if_t<
-             noa::traits::is_varray_of_any_v<Output, Value>>>
+             nt::is_varray_of_any_v<Output, Value>>>
     void polar2cartesian(const Texture<Value>& polar, const Output& cartesian,
                          const Vec2<f32>& cartesian_center,
                          Vec2<f32> radius_range = {},
@@ -229,7 +229,7 @@ namespace noa::geometry {
                             cartesian.interp_mode());
         } else {
             #ifdef NOA_ENABLE_CUDA
-            if constexpr (!noa::traits::is_any_v<Value, f32, c32>) {
+            if constexpr (!nt::is_any_v<Value, f32, c32>) {
                 NOA_THROW("In the CUDA backend, double-precision floating-points are not supported");
             } else {
                 details::polar_check_parameters(polar, cartesian);
@@ -243,7 +243,7 @@ namespace noa::geometry {
                         texture.array.get(), *texture.texture, polar.interp_mode(), polar.shape(),
                         cartesian.get(), cartesian.strides(), cartesian.shape(), cartesian_center,
                         radius_range, radius_endpoint, angle_range, angle_endpoint, cuda_stream);
-                cuda_stream.enqueue_attach(texture.array, texture.texture, cartesian.share());
+                cuda_stream.enqueue_attach(texture.array, texture.texture, cartesian);
             }
             #else
             NOA_THROW("No GPU backend detected");
