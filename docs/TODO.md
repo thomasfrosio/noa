@@ -1,41 +1,47 @@
 ## `cryoEM`
 
 
-- __CTF__: Add CTF class gathering all the necessary variables (voltage, Cs, etc.) and basic utility functions,
-  e.g. compute value at a given frequency. Single side-band algorithm support (complex CTFs, cones).
+- __High-order aberrations__ and optics in general... Look at Warp and RELION's code. I know nothing about this...
 
 
-- __High-order aberrations__ and optics in general... Look at Warp and RELION's code. I know very little about this...
+- Complex CTFs, for Russo/Henderson's EWS correction?
 
 
-- __Binning__: real space binning is a nice to have, although Fourier cropping is often preferred. Note that efficient
-  binning on the GPU requires some thinking.
-
-
-- Add center of mass, radial grid.
-
-
-- __IO__: Add compression. Also, better support for 3dmod with complex types: IMOD excepts the logical shape but always
-  excepts the non-redundant data. ImageFile treats the shape as the physical shape...
+- __IO__: Add compression and other file formats. Also, better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the non-redundant data. ImageFile treats the shape as the physical shape.
 
 
 ## `General`
 
-- __Windows__. It should not be that complicated. One thing to look at is OpenMP support.
+- __Refactor CPU backend__.
+  
+  Move most of the code to header-only. The scale issue is still manageable on the CPU side, but the library is becoming too big, so we want to compile only what is needed (thanks to template). The explicit template instantiations are too expensive, and they do limit the flexibility, as well as prevent inline optimizations (although LTO can in theory fix that).
 
 
-- Session: Not sure what `Session` should be. It only holds the main `Logger` and the number of internal threads.
-  Maybe we should link all global data to the session as well, but I don't think that's a good idea. Instead,
-  maybe remove `Session` and create a `GlobalLogger` and a free function keeping track of the thread number or
-  something like that.
+- __Refactor CUDA backend__.
+
+  This is where the scaling issue is not manageable anymore. There are too many things to compile, and applications usually need a fraction of that. This is problematic because it makes everything slow to build, binaries become too big, and CUDA cannot fully strip unused code. Moreover, this greatly limit the flexibility of the library, which always has been an issue. Fortunately, there's a solution to this: runtime compilation! I plan to move most of the CUDA source files to runtime compilation using jitify2. This has huge benefits other than solving the scaling issue. Now, everything becomes valid C++ and we can use templates to instantiate and call kernels directly from user's translation units (launching the kernels from C++ was always possible using the driver though).
+
+  - This allows users to pass their own types to the GPU backend. Indeed, we can easily ask them (at build type) what headers should be included in the runtime compilation and these can be included when we compile a type that is not one of ours. This makes everything smooth, and other than this extra step in the config, the code is as clean as it can be: we pass a type to noa, jitify2 reflects on it and compile/link everything (including the user header(s)) and that's it.
+  - This also allows us to refactor our backends and unified interface. The unified interface can have the "core" functions (ewise, iwise, reduce, etc.) calling the backend-specific core functions (which are templates) with the input/output types. The other functions in the unified interface are now backend agnostic for the most part and can do the preprocessing and construct the algo operators directly (atm this is done by the backends). As such, the backends could only have core functions, some utilities and special functions that are not that generic (e.g. FFTs). This is a huge simplification and I don't see any disadvantages to it.
+  - Adding AMD support would be a significant task, but HIP also has a runtime compilation (HIPRTC), the only thing is that jitfify is a CUDA only wrapper (but it isn't too complicated, and we can hipify it for the most part).
+
+  In practice, this also removes the need for nvcc (finally). We would only need nvrtc and cufft/curand/cublas (there's a world were we could lazy load these too, to remove them from the build (it's what Pytorch does), so CUDA only becomes a runtime dependency.
+  
+  Links:
+  [arrayfire implementation](https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp),
+  [cuda-api-wrappers](https://github.com/eyalroz/cuda-api-wrappers/tree/master/src/cuda/nvrtc),
+  [jitify](https://github.com/NVIDIA/jitify).
 
 
-- __Test CUDA LTO__ and unused kernels support from version 11.5.
+- __Windows support__. It should not be that complicated. One thing to look at is OpenMP support.
 
 
-- __CUDA constant memory.__ Test the benefits of constant memory. The issue with this is the (host) thread-safety.
-  If multiple host threads use the same device but are on different streams, we need to lock guard the resource
-  and kernel launch since the resource is global to the device.
+- __SIMD__ Trying explicit SIMD in the CPU-"core" functions (start with ewise_*?). [xsimd](https://xsimd.readthedocs.io/en/latest/index.html) seems interesting (their "abstract batch" at least).
+
+
+- __CUDA constant memory.__
+  
+  Test the benefits of constant memory. The issue with this is the (host) thread-safety. If multiple host threads use the same device but are on different streams, we need to lock guard the resource and kernel launch since the resource is global to the device. Idk how this works with nvrtc... is the ressource private to a context, or a module, or a translation unit?
 
 
 - Use the __CUDA driver to handle the context__. That way, the library can keep track of its own context and reset it
@@ -43,54 +49,15 @@
   [Pytorch DeviceThreadHandles](https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/cuda/detail/DeviceThreadHandles.h)
 
 
-- __lazy evaluation and kernel fusion vs transform/map operators__.
-  I much prefer the simplicity of `std::transform` or range-like APIs, where we define __lambdas/functors as transform 
-  operators__. It is much more flexible, versatile, cleaner, and it is where the C++ STL is going anyway (including 
-  NVIDIA) with `std::execution` and context policies. The issue with this approach though: 1) it  cannot easily be 
-  used from another language, 2) CUDA is not really possible from a .cpp file, although it looks like 
-  this is likely to change in the coming years with Executors.
-
-  __Lazy evaluation and template expressions ala xtensor__.
-  Again, I don't want to go down that path but FYI:
-  `ArrayFire` is quite good at fusing kernels, the implementation seems relatively clean. I think `Cupy` is similar 
-  but CUDA only. `Pytorch` should be the same but the codebase is huge, and it is sometimes difficult to follow.
-  Also `Eigen` and `xtensor` have lazy evaluation. `xtensor` has a series of articles on how they implemented
-  lazy-evaluation (and kernel fusion at the same time), but these are CPU only. Adding GPU support should be relatively
-  simple though, with a string conversion on the operators and something like `jitify` from nvidia. With C++20, that
-  can be `constexpr`.
-  Links:
-  [arrayfire JIT](https://arrayfire.com/performance-of-arrayfire-jit-code-generation/)
-  [xtensors series](https://johan-mabille.medium.com/how-we-wrote-xtensor-9365952372d9).
-
-
 - Add __vkFFT__ support? Also look at FFTW CPU port for Intel-MKL and AMD.
-  Zero-padding can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call-
-  back but there's no benchmark for that. It could be useful to contact the author about some of our applications,
-  e.g. convolution with small (compared to input) template. FastFFT from Ben Himes is also promising since it is
-  really fitted for cryoEM applications, however it is CUDA only and still in development.
+  This is only for zero-padding, which can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call- back but there's no benchmark for that. It could be useful to contact the author about some of our applications, e.g. convolution with small (compared to input) template.
 
 
-- __AMD GPU backend__. `romc/hip` from AMD
-  seems relatively easy to add using their hipify tool from CUDA code.
-
-- __nvrtc and jitify__. Add runtime CUDA kernel compilation.
-  [arrayfire implementation](https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp),
-  [cuda-api-wrappers](https://github.com/eyalroz/cuda-api-wrappers/tree/master/src/cuda/nvrtc),
-  [jitify](https://github.com/NVIDIA/jitify).
+- __C++20/23__
+  - Add concepts
+  - Add more constexpr (specially string stuff)
+  - Add mdspan. This could replace our Accessor in the backends' API (not in the kernel). We don't have to wait to a new standard and can take the Kokkos implementation (it works on device code too).
 
 
-- __Add nvc++__. One big change is the `if target` construct and no need for the `__device__` attribute.
-  `Kokkos` uses a trick to define and compile CUDA kernels from .cpp files. They trick the user by treating EVERY
-  .cpp file to a CUDA file, so everything is compiled with nvcc or nvc++. This is far from an ideal solution IMHO,
-  one reason being that nvcc warnings are almost none and nvcc is not as robust as gcc/clang (there's
-  two examples that come to me from the top of my head, where nvcc fail to compile standard C++ code). So yeah,
-  `Kokkos` is not a solution for my problem (but `SYCL` might be).
-
-
-- __Future framework__. `SYCL`. Ideally, for most operations, we would like to rely on the compiler to generate device
-  specific code while staying in standard C++, which seems to be exactly what `SYCL` does.
-  __HOWEVER__, in the future it seems that the `C++ Standard Parallelism` could simplify everything, especially with
-  Senders/Receivers and Executions context policies, it is targeted to C++26, but who knows...
-  [std::execution](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2300r5.html).
-  The talks on YouTube from Bryce Adelstein Lelbach are quite good. I REALLY hope we'll be able to right device-agnostic
-  code with std::ranges, std::execution, std::mdspan and stay in C++ for everything!
+- __C++26__
+  - [std::execution-P2300](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2300r7.html) seems to be targeted for C++26. This has the potential to change C++, hopefully in a good way. The paper is promising and the talks from Bryce look ambitious. This could be amazing, but of course requires vendors to support it. NVIDIA is of course pushing for this, but hopefully it will have broader (GPU-)support. Note that this sort of changes the paradigm a bit, now the backends would be whatever the compiler supports, so if users want CUDA support for instance, they would need to compile their code with a compiler that has this backend (e.g. nvc++). `std::execution` is lazy, and is designed to allow operator-fusion.

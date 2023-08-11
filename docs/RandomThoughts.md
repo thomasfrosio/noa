@@ -138,8 +138,7 @@ Links: [ambiguities](https://rock-learning.github.io/pytransform3d/transformatio
 
 ## `Euler angles`
 
-By default, the library uses the `ZYZ` axes, with intrinsic and right-handed rotations. However, the `euler2matrix`
-and `matrix2euler` functions in `noa::geometry` accepts all the other possible conventions.
+The `euler2matrix` and `matrix2euler` functions in `noa::geometry` accepts all possible conventions.
 
 Links: [eulerangles](https://eulerangles.readthedocs.io/en/latest/usage/quick_start.html),
 [some derivations](https://www.geometrictools.com/Documentation/EulerAngles.pdf)
