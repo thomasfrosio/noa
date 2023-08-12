@@ -7,7 +7,7 @@
 - Complex CTFs, for Russo/Henderson's EWS correction?
 
 
-- __IO__: Add compression and other file formats. Also, better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the non-redundant data. ImageFile treats the shape as the physical shape.
+- __IO__: Refactor IO. Remove polymorphism and use something more modern and less coupled, like `std::variant`? Add compression and other file formats. Also, better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the non-redundant data. ImageFile treats the shape as the physical shape.
 
 
 ## `General`
@@ -31,6 +31,22 @@
   [arrayfire implementation](https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp),
   [cuda-api-wrappers](https://github.com/eyalroz/cuda-api-wrappers/tree/master/src/cuda/nvrtc),
   [jitify](https://github.com/NVIDIA/jitify).
+
+
+- __algorithms__. Rename to `ops` and move them in `core`?
+
+
+- Move the __core types__ to __noa::types__. The goal is that this namespace should be included in noa, so we can still refer to these types from `noa::`. But, user code can use `noa::types` without having to use the entire `noa::`. Maybe inline namespaces could help? These core types would be our type aliases (`i32`, `i64`, `f32`, etc.), `Shape`, `Strides`, `Vec`, etc.
+
+
+- __simplify namespaces__. Remove `math`, `io` and `memory` namespaces. Use `linalg` for BLAS/LAPACK. Remove the nested `fft` namespaces in `signal` and `geometry`, and instead prefix functions with `fourier_` when it is needed. For instance `noa::signal::lowpass` is unambiguous, we don't need `noa::signal::fft::lowpass` or `noa::signal::fouier_lowpass`. However, `noa::geometry::fourier_extract_3d` is better than `noa::geometry::extract_3d` (which is to ambiguous). At the end, we would have:
+  - `noa::`: contains everything that is currently in memory and io, as well as the core cmath functions, reductions and random numbers.
+  - `noa::geometry`: everything geometry related (so unchanged). Remove the nested `fft` and prefix functions with `fourier_` when necessary.
+  - `noa::signal`: same but for signal processing stuff.
+  - `noa::linalg`: linear algebra. idk if we should include `dot` and `matmul` here or keep these in `noa::`.
+  - `noa::fft`: unchanged
+  - `noa::traits`: unchanged
+  - `noa::indexing`: idk about this. We mostly use this internally, but there's `broadcast` for instance, which could be in `noa` directly... I certainly wouldn't want to have the `at` functions in `noa::`.
 
 
 - __Windows support__. It should not be that complicated. One thing to look at is OpenMP support.
@@ -57,6 +73,8 @@
   - Add concepts
   - Add more constexpr (specially string stuff)
   - Add mdspan. This could replace our Accessor in the backends' API (not in the kernel). We don't have to wait to a new standard and can take the Kokkos implementation (it works on device code too).
+  - The fft remap template parameter could be a string: `my_function<fft::H2H>(...)` -> `my_function<"h2h">(...)`.
+  - using enum
 
 
 - __C++26__
