@@ -111,8 +111,8 @@ namespace noa::geometry::fft {
     ///          fully batched operation (1 input -> 1 output). However if the input is not batched, it is broadcast
     ///          to all output batches (1 input -> N output).
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam Matrix          Float22 or an array/view of that type.
-    /// \tparam Shift           Vec2<f32> or an array/view of that type.
+    /// \tparam Matrix          Float22 or an varray of that type.
+    /// \tparam Shift           Vec2<f32> or an varray of that type.
     /// \param[in] input        Non-redundant 2D FFT, of type f32, f64, c32, c64, to transform.
     /// \param[out] output      Non-redundant transformed 2D FFT.
     /// \param shape            BDHW logical shape of \p input and \p output.
@@ -218,8 +218,8 @@ namespace noa::geometry::fft {
     ///          fully batched operation (1 input -> 1 output). However if the input is not batched, it is broadcast
     ///          to all output batches (1 input -> N output).
     /// \tparam REMAP           Remap operation. Should be HC2HC or HC2H.
-    /// \tparam Matrix          Float33 or an array/view of that type.
-    /// \tparam Shift           Vec3<f32> or an array/view of that type.
+    /// \tparam Matrix          Float33 or an varray of that type.
+    /// \tparam Shift           Vec3<f32> or an varray of that type.
     /// \param[in] input        Non-redundant 3D FFT, of type f32, f64, c32, c64, to transform.
     /// \param[out] output      Non-redundant transformed 3D FFT.
     /// \param shape            BDHW logical shape of \p input and \p output.

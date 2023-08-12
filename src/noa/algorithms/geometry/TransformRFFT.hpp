@@ -33,8 +33,8 @@ namespace noa::algorithm::geometry {
                       u8_REMAP & Layout::SRC_HALF &&
                       u8_REMAP & Layout::DST_HALF);
 
-        static_assert(traits::is_real_or_complex_v<Value>);
-        static_assert(traits::is_sint_v<Index>);
+        static_assert(nt::is_real_or_complex_v<Value>);
+        static_assert(nt::is_sint_v<Index>);
 
         using value_type = Value;
         using matrix_type = Matrix;
@@ -48,10 +48,10 @@ namespace noa::algorithm::geometry {
         using center_type = Vec<coord_type, N - 1>;
         using shape_type = Shape<index_type, N - 1>;
         using preshift_or_empty_type = std::conditional_t<std::is_pointer_v<shift_or_empty_type>, vec_type, Empty>;
-        using real_value_type = traits::value_type_t<value_type>;
+        using real_value_type = nt::value_type_t<value_type>;
         using accessor_type = AccessorRestrict<value_type, N + 1, offset_type>;
 
-        static_assert(traits::is_any_v<ShiftOrEmpty, Empty, vec_type, const vec_type*>);
+        static_assert(nt::is_any_v<ShiftOrEmpty, Empty, vec_type, const vec_type*>);
         static_assert(
                 (N == 2 && nt::is_any_v<Matrix, Mat22<coord_type>, const Mat22<coord_type>*>) ||
                 (N == 3 && nt::is_any_v<Matrix, Mat33<coord_type>, const Mat33<coord_type>*>));
@@ -83,9 +83,9 @@ namespace noa::algorithm::geometry {
             m_cutoff_sqd = noa::math::clamp(cutoff, coord_type{0}, coord_type{0.5});
             m_cutoff_sqd *= m_cutoff_sqd;
 
-            if constexpr (traits::is_realN_v<shift_or_empty_type, N>)
+            if constexpr (nt::is_realN_v<shift_or_empty_type, N>)
                 m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(shape_nd.vec());
-            else if constexpr (traits::is_realN_v<preshift_or_empty_type, N>)
+            else if constexpr (nt::is_realN_v<preshift_or_empty_type, N>)
                 m_preshift = 2 * noa::math::Constant<coord_type>::PI / vec_type(shape_nd.vec());
         }
 
@@ -258,7 +258,7 @@ namespace noa::algorithm::geometry {
             m_cutoff_sqd = noa::math::clamp(cutoff, coord_type{0}, coord_type{0.5});
             m_cutoff_sqd *= m_cutoff_sqd;
 
-            if constexpr (traits::is_realN_v<shift_or_empty_type, N>)
+            if constexpr (nt::is_realN_v<shift_or_empty_type, N>)
                 m_shift *= 2 * noa::math::Constant<coord_type>::PI / vec_type(shape_nd.vec());
         }
 
@@ -325,7 +325,7 @@ namespace noa::algorithm::geometry {
             }
 
             value *= m_scaling;
-            if constexpr (traits::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
+            if constexpr (nt::is_complex_v<value_type> && !std::is_empty_v<shift_or_empty_type>) {
                 value *= noa::fft::phase_shift<value_type>(m_shift, vec_type{w, v, x}); // u == x
             }
 
@@ -399,7 +399,7 @@ namespace noa::algorithm::geometry {
     template<noa::fft::Remap REMAP,
              typename Index, typename Value, typename Coord, typename MatrixOrEmpty,
              typename ShiftOrEmpty, typename Interpolator, typename Offset,
-             typename Real = traits::value_type_t<Value>>
+             typename Real = nt::value_type_t<Value>>
     auto transform_symmetry_rfft_2d(
             const Interpolator& input,
             const AccessorRestrict<Value, 3, Offset>& output,
@@ -417,7 +417,7 @@ namespace noa::algorithm::geometry {
     template<noa::fft::Remap REMAP,
              typename Index, typename Data, typename Coord, typename MatrixOrEmpty,
              typename ShiftOrEmpty, typename Interpolator, typename Offset,
-             typename Real = traits::value_type_t<Data>>
+             typename Real = nt::value_type_t<Data>>
     auto transform_symmetry_rfft_3d(
             const Interpolator& input,
             const AccessorRestrict<Data, 4, Offset>& output,

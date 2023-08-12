@@ -105,8 +105,8 @@ namespace noa::geometry {
     ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
     ///          if \p invert is false or multiplied together if \p invert is true.
     ///
-    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
-    ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
+    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an varray of Float22 or Float23.
+    ///                     3D case: Float33, Float34, Float44 or an varray of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s).
@@ -178,8 +178,8 @@ namespace noa::geometry {
     ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
     ///          if \p invert is false or multiplied together if \p invert is true.
     ///
-    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
-    ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
+    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an varray of Float22 or Float23.
+    ///                     3D case: Float33, Float34, Float44 or an varray of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
@@ -250,8 +250,8 @@ namespace noa::geometry {
     ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
     ///          if \p invert is false or multiplied together if \p invert is true.
     ///
-    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an array/view of Float22 or Float23.
-    ///                     3D case: Float33, Float34, Float44 or an array/view of Float33 or Float34.
+    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an varray of Float22 or Float23.
+    ///                     3D case: Float33, Float34, Float44 or an varray of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.
@@ -322,7 +322,7 @@ namespace noa::geometry {
     ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
     ///          if \p invert is false or multiplied together if \p invert is true.
     ///
-    /// \tparam Matrix      Float33, Float34, Float44 or an array/view of Float33 or Float34.
+    /// \tparam Matrix      Float33, Float34, Float44 or an varray of Float33 or Float34.
     /// \tparam Functor     noa::multiply_t, noa::plus_t.
     /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
     /// \param[out] output  Masked array(s). Can be equal to \p input.

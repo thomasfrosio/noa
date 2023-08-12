@@ -139,7 +139,7 @@ TEMPLATE_TEST_CASE("unified::fft::remap(), cpu vs gpu", "[noa][unified]", f16, f
     INFO("remap: " << remap);
 
     const auto shape = test::get_random_shape4_batched(ndim);
-    const auto input_shape = noa::traits::to_underlying(remap) & noa::fft::SRC_HALF ? shape.rfft() : shape;
+    const auto input_shape = noa::to_underlying(remap) & noa::fft::SRC_HALF ? shape.rfft() : shape;
 
     const auto gpu_options = ArrayOption(Device("gpu"), Allocator::PITCHED);
     const auto input_cpu = noa::math::random<TestType>(noa::math::uniform_t{}, input_shape, -5, 5);

@@ -190,7 +190,7 @@ namespace noa::algorithm::geometry {
         using matrix_type = std::conditional_t<N == 2, Mat22<coord_type>, Mat33<coord_type>>;
 
         using accessor_type = AccessorRestrict<Value, N + 1, Offset>;
-        using real_value_type = traits::value_type_t<value_type>;
+        using real_value_type = nt::value_type_t<value_type>;
 
     public:
         Symmetry(const interpolator_type& input, const accessor_type& output,
@@ -256,7 +256,7 @@ namespace noa::algorithm::geometry {
     }
 
     template<typename Index, typename Value, typename Interpolator, typename Coord, typename Offset,
-             typename Real = traits::value_type_t<Value>>
+             typename Real = nt::value_type_t<Value>>
     auto transform_symmetry_2d(
             const Interpolator& input, const AccessorRestrict<Value, 3, Offset>& output,
             const Vec2<Coord>& shift, const Mat22<Coord>& matrix, const Vec2<Coord>& center,
@@ -267,7 +267,7 @@ namespace noa::algorithm::geometry {
     }
 
     template<typename Index, typename Value, typename Interpolator, typename Coord, typename Offset,
-             typename Real = traits::value_type_t<Value>>
+             typename Real = nt::value_type_t<Value>>
     auto transform_symmetry_3d(
             const Interpolator& input, const AccessorRestrict<Value, 4, Offset>& output,
             const Vec3<Coord>& shift, const Mat33<Coord>& matrix, const Vec3<Coord>& center,
@@ -278,7 +278,7 @@ namespace noa::algorithm::geometry {
     }
 
     template<typename Index, typename Value, typename Interpolator, typename Coord, typename Offset,
-             typename Real = traits::value_type_t<Value>>
+             typename Real = nt::value_type_t<Value>>
     auto symmetry_2d(const Interpolator& input, const AccessorRestrict<Value, 3, Offset>& output,
                      const Vec2<Coord>& center, const Float33* symmetry_matrices, Index symmetry_count,
                      Real scaling) noexcept {
@@ -287,7 +287,7 @@ namespace noa::algorithm::geometry {
     }
 
     template<typename Index, typename Value, typename Interpolator, typename Coord, typename Offset,
-             typename Real = traits::value_type_t<Value>>
+             typename Real = nt::value_type_t<Value>>
     auto symmetry_3d(const Interpolator& input, const AccessorRestrict<Value, 4, Offset>& output,
                      const Vec3<Coord>& center, const Float33* symmetry_matrices, Index symmetry_count,
                      Real scaling) noexcept {

@@ -23,7 +23,7 @@ namespace noa::algorithm::geometry {
 
         using coord_type = typename Interpolator::coord_type;
         using coord2_type = Vec2<coord_type>;
-        using real_type = traits::value_type_t<output_type>;
+        using real_type = nt::value_type_t<output_type>;
         using accessor_type = AccessorRestrict<output_type, 3, offset_type>;
 
     public:

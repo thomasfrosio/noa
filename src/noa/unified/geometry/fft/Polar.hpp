@@ -361,7 +361,7 @@ namespace noa::geometry::fft {
     /// \param input_shape          BDHW logical shape of \p input.
     /// \param input_ctf            Anisotropic CTF(s). The anisotropic spacing and astigmatic field of the defocus
     ///                             are accounted for, resulting in an isotropic rotational average(s).
-    ///                             If an array/view is passed, there should be one CTF per input batch.
+    ///                             If an varray is passed, there should be one CTF per input batch.
     ///                             Otherwise, the same CTF is assigned to every batch.
     /// \param[out] output          Rotational sum/average. Should be a (strided-batched of) contiguous vector(s).
     ///                             If real and \p input is complex, `abs(input)^2` is first computed.
