@@ -58,7 +58,6 @@ namespace {
             noa::cuda::Stream& stream
     ) {
         const auto i_slice_shape = slice_shape.as_safe<i32>();
-        const auto iwise_shape = i_slice_shape.filter(0, 2, 3).rfft();
         const auto slice_strides_3d = slice_strides.filter(0, 2, 3).as_safe<u32>();
         const auto slice_accessor = AccessorRestrict<Value, 3, u32>(slice, slice_strides_3d);
 
@@ -72,7 +71,7 @@ namespace {
                     fftfreq_cutoff, fftfreq_z_sinc, fftfreq_z_blackman,
                     target_shape.as_safe<i32>(), ews_radius);
             if (op.windowed_sinc_size() > 1) {
-                noa::cuda::memory::set(slice, slice_strides, slice_shape, Value{0}, stream);
+                noa::cuda::memory::set(slice, slice_strides, slice_shape.rfft(), Value{0}, stream);
                 noa::cuda::utils::iwise_4d(i_slice_shape.rfft().set<1>(op.windowed_sinc_size()), op, stream);
             } else {
                 noa::cuda::utils::iwise_3d(i_slice_shape.filter(0, 2, 3).rfft(), op, stream);
@@ -84,7 +83,7 @@ namespace {
                     fftfreq_cutoff, fftfreq_z_sinc, fftfreq_z_blackman,
                     target_shape.as_safe<i32>(), Empty{});
             if (op.windowed_sinc_size() > 1) {
-                noa::cuda::memory::set(slice, slice_strides, slice_shape, Value{0}, stream);
+                noa::cuda::memory::set(slice, slice_strides, slice_shape.rfft(), Value{0}, stream);
                 noa::cuda::utils::iwise_4d(i_slice_shape.rfft().set<1>(op.windowed_sinc_size()), op, stream);
             } else {
                 noa::cuda::utils::iwise_3d(i_slice_shape.filter(0, 2, 3).rfft(), op, stream);
@@ -121,7 +120,7 @@ namespace {
                     add_to_output, ews_radius);
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
-                    noa::cuda::memory::set(output_slice, output_slice_strides, output_slice_shape, Value{0}, stream);
+                    noa::cuda::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, stream);
                 noa::cuda::utils::iwise_4d(i_output_slice_shape.rfft().set<1>(op.windowed_sinc_size()), op, stream);
             } else {
                 noa::cuda::utils::iwise_3d(i_output_slice_shape.filter(0, 2, 3).rfft(), op, stream);
@@ -136,7 +135,7 @@ namespace {
                     fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, Empty{});
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
-                    noa::cuda::memory::set(output_slice, output_slice_strides, output_slice_shape, Value{0}, stream);
+                    noa::cuda::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, stream);
                 noa::cuda::utils::iwise_4d(i_output_slice_shape.rfft().set<1>(op.windowed_sinc_size()), op, stream);
             } else {
                 noa::cuda::utils::iwise_3d(i_output_slice_shape.filter(0, 2, 3).rfft(), op, stream);
