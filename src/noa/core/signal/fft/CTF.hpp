@@ -387,3 +387,10 @@ namespace noa::signal::fft {
         value_type m_k3;
     };
 }
+
+namespace noa::traits {
+    template<typename T> struct proclaim_is_ctf<noa::signal::fft::CTFIsotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf<noa::signal::fft::CTFAnisotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf_isotropic<noa::signal::fft::CTFIsotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf_anisotropic<noa::signal::fft::CTFAnisotropic<T>> : std::true_type {};
+}

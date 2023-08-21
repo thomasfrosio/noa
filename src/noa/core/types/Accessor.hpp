@@ -6,6 +6,7 @@
 #include "noa/core/Assert.hpp"
 #include "noa/core/Definitions.hpp"
 #include "noa/core/traits/Numerics.hpp"
+#include "noa/core/traits/Accessor.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/utils/Indexing.hpp"
 
@@ -30,7 +31,7 @@
 //     and uses a fixed stride of 1.
 //     One disadvantage of the contiguous case is that the API becomes a bit more "rough" because
 //     the innermost stride is not stored. Thus, one should be pay attention to this when accessing
-//     the strides, specially with AccessorReference. In practice, this rarely (never?) happens.
+//     the strides, especially with AccessorReference. In practice, this rarely (never?) happens.
 
 namespace noa {
     enum class PointerTraits { DEFAULT, RESTRICT }; // TODO ATOMIC?
@@ -501,4 +502,18 @@ namespace noa {
     using AccessorRestrictContiguousU64 = AccessorRestrictContiguous<T, N, uint64_t>;
     template<typename T, size_t N>
     using AccessorRestrictContiguousU32 = AccessorRestrictContiguous<T, N, uint32_t>;
+}
+
+namespace noa::traits {
+    template<typename T, size_t N, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    struct proclaim_is_accessor<Accessor<T, N, I, PointerTrait, StridesTrait>> : std::true_type {};
+
+    template<typename T, size_t N, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    struct proclaim_is_accessor_restrict<Accessor<T, N, I, PointerTrait, StridesTrait>> : std::bool_constant<PointerTrait == PointerTraits::RESTRICT> {};
+
+    template<typename T, size_t N, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    struct proclaim_is_accessor_contiguous<Accessor<T, N, I, PointerTrait, StridesTrait>> : std::bool_constant<StridesTrait == StridesTraits::CONTIGUOUS> {};
+
+    template<typename T, size_t N1, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait, size_t N2>
+    struct proclaim_is_accessor_nd<Accessor<T, N1, I, PointerTrait, StridesTrait>, N2> : std::bool_constant<N1 == N2> {};
 }
