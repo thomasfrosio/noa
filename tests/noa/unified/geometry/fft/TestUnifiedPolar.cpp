@@ -106,7 +106,7 @@ TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, vs isotropic"
 
     using CTFIsotropic64 = noa::signal::fft::CTFIsotropic<f64>;
     using CTFAnisotropic64 = noa::signal::fft::CTFAnisotropic<f64>;
-    const auto ctf_iso = CTFIsotropic64(3, 2, 300, 0.7, 2.7, 1.570796327, 0);
+    const auto ctf_iso = CTFIsotropic64(3, 2, 300, 0.7, 2.7, 1.570796327, 0, 1);
 
     // First test that if no anisotropy, it generates exactly the same rotational average.
     for (auto device: devices) {
@@ -164,7 +164,7 @@ TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, test", "[.]")
     const auto n_shells = noa::math::min(shape.filter(2, 3)) / 2 + 1;
 
     using CTFAnisotropic64 = noa::signal::fft::CTFAnisotropic<f64>;
-    const auto ctf_aniso = CTFAnisotropic64({1.8, 2.2}, {1., 0.35, 1.563}, 300, 0., 2.7, 1.570796327, 0);
+    const auto ctf_aniso = CTFAnisotropic64({1.8, 2.2}, {1., 0.35, 1.563}, 300, 0., 2.7, 1.570796327, 0, 1);
 
     const auto ctf = noa::memory::empty<f32>(shape);
     noa::signal::fft::ctf_anisotropic<fft::FC2FC>(ctf, shape, ctf_aniso);

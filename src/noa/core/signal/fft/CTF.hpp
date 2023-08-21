@@ -45,6 +45,7 @@ namespace noa::signal::fft {
         /// \param cs           Spherical aberration in mm.
         /// \param phase_shift  Angle of phase shift applied to CTF in radians.
         /// \param bfactor      B-factor in A^2, negative is decay.
+        /// \param scale        Post-processing scaling-factor.
         NOA_HD constexpr CTFIsotropic(
                 value_type pixel_size,
                 value_type defocus,
@@ -52,14 +53,16 @@ namespace noa::signal::fft {
                 value_type amplitude,
                 value_type cs,
                 value_type phase_shift,
-                value_type bfactor
+                value_type bfactor,
+                value_type scale
         ) noexcept:
                 m_pixel_size(pixel_size),
                 m_defocus_angstroms(-defocus * static_cast<Real>(1e4)), // micrometers -> angstroms
                 m_phase_shift(phase_shift),
                 m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
                 m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
-                m_amplitude(amplitude) {
+                m_amplitude(amplitude),
+                m_scale(scale) {
             set_bfactor(bfactor);
             set_lambda_and_cs_();
             set_amplitude_fraction_();
@@ -74,13 +77,15 @@ namespace noa::signal::fft {
                 ctf_anisotropic.amplitude(),
                 ctf_anisotropic.cs(),
                 ctf_anisotropic.phase_shift(),
-                ctf_anisotropic.bfactor()
+                ctf_anisotropic.bfactor(),
+                ctf_anisotropic.scale()
         ) {}
 
     public: // getters
         [[nodiscard]] NOA_HD constexpr value_type pixel_size() const noexcept { return m_pixel_size; }
         [[nodiscard]] NOA_HD constexpr value_type phase_shift() const noexcept { return m_phase_shift; }
         [[nodiscard]] NOA_HD constexpr value_type amplitude() const noexcept { return m_amplitude; }
+        [[nodiscard]] NOA_HD constexpr value_type scale() const noexcept { return m_scale; }
         [[nodiscard]] NOA_HD constexpr value_type bfactor() const noexcept {
             return m_bfactor_forth * 4;
         }
@@ -97,6 +102,7 @@ namespace noa::signal::fft {
     public: // setters
         NOA_HD constexpr void set_pixel_size(value_type pixel_size) noexcept { m_pixel_size = pixel_size; }
         NOA_HD constexpr void set_phase_shift(value_type phase_shift) noexcept { m_phase_shift = phase_shift; }
+        NOA_HD constexpr void set_scale(value_type scale) noexcept { m_scale = scale; }
         NOA_HD constexpr void set_bfactor(value_type bfactor) noexcept {
             m_bfactor_forth = bfactor / 4;
         }
@@ -134,7 +140,7 @@ namespace noa::signal::fft {
             auto ctf = -noa::math::sin(phase);
             if (m_bfactor_forth != 0)
                 ctf *= noa::math::exp(m_bfactor_forth * r2);
-            return ctf;
+            return ctf * m_scale;
         }
 
     private:
@@ -158,6 +164,7 @@ namespace noa::signal::fft {
         value_type m_voltage_volts{};
         value_type m_amplitude{};
         value_type m_bfactor_forth{};
+        value_type m_scale{};
 
         value_type m_k1;
         value_type m_k2;
@@ -198,6 +205,7 @@ namespace noa::signal::fft {
         /// \param cs           Spherical aberration in mm.
         /// \param phase_shift  Angle of phase shift applied to CTF in radians.
         /// \param bfactor      B-factor in A^2, negative is decay.
+        /// \param scale        Post-processing scaling-factor.
         NOA_HD constexpr CTFAnisotropic(
                 pixel_size_type pixel_size,
                 defocus_type defocus,
@@ -205,13 +213,15 @@ namespace noa::signal::fft {
                 value_type amplitude,
                 value_type cs,
                 value_type phase_shift,
-                value_type bfactor
+                value_type bfactor,
+                value_type scale
         ) noexcept:
                 m_pixel_size(pixel_size),
                 m_phase_shift(phase_shift),
                 m_cs_angstroms(cs * static_cast<Real>(1e7)), // mm -> angstroms
                 m_voltage_volts(voltage * static_cast<Real>(1e3)), // kV -> V
-                m_amplitude(amplitude) {
+                m_amplitude(amplitude),
+                m_scale(scale) {
             set_defocus(defocus);
             set_bfactor(bfactor);
             set_lambda_and_cs_();
@@ -230,12 +240,14 @@ namespace noa::signal::fft {
                         ctf_isotropic.amplitude(),
                         ctf_isotropic.cs(),
                         ctf_isotropic.phase_shift(),
-                        ctf_isotropic.bfactor()) {}
+                        ctf_isotropic.bfactor(),
+                        ctf_isotropic.scale()) {}
 
     public: // getters
         [[nodiscard]] NOA_HD constexpr pixel_size_type pixel_size() const noexcept { return m_pixel_size; }
         [[nodiscard]] NOA_HD constexpr value_type phase_shift() const noexcept { return m_phase_shift; }
         [[nodiscard]] NOA_HD constexpr value_type amplitude() const noexcept { return m_amplitude; }
+        [[nodiscard]] NOA_HD constexpr value_type scale() const noexcept { return m_scale; }
         [[nodiscard]] NOA_HD constexpr value_type bfactor() const noexcept {
             return m_bfactor_forth * 4;
         }
@@ -254,6 +266,7 @@ namespace noa::signal::fft {
     public: // setters
         NOA_HD constexpr void set_pixel_size(pixel_size_type pixel_size) noexcept { m_pixel_size = pixel_size; }
         NOA_HD constexpr void set_phase_shift(value_type phase_shift) noexcept { m_phase_shift = phase_shift; }
+        NOA_HD constexpr void set_scale(value_type scale) noexcept { m_scale = scale; }
         NOA_HD constexpr void set_bfactor(value_type bfactor) noexcept {
             m_bfactor_forth = bfactor / 4;
         }
@@ -303,7 +316,7 @@ namespace noa::signal::fft {
             auto ctf = -noa::math::sin(phase);
             if (m_bfactor_forth != 0)
                 ctf *= noa::math::exp(m_bfactor_forth * r2);
-            return ctf;
+            return ctf * m_scale;
         }
 
         template<typename Coord, typename = std::enable_if_t<std::is_floating_point_v<Coord>>>
@@ -366,6 +379,7 @@ namespace noa::signal::fft {
         value_type m_voltage_volts{};
         value_type m_amplitude{};
         value_type m_bfactor_forth{};
+        value_type m_scale{};
 
         value_type m_lambda_angstroms;
         value_type m_k1;

@@ -38,7 +38,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, assets", "[noa][unified][assets]
         const auto phase_shift = test["phase_shift"].as<f64>();
         const auto bfactor = test["bfactor"].as<f64>();
 
-        const auto ctf = CTFIsotropic64(pixel_size, defocus, voltage, amplitude, cs, phase_shift, bfactor);
+        const auto ctf = CTFIsotropic64(pixel_size, defocus, voltage, amplitude, cs, phase_shift, bfactor, 1);
 
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::memory::empty<f32>(shape.rfft());
@@ -95,7 +95,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, default range", "[noa][unified]"
 
     const i64 ndim = GENERATE(1, 2, 3);
     using CTFIsotropic64 = noa::signal::fft::CTFIsotropic<f64>;
-    const auto ctf = CTFIsotropic64(2.1, 2.5, 300, 0.1, 2.7, 0, 10);
+    const auto ctf = CTFIsotropic64(2.1, 2.5, 300, 0.1, 2.7, 0, 10, 1);
 
     for (auto device: devices) {
         INFO(device);
@@ -120,7 +120,7 @@ TEST_CASE("unified::signal::fft::ctf_isotropic, range", "[noa][unified]") {
     // with the same number of elements as in the subregion and check these ranges are equal.
 
     using CTFIsotropic64 = noa::signal::fft::CTFIsotropic<f64>;
-    const auto ctf = CTFIsotropic64(2.1, 2.67, 300, 0.07, 2.7, 0, 0);
+    const auto ctf = CTFIsotropic64(2.1, 2.67, 300, 0.07, 2.7, 0, 0, 1);
     const auto resolution_range = Vec2 < f64 > {40, 10};
     const bool endpoint = GENERATE(true, false);
 
@@ -190,7 +190,7 @@ TEST_CASE("unified::signal::fft::ctf_anisotropic, assets", "[noa][unified][asset
         const auto bfactor = test["bfactor"].as<f64>();
 
         const auto defocus_astigmatic = DefocusAstigmatic64{defocus[0], defocus[1], noa::math::deg2rad(defocus[2])};
-        const auto ctf = CTFAnisotropic64(pixel_size, defocus_astigmatic, voltage, amplitude, cs, phase_shift, bfactor);
+        const auto ctf = CTFAnisotropic64(pixel_size, defocus_astigmatic, voltage, amplitude, cs, phase_shift, bfactor, 1);
 
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::memory::empty<f32>(shape);
@@ -251,7 +251,7 @@ TEST_CASE("unified::signal::fft::ctf_anisotropic, default range, vs isotropic", 
 
     using CTFIsotropic64 = noa::signal::fft::CTFIsotropic<f64>;
     using CTFAnisotropic64 = noa::signal::fft::CTFAnisotropic<f64>;
-    const auto ctf_iso = CTFIsotropic64(2.1, 2.5, 300, 0.1, 2.7, 0, 10);
+    const auto ctf_iso = CTFIsotropic64(2.1, 2.5, 300, 0.1, 2.7, 0, 10, 1);
     const auto ctf_aniso = CTFAnisotropic64(ctf_iso);
 
     for (auto device: devices) {
