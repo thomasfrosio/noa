@@ -42,12 +42,6 @@ namespace noa::traits {
     template<typename... Ts> constexpr bool are_varray_of_sint_v = bool_and<is_varray_of_sint_v<Ts>...>::value;
     template<typename... Ts> constexpr bool are_varray_of_uint_v = bool_and<is_varray_of_uint_v<Ts>...>::value;
 
-    template<typename T, typename... Ts> struct are_almost_same_value_type : std::bool_constant<(is_almost_same_v<value_type_t<T>, value_type_t<Ts>> && ...)> {};
-    template<typename T, typename... Ts> constexpr bool are_almost_same_value_type_v = are_almost_same_value_type<T, Ts...>::value;
-
-    template<typename T, typename... Ts> struct are_same_value_type : std::bool_constant<(std::is_same_v<value_type_t<T>, value_type_t<Ts>> && ...)> {};
-    template<typename T, typename... Ts> constexpr bool are_same_value_type_v = are_same_value_type<T, Ts...>::value;
-
     template<typename T, typename... Ts> constexpr bool is_varray_of_any_v = is_varray<T>::value && is_any_v<value_type_t<T>, Ts...>;
     template<typename T, typename... Ts> constexpr bool is_varray_of_almost_any_v = is_varray<T>::value && is_almost_any_v<value_type_t<T>, Ts...>;
 }
