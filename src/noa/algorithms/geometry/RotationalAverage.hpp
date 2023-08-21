@@ -28,7 +28,9 @@ namespace noa::algorithm::geometry {
                        nt::are_real_or_complex_v<Input, Output>) ||
                       (nt::is_complex_v<Input> &&
                        nt::is_real_v<Output>));
-        static_assert((N == 2 && noa::algorithm::signal::fft::is_valid_aniso_ctf_v<CTF>) ||
+        static_assert((N == 2 &&
+                       (nt::is_ctf_anisotropic_v<CTF> ||
+                        (std::is_pointer_v<CTF> && nt::is_ctf_anisotropic_v<nt::remove_pointer_cv_t<CTF>>))) ||
                       std::is_empty_v<CTF>);
 
         static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
@@ -170,7 +172,7 @@ namespace noa::algorithm::geometry {
         input_accessor_type m_input;
         output_accessor_type m_output;
         weight_accessor_type m_weight;
-        NOA_NO_UNIQUE_ADDRESS ctf_type m_ctf;
+        ctf_type m_ctf; // FIXME NOA_NO_UNIQUE_ADDRESS breaks here with nvcc (it's a C++20 feature so I guess it's okay)
 
         shape_type m_shape; // width is removed
         index_type m_max_shell_index;
@@ -178,7 +180,6 @@ namespace noa::algorithm::geometry {
         coord2_type m_frequency_range_sqd;
         coord_type m_frequency_range_start;
         coord_type m_frequency_range_span;
-
     };
 
     template<noa::fft::Remap REMAP,

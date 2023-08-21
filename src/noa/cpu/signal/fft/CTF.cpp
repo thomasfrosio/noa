@@ -3,7 +3,7 @@
 #include "noa/cpu/utils/Iwise.hpp"
 
 namespace noa::cpu::signal::fft {
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFIsotropic, typename>
+    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFIsotropic>
     void ctf_isotropic(
             const Input* input, Strides4<i64> input_strides,
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
@@ -66,12 +66,12 @@ namespace noa::cpu::signal::fft {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Output, typename CTFIsotropic, typename>
+    template<noa::fft::Remap REMAP, typename Output, typename CTFIsotropic>
     void ctf_isotropic(
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
-            const CTFIsotropic& ctf,  bool ctf_abs, bool ctf_square,
-            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, i64 threads) {
-
+            const CTFIsotropic& ctf, bool ctf_abs, bool ctf_square,
+            const Vec2<f32>& fftfreq_range, bool fftfreq_range_endpoint, i64 threads
+    ) {
         constexpr bool IS_HALF = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_HALF;
         switch (shape.ndim()) {
             case 1: {
@@ -127,7 +127,7 @@ namespace noa::cpu::signal::fft {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFAnisotropic, typename>
+    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFAnisotropic>
     void ctf_anisotropic(
             const Input* input, const Strides4<i64>& input_strides,
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
@@ -146,7 +146,7 @@ namespace noa::cpu::signal::fft {
         noa::cpu::utils::iwise_3d(iwise_shape, kernel, threads);
     }
 
-    template<noa::fft::Remap REMAP, typename Output, typename CTFAnisotropic, typename>
+    template<noa::fft::Remap REMAP, typename Output, typename CTFAnisotropic>
     void ctf_anisotropic(
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
             const CTFAnisotropic& ctf,  bool ctf_abs, bool ctf_square,
@@ -166,13 +166,13 @@ namespace noa::cpu::signal::fft {
     }
 
     #define NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, CTF)    \
-    template void ctf_isotropic<Remap, Input, Output, CTF, void>(       \
+    template void ctf_isotropic<Remap, Input, Output, CTF>(             \
             const Input*, Strides4<i64>,                                \
             Output*, Strides4<i64>,                                     \
             Shape4<i64>, CTF const&, bool, bool, i64)
 
     #define NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, CTF)  \
-    template void ctf_anisotropic<Remap, Input, Output, CTF, void>(     \
+    template void ctf_anisotropic<Remap, Input, Output, CTF>(           \
             const Input*, const Strides4<i64>&,                         \
             Output*, const Strides4<i64>&,                              \
             const Shape4<i64>&, CTF const&, bool, bool, i64)
@@ -205,13 +205,13 @@ namespace noa::cpu::signal::fft {
     NOA_INSTANTIATE_CTF_ALL_REMAP(c64, f64);
 
     #define NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, CTF) \
-    template void ctf_isotropic<Remap, Output, CTF, void>(          \
+    template void ctf_isotropic<Remap, Output, CTF>(                \
             Output*, Strides4<i64>,                                 \
             Shape4<i64>, CTF const&, bool, bool,                    \
             const Vec2<f32>&, bool, i64)
 
     #define NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, CTF)   \
-    template void ctf_anisotropic<Remap, Output, CTF, void>(            \
+    template void ctf_anisotropic<Remap, Output, CTF>(                  \
             Output*, const Strides4<i64>&,                              \
             const Shape4<i64>&, CTF const&, bool, bool,                 \
             const Vec2<f32>&, bool, i64)
@@ -234,4 +234,6 @@ namespace noa::cpu::signal::fft {
 
     NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f32);
     NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f64);
+    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c32);
+    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c64);
 }

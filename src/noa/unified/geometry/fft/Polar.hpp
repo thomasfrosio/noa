@@ -26,13 +26,14 @@ namespace noa::geometry::fft::details {
         using input_value_type = nt::mutable_value_type_t<Input>; // allow const
         using output_value_type = nt::value_type_t<Output>;
         using weight_value_type = nt::value_type_t<Weight>;
-        using ctf_parser = noa::signal::fft::details::ctf_parser_t<Ctf>;
 
         static constexpr bool is_valid_remap =
                 REMAP == Remap::H2H || REMAP == Remap::HC2H ||
                 REMAP == Remap::F2H || REMAP == Remap::FC2H;
         static constexpr bool value =
-                is_valid_remap && (ctf_parser::IS_ANISOTROPIC || std::is_empty_v<Ctf>) &&
+                is_valid_remap &&
+                (nt::is_ctf_anisotropic_v<Ctf> ||
+                 (nt::is_varray_v<Ctf> && nt::is_ctf_anisotropic_v<nt::value_type_t<Ctf>>) || std::is_empty_v<Ctf>) &&
                 (nt::are_same_value_type_v<input_value_type, output_value_type, weight_value_type> &&
                  ((nt::are_all_same_v<input_value_type, output_value_type> &&
                    nt::are_real_or_complex_v<input_value_type, output_value_type>) ||

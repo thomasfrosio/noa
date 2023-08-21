@@ -3,7 +3,7 @@
 #include "noa/gpu/cuda/utils/Iwise.cuh"
 
 namespace noa::cuda::signal::fft {
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFIsotropic, typename>
+    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFIsotropic>
     void ctf_isotropic(
             const Input* input, Strides4<i64> input_strides,
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
@@ -66,7 +66,7 @@ namespace noa::cuda::signal::fft {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Output, typename CTFIsotropic, typename>
+    template<noa::fft::Remap REMAP, typename Output, typename CTFIsotropic>
     void ctf_isotropic(
             Output* output, Strides4<i64> output_strides, Shape4<i64> shape,
             const CTFIsotropic& ctf, bool ctf_abs, bool ctf_square,
@@ -127,7 +127,7 @@ namespace noa::cuda::signal::fft {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFAnisotropic, typename>
+    template<noa::fft::Remap REMAP, typename Input, typename Output, typename CTFAnisotropic>
     void ctf_anisotropic(
             const Input* input, const Strides4<i64>& input_strides,
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
@@ -147,7 +147,7 @@ namespace noa::cuda::signal::fft {
         noa::cuda::utils::iwise_3d(iwise_shape, kernel, stream);
     }
 
-    template<noa::fft::Remap REMAP, typename Output, typename CTFAnisotropic, typename>
+    template<noa::fft::Remap REMAP, typename Output, typename CTFAnisotropic>
     void ctf_anisotropic(
             Output* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
             const CTFAnisotropic& ctf, bool ctf_abs, bool ctf_square,
@@ -168,13 +168,13 @@ namespace noa::cuda::signal::fft {
     }
 
     #define NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, CTF)    \
-    template void ctf_isotropic<Remap, Input, Output, CTF, void>(       \
+    template void ctf_isotropic<Remap, Input, Output, CTF>(             \
             const Input*, Strides4<i64>,                                \
             Output*, Strides4<i64>,                                     \
             Shape4<i64>, CTF const&, bool, bool, Stream&)
 
     #define NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, CTF)  \
-    template void ctf_anisotropic<Remap, Input, Output, CTF, void>(     \
+    template void ctf_anisotropic<Remap, Input, Output, CTF>(           \
             const Input*, const Strides4<i64>&,                         \
             Output*, const Strides4<i64>&,                              \
             const Shape4<i64>&, CTF const&, bool, bool, Stream&)
@@ -207,13 +207,13 @@ namespace noa::cuda::signal::fft {
     NOA_INSTANTIATE_CTF_ALL_REMAP(c64, f64);
 
     #define NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, CTF) \
-    template void ctf_isotropic<Remap, Output, CTF, void>(          \
+    template void ctf_isotropic<Remap, Output, CTF>(                \
             Output*, Strides4<i64>,                                 \
             Shape4<i64>, CTF const&, bool, bool,                    \
             const Vec2<f32>&, bool, Stream&)
 
     #define NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, CTF)   \
-    template void ctf_anisotropic<Remap, Output, CTF, void>(            \
+    template void ctf_anisotropic<Remap, Output, CTF>(                  \
             Output*, const Strides4<i64>&,                              \
             const Shape4<i64>&, CTF const&, bool, bool,                 \
             const Vec2<f32>&, bool, Stream&)
@@ -236,4 +236,6 @@ namespace noa::cuda::signal::fft {
 
     NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f32);
     NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f64);
+    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c32);
+    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c64);
 }

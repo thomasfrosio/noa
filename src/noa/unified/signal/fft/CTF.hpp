@@ -11,25 +11,10 @@ namespace noa::signal::fft::details {
     using Remap = noa::fft::Remap;
     using Layout = noa::fft::Layout;
 
-    template<typename CTF>
-    struct ctf_parser_t {
-        using iso32_type = noa::signal::fft::CTFIsotropic<f32>;
-        using iso64_type = noa::signal::fft::CTFIsotropic<f64>;
-        using aniso32_type = noa::signal::fft::CTFAnisotropic<f32>;
-        using aniso64_type = noa::signal::fft::CTFAnisotropic<f64>;
-
-        static constexpr bool IS_ISOTROPIC =
-                nt::is_any_v<CTF, iso32_type, iso64_type> ||
-                nt::is_varray_of_any_v<CTF, iso32_type, iso64_type>;
-        static constexpr bool IS_ANISOTROPIC =
-                nt::is_any_v<CTF, aniso32_type, aniso64_type> ||
-                nt::is_varray_of_any_v<CTF, aniso32_type, aniso64_type>;
-        static constexpr bool IS_VALID = IS_ISOTROPIC || IS_ANISOTROPIC;
-    };
-
-    template<Remap REMAP, typename Input, typename Output, typename CTF>
+    template<Remap REMAP, typename Input, typename Output, typename CTF, bool ISOTROPIC>
     constexpr bool is_valid_ctf_v =
-            ctf_parser_t<CTF>::IS_VALID &&
+            (ISOTROPIC && (nt::is_ctf_isotropic_v<CTF> || (nt::is_varray_v<CTF> && nt::is_ctf_isotropic_v<nt::value_type_t<CTF>>)) ||
+             !ISOTROPIC && (nt::is_ctf_anisotropic_v<CTF> || (nt::is_varray_v<CTF> && nt::is_ctf_anisotropic_v<nt::value_type_t<CTF>>))) &&
             (REMAP == Remap::H2H || REMAP == Remap::HC2H || REMAP == Remap::H2HC || REMAP == Remap::HC2HC ||
              REMAP == Remap::F2F || REMAP == Remap::FC2F || REMAP == Remap::F2FC || REMAP == Remap::FC2FC) &&
             (nt::are_same_value_type_v<nt::value_type_t<Input>, nt::value_type_t<Output>> &&
@@ -88,7 +73,7 @@ namespace noa::signal::fft::details {
                       "The ctf and output arrays must be on the same device, but got ctf={} and output={}",
                       ctf.device(), output.device());
         }
-        if constexpr (ctf_parser_t<CTF>::IS_ANISOTROPIC) {
+        if constexpr (nt::is_ctf_anisotropic_v<CTF> || nt::is_ctf_anisotropic_v<nt::value_type_t<CTF>>) {
             NOA_CHECK(shape.ndim() == 2,
                       "Only (batched) 2d arrays are supported with anisotropic CTFs, but got shape {}",
                       shape);
@@ -127,8 +112,7 @@ namespace noa::signal::fft {
     template<noa::fft::Remap REMAP,
             typename Output, typename CTF,
             typename = std::enable_if_t<
-                    details::is_valid_ctf_v<REMAP, View<nt::value_type_t<Output>>, Output, CTF> &&
-                    details::ctf_parser_t<CTF>::IS_ISOTROPIC>>
+                    details::is_valid_ctf_v<REMAP, View<nt::value_type_t<Output>>, Output, CTF, true>>>
     void ctf_isotropic(
             const Output& output,
             const Shape4<i64>& shape,
@@ -181,9 +165,7 @@ namespace noa::signal::fft {
     template<noa::fft::Remap REMAP,
              typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>,
-             typename = std::enable_if_t<
-                     details::is_valid_ctf_v<REMAP, Input, Output, CTF> &&
-                     details::ctf_parser_t<CTF>::IS_ISOTROPIC>>
+             typename = std::enable_if_t<details::is_valid_ctf_v<REMAP, Input, Output, CTF, true>>>
     void ctf_isotropic(
             const Input& input,
             const Output& output,
@@ -249,8 +231,7 @@ namespace noa::signal::fft {
     template<noa::fft::Remap REMAP,
              typename Output, typename CTF,
              typename = std::enable_if_t<
-                     details::is_valid_ctf_v<REMAP, View<nt::value_type_t<Output>>, Output, CTF> &&
-                     details::ctf_parser_t<CTF>::IS_ANISOTROPIC>>
+                     details::is_valid_ctf_v<REMAP, View<nt::value_type_t<Output>>, Output, CTF, false>>>
     void ctf_anisotropic(
             const Output& output,
             const Shape4<i64>& shape,
@@ -303,9 +284,7 @@ namespace noa::signal::fft {
     template<noa::fft::Remap REMAP,
              typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>,
-             typename = std::enable_if_t<
-                     details::is_valid_ctf_v<REMAP, Input, Output, CTF> &&
-                     details::ctf_parser_t<CTF>::IS_ANISOTROPIC>>
+             typename = std::enable_if_t<details::is_valid_ctf_v<REMAP, Input, Output, CTF, false>>>
     void ctf_anisotropic(
             const Input& input,
             const Output& output,

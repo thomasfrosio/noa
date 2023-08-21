@@ -18,7 +18,9 @@ namespace noa::cpu::geometry::fft::details {
     template<Remap REMAP, typename Input, typename Ctf, typename Output, typename Weight>
     constexpr bool is_valid_rotational_average_v =
             (REMAP == Remap::H2H || REMAP == Remap::HC2H || REMAP == Remap::F2H || REMAP == Remap::FC2H) &&
-            (noa::algorithm::signal::fft::is_valid_aniso_ctf_v<Ctf> || std::is_empty_v<Ctf>) &&
+            (nt::is_ctf_anisotropic_v<Ctf> ||
+             (std::is_pointer_v<Ctf> && nt::is_ctf_anisotropic_v<nt::remove_pointer_cv_t<Ctf>>) ||
+             std::is_empty_v<Ctf>) &&
             (nt::are_same_value_type_v<Input, Output, Weight> &&
              ((nt::are_all_same_v<Input, Output> &&
                nt::are_real_or_complex_v<Input, Output>) ||
