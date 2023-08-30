@@ -99,7 +99,7 @@ namespace {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, noa::cuda::Stream& stream
     ) {
         const auto output_slice_strides_2d = output_slice_strides.filter(0, 2, 3).as_safe<u32>();
@@ -117,7 +117,7 @@ namespace {
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
                     fftfreq_z_sinc, fftfreq_z_blackman,
-                    add_to_output, ews_radius);
+                    add_to_output, correct_multiplicity, ews_radius);
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
                     noa::cuda::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, stream);
@@ -132,7 +132,7 @@ namespace {
                     Empty{}, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                    fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, Empty{});
+                    fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity, Empty{});
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
                     noa::cuda::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, stream);
@@ -362,7 +362,7 @@ namespace noa::cuda::geometry::fft {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, Stream& stream
     ) {
         NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
@@ -379,7 +379,7 @@ namespace noa::cuda::geometry::fft {
                 insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                 extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                 fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                fftfreq_z_sinc, fftfreq_z_blackman, add_to_output,
+                fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity,
                 ews_radius, stream);
     }
 
@@ -392,7 +392,7 @@ namespace noa::cuda::geometry::fft {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, Stream& stream
     ) {
         NOA_ASSERT_DEVICE_PTR(output_slice, stream.device());
@@ -406,7 +406,7 @@ namespace noa::cuda::geometry::fft {
                 insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                 extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                 fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                fftfreq_z_sinc, fftfreq_z_blackman, add_to_output,
+                fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity,
                 ews_radius, stream);
     }
 
@@ -420,7 +420,7 @@ namespace noa::cuda::geometry::fft {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, Stream& stream
     ) {
         // Input texture requirements:
@@ -441,7 +441,7 @@ namespace noa::cuda::geometry::fft {
                         insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                         fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output,
+                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity,
                         ews_radius, stream);
             } else if (input_slice_interpolation_mode == InterpMode::LINEAR_FAST) {
                 using interpolator_t = noa::cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value, false, true>;
@@ -451,7 +451,7 @@ namespace noa::cuda::geometry::fft {
                         insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                         fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output,
+                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity,
                         ews_radius, stream);
             }
         } else {
@@ -463,7 +463,7 @@ namespace noa::cuda::geometry::fft {
                         insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                         fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output,
+                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity,
                         ews_radius, stream);
             } else if (input_slice_interpolation_mode == InterpMode::LINEAR_FAST) {
                 using interpolator_t = cuda::geometry::Interpolator2D<InterpMode::LINEAR_FAST, Value>;
@@ -473,7 +473,7 @@ namespace noa::cuda::geometry::fft {
                         insert_fwd_scaling_matrices, insert_inv_rotation_matrices,
                         extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                         fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output,
+                        fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity,
                         ews_radius, stream);
             }
         }
@@ -540,12 +540,12 @@ namespace noa::cuda::geometry::fft {
         const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
         T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
         S0 const&, R0 const&, S1 const&, R1 const&,                                     \
-        f32, f32, f32, f32, f32, bool, const Vec2<f32>&, Stream&);                      \
+        f32, f32, f32, f32, f32, bool, bool, const Vec2<f32>&, Stream&);                \
     template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(    \
         T, const Shape4<i64>&,                                                          \
         T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
         S0 const&, R0 const&, S1 const&, R1 const&,                                     \
-        f32, f32, f32, f32, f32, bool, const Vec2<f32>&, Stream&)
+        f32, f32, f32, f32, f32, bool, bool, const Vec2<f32>&, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, S, R)          \
     NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::H2H, S, R);     \
@@ -604,7 +604,7 @@ namespace noa::cuda::geometry::fft {
         cudaArray*, cudaTextureObject_t, InterpMode, const Shape4<i64>&,            \
         T*, const Strides4<i64>&, const Shape4<i64>&,                               \
         S0 const&, R0 const&, S1 const&, R1 const&,                                 \
-        f32, f32, f32, f32, f32, bool, const Vec2<f32>&, Stream&)
+        f32, f32, f32, f32, f32, bool, bool, const Vec2<f32>&, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_TEXTURE_ALL_REMAP(T, S, R)  \
     NOA_INSTANTIATE_INSERT_THICK_TEXTURE(T, Remap::HC2H, S, R); \

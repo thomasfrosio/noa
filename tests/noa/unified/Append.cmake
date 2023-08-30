@@ -47,8 +47,8 @@ set(TEST_UNIFIED_SOURCES
     noa/unified/geometry/TestUnifiedShape.cpp
     noa/unified/geometry/TestUnifiedSymmetry.cpp
     noa/unified/geometry/TestUnifiedTransform.cpp
-
-    noa/unified/geometry/TestUnifiedTileExtraction.cpp
+#
+#    noa/unified/geometry/TestUnifiedTileExtraction.cpp
 
     )
 

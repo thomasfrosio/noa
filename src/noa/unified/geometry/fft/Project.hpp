@@ -651,6 +651,14 @@ namespace noa::geometry::fft {
     ///                                         enabled, it instead adds the contribution of \p input_slice to the
     ///                                         signal already in \p output_slice, allowing to progressively
     ///                                         build the output signal.
+    /// \param correct_multiplicity             Correct for the multiplicity. By default, the virtual volume contains
+    ///                                         the sum of the inserted values (weighted by \p input_windowed_sinc).
+    ///                                         If true, the multiplicity is corrected by dividing the virtual volume
+    ///                                         with the total inserted weights, only if the weight is larger than 1.
+    ///                                         Indeed, if the weight for a frequency is less than 1, the frequency is
+    ///                                         unchanged. The total insertion weights can be computed by filling the
+    ///                                         input slices with ones. Note that this parameter is likely to only
+    ///                                         make sense if \p add_to_output is false.
     /// \param fftfreq_cutoff                   Frequency cutoff of the virtual 3d volume, in cycle/pix.
     /// \param ews_radius                       HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
     ///                                         If negative, the negative curve is computed.
@@ -668,6 +676,7 @@ namespace noa::geometry::fft {
             const WindowedSinc& input_windowed_sinc = {},
             const WindowedSinc& z_windowed_sinc = {},
             bool add_to_output = false,
+            bool correct_multiplicity = false,
             f32 fftfreq_cutoff = 0.5f,
             const Vec2<f32>& ews_radius = {}
     ) {
@@ -692,7 +701,7 @@ namespace noa::geometry::fft {
                             details::extract_matrix(output_fwd_rotation_matrix),
                             fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
                             z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                            add_to_output, ews_radius, threads);
+                            add_to_output, correct_multiplicity, ews_radius, threads);
                 } else if constexpr (nt::is_real_or_complex_v<Input>) {
                     noa::cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
                             input_slice, input_slice_shape,
@@ -703,7 +712,7 @@ namespace noa::geometry::fft {
                             details::extract_matrix(output_fwd_rotation_matrix),
                             fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
                             z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                            add_to_output, ews_radius, threads);
+                            add_to_output, correct_multiplicity, ews_radius, threads);
                 } else {
                     static_assert(nt::always_false_v<Input>);
                 }
@@ -721,7 +730,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix(output_fwd_rotation_matrix),
                         fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
                         z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                        add_to_output, ews_radius, cuda_stream);
+                        add_to_output, correct_multiplicity, ews_radius, cuda_stream);
             } else if constexpr (nt::is_real_or_complex_v<Input>) {
                 noa::cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
                         input_slice, input_slice_shape,
@@ -732,7 +741,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix(output_fwd_rotation_matrix),
                         fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
                         z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                        add_to_output, ews_radius, cuda_stream);
+                        add_to_output, correct_multiplicity, ews_radius, cuda_stream);
             } else {
                 static_assert(nt::always_false_v<Input>);
             }
@@ -761,6 +770,7 @@ namespace noa::geometry::fft {
             const WindowedSinc& input_windowed_sinc = {},
             const WindowedSinc& z_windowed_sinc = {},
             bool add_to_output = false,
+            bool correct_multiplicity = false,
             f32 fftfreq_cutoff = 0.5f,
             const Vec2<f32>& ews_radius = {}
     ) {
@@ -774,7 +784,8 @@ namespace noa::geometry::fft {
                     input_slice_array, input_slice_shape, output_slice, output_slice_shape,
                     input_fwd_scaling_matrix, input_inv_rotation_matrix,
                     output_inv_scaling_matrix, output_fwd_rotation_matrix,
-                    input_windowed_sinc, z_windowed_sinc, add_to_output, fftfreq_cutoff, ews_radius);
+                    input_windowed_sinc, z_windowed_sinc,
+                    add_to_output, correct_multiplicity, fftfreq_cutoff, ews_radius);
         } else {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (nt::is_any_v<Value, f64, c64>) {
@@ -796,7 +807,7 @@ namespace noa::geometry::fft {
                         details::extract_matrix(output_fwd_rotation_matrix),
                         fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
                         z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                        add_to_output, ews_radius, cuda_stream);
+                        add_to_output, correct_multiplicity, ews_radius, cuda_stream);
                 cuda_stream.enqueue_attach(
                         texture.array, texture.texture, output_slice,
                         input_fwd_scaling_matrix, input_inv_rotation_matrix,

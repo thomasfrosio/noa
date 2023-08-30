@@ -64,7 +64,7 @@ namespace noa::cpu::geometry::fft {
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
             f32 fftfreq_z_sinc, f32 fftfreq_z_blackman,
-            bool add_to_output, const Vec2<f32>& ews_radius, i64 threads
+            bool add_to_output, bool correct_multiplicity, const Vec2<f32>& ews_radius, i64 threads
     );
 
     template<Remap REMAP, typename Value, typename Scale0, typename Scale1, typename Rotate0, typename Rotate1,
@@ -77,7 +77,7 @@ namespace noa::cpu::geometry::fft {
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
             f32 fftfreq_z_sinc, f32 fftfreq_z_blackman,
-            bool add_to_output, const Vec2<f32>& ews_radius, i64 threads
+            bool add_to_output, bool correct_multiplicity, const Vec2<f32>& ews_radius, i64 threads
     );
 
     template<typename Value, typename = std::enable_if_t<nt::is_any_v<Value, f32, f64>>>

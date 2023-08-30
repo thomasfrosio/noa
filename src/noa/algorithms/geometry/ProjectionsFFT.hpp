@@ -296,6 +296,20 @@ namespace noa::algorithm::geometry::details {
     NOA_FHD Coord w_index_to_fftfreq_offset(Int w, Int window_size, Coord spectrum_size) {
         return static_cast<Coord>(w - window_size / 2) / spectrum_size;
     }
+
+    // This is only used for the Fourier extraction step.
+    // Compute the sum of the z-window, so that it can be directly applied to the extracted values,
+    // thereby correcting for the multiplicity on the fly.
+    template<typename Int, typename Real>
+    std::pair<Int, Real> z_window_spec(Real fftfreq_sinc, Real fftfreq_blackman, Real spectrum_size) {
+        auto window_size = blackman_window_size<Int>(fftfreq_blackman, spectrum_size);
+        Real sum{0};
+        for (Int i = 0; i < window_size; ++i) {
+            const auto fftfreq = w_index_to_fftfreq_offset(i, window_size, spectrum_size);
+            sum += windowed_sinc(fftfreq, fftfreq_sinc, fftfreq_blackman);
+        }
+        return {window_size, sum};
+    }
 }
 
 namespace noa::algorithm::geometry {
@@ -644,7 +658,8 @@ namespace noa::algorithm::geometry {
             // This is along the z of the grid.
             m_fftfreq_sinc = noa::math::max(fftfreq_sinc, 1 / m_f_target_shape[0]);
             m_fftfreq_blackman = noa::math::max(fftfreq_blackman, 1 / m_f_target_shape[0]);
-            m_blackman_size = details::blackman_window_size<index_type>(m_fftfreq_blackman, m_f_target_shape[0]);
+            std::tie(m_blackman_size, m_z_window_sum) = details::z_window_spec<index_type>(
+                    m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]);
         }
 
         [[nodiscard]] constexpr index_type windowed_sinc_size() const noexcept { return m_blackman_size; }
@@ -664,17 +679,21 @@ namespace noa::algorithm::geometry {
             coord3_type freq_3d = compute_fftfreq_in_volume_(batch, y, u);
 
             // Additional z component, within the grid coordinate system.
-            const auto z_fftfreq_offset = details::w_index_to_fftfreq_offset(w, m_blackman_size, m_f_target_shape[0]);
-            freq_3d[0] += z_fftfreq_offset;
+            const auto fftfreq_z_offset = details::w_index_to_fftfreq_offset(w, m_blackman_size, m_f_target_shape[0]);
+            freq_3d[0] += fftfreq_z_offset;
 
             if (noa::math::dot(freq_3d, freq_3d) > m_fftfreq_cutoff_sqd)
                 return;
 
             const auto value = details::interpolate_grid_value(
                     freq_3d, m_f_target_shape, m_f_grid_zy_center, m_grid);
-            const auto weight = details::windowed_sinc(
-                    z_fftfreq_offset, m_fftfreq_sinc, m_fftfreq_blackman);
-            noa::details::atomic_add(m_slice, value * static_cast<real_type>(weight), batch, y, u); // weighted-mean
+
+            // Z-window.
+            const auto convolution_weight = static_cast<real_type>(
+                    details::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman) /
+                    m_z_window_sum); // convolution sum is 1
+
+            noa::details::atomic_add(m_slice, value * convolution_weight, batch, y, u);
         }
 
     private:
@@ -706,6 +725,7 @@ namespace noa::algorithm::geometry {
         coord_type m_fftfreq_sinc;
         coord_type m_fftfreq_blackman;
         index_type m_blackman_size;
+        coord_type m_z_window_sum;
     };
 
     // Extracts central-slices from a virtual volume made of (other) central-slices.
@@ -764,18 +784,19 @@ namespace noa::algorithm::geometry {
                 coord_type insert_fftfreq_blackman,
                 coord_type extract_fftfreq_sinc,
                 coord_type extract_fftfreq_blackman,
-                bool add_to_output,
+                bool add_to_output, bool correct_multiplicity,
                 const ews_or_empty_type& ews_radius
-        )
-                : m_input_slices(input_slices),
-                  m_output_slices(output_slices),
-                  m_insert_inv_rotation_matrices(insert_inv_rotation_matrices),
-                  m_extract_fwd_rotation_matrices(extract_fwd_rotation_matrices),
-                  m_insert_fwd_scaling_matrices(insert_fwd_scaling_matrices),
-                  m_extract_inv_scaling_matrices(extract_inv_scaling_matrices),
-                  m_input_count(input_shape[0]),
-                  m_add_to_output(add_to_output) {
-
+        ) :
+                m_input_slices(input_slices),
+                m_output_slices(output_slices),
+                m_insert_inv_rotation_matrices(insert_inv_rotation_matrices),
+                m_extract_fwd_rotation_matrices(extract_fwd_rotation_matrices),
+                m_insert_fwd_scaling_matrices(insert_fwd_scaling_matrices),
+                m_extract_inv_scaling_matrices(extract_inv_scaling_matrices),
+                m_input_count(input_shape[0]),
+                m_add_to_output(add_to_output),
+                m_correct_multiplicity(correct_multiplicity)
+        {
             NOA_ASSERT(noa::all(input_shape > 0) && noa::all(output_shape > 0));
             NOA_ASSERT(input_shape[1] == 1 && output_shape[1] == 1);
             if constexpr (std::is_pointer_v<input_rotate_type>) {
@@ -808,8 +829,8 @@ namespace noa::algorithm::geometry {
             m_insert_fftfreq_blackman = noa::math::max(insert_fftfreq_blackman, 1 / m_volume_z);
             m_extract_fftfreq_sinc = noa::math::max(extract_fftfreq_sinc, 1 / m_volume_z);
             m_extract_fftfreq_blackman = noa::math::max(extract_fftfreq_blackman, 1 / m_volume_z);
-            m_extract_blackman_size = details::blackman_window_size<index_type>(
-                    extract_fftfreq_blackman, m_volume_z);
+            std::tie(m_extract_blackman_size, m_extract_window_total_weight) = details::z_window_spec<index_type>(
+                    m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z);
         }
 
         [[nodiscard]] constexpr auto windowed_sinc_size() const noexcept -> index_type {
@@ -827,8 +848,6 @@ namespace noa::algorithm::geometry {
             }
 
             const value_type value = sample_virtual_volume_(fftfreq_3d);
-
-            // The transformation preserves the hermitian symmetry, so there's nothing else to do.
             if (m_add_to_output)
                 m_output_slices(batch, y, u) += value;
             else
@@ -847,13 +866,15 @@ namespace noa::algorithm::geometry {
             if (noa::math::dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
                 return;
 
-            // Sample the value at this frequency, as well as the value of the z-windowed-sinc.
             const value_type value = sample_virtual_volume_(fftfreq_3d);
-            const auto weight = details::windowed_sinc(
-                    fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman);
 
-            // The transformation preserves the hermitian symmetry, so there's nothing else to do.
-            noa::details::atomic_add(m_output_slices, value * static_cast<real_type>(weight), batch, y, u);
+            // Z-window.
+            const auto convolution_weight = static_cast<real_type>(
+                    details::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman) /
+                    m_extract_window_total_weight); // convolution sum is 1
+
+            // Add the contribution for this z-offset. The z-convolution is essentially a simple weighted mean.
+            noa::details::atomic_add(m_output_slices, value * convolution_weight, batch, y, u);
         }
 
     private:
@@ -874,6 +895,7 @@ namespace noa::algorithm::geometry {
         // In other words, sample the signal at this 3d frequency within the virtual volume.
         NOA_HD value_type sample_virtual_volume_(coord3_type fftfreq_3d) const noexcept {
             value_type value{0};
+            real_type weight{0};
             // 0. For every slice to insert...
             for (index_type i = 0; i < m_input_count; ++i) {
                 // 1. Project the 3d frequency onto that input-slice.
@@ -885,15 +907,23 @@ namespace noa::algorithm::geometry {
                 //    Compute only if voxel is affected by this slice.
                 //    If we fall exactly at the blackman cutoff, the value is 0, so exclude the equality case.
                 value_type i_value{0};
+                real_type i_weight{0};
                 if (noa::math::abs(fftfreq_z) < m_insert_fftfreq_blackman) {
                     i_value = details::interpolate_slice_value(
                             fftfreq_yx, m_f_input_shape, m_f_input_center_y, m_input_slices, i);
-                    const auto weight = details::windowed_sinc(
-                            fftfreq_z, m_insert_fftfreq_sinc, m_insert_fftfreq_blackman);
-                    i_value *= static_cast<real_type>(weight);
+                    i_weight = static_cast<real_type>(details::windowed_sinc(
+                            fftfreq_z, m_insert_fftfreq_sinc, m_insert_fftfreq_blackman));
+                    i_value *= i_weight;
                 }
                 value += i_value;
+                weight += i_weight;
             }
+
+            // Correct for the multiplicity. If the weight is greater than one, it means multiple slices contributed
+            // to that frequency, so divide by the total weight (resulting in a weighted mean). If the total weight
+            // is less than 1, we need to leave it down-weighted, so don't divide by the total weight.
+            if (m_correct_multiplicity)
+                value /= noa::math::max(real_type{1}, weight);
             return value;
         }
 
@@ -919,8 +949,10 @@ namespace noa::algorithm::geometry {
         coord_type m_extract_fftfreq_sinc;
         coord_type m_extract_fftfreq_blackman;
         index_type m_extract_blackman_size;
+        coord_type m_extract_window_total_weight;
 
         bool m_add_to_output;
+        bool m_correct_multiplicity;
     };
 
     template<bool POST_CORRECTION, typename Coord, typename Index, typename Value>
@@ -1065,7 +1097,7 @@ namespace noa::algorithm::geometry {
             Coord insert_fftfreq_blackman,
             Coord extract_fftfreq_sinc,
             Coord extract_fftfreq_blackman,
-            bool add_to_output,
+            bool add_to_output, bool correct_multiplicity,
             EWSOrEmpty ews_radius
     ) {
         return FourierInsertExtract<
@@ -1084,7 +1116,7 @@ namespace noa::algorithm::geometry {
                 insert_fftfreq_blackman,
                 extract_fftfreq_sinc,
                 extract_fftfreq_blackman,
-                add_to_output,
+                add_to_output, correct_multiplicity,
                 ews_radius
         );
     }

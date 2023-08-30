@@ -86,7 +86,7 @@ namespace noa::cuda::geometry::fft {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, Stream& stream
     );
 
@@ -99,7 +99,7 @@ namespace noa::cuda::geometry::fft {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, Stream& stream
     );
 
@@ -113,7 +113,7 @@ namespace noa::cuda::geometry::fft {
             const Scale0& insert_fwd_scaling_matrices, const Rotate0& insert_inv_rotation_matrices,
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
-            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output,
+            f32 fftfreq_z_sinc, f32 fftfreq_z_blackman, bool add_to_output, bool correct_multiplicity,
             const Vec2<f32>& ews_radius, Stream& stream
     );
 

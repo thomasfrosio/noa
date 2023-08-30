@@ -177,7 +177,7 @@ namespace noa::cpu::geometry::fft {
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
             f32 fftfreq_z_sinc, f32 fftfreq_z_blackman,
-            bool add_to_output, const Vec2<f32>& ews_radius, i64 threads
+            bool add_to_output, bool correct_multiplicity, const Vec2<f32>& ews_radius, i64 threads
     ) {
         const auto input_slice_accessor = AccessorRestrict<const Value, 3, i64>(input_slice, input_slice_strides.filter(0, 2, 3));
         const auto output_slice_accessor = AccessorRestrict<Value, 3, i64>(output_slice, output_slice_strides.filter(0, 2, 3));
@@ -195,7 +195,7 @@ namespace noa::cpu::geometry::fft {
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
                     fftfreq_z_sinc, fftfreq_z_blackman,
-                    add_to_output, ews_radius);
+                    add_to_output, correct_multiplicity, ews_radius);
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
                     noa::cpu::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, /*threads=*/ 1);
@@ -210,7 +210,7 @@ namespace noa::cpu::geometry::fft {
                     Empty{}, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                    fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, Empty{});
+                    fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity, Empty{});
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
                     noa::cpu::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, /*threads=*/ 1);
@@ -229,7 +229,7 @@ namespace noa::cpu::geometry::fft {
             const Scale1& extract_inv_scaling_matrices, const Rotate1& extract_fwd_rotation_matrices,
             f32 fftfreq_cutoff, f32 fftfreq_input_sinc, f32 fftfreq_input_blackman,
             f32 fftfreq_z_sinc, f32 fftfreq_z_blackman,
-            bool add_to_output, const Vec2<f32>& ews_radius, i64 threads
+            bool add_to_output, bool correct_multiplicity, const Vec2<f32>& ews_radius, i64 threads
     ) {
         const auto output_slice_accessor = AccessorRestrict<Value, 3, i64>(output_slice, output_slice_strides.filter(0, 2, 3));
         const auto input_slice_interpolator = noa::geometry::interpolator_value_2d<BorderMode::ZERO, InterpMode::LINEAR>(
@@ -246,7 +246,7 @@ namespace noa::cpu::geometry::fft {
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
                     fftfreq_z_sinc, fftfreq_z_blackman,
-                    add_to_output, ews_radius);
+                    add_to_output, correct_multiplicity, ews_radius);
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
                     noa::cpu::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, /*threads=*/ 1);
@@ -261,7 +261,7 @@ namespace noa::cpu::geometry::fft {
                     Empty{}, insert_inv_rotation_matrices,
                     extract_inv_scaling_matrices, extract_fwd_rotation_matrices,
                     fftfreq_cutoff, fftfreq_input_sinc, fftfreq_input_blackman,
-                    fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, Empty{});
+                    fftfreq_z_sinc, fftfreq_z_blackman, add_to_output, correct_multiplicity, Empty{});
             if (op.windowed_sinc_size() > 1) {
                 if (!add_to_output)
                     noa::cpu::memory::set(output_slice, output_slice_strides, output_slice_shape.rfft(), Value{0}, /*threads=*/ 1);
@@ -329,12 +329,12 @@ namespace noa::cpu::geometry::fft {
         const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
         T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
         S0 const&, R0 const&, S1 const&, R1 const&,                                     \
-        f32, f32, f32, f32, f32, bool, const Vec2<f32>&, i64);                          \
+        f32, f32, f32, f32, f32, bool, bool, const Vec2<f32>&, i64);                    \
     template void insert_interpolate_and_extract_3d<REMAP, T, S0, S1, R0, R1, void>(    \
         T, const Shape4<i64>&,                                                          \
         T*, const Strides4<i64>&, const Shape4<i64>&,                                   \
         S0 const&, R0 const&, S1 const&, R1 const&,                                     \
-        f32, f32, f32, f32, f32, bool, const Vec2<f32>&, i64)
+        f32, f32, f32, f32, f32, bool, bool, const Vec2<f32>&, i64)
 
     #define NOA_INSTANTIATE_PROJECT_ALL_REMAP(T, S, R)          \
     NOA_INSTANTIATE_INSERT_RASTERIZE_(T, Remap::H2H, S, R);     \

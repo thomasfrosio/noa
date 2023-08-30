@@ -513,7 +513,7 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d", "[noa][un
                     Float22{}, output_fwd_rotation_matrices,
                     {fftfreq_input_sinc, fftfreq_input_blackman},
                     {fftfreq_z_sinc, fftfreq_z_blackman},
-                    false, fftfreq_cutoff, ews_radius);
+                    false, false, fftfreq_cutoff, ews_radius);
 
             if constexpr (COMPUTE_ASSETS) {
                 noa::io::save(output_slice_fft, output_slice_filename);
@@ -571,14 +571,14 @@ TEMPLATE_TEST_CASE(
                 output_slice_fft0, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
-                {0.01f}, {}, false, 0.8f);
+                {0.01f}, {}, false, false, 0.8f);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2H>(
                 input_slice_fft, input_slice_shape,
                 output_slice_fft1, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
-                {0.01f}, {}, false, 0.8f);
+                {0.01f}, {}, false, false, 0.8f);
         noa::fft::remap(fft::H2HC, output_slice_fft1, output_slice_fft2, output_slice_shape);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_slice_fft0, output_slice_fft2, 5e-5));
     }
@@ -624,14 +624,14 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, u
                 output_slice_fft0, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
-                {0.01f}, {}, false, 0.8f);
+                {0.01f}, {}, false, false, 0.8f);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
                 value, input_slice_shape,
                 output_slice_fft1, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
-                {0.01f}, {}, false, 0.8f);
+                {0.01f}, {}, false, false, 0.8f);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_slice_fft0, output_slice_fft1, 5e-5));
     }
 }
@@ -673,7 +673,7 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test rotat
                 output_slice_fft0, output_slice_shape,
                 Float22{}, input_slice_rotation,
                 Float22{}, output_fwd_rotation_matrices.to(options),
-                {0.002f}, {}, false, 0.498f);
+                {0.002f}, {}, false, false, 0.498f);
 
         if constexpr (COMPUTE_ASSETS) {
             noa::io::save(output_slice_fft0, output_filename);
