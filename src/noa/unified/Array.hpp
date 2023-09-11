@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Exception.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Indexing.hpp"
 

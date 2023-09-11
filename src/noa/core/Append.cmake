@@ -33,10 +33,12 @@ set(NOA_CORE_HEADERS
     core/Traits.hpp
     core/traits/Accessor.hpp
     core/traits/CTF.hpp
+    core/traits/Interpolator.hpp
     core/traits/Matrix.hpp
     core/traits/Numerics.hpp
     core/traits/Shape.hpp
     core/traits/String.hpp
+    core/traits/Texture.hpp
     core/traits/Utilities.hpp
     core/traits/VArray.hpp
     core/traits/Vec.hpp
