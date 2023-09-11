@@ -25,7 +25,7 @@
   - This also allows us to refactor our backends and unified interface. The unified interface can have the "core" functions (ewise, iwise, reduce, etc.) calling the backend-specific core functions (which are templates) with the input/output types. The other functions in the unified interface are now backend agnostic for the most part and can do the preprocessing and construct the algo operators directly (atm this is done by the backends). As such, the backends could only have core functions, some utilities and special functions that are not that generic (e.g. FFTs). This is a huge simplification and I don't see any disadvantages to it.
   - Adding AMD support would be a significant task, but HIP also has a runtime compilation (HIPRTC), the only thing is that jitfify is a CUDA only wrapper (but it isn't too complicated, and we can hipify it for the most part).
 
-  In practice, this also removes the need for nvcc (finally). We would only need nvrtc and cufft/curand/cublas (there's a world were we could lazy load these too, to remove them from the build (it's what Pytorch does), so CUDA only becomes a runtime dependency.
+  In practice, this also removes the need for nvcc (finally). We would only need nvrtc and cufft/curand/cublas (there's a world were we could lazy load these too, to remove them from the build (it's what Pytorch does), so CUDA only becomes a runtime dependency).
   
   Links:
   [arrayfire implementation](https://github.com/arrayfire/arrayfire/blob/master/src/backend/cuda/compile_module.cpp),
@@ -33,7 +33,10 @@
   [jitify](https://github.com/NVIDIA/jitify).
 
 
-- __algorithms__. Rename to `ops` and move them in `core`?
+- __algorithms__. Move them in `core`. These would be "ops" (operators).
+
+
+- Refactor the `Vec`, `Shape`, `Strides` and `Complex` to be aggregates, ensuring its trivially copyable, moveable, assignable, constructible, and destructible. This could/should in better code generation by the compiler, allowing to be passed in registers, and to be serialized and deserialized via memcpy (although I would expect the optimizer to do that). This can be done, mostly by moving the constructors (and rely on the aggregate initialization) to factory functions, e.g. `Vec<f32>::from_pointer()`. This is more explicit too!
 
 
 - Move the __core types__ to __noa::types__. The goal is that this namespace should be included in noa, so we can still refer to these types from `noa::`. But, user code can use `noa::types` without having to use the entire `noa::`. Maybe inline namespaces could help? These core types would be our type aliases (`i32`, `i64`, `f32`, etc.), `Shape`, `Strides`, `Vec`, etc.
