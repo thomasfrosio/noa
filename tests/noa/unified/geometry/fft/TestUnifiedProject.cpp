@@ -56,7 +56,7 @@ TEST_CASE("unified::geometry::fft::insert_rasterize_3d", "[noa][unified][asset]"
             const Array slice_fft = noa::memory::linspace<f32>(slice_shape.rfft(), 1, 10, true, options);
             const Array volume_fft = noa::memory::zeros<f32>(volume_shape.rfft(), options);
             noa::geometry::fft::insert_rasterize_3d<fft::HC2HC>(
-                    slice_fft, slice_shape, volume_fft, volume_shape,
+                    slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
                     inv_scaling_matrix, fwd_rotation_matrices,
                     fftfreq_cutoff, target_shape, ews_radius);
 
@@ -100,10 +100,10 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, remap", "[noa][
 
         // With centered slices.
         noa::geometry::fft::insert_rasterize_3d<fft::HC2HC>(
-                slice_fft, slice_shape, grid_fft0, grid_shape,
+                slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
                 Float22{}, fwd_rotation_matrices, 0.45f);
         noa::geometry::fft::insert_rasterize_3d<fft::HC2H>(
-                slice_fft, slice_shape, grid_fft1, grid_shape,
+                slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
                 Float22{}, fwd_rotation_matrices, 0.45f);
         noa::fft::remap(fft::H2HC, grid_fft1, grid_fft2, grid_shape);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, grid_fft0, grid_fft2, 5e-5));
@@ -112,17 +112,17 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, remap", "[noa][
         noa::memory::fill(grid_fft0, TestType{0});
         noa::memory::fill(grid_fft1, TestType{0});
         noa::geometry::fft::insert_rasterize_3d<fft::H2HC>(
-                slice_fft, slice_shape, grid_fft0, grid_shape,
+                slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
                 Float22{}, fwd_rotation_matrices, 0.45f);
         noa::geometry::fft::insert_rasterize_3d<fft::H2H>(
-                slice_fft, slice_shape, grid_fft1, grid_shape,
+                slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
                 Float22{}, fwd_rotation_matrices, 0.45f);
         noa::fft::remap(fft::H2HC, grid_fft1, grid_fft2, grid_shape);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, grid_fft0, grid_fft2, 5e-5));
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, value", "[noa][unified]", f32, c32, f64, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, weights", "[noa][unified]", f32, f64) {
     std::vector<Device> devices{Device("cpu")};
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
@@ -143,16 +143,12 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_rasterize_3d, value", "[noa][
         if (fwd_rotation_matrices.device() != device)
             fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
-        const auto value = test::Randomizer<TestType>(-10, 10).get();
-        const Array slice_fft = noa::memory::fill<TestType>(slice_shape.rfft(), value, options);
+        const Array slice_fft = noa::math::random<TestType>(noa::math::uniform_t{}, slice_shape.rfft(), -10, 10, options);
         const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
         noa::geometry::fft::insert_rasterize_3d<fft::HC2HC>(
-                slice_fft, slice_shape, grid_fft0, grid_shape,
-                Float22{}, fwd_rotation_matrices, 0.45f);
-        noa::geometry::fft::insert_rasterize_3d<fft::HC2HC>(
-                value, slice_shape, grid_fft1, grid_shape,
+                slice_fft, slice_fft.copy(), slice_shape, grid_fft0, grid_fft1, grid_shape,
                 Float22{}, fwd_rotation_matrices, 0.45f);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, grid_fft0, grid_fft1, 5e-5));
     }
@@ -201,7 +197,7 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_3d", "[noa][unified][asset
             const Array slice_fft = noa::memory::linspace<f32>(slice_shape.rfft(), 1, 10, true, options);
             const Array volume_fft = noa::memory::zeros<f32>(volume_shape.rfft(), options);
             noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
-                    slice_fft.eval(), slice_shape, volume_fft, volume_shape,
+                    slice_fft.eval(), {}, slice_shape, volume_fft, {}, volume_shape,
                     fwd_scaling_matrix, inv_rotation_matrices,
                     {fftfreq_sinc, fftfreq_blackman}, fftfreq_cutoff,
                     target_shape, ews_radius);
@@ -217,10 +213,7 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_3d", "[noa][unified][asset
     }
 }
 
-TEMPLATE_TEST_CASE(
-        "unified::geometry::fft::insert_interpolate_3d, value", "[noa][unified][asset]",
-        f32, c32, f64, c64
-) {
+TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_3d, weights", "[noa][unified][asset]", f32, f64) {
     std::vector<Device> devices{Device("cpu")};
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
@@ -244,16 +237,12 @@ TEMPLATE_TEST_CASE(
         if (fwd_rotation_matrices.device() != device)
             fwd_rotation_matrices = fwd_rotation_matrices.to(device);
 
-        const auto value = test::Randomizer<TestType>(-10, 10).get();
-        const Array slice_fft = noa::memory::fill<TestType>(slice_shape.rfft(), value, options);
+        const Array slice_fft = noa::math::random<TestType>(noa::math::uniform_t{}, slice_shape.rfft(), -10, 10, options);
         const Array grid_fft0 = noa::memory::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
         noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
-                slice_fft, slice_shape, grid_fft0, grid_shape,
-                Float22{}, fwd_rotation_matrices, {fftfreq_sinc, fftfreq_blackman}, 0.45f);
-        noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
-                value, slice_shape, grid_fft1, grid_shape,
+                slice_fft, slice_fft.copy(), slice_shape, grid_fft0, grid_fft1, grid_shape,
                 Float22{}, fwd_rotation_matrices, {fftfreq_sinc, fftfreq_blackman}, 0.45f);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, grid_fft0, grid_fft1, 5e-5));
     }
@@ -297,10 +286,10 @@ TEMPLATE_TEST_CASE(
             const Texture<TestType> texture_slice_fft(
                     slice_fft, device, InterpMode::LINEAR, BorderMode::ZERO, 0.f, /*layered=*/ true);
             noa::geometry::fft::insert_interpolate_3d<fft::HC2H>(
-                    slice_fft, slice_shape, grid_fft0, grid_shape,
+                    slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
                     Float22{}, inv_rotation_matrices, {fftfreq_sinc, fftfreq_blackman}, 0.45f);
             noa::geometry::fft::insert_interpolate_3d<fft::HC2H>(
-                    texture_slice_fft, slice_shape, grid_fft1, grid_shape,
+                    texture_slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
                     Float22{}, inv_rotation_matrices, {fftfreq_sinc, fftfreq_blackman}, 0.45f);
 
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, grid_fft0, grid_fft1, 5e-5));
@@ -310,10 +299,10 @@ TEMPLATE_TEST_CASE(
             noa::memory::fill(grid_fft0, TestType{0});
             noa::memory::fill(grid_fft1, TestType{0});
             noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
-                    slice_fft, slice_shape, grid_fft0, grid_shape,
+                    slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
                     Float22{}, inv_rotation_matrices, {fftfreq_sinc, fftfreq_blackman}, 0.5f);
             noa::geometry::fft::insert_interpolate_3d<fft::HC2H>(
-                    slice_fft, slice_shape, grid_fft1, grid_shape,
+                    slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
                     Float22{}, inv_rotation_matrices, {fftfreq_sinc, fftfreq_blackman}, 0.5f);
             noa::fft::remap(fft::H2HC, grid_fft1, grid_fft2, grid_shape);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, grid_fft0, grid_fft2, 5e-5));
@@ -342,7 +331,7 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
 
         const Array slice_fft = noa::memory::linspace<f32>(insert_slice_shape.rfft(), 1, 20);
         noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
-                slice_fft, insert_slice_shape, volume_fft, volume_shape,
+                slice_fft, {}, insert_slice_shape, volume_fft, {}, volume_shape,
                 Float22{}, insert_inv_rotation_matrices, {-1, 0.1f}, 0.5f);
         noa::io::save(volume_fft, volume_filename);
     }
@@ -356,7 +345,7 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
         const auto slice_shape = Shape4<i64>{1, 1, volume_shape[2], volume_shape[3]};
         const auto slice_fft = noa::memory::linspace<f32>(slice_shape.rfft(), 1, 20);
         noa::geometry::fft::insert_interpolate_3d<fft::HC2HC>(
-                slice_fft, slice_shape, volume_fft, volume_shape,
+                slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
                 Float22{}, Float33{}, {0.0234375, 1}, 0.5f);
         noa::io::save(volume_fft, volume_filename);
     }
@@ -401,7 +390,7 @@ TEST_CASE("unified::geometry::fft::extract_3d", "[noa][unified]") {
 
             // Forward project.
             noa::geometry::fft::extract_3d<fft::HC2HC>(
-                    volume_fft, volume_shape, slice_fft, slice_shape,
+                    volume_fft, {}, volume_shape, slice_fft, {}, slice_shape,
                     inv_scaling_matrix, fwd_rotation_matrices,
                     {fftfreq_z_sinc, fftfreq_z_blackman}, fftfreq_cutoff,
                     {}, ews_radius);
@@ -446,10 +435,10 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::extract_3d, using texture API and re
 
         const Texture<TestType> texture_grid_fft(grid_fft, device, InterpMode::LINEAR, BorderMode::ZERO, 0.f);
         noa::geometry::fft::extract_3d<fft::HC2HC>(
-                texture_grid_fft, grid_shape, slice_fft0, slice_shape,
+                texture_grid_fft, {}, grid_shape, slice_fft0, {}, slice_shape,
                 Float22{}, fwd_rotation_matrices, {}, 0.45f);
         noa::geometry::fft::extract_3d<fft::HC2H>(
-                grid_fft, grid_shape, slice_fft1, slice_shape,
+                grid_fft, {}, grid_shape, slice_fft1, {}, slice_shape,
                 Float22{}, fwd_rotation_matrices, {}, 0.45f);
         noa::fft::remap(fft::H2HC, slice_fft1, slice_fft2, slice_shape);
         REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, slice_fft0, slice_fft2, 5e-5));
@@ -507,8 +496,8 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d", "[noa][un
             const Array output_slice_fft = noa::memory::empty<f32>(output_slice_shape.rfft(), options);
 
             noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
-                    input_slice_fft, input_slice_shape,
-                    output_slice_fft, output_slice_shape,
+                    input_slice_fft, {}, input_slice_shape,
+                    output_slice_fft, {}, output_slice_shape,
                     Float22{}, input_inv_rotation_matrices,
                     Float22{}, output_fwd_rotation_matrices,
                     {fftfreq_input_sinc, fftfreq_input_blackman},
@@ -540,8 +529,9 @@ TEMPLATE_TEST_CASE(
 
     Array<Float33> input_inv_rotation_matrices(input_slice_shape[0]);
     for (i64 i = 0; i < input_slice_shape[0]; ++i) {
-        input_inv_rotation_matrices(0, 0, 0, i) = noa::geometry::euler2matrix(
+        const auto matrix =  noa::geometry::euler2matrix(
                 noa::math::deg2rad(Vec3<f32>{0, -static_cast<f32>(i) * 2, 0}), "zyx");
+        input_inv_rotation_matrices(0, 0, 0, i) = matrix;
     }
     Array<Float33> output_fwd_rotation_matrices(output_slice_shape[0]);
     for (i64 i = 0; i < output_slice_shape[0]; ++i) {
@@ -567,15 +557,14 @@ TEMPLATE_TEST_CASE(
         const Array output_slice_fft2 = noa::memory::like(output_slice_fft1);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
-                texture_input_slice_fft, input_slice_shape,
-                output_slice_fft0, output_slice_shape,
+                texture_input_slice_fft, {}, input_slice_shape,
+                output_slice_fft0, {}, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
                 {0.01f}, {}, false, false, 0.8f);
-
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2H>(
-                input_slice_fft, input_slice_shape,
-                output_slice_fft1, output_slice_shape,
+                input_slice_fft, {}, input_slice_shape,
+                output_slice_fft1, {}, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
                 {0.01f}, {}, false, false, 0.8f);
@@ -584,8 +573,10 @@ TEMPLATE_TEST_CASE(
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, using value", "[noa][unified]",
-                   f32, c32, f64, c64) {
+TEMPLATE_TEST_CASE(
+        "unified::geometry::fft::insert_interpolate_and_extract_3d, using weights", "[noa][unified]",
+        f32, f64
+) {
     std::vector<Device> devices = {Device("cpu")};
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
@@ -614,21 +605,13 @@ TEMPLATE_TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, u
         if (output_fwd_rotation_matrices.device() != device)
             output_fwd_rotation_matrices = output_fwd_rotation_matrices.to(device);
 
-        const auto value = test::Randomizer<TestType>(-10, 10).get();
-        const Array input_slice_fft = noa::memory::fill<TestType>(input_slice_shape.rfft(), value, options);
+        const Array input_slice_fft = noa::math::random<TestType>(noa::math::uniform_t{}, input_slice_shape.rfft(), -10, 10, options);
         const Array output_slice_fft0 = noa::memory::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft1 = noa::memory::empty<TestType>(output_slice_shape.rfft(), options);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
-                input_slice_fft, input_slice_shape,
-                output_slice_fft0, output_slice_shape,
-                Float22{}, input_inv_rotation_matrices,
-                Float22{}, output_fwd_rotation_matrices,
-                {0.01f}, {}, false, false, 0.8f);
-
-        noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
-                value, input_slice_shape,
-                output_slice_fft1, output_slice_shape,
+                input_slice_fft, input_slice_fft.copy(), input_slice_shape,
+                output_slice_fft0, output_slice_fft1, output_slice_shape,
                 Float22{}, input_inv_rotation_matrices,
                 Float22{}, output_fwd_rotation_matrices,
                 {0.01f}, {}, false, false, 0.8f);
@@ -669,8 +652,8 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test rotat
         const Array output_slice_fft0 = noa::memory::empty<f32>(output_slice_shape.rfft(), options);
 
         noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
-                input_slice_fft, input_slice_shape,
-                output_slice_fft0, output_slice_shape,
+                input_slice_fft, {}, input_slice_shape,
+                output_slice_fft0, {}, output_slice_shape,
                 Float22{}, input_slice_rotation,
                 Float22{}, output_fwd_rotation_matrices.to(options),
                 {0.002f}, {}, false, false, 0.498f);
@@ -681,6 +664,65 @@ TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test rotat
             const auto asset = noa::io::load_data<f32>(output_filename);
             REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, asset, output_slice_fft0, 1e-4));
         }
+    }
+}
+
+TEST_CASE("unified::geometry::fft::insert_interpolate_and_extract_3d, test weight and multiplicity", "[noa][unified][assets]") {
+    std::vector<Device> devices{Device("cpu")};
+    if (Device::is_any(DeviceType::GPU))
+        devices.emplace_back("gpu");
+
+    const auto input_slice_shape = Shape4<i64>{1, 1, 256, 256};
+    const auto output_slice_shape = Shape4<i64>{1, 1, 256, 256};
+
+    Array<Float33> input_inv_rotation_matrices(input_slice_shape[0]);
+    Array<Quaternion<f32>> input_inv_rotation_quaternion(input_slice_shape[0]);
+    for (i64 i = 0; i < input_slice_shape[0]; ++i) {
+        const auto matrix =  noa::geometry::euler2matrix(
+                noa::math::deg2rad(Vec3<f32>{45, 0, 0}), "zyx");
+        input_inv_rotation_matrices(0, 0, 0, i) = matrix;
+        input_inv_rotation_quaternion(0, 0, 0, i) = noa::Quaternion<f32>::from_matrix(matrix).normalize();
+    }
+    Array<Float33> output_fwd_rotation_matrices(output_slice_shape[0]);
+    for (i64 i = 0; i < output_slice_shape[0]; ++i) {
+        output_fwd_rotation_matrices(0, 0, 0, i) = noa::geometry::euler2matrix(
+                noa::math::deg2rad(Vec3<f32>{0, 0, 0}), "zyx");
+    }
+
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
+        INFO(device);
+
+        if (input_inv_rotation_matrices.device() != device)
+            input_inv_rotation_matrices = input_inv_rotation_matrices.to(device);
+        if (input_inv_rotation_quaternion.device() != device)
+            input_inv_rotation_quaternion = input_inv_rotation_quaternion.to(device);
+        if (output_fwd_rotation_matrices.device() != device)
+            output_fwd_rotation_matrices = output_fwd_rotation_matrices.to(device);
+
+        const Array input_slice = noa::math::random<f32>(noa::math::uniform_t{}, input_slice_shape, -50, 50, options);
+        const Array input_slice_rfft = noa::fft::remap(noa::fft::H2HC, noa::fft::r2c(input_slice), input_slice_shape);
+        const Array output_slice_fft0 = noa::memory::empty<c32>(output_slice_shape.rfft(), options);
+        const Array output_slice_fft1 = noa::memory::empty<c32>(output_slice_shape.rfft(), options);
+
+        noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
+                input_slice_rfft, {}, input_slice_shape,
+                output_slice_fft0, {}, output_slice_shape,
+                Float22{}, input_inv_rotation_matrices,
+                Float22{}, output_fwd_rotation_matrices,
+                {0.01f}, {}, false, false, 0.8f);
+        noa::geometry::fft::insert_interpolate_and_extract_3d<fft::HC2HC>(
+                input_slice_rfft, {}, input_slice_shape,
+                output_slice_fft1, {}, output_slice_shape,
+                Float22{}, input_inv_rotation_quaternion,
+                Float22{}, output_fwd_rotation_matrices,
+                {0.01f}, {}, false, false, 0.8f);
+
+        // FIXME Ignore the usual bug along the line at Nyquist... One day I'll fix this, I promise.
+        noa::signal::fft::lowpass<fft::HC2HC>(output_slice_fft0, output_slice_fft0, input_slice_shape, 0.49f, 0);
+        noa::signal::fft::lowpass<fft::HC2HC>(output_slice_fft1, output_slice_fft1, input_slice_shape, 0.49f, 0);
+        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output_slice_fft0, output_slice_fft1, 5e-5));
     }
 }
 
