@@ -5,13 +5,13 @@
 TEST_CASE("core::Span") {
     std::vector<double> buffer{0, 1, 2, 3, 4, 5};
     const noa::Span<double, 2> span(buffer.data());
-    span[2] = 12;
-    REQUIRE(buffer[2] == 12);
+    span[1] = 12;
+    REQUIRE(buffer[1] == 12);
 
     const auto const_span = span.as_const();
     static_assert(std::is_const_v<noa::traits::value_type_t<decltype(const_span)>>);
 
-    fmt::print("{}", span.as_bytes());
+//    fmt::print("{}", span.as_bytes());
 
     const auto [a, b] = span;
     REQUIRE((a == buffer[0] && b == buffer[1]));
