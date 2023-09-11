@@ -350,7 +350,10 @@ namespace noa::math {
 
     template<int32_t ULP = 2, typename T>
     [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(
-            const Mat33<T>& m1, const Mat33<T>& m2, T epsilon = 1e-6f) noexcept {
+            const Mat33<T>& m1,
+            const Mat33<T>& m2,
+            T epsilon = 1e-6f
+    ) noexcept {
         return noa::all(are_almost_equal<ULP>(m1[0], m2[0], epsilon)) &&
                noa::all(are_almost_equal<ULP>(m1[1], m2[1], epsilon)) &&
                noa::all(are_almost_equal<ULP>(m1[2], m2[2], epsilon));

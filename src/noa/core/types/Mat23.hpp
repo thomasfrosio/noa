@@ -10,7 +10,7 @@
 namespace noa {
     // A 2x3 floating-point matrix.
     template<typename Real>
-    class Mat23 {
+    class alignas(sizeof(Real) * 2) Mat23 {
     public: // Type definitions
         using value_type = Real;
         using mutable_value_type = value_type;

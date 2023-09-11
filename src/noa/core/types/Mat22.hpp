@@ -24,7 +24,7 @@ namespace noa {
 namespace noa {
     // A 2x2 floating-point matrix.
     template<typename Real>
-    class Mat22 {
+    class alignas(16) Mat22 {
     public: // Type definitions
         static_assert(!std::is_same_v<Real, Half>);
         using value_type = Real;
