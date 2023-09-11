@@ -66,6 +66,7 @@ set(NOA_CORE_HEADERS
     core/geometry/Shape.hpp
     core/geometry/Symmetry.hpp
     core/geometry/Transform.hpp
+    core/geometry/Quaternion.hpp
 
     core/signal/fft/CTF.hpp
     core/signal/Enums.hpp
