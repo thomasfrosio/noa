@@ -14,9 +14,13 @@ set(NOA_ALGO_HEADERS
     algorithms/fft/Remap.hpp
     algorithms/fft/Resize.hpp
 
+    algorithms/geometry/FourierExtract.hpp
+    algorithms/geometry/FourierInsertExtract.hpp
+    algorithms/geometry/FourierInsertInterpolate.hpp
+    algorithms/geometry/FourierInsertRasterize.hpp
+    algorithms/geometry/FourierUtilities.hpp
     algorithms/geometry/PolarTransform.hpp
     algorithms/geometry/PolarTransformRFFT.hpp
-    algorithms/geometry/ProjectionsFFT.hpp
     algorithms/geometry/RotationalAverage.hpp
     algorithms/geometry/Shape.hpp
     algorithms/geometry/Transform.hpp

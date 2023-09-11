@@ -29,4 +29,12 @@ namespace noa::cuda {
         Shared<cudaArray> array{nullptr};
         Shared<cudaTextureObject_t> texture{};
     };
+
+    template<typename T>
+    struct TextureObject {
+        using value_type = T;
+        cudaArray_t array{nullptr};
+        cudaTextureObject_t texture{};
+        InterpMode interp_mode{};
+    };
 }

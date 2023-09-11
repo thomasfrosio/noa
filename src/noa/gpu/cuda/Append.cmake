@@ -145,7 +145,11 @@ set(NOA_CUDA_SOURCES
 
     # noa::cuda::geometry
     gpu/cuda/geometry/fft/Polar.cu
-    gpu/cuda/geometry/fft/Project.cu
+    gpu/cuda/geometry/fft/FourierExtract.cu
+    gpu/cuda/geometry/fft/FourierInsertExtract.cu
+    gpu/cuda/geometry/fft/FourierInsertRasterize.cu
+    gpu/cuda/geometry/fft/FourierInsertInterpolate.cu
+    gpu/cuda/geometry/fft/FourierGriddingCorrection.cu
     gpu/cuda/geometry/fft/ShapeEllipse.cu
     gpu/cuda/geometry/fft/ShapeSphere.cu
     gpu/cuda/geometry/fft/ShapeRectangle.cu

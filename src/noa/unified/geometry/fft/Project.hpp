@@ -2,6 +2,7 @@
 
 #include "noa/core/geometry/Euler.hpp"
 #include "noa/core/geometry/Transform.hpp"
+#include "noa/core/geometry/Quaternion.hpp"
 
 #include "noa/cpu/geometry/fft/Project.hpp"
 #ifdef NOA_ENABLE_CUDA
@@ -14,13 +15,15 @@
 namespace noa::geometry::fft::details {
     using Remap = noa::fft::Remap;
 
-    template<typename Input, typename Output>
+    template<typename Input, typename Output, bool ALLOW_TEXTURE, bool ALLOW_VALUE>
     constexpr bool is_valid_projection_input_output_v =
             nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-            (nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-             nt::are_almost_same_value_type_v<Input, Output>) ||
-            (nt::is_almost_any_v<Input, f32, f64, c32, c64> &&
-             nt::is_varray_of_any_v<Output, Input>);
+            ((nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
+              nt::are_almost_same_value_type_v<Input, Output>) ||
+             (ALLOW_TEXTURE && nt::is_texture_of_almost_any_v<Input, f32, f64, c32, c64> &&
+              nt::are_almost_same_value_type_v<Input, Output>) ||
+             (ALLOW_VALUE && nt::is_almost_any_v<Input, f32, f64, c32, c64> &&
+              nt::is_varray_of_any_v<Output, Input>));
 
     template<typename Scale>
     constexpr bool is_valid_projection_scale_v =
@@ -28,27 +31,26 @@ namespace noa::geometry::fft::details {
 
     template<typename Rotation>
     constexpr bool is_valid_projection_rotation_v =
-            nt::is_any_v<Rotation, Float33> || nt::is_varray_of_almost_any_v<Rotation, Float33>;
+            nt::is_any_v<Rotation, Float33, Quaternion<f32>> ||
+            nt::is_varray_of_almost_any_v<Rotation, Float33, Quaternion<f32>>;
 
     template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate>
     constexpr bool is_valid_insert_rasterize_v =
-            is_valid_projection_input_output_v<Input, Output> &&
+            is_valid_projection_input_output_v<Input, Output, false, true> &&
             is_valid_projection_scale_v<Scale> &&
             is_valid_projection_rotation_v<Rotate> &&
             (REMAP == Remap::H2H || REMAP == Remap::H2HC || REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate>
     constexpr bool is_valid_insert_interpolate_v =
-            is_valid_projection_input_output_v<Input, Output> &&
+            is_valid_projection_input_output_v<Input, Output, true, true> &&
             is_valid_projection_scale_v<Scale> &&
             is_valid_projection_rotation_v<Rotate> &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
     template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate>
     constexpr bool is_valid_extract_v =
-            nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-            nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-            nt::are_almost_same_value_type_v<Input, Output> &&
+            is_valid_projection_input_output_v<Input, Output, true, false> &&
             is_valid_projection_scale_v<Scale> &&
             is_valid_projection_rotation_v<Rotate> &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
@@ -57,116 +59,200 @@ namespace noa::geometry::fft::details {
              typename InputScale, typename InputRotate,
              typename OutputScale, typename OutputRotate>
     constexpr bool is_valid_insert_extract_v =
-            is_valid_projection_input_output_v<Input, Output> &&
+            is_valid_projection_input_output_v<Input, Output, true, true> &&
             is_valid_projection_scale_v<InputScale> &&
             is_valid_projection_rotation_v<InputRotate> &&
             is_valid_projection_scale_v<OutputScale> &&
             is_valid_projection_rotation_v<OutputRotate> &&
             (REMAP == Remap::HC2H || REMAP == Remap::HC2HC);
 
-    template<bool OPTIONAL, typename Matrix>
-    void project_check_matrix(const Matrix& matrix, i64 required_size, Device compute_device) {
+    template<bool OPTIONAL, typename Transform>
+    void project_check_transform(const Transform& transform, i64 required_size, Device compute_device) {
         if constexpr (OPTIONAL) {
-            if (matrix.is_empty())
+            if (transform.is_empty())
                 return;
         } else {
-            NOA_CHECK(!matrix.is_empty(), "The matrices should not be empty");
+            NOA_CHECK(!transform.is_empty(), "The transform should not be empty");
         }
 
-        NOA_CHECK(noa::indexing::is_contiguous_vector(matrix) && matrix.elements() == required_size,
-                  "The number of matrices, specified as a contiguous vector, should be equal to the number of slices, "
-                  "but got matrix shape:{}, strides:{} and {} slices",
-                  matrix.shape(), matrix.strides(), required_size);
+        NOA_CHECK(noa::indexing::is_contiguous_vector(transform) && transform.elements() == required_size,
+                  "The number of transforms, specified as a contiguous vector, should be equal to "
+                  "the number of slices, but got transform shape={}, strides={}, with {} slices",
+                  transform.shape(), transform.strides(), required_size);
 
-        NOA_CHECK(matrix.device() == compute_device,
+        NOA_CHECK(transform.device() == compute_device,
                   "The transformation parameters should be on the compute device");
     }
 
     enum class ProjectionType { INSERT_RASTERIZE, INSERT_INTERPOLATE, EXTRACT, INSERT_EXTRACT };
 
     template<ProjectionType DIRECTION,
-             typename Input, typename Output,
-             typename Scale0, typename Rotate0,
-             typename Scale1 = Float22, typename Rotate1 = Float33>
+             typename Input, typename InputWeight,
+             typename Output, typename OutputWeight,
+             typename InputScale, typename InputRotate,
+             typename OutputScale = Float22, typename OutputRotate = Float33>
     void projection_check_parameters(
-            const Input& input, const Shape4<i64>& input_shape,
-            const Output& output, const Shape4<i64>& output_shape,
+            const Input& input, const InputWeight& input_weight, const Shape4<i64>& input_shape,
+            const Output& output, const OutputWeight& output_weight, const Shape4<i64>& output_shape,
             const Shape4<i64>& target_shape,
-            const Scale0& input_scaling_matrix,
-            const Rotate0& input_rotation_matrix,
-            const Scale1& output_scaling_matrix = {},
-            const Rotate1& output_rotation_matrix = {}
+            const InputScale& input_scaling,
+            const InputRotate& input_rotation,
+            const OutputScale& output_scaling = {},
+            const OutputRotate& output_rotation = {}
     ) {
+        // Output:
+        NOA_CHECK(!output.is_empty(), "Empty array detected");
         const Device output_device = output.device();
+        NOA_CHECK(noa::all(output.shape() == output_shape.rfft()),
+                  "The shape of the rfft output does not match the expected shape. Got {} and expected {}",
+                  output.shape(), output_shape.rfft());
+
+        // Input:
         if constexpr (!nt::is_numeric_v<Input>) {
-            const Device input_device = input.device();
-
-            NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-            if constexpr (nt::is_varray_v<Input>)
-                NOA_CHECK(!noa::indexing::are_overlapped(input, output), "Input and output arrays should not overlap");
-
-            NOA_CHECK(input_device == output_device,
-                      "The input and output should be on the same device but got input:{} and output:{}",
-                      input_device, output_device);
-
+            NOA_CHECK(!input.is_empty(), "Empty array detected");
+            if constexpr (nt::is_varray_v<Input>) {
+                NOA_CHECK(!noa::indexing::are_overlapped(input, output),
+                          "Input and output arrays should not overlap");
+            }
+            if constexpr (nt::is_texture_v<Input>) {
+                NOA_CHECK(input.interp_mode() == InterpMode::LINEAR ||
+                          input.interp_mode() == InterpMode::LINEAR_FAST,
+                          "The texture interpolation mode should be {} or {}, but got {}",
+                          InterpMode::LINEAR, InterpMode::LINEAR_FAST, input.interp_mode());
+                NOA_CHECK(input.border_mode() == BorderMode::ZERO,
+                          "The texture border mode should be {}, but got {}",
+                          BorderMode::ZERO, input.border_mode());
+            }
+            const Device device = input.device();
+            NOA_CHECK(device == output_device,
+                      "The input and output should be on the same device but got input={} and output={}",
+                      device, output_device);
             NOA_CHECK(noa::all(input.shape() == input_shape.rfft()),
-                      "The shape of the non-redundant input does not match the expected shape. "
+                      "The shape of the rfft input does not match the expected shape. "
                       "Got {} and expected {}", input.shape(), input_shape.rfft());
         }
 
-        NOA_CHECK(noa::all(output.shape() == output_shape.rfft()),
-                  "The shape of the non-redundant output does not match the expected shape. Got {} and expected {}",
-                  output.shape(), output_shape.rfft());
+        // InputWeight:
+        if constexpr (!nt::is_numeric_v<InputWeight> && !std::is_empty_v<InputWeight>) {
+            NOA_CHECK(!input_weight.is_empty(), "Empty array detected");
+            if constexpr (nt::is_varray_v<InputWeight>) {
+                NOA_CHECK(!noa::indexing::are_overlapped(input_weight, input),
+                          "Input and output arrays should not overlap");
+            }
+            if constexpr (nt::is_texture_v<InputWeight>) {
+                NOA_CHECK(input_weight.interp_mode() == InterpMode::LINEAR ||
+                          input_weight.interp_mode() == InterpMode::LINEAR_FAST,
+                          "The texture interpolation mode should be {} or {}, but got {}",
+                          InterpMode::LINEAR, InterpMode::LINEAR_FAST, input_weight.interp_mode());
+                NOA_CHECK(input_weight.border_mode() == BorderMode::ZERO,
+                          "The texture border mode should be {}, but got {}",
+                          BorderMode::ZERO, input_weight.border_mode());
+            }
+            const Device device = input_weight.device();
+            NOA_CHECK(device == output_device,
+                      "The input weight and output should be on the same device "
+                      "but got input_weight={} and output={}",
+                      device, output_device);
+            NOA_CHECK(noa::all(input_weight.shape() == input_shape.rfft()),
+                      "The shape of the rfft input weight does not match the expected shape. "
+                      "Got {} and expected {}", input_weight.shape(), input_shape.rfft());
+        }
+
+        if constexpr (!std::is_empty_v<OutputWeight>) {
+            NOA_CHECK(!output_weight.is_empty(), "Empty array detected");
+            NOA_CHECK(!noa::indexing::are_overlapped(output_weight, output),
+                      "Output arrays should not overlap");
+            const Device device = output_weight.device();
+            NOA_CHECK(device == output_device,
+                      "The output weight and output should be on the same device "
+                      "but got output_weight={} and output={}",
+                      device, output_device);
+            NOA_CHECK(noa::all(output_weight.shape() == output_shape.rfft()),
+                      "The shape of the rfft output weight does not match the expected shape. "
+                      "Got {} and expected {}",
+                      output_weight.shape(), output_shape.rfft());
+        }
 
         if constexpr (DIRECTION == ProjectionType::INSERT_RASTERIZE ||
                       DIRECTION == ProjectionType::INSERT_INTERPOLATE) {
             NOA_CHECK(input_shape[1] == 1,
-                      "2D input slices are expected but got shape {}", input_shape);
+                      "2d input slices are expected but got shape {}", input_shape);
             if (noa::any(target_shape == 0)) {
                 NOA_CHECK(output_shape[0] == 1 && !output_shape.is_batched(),
-                          "A single 3D output is expected but got shape {}", output_shape);
+                          "A single 3d output is expected but got shape {}", output_shape);
             } else {
                 NOA_CHECK(output_shape[0] == 1 && target_shape[0] == 1 && !target_shape.is_batched(),
-                          "A single grid is expected, with a target shape describing a single 3D volume, "
+                          "A single grid is expected, with a target shape describing a single 3d volume, "
                           "but got output shape {} and target shape {}", output_shape, target_shape);
             }
         } else if constexpr (DIRECTION == ProjectionType::EXTRACT) {
             NOA_CHECK(output_shape[1] == 1,
-                      "2D input slices are expected but got shape {}", output_shape);
+                      "2d input slices are expected but got shape {}", output_shape);
             if (noa::any(target_shape == 0)) {
                 NOA_CHECK(input_shape[0] == 1 && !input_shape.is_batched(),
-                          "A single 3D input is expected but got shape {}", input_shape);
+                          "A single 3d input is expected but got shape {}", input_shape);
             } else {
                 NOA_CHECK(input_shape[0] == 1 && target_shape[0] == 1 && !target_shape.is_batched(),
-                          "A single grid is expected, with a target shape describing a single 3D volume, "
+                          "A single grid is expected, with a target shape describing a single 3d volume, "
                           "but got input shape {} and target shape {}", input_shape, target_shape);
             }
         } else { // INSERT_EXTRACT
             NOA_CHECK(input_shape[1] == 1 && output_shape[1] == 1,
-                      "2D slices are expected but got shape input:{} and output:{}",
+                      "2d slices are expected but got shape input:{} and output:{}",
                       input_shape, output_shape);
         }
 
-        const auto required_matrix_count = DIRECTION == ProjectionType::EXTRACT ? output_shape[0] : input_shape[0];
-        if constexpr (!nt::is_mat22_v<Scale0>)
-            project_check_matrix<true>(input_scaling_matrix, required_matrix_count, output_device);
-        if constexpr (!nt::is_mat33_v<Rotate0>)
-            project_check_matrix<false>(input_rotation_matrix, required_matrix_count, output_device);
+        const auto required_count = DIRECTION == ProjectionType::EXTRACT ? output_shape[0] : input_shape[0];
+        if constexpr (nt::is_varray_v<InputScale>)
+            project_check_transform<true>(input_scaling, required_count, output_device);
+        if constexpr (nt::is_varray_v<InputRotate>)
+            project_check_transform<false>(input_rotation, required_count, output_device);
 
         // Only for INSERT_EXTRACT.
-        if constexpr (!nt::is_mat22_v<Scale1>)
-            project_check_matrix<true>(output_scaling_matrix, output_shape[0], output_device);
-        if constexpr (!nt::is_mat33_v<Rotate1>)
-            project_check_matrix<false>(output_rotation_matrix, output_shape[0], output_device);
+        if constexpr (nt::is_varray_v<OutputScale>)
+            project_check_transform<true>(output_scaling, output_shape[0], output_device);
+        if constexpr (nt::is_varray_v<OutputRotate>)
+            project_check_transform<false>(output_rotation, output_shape[0], output_device);
     }
 
-    template<typename Matrix>
-    auto extract_matrix(const Matrix& matrix) {
-        if constexpr (nt::is_matXX_v<Matrix>) {
-            return matrix;
+    template<bool CONST = false, bool CPU = false, typename T>
+    auto extract_pointer(const T& thing) {
+        using mutable_t = nt::mutable_value_type_t<T>;
+        if constexpr (nt::is_varray_v<T>) {
+            using ptr_t = std::conditional_t<CONST, const mutable_t*, mutable_t*>;
+            return ptr_t(thing.get());
+
+        } else if constexpr (nt::is_texture_v<T> && CPU) {
+            const noa::cpu::Texture<mutable_t>& texture = thing.cpu();
+            using ptr_t = std::conditional_t<CONST, const mutable_t*, mutable_t*>;
+            return ptr_t(texture.ptr.get());
+
+        } else if constexpr (nt::is_texture_v<T> && !CPU) {
+            const noa::gpu::Texture<mutable_t>& gpu_texture = thing.gpu();
+            using texture_object_t = noa::gpu::TextureObject<mutable_t>;
+            return texture_object_t{gpu_texture.array.get(), *gpu_texture.texture, thing.interp_mode()};
+
+        } else { // real or complex, or Empty
+            return thing;
+        }
+    }
+
+    template<typename T>
+    auto extract_strides(const T& thing) {
+        if constexpr (nt::is_varray_v<T> || nt::is_texture_v<T>) {
+            return thing.strides();
+        } else { // real or complex, or Empty
+            return Strides4<i64>{};
+        }
+    }
+
+    template<typename Transform>
+    auto extract_transform(const Transform& transform) {
+        if constexpr (nt::is_varray_v<Transform>) {
+            using ptr_t = const nt::value_type_t<Transform>*;
+            return ptr_t(transform.get());
         } else {
-            using ptr_t = const typename Matrix::value_type*;
-            return ptr_t(matrix.get());
+            return transform;
         }
     }
 }
@@ -179,34 +265,37 @@ namespace noa::geometry::fft {
     ///          This method is mostly used for cases with a lot of central-slices (where errors are averaged-out)
     ///          and is likely the most efficient way of implementing backward projection. Note however that this
     ///          method is not the most accurate (central-slices are modeled using a simple triliear-pulse for the
-    ///          rasterization). A density correction (i.e. normalization) is then required. This can easily be
-    ///          achieved by inserting the per-slice weights into another volume to keep track of what was inserted
-    ///          and where. Gridding correction can also be beneficial as post-processing one the real-space output
-    ///          (see gridding_correction() below).
+    ///          rasterization). Gridding correction can be beneficial as post-processing one the real-space output.
+    ///          A density correction (i.e. normalization) is required. This can easily be achieved by inserting the
+    ///          per-slice weights into another volume to keep track of what was inserted and where.
     ///
-    /// \tparam REMAP                   Remapping from the slice to the volume layout.
-    ///                                 Should be H2H, H2HC, HC2H or HC2HC.
-    /// \tparam Input                   (const) f32, f64, c32, c64, or a varray of this type.
-    /// \tparam Output                  VArray of type f32, f64, c32, or c64.
-    /// \tparam Scale                   Float22 or a varray of this type.
-    /// \tparam Rotate                  Float33 or a varray of this type.
-    /// \param[in] slice                2d-rfft central-slice(s) to insert. A single value can also be passed,
-    ///                                 which is equivalent to a slice filled with a constant value.
-    /// \param slice_shape              BDHW logical shape of \p slice.
-    /// \param[out] volume              3d-rfft volume inside which the slices are inserted.
-    /// \param volume_shape             BDHW logical shape of \p volume.
-    /// \param[in] inv_scaling_matrix   2x2 HW \e inverse real-space scaling matrix to apply to the slices
-    ///                                 before the rotation. If an array is passed, it can be empty or have
-    ///                                 one matrix per slice. Otherwise the same scaling matrix is applied
-    ///                                 to every slice.
-    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices to apply to the slices.
-    ///                                 If an array is passed, it should have one matrix per slice.
-    ///                                 Otherwise the same rotation matrix is applied to every slice.
-    /// \param fftfreq_cutoff           Frequency cutoff in \p volume, in cycle/pix.
-    /// \param target_shape             Actual BDHW logical shape of the 3d volume (see note below).
-    /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-    ///                                 If negative, the negative curve is computed.
-    ///                                 If {0,0}, the slices are projections.
+    /// \tparam REMAP               Remapping from the slice to the volume layout.
+    ///                             Should be H2H, H2HC, HC2H or HC2HC.
+    /// \tparam Input               A single (const) f32|f64|c32|c64, or a varray of this type.
+    /// \tparam InputWeight         A single (const) f32|f64|c32|c64, or a varray of this type, or empty.
+    /// \tparam Output              VArray of type f32|f64|c32|c64.
+    /// \tparam OutputWeight        VArray of type f32|f64|c32|c64, or empty.
+    /// \tparam Scale               Mat22 or a varray of this type.
+    /// \tparam Rotate              Mat33, Quaternion, or a varray of this type.
+    ///
+    /// \param[in] slice            2d-rfft central-slice(s) to insert (can be a constant value).
+    /// \param[in] slice_weight     Another optional varray|value associated with \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[out] volume          3d-rfft volume inside which the slices are inserted.
+    /// \param[out] volume_weight   Another optional varray|value associated with \p volume.
+    /// \param volume_shape         BDHW logical shape of \p volume.
+    /// \param[in] inv_scaling      2x2 HW \e inverse real-space scaling matrix to apply to the slices
+    ///                             before the rotation. If an array is passed, it can be empty or have
+    ///                             one matrix per slice. Otherwise the same scaling matrix is applied
+    ///                             to every slice.
+    /// \param[in] fwd_rotation     3x3 DHW \e forward rotation-matrices or quaternions to apply to the slices.
+    ///                             If an array is passed, it should have one element per slice.
+    ///                             Otherwise the same rotation is applied to every slice.
+    /// \param fftfreq_cutoff       Frequency cutoff in \p volume, in cycle/pix.
+    /// \param target_shape         Actual BDHW logical shape of the 3d volume (see note below).
+    /// \param ews_radius           HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    ///                             If negative, the negative curve is computed.
+    ///                             If {0,0}, the slices are projections.
     ///
     /// \note This function normalizes the slice and volume dimensions, and works with normalized frequencies.
     ///       By default (empty \p target_shape or \p target_shape == \p volume_shape), the slice frequencies
@@ -219,25 +308,27 @@ namespace noa::geometry::fft {
     /// \note In order to have both left and right beams assigned to different values, this function only computes one
     ///       "side" of the EWS, as specified by \p ews_radius. To insert the other side, one would have to
     ///       call this function a second time with \p ews_radius * -1.
-    /// \note The scaling and the rotation matrices are kept separated from one another in order to properly compute the
+    /// \note The scaling and the rotation are kept separated from one another in order to properly compute the
     ///       curve of the Ewald sphere. Indeed, the scaling is applied first to correct for magnification, so that the
     ///       EWS is computed using the original frequencies (from the scattering) and is therefore spherical even
     ///       under anisotropic magnification. If \p ews_radius is 0, the scaling factors can be merged with the
-    ///       rotations.
-    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate,
+    ///       rotations (if a rotation-matrix is passed).
+    template<Remap REMAP,
+             typename Input, typename InputWeight = Empty,
+             typename Output, typename OutputWeight = Empty,
+             typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_rasterize_v<REMAP, Input, Output, Scale, Rotate>>>
     void insert_rasterize_3d(
-            const Input& slice, const Shape4<i64> slice_shape,
-            const Output& volume, const Shape4<i64> volume_shape,
-            const Scale& inv_scaling_matrix,
-            const Rotate& fwd_rotation_matrix,
+            const Input& slice, const InputWeight& slice_weight, const Shape4<i64> slice_shape,
+            const Output& volume, const OutputWeight& volume_weight, const Shape4<i64> volume_shape,
+            const Scale& inv_scaling, const Rotate& fwd_rotation,
             f32 fftfreq_cutoff = 0.5f,
             const Shape4<i64> target_shape = {},
             const Vec2<f32>& ews_radius = {}
     ) {
         details::projection_check_parameters<details::ProjectionType::INSERT_RASTERIZE>(
-                slice, slice_shape, volume, volume_shape, target_shape,
-                inv_scaling_matrix, fwd_rotation_matrix);
+                slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
+                target_shape, inv_scaling, fwd_rotation);
 
         const Device device = volume.device();
         Stream& stream = Stream::current(device);
@@ -245,45 +336,31 @@ namespace noa::geometry::fft {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
-                if constexpr (nt::is_varray_v<Input>) {
-                    noa::cpu::geometry::fft::insert_rasterize_3d<REMAP>(
-                            slice.get(), slice.strides(), slice_shape,
-                            volume.get(), volume.strides(), volume_shape,
-                            details::extract_matrix(inv_scaling_matrix),
-                            details::extract_matrix(fwd_rotation_matrix),
-                            fftfreq_cutoff, target_shape, ews_radius, threads);
-                } else if constexpr (nt::is_real_or_complex_v<Input>) {
-                    noa::cpu::geometry::fft::insert_rasterize_3d<REMAP>(
-                            slice, slice_shape,
-                            volume.get(), volume.strides(), volume_shape,
-                            details::extract_matrix(inv_scaling_matrix),
-                            details::extract_matrix(fwd_rotation_matrix),
-                            fftfreq_cutoff, target_shape, ews_radius, threads);
-                } else {
-                    static_assert(nt::always_false_v<Input>);
-                }
+                noa::cpu::geometry::fft::insert_rasterize_3d<REMAP>(
+                        details::extract_pointer<true>(slice), details::extract_strides(slice),
+                        details::extract_pointer<true>(slice_weight), details::extract_strides(slice_weight),
+                        slice_shape,
+                        details::extract_pointer(volume), details::extract_strides(volume),
+                        details::extract_pointer(volume_weight), details::extract_strides(volume_weight),
+                        volume_shape,
+                        details::extract_transform(inv_scaling),
+                        details::extract_transform(fwd_rotation),
+                        fftfreq_cutoff, target_shape, ews_radius, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            if constexpr (nt::is_varray_v<Input>) {
-                noa::cuda::geometry::fft::insert_rasterize_3d<REMAP>(
-                        slice.get(), slice.strides(), slice_shape,
-                        volume.get(), volume.strides(), volume_shape,
-                        details::extract_matrix(inv_scaling_matrix),
-                        details::extract_matrix(fwd_rotation_matrix),
-                        fftfreq_cutoff, target_shape, ews_radius, cuda_stream);
-            } else if constexpr (nt::is_real_or_complex_v<Input>) {
-                noa::cuda::geometry::fft::insert_rasterize_3d<REMAP>(
-                        slice, slice_shape,
-                        volume.get(), volume.strides(), volume_shape,
-                        details::extract_matrix(inv_scaling_matrix),
-                        details::extract_matrix(fwd_rotation_matrix),
-                        fftfreq_cutoff, target_shape, ews_radius, cuda_stream);
-            } else {
-                static_assert(nt::always_false_v<Input>);
-            }
-            cuda_stream.enqueue_attach(slice, volume, inv_scaling_matrix, fwd_rotation_matrix);
+            noa::cuda::geometry::fft::insert_rasterize_3d<REMAP>(
+                    details::extract_pointer<true>(slice), details::extract_strides(slice),
+                    details::extract_pointer<true>(slice_weight), details::extract_strides(slice_weight),
+                    slice_shape,
+                    details::extract_pointer(volume), details::extract_strides(volume),
+                    details::extract_pointer(volume_weight), details::extract_strides(volume_weight),
+                    volume_shape,
+                    details::extract_transform(inv_scaling),
+                    details::extract_transform(fwd_rotation),
+                    fftfreq_cutoff, target_shape, ews_radius, cuda_stream);
+            cuda_stream.enqueue_attach(slice, slice_weight, volume, volume_weight, inv_scaling, fwd_rotation);
             #else
             NOA_THROW("No GPU backend detected");
             #endif
@@ -317,55 +394,61 @@ namespace noa::geometry::fft {
     };
 
     /// Fourier-insertion using 2d-interpolation to insert central-slices in the volume.
-    /// \details This function computes the inverse transformation compared to the overload above using rasterization.
-    ///          This method is the most accurate one but is certainly slower than rasterization. Here, instead of
-    ///          calling every pixel in the central-slices for rasterization, every voxel in the volume is sampled,
-    ///          where, for each voxel, the contribution of every central-slice is computed. The advantage is that
+    /// \details This method is the most accurate one but is certainly slower than rasterization. Here, instead of
+    ///          calling every pixel in the central-slices for rasterization, every voxel in the volume is sampled
+    ///          by collecting the contribution of every central-slice for each output voxel. The advantage is that
     ///          it allows to use a more accurate model for the central-slices, i.e., a windowed-sinc. Indeed, slices
     ///          are now effectively convolved with a windowed-sinc (both the sinc frequency and window size can be
     ///          controlled) along their normal before the insertion. Note that this (windowed) sinc translates to
     ///          a (smooth) rectangular mask in real-space, along the normal of the slice (an interesting property
     ///          that can be useful for some applications).
     ///
-    /// \tparam REMAP                   Remapping from the slice to the volume layout.
-    ///                                 Should be HC2H or HC2HC.
-    /// \tparam Input                   (const) f32, f64, c32, c64, or a varray of this type.
-    /// \tparam Output                  VArray of type f32, f64, c32, or c64.
-    /// \tparam Scale                   Float22 or an varray of this type.
-    /// \tparam Rotate                  Float33 or an varray of this type.
-    /// \param[in] slice                2d-rfft central-slice(s) to insert. A single value can also be passed,
-    ///                                 which is equivalent to a slice filled with a constant value.
-    /// \param slice_shape              BDHW logical shape of \p slice.
-    /// \param[out] volume              3d-rfft volume inside which the slices are to be inserted.
-    /// \param volume_shape             BDHW logical shape of \p volume.
-    /// \param[in] fwd_scaling_matrix   2x2 HW \e forward real-space scaling matrix to apply to the slices
-    ///                                 before the rotation. If an array is passed, it can be empty or have
-    ///                                 one matrix per slice. Otherwise the same scaling matrix is applied
-    ///                                 to every slice.
-    /// \param[in] inv_rotation_matrix  3x3 DHW \e inverse rotation matrices to apply to the slices.
-    ///                                 If an array is passed, it should have one matrix per slice.
-    ///                                 Otherwise the same rotation matrix is applied to every slice.
-    /// \param windowed_sinc            Windowed-sinc along the normal of the slice(s).
-    /// \param fftfreq_cutoff           Frequency cutoff in \p volume, in cycle/pix.
-    /// \param target_shape             Actual BDHW logical shape of the 3D volume.
-    /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-    ///                                 If negative, the negative curve is computed.
-    ///                                 If {0,0}, the slices are projections.
-    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate,
+    /// \tparam REMAP               Remapping from the slice to the volume layout. Should be HC2H or HC2HC.
+    /// \tparam Input               A single (const) f32|f64|c32|c64, or a varray|texture of this type.
+    /// \tparam InputWeight         A single (const) f32|f64|c32|c64, or a varray|texture of this type, or empty.
+    /// \tparam Output              VArray of type f32|f64|c32|c64.
+    /// \tparam OutputWeight        VArray of type f32|f64|c32|c64, or empty.
+    /// \tparam Scale               Mat22 or a varray of this type.
+    /// \tparam Rotate              Mat33, Quaternion, or a varray of this type.
+    ///
+    /// \param[in] slice            2d-rfft central-slice(s) to insert (can be a constant value).
+    /// \param[in] slice_weight     Another optional varray|texture|value associated with \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[out] volume          3d-rfft volume inside which the slices are to be inserted.
+    /// \param[out] volume_weight   Another optional varray|value associated with \p volume.
+    /// \param volume_shape         BDHW logical shape of \p volume.
+    /// \param[in] fwd_scaling      2x2 HW \e forward real-space scaling matrix to apply to the slices
+    ///                             before the rotation. If an array is passed, it can be empty or have
+    ///                             one matrix per slice. Otherwise the same scaling matrix is applied
+    ///                             to every slice.
+    /// \param[in] inv_rotation     3x3 DHW \e inverse rotation-matrices or quaternions to apply to the slices.
+    ///                             If an array is passed, it should have one rotation per slice.
+    ///                             Otherwise the same rotation is applied to every slice.
+    /// \param windowed_sinc        Windowed-sinc along the normal of the slice(s).
+    /// \param fftfreq_cutoff       Frequency cutoff in \p volume, in cycle/pix.
+    /// \param target_shape         Actual BDHW logical shape of the 3d volume.
+    /// \param ews_radius           HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    ///                             If negative, the negative curve is computed.
+    ///                             If {0,0}, the slices are projections.
+    /// \warning This function computes the inverse transformation compared to the overload above using rasterization.
+    template<Remap REMAP,
+             typename Input, typename InputWeight = Empty,
+             typename Output, typename OutputWeight = Empty,
+             typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_insert_interpolate_v<REMAP, Input, Output, Scale, Rotate>>>
     void insert_interpolate_3d(
-            const Input& slice, const Shape4<i64>& slice_shape,
-            const Output& volume, const Shape4<i64>& volume_shape,
-            const Scale& fwd_scaling_matrix,
-            const Rotate& inv_rotation_matrix,
+            const Input& slice, const InputWeight& slice_weight, const Shape4<i64> slice_shape,
+            const Output& volume, const OutputWeight& volume_weight, const Shape4<i64> volume_shape,
+            const Scale& fwd_scaling,
+            const Rotate& inv_rotation,
             const WindowedSinc& windowed_sinc = {},
             f32 fftfreq_cutoff = 0.5f,
             const Shape4<i64>& target_shape = {},
             const Vec2<f32>& ews_radius = {}
     ) {
         details::projection_check_parameters<details::ProjectionType::INSERT_INTERPOLATE>(
-                slice, slice_shape, volume, volume_shape, target_shape,
-                fwd_scaling_matrix, inv_rotation_matrix);
+                slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
+                target_shape, fwd_scaling, inv_rotation);
 
         const Device device = volume.device();
         Stream& stream = Stream::current(device);
@@ -373,99 +456,37 @@ namespace noa::geometry::fft {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
-                if constexpr (nt::is_varray_v<Input>) {
-                    noa::cpu::geometry::fft::insert_interpolate_3d<REMAP>(
-                            slice.get(), slice.strides(), slice_shape,
-                            volume.get(), volume.strides(), volume_shape,
-                            details::extract_matrix(fwd_scaling_matrix),
-                            details::extract_matrix(inv_rotation_matrix),
-                            fftfreq_cutoff, windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman,
-                            target_shape, ews_radius, threads);
-                } else if constexpr (nt::is_real_or_complex_v<Input>) {
-                    noa::cpu::geometry::fft::insert_interpolate_3d<REMAP>(
-                            slice, slice_shape,
-                            volume.get(), volume.strides(), volume_shape,
-                            details::extract_matrix(fwd_scaling_matrix),
-                            details::extract_matrix(inv_rotation_matrix),
-                            fftfreq_cutoff, windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman,
-                            target_shape, ews_radius, threads);
-                } else {
-                    static_assert(nt::always_false_v<Input>);
-                }
+                noa::cpu::geometry::fft::insert_interpolate_3d<REMAP>(
+                        details::extract_pointer<true, true>(slice), details::extract_strides(slice),
+                        details::extract_pointer<true, true>(slice_weight), details::extract_strides(slice_weight),
+                        slice_shape,
+                        details::extract_pointer(volume), details::extract_strides(volume),
+                        details::extract_pointer(volume_weight), details::extract_strides(volume_weight),
+                        volume_shape,
+                        details::extract_transform(fwd_scaling),
+                        details::extract_transform(inv_rotation),
+                        windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman, fftfreq_cutoff,
+                        target_shape, ews_radius, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            if constexpr (nt::is_varray_v<Input>) {
-                noa::cuda::geometry::fft::insert_interpolate_3d<REMAP>(
-                        slice.get(), slice.strides(), slice_shape,
-                        volume.get(), volume.strides(), volume_shape,
-                        details::extract_matrix(fwd_scaling_matrix),
-                        details::extract_matrix(inv_rotation_matrix),
-                        fftfreq_cutoff, windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman,
-                        target_shape, ews_radius, cuda_stream);
-            } else if constexpr (nt::is_real_or_complex_v<Input>) {
-                noa::cuda::geometry::fft::insert_interpolate_3d<REMAP>(
-                        slice, slice_shape,
-                        volume.get(), volume.strides(), volume_shape,
-                        details::extract_matrix(fwd_scaling_matrix),
-                        details::extract_matrix(inv_rotation_matrix),
-                        fftfreq_cutoff, windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman,
-                        target_shape, ews_radius, cuda_stream);
+            if constexpr ((nt::is_texture_v<Input> && nt::is_any_v<nt::value_type_t<Input>, f64, c64>) ||
+                          (nt::is_texture_v<InputWeight> && nt::is_any_v<nt::value_type_t<InputWeight>, f64, c64>)) {
+                NOA_THROW("f64 and c64 are not supported by CUDA textures");
             } else {
-                static_assert(nt::always_false_v<Input>);
-            }
-            cuda_stream.enqueue_attach(slice, volume, fwd_scaling_matrix, inv_rotation_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
-    }
-
-    /// Fourier-insertion using 2d-interpolation to insert central-slices in the volume.
-    /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
-    template<Remap REMAP, typename Value, typename Output, typename Scale, typename Rotate,
-             typename = std::enable_if_t<details::is_valid_insert_interpolate_v<REMAP, Value, Output, Scale, Rotate>>>
-    void insert_interpolate_3d(
-            const Texture<Value>& slice, const Shape4<i64>& slice_shape,
-            const Output& volume, const Shape4<i64>& volume_shape,
-            const Scale& fwd_scaling_matrix,
-            const Rotate& inv_rotation_matrix,
-            const WindowedSinc& windowed_sinc = {},
-            f32 fftfreq_cutoff = 0.5f,
-            const Shape4<i64>& target_shape = {},
-            const Vec2<f32>& ews_radius = {}
-    ) {
-        const Device device = volume.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            const noa::cpu::Texture<Value>& texture = slice.cpu();
-            const Array<Value> slice_array(texture.ptr, slice.shape(), texture.strides, slice.options());
-            insert_interpolate_3d<REMAP>(
-                    slice_array, slice_shape, volume, volume_shape,
-                    fwd_scaling_matrix, inv_rotation_matrix,
-                    windowed_sinc, fftfreq_cutoff, target_shape, ews_radius);
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (nt::is_any_v<Value, f64, c64>) {
-                NOA_THROW("Double-precision floating-points are not supported by CUDA textures");
-            } else {
-                details::projection_check_parameters<details::ProjectionType::INSERT_INTERPOLATE>(
-                        slice, slice_shape, volume, volume_shape, target_shape,
-                        fwd_scaling_matrix, inv_rotation_matrix);
-
-                const noa::cuda::Texture<Value>& texture = slice.cuda();
                 auto& cuda_stream = stream.cuda();
                 noa::cuda::geometry::fft::insert_interpolate_3d<REMAP>(
-                        texture.array.get(), *texture.texture, slice.interp_mode(), slice_shape,
-                        volume.get(), volume.strides(), volume_shape,
-                        details::extract_matrix(fwd_scaling_matrix),
-                        details::extract_matrix(inv_rotation_matrix),
-                        fftfreq_cutoff, windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman,
+                        details::extract_pointer<true, false>(slice), details::extract_strides(slice),
+                        details::extract_pointer<true, false>(slice_weight), details::extract_strides(slice_weight),
+                        slice_shape,
+                        details::extract_pointer(volume), details::extract_strides(volume),
+                        details::extract_pointer(volume_weight), details::extract_strides(volume_weight),
+                        volume_shape,
+                        details::extract_transform(fwd_scaling),
+                        details::extract_transform(inv_rotation),
+                        windowed_sinc.fftfreq_sinc, windowed_sinc.fftfreq_blackman, fftfreq_cutoff,
                         target_shape, ews_radius, cuda_stream);
-                cuda_stream.enqueue_attach(
-                        texture.array, texture.texture, volume,
-                        fwd_scaling_matrix, inv_rotation_matrix);
+                cuda_stream.enqueue_attach(slice, slice_weight, volume, volume_weight, fwd_scaling, inv_rotation);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -485,42 +506,49 @@ namespace noa::geometry::fft {
     ///          the real-space masking, which could be advantageous in scenarios where going back to real-space
     ///          is expensive.
     ///
-    /// \tparam REMAP                   Remapping from the slice to the volume layout. Should be HC2H or HC2HC.
-    /// \tparam Input                   VArray of type f32, f64, c32, or c64.
-    /// \tparam Output                  VArray of type f32, f64, c32, or c64.
-    /// \tparam Scale                   Float22 or an varray of this type.
-    /// \tparam Rotate                  Float33 or an varray of this type.
-    /// \param[in] volume               3d-centered-rfft volume from which to extract the slices.
-    /// \param volume_shape             BDHW logical shape of \p volume.
-    /// \param[out] slice               2d-rfft central-slice(s) to extract.
-    /// \param slice_shape              BDHW logical shape of \p slice.
-    /// \param[in] inv_scaling_matrix   2x2 HW \e inverse real-space scaling to apply to the slices before the rotation.
-    ///                                 If an array is passed, it can be empty or have one matrix per slice.
-    ///                                 Otherwise the same scaling matrix is applied to every slice.
-    /// \param[in] fwd_rotation_matrix  3x3 DHW \e forward rotation matrices to apply to the slices.
-    ///                                 If an array is passed, it should have one matrix per slice.
-    ///                                 Otherwise the same rotation matrix is applied to every slice.
-    /// \param z_windowed_sinc          Windowed-sinc along the z of \p volume.
-    /// \param fftfreq_cutoff           Frequency cutoff in \p volume, in cycle/pix.
-    /// \param target_shape             Actual BDHW logical shape of the 3D volume.
-    /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-    ///                                 If negative, the negative curve is computed.
-    ///                                 If {0,0}, the slices are projections.
-    template<Remap REMAP, typename Input, typename Output, typename Scale, typename Rotate,
+    /// \tparam REMAP               Remapping from the volume to the slice layout. Should be HC2H or HC2HC.
+    /// \tparam Input               A varray|texture of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight         A varray|texture of (const) f32|f64|c32|c64, or empty.
+    /// \tparam Output              VArray of type f32|f64|c32|c64.
+    /// \tparam OutputWeight        VArray of type f32|f64|c32|c64, or empty.
+    /// \tparam Scale               Mat22 or a varray of this type.
+    /// \tparam Rotate              Mat33|Quaternion, or a varray of this type.
+    ///
+    /// \param[in] volume           3d-centered-rfft volume from which to extract the slices.
+    /// \param[in] volume_weight    Another optional varray|texture associated with \p volume.
+    /// \param volume_shape         BDHW logical shape of \p volume.
+    /// \param[out] slice           2d-rfft central-slice(s) to extract.
+    /// \param[out] slice_weight    Another optional varray associated with \p slice.
+    /// \param slice_shape          BDHW logical shape of \p slice.
+    /// \param[in] inv_scaling      2x2 HW \e inverse real-space scaling to apply to the slices before the rotation.
+    ///                             If an array is passed, it can be empty or have one matrix per slice.
+    ///                             Otherwise the same scaling matrix is applied to every slice.
+    /// \param[in] fwd_rotation     3x3 DHW \e forward rotation-matrices or quaternions to apply to the slices.
+    ///                             If an array is passed, it should have one rotation per slice.
+    ///                             Otherwise the same rotation is applied to every slice.
+    /// \param z_windowed_sinc      Windowed-sinc along the z of \p volume.
+    /// \param fftfreq_cutoff       Frequency cutoff in \p volume, in cycle/pix.
+    /// \param target_shape         Actual BDHW logical shape of the 3d volume.
+    /// \param ews_radius           HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    ///                             If negative, the negative curve is computed.
+    ///                             If {0,0}, the slices are projections.
+    template<Remap REMAP,
+             typename Input, typename InputWeight = Empty,
+             typename Output, typename OutputWeight = Empty,
+             typename Scale, typename Rotate,
              typename = std::enable_if_t<details::is_valid_extract_v<REMAP, Input, Output, Scale, Rotate>>>
     void extract_3d(
-            const Input& volume, const Shape4<i64>& volume_shape,
-            const Output& slice, const Shape4<i64>& slice_shape,
-            const Scale& inv_scaling_matrix,
-            const Rotate& fwd_rotation_matrix,
+            const Input& volume, const InputWeight& volume_weight, const Shape4<i64> volume_shape,
+            const Output& slice, const OutputWeight& slice_weight, const Shape4<i64> slice_shape,
+            const Scale& inv_scaling, const Rotate& fwd_rotation,
             const WindowedSinc& z_windowed_sinc = {},
             f32 fftfreq_cutoff = 0.5f,
             const Shape4<i64>& target_shape = {},
             const Vec2<f32>& ews_radius = {}
     ) {
         details::projection_check_parameters<details::ProjectionType::EXTRACT>(
-                volume, volume_shape, slice, slice_shape, target_shape,
-                inv_scaling_matrix, fwd_rotation_matrix);
+                volume, volume_weight, volume_shape, slice, slice_weight, slice_shape,
+                target_shape, inv_scaling, fwd_rotation);
 
         const Device device = volume.device();
         Stream& stream = Stream::current(device);
@@ -529,74 +557,37 @@ namespace noa::geometry::fft {
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 noa::cpu::geometry::fft::extract_3d<REMAP>(
-                        volume.get(), volume.strides(), volume_shape,
-                        slice.get(), slice.strides(), slice_shape,
-                        details::extract_matrix(inv_scaling_matrix),
-                        details::extract_matrix(fwd_rotation_matrix),
-                        fftfreq_cutoff, z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
+                        details::extract_pointer<true, true>(volume), details::extract_strides(volume),
+                        details::extract_pointer<true, true>(volume_weight), details::extract_strides(volume_weight),
+                        volume_shape,
+                        details::extract_pointer(slice), details::extract_strides(slice),
+                        details::extract_pointer(slice_weight), details::extract_strides(slice_weight),
+                        slice_shape,
+                        details::extract_transform(inv_scaling),
+                        details::extract_transform(fwd_rotation),
+                        z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman, fftfreq_cutoff,
                         target_shape, ews_radius, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            noa::cuda::geometry::fft::extract_3d<REMAP>(
-                    volume.get(), volume.strides(), volume_shape,
-                    slice.get(), slice.strides(), slice_shape,
-                    details::extract_matrix(inv_scaling_matrix),
-                    details::extract_matrix(fwd_rotation_matrix),
-                    fftfreq_cutoff, z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                    target_shape, ews_radius, cuda_stream);
-            cuda_stream.enqueue_attach(
-                    volume, slice, inv_scaling_matrix, fwd_rotation_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
-    }
-
-    /// Extracts 2d central-slice(s) from a volume.
-    /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
-    template<Remap REMAP, typename Value, typename Output, typename Scale, typename Rotate, typename = std::enable_if_t<
-             details::is_valid_insert_interpolate_v<REMAP, Value, Output, Scale, Rotate>>>
-    void extract_3d(
-            const Texture<Value>& volume, const Shape4<i64>& volume_shape,
-            const Output& slice, const Shape4<i64>& slice_shape,
-            const Scale& inv_scaling_matrix,
-            const Rotate& fwd_rotation_matrix,
-            const WindowedSinc& z_windowed_sinc = {},
-            f32 fftfreq_cutoff = 0.5f,
-            const Shape4<i64>& target_shape = {},
-            const Vec2<f32>& ews_radius = {}
-    ) {
-        const Device device = volume.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            const noa::cpu::Texture<Value>& texture = volume.cpu();
-            const Array<Value> volume_array(texture.ptr, volume.shape(), texture.strides, volume.options());
-            extract_3d<REMAP>(volume_array, volume_shape, slice, slice_shape,
-                              inv_scaling_matrix, fwd_rotation_matrix,
-                              z_windowed_sinc, fftfreq_cutoff, target_shape, ews_radius);
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (nt::is_any_v<Value, f64, c64>) {
-                NOA_THROW("Double-precision floating-points are not supported by CUDA textures");
+            if constexpr ((nt::is_texture_v<Input> && nt::is_any_v<nt::value_type_t<Input>, f64, c64>) ||
+                          (nt::is_texture_v<InputWeight> && nt::is_any_v<nt::value_type_t<InputWeight>, f64, c64>)) {
+                NOA_THROW("f64 and c64 are not supported by CUDA textures");
             } else {
-                details::projection_check_parameters<details::ProjectionType::EXTRACT>(
-                        volume, volume_shape, slice, slice_shape, target_shape,
-                        inv_scaling_matrix, fwd_rotation_matrix);
-
                 auto& cuda_stream = stream.cuda();
-                const noa::cuda::Texture<Value>& texture = volume.cuda();
                 noa::cuda::geometry::fft::extract_3d<REMAP>(
-                        texture.array.get(), *texture.texture, volume.interp_mode(), volume_shape,
-                        slice.get(), slice.strides(), slice_shape,
-                        details::extract_matrix(inv_scaling_matrix),
-                        details::extract_matrix(fwd_rotation_matrix),
-                        fftfreq_cutoff, z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
+                        details::extract_pointer<true, false>(volume), details::extract_strides(volume),
+                        details::extract_pointer<true, false>(volume_weight), details::extract_strides(volume_weight),
+                        volume_shape,
+                        details::extract_pointer(slice), details::extract_strides(slice),
+                        details::extract_pointer(slice_weight), details::extract_strides(slice_weight),
+                        slice_shape,
+                        details::extract_transform(inv_scaling),
+                        details::extract_transform(fwd_rotation),
+                        z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman, fftfreq_cutoff,
                         target_shape, ews_radius, cuda_stream);
                 cuda_stream.enqueue_attach(
-                        texture.array, texture.texture, slice,
-                        inv_scaling_matrix, fwd_rotation_matrix);
+                        volume, volume_weight, slice, slice_weight, inv_scaling, fwd_rotation);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -617,62 +608,63 @@ namespace noa::geometry::fft {
     ///          extract method, where the volume is already sampled, making the extraction much cheaper (and constant
     ///          cost: it's a simple 3d-interpolation).
     ///
-    /// \tparam REMAP                           Remapping from the slice to the volume layout. Should be HC2H or HC2HC.
-    /// \tparam Input                           VArray or value of type (const) f32, f64, c32, or c64.
-    /// \tparam Output                          VArray of type f32, f64, c32, or c64.
-    /// \tparam InputScale                      Float22 or a varray of this type.
-    /// \tparam InputRotate                     Float33 or a varray of this type.
-    /// \tparam OutputScale                     Float22 or a varray of this type.
-    /// \tparam OutputRotate                    Float33 or a varray of this type.
+    /// \tparam REMAP                   Remapping from the input slice to the output slice layout. Should be HC2H or HC2HC.
+    /// \tparam Input                   A varray|texture of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight             A varray|texture of (const) f32|f64|c32|c64, or empty.
+    /// \tparam Output                  VArray of type f32|f64|c32|c64.
+    /// \tparam OutputWeight            VArray of type f32|f64|c32|c64, or empty.
+    /// \tparam InputScale              Mat22 or a varray of this type.
+    /// \tparam InputRotate             Mat33|Quaternion, or a varray of this type.
+    /// \tparam OutputScale             Mat22 or a varray of this type.
+    /// \tparam OutputRotate            Mat33|Quaternion, or a varray of this type.
     ///
-    /// \param[in] input_slice                  2d-rfft central-slice(s) to insert. A single value can also be passed,
-    ///                                         which is equivalent to a slice filled with a constant value.
-    /// \param input_slice_shape                BDHW logical shape of \p input_slice.
-    /// \param[in,out] output_slice             2d-rfft central-slice(s) to extract. See \p add_to_output.
-    /// \param output_slice_shape               BDHW logical shape of \p output_slice.
-    /// \param[in] input_fwd_scaling_matrix     2x2 HW \e forward real-space scaling matrix to apply to the input
-    ///                                         slices before the rotation. If an array is passed, it can be empty
-    ///                                         or have one matrix per slice. Otherwise the same scaling matrix
-    ///                                         is applied to every slice.
-    /// \param[in] input_inv_rotation_matrix    3x3 DHW \e inverse rotation matrices to apply to the input slices.
-    ///                                         If an array is passed, it should have one matrix per slice.
-    ///                                         Otherwise the same rotation matrix is applied to every slice.
-    /// \param[in] output_inv_scaling_matrix    2x2 HW \e inverse real-space scaling matrix to apply to the output
-    ///                                         slices before the rotation. If an array is passed, it can be empty
-    ///                                         or have one matrix per slice. Otherwise the same scaling matrix
-    ///                                         is applied to every slice.
-    /// \param[in] output_fwd_rotation_matrix   3x3 DHW \e forward rotation matrices to apply to the output slices.
-    ///                                         If an array is passed, it should have one matrix per slice.
-    ///                                         Otherwise the same rotation matrix is applied to every slice.
-    /// \param input_windowed_sinc              Windowed-sinc along the normal of the input slice(s).
-    /// \param z_windowed_sinc                  Windowed-sinc along the z of the virtual volume.
-    /// \param add_to_output                    Whether the contribution of the input slices should be added to the
-    ///                                         output. By default, the function sets \p output_slice. With this option
-    ///                                         enabled, it instead adds the contribution of \p input_slice to the
-    ///                                         signal already in \p output_slice, allowing to progressively
-    ///                                         build the output signal.
-    /// \param correct_multiplicity             Correct for the multiplicity. By default, the virtual volume contains
-    ///                                         the sum of the inserted values (weighted by \p input_windowed_sinc).
-    ///                                         If true, the multiplicity is corrected by dividing the virtual volume
-    ///                                         with the total inserted weights, only if the weight is larger than 1.
-    ///                                         Indeed, if the weight for a frequency is less than 1, the frequency is
-    ///                                         unchanged. The total insertion weights can be computed by filling the
-    ///                                         input slices with ones. Note that this parameter is likely to only
-    ///                                         make sense if \p add_to_output is false.
-    /// \param fftfreq_cutoff                   Frequency cutoff of the virtual 3d volume, in cycle/pix.
-    /// \param ews_radius                       HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-    ///                                         If negative, the negative curve is computed.
-    ///                                         If {0,0}, the slices are projections.
-    template<Remap REMAP, typename Input, typename Output,
+    /// \param[in] input_slice          2d-rfft central-slice(s) to insert (can be a constant value).
+    /// \param[in] input_weight         Another optional varray|texture|value associated with \p input_slice.
+    /// \param input_slice_shape        BDHW logical shape of \p input_slice.
+    /// \param[in,out] output_slice     2d-rfft central-slice(s) to extract. See \p add_to_output.
+    /// \param[in,out] output_weight    Another optional varray|value associated with \p output_slice.
+    /// \param output_slice_shape       BDHW logical shape of \p output_slice.
+    /// \param[in] input_fwd_scaling    2x2 HW \e forward real-space scaling matrix to apply to the input slices
+    ///                                 before the rotation. If an array is passed, it can be empty or have one matrix
+    ///                                 per slice. Otherwise the same scaling matrix is applied to every slice.
+    /// \param[in] input_inv_rotation   3x3 DHW \e inverse rotation-matrices or quaternions to apply to the input slices.
+    ///                                 If an array is passed, it should have one rotation per slice.
+    ///                                 Otherwise the same rotation is applied to every slice.
+    /// \param[in] output_inv_scaling   2x2 HW \e inverse real-space scaling matrix to apply to the output slices
+    ///                                 before the rotation. If an array is passed, it can be empty or have one matrix
+    ///                                 per slice. Otherwise the same scaling matrix is applied to every slice.
+    /// \param[in] output_fwd_rotation  3x3 DHW \e forward rotation-matrices or quaternions to apply to the output slices.
+    ///                                 If an array is passed, it should have one rotation per slice.
+    ///                                 Otherwise the same rotation is applied to every slice.
+    /// \param input_windowed_sinc      Windowed-sinc along the normal of the input slice(s).
+    /// \param z_windowed_sinc          Windowed-sinc along the z of the virtual volume.
+    /// \param add_to_output            Whether the contribution of the input slices should be added to the output.
+    ///                                 By default, the function sets \p output_slice. With this option enabled,
+    ///                                 it instead adds the contribution of \p input_slice to the signal already in
+    ///                                 \p output_slice, allowing to progressively build the output signal.
+    /// \param correct_multiplicity     Correct for the multiplicity. By default, the virtual volume contains the sum
+    ///                                 of the inserted values (weighted by \p input_windowed_sinc). If true, the
+    ///                                 multiplicity is corrected by dividing the virtual volume with the total inserted
+    ///                                 weights, only if the weight is larger than 1. Indeed, if the weight for a
+    ///                                 frequency is less than 1, the frequency is unchanged. The total insertion
+    ///                                 weights can be computed by filling the input slices with ones. Note that this
+    ///                                 parameter is likely to only make sense if \p add_to_output is false.
+    /// \param fftfreq_cutoff           Frequency cutoff of the virtual 3d volume, in cycle/pix.
+    /// \param ews_radius               HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+    ///                                 If negative, the negative curve is computed.
+    ///                                 If {0,0}, the slices are projections.
+    template<Remap REMAP,
+             typename Input, typename InputWeight = Empty,
+             typename Output, typename OutputWeight = Empty,
              typename InputScale, typename InputRotate,
              typename OutputScale, typename OutputRotate,
              typename = std::enable_if_t<details::is_valid_insert_extract_v<
              REMAP, Input, Output, InputScale, InputRotate, OutputScale, OutputRotate>>>
     void insert_interpolate_and_extract_3d(
-            const Input& input_slice, const Shape4<i64>& input_slice_shape,
-            const Output& output_slice, const Shape4<i64>& output_slice_shape,
-            const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
-            const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
+            const Input& input_slice, const InputWeight& input_weight, const Shape4<i64>& input_slice_shape,
+            const Output& output_slice, const OutputWeight& output_weight, const Shape4<i64>& output_slice_shape,
+            const InputScale& input_fwd_scaling, const InputRotate& input_inv_rotation,
+            const OutputScale& output_inv_scaling, const OutputRotate& output_fwd_rotation,
             const WindowedSinc& input_windowed_sinc = {},
             const WindowedSinc& z_windowed_sinc = {},
             bool add_to_output = false,
@@ -681,9 +673,8 @@ namespace noa::geometry::fft {
             const Vec2<f32>& ews_radius = {}
     ) {
         details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
-                input_slice, input_slice_shape, output_slice, output_slice_shape, {},
-                input_fwd_scaling_matrix, input_inv_rotation_matrix,
-                output_inv_scaling_matrix, output_fwd_rotation_matrix);
+                input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
+                {}, input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation);
 
         const Device device = output_slice.device();
         Stream& stream = Stream::current(device);
@@ -691,127 +682,46 @@ namespace noa::geometry::fft {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
-                if constexpr (nt::is_varray_v<Input>) {
-                    noa::cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
-                            input_slice.get(), input_slice.strides(), input_slice_shape,
-                            output_slice.get(), output_slice.strides(), output_slice_shape,
-                            details::extract_matrix(input_fwd_scaling_matrix),
-                            details::extract_matrix(input_inv_rotation_matrix),
-                            details::extract_matrix(output_inv_scaling_matrix),
-                            details::extract_matrix(output_fwd_rotation_matrix),
-                            fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
-                            z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                            add_to_output, correct_multiplicity, ews_radius, threads);
-                } else if constexpr (nt::is_real_or_complex_v<Input>) {
-                    noa::cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
-                            input_slice, input_slice_shape,
-                            output_slice.get(), output_slice.strides(), output_slice_shape,
-                            details::extract_matrix(input_fwd_scaling_matrix),
-                            details::extract_matrix(input_inv_rotation_matrix),
-                            details::extract_matrix(output_inv_scaling_matrix),
-                            details::extract_matrix(output_fwd_rotation_matrix),
-                            fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
-                            z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                            add_to_output, correct_multiplicity, ews_radius, threads);
-                } else {
-                    static_assert(nt::always_false_v<Input>);
-                }
+                noa::cpu::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
+                        details::extract_pointer<true, true>(input_slice), details::extract_strides(input_slice),
+                        details::extract_pointer<true, true>(input_weight), details::extract_strides(input_weight),
+                        input_slice_shape,
+                        details::extract_pointer(output_slice), details::extract_strides(output_slice),
+                        details::extract_pointer(output_weight), details::extract_strides(output_weight),
+                        output_slice_shape,
+                        details::extract_transform(input_fwd_scaling),
+                        details::extract_transform(input_inv_rotation),
+                        details::extract_transform(output_inv_scaling),
+                        details::extract_transform(output_fwd_rotation),
+                        input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
+                        z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
+                        fftfreq_cutoff, add_to_output, correct_multiplicity, ews_radius, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            if constexpr (nt::is_varray_v<Input>) {
-                noa::cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
-                        input_slice.get(), input_slice.strides(), input_slice_shape,
-                        output_slice.get(), output_slice.strides(), output_slice_shape,
-                        details::extract_matrix(input_fwd_scaling_matrix),
-                        details::extract_matrix(input_inv_rotation_matrix),
-                        details::extract_matrix(output_inv_scaling_matrix),
-                        details::extract_matrix(output_fwd_rotation_matrix),
-                        fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
-                        z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                        add_to_output, correct_multiplicity, ews_radius, cuda_stream);
-            } else if constexpr (nt::is_real_or_complex_v<Input>) {
-                noa::cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
-                        input_slice, input_slice_shape,
-                        output_slice.get(), output_slice.strides(), output_slice_shape,
-                        details::extract_matrix(input_fwd_scaling_matrix),
-                        details::extract_matrix(input_inv_rotation_matrix),
-                        details::extract_matrix(output_inv_scaling_matrix),
-                        details::extract_matrix(output_fwd_rotation_matrix),
-                        fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
-                        z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                        add_to_output, correct_multiplicity, ews_radius, cuda_stream);
+            if constexpr ((nt::is_texture_v<Input> && nt::is_any_v<nt::value_type_t<Input>, f64, c64>) ||
+                          (nt::is_texture_v<InputWeight> && nt::is_any_v<nt::value_type_t<InputWeight>, f64, c64>)) {
+                NOA_THROW("f64 and c64 are not supported by CUDA textures");
             } else {
-                static_assert(nt::always_false_v<Input>);
-            }
-            cuda_stream.enqueue_attach(
-                    input_slice, output_slice,
-                    input_fwd_scaling_matrix, input_inv_rotation_matrix,
-                    output_inv_scaling_matrix, output_fwd_rotation_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
-    }
-
-    /// Extracts 2d central-slice(s) from a virtual volume filled by other central-slices.
-    /// \details This function has the same features and limitations as the overload taking arrays, but uses textures.
-    template<Remap REMAP, typename Value, typename Output,
-             typename InputScale, typename InputRotate,
-             typename OutputScale, typename OutputRotate,
-             typename = std::enable_if_t<details::is_valid_insert_extract_v<
-                     REMAP, Value, Output, InputScale, InputRotate, OutputScale, OutputRotate>>>
-    void insert_interpolate_and_extract_3d(
-            const Texture<Value>& input_slice, const Shape4<i64>& input_slice_shape,
-            const Output& output_slice, const Shape4<i64>& output_slice_shape,
-            const InputScale& input_fwd_scaling_matrix, const InputRotate& input_inv_rotation_matrix,
-            const OutputScale& output_inv_scaling_matrix, const OutputRotate& output_fwd_rotation_matrix,
-            const WindowedSinc& input_windowed_sinc = {},
-            const WindowedSinc& z_windowed_sinc = {},
-            bool add_to_output = false,
-            bool correct_multiplicity = false,
-            f32 fftfreq_cutoff = 0.5f,
-            const Vec2<f32>& ews_radius = {}
-    ) {
-        const Device device = output_slice.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            const noa::cpu::Texture<Value>& texture = input_slice.cpu();
-            const Array<Value> input_slice_array(
-                    texture.ptr, input_slice.shape(), texture.strides, input_slice.options());
-            insert_interpolate_and_extract_3d<REMAP>(
-                    input_slice_array, input_slice_shape, output_slice, output_slice_shape,
-                    input_fwd_scaling_matrix, input_inv_rotation_matrix,
-                    output_inv_scaling_matrix, output_fwd_rotation_matrix,
-                    input_windowed_sinc, z_windowed_sinc,
-                    add_to_output, correct_multiplicity, fftfreq_cutoff, ews_radius);
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (nt::is_any_v<Value, f64, c64>) {
-                NOA_THROW("Double-precision floating-points are not supported by CUDA textures");
-            } else {
-                details::projection_check_parameters<details::ProjectionType::INSERT_EXTRACT>(
-                        input_slice, input_slice_shape, output_slice, output_slice_shape, {},
-                        input_fwd_scaling_matrix, input_inv_rotation_matrix,
-                        output_inv_scaling_matrix, output_fwd_rotation_matrix);
-
                 auto& cuda_stream = stream.cuda();
-                const noa::cuda::Texture<Value>& texture = input_slice.cuda();
                 noa::cuda::geometry::fft::insert_interpolate_and_extract_3d<REMAP>(
-                        texture.array.get(), *texture.texture, input_slice.interp_mode(), input_slice_shape,
-                        output_slice.get(), output_slice.strides(), output_slice_shape,
-                        details::extract_matrix(input_fwd_scaling_matrix),
-                        details::extract_matrix(input_inv_rotation_matrix),
-                        details::extract_matrix(output_inv_scaling_matrix),
-                        details::extract_matrix(output_fwd_rotation_matrix),
-                        fftfreq_cutoff, input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
+                        details::extract_pointer<true, false>(input_slice), details::extract_strides(input_slice),
+                        details::extract_pointer<true, false>(input_weight), details::extract_strides(input_weight),
+                        input_slice_shape,
+                        details::extract_pointer(output_slice), details::extract_strides(output_slice),
+                        details::extract_pointer(output_weight), details::extract_strides(output_weight),
+                        output_slice_shape,
+                        details::extract_transform(input_fwd_scaling),
+                        details::extract_transform(input_inv_rotation),
+                        details::extract_transform(output_inv_scaling),
+                        details::extract_transform(output_fwd_rotation),
+                        input_windowed_sinc.fftfreq_sinc, input_windowed_sinc.fftfreq_blackman,
                         z_windowed_sinc.fftfreq_sinc, z_windowed_sinc.fftfreq_blackman,
-                        add_to_output, correct_multiplicity, ews_radius, cuda_stream);
+                        fftfreq_cutoff, add_to_output, correct_multiplicity, ews_radius, cuda_stream);
                 cuda_stream.enqueue_attach(
-                        texture.array, texture.texture, output_slice,
-                        input_fwd_scaling_matrix, input_inv_rotation_matrix,
-                        output_inv_scaling_matrix, output_fwd_rotation_matrix);
+                        input_slice, input_weight, output_slice, output_weight,
+                        input_fwd_scaling, input_inv_rotation,
+                        output_inv_scaling, output_fwd_rotation);
             }
             #else
             NOA_THROW("No GPU backend detected");
@@ -819,13 +729,13 @@ namespace noa::geometry::fft {
         }
     }
 
-    /// Corrects for the gridding, assuming tri-linear interpolation was used during the Fourier insertion.
-    /// \details During direct Fourier insertion of slices S into a volume B, two problems arises:
+    /// Corrects for the gridding, assuming the Fourier insertion was done using tri-linear rasterization.
+    /// \details During direct Fourier insertion of central-slices S into a volume B, two problems arises:
     ///          1) The insertion is not uniform (e.g. inherently more dense at low frequencies). This can be
     ///             easily corrected by inserting the data as well as its associated weights and normalizing the
-    ///             inserted data with the inserted weights. This is often referred to as density correction.
-    ///             This function is not about that.
-    ///          2) The data-points are inserted in Fourier space by interpolation, a process called gridding,
+    ///             inserted data with the inserted weights. This is often referred to as density or multiplicity
+    ///             correction. This function is not about that.
+    ///          2) The data-points can be inserted in Fourier space by rasterization, a process also called gridding,
     ///             which is essentially a convolution between the data points and the interpolation filter
     ///             (e.g. triangle pulse for linear interpolation). The interpolation filter is often referred to as
     ///             the gridding kernel. Since convolution in frequency space corresponds to a multiplication in

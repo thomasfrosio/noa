@@ -104,7 +104,11 @@ set(NOA_CPU_SOURCES
 
     # noa::cpu::geometry
     cpu/geometry/fft/Polar.cpp
-    cpu/geometry/fft/Project.cpp
+    cpu/geometry/fft/FourierExtract.cpp
+    cpu/geometry/fft/FourierInsertRasterize.cpp
+    cpu/geometry/fft/FourierInsertInterpolate.cpp
+    cpu/geometry/fft/FourierInsertExtract.cpp
+    cpu/geometry/fft/FourierGriddingCorrection.cpp
     cpu/geometry/fft/Shape2D.cpp
     cpu/geometry/fft/Shape3D.cpp
     cpu/geometry/fft/Transform.cpp

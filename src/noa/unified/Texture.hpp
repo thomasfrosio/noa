@@ -15,6 +15,9 @@
 namespace noa::cuda {
     template<typename T>
     struct Texture {};
+
+    template<typename T>
+    struct TextureObject {};
 }
 #endif
 
@@ -30,6 +33,8 @@ namespace noa::cpu {
 namespace noa::gpu {
     template<typename T>
     using Texture = noa::cuda::Texture<T>;
+    template<typename T>
+    using TextureObject = noa::cuda::TextureObject<T>;
 }
 
 namespace noa {
@@ -45,6 +50,7 @@ namespace noa {
         static_assert(nt::is_any_v<T, f32, f64, c32, c64>);
 
         using value_type = T;
+        using mutable_value_type = T;
         using shape_type = Shape4<i64>;
         using strides_type = Strides4<i64>;
         using cpu_texture_type = cpu::Texture<value_type>;
@@ -382,4 +388,8 @@ namespace noa {
         InterpMode m_interp{};
         BorderMode m_border{};
     };
+}
+
+namespace noa::traits {
+    template<typename T> struct proclaim_is_texture<Texture<T>> : std::true_type {};
 }
