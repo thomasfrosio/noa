@@ -342,4 +342,16 @@ namespace noa::cuda::memory {
 
         copy(src, dst, dst_strides[2], shape_3d, stream);
     }
+
+    /// Copies \p src to the constant memory at \p dst.
+    template<typename T, typename = std::enable_if_t<std::is_trivially_copyable_v<T>>>
+    void copy_to_constant_memory(const T* src, const void* dst, i64 elements, i64 offset, Stream& stream) {
+        NOA_THROW_IF(cudaMemcpyToSymbolAsync(
+                /*symbol=*/ dst,
+                /*src=*/ const_cast<T*>(src),
+                /*count=*/ sizeof(T) * static_cast<size_t>(elements),
+                /*offset=*/ sizeof(T) * static_cast<size_t>(offset),
+                /*kind=*/ cudaMemcpyDefault,
+                /*stream=*/ stream.id()));
+    }
 }

@@ -38,6 +38,14 @@ namespace noa::cuda::utils {
         return attr.type == cudaMemoryTypeDevice ? nullptr : ptr;
     }
 
+    // Returns the address of constant_pointer on the device.
+    template<typename T = void>
+    T* constant_to_device_pointer(const void* constant_pointer) {
+        void* device_pointer;
+        NOA_THROW_IF(cudaGetSymbolAddress(&device_pointer, constant_pointer));
+        return static_cast<T*>(device_pointer);
+    }
+
     // Aligned array that generates vectorized load/store in CUDA.
     // It seems that the maximum load size is 16 bytes.
     template<typename T, size_t VECTOR_SIZE>
