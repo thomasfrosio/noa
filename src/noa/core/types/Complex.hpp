@@ -352,7 +352,7 @@ namespace noa::math {
     template<>
     [[nodiscard]] NOA_IHD float abs_squared<float>(Complex<float> x) {
         constexpr float THRESHOLD = 1.0842021724855044e-19f; // sqrt(FLT_MIN);
-        if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
+        if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) { // FIXME?
             const float a = x.real * 4.0f;
             const float b = x.imag * 4.0f;
             return (a * a + b * b) / 16.0f;
@@ -363,7 +363,7 @@ namespace noa::math {
     template<>
     [[nodiscard]] NOA_IHD double abs_squared<double>(Complex<double> x) {
         constexpr double THRESHOLD = 1.4916681462400413e-154; // sqrt(DBL_MIN)
-        if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) {
+        if (abs(x.real) < THRESHOLD && abs(x.imag) < THRESHOLD) { // FIXME?
             const double a = x.real * 4.0;
             const double b = x.imag * 4.0;
             return (a * a + b * b) / 16.0;

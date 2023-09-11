@@ -125,8 +125,12 @@ namespace noa {
     struct abs_squared_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
-            auto tmp = ::noa::math::abs(x);
-            return tmp * tmp;
+            if constexpr (nt::is_complex_v<T>) {
+                return ::noa::math::abs_squared(x);
+            } else {
+                auto tmp = ::noa::math::abs(x);
+                return tmp * tmp;
+            }
         }
     };
 
