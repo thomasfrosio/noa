@@ -88,7 +88,7 @@ namespace noa {
         #endif
 
         using value_type = T;
-        using mutable_value_type = T;
+        using mutable_value_type = std::remove_const_t<T>;
         using index_type = I;
         static constexpr index_type COUNT = N;
         static constexpr size_t SIZE = N;
@@ -290,6 +290,7 @@ namespace noa {
 
         using accessor_type = Accessor<T, N, I, PointerTrait, StridesTrait>;
         using value_type = typename accessor_type::value_type;
+        using mutable_value_type = typename accessor_type::mutable_value_type;
         using index_type = typename accessor_type::index_type;
         using pointer_type = typename accessor_type::pointer_type;
         using strides_type = std::conditional_t<

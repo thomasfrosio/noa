@@ -2,15 +2,16 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
+#include "noa/core/traits/Interpolator.hpp"
 
-// One of the main difference between these interpolations and what we can find in other cryoEM packages,
+// One of the main differences between these interpolations and what we can find in other cryoEM packages,
 // is that the interpolation window can be partially out-of-bound (OOB), that is, elements that are OOB
 // are replaced according to a BorderMode. cryoEM packages usually check that all elements are in bound
 // and if there's even one element OOB, they don't interpolate.
 // Note: The interpolators below are for real space interpolation, or redundant and centered Fourier transforms.
 
 // The coordinate system matches the indexing. This is quite standard.
-// For instance the first data sample at index 0 is located at the coordinate 0 and the coordinate 0.5
+// For instance, the first data sample at index 0 is located at the coordinate 0 and the coordinate 0.5
 // is just in between the first and second element. As such, the fractional part of the coordinate
 // corresponds to the ratio/weight used by the interpolation function. In other words,
 // the coordinate system locates the data between -0.5 and N-1 + 0.5.
@@ -30,6 +31,7 @@ namespace noa::geometry {
         static_assert(ACCESSOR_NDIM == 2 || ACCESSOR_NDIM == 3);
 
         using value_type = Value;
+        using mutable_value_type = Value;
         using offset_type = Offset;
         using coord_type = Coord;
 
@@ -232,9 +234,11 @@ namespace noa::geometry {
              typename CValue = nt::remove_ref_cv_t<Value>,
              typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
-    constexpr auto interpolator_2d(const Accessor<Value, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
-                                   Shape2<Index> shape,
-                                   CValue cvalue = CValue{0}) {
+    constexpr auto interpolator_2d(
+            const Accessor<Value, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
+            Shape2 <Index> shape,
+            CValue cvalue = CValue{0}
+    ) {
         using mutable_value_t = std::remove_cv_t<Value>;
         using interpolator_t = Interpolator2D<
                 BORDER_MODE, INTERP_MODE, mutable_value_t,
@@ -258,6 +262,7 @@ namespace noa::geometry {
         static_assert(ACCESSOR_NDIM == 3 || ACCESSOR_NDIM == 4);
 
         using value_type = Value;
+        using mutable_value_type = Value;
         using offset_type = Offset;
         using coord_type = Coord;
 
@@ -273,7 +278,8 @@ namespace noa::geometry {
 
         constexpr NOA_HD Interpolator3D(
                 accessor_type data, shape3_type shape,
-                value_type cvalue = value_type{0}) noexcept
+                value_type cvalue = value_type{0}
+        ) noexcept
                 : m_data(data), m_shape(shape.vec()) {
             if constexpr (!std::is_empty_v<value_or_empty_type>)
                 m_cvalue = cvalue;
@@ -493,13 +499,39 @@ namespace noa::geometry {
              typename CValue = nt::remove_ref_cv_t<Value>,
              typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue> &&
                                          std::is_same_v<std::make_signed_t<Offset>, Index>>>
-    constexpr auto interpolator_3d(const Accessor<Value, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
-                                   Shape3<Index> shape,
-                                   CValue cvalue = CValue{0}) {
+    constexpr auto interpolator_3d(
+            const Accessor <Value, NDIM, Offset, PointerTrait, StridesTrait>& accessor,
+            Shape3 <Index> shape,
+            CValue cvalue = CValue{0}
+    ) {
         using mutable_value_t = std::remove_cv_t<Value>;
         using interpolator_t = Interpolator3D<
                 BORDER_MODE, INTERP_MODE, mutable_value_t,
                 Offset, Coord, NDIM, PointerTrait, StridesTrait>;
         return interpolator_t(accessor, shape, cvalue);
     }
+}
+
+namespace noa::traits {
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
+             typename Value, typename Offset, typename Coord,
+             size_t ACCESSOR_NDIM, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    struct proclaim_is_interpolator_2d<
+            noa::geometry::Interpolator2D<
+                    BORDER_MODE, INTERP_MODE,
+                    Value, Offset, Coord,
+                    ACCESSOR_NDIM, PointerTrait, StridesTrait>
+    > : std::true_type {
+    };
+
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
+            typename Value, typename Offset, typename Coord,
+            size_t ACCESSOR_NDIM, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    struct proclaim_is_interpolator_3d<
+            noa::geometry::Interpolator3D<
+                    BORDER_MODE, INTERP_MODE,
+                    Value, Offset, Coord,
+                    ACCESSOR_NDIM, PointerTrait, StridesTrait>
+    > : std::true_type {
+    };
 }

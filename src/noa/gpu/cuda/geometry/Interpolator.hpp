@@ -2,6 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
+#include "noa/core/traits/Interpolator.hpp"
 #include "noa/gpu/cuda/memory/AllocatorArray.hpp"
 #include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
 
@@ -42,6 +43,7 @@ namespace noa::cuda::geometry {
         static_assert(!NORMALIZED || (INTERP_MODE == InterpMode::NEAREST || INTERP_MODE == InterpMode::LINEAR_FAST));
 
         using value_type = Value;
+        using mutable_value_type = Value;
         using real_type = nt::value_type_t<value_type>;
         using real2_type = Vec2<real_type>;
         using coord_type = Coord;
@@ -294,6 +296,7 @@ namespace noa::cuda::geometry {
         static_assert(!NORMALIZED || (INTERP_MODE == InterpMode::NEAREST || INTERP_MODE == InterpMode::LINEAR_FAST));
 
         using value_type = Value;
+        using mutable_value_type = Value;
         using coord_type = Coord;
         using real_type = nt::value_type_t<value_type>;
         using real2_type = Vec2<real_type>;
@@ -539,4 +542,16 @@ namespace noa::cuda::geometry {
         cudaTextureObject_t m_texture{};
         f_shape_type m_shape{};
     };
+}
+
+namespace noa::traits {
+    template<InterpMode INTERP_MODE, typename Value, bool NORMALIZED, bool LAYERED, typename Coord>
+    struct proclaim_is_interpolator_2d<
+            noa::cuda::geometry::Interpolator2D<INTERP_MODE, Value, NORMALIZED, LAYERED, Coord>
+    > : std::true_type {};
+
+    template<InterpMode INTERP_MODE, typename Value, bool NORMALIZED, typename Coord>
+    struct proclaim_is_interpolator_3d<
+            noa::cuda::geometry::Interpolator3D<INTERP_MODE, Value, NORMALIZED, Coord>
+    > : std::true_type {};
 }

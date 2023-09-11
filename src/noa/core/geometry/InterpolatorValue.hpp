@@ -2,6 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
+#include "noa/core/traits/Interpolator.hpp"
 
 // This "interpolator" has the same usage that the classic interpolators.
 // The difference is that the input is represented by a single constant value,
@@ -18,6 +19,7 @@ namespace noa::geometry {
         static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
 
         using value_type = Value;
+        using mutable_value_type = Value;
         using index_type = Index;
         using coord_type = Coord;
 
@@ -152,9 +154,11 @@ namespace noa::geometry {
              typename Value, typename Index,
              typename CValue = nt::remove_ref_cv_t<Value>,
              typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue>>>
-    constexpr auto interpolator_value_2d(Value data,
-                                         const Shape2<Index>& shape,
-                                         CValue cvalue = CValue{0}) {
+    constexpr auto interpolator_value_2d(
+            Value data,
+            const Shape2<Index>& shape,
+            CValue cvalue = CValue{0}
+    ) {
         using mutable_data_t = std::remove_cv_t<Value>;
         using interpolator_t = InterpolatorValue2D<BORDER_MODE, INTERP_MODE, mutable_data_t, Index, Coord>;
         return interpolator_t(data, shape, cvalue);
@@ -172,6 +176,7 @@ namespace noa::geometry {
         static_assert(nt::is_real_v<Coord> && !std::is_const_v<Coord>);
 
         using value_type = Value;
+        using mutable_value_type = Value;
         using index_type = Index;
         using coord_type = Coord;
 
@@ -326,11 +331,27 @@ namespace noa::geometry {
              typename Value, typename Index,
              typename CValue = nt::remove_ref_cv_t<Value>,
              typename = std::enable_if_t<nt::is_almost_same_v<Value, CValue>>>
-    constexpr auto interpolator_value_3d(Value data,
-                                         const Shape3<Index>& shape,
-                                         CValue cvalue = CValue{0}) {
+    constexpr auto interpolator_value_3d(
+            Value data,
+            const Shape3<Index>& shape,
+            CValue cvalue = CValue{0}
+    ) {
         using mutable_data_t = std::remove_cv_t<Value>;
         using interpolator_t = InterpolatorValue3D<BORDER_MODE, INTERP_MODE, mutable_data_t, Index, Coord>;
         return interpolator_t(data, shape, cvalue);
     }
+}
+
+namespace noa::traits {
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
+             typename Value, typename Index, typename Coord>
+    struct proclaim_is_interpolator_2d<
+            noa::geometry::InterpolatorValue2D<BORDER_MODE, INTERP_MODE, Value, Index, Coord>
+    > : std::true_type {};
+
+    template<BorderMode BORDER_MODE, InterpMode INTERP_MODE,
+            typename Value, typename Index, typename Coord>
+    struct proclaim_is_interpolator_3d<
+            noa::geometry::InterpolatorValue3D<BORDER_MODE, INTERP_MODE, Value, Index, Coord>
+    > : std::true_type {};
 }
