@@ -21,6 +21,7 @@ set(TEST_COMMON_SOURCES
 
     noa/core/geometry/TestCommonGeometryEuler.cpp
     noa/core/geometry/TestCommonInterpolator.cpp
+    noa/core/geometry/TestCoreGeometryQuaternion.cpp
 
     noa/core/io/TestCommonIO.cpp
     noa/core/io/TestMRCFile.cpp
