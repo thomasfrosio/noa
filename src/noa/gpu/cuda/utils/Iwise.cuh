@@ -29,15 +29,20 @@ namespace noa::cuda::utils {
     struct IwiseDynamicConfig {
         static constexpr u32 MAX_BLOCK_SIZE = 512;
     };
+
+    template<class T, typename... Args>
+    using has_gpu_block_initialize = decltype(std::declval<T&>().gpu_block_initialize(std::declval<Args>()...));
 }
 
 namespace noa::cuda::utils::details {
     template<typename IwiseOp, typename Index, typename Vec4OrEmpty, typename Config>
     __global__ void __launch_bounds__(Config::BLOCK_SIZE_X * Config::BLOCK_SIZE_Y)
-    iwise_4d_static(IwiseOp iwise_op,
-                    Vec4OrEmpty start,
-                    Vec2<Index> end_yx,
-                    u32 blocks_x) {
+    iwise_4d_static(
+            IwiseOp iwise_op,
+            Vec4OrEmpty start,
+            Vec2<Index> end_yx,
+            u32 blocks_x
+    ) {
         const Vec2<u32> index = noa::indexing::offset2index(blockIdx.x, blocks_x);
         Vec4<Index> gid{blockIdx.z,
                         blockIdx.y,
@@ -45,6 +50,11 @@ namespace noa::cuda::utils::details {
                         Config::BLOCK_WORK_SIZE_X * index[1] + threadIdx.x};
         if constexpr (!std::is_empty_v<Vec4OrEmpty>)
             gid += start;
+
+        if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp, Vec4<Index>>)
+            iwise_op.gpu_block_initialize(gid);
+        else if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp>)
+            iwise_op.gpu_block_initialize();
 
         #pragma unroll
         for (Index k = 0; k < Config::ELEMENTS_PER_THREAD_Y; ++k) {
@@ -82,6 +92,11 @@ namespace noa::cuda::utils::details {
         if constexpr (!std::is_empty_v<Vec3OrEmpty>)
             gid += start;
 
+        if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp, Vec3<Index>>)
+            iwise_op.gpu_block_initialize(gid);
+        else if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp>)
+            iwise_op.gpu_block_initialize();
+
         #pragma unroll
         for (Index k = 0; k < Config::ELEMENTS_PER_THREAD_Y; ++k) {
             #pragma unroll
@@ -113,6 +128,11 @@ namespace noa::cuda::utils::details {
         if constexpr (!std::is_empty_v<Vec2OrEmpty>)
             gid += start;
 
+        if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp, Vec2<Index>>)
+            iwise_op.gpu_block_initialize(gid);
+        else if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp>)
+            iwise_op.gpu_block_initialize();
+
         #pragma unroll
         for (Index k = 0; k < Config::ELEMENTS_PER_THREAD_Y; ++k) {
             #pragma unroll
@@ -138,13 +158,18 @@ namespace noa::cuda::utils::details {
     template<typename IwiseOp, typename Index, typename IndexOrEmpty, typename Config>
     __global__ void __launch_bounds__(Config::BLOCK_SIZE_X)
     iwise_1d_static(IwiseOp iwise_op, IndexOrEmpty start, Index end) {
-        auto gid = static_cast<Index>(Config::BLOCK_WORK_SIZE_X * blockIdx.x + threadIdx.x);
+        Vec1<Index> gid{Config::BLOCK_WORK_SIZE_X * blockIdx.x + threadIdx.x};
         if constexpr (!std::is_empty_v<IndexOrEmpty>)
             gid += start;
 
+        if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp, Vec1<Index>>)
+            iwise_op.gpu_block_initialize(gid);
+        else if constexpr (nt::is_detected_v<has_gpu_block_initialize, IwiseOp>)
+            iwise_op.gpu_block_initialize();
+
         #pragma unroll
         for (Index l = 0; l < Config::ELEMENTS_PER_THREAD_X; ++l) {
-            const Index il = gid + Config::BLOCK_SIZE_X * l;
+            const Index il = gid[0] + Config::BLOCK_SIZE_X * l;
             if (il < end)
                 iwise_op(il);
         }
