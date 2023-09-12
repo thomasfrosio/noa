@@ -172,6 +172,11 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr auto conj() const noexcept -> Quaternion {
             return {-z(), -y(), -x(), w()};
         }
+
+        template<typename T, nt::enable_if_bool_t<nt::is_real_v<T>> = true>
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept -> Quaternion<T> {
+            return Quaternion<T>(vec().template as<T>());
+        }
     };
 }
 
