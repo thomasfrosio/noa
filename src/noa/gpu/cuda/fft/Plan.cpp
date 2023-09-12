@@ -94,9 +94,11 @@ namespace {
     // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-host-thread cache.
     // Each GPU has its own cache of course.
     CufftManager& get_cache_(i32 device) {
-        constexpr i32 MAX_DEVICES = 16;
-        thread_local Unique<CufftManager> g_cache[MAX_DEVICES];
+        constexpr i32 MAX_DEVICES = 64;
+        NOA_CHECK(device < MAX_DEVICES,
+                  "Internal buffer for caching cufft plans is limited to 64 visible devices");
 
+        thread_local Unique<CufftManager> g_cache[MAX_DEVICES];
         Unique<CufftManager>& cache = g_cache[device];
         if (!cache)
             cache = std::make_unique<CufftManager>();

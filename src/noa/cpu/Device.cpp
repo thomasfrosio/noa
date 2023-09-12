@@ -8,7 +8,7 @@
 #include "noa/cpu/Device.hpp"
 
 // Internal data to reset:
-//#include "noa/cpu/fft/Plan.h"
+#include "noa/cpu/fft/Plan.hpp"
 
 // TODO maybe use something a bit more robust like pytorch/cpuinfo?
 // FIXME should this be in noa/common ?
@@ -243,7 +243,6 @@ namespace noa::cpu {
 
     void Device::reset() {
         // Reset all internal data created and managed automatically by the CPU backend:
-//        fft::Plan<float>::cleanup();
-//        fft::Plan<double>::cleanup();
+        noa::cpu::fft::fftw_clear_cache();
     }
 }

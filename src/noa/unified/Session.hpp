@@ -23,25 +23,26 @@ namespace noa {
     /// this value can be changed using set_threads(). New streams will use whatever value is currently
     /// set in the Session.\n
     ///
-    /// \details \b CUDA contexts:
+    /// \details \b CUDA-contexts:
     /// The library uses the CUDA runtime, and doesn't explicitly set CUDA contexts. The CUDA runtime,
     /// and by extension this library, will use the current context (which doesn't need to be the primary
     /// context). This usually goes unnoticed for CUDA runtime users, but is important to note for CUDA
     /// driver users creating and managing their own contexts.
     ///
-    /// \details \b CUDA module loading:
+    /// \details \b CUDA-module-loading:
     /// In CUDA 11.7, CUDA module loading can be lazy, which greatly improves load times.
     /// See https://docs.nvidia.com/cuda/cuda-c-programming-guide/lazy-loading.html.
     /// When the Session is created, it can check that lazy loading is enabled (the default in CUDA 12.1)
     /// and can also enable it, so the library module is loaded lazily.
     ///
-    /// \details \b CUDA's cuFFT:
-    /// The CUDA backend uses the cuFFT library to compute DFTs. The library caches cuFFT's plans, so that
-    /// users don't need to keep track of them. However, these plans can take a lot of memory, and users
-    /// may want to control the maximum number of plans that can be cached or may want to reset the cache.
-    /// Note that the library FFT API also offers a more granular control of what transforms should be cached.
+    /// \details \b FFT-plans:
+    /// The backends use the external libraries to compute DFTs. These libraries often save a lot of data, referred
+    /// to as "plans". The backends save these plans so that users don't need to keep track of them. The cache is
+    /// per device (for CUDA, it is also per host-thread). Since these plans can take a lot of memory, and users
+    /// may want to control the maximum number of plans that can be cached or may want to reset the cache. Note that
+    /// the library FFT API also offers a more granular control of what transforms should be cached.
     ///
-    /// \details \b CUDA's cuBLAS:
+    /// \details \b CUDA's-cuBLAS:
     /// The CUDA backend uses the cuBLAS library for matrix-matrix multiplication. The library caches cuBLAS
     /// handles (one per device). While there's not much point to clear this cache, users can still explicitly
     /// clear this cache.
@@ -73,14 +74,20 @@ namespace noa {
         /// \return Whether lazy loading is actually enabled.
         static bool set_cuda_lazy_loading();
 
-        /// Clears the cuFFT cache for a given device.
+        /// Clears the FFT cache for a given device.
         /// Returns how many plans were cleared from the cache.
-        static i64 clear_cufft_cache(Device device = Device::current(DeviceType::GPU));
+        /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
+        ///          that none of plans are being used. This can be easily done by synchronizing the relevant
+        ///          streams or the device.
+        static i64 clear_fft_cache(Device device = Device::current(DeviceType::GPU));
 
         /// Sets the maximum number of plans the cache can hold on a given device.
-        static void set_cufft_cache_limit(i64 count, Device device = Device::current(DeviceType::GPU));
+        static void set_fft_cache_limit(i64 count, Device device = Device::current(DeviceType::GPU));
 
         /// Clears the cuBLAS cache for a given device.
+        /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
+        ///          that none of plans are being used. This can be easily done by synchronizing the relevant
+        ///          streams or the device.
         static void clear_cublas_cache(Device device = Device::current(DeviceType::GPU));
 
     public:

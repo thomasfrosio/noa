@@ -116,9 +116,15 @@ namespace noa::cpu::fft {
         // This functions should only be call when all plans are destroyed. All existing plans become
         // undefined, and one should not attempt to execute them nor to destroy them. You can however
         // create and execute/destroy new plans.
-        static void cleanup();
+        static i32 cleanup();
 
     private:
         fftw_plan_type m_plan{};
     };
+
+    inline i32 fftw_clear_cache() noexcept {
+        i32 n = Plan<f32>::cleanup();
+        n += Plan<f64>::cleanup();
+        return n;
+    }
 }

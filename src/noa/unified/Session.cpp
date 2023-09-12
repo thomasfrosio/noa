@@ -2,6 +2,7 @@
     #include <omp.h>
 #endif
 
+#include "noa/cpu/fft/Plan.hpp"
 #ifdef NOA_ENABLE_CUDA
     #include <cstdlib>
     #include "cuda.h"
@@ -59,20 +60,20 @@ namespace noa {
         #endif
     }
 
-    i64 Session::clear_cufft_cache(Device device) {
-        #ifdef NOA_ENABLE_CUDA
+    i64 Session::clear_fft_cache(Device device) {
         if (device.is_cpu())
-            return 0;
+            return noa::cpu::fft::fftw_clear_cache();
+        #ifdef NOA_ENABLE_CUDA
         return noa::cuda::fft::cufft_clear_cache(device.id());
         #else
         return 0;
         #endif
     }
 
-    void Session::set_cufft_cache_limit(i64 count, Device device) {
-        #ifdef NOA_ENABLE_CUDA
+    void Session::set_fft_cache_limit(i64 count, Device device) {
         if (device.is_cpu())
-            return;
+            return; // TODO we could have a more flexible caching mechanism for FFTW
+        #ifdef NOA_ENABLE_CUDA
         noa::cuda::fft::cufft_cache_limit(clamp_cast<i32>(count), device.id());
         #endif
     }

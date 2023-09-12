@@ -115,33 +115,38 @@ namespace {
 
 namespace {
     template<typename Plan>
-    void add_to_cache_(Plan plan, bool clear) {
+    i32 add_to_cache_(Plan plan, bool clear) {
         static_assert(nt::is_any_v<Plan, fftwf_plan, fftw_plan>);
 
         // FFTW accumulates a "wisdom" automatically. This circular buffer is here
         // in case fftw_destroy_plan destructs that wisdom.
+        // TODO Benchmark!
         static constexpr size_t MAX_SIZE = 6;
         static std::array<Plan, MAX_SIZE> s_bin{nullptr};
         static size_t s_index{0};
-        auto destruct_plan = [](Plan plan_) {
+        auto destruct_plan = [](Plan plan_) -> i32 {
             if (plan_) {
                 if constexpr (std::is_same_v<Plan, fftwf_plan>)
                     fftwf_destroy_plan(plan_);
                 else
                     fftw_destroy_plan(plan_);
+                return 1;
             }
+            return 0;
         };
 
+        i32 n_plans_destructed{0};
         if (clear) {
             const std::scoped_lock lock(g_noa_fftw3_mutex_);
             for (auto& i_plan: s_bin)
-                destruct_plan(std::exchange(i_plan, nullptr));
+                n_plans_destructed += destruct_plan(std::exchange(i_plan, nullptr));
         }
         if (plan) {
             const std::scoped_lock lock(g_noa_fftw3_mutex_);
-            destruct_plan(std::exchange(s_bin[s_index], plan));
+            n_plans_destructed += destruct_plan(std::exchange(s_bin[s_index], plan));
             s_index = (s_index + 1) % MAX_SIZE;
         }
+        return n_plans_destructed;
     }
 
     template<typename T>
@@ -470,8 +475,8 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    void Plan<T>::cleanup() {
-        add_to_cache_<fftw_plan_type>(nullptr, true);
+    i32 Plan<T>::cleanup() {
+        const i32 n_plans_destructed = add_to_cache_<fftw_plan_type>(nullptr, true);
         const std::scoped_lock lock(g_noa_fftw3_mutex_);
         if constexpr (IS_SINGLE_PRECISION)
             fftwf_cleanup();
@@ -483,6 +488,7 @@ namespace noa::cpu::fft {
         else
             fftw_cleanup_threads();
         #endif
+        return n_plans_destructed;
     }
 
     template class Plan<f32>;

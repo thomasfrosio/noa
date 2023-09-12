@@ -51,7 +51,7 @@ namespace noa::cpu::fft {
 // -- New-array transforms -- //
 namespace noa::cpu::fft {
     // These functions are thread-safe as long as "input" and "output" are only accessed by
-    // one single thread. However, "plan" can be access by multiple threads concurrently.
+    // one single thread. However, "plan" can be accessed by multiple threads concurrently.
     // The arrays used to create "plan" should be similar to "input" and "output".
     // The shape should be the same. The input and output arrays are the same (in-place) or different
     // (out-of-place) if the plan was originally created to be in-place or out-of-place, respectively.
