@@ -111,7 +111,10 @@ namespace noa::signal {
     ///
     /// \bug This function modifies the GPU state via the usage of constant memory. As such, there should be no
     ///      concurrent calls from different streams associated to the same GPU.
-    template<typename Input, typename Output, typename FilterDepth, typename FilterHeight, typename FilterWidth,
+    template<typename Input, typename Output,
+             typename FilterDepth = View<const nt::value_type_t<Output>>,
+             typename FilterHeight = View<const nt::value_type_t<Output>>,
+             typename FilterWidth = View<const nt::value_type_t<Output>>,
              typename Buffer = View<nt::value_type_t<Output>>, typename = std::enable_if_t<
                     nt::is_varray_of_almost_any_v<Input, f16, f32, f64> &&
                     nt::is_varray_of_any_v<Output, f16, f32, f64> &&
