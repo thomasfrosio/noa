@@ -405,6 +405,6 @@ namespace noa::cuda::math {
 
     NOA_INSTANTIATE_VAR_(f32, f32);
     NOA_INSTANTIATE_VAR_(f64, f64);
-    NOA_INSTANTIATE_VAR_(c32, f32);
-    NOA_INSTANTIATE_VAR_(c64, f64);
+//    NOA_INSTANTIATE_VAR_(c32, f32);
+//    NOA_INSTANTIATE_VAR_(c64, f64);
 }

@@ -16,19 +16,19 @@ namespace noa::cuda::memory::details {
     #define NOA_INSTANTIATE_COPY_(T) \
     template void copy<T,void>(const T*, const Strides4<i64>&, T*, const Strides4<i64>&, const Shape4<i64>&, Stream&)
 
-    NOA_INSTANTIATE_COPY_(bool);
-    NOA_INSTANTIATE_COPY_(i8);
-    NOA_INSTANTIATE_COPY_(i16);
+//    NOA_INSTANTIATE_COPY_(bool);
+//    NOA_INSTANTIATE_COPY_(i8);
+//    NOA_INSTANTIATE_COPY_(i16);
     NOA_INSTANTIATE_COPY_(i32);
     NOA_INSTANTIATE_COPY_(i64);
-    NOA_INSTANTIATE_COPY_(u8);
-    NOA_INSTANTIATE_COPY_(u16);
+//    NOA_INSTANTIATE_COPY_(u8);
+//    NOA_INSTANTIATE_COPY_(u16);
     NOA_INSTANTIATE_COPY_(u32);
     NOA_INSTANTIATE_COPY_(u64);
-    NOA_INSTANTIATE_COPY_(f16);
+//    NOA_INSTANTIATE_COPY_(f16);
     NOA_INSTANTIATE_COPY_(f32);
     NOA_INSTANTIATE_COPY_(f64);
-    NOA_INSTANTIATE_COPY_(c16);
+//    NOA_INSTANTIATE_COPY_(c16);
     NOA_INSTANTIATE_COPY_(c32);
     NOA_INSTANTIATE_COPY_(c64);
 }

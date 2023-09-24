@@ -76,16 +76,16 @@ namespace noa::cuda {
         R, const T*, i64, Stream&)
 
     #define NOA_INSTANTIATE_FIND_(T)                        \
-    NOA_INSTANTIATE_FIND_OFFSETS_ALL_(noa::first_max_t, T); \
-    NOA_INSTANTIATE_FIND_OFFSETS_ALL_(noa::last_max_t, T);  \
-    NOA_INSTANTIATE_FIND_OFFSET(noa::first_max_t, T);       \
-    NOA_INSTANTIATE_FIND_OFFSET(noa::last_max_t, T)
+    NOA_INSTANTIATE_FIND_OFFSETS_ALL_(noa::first_max_t, T)
+//    NOA_INSTANTIATE_FIND_OFFSETS_ALL_(noa::last_max_t, T)
+//    NOA_INSTANTIATE_FIND_OFFSET(noa::first_max_t, T)
+//    NOA_INSTANTIATE_FIND_OFFSET(noa::last_max_t, T)
 
-    NOA_INSTANTIATE_FIND_(u32);
-    NOA_INSTANTIATE_FIND_(i32);
-    NOA_INSTANTIATE_FIND_(u64);
-    NOA_INSTANTIATE_FIND_(i64);
-    NOA_INSTANTIATE_FIND_(f16);
+//    NOA_INSTANTIATE_FIND_(u32);
+//    NOA_INSTANTIATE_FIND_(i32);
+//    NOA_INSTANTIATE_FIND_(u64);
+//    NOA_INSTANTIATE_FIND_(i64);
+//    NOA_INSTANTIATE_FIND_(f16);
     NOA_INSTANTIATE_FIND_(f32);
-    NOA_INSTANTIATE_FIND_(f64);
+//    NOA_INSTANTIATE_FIND_(f64);
 }

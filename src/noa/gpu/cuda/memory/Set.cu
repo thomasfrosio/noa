@@ -30,19 +30,19 @@ namespace noa::cuda::memory::details {
     template void set<T, void>(T*, i64, T, Stream&);    \
     template void set<T, void>(T*, const Strides4<i64>&, const Shape4<i64>&, T, Stream&)
 
-    NOA_INSTANTIATE_SET_(bool);
-    NOA_INSTANTIATE_SET_(i8);
-    NOA_INSTANTIATE_SET_(i16);
+//    NOA_INSTANTIATE_SET_(bool);
+//    NOA_INSTANTIATE_SET_(i8);
+//    NOA_INSTANTIATE_SET_(i16);
     NOA_INSTANTIATE_SET_(i32);
     NOA_INSTANTIATE_SET_(i64);
-    NOA_INSTANTIATE_SET_(u8);
-    NOA_INSTANTIATE_SET_(u16);
+//    NOA_INSTANTIATE_SET_(u8);
+//    NOA_INSTANTIATE_SET_(u16);
     NOA_INSTANTIATE_SET_(u32);
     NOA_INSTANTIATE_SET_(u64);
-    NOA_INSTANTIATE_SET_(f16);
+//    NOA_INSTANTIATE_SET_(f16);
     NOA_INSTANTIATE_SET_(f32);
     NOA_INSTANTIATE_SET_(f64);
-    NOA_INSTANTIATE_SET_(c16);
+//    NOA_INSTANTIATE_SET_(c16);
     NOA_INSTANTIATE_SET_(c32);
     NOA_INSTANTIATE_SET_(c64);
 }

@@ -184,7 +184,7 @@ namespace noa::cpu::math {
         i64)
 
     INSTANTIATE_GEMM_(f32);
-    INSTANTIATE_GEMM_(f64);
+//    INSTANTIATE_GEMM_(f64);
     INSTANTIATE_GEMM_(c32);
-    INSTANTIATE_GEMM_(c64);
+//    INSTANTIATE_GEMM_(c64);
 }

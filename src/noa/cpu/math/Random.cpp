@@ -272,35 +272,35 @@ namespace noa::cpu::math {
     template void randomize<T, U, void>(noa::math::normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);      \
     template void randomize<T, U, void>(noa::math::log_normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64)
 
-    INSTANTIATE_RANDOM_(i16, i16);
-    INSTANTIATE_RANDOM_(u16, u16);
-    INSTANTIATE_RANDOM_(i32, i32);
-    INSTANTIATE_RANDOM_(u32, u32);
-    INSTANTIATE_RANDOM_(i64, i64);
-    INSTANTIATE_RANDOM_(u64, u64);
-    INSTANTIATE_RANDOM_(f16, f16);
+//    INSTANTIATE_RANDOM_(i16, i16);
+//    INSTANTIATE_RANDOM_(u16, u16);
+//    INSTANTIATE_RANDOM_(i32, i32);
+//    INSTANTIATE_RANDOM_(u32, u32);
+//    INSTANTIATE_RANDOM_(i64, i64);
+//    INSTANTIATE_RANDOM_(u64, u64);
+//    INSTANTIATE_RANDOM_(f16, f16);
     INSTANTIATE_RANDOM_(f32, f32);
     INSTANTIATE_RANDOM_(f64, f64);
-    INSTANTIATE_RANDOM_(c16, f16);
+//    INSTANTIATE_RANDOM_(c16, f16);
     INSTANTIATE_RANDOM_(c32, f32);
-    INSTANTIATE_RANDOM_(c64, f64);
-    INSTANTIATE_RANDOM_(c16, c16);
+//    INSTANTIATE_RANDOM_(c64, f64);
+//    INSTANTIATE_RANDOM_(c16, c16);
     INSTANTIATE_RANDOM_(c32, c32);
-    INSTANTIATE_RANDOM_(c64, c64);
+//    INSTANTIATE_RANDOM_(c64, c64);
 
     #define INSTANTIATE_RANDOM_POISSON_(T) \
     template void randomize<T, void>(noa::math::poisson_t, T*, const Strides4<i64>&, const Shape4<i64>&, f32, i64)
 
-    INSTANTIATE_RANDOM_POISSON_(f16);
+//    INSTANTIATE_RANDOM_POISSON_(f16);
     INSTANTIATE_RANDOM_POISSON_(f32);
-    INSTANTIATE_RANDOM_POISSON_(f64);
+//    INSTANTIATE_RANDOM_POISSON_(f64);
 
     #define INSTANTIATE_RANDOM_HALF_(T, U)                                                                                  \
     template void randomize<T, U, void>(noa::math::uniform_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);     \
     template void randomize<T, U, void>(noa::math::normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64);      \
     template void randomize<T, U, void>(noa::math::log_normal_t, T*, const Strides4<i64>&, const Shape4<i64>&, U, U, i64)
 
-    INSTANTIATE_RANDOM_HALF_(f16, f32);
-    INSTANTIATE_RANDOM_HALF_(c16, f32);
-    INSTANTIATE_RANDOM_HALF_(c16, c32);
+//    INSTANTIATE_RANDOM_HALF_(f16, f32);
+//    INSTANTIATE_RANDOM_HALF_(c16, f32);
+//    INSTANTIATE_RANDOM_HALF_(c16, c32);
 }

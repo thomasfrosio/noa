@@ -243,35 +243,35 @@ namespace noa::cuda::geometry::fft {
         f32, f32, f32, f32, f32, bool, bool, const Vec2<f32>&, Stream&)
 
     #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, IScale, OScale, IRotate, ORotate)         \
-    NOA_INSTANTIATE_INSERT_EXTRACT_(noa::fft::Remap::HC2H, IValue, IWeight, OValue, OWeight, IScale, OScale, IRotate, ORotate); \
-    NOA_INSTANTIATE_INSERT_EXTRACT_(noa::fft::Remap::HC2HC, IValue, IWeight, OValue, OWeight, IScale, OScale, IRotate, ORotate)
+    NOA_INSTANTIATE_INSERT_EXTRACT_(noa::fft::Remap::HC2H, IValue, IWeight, OValue, OWeight, IScale, OScale, IRotate, ORotate)
+//    NOA_INSTANTIATE_INSERT_EXTRACT_(noa::fft::Remap::HC2HC, IValue, IWeight, OValue, OWeight, IScale, OScale, IRotate, ORotate)
 
     #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, IRotate, ORotate)                     \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, Float22, Float22, IRotate, ORotate);          \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, const Float22*, Float22, IRotate, ORotate);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, Float22, const Float22*, IRotate, ORotate);   \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, const Float22*, const Float22*, IRotate, ORotate)
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, Float22, Float22, IRotate, ORotate)
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, const Float22*, Float22, IRotate, ORotate);   \
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, Float22, const Float22*, IRotate, ORotate);   \
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_REMAP(IValue, IWeight, OValue, OWeight, const Float22*, const Float22*, IRotate, ORotate)
 
     #define NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(IValue, IWeight, OValue, OWeight)                                \
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, Float33, Float33);                      \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Float33*, Float33);               \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, Float33, const Float33*);               \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Float33*, const Float33*);        \
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Quaternion<f32>*, const Float33*);\
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Quaternion<f32>*, Float33)
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Float33*, Float33);               \
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, Float33, const Float33*);               \
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Float33*, const Float33*);        \
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_SCALE(IValue, IWeight, OValue, OWeight, const Quaternion<f32>*, const Float33*);\
 
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f32*, Empty, f32*, Empty);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f32*, Empty, f32*, Empty);
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c32*, Empty, c32*, Empty);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f64*, Empty, f64*, Empty);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c64*, Empty, c64*, Empty);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f32*, const f32*, f32*, f32*);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f64*, Empty, f64*, Empty);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c64*, Empty, c64*, Empty);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f32*, const f32*, f32*, f32*);
     NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c32*, const f32*, c32*, f32*);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f64*, const f64*, f64*, f64*);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c64*, const f64*, c64*, f64*);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f64*, const f64*, f64*, f64*);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c64*, const f64*, c64*, f64*);
 //    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f32*, f32, f32*, f32*);
-//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c32*, f32, c32*, f32*);
+    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c32*, f32, c32*, f32*);
 //    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const f64*, f64, f64*, f64*);
 //    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(const c64*, f64, c64*, f64*);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(TextureObject<f32>, Empty, f32*, Empty);
-    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(TextureObject<c32>, Empty, c32*, Empty);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(TextureObject<f32>, Empty, f32*, Empty);
+//    NOA_INSTANTIATE_PROJECT_MERGE_ALL_ROTATE(TextureObject<c32>, Empty, c32*, Empty);
 }

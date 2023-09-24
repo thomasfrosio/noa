@@ -532,5 +532,5 @@ namespace noa::cuda::signal::fft {
     NOA_INSTANTIATE_XPEAK(Remap::FC2FC, T)
 
     NOA_INSTANTIATE_XPEAK_ALL(f32);
-    NOA_INSTANTIATE_XPEAK_ALL(f64);
+//    NOA_INSTANTIATE_XPEAK_ALL(f64);
 }

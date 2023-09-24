@@ -178,31 +178,33 @@ namespace noa::cpu::signal::fft {
             const Shape4<i64>&, CTF const&, bool, bool, i64)
 
     #define NOA_INSTANTIATE_CTF_ALL(Remap, Input, Output)                                               \
-    NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, noa::signal::fft::CTFIsotropic<f32>);           \
     NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, noa::signal::fft::CTFIsotropic<f64>);           \
-    NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, const noa::signal::fft::CTFIsotropic<f32>*);    \
     NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, const noa::signal::fft::CTFIsotropic<f64>*);    \
-    NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, noa::signal::fft::CTFAnisotropic<f32>);       \
     NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, noa::signal::fft::CTFAnisotropic<f64>);       \
-    NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, const noa::signal::fft::CTFAnisotropic<f32>*);\
     NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, const noa::signal::fft::CTFAnisotropic<f64>*)
+
+//    NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, noa::signal::fft::CTFIsotropic<f32>);
+//    NOA_INSTANTIATE_CTF_ISOTROPIC(Remap, Input, Output, const noa::signal::fft::CTFIsotropic<f32>*);
+//    NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, noa::signal::fft::CTFAnisotropic<f32>);
+//    NOA_INSTANTIATE_CTF_ANISOTROPIC(Remap, Input, Output, const noa::signal::fft::CTFAnisotropic<f32>*);
+
 
     #define NOA_INSTANTIATE_CTF_ALL_REMAP(Input, Output)                \
     NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::H2H, Input, Output);       \
     NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::HC2HC, Input, Output);     \
     NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::HC2H, Input, Output);      \
-    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::H2HC, Input, Output);      \
-    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::F2F, Input, Output);       \
-    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::FC2FC, Input, Output);     \
-    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::FC2F, Input, Output);      \
-    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::F2FC, Input, Output)
+    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::H2HC, Input, Output)
+//    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::F2F, Input, Output);
+//    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::FC2FC, Input, Output);
+//    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::FC2F, Input, Output);
+//    NOA_INSTANTIATE_CTF_ALL(noa::fft::Remap::F2FC, Input, Output)
 
     NOA_INSTANTIATE_CTF_ALL_REMAP(f32, f32);
-    NOA_INSTANTIATE_CTF_ALL_REMAP(f64, f64);
+//    NOA_INSTANTIATE_CTF_ALL_REMAP(f64, f64);
     NOA_INSTANTIATE_CTF_ALL_REMAP(c32, c32);
-    NOA_INSTANTIATE_CTF_ALL_REMAP(c64, c64);
-    NOA_INSTANTIATE_CTF_ALL_REMAP(c32, f32);
-    NOA_INSTANTIATE_CTF_ALL_REMAP(c64, f64);
+//    NOA_INSTANTIATE_CTF_ALL_REMAP(c64, c64);
+//    NOA_INSTANTIATE_CTF_ALL_REMAP(c32, f32);
+//    NOA_INSTANTIATE_CTF_ALL_REMAP(c64, f64);
 
     #define NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, CTF) \
     template void ctf_isotropic<Remap, Output, CTF>(                \
@@ -217,14 +219,15 @@ namespace noa::cpu::signal::fft {
             const Vec2<f32>&, bool, i64)
 
     #define NOA_INSTANTIATE_CTF_REMAP_ALL(Remap, Output)                                               \
-    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, noa::signal::fft::CTFIsotropic<f32>);           \
     NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, noa::signal::fft::CTFIsotropic<f64>);           \
-    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, const noa::signal::fft::CTFIsotropic<f32>*);    \
     NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, const noa::signal::fft::CTFIsotropic<f64>*);    \
-    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, noa::signal::fft::CTFAnisotropic<f32>);       \
     NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, noa::signal::fft::CTFAnisotropic<f64>);       \
-    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, const noa::signal::fft::CTFAnisotropic<f32>*);\
     NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, const noa::signal::fft::CTFAnisotropic<f64>*)
+
+//    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, noa::signal::fft::CTFIsotropic<f32>);           \
+//    NOA_INSTANTIATE_CTF_RANGE_ISOTROPIC(Remap, Output, const noa::signal::fft::CTFIsotropic<f32>*);    \
+//    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, noa::signal::fft::CTFAnisotropic<f32>);       \
+//    NOA_INSTANTIATE_CTF_RANGE_ANISOTROPIC(Remap, Output, const noa::signal::fft::CTFAnisotropic<f32>*);\
 
     #define NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(Output)             \
     NOA_INSTANTIATE_CTF_REMAP_ALL(noa::fft::Remap::H2H, Output);    \
@@ -233,7 +236,7 @@ namespace noa::cpu::signal::fft {
     NOA_INSTANTIATE_CTF_REMAP_ALL(noa::fft::Remap::FC2FC, Output)
 
     NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f32);
-    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f64);
+//    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(f64);
     NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c32);
-    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c64);
+//    NOA_INSTANTIATE_CTF_RANGE_ALL_REMAP(c64);
 }

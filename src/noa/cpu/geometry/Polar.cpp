@@ -188,8 +188,8 @@ namespace noa::cpu::geometry {
         const Vec2<f32>&, bool,                     \
         const Vec2<f32>&, bool, InterpMode, i64)
 
-    INSTANTIATE_POLAR(f32);
-    INSTANTIATE_POLAR(f64);
-    INSTANTIATE_POLAR(c32);
-    INSTANTIATE_POLAR(c64);
+//    INSTANTIATE_POLAR(f32);
+//    INSTANTIATE_POLAR(f64);
+//    INSTANTIATE_POLAR(c32);
+//    INSTANTIATE_POLAR(c64);
 }

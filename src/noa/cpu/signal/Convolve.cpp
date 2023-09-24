@@ -393,8 +393,8 @@ namespace noa::cpu::signal {
         T*, const Strides4<i64>&, const Shape4<i64>&,   \
         const U*, const Shape3<i64>&, i64)
 
-    NOA_INSTANTIATE_CONV_(f16, f16);
-    NOA_INSTANTIATE_CONV_(f16, f32);
+//    NOA_INSTANTIATE_CONV_(f16, f16);
+//    NOA_INSTANTIATE_CONV_(f16, f32);
     NOA_INSTANTIATE_CONV_(f32, f32);
     NOA_INSTANTIATE_CONV_(f64, f64);
 }

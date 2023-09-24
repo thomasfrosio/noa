@@ -90,7 +90,7 @@ namespace noa::cpu::signal::fft {
     INSTANTIATE_XMAP(noa::fft::H2FC, T)
 
     INSTANTIATE_XMAP_ALL(f32);
-    INSTANTIATE_XMAP_ALL(f64);
+//    INSTANTIATE_XMAP_ALL(f64);
 }
 
 namespace noa::cpu::signal::fft::details {
@@ -143,5 +143,5 @@ namespace noa::cpu::signal::fft::details {
         const Shape3<i64>&, i64)
 
     INSTANTIATE_XCORR(f32);
-    INSTANTIATE_XCORR(f64);
+//    INSTANTIATE_XCORR(f64);
 }

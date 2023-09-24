@@ -415,22 +415,22 @@ namespace noa::cpu::signal::fft {
         T*, const Strides4<i64>&,               \
         const Shape4<i64>&, const Vec2<f32>&,   \
         PeakMode, const Vec2<i64>&, i64)        \
-        -> std::pair<Vec2<f32>, T>;             \
-    template void xpeak_3d<R, T, void>(         \
-        T*, const Strides4<i64>&,               \
-        const Shape4<i64>&, const Vec3<f32>&,   \
-        Vec3<f32>*, T*,                         \
-        PeakMode, const Vec3<i64>&, i64);       \
-    template auto xpeak_3d<R, T, void>(         \
-        T*, const Strides4<i64>&,               \
-        const Shape4<i64>&, const Vec3<f32>&,   \
-        PeakMode, const Vec3<i64>&, i64)        \
-        -> std::pair<Vec3<f32>, T>
+        -> std::pair<Vec2<f32>, T>
+//    template void xpeak_3d<R, T, void>(
+//        T*, const Strides4<i64>&,
+//        const Shape4<i64>&, const Vec3<f32>&,
+//        Vec3<f32>*, T*,
+//        PeakMode, const Vec3<i64>&, i64);
+//    template auto xpeak_3d<R, T, void>(
+//        T*, const Strides4<i64>&,
+//        const Shape4<i64>&, const Vec3<f32>&,
+//        PeakMode, const Vec3<i64>&, i64)
+//        -> std::pair<Vec3<f32>, T>
 
     #define NOA_INSTANTIATE_XPEAK_ALL(T)    \
     NOA_INSTANTIATE_XPEAK(Remap::F2F, T);   \
     NOA_INSTANTIATE_XPEAK(Remap::FC2FC, T)
 
     NOA_INSTANTIATE_XPEAK_ALL(f32);
-    NOA_INSTANTIATE_XPEAK_ALL(f64);
+//    NOA_INSTANTIATE_XPEAK_ALL(f64);
 }

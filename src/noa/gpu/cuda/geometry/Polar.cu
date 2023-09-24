@@ -466,10 +466,10 @@ namespace noa::cuda::geometry {
         const Vec2<f32>&, bool,                         \
         Stream&)
 
-    INSTANTIATE_POLAR(f32);
-    INSTANTIATE_POLAR(f64);
-    INSTANTIATE_POLAR(c32);
-    INSTANTIATE_POLAR(c64);
-    INSTANTIATE_POLAR_TEXTURE(f32);
-    INSTANTIATE_POLAR_TEXTURE(c32);
+//    INSTANTIATE_POLAR(f32);
+//    INSTANTIATE_POLAR(f64);
+//    INSTANTIATE_POLAR(c32);
+//    INSTANTIATE_POLAR(c64);
+//    INSTANTIATE_POLAR_TEXTURE(f32);
+//    INSTANTIATE_POLAR_TEXTURE(c32);
 }

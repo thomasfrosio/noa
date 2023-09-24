@@ -599,13 +599,13 @@ namespace noa::cpu::math {
         const T*, const Strides4<i64>&, const Shape4<i64>&,                             \
         T*, const Strides4<i64>&, const Shape4<i64>&, i64)
 
-    NOA_INSTANTIATE_MIN_MAX_(i16);
-    NOA_INSTANTIATE_MIN_MAX_(i32);
-    NOA_INSTANTIATE_MIN_MAX_(i64);
-    NOA_INSTANTIATE_MIN_MAX_(u16);
-    NOA_INSTANTIATE_MIN_MAX_(u32);
-    NOA_INSTANTIATE_MIN_MAX_(u64);
-    NOA_INSTANTIATE_MIN_MAX_(f16);
+//    NOA_INSTANTIATE_MIN_MAX_(i16);
+//    NOA_INSTANTIATE_MIN_MAX_(i32);
+//    NOA_INSTANTIATE_MIN_MAX_(i64);
+//    NOA_INSTANTIATE_MIN_MAX_(u16);
+//    NOA_INSTANTIATE_MIN_MAX_(u32);
+//    NOA_INSTANTIATE_MIN_MAX_(u64);
+//    NOA_INSTANTIATE_MIN_MAX_(f16);
     NOA_INSTANTIATE_MIN_MAX_(f32);
     NOA_INSTANTIATE_MIN_MAX_(f64);
 
@@ -628,20 +628,20 @@ namespace noa::cpu::math {
 
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f32);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f64);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u64);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i64);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u32);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u64);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i32);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i64);
 
-    #define NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(C, R)        \
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, C, noa::copy_t);      \
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, R, noa::nonzero_t);   \
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, C, noa::square_t);    \
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, R, noa::abs_t);       \
+    #define NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(C, R) \
     NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, R, noa::abs_squared_t)
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, C, noa::copy_t);      \
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, R, noa::nonzero_t);   \
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, C, noa::square_t);    \
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN(C, R, noa::abs_t);       \
 
     NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c32, f32);
-    NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c64, f64);
+//    NOA_INSTANTIATE_REDUCE_COMPLEX_ALL(c64, f64);
 
     #define NOA_INSTANTIATE_VAR_STD_(T,U) \
     template U norm<T,U,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, i64);     \
@@ -681,6 +681,6 @@ namespace noa::cpu::math {
         const T*, const Strides4<i64>&, \
         const Shape4<i64>&, i64)
 
-    NOA_INSTANTIATE_RMSD(f32);
-    NOA_INSTANTIATE_RMSD(f64);
+//    NOA_INSTANTIATE_RMSD(f32);
+//    NOA_INSTANTIATE_RMSD(f64);
 }

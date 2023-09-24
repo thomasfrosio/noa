@@ -165,12 +165,12 @@ namespace noa::cpu::geometry::fft {
         Output*, const Strides4<i64>&, const Shape4<i64>&,                      \
         const Vec2<f32>&, bool, const Vec2<f32>&, bool, InterpMode, i64)
 
-    NOA_INSTANTIATE_POLAR(f32, f32);
-    NOA_INSTANTIATE_POLAR(f64, f64);
-    NOA_INSTANTIATE_POLAR(c32, c32);
-    NOA_INSTANTIATE_POLAR(c64, c64);
-    NOA_INSTANTIATE_POLAR(c32, f32);
-    NOA_INSTANTIATE_POLAR(c64, f64);
+//    NOA_INSTANTIATE_POLAR(f32, f32);
+//    NOA_INSTANTIATE_POLAR(f64, f64);
+//    NOA_INSTANTIATE_POLAR(c32, c32);
+//    NOA_INSTANTIATE_POLAR(c64, c64);
+//    NOA_INSTANTIATE_POLAR(c32, f32);
+//    NOA_INSTANTIATE_POLAR(c64, f64);
 
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Ctf, Output, Weight)   \
     template void rotational_average<Remap, Input, Ctf, Output, Weight, void>(      \
@@ -180,21 +180,22 @@ namespace noa::cpu::geometry::fft {
 
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(Remap, Input, Output, Weight)                                \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, Empty, Output, Weight);                                    \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f32>, Output, Weight);         \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f64>, Output, Weight);         \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, const signal::fft::CTFAnisotropic<f32>*, Output, Weight);  \
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, const signal::fft::CTFAnisotropic<f64>*, Output, Weight)
 
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, signal::fft::CTFAnisotropic<f32>, Output, Weight);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE(Remap, Input, const signal::fft::CTFAnisotropic<f32>*, Output, Weight);
+
     #define NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(Input, Output, Weight)                 \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::H2H, Input, Output, Weight);    \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::HC2H, Input, Output, Weight);   \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::F2H, Input, Output, Weight);    \
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::FC2H, Input, Output, Weight)
+    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::H2H, Input, Output, Weight);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::HC2H, Input, Output, Weight);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::F2H, Input, Output, Weight);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_CTF(noa::fft::Remap::FC2H, Input, Output, Weight)
 
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(f32, f32, f32);
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(f64, f64, f64);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(f64, f64, f64);
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(c32, c32, f32);
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(c64, c64, f64);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(c64, c64, f64);
     NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(c32, f32, f32);
-    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(c64, f64, f64);
+//    NOA_INSTANTIATE_ROTATIONAL_AVERAGE_REMAP(c64, f64, f64);
 }

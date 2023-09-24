@@ -218,7 +218,7 @@ namespace noa::cpu::geometry {
     template void cubic_bspline_prefilter<T,void>(const T*, Strides4<i64>, T*, Strides4<i64>, Shape4<i64>, i64)
 
     NOA_INSTANTIATE_PREFILTER_(f32);
-    NOA_INSTANTIATE_PREFILTER_(f64);
-    NOA_INSTANTIATE_PREFILTER_(c32);
-    NOA_INSTANTIATE_PREFILTER_(c64);
+//    NOA_INSTANTIATE_PREFILTER_(f64);
+//    NOA_INSTANTIATE_PREFILTER_(c32);
+//    NOA_INSTANTIATE_PREFILTER_(c64);
 }

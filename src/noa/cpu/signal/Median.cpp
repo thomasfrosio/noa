@@ -350,11 +350,11 @@ namespace noa::cpu::signal {
     template void median_filter_2d<T, void>(const T*, Strides4<i64>, T*, Strides4<i64>, Shape4<i64>, BorderMode, i64, i64);                         \
     template void median_filter_3d<T, void>(const T*, Strides4<i64>, T*, Strides4<i64>, Shape4<i64>, BorderMode, i64, i64)
 
-    NOA_INSTANTIATE_MEDFILT_(f16);
+//    NOA_INSTANTIATE_MEDFILT_(f16);
     NOA_INSTANTIATE_MEDFILT_(f32);
     NOA_INSTANTIATE_MEDFILT_(f64);
-    NOA_INSTANTIATE_MEDFILT_(i32);
-    NOA_INSTANTIATE_MEDFILT_(i64);
-    NOA_INSTANTIATE_MEDFILT_(u32);
-    NOA_INSTANTIATE_MEDFILT_(u64);
+//    NOA_INSTANTIATE_MEDFILT_(i32);
+//    NOA_INSTANTIATE_MEDFILT_(i64);
+//    NOA_INSTANTIATE_MEDFILT_(u32);
+//    NOA_INSTANTIATE_MEDFILT_(u64);
 }

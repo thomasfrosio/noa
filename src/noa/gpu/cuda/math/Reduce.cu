@@ -237,15 +237,15 @@ namespace noa::cuda::math {
     template std::pair<T,T> min_max<T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, Stream&);   \
     template T median<T,void>(T*, Strides4<i64>, Shape4<i64>, bool, Stream&)
 
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f16);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f16);
     NOA_INSTANTIATE_REDUCE_MIN_MAX_(f32);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f64);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u16);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u32);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u64);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i16);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i32);
-    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i64);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(f64);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u16);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u32);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(u64);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i16);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i32);
+//    NOA_INSTANTIATE_REDUCE_MIN_MAX_(i64);
 
     #define NOA_INSTANTIATE_REDUCE_SUM_MEAN_(T, P)                                              \
     template T sum<T,P,T,void>(const T*, const Strides4<i64>&, const Shape4<i64>&, P, Stream&); \
@@ -260,10 +260,10 @@ namespace noa::cuda::math {
 
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f32);
     NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(f64);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u64);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i32);
-    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i64);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u32);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(u64);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i32);
+//    NOA_INSTANTIATE_REDUCE_SUM_MEAN_ALL(i64);
 
     #define NOA_INSTANTIATE_REDUCE_COMPLEX(C, R, P)                                             \
     template R sum<C,P,R,void>(const C*, const Strides4<i64>&, const Shape4<i64>&, P, Stream&); \
@@ -297,6 +297,6 @@ namespace noa::cuda::math {
         const T*, const Strides4<i64>&, \
         const Shape4<i64>&, Stream&)
 
-    NOA_INSTANTIATE_RMSD(f32);
-    NOA_INSTANTIATE_RMSD(f64);
+//    NOA_INSTANTIATE_RMSD(f32);
+//    NOA_INSTANTIATE_RMSD(f64);
 }

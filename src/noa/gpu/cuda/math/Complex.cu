@@ -79,7 +79,7 @@ namespace noa::cuda::math {
         Complex<T>*, const Strides4<i64>&,  \
         const Shape4<i64>&, Stream&)
 
-    NOA_INSTANTIATE_COMPLEX_(f16);
-    NOA_INSTANTIATE_COMPLEX_(f32);
-    NOA_INSTANTIATE_COMPLEX_(f64);
+//    NOA_INSTANTIATE_COMPLEX_(f16);
+//    NOA_INSTANTIATE_COMPLEX_(f32);
+//    NOA_INSTANTIATE_COMPLEX_(f64);
 }

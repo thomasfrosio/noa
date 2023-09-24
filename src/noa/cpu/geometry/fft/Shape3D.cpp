@@ -253,21 +253,21 @@ namespace noa::cpu::geometry::fft {
         T*, Strides4<i64>,                          \
         Shape4<i64>, Vec3<f32>, Vec3<f32>, f32,     \
         M const&, F, C, bool, i64);                 \
-    template void sphere<R, T, M, F, C, void>(      \
-        const T*, Strides4<i64>,                    \
-        T*, Strides4<i64>,                          \
-        Shape4<i64>, Vec3<f32>, f32, f32,           \
-        M const&, F, C, bool, i64);                 \
     template void rectangle<R, T, M, F, C, void>(   \
         const T*, Strides4<i64>,                    \
         T*, Strides4<i64>,                          \
         Shape4<i64>, Vec3<f32>, Vec3<f32>, f32,     \
-        M const&, F, C, bool, i64);                 \
-    template void cylinder<R, T, M, F, C, void>(    \
-        const T*, Strides4<i64>,                    \
-        T*, Strides4<i64>,                          \
-        Shape4<i64>, Vec3<f32>, f32, f32, f32,      \
-        M const&, F, C, bool, i64)
+        M const&, F, C, bool, i64);
+//    template void cylinder<R, T, M, F, C, void>(
+//        const T*, Strides4<i64>,
+//        T*, Strides4<i64>,
+//        Shape4<i64>, Vec3<f32>, f32, f32, f32,
+//        M const&, F, C, bool, i64)
+//    template void sphere<R, T, M, F, C, void>(
+//        const T*, Strides4<i64>,
+//        T*, Strides4<i64>,
+//        Shape4<i64>, Vec3<f32>, f32, f32,
+//        M const&, F, C, bool, i64);
 
     #define NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, M)      \
     NOA_INSTANTIATE_SHAPE_3D_(R, T, C, M, noa::multiply_t); \
@@ -280,11 +280,12 @@ namespace noa::cpu::geometry::fft {
     NOA_INSTANTIATE_SHAPE_FUNCTOR_(R, T, C, const Float34*)
 
     #define NOA_INSTANTIATE_SHAPE_ALL(T, C)                 \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2F, T, C);     \
-    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2FC, T, C)
+    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::FC2FC, T, C)    \
+    NOA_INSTANTIATE_SHAPE_MATRIX_(noa::fft::F2F, T, C);
+
 
     NOA_INSTANTIATE_SHAPE_ALL(f32, f32);
-    NOA_INSTANTIATE_SHAPE_ALL(f64, f64);
-    NOA_INSTANTIATE_SHAPE_ALL(c32, f32);
-    NOA_INSTANTIATE_SHAPE_ALL(c64, f64);
+//    NOA_INSTANTIATE_SHAPE_ALL(f64, f64);
+//    NOA_INSTANTIATE_SHAPE_ALL(c32, f32);
+//    NOA_INSTANTIATE_SHAPE_ALL(c64, f64);
 }

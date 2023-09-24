@@ -97,7 +97,7 @@ namespace noa::cuda::signal::fft {
     INSTANTIATE_XMAP(noa::fft::H2FC, T)
 
     INSTANTIATE_XMAP_ALL(f32);
-    INSTANTIATE_XMAP_ALL(f64);
+//    INSTANTIATE_XMAP_ALL(f64);
 }
 
 namespace noa::cuda::signal::fft::details {
@@ -182,5 +182,5 @@ namespace noa::cuda::signal::fft::details {
         const Shape4<i64>&, Stream&)
 
     INSTANTIATE_XCORR(f32);
-    INSTANTIATE_XCORR(f64);
+//    INSTANTIATE_XCORR(f64);
 }

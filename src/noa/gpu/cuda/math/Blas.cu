@@ -243,8 +243,8 @@ namespace noa::cuda::math {
         T*, const Strides4<i64>&, const Shape4<i64>&,           \
         Stream&)
 
-    INSTANTIATE_GEMM_(f32);
-    INSTANTIATE_GEMM_(f64);
-    INSTANTIATE_GEMM_(c32);
-    INSTANTIATE_GEMM_(c64);
+//    INSTANTIATE_GEMM_(f32);
+//    INSTANTIATE_GEMM_(f64);
+//    INSTANTIATE_GEMM_(c32);
+//    INSTANTIATE_GEMM_(c64);
 }

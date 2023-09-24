@@ -147,10 +147,10 @@ namespace noa::cuda::fft {
     #define NOA_INSTANTIATE_RESIZE_(T) \
     template void remap<T, void>(Remap, const T*, Strides4<i64>, T*, Strides4<i64>, Shape4<i64>, Stream&)
 
-    NOA_INSTANTIATE_RESIZE_(f16);
+//    NOA_INSTANTIATE_RESIZE_(f16);
     NOA_INSTANTIATE_RESIZE_(f32);
-    NOA_INSTANTIATE_RESIZE_(f64);
-    NOA_INSTANTIATE_RESIZE_(c16);
+//    NOA_INSTANTIATE_RESIZE_(f64);
+//    NOA_INSTANTIATE_RESIZE_(c16);
     NOA_INSTANTIATE_RESIZE_(c32);
-    NOA_INSTANTIATE_RESIZE_(c64);
+//    NOA_INSTANTIATE_RESIZE_(c64);
 }

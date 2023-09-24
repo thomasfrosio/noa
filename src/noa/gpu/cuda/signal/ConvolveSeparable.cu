@@ -397,7 +397,7 @@ namespace noa::cuda::signal {
         T*, const Strides4<i64>&, const Shape4<i64>&,   \
         const U*, const Shape3<i64>&, Stream&)
 
-    NOA_INSTANTIATE_CONV_(f16, f16);
+//    NOA_INSTANTIATE_CONV_(f16, f16);
     NOA_INSTANTIATE_CONV_(f32, f32);
-    NOA_INSTANTIATE_CONV_(f64, f64);
+//    NOA_INSTANTIATE_CONV_(f64, f64);
 }

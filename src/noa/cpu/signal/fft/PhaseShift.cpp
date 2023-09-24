@@ -106,5 +106,5 @@ namespace noa::cpu::signal::fft {
     NOA_INSTANTIATE_SHIFT_(noa::fft::Remap::HC2HC, T)
 
     NOA_INSTANTIATE_SHIFT_ALL(c32);
-    NOA_INSTANTIATE_SHIFT_ALL(c64);
+//    NOA_INSTANTIATE_SHIFT_ALL(c64);
 }

@@ -461,14 +461,14 @@ namespace noa::cuda::geometry::fft {
     NOA_INSTANTIATE_TRANSFORM_2D_(T, const Float22*, const Vec2<f32>*); \
     NOA_INSTANTIATE_TRANSFORM_2D_(T, const Float22*, Vec2<f32>);        \
     NOA_INSTANTIATE_TRANSFORM_2D_(T, Float22, const Vec2<f32>*);        \
-    NOA_INSTANTIATE_TRANSFORM_2D_(T, Float22, Vec2<f32>);               \
-    NOA_INSTANTIATE_TRANSFORM_3D_(T, const Float33*, const Vec3<f32>*); \
-    NOA_INSTANTIATE_TRANSFORM_3D_(T, const Float33*, Vec3<f32>);        \
-    NOA_INSTANTIATE_TRANSFORM_3D_(T, Float33, const Vec3<f32>*);        \
-    NOA_INSTANTIATE_TRANSFORM_3D_(T, Float33, Vec3<f32>);               \
-    NOA_INSTANTIATE_TRANSFORM_SYMMETRY_2D_(T);                          \
-    NOA_INSTANTIATE_TRANSFORM_SYMMETRY_3D_(T)
+    NOA_INSTANTIATE_TRANSFORM_2D_(T, Float22, Vec2<f32>);
+//    NOA_INSTANTIATE_TRANSFORM_3D_(T, const Float33*, const Vec3<f32>*); \
+//    NOA_INSTANTIATE_TRANSFORM_3D_(T, const Float33*, Vec3<f32>);        \
+//    NOA_INSTANTIATE_TRANSFORM_3D_(T, Float33, const Vec3<f32>*);        \
+//    NOA_INSTANTIATE_TRANSFORM_3D_(T, Float33, Vec3<f32>);
+//    NOA_INSTANTIATE_TRANSFORM_SYMMETRY_2D_(T);                          \
+//    NOA_INSTANTIATE_TRANSFORM_SYMMETRY_3D_(T)
 
     NOA_INSTANTIATE_TRANSFORM_ALL_(f32);
-    NOA_INSTANTIATE_TRANSFORM_ALL_(c32);
+//    NOA_INSTANTIATE_TRANSFORM_ALL_(c32);
 }

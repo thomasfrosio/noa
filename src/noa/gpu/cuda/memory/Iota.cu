@@ -30,15 +30,15 @@ namespace noa::cuda::memory {
     template void iota<T, void>(T*, i64, i64, Stream&); \
     template void iota<T, void>(T*, const Strides4<i64>&, const Shape4<i64>&, const Vec4<i64>&, Stream&)
 
-    NOA_INSTANTIATE_IOTA_(i8);
-    NOA_INSTANTIATE_IOTA_(i16);
-    NOA_INSTANTIATE_IOTA_(i32);
-    NOA_INSTANTIATE_IOTA_(i64);
-    NOA_INSTANTIATE_IOTA_(u8);
-    NOA_INSTANTIATE_IOTA_(u16);
+//    NOA_INSTANTIATE_IOTA_(i8);
+//    NOA_INSTANTIATE_IOTA_(i16);
+//    NOA_INSTANTIATE_IOTA_(i32);
+//    NOA_INSTANTIATE_IOTA_(i64);
+//    NOA_INSTANTIATE_IOTA_(u8);
+//    NOA_INSTANTIATE_IOTA_(u16);
     NOA_INSTANTIATE_IOTA_(u32);
-    NOA_INSTANTIATE_IOTA_(u64);
-    NOA_INSTANTIATE_IOTA_(f16);
-    NOA_INSTANTIATE_IOTA_(f32);
-    NOA_INSTANTIATE_IOTA_(f64);
+//    NOA_INSTANTIATE_IOTA_(u64);
+//    NOA_INSTANTIATE_IOTA_(f16);
+//    NOA_INSTANTIATE_IOTA_(f32);
+//    NOA_INSTANTIATE_IOTA_(f64);
 }

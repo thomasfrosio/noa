@@ -83,6 +83,6 @@ namespace noa::cuda::signal::fft {
     NOA_INSTANTIATE_FSC(noa::fft::Remap::H2H, T);   \
     NOA_INSTANTIATE_FSC(noa::fft::Remap::HC2HC, T)
 
-    NOA_INSTANTIATE_FSC_ALL(f32);
-    NOA_INSTANTIATE_FSC_ALL(f64);
+//    NOA_INSTANTIATE_FSC_ALL(f32);
+//    NOA_INSTANTIATE_FSC_ALL(f64);
 }

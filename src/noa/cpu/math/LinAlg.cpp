@@ -369,6 +369,6 @@ namespace noa::cpu::math {
         T*, const Strides4<i64>&, const Shape4<i64>&,   \
         bool, i32, T*)
 
-    NOA_INSTANTIATE_SURFACE_(f32);
-    NOA_INSTANTIATE_SURFACE_(f64);
+//    NOA_INSTANTIATE_SURFACE_(f32);
+//    NOA_INSTANTIATE_SURFACE_(f64);
 }
