@@ -3,7 +3,7 @@
 #include <noa/cpu/Stream.hpp>
 #include <noa/cpu/math/Random.hpp>
 #include <noa/cpu/math/Reduce.hpp>
-#include <noa/cpu/memory/PtrHost.hpp>
+#include <noa/cpu/memory/AllocatorHeap.hpp>
 
 using namespace ::noa;
 

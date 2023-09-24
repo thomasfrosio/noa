@@ -6,10 +6,10 @@
 #include <noa/gpu/cuda/Event.hpp>
 #include <noa/gpu/cuda/geometry/fft/Project.hpp>
 #include <noa/gpu/cuda/memory/Copy.hpp>
-#include <noa/gpu/cuda/memory/PtrDevice.hpp>
-#include <noa/gpu/cuda/memory/PtrPinned.hpp>
-#include <noa/gpu/cuda/memory/PtrTexture.hpp>
-#include <noa/gpu/cuda/memory/PtrArray.hpp>
+#include <noa/gpu/cuda/memory/AllocatorDevice.hpp>
+#include <noa/gpu/cuda/memory/AllocatorPinned.hpp>
+#include <noa/gpu/cuda/memory/AllocatorTexture.hpp>
+#include <noa/gpu/cuda/memory/AllocatorArray.hpp>
 #include <noa/gpu/cuda/memory/Set.hpp>
 #include <noa/gpu/cuda/Stream.hpp>
 

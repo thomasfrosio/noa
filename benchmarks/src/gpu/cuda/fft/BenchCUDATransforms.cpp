@@ -3,7 +3,7 @@
 #include <noa/gpu/cuda/Event.hpp>
 #include <noa/gpu/cuda/Stream.hpp>
 #include <noa/gpu/cuda/math/Random.hpp>
-#include <noa/gpu/cuda/memory/PtrManaged.hpp>
+#include <noa/gpu/cuda/memory/AllocatorManaged.hpp>
 #include <noa/gpu/cuda/fft/Transforms.hpp>
 
 using namespace ::noa;

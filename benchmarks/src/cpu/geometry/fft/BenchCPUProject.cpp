@@ -7,7 +7,7 @@
 #include <noa/cpu/Event.hpp>
 #include <noa/cpu/Stream.hpp>
 #include <noa/cpu/math/Complex.hpp>
-#include <noa/cpu/memory/PtrHost.hpp>
+#include <noa/cpu/memory/AllocatorHeap.hpp>
 #include <noa/cpu/geometry/fft/Project.hpp>
 
 #include "Helpers.h"

@@ -4,9 +4,9 @@
 #include <noa/gpu/cuda/Stream.hpp>
 #include <noa/gpu/cuda/math/Random.hpp>
 #include <noa/gpu/cuda/memory/Copy.hpp>
-#include <noa/gpu/cuda/memory/PtrDevice.hpp>
-#include <noa/gpu/cuda/memory/PtrArray.hpp>
-#include <noa/gpu/cuda/memory/PtrTexture.hpp>
+#include <noa/gpu/cuda/memory/AllocatorDevice.hpp>
+#include <noa/gpu/cuda/memory/AllocatorArray.hpp>
+#include <noa/gpu/cuda/memory/AllocatorTexture.hpp>
 #include <noa/gpu/cuda/geometry/Rotate.h>
 
 using namespace ::noa;

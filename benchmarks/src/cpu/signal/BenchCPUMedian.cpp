@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
 #include <noa/cpu/Stream.hpp>
-#include <noa/cpu/memory/PtrHost.hpp>
+#include <noa/cpu/memory/AllocatorHeap.hpp>
 #include <noa/cpu/signal/Median.hpp>
 
 #include "Helpers.h"

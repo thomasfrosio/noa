@@ -4,8 +4,8 @@
 #include <noa/gpu/cuda/Stream.hpp>
 #include <noa/gpu/cuda/math/Random.hpp>
 #include <noa/gpu/cuda/math/Reduce.hpp>
-#include <noa/gpu/cuda/memory/PtrDevice.hpp>
-#include <noa/gpu/cuda/memory/PtrDevicePadded.hpp>
+#include <noa/gpu/cuda/memory/AllocatorDevice.hpp>
+#include <noa/gpu/cuda/memory/AllocatorDevicePadded.hpp>
 
 using namespace ::noa;
 

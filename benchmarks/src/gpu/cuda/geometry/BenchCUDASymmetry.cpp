@@ -3,7 +3,7 @@
 #include <noa/gpu/cuda/Event.hpp>
 #include <noa/gpu/cuda/Stream.hpp>
 #include <noa/gpu/cuda/math/Random.hpp>
-#include <noa/gpu/cuda/memory/PtrDevice.hpp>
+#include <noa/gpu/cuda/memory/AllocatorDevice.hpp>
 #include <noa/gpu/cuda/geometry/Symmetry.h>
 
 using namespace ::noa;

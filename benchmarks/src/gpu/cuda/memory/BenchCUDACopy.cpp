@@ -4,7 +4,7 @@
 #include <noa/gpu/cuda/Stream.hpp>
 #include <noa/gpu/cuda/math/Random.hpp>
 #include <noa/gpu/cuda/memory/Copy.hpp>
-#include <noa/gpu/cuda/memory/PtrDevice.hpp>
+#include <noa/gpu/cuda/memory/AllocatorDevice.hpp>
 
 using namespace ::noa;
 
