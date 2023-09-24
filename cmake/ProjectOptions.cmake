@@ -5,7 +5,7 @@
 
 macro(noa_set_options_cuda)
     # CUDA Toolkit
-    option(NOA_CUDA_CUDART_STATIC "Use the cuda runtime static library" ON)
+    option(NOA_CUDA_CUDART_STATIC "Use the cuda runtime static library" OFF)
     option(NOA_CUDA_ALL_STATIC "Link all CUDA libraries (other than the runtime) statically" OFF)
     option(NOA_CUDA_CUFFT_STATIC "Use the cuFFT static library" ${NOA_CUDA_ALL_STATIC})
     option(NOA_CUDA_CURAND_STATIC "Use the cuRAND static library" ${NOA_CUDA_ALL_STATIC})
