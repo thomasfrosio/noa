@@ -3,7 +3,7 @@
 #include "noa/algorithms/geometry/FourierGriddingCorrection.hpp"
 
 namespace noa::cuda::geometry::fft {
-    template<typename Value, typename>
+    template<typename Value>
     void gridding_correction(
             const Value* input, const Strides4<i64>& input_strides,
             Value* output, const Strides4<i64>& output_strides,
@@ -23,6 +23,6 @@ namespace noa::cuda::geometry::fft {
             noa::cuda::utils::iwise_4d(i_shape, op, stream);
         }
     }
-//    template void gridding_correction<f32, void>(const f32*, const Strides4<i64>&, f32*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);
-//    template void gridding_correction<f64, void>(const f64*, const Strides4<i64>&, f64*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);
+    template void gridding_correction<f32>(const f32*, const Strides4<i64>&, f32*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);
+//    template void gridding_correction<f64>(const f64*, const Strides4<i64>&, f64*, const Strides4<i64>&, const Shape4<i64>&, bool, Stream&);
 }

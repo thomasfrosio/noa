@@ -22,6 +22,6 @@ namespace noa::cpu::geometry::fft {
             noa::cpu::utils::iwise_4d(shape, op, threads);
         }
     }
-//    template void gridding_correction<f32, void>(const f32*, const Strides4<i64>&, f32*, const Strides4<i64>&, const Shape4<i64>&, bool, i64);
+    template void gridding_correction<f32, void>(const f32*, const Strides4<i64>&, f32*, const Strides4<i64>&, const Shape4<i64>&, bool, i64);
 //    template void gridding_correction<f64, void>(const f64*, const Strides4<i64>&, f64*, const Strides4<i64>&, const Shape4<i64>&, bool, i64);
 }
