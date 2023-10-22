@@ -1,8 +1,5 @@
-#include <iostream>
-
 #include "noa/core/Exception.hpp"
-#include "noa/core/Types.hpp"
-#include "noa/core/Math.hpp"
+#include "noa/core/math/Generic.hpp"
 #include "noa/core/geometry/Euler.hpp"
 #include "noa/core/geometry/Transform.hpp"
 #include "noa/core/string/Format.hpp"
@@ -10,7 +7,7 @@
 namespace {
     using namespace ::noa;
 
-    bool isValid(std::string_view axes) {
+    bool is_valid(std::string_view axes) {
         if (axes == "ZYZ" || axes == "ZXZ" || axes == "ZYX" || axes == "ZXY" ||
             axes == "XYZ" || axes == "XYX" || axes == "XZX" || axes == "XZY" ||
             axes == "YXY" || axes == "YXZ" || axes == "YZX" || axes == "YZY") {
@@ -25,13 +22,13 @@ namespace {
         //                             -c1c2s3-s1c3, -s1c2s3+c1c3,  s2s3,
         //                                     c1s2,         s1s2,    c2}
         Vec3<T> euler;
-        euler[1] = math::acos(rotm[2][2]);
-        if (math::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(-rotm[1][0], rotm[1][1]);
+        euler[1] = noa::acos(rotm[2][2]);
+        if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(-rotm[1][0], rotm[1][1]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[2][1], rotm[2][0]);
-            euler[2] = math::atan2(rotm[1][2], -rotm[0][2]);
+            euler[0] = noa::atan2(rotm[2][1], rotm[2][0]);
+            euler[2] = noa::atan2(rotm[1][2], -rotm[0][2]);
         }
         return euler;
     }
@@ -42,13 +39,13 @@ namespace {
         //                                     c1s2,    c2,         s1s2,
         //                                  -c1c2s3,  s2s3, -s1c2s3+c1c3}
         Vec3<T> euler;
-        euler[1] = math::acos(rotm[1][1]);
-        if (math::abs(rotm[1][2]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(-rotm[0][2], rotm[0][0]);
+        euler[1] = noa::acos(rotm[1][1]);
+        if (noa::abs(rotm[1][2]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(-rotm[0][2], rotm[0][0]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[1][0], rotm[1][2]);
-            euler[2] = math::atan2(rotm[0][1], -rotm[2][1]);
+            euler[0] = noa::atan2(rotm[1][0], rotm[1][2]);
+            euler[2] = noa::atan2(rotm[0][1], -rotm[2][1]);
         }
         return euler;
     }
@@ -59,13 +56,13 @@ namespace {
         //                               s1c2c3+s1s3,  c1c2c3-s1s3, -s2c3,
         //                                      s1s2,         c1s2,    c2}
         Vec3<T> euler;
-        euler[1] = math::acos(rotm[0][0]);
-        if (math::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(-rotm[2][1], rotm[2][2]);
+        euler[1] = noa::acos(rotm[0][0]);
+        if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(-rotm[2][1], rotm[2][2]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[0][2], rotm[0][1]);
-            euler[2] = math::atan2(rotm[2][0], -rotm[1][0]);
+            euler[0] = noa::atan2(rotm[0][2], rotm[0][1]);
+            euler[2] = noa::atan2(rotm[2][0], -rotm[1][0]);
         }
         return euler;
     }
@@ -76,13 +73,13 @@ namespace {
         //                             s2c3,   c1c2c3-s3, -s1c2c3-c1s3,
         //                             s2s3, c1c2s3+s1c3, -s1c2s3+c1c3}
         Vec3<T> euler;
-        euler[1] = math::acos(rotm[2][2]);
-        if (math::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(rotm[0][1], rotm[0][0]);
+        euler[1] = noa::acos(rotm[2][2]);
+        if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(rotm[0][1], rotm[0][0]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[2][0], -rotm[2][1]);
-            euler[2] = math::atan2(rotm[0][2], rotm[1][2]);
+            euler[0] = noa::atan2(rotm[2][0], -rotm[2][1]);
+            euler[2] = noa::atan2(rotm[0][2], rotm[1][2]);
         }
         return euler;
     }
@@ -93,13 +90,13 @@ namespace {
         //                                      s1s2,   c2,       -c1s2,
         //                              -s1c2c3-c1s3, s2c3, c1c2c3-s1s3}
         Vec3<T> euler;
-        euler[1] = math::acos(rotm[1][1]);
-        if (math::abs(rotm[2][1]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(rotm[2][0], rotm[2][2]);
+        euler[1] = noa::acos(rotm[1][1]);
+        if (noa::abs(rotm[2][1]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(rotm[2][0], rotm[2][2]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[1][2], -rotm[1][0]);
-            euler[2] = math::atan2(rotm[2][1], rotm[0][1]);
+            euler[0] = noa::atan2(rotm[1][2], -rotm[1][0]);
+            euler[2] = noa::atan2(rotm[2][1], rotm[0][1]);
         }
         return euler;
     }
@@ -110,13 +107,13 @@ namespace {
         //                              c1c2s3+s1c3, -s1c2s3+c1c3, s2s3,
         //                                    -c1s2,         s1s2,   c2}
         Vec3<T> euler;
-        euler[1] = math::acos(rotm[0][0]);
-        if (math::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(rotm[1][2], rotm[1][1]);
+        euler[1] = noa::acos(rotm[0][0]);
+        if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(rotm[1][2], rotm[1][1]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[0][1], -rotm[0][2]);
-            euler[2] = math::atan2(rotm[1][0], rotm[2][0]);
+            euler[0] = noa::atan2(rotm[0][1], -rotm[0][2]);
+            euler[2] = noa::atan2(rotm[1][0], rotm[2][0]);
         }
         return euler;
     }
@@ -127,13 +124,13 @@ namespace {
         //                              c2s3, s1s2s3+c1c3, c1s2s3-s1c3,
         //                               -s2,        s1c2,        c1c2}
         Vec3<T> euler;
-        euler[1] = -math::asin(rotm[0][2]);
-        if (math::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(-rotm[1][0], rotm[1][1]);
+        euler[1] = -noa::asin(rotm[0][2]);
+        if (noa::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(-rotm[1][0], rotm[1][1]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[0][1], rotm[0][0]);
-            euler[2] = math::atan2(rotm[1][2], rotm[2][2]);
+            euler[0] = noa::atan2(rotm[0][1], rotm[0][0]);
+            euler[2] = noa::atan2(rotm[1][2], rotm[2][2]);
         }
         return euler;
     }
@@ -144,13 +141,13 @@ namespace {
         //                              c1s2c3+s1s3, c2c3, s1s2c3-c1s3,
         //                              c1s2s3-s1c3, c2s3, s1s2s3+c1c3}
         Vec3<T> euler;
-        euler[1] = -math::asin(rotm[2][1]);
-        if (math::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(-rotm[0][2], rotm[0][0]);
+        euler[1] = -noa::asin(rotm[2][1]);
+        if (noa::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(-rotm[0][2], rotm[0][0]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[2][0], rotm[2][2]);
-            euler[2] = math::atan2(rotm[0][1], rotm[1][1]);
+            euler[0] = noa::atan2(rotm[2][0], rotm[2][2]);
+            euler[2] = noa::atan2(rotm[0][1], rotm[1][1]);
         }
         return euler;
     }
@@ -161,13 +158,13 @@ namespace {
         //                                     s1c2,        c1c2,  -s2,
         //                              s1s2c3-c1s3, c1s2c3+s1s3, c2c3}
         Vec3<T> euler;
-        euler[1] = -math::asin(rotm[1][0]);
-        if (math::abs(rotm[1][2]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(-rotm[2][1], rotm[2][2]);
+        euler[1] = -noa::asin(rotm[1][0]);
+        if (noa::abs(rotm[1][2]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(-rotm[2][1], rotm[2][2]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(rotm[1][2], rotm[1][1]);
-            euler[2] = math::atan2(rotm[2][0], rotm[0][0]);
+            euler[0] = noa::atan2(rotm[1][2], rotm[1][1]);
+            euler[2] = noa::atan2(rotm[2][0], rotm[0][0]);
         }
         return euler;
     }
@@ -178,13 +175,13 @@ namespace {
         //                                s2,         c1c2,        -s1c2,
         //                             -c2s3,  c1s2s3+s1c3, -s1s2s3+c1c3}
         Vec3<T> euler;
-        euler[1] = math::asin(rotm[1][2]);
-        if (math::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(rotm[0][1], rotm[0][0]);
+        euler[1] = noa::asin(rotm[1][2]);
+        if (noa::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(rotm[0][1], rotm[0][0]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(-rotm[1][0], rotm[1][1]);
-            euler[2] = math::atan2(-rotm[0][2], rotm[2][2]);
+            euler[0] = noa::atan2(-rotm[1][0], rotm[1][1]);
+            euler[2] = noa::atan2(-rotm[0][2], rotm[2][2]);
         }
         return euler;
     }
@@ -195,13 +192,13 @@ namespace {
         //                              s1s2c3+c1s3,  c2c3, -c1s2c3+s1s3,
         //                                    -s1c2,    s2,         c1c2}
         Vec3<T> euler;
-        euler[1] = math::asin(rotm[0][1]);
-        if (math::abs(rotm[1][1]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(rotm[2][0], rotm[2][2]);
+        euler[1] = noa::asin(rotm[0][1]);
+        if (noa::abs(rotm[1][1]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(rotm[2][0], rotm[2][2]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(-rotm[0][2], rotm[0][0]);
-            euler[2] = math::atan2(-rotm[2][1], rotm[1][1]);
+            euler[0] = noa::atan2(-rotm[0][2], rotm[0][0]);
+            euler[2] = noa::atan2(-rotm[2][1], rotm[1][1]);
         }
         return euler;
     }
@@ -212,13 +209,13 @@ namespace {
         //                              c1s2s3+s1c3, -s1s2s3+c1c3, -c2s3,
         //                             -c1s2c3+s1s3,  s1s2c3+c1s3,  c2c3}
         Vec3<T> euler;
-        euler[1] = math::asin(rotm[2][0]);
-        if (math::abs(rotm[1][1]) < static_cast<T>(1e-4)) { // Gimbal lock
-            euler[0] = math::atan2(rotm[1][2], rotm[1][1]);
+        euler[1] = noa::asin(rotm[2][0]);
+        if (noa::abs(rotm[1][1]) < static_cast<T>(1e-4)) { // Gimbal lock
+            euler[0] = noa::atan2(rotm[1][2], rotm[1][1]);
             euler[2] = 0;
         } else {
-            euler[0] = math::atan2(-rotm[2][1], rotm[2][2]);
-            euler[2] = math::atan2(-rotm[1][0], rotm[0][0]);
+            euler[0] = noa::atan2(-rotm[2][1], rotm[2][2]);
+            euler[2] = noa::atan2(-rotm[1][0], rotm[0][0]);
         }
         return euler;
     }
@@ -227,8 +224,8 @@ namespace {
 namespace noa::geometry {
     template<typename T>
     Mat33<T> euler2matrix(Vec3<T> angles, std::string_view axes, bool intrinsic, bool right_handed) {
-        const std::string lower_axes = string::upper(string::trim(axes));
-        if (!isValid(lower_axes))
+        const std::string lower_axes = noa::to_upper(noa::trim(axes));
+        if (!is_valid(lower_axes))
             NOA_THROW("Axes \"{}\" are not valid", lower_axes);
 
         const auto right_angles = right_handed ? angles : angles * -1;
@@ -290,12 +287,12 @@ namespace noa::geometry {
 
     template<typename T>
     Vec3<T> matrix2euler(const Mat33<T>& rotation, std::string_view axes, bool intrinsic, bool right_handed) {
-        std::string lower_axes = string::upper(string::trim(axes));
-        if (!isValid(lower_axes))
+        std::string lower_axes = noa::to_upper(noa::trim(axes));
+        if (!is_valid(lower_axes))
             NOA_THROW("Axes \"{}\" are not valid", lower_axes);
 
         if (intrinsic)
-            lower_axes = string::reverse(std::move(lower_axes));
+            lower_axes = noa::reverse(std::move(lower_axes));
 
         Vec3<T> euler;
         if (lower_axes == "ZYZ") { // TODO table lookup?

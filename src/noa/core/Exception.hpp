@@ -1,14 +1,15 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+#include "noa/core/string/Format.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <string>
 #include <exception>
 #include <filesystem>
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/string/Format.hpp"
-
 namespace noa {
-    /// Global (within ::noa) exception. Usually caught in main().
+    /// Global (within ::noa) exception.
     class Exception : public std::exception {
     public:
         /// Format the error message, which is then accessible with what().
@@ -20,7 +21,7 @@ namespace noa {
         /// \note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
         template<typename... Args>
         Exception(const char* file, const char* function, int line, Args&& ... args)
-                : m_buffer(format_(file, function, line, string::format(args...))) {}
+                : m_buffer(format_(file, function, line, fmt::format(args...))) {}
 
         /// Returns the formatted error message of this (and only this) exception.
         [[nodiscard]] const char* what() const noexcept override {
@@ -40,13 +41,15 @@ namespace noa {
         }
 
     protected:
-        static std::string format_(const char* file, const char* function, int line,
-                                   const std::string& message) {
+        static std::string format_(
+                const char* file, const char* function, int line,
+                const std::string& message
+        ) {
             namespace fs = std::filesystem;
             size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
-            return string::format("ERROR:{}:{}:{}: {}",
-                                  idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
-                                  function, line, message);
+            return fmt::format("ERROR:{}:{}:{}: {}",
+                               idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
+                               function, line, message);
         }
 
         static void backtrace_(std::vector<std::string>& message,
@@ -60,7 +63,7 @@ namespace noa {
     template<typename T>
     void throw_if(T&& result, const char* file, const char* function, int line) {
         if (result)
-            std::throw_with_nested(noa::Exception(file, function, line, string::format("{}", std::forward<T>(result))));
+            std::throw_with_nested(noa::Exception(file, function, line, fmt::format("{}", std::forward<T>(result))));
     }
 }
 
@@ -75,7 +78,7 @@ namespace noa {
 
 #if defined(NOA_DEBUG) || defined(NOA_ENABLE_CHECKS_AT_RELEASE)
 /// Checks vs assertions:\n
-/// - \b Assertions called via \e NOA_ASSERT are turned off when NOA_ENABLE_ASSERTS is not defined (see Assert.h).
+/// - \b Assertions called via \e NOA_ASSERT are turned off when NOA_ENABLE_ASSERTS is not defined (see Config.hpp).
 ///   They are using the C assert macro and calls abort() when the condition is not satisfied. They can be used
 ///   in noexcept(true) contexts.\n
 /// - \b "Checks" are throwing noa::Exception when the condition is not satisfied. As such, the \e NOA_CHECK macro
@@ -86,9 +89,11 @@ namespace noa {
 ///   from it... These checks can be very useful even in Release builds, hence the CMake option and macro
 ///   NOA_ENABLE_CHECKS_AT_RELEASE. Since they add a "throw" statement, they cannot be used in "device" code and is best
 ///   to not use them in performance critical scopes (e.g. hot loop).
-#define NOA_CHECK(cond, ...) if (!(cond)) NOA_THROW(__VA_ARGS__)
-#define NOA_CHECK_FUNC(func, cond, ...) if (!(cond)) NOA_THROW_FUNC(func, __VA_ARGS__)
+#define NOA_CHECK(cond, ...) do { if (cond) /*nothing*/; else NOA_THROW(__VA_ARGS__); } while(0)
+#define NOA_CHECK_FUNC(func, cond, ...) do { if (cond) /*nothing*/; else NOA_THROW_FUNC(func, __VA_ARGS__); } while(0)
 #else
 #define NOA_CHECK(cond, ...)
 #define NOA_CHECK_FUNC(func, cond, ...)
 #endif
+
+#endif // NOA_IS_CPU_CODE

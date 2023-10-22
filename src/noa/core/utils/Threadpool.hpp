@@ -1,16 +1,16 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+#include "noa/core/Exception.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <future>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-
 #include <vector>
 #include <queue>
 #include <tuple>
-
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Exception.hpp"
 
 namespace noa {
     /// Thread pool.
@@ -116,3 +116,4 @@ namespace noa {
         }
     };
 }
+#endif

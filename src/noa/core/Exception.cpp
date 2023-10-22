@@ -1,8 +1,10 @@
 #include "noa/core/Exception.hpp"
 
 namespace noa {
-    void Exception::backtrace_(std::vector<std::string>& message,
-                               const std::exception_ptr& exception_ptr) {
+    void Exception::backtrace_(
+            std::vector<std::string>& message,
+            const std::exception_ptr& exception_ptr
+    ) {
         static auto get_nested = [](auto& e) -> std::exception_ptr {
             try {
                 return dynamic_cast<const std::nested_exception&>(e).nested_ptr();

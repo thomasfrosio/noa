@@ -1,16 +1,15 @@
 #pragma once
 
-#include <cstdint>
-#include <type_traits>
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Assert.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/Exception.hpp"
 #include "noa/core/string/Format.hpp"
 
-// TODO When C++23, and nvcc->nvc++, use mdspan instead.
+// TODO C++20 std::span could replace this
 
 namespace noa {
-    // Span (C++20 std::span could replace this).
-    // If SIZE==-1, the span is dynamic. Otherwise, it is the static size of the span.
+    /// One dimensional (contiguous) span.
+    /// If SIZE==-1, the span is dynamic. Otherwise, it is the static size of the span.
     template<typename Value, int64_t SIZE = -1, typename Index = int64_t>
     class Span {
     public:
@@ -50,7 +49,7 @@ namespace noa {
         NOA_HD constexpr explicit Span(pointer data) noexcept : m_data(data) {}
 
         // Creates a const accessor from an existing non-const accessor.
-        template<typename U, typename = std::enable_if_t<details::is_mutable_value_type_v<U, value_type>>>
+        template<typename U, typename = std::enable_if_t<nt::is_mutable_value_type_v<U, value_type>>>
         NOA_HD constexpr /* implicit */ Span(const Span<U, SIZE, Index>& span)
                 : m_data(span.data()) {
             if constexpr (!IS_STATIC)
@@ -96,6 +95,7 @@ namespace noa {
             NOA_ASSERT(!is_empty());
             return m_data[0];
         }
+
         [[nodiscard]] NOA_HD constexpr reference back() const noexcept {
             NOA_ASSERT(!is_empty());
             return m_data[ssize() - 1];
@@ -107,21 +107,19 @@ namespace noa {
             return m_data[index];
         }
 
+#if defined(NOA_IS_OFFLINE)
         // Guaranteed bound-check. Throws if out-of-bound.
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        [[nodiscard]] NOA_HOST constexpr reference at(Int index) const {
+        [[nodiscard]] constexpr reference at(Int index) const {
             NOA_CHECK(!is_empty() && index >= 0 && index < ssize(),
                       "Out-of-bound access. Size={}, index={}", ssize(), index);
             return m_data[index];
         }
 
-    public:
-        // Support for noa::string::human<Span>();
         [[nodiscard]] static std::string name() {
-            return noa::string::format(
-                    "Span<{},{},{}>",
-                    noa::string::human<value_type>(), SIZE, noa::string::human<index_type>());
+            return fmt::format("Span<{},{},{}>", to_human_readable<value_type>(), SIZE, to_human_readable<index_type>());
         }
+#endif
 
     private:
         pointer m_data{};
@@ -129,17 +127,18 @@ namespace noa {
     };
 }
 
-// Support for output stream:
+#if defined(NOA_IS_OFFLINE)
 namespace noa {
     template<typename T>
     inline std::ostream& operator<<(std::ostream& os, const Span<T>& v) {
         if constexpr (nt::is_real_or_complex_v<T>)
-            os << string::format("{::.3f}", v); // {fmt} ranges
+            os << fmt::format("{::.3f}", v); // {fmt} ranges
         else
-            os << string::format("{}", v);
+            os << fmt::format("{}", v);
         return os;
     }
 }
+#endif
 
 // Support for structure bindings:
 namespace std {
@@ -148,4 +147,10 @@ namespace std {
 
     template<size_t I, int64_t N, typename T>
     struct tuple_element<I, noa::Span<T, N>> { using type = T; };
+
+    template<typename T, int64_t N>
+    struct tuple_size<const noa::Span<T, N>> : std::integral_constant<size_t, static_cast<size_t>(N)> {};
+
+    template<size_t I, int64_t N, typename T>
+    struct tuple_element<I, const noa::Span<T, N>> { using type = const T; };
 }

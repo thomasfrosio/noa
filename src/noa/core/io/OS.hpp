@@ -1,19 +1,19 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/utils/ClampCast.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <filesystem>
 #include <cstddef>
 #include <cstdint>
 
-#include "noa/core/Exception.hpp"
-#include "noa/core/utils/ClampCast.hpp"
-
-/// Gathers a bunch of OS/filesystem related functions.
-/// All functions throws upon failure.
-/// Symlinks are followed.
-namespace noa::os {
+/// Gathers a bunch of OS/filesystem related functions. All functions throws upon failure.
+namespace noa::io {
     namespace fs = std::filesystem;
 
-    /// Whether or not \a path points to an existing regular file. Symlinks are followed.
+    /// Whether or not the path points to an existing regular file. Symlinks are followed.
     inline bool is_file(const fs::path& path) {
         try {
             return fs::is_regular_file(path);
@@ -24,12 +24,12 @@ namespace noa::os {
         }
     }
 
-    /// Whether or not \a file_status describes an existing regular file. Symlinks are followed.
+    /// Whether or not the file-status describes an existing regular file. Symlinks are followed.
     inline bool is_file(const fs::file_status& file_status) noexcept {
         return fs::is_regular_file(file_status);
     }
 
-    /// Whether or not \a path points to an existing directory.
+    /// Whether or not the path points to an existing directory.
     inline bool is_directory(const fs::path& path) {
         try {
             return fs::is_directory(path);
@@ -40,12 +40,12 @@ namespace noa::os {
         }
     }
 
-    /// Whether or not \a file_status describes an existing directory.
+    /// Whether or not the file-status describes an existing directory.
     inline bool is_directory(const fs::file_status& file_status) noexcept {
         return fs::is_directory(file_status);
     }
 
-    /// Whether or not \a path points to an existing file or directory. Symlinks are followed.
+    /// Whether or not the path points to an existing file or directory. Symlinks are followed.
     inline bool is_file_or_directory(const fs::path& path) {
         try {
             return fs::exists(path);
@@ -56,7 +56,7 @@ namespace noa::os {
         }
     }
 
-    /// Whether or not \a file_status describes an existing file or directory. Symlinks are followed.
+    /// Whether or not the file-status describes an existing file or directory. Symlinks are followed.
     inline bool is_file_or_directory(const fs::file_status& file_status) noexcept {
         return fs::exists(file_status);
     }
@@ -74,8 +74,8 @@ namespace noa::os {
         }
     }
 
-    /// \param path  File or empty directory. If it doesn't exist, do nothing.
-    /// \throw If the file or empty directory could not be removed or if the directory was not empty.
+    /// \param path         File or empty directory. If it doesn't exist, do nothing.
+    /// \throw Exception    If the file or empty directory could not be removed or if the directory was not empty.
     /// \note Symlinks are removed but not their targets.
     inline void remove(const fs::path& path) {
         try {
@@ -87,10 +87,10 @@ namespace noa::os {
         }
     }
 
-    /// \param path If it is a file, this is similar to os::remove()
+    /// \param path If it is a file, this is similar to remove()
     ///             If it is a directory, it removes it and all its content.
     ///             If it does not exist, do nothing.
-    /// \throw If the file or directory could not be removed.
+    /// \throw Exception    If the file or directory could not be removed.
     /// \note Symlinks are remove but not their targets.
     inline void remove_all(const fs::path& path) {
         try {
@@ -140,8 +140,11 @@ namespace noa::os {
     /// \throw If \a from is not a regular file.
     ///        If \a from and \a to are equivalent.
     ///        If \a option is empty or if \a to exists and options == fs::copy_options::none.
-    inline bool copy_file(const fs::path& from, const fs::path& to,
-                         const fs::copy_options options = fs::copy_options::overwrite_existing) {
+    inline bool copy_file(
+            const fs::path& from,
+            const fs::path& to,
+            const fs::copy_options options = fs::copy_options::overwrite_existing
+    ) {
         try {
             return fs::copy_file(from, to, options);
         } catch (const fs::filesystem_error& e) {
@@ -194,11 +197,14 @@ namespace noa::os {
     /// \note If \a from is a regular file and \a to is a directory, it copies \a from into \a to.
     /// \note If \a from and \a to are directories, it copies the content of \a from into \a to.
     /// \note To copy a single file, use copy_file().
-    inline void copy(const fs::path& from,
-                     const fs::path& to,
-                     const fs::copy_options options = fs::copy_options::recursive |
-                                                      fs::copy_options::copy_symlinks |
-                                                      fs::copy_options::overwrite_existing) {
+    inline void copy(
+            const fs::path& from,
+            const fs::path& to,
+            const fs::copy_options options =
+                fs::copy_options::recursive |
+                fs::copy_options::copy_symlinks |
+                fs::copy_options::overwrite_existing
+    ) {
         try {
             fs::copy(from, to, options);
         } catch (const fs::filesystem_error& e) {
@@ -216,17 +222,17 @@ namespace noa::os {
         try {
             const fs::path to(from.string() + '~');
             if (overwrite)
-                os::move(from, to);
+                noa::io::move(from, to);
             else
-                os::copy_file(from, to);
+                noa::io::copy_file(from, to);
         } catch (...) {
             NOA_THROW("File: {}. Could not backup the file", from);
         }
     }
 
-    /// \param path     Path of the directory or directories to create.
-    /// \throw          If the directory or directories could not be created.
-    /// \note           Existing directories are tolerated and do not generate errors.
+    /// \param path         Path of the directory or directories to create.
+    /// \throw Exception    If the directory or directories could not be created.
+    /// \note               Existing directories are tolerated and do not generate errors.
     inline void mkdir(const fs::path& path) {
         if (path.empty())
             return;
@@ -240,7 +246,7 @@ namespace noa::os {
     }
 
     /// Returns the directory location suitable for temporary files.
-    inline fs::path temp_directory() {
+    inline fs::path temporary_directory() {
         try {
             return fs::temp_directory_path();
         } catch (const fs::filesystem_error& e) {
@@ -250,3 +256,4 @@ namespace noa::os {
         }
     }
 }
+#endif

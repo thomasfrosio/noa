@@ -3,7 +3,7 @@
 #include <tiffio.h>
 
 #include "noa/core/Types.hpp"
-#include "noa/core/OS.hpp"
+#include "noa/core/io/OS.hpp"
 #include "noa/core/io/TIFFFile.hpp"
 
 // TODO Surely there's a more modern library we could use here?
@@ -64,10 +64,10 @@ namespace noa::io {
         }
 
         try {
-            if (write && os::is_file(filename))
-                os::backup(filename, true);
+            if (write && is_file(filename))
+                backup(filename, true);
             else
-                os::mkdir(filename.parent_path());
+                mkdir(filename.parent_path());
         } catch (...) {
             NOA_THROW("File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
                       filename, OpenModeStream{open_mode});
@@ -91,7 +91,7 @@ namespace noa::io {
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        if (m_is_read && !os::is_file(filename)) {
+        if (m_is_read && !is_file(filename)) {
             NOA_THROW("File: {}. Mode: {}. Failed to open the file. The file does not exist",
                       filename, OpenModeStream{open_mode});
         }
@@ -195,7 +195,7 @@ namespace noa::io {
                   "To set a stack of 2D images, use the batch dimension "
                   "instead of the depth", shape);
         NOA_CHECK(noa::all(shape > 0), "The shape should be non-zero positive, but got {}", shape);
-        m_shape = {shape[0], shape[2], shape[3]};
+        m_shape = shape.filter(0, 2, 3).as<u32>();
     }
 
     void TIFFFile::set_pixel_size(Vec3<f32> pixel_size) {
@@ -212,15 +212,15 @@ namespace noa::io {
 
     std::string TIFFFile::info_string(bool brief) const noexcept {
         if (brief)
-            return string::format("Shape: {}; Pixel size: {:.3f}", shape(), pixel_size());
+            return fmt::format("Shape: {}; Pixel size: {:.3f}", shape(), pixel_size());
 
-        return string::format("Format: TIFF File\n"
-                              "Shape (batches, depth, height, width): {}\n"
-                              "Pixel size (depth, height, width): {::.3f}\n"
-                              "Data type: {}",
-                              shape(),
-                              pixel_size(),
-                              m_data_type);
+        return fmt::format("Format: TIFF File\n"
+                           "Shape (batches, depth, height, width): {}\n"
+                           "Pixel size (depth, height, width): {::.3f}\n"
+                           "Data type: {}",
+                           shape(),
+                           pixel_size(),
+                           m_data_type);
     }
 
     void TIFFFile::read_elements(void*, DataType, i64, i64, bool) {
@@ -233,7 +233,8 @@ namespace noa::io {
             const Shape4<i64>& shape,
             DataType data_type,
             i64 start,
-            bool clamp) {
+            bool clamp
+    ) {
         NOA_CHECK(is_open(), "The file should be opened");
         NOA_CHECK(m_shape[1] == shape[2] && m_shape[2] == shape[3],
                   "File: {}. Cannot read a 2D slice of shape {} from a file with 2D slices of shape {}",
@@ -247,8 +248,8 @@ namespace noa::io {
 
         // Output as array of bytes:
         auto* output_ptr = static_cast<Byte*>(output);
-        const auto o_bytes_per_elements = io::serialized_size(data_type, 1);
-        const auto i_bytes_per_elements = io::serialized_size(m_data_type, 1);
+        const auto o_bytes_per_elements = serialized_size(data_type, 1);
+        const auto i_bytes_per_elements = serialized_size(m_data_type, 1);
 
         // The strip size should not change between slices since we know they have the same shape and data layout.
         // The compression could be different, but worst case scenario, the strip size is not as optimal
@@ -282,11 +283,11 @@ namespace noa::io {
                 const auto shape_buffer = Shape4<i64>{1, 1, rows_in_buffer, m_shape[2]};
 
                 // Convert and transfer to output:
-                const auto output_offset = indexing::at(slice, 0, row_offset, strides) * o_bytes_per_elements;
+                const auto output_offset = offset_at(slice, 0, row_offset, strides) * o_bytes_per_elements;
                 try {
-                    io::deserialize(buffer.get(), m_data_type,
-                                    output_ptr + output_offset, data_type, strides,
-                                    shape_buffer, clamp);
+                    deserialize(buffer.get(), m_data_type,
+                                output_ptr + output_offset, data_type, strides,
+                                shape_buffer, clamp);
                 } catch (...) {
                     NOA_THROW("File {}. Failed to read strip with shape {} from the file. "
                               "Deserialize from dtype {} to {}", m_filename, shape_buffer, m_data_type, data_type);
@@ -363,11 +364,11 @@ namespace noa::io {
         // Target 8K per strip. Ensure strip is multiple of a line and if too many strips,
         // increase strip size (double or more).
         const i64 bytes_per_row = m_shape[2] * o_bytes_per_elements;
-        i64 rows_per_strip = math::divide_up(i64{8192}, bytes_per_row);
-        i64 strip_count = math::divide_up(i64{m_shape[1]}, rows_per_strip);
+        i64 rows_per_strip = divide_up(i64{8192}, bytes_per_row);
+        i64 strip_count = divide_up(i64{m_shape[1]}, rows_per_strip);
         if (strip_count > 4096) {
             rows_per_strip *= (1 + m_shape[1] / 4096);
-            strip_count = math::divide_up(rows_per_strip, i64{m_shape[1]});
+            strip_count = divide_up(rows_per_strip, i64{m_shape[1]});
         }
         const auto strip_shape = Shape4<i64>{1, 1, rows_per_strip, m_shape[2]};
         const i64 bytes_per_strip = rows_per_strip * bytes_per_row;
@@ -411,7 +412,7 @@ namespace noa::io {
 
             for (tstrip_t strip = 0; strip < strip_count; ++strip) {
                 Byte* i_buffer = buffer.get() + strip * bytes_per_strip;
-                const i64 input_offset = indexing::at(slice, 0, strip * rows_per_strip, strides);
+                const i64 input_offset = offset_at(slice, 0, strip * rows_per_strip, strides);
                 try {
                     io::serialize(input_ptr + input_offset * i_bytes_per_elements,
                                   data_type, strides, strip_shape,
@@ -435,8 +436,10 @@ namespace noa::io {
         return write_slice(input, slice_shape.strides(), slice_shape, data_type, start, clamp);
     }
 
-    void TIFFFile::write_all(const void* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-                             DataType data_type, bool clamp) {
+    void TIFFFile::write_all(
+            const void* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            DataType data_type, bool clamp
+    ) {
         if (all(m_shape == 0)) // first write, set the shape
             this->set_shape(shape);
         return write_slice(input, strides, shape, data_type, 0, clamp);

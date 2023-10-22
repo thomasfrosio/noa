@@ -9,12 +9,12 @@ namespace noa::io {
         const bool overwrite = open_mode & io::TRUNC || !(open_mode & (io::READ | io::APP));
         bool exists;
         try {
-            exists = os::is_file(m_path);
+            exists = is_file(m_path);
             if (open_mode & io::WRITE) {
                 if (exists)
-                    os::backup(m_path, overwrite);
+                    backup(m_path, overwrite);
                 else if (overwrite)
-                    os::mkdir(m_path.parent_path());
+                    mkdir(m_path.parent_path());
             }
         } catch (...) {
             NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
@@ -23,7 +23,7 @@ namespace noa::io {
 
         open_mode |= io::BINARY;
         for (i32 it = 0; it < 5; ++it) {
-            m_fstream.open(m_path, io::toIOSBase(open_mode));
+            m_fstream.open(m_path, io::to_ios_base(open_mode));
             if (m_fstream.is_open())
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));

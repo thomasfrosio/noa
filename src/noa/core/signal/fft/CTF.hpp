@@ -8,15 +8,15 @@ namespace noa::signal {
     /// Calculate the relativistic electron wavelength in meters given an acceleration potential in volts.
     /// \see https://en.wikipedia.org/wiki/Electron_diffraction#Relativistic_theory
     [[nodiscard]] NOA_IHD f64 relativistic_electron_wavelength(f64 energy) noexcept {
-        constexpr auto h = noa::math::Constant<f64>::PLANCK;
-        constexpr auto c = noa::math::Constant<f64>::SPEED_OF_LIGHT;
-        constexpr auto m0 = noa::math::Constant<f64>::ELECTRON_MASS;
-        constexpr auto e = noa::math::Constant<f64>::ELEMENTARY_CHARGE;
+        constexpr auto h = Constant<f64>::PLANCK;
+        constexpr auto c = Constant<f64>::SPEED_OF_LIGHT;
+        constexpr auto m0 = Constant<f64>::ELECTRON_MASS;
+        constexpr auto e = Constant<f64>::ELEMENTARY_CHARGE;
         const auto V = energy;
         const auto eV = e * V;
 
         constexpr auto numerator = h * c;
-        const auto denominator = noa::math::sqrt(eV * (2 * m0 * c * c + eV));
+        const auto denominator = sqrt(eV * (2 * m0 * c * c + eV));
         return numerator / denominator;
     }
 }
@@ -71,7 +71,7 @@ namespace noa::signal::fft {
         NOA_HD constexpr explicit CTFIsotropic(
                 const CTFAnisotropic<Real>& ctf_anisotropic
         ) : CTFIsotropic(
-                noa::math::sum(ctf_anisotropic.pixel_size()) / 2, // average pixel size
+                mean(ctf_anisotropic.pixel_size()), // average pixel size
                 ctf_anisotropic.defocus().value, // of course, ignore the astigmatism
                 ctf_anisotropic.voltage(),
                 ctf_anisotropic.amplitude(),
@@ -137,9 +137,9 @@ namespace noa::signal::fft {
             const auto r2 = r1 * r1;
             const auto r4 = r2 * r2;
             const auto phase = (m_k1 * r2 * m_defocus_angstroms) + (m_k2 * r4) - m_phase_shift - m_k3;
-            auto ctf = -noa::math::sin(phase);
+            auto ctf = -sin(phase);
             if (m_bfactor_forth != 0)
-                ctf *= noa::math::exp(m_bfactor_forth * r2);
+                ctf *= exp(m_bfactor_forth * r2);
             return ctf * m_scale;
         }
 
@@ -147,13 +147,13 @@ namespace noa::signal::fft {
         NOA_HD void set_lambda_and_cs_() noexcept {
             const auto voltage = static_cast<f64>(m_voltage_volts);
             const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
-            constexpr f64 PI = noa::math::Constant<f64>::PI;
+            constexpr f64 PI = Constant<f64>::PI;
             m_k1 = PI * lambda;
             m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;
         }
 
         NOA_HD constexpr void set_amplitude_fraction_() noexcept {
-            m_k3 = noa::math::atan(m_amplitude / noa::math::sqrt(1 - m_amplitude * m_amplitude));
+            m_k3 = atan(m_amplitude / sqrt(1 - m_amplitude * m_amplitude));
         }
 
     private:
@@ -234,7 +234,7 @@ namespace noa::signal::fft {
                 value_type defocus_astigmatic_angle = 0
         ) noexcept:
                 CTFAnisotropic(
-                        pixel_size_type{ctf_isotropic.pixel_size()},
+                        pixel_size_type::filled_with(ctf_isotropic.pixel_size()),
                         defocus_type{ctf_isotropic.defocus(), defocus_astigmatic_value, defocus_astigmatic_angle},
                         ctf_isotropic.voltage(),
                         ctf_isotropic.amplitude(),
@@ -313,9 +313,9 @@ namespace noa::signal::fft {
             const auto r4 = r2 * r2;
 
             const auto phase = m_k1 * r2 * phi2defocus_(phi) + m_k2 * r4 - m_phase_shift - m_k3;
-            auto ctf = -noa::math::sin(phase);
+            auto ctf = -sin(phase);
             if (m_bfactor_forth != 0)
-                ctf *= noa::math::exp(m_bfactor_forth * r2);
+                ctf *= exp(m_bfactor_forth * r2);
             return ctf * m_scale;
         }
 
@@ -338,37 +338,34 @@ namespace noa::signal::fft {
             const auto l4 = l2 * l2;
             const auto c1 = m_cs_angstroms;
             const auto c2 = c1 * c1;
-            const auto d1 = noa::math::abs(m_defocus_angstroms.value);
+            const auto d1 = abs(m_defocus_angstroms.value);
             const auto d2 = d1 * d1;
             const auto da = phi2defocus_(phi);
 
-            const auto t0 = noa::math::abs(d2 + c2 * l4 * r4 + 2 * da * c1 * l2 * r2);
-            const auto t1 = noa::math::abs((d1 - noa::math::sqrt(t0)) / (c1 * l2));
-            const auto rho_corrected = noa::math::sqrt(t1);
+            const auto t0 = abs(d2 + c2 * l4 * r4 + 2 * da * c1 * l2 * r2);
+            const auto t1 = abs((d1 - sqrt(t0)) / (c1 * l2));
+            const auto rho_corrected = sqrt(t1);
 
             // Scale back to fftfreq using average/isotropic spacing.
-            const auto average_spacing = noa::math::sum(m_pixel_size) / 2;
-            const auto fftfreq = rho_corrected * average_spacing;
-
-            return fftfreq;
+            return rho_corrected * mean(m_pixel_size);
         }
 
     private:
         [[nodiscard]] NOA_HD constexpr value_type phi2defocus_(value_type phi) const noexcept {
             const auto ellipse_angle = (phi - m_defocus_angstroms.angle);
-            return m_defocus_angstroms.value + m_defocus_angstroms.astigmatism * noa::math::cos(2 * ellipse_angle);
+            return m_defocus_angstroms.value + m_defocus_angstroms.astigmatism * cos(2 * ellipse_angle);
         }
 
         NOA_HD void set_lambda_and_cs_() noexcept {
             const auto voltage = static_cast<f64>(m_voltage_volts);
             m_lambda_angstroms = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
-            constexpr f64 PI = noa::math::Constant<f64>::PI;
+            constexpr f64 PI = Constant<f64>::PI;
             m_k1 = PI * m_lambda_angstroms;
             m_k2 = PI * 0.5 * m_cs_angstroms * m_lambda_angstroms * m_lambda_angstroms * m_lambda_angstroms;
         }
 
         NOA_HD constexpr void set_amplitude_fraction_() noexcept {
-            m_k3 = noa::math::atan(m_amplitude / noa::math::sqrt(1 - m_amplitude * m_amplitude));
+            m_k3 = atan(m_amplitude / sqrt(1 - m_amplitude * m_amplitude));
         }
 
     private:
@@ -389,6 +386,28 @@ namespace noa::signal::fft {
 }
 
 namespace noa::traits {
+    template<typename T> struct proclaim_is_ctf : std::false_type {};
+    template<typename T> using is_ctf = std::bool_constant<proclaim_is_ctf<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_ctf_v = is_ctf<T>::value;
+    template<typename... Ts> constexpr bool are_ctf_v = bool_and<is_ctf_v<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_ctf_isotropic : std::false_type {};
+    template<typename T> using is_ctf_isotropic = std::bool_constant<proclaim_is_ctf_isotropic<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_ctf_isotropic_v = is_ctf_isotropic<T>::value;
+    template<typename... Ts> constexpr bool are_ctf_isotropic_v = bool_and<is_ctf_isotropic_v<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_ctf_anisotropic : std::false_type {};
+    template<typename T> using is_ctf_anisotropic = std::bool_constant<proclaim_is_ctf_anisotropic<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_ctf_anisotropic_v = is_ctf_anisotropic<T>::value;
+    template<typename... Ts> constexpr bool are_ctf_anisotropic_v = bool_and<is_ctf_anisotropic_v<Ts>...>::value;
+
+    template<typename T> constexpr bool is_ctf_f32_v = is_ctf_v<T> && std::is_same_v<value_type_t<T>, float>;
+    template<typename T> constexpr bool is_ctf_f64_v = is_ctf_v<T> && std::is_same_v<value_type_t<T>, double>;
+    template<typename T> constexpr bool is_ctf_isotropic_f32_v = is_ctf_isotropic_v<T> && std::is_same_v<value_type_t<T>, float>;
+    template<typename T> constexpr bool is_ctf_isotropic_f64_v = is_ctf_isotropic_v<T> && std::is_same_v<value_type_t<T>, double>;
+    template<typename T> constexpr bool is_ctf_anisotropic_f32_v = is_ctf_anisotropic_v<T> && std::is_same_v<value_type_t<T>, float>;
+    template<typename T> constexpr bool is_ctf_anisotropic_f64_v = is_ctf_anisotropic_v<T> && std::is_same_v<value_type_t<T>, double>;
+
     template<typename T> struct proclaim_is_ctf<noa::signal::fft::CTFIsotropic<T>> : std::true_type {};
     template<typename T> struct proclaim_is_ctf<noa::signal::fft::CTFAnisotropic<T>> : std::true_type {};
     template<typename T> struct proclaim_is_ctf_isotropic<noa::signal::fft::CTFIsotropic<T>> : std::true_type {};

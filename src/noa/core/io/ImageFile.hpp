@@ -1,10 +1,13 @@
 #pragma once
 
-#include "noa/core/Types.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/Stats.hpp"
 
-namespace noa::io::details {
+#if defined(NOA_IS_OFFLINE)
+namespace noa::io::guts {
     class ImageFile {
     public:
         ImageFile() = default;
@@ -48,3 +51,4 @@ namespace noa::io::details {
         virtual void write_all(const void* input, DataType data_type, bool clamp) = 0;
     };
 }
+#endif

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/traits/Utilities.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 
-namespace noa::details {
+namespace noa::guts {
     template<typename T>
     NOA_FHD constexpr void swap(T& a, T& b) {
         T tmp = a;
@@ -20,30 +20,30 @@ namespace noa {
             return;
         } else if constexpr (N == 2) {
             if (comp(begin[1], begin[0]))
-                details::swap(begin[0], begin[1]);
+                guts::swap(begin[0], begin[1]);
         } else if constexpr (N == 3) {
             // Insertion sort:
             if (comp(begin[1], begin[0]))
-                details::swap(begin[0], begin[1]);
+                guts::swap(begin[0], begin[1]);
             if (comp(begin[2], begin[1])) {
-                details::swap(begin[1], begin[2]);
+                guts::swap(begin[1], begin[2]);
                 if (comp(begin[1], begin[0]))
-                    details::swap(begin[1], begin[0]);
+                    guts::swap(begin[1], begin[0]);
             }
         } else if constexpr (N == 4) {
             // Sorting network, using insertion sort:
             if (comp(begin[3], begin[2]))
-                details::swap(begin[3], begin[2]);
+                guts::swap(begin[3], begin[2]);
             if (comp(begin[2], begin[1]))
-                details::swap(begin[2], begin[1]);
+                guts::swap(begin[2], begin[1]);
             if (comp(begin[3], begin[2]))
-                details::swap(begin[3], begin[2]);
+                guts::swap(begin[3], begin[2]);
             if (comp(begin[1], begin[0]))
-                details::swap(begin[1], begin[0]);
+                guts::swap(begin[1], begin[0]);
             if (comp(begin[2], begin[1]))
-                details::swap(begin[2], begin[1]);
+                guts::swap(begin[2], begin[1]);
             if (comp(begin[3], begin[2]))
-                details::swap(begin[3], begin[2]);
+                guts::swap(begin[3], begin[2]);
         } else {
             static_assert(nt::always_false_v<T>);
         }

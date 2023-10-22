@@ -1,5 +1,11 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/string/Parse.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <array>
 #include <cstddef>
 #include <utility>  // std::move
@@ -8,11 +14,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include "noa/core/Exception.hpp"
-#include "noa/core/string/Parse.hpp"
-#include "noa/core/traits/Numerics.hpp"
-
-namespace noa::string {
+namespace noa {
     /// Splits (and parses) \p str.
     /// \details Splits a string using \p separator as delimiter. Then, trim each token (empty strings are kept).
     ///          If \p T is an integer, floating-point or boolean, the strings are parsed.
@@ -23,7 +25,7 @@ namespace noa::string {
     /// std::vector<float> vec2 = split<float>(" 1, 2,  ,  4 5 "); // throws noa::Exception
     /// std::vector<float> vec3 = split<float>(" 1, 2, 3 ,  4"); // {1.f, 2.f, 3.f, 4.f}
     /// \endcode
-    template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
+    template<typename T, typename = std::enable_if_t<guts::is_parsable_from_string_v<T> && !std::is_reference_v<T>>>
     std::vector<T> split(std::string_view str, char separator = ',') {
         size_t idx_start{0}, idx_end{0};
         bool capture{false};
@@ -58,7 +60,7 @@ namespace noa::string {
     /// std::array<float, 2> vec2 = parse<float, 2>(" 1, 2, 3 "); // throws noa::Exception
     /// std::array<bool, 2> vec3 = parse<bool, 2>(" 1 "); // throws noa::Exception
     /// \endcode
-    template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
+    template<typename T, uint N, typename = std::enable_if_t<guts::is_parsable_from_string_v<T> && !std::is_reference_v<T>>>
     std::array<T, N> split(std::string_view string, char separator = ',') {
         size_t idx_start{0}, idx_end{0}, idx{0};
         bool capture{false};
@@ -93,7 +95,7 @@ namespace noa::string {
     /// Splits (and parses) \p str, allowing default values.
     /// \details This is similar to the parsing functions above, except that if one field in \p str is empty or
     ///          contains only whitespaces, it falls back to the corresponding field in \p fallback.
-    template<typename T, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
+    template<typename T, typename = std::enable_if_t<guts::is_parsable_from_string_v<T> && !std::is_reference_v<T>>>
     std::vector<T> split(std::string_view str, std::string_view fallback, char separator = ',') {
         auto v1 = split<std::string>(str, separator);
         auto v2 = split<std::string>(fallback, separator);
@@ -111,7 +113,7 @@ namespace noa::string {
     /// Splits (and parses) \p str, allowing default values.
     /// \details This is similar to the parsing functions above, except that if one field in \p str is empty or
     ///          contains only whitespaces, it falls back to the corresponding field in \p fallback.
-    template<typename T, uint N, typename = std::enable_if_t<details::can_be_parsed_v<T> && !std::is_reference_v<T>>>
+    template<typename T, uint N, typename = std::enable_if_t<guts::is_parsable_from_string_v<T> && !std::is_reference_v<T>>>
     std::array<T, N> split(std::string_view str, std::string_view fallback, char separator = ',') {
         auto v1 = split<std::string>(str, separator);
         auto v2 = split<std::string>(fallback, separator);
@@ -126,3 +128,4 @@ namespace noa::string {
         return out;
     }
 }
+#endif

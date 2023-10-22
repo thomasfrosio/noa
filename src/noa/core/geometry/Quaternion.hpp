@@ -3,7 +3,7 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Mat33.hpp"
 
-namespace noa {
+namespace noa::geometry {
     /// Quaternion type to represent 3d rotations. The coefficients are saved in the z, y, x, w order.
     /// \note For our use cases, quaternions are mostly advantageous for (de)serializing 3d pure rotations.
     ///       For instance, a 3x3 matrix requires 9 load.f32|f64 instructions (Euler angles require 3), as opposed
@@ -19,7 +19,7 @@ namespace noa {
         using mat33_type = Mat33<value_type>;
 
     public:
-        vec4_type coefficients{}; // z, y, x, w
+        vec4_type coefficients; // z, y, x, w
 
     public: // Factory functions
         /// Converts a 3x3 special orthogonal matrix to a quaternion.
@@ -31,34 +31,25 @@ namespace noa {
             // From https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
             // Adapted to our zyx axis convention.
             Quaternion q;
-            q.w() = noa::math::sqrt(noa::math::max(value_type{0}, 1 + matrix[2][2] + matrix[1][1] + matrix[0][0])) / 2;
-            q.z() = noa::math::sqrt(noa::math::max(value_type{0}, 1 - matrix[2][2] - matrix[1][1] + matrix[0][0])) / 2;
-            q.y() = noa::math::sqrt(noa::math::max(value_type{0}, 1 - matrix[2][2] + matrix[1][1] - matrix[0][0])) / 2;
-            q.x() = noa::math::sqrt(noa::math::max(value_type{0}, 1 + matrix[2][2] - matrix[1][1] - matrix[0][0])) / 2;
-            q.z() = noa::math::copysign(q.z(), matrix[1][2] - matrix[2][1]);
-            q.y() = noa::math::copysign(q.y(), matrix[2][0] - matrix[0][2]);
-            q.x() = noa::math::copysign(q.x(), matrix[0][1] - matrix[1][0]);
+            q.w() = noa::sqrt(noa::max(value_type{0}, 1 + matrix[2][2] + matrix[1][1] + matrix[0][0])) / 2;
+            q.z() = noa::sqrt(noa::max(value_type{0}, 1 - matrix[2][2] - matrix[1][1] + matrix[0][0])) / 2;
+            q.y() = noa::sqrt(noa::max(value_type{0}, 1 - matrix[2][2] + matrix[1][1] - matrix[0][0])) / 2;
+            q.x() = noa::sqrt(noa::max(value_type{0}, 1 + matrix[2][2] - matrix[1][1] - matrix[0][0])) / 2;
+            q.z() = noa::copysign(q.z(), matrix[1][2] - matrix[2][1]);
+            q.y() = noa::copysign(q.y(), matrix[2][0] - matrix[0][2]);
+            q.x() = noa::copysign(q.x(), matrix[0][1] - matrix[1][0]);
             return q;
         }
 
         [[nodiscard]] NOA_HD static constexpr Quaternion from_coefficients(const vec4_type& zyxw) noexcept {
-            return Quaternion{zyxw};
+            return {zyxw};
         }
 
         [[nodiscard]] NOA_HD static constexpr Quaternion from_coefficients(Real z, Real y, Real x, Real w) noexcept {
             return {z, y, x, w};
         }
 
-    public:
-        // FIXME When Vec will be an aggregate (future refactoring), we can remove these constructors!
-        NOA_HD constexpr Quaternion() = default;
-        NOA_HD constexpr Quaternion(Real z, Real y, Real x, Real w) : coefficients(z, y, x, w) {};
-        NOA_HD constexpr explicit Quaternion(vec4_type zyxw) : coefficients(zyxw) {};
-
     public: // Access
-        [[nodiscard]] NOA_HD constexpr auto vec() noexcept -> vec4_type& { return coefficients; }
-        [[nodiscard]] NOA_HD constexpr auto vec() const noexcept -> const vec4_type& { return coefficients; }
-
         [[nodiscard]] NOA_HD constexpr auto z() const noexcept -> value_type { return coefficients[0]; }
         [[nodiscard]] NOA_HD constexpr auto y() const noexcept -> value_type { return coefficients[1]; }
         [[nodiscard]] NOA_HD constexpr auto x() const noexcept -> value_type { return coefficients[2]; }
@@ -73,9 +64,9 @@ namespace noa {
         }
 
         template<typename T>
-        [[nodiscard]] NOA_HD constexpr auto operator[](T i) noexcept -> value_type& { return vec()[i]; }
+        [[nodiscard]] NOA_HD constexpr auto operator[](T i) noexcept -> value_type& { return coefficients[i]; }
         template<typename T>
-        [[nodiscard]] NOA_HD constexpr auto operator[](T i) const noexcept -> const value_type& { return vec()[i]; }
+        [[nodiscard]] NOA_HD constexpr auto operator[](T i) const noexcept -> const value_type& { return coefficients[i]; }
 
     public:
         NOA_HD constexpr auto operator*=(const Quaternion& rhs) noexcept -> Quaternion& {
@@ -162,11 +153,11 @@ namespace noa {
         }
 
         [[nodiscard]] NOA_HD constexpr auto norm() const noexcept -> value_type {
-            return noa::math::norm(vec());
+            return noa::norm(coefficients);
         }
 
         [[nodiscard]] NOA_HD constexpr auto normalize() const noexcept -> Quaternion {
-            return Quaternion(noa::math::normalize(vec()));
+            return {noa::normalize(coefficients)};
         }
 
         [[nodiscard]] NOA_HD constexpr auto conj() const noexcept -> Quaternion {
@@ -175,7 +166,7 @@ namespace noa {
 
         template<typename T, nt::enable_if_bool_t<nt::is_real_v<T>> = true>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept -> Quaternion<T> {
-            return Quaternion<T>(vec().template as<T>());
+            return {coefficients.template as<T>()};
         }
     };
 }
@@ -194,7 +185,7 @@ namespace noa::geometry {
 
 namespace noa::traits {
     template<typename T> struct proclaim_is_quaternion : std::false_type {};
-    template<typename T> struct proclaim_is_quaternion<noa::Quaternion<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_quaternion<noa::geometry::Quaternion<T>> : std::true_type {};
 
     template<typename T> using is_quaternion = std::bool_constant<proclaim_is_quaternion<remove_ref_cv_t<T>>::value>;
     template<typename T> constexpr bool is_quaternion_v = is_quaternion<T>::value;

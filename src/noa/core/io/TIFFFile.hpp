@@ -1,10 +1,14 @@
 #pragma once
-#if NOA_ENABLE_TIFF
 
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/io/ImageFile.hpp"
 
+#if NOA_ENABLE_TIFF
+#if defined(NOA_IS_OFFLINE)
+
 namespace noa::io {
-    class TIFFFile : public details::ImageFile {
+    class TIFFFile : public guts::ImageFile {
     public:
         TIFFFile();
         TIFFFile(const Path& filename, open_mode_t open_mode) : TIFFFile() { open_(filename, open_mode); }
@@ -25,7 +29,7 @@ namespace noa::io {
     public:
         [[nodiscard]] bool is_open() const noexcept override { return m_tiff; }
         [[nodiscard]] const Path& filename() const noexcept override { return m_filename; }
-        [[nodiscard]]  std::string info_string(bool brief) const noexcept override;
+        [[nodiscard]] std::string info_string(bool brief) const noexcept override;
         [[nodiscard]] Format format() const noexcept override { return Format::TIFF; }
 
     public:
@@ -70,4 +74,5 @@ namespace noa::io {
     };
 }
 
-#endif // NOA_ENABLE_TIFF
+#endif
+#endif

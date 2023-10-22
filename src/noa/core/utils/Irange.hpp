@@ -1,10 +1,17 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <type_traits>
 #include <iterator>
+#else
+#include <cuda/std/type_traits>
+#include <cuda/std/iterator>
+#endif
 
 // Adapted from https://github.com/pytorch/pytorch/blob/master/c10/util/irange.h
-namespace noa::details {
+namespace noa::guts {
     template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
     struct IntIterator {
     public:
@@ -44,11 +51,11 @@ namespace noa {
     struct IntRange {
     public:
         constexpr IntRange(I begin, I end) noexcept: m_begin(begin), m_end(end) {}
-        constexpr details::IntIterator<I> begin() const noexcept { return m_begin; }
-        constexpr details::IntIterator<I> end() const noexcept { return m_end; }
+        constexpr guts::IntIterator<I> begin() const noexcept { return m_begin; }
+        constexpr guts::IntIterator<I> end() const noexcept { return m_end; }
     private:
-        details::IntIterator<I> m_begin;
-        details::IntIterator<I> m_end;
+        guts::IntIterator<I> m_begin;
+        guts::IntIterator<I> m_end;
     };
 
     /// Creates an integer range for the half-open interval [begin, end)
@@ -59,7 +66,7 @@ namespace noa {
     constexpr IntRange<T> irange(T begin, T end) noexcept {
         // If end<=begin then the range is empty; we can achieve this effect by
         // choosing the larger of {begin, end} as the loop terminator
-        return {begin, std::max(begin, end)};
+        return {begin, max(begin, end)};
     }
 
     /// Creates an integer range for the half-open interval [0, end)
@@ -69,6 +76,6 @@ namespace noa {
         // If end<=begin then the range is empty; we can achieve this effect by
         // choosing the larger of {0, end} as the loop terminator
         // Handles the case where end<0. irange only works for ranges >=0
-        return {T(), std::max(T(), end)};
+        return {T{}, max(T{}, end)};
     }
 }

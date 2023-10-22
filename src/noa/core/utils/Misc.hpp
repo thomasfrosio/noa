@@ -1,9 +1,18 @@
 #pragma once
 
-#include <type_traits>
-#include <algorithm>
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 
-#include "noa/core/Definitions.hpp"
+// C++20 backport
+namespace noa {
+    template<typename T>
+    NOA_FHD constexpr auto to_underlying(T value) noexcept {
+        return static_cast<std::underlying_type_t<T>>(value);
+    }
+}
+
+#if defined(NOA_IS_OFFLINE)
+#include <algorithm>
 
 namespace noa {
     template<typename T, typename... Args>
@@ -14,11 +23,6 @@ namespace noa {
 
 // C++20 backport
 namespace noa {
-    template<typename T>
-    NOA_FHD constexpr auto to_underlying(T value) noexcept {
-        return static_cast<std::underlying_type_t<T>>(value);
-    }
-
     template<class T, class Alloc, class U>
     constexpr size_t erase(std::vector<T, Alloc>& c, const U& value) {
         auto it = std::remove(c.begin(), c.end(), value);
@@ -35,3 +39,4 @@ namespace noa {
         return static_cast<size_t>(r);
     }
 }
+#endif

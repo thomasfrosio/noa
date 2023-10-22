@@ -1,18 +1,18 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-
-#include "noa/core/Assert.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/math/Generic.hpp"
-#include "noa/core/traits/Numerics.hpp"
-#include "noa/core/traits/Utilities.hpp"
-#include "noa/core/traits/Vec.hpp"
+#include "noa/core/math/Ops.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
 
-namespace noa::details {
+#if defined(NOA_IS_OFFLINE)
+#include <algorithm>
+#endif
+
+namespace noa::guts {
     template<typename Value, size_t N>
     struct VecAlignment {
     private:
@@ -21,16 +21,15 @@ namespace noa::details {
         static constexpr size_t ALIGN_OF = alignof(Value);
 
     public:
-        static constexpr size_t VALUE =
-                noa::math::is_power_of_2(SIZE_OF) ?
-                noa::math::min(SIZE_OF, MAX_ALIGNMENT) : ALIGN_OF;
+        static constexpr size_t VALUE = is_power_of_2(SIZE_OF) ? min(SIZE_OF, MAX_ALIGNMENT) : ALIGN_OF;
     };
 }
 
 namespace noa {
-    // Static vector.
+    /// Aggregates of one or multiple values with the same type.
+    /// Similar to std::array<Value, N>, but with a lot more functionalities.
     template<typename Value, size_t N>
-    class alignas(details::VecAlignment<Value, N>::VALUE) Vec {
+    class alignas(guts::VecAlignment<Value, N>::VALUE) Vec {
     public:
         static_assert(nt::is_numeric_v<Value>, "Only numeric types are supported");
         static_assert(!std::is_const_v<Value>, "The value type must be mutable");
@@ -43,44 +42,63 @@ namespace noa {
         static constexpr size_t SIZE = N;
 
     public:
-        // Zero-initialized.
-        NOA_HD constexpr Vec() noexcept = default;
+        Value array[N];
 
-        // Element-wise conversion constructor.
-        template<typename... Ts,
-                 typename = std::enable_if_t<
-                        sizeof...(Ts) == SSIZE && (sizeof...(Ts) > 1) &&
-                        nt::are_numeric_v<Ts...>>>
-        NOA_HD constexpr /*implicit*/ Vec(Ts... ts) noexcept : m_data{static_cast<value_type>(ts)...} {
-            for (auto& e: m_data) {
-                NOA_ASSERT(is_safe_cast<value_type>(e));
-                (void) e;
-            }
-        }
-
-        // Explicit fill conversion constructor.
-        template<typename T, typename = std::enable_if_t<nt::are_numeric_v<T>>>
-        NOA_HD constexpr explicit Vec(T value) noexcept {
+    public: // Static factory functions
+        template<typename T, typename = std::enable_if_t<nt::is_numeric_v<T>>>
+        [[nodiscard]] NOA_HD static constexpr Vec from_value(T value) noexcept {
             NOA_ASSERT(is_safe_cast<value_type>(value));
             const auto value_cast = static_cast<value_type>(value);
-            for (auto& e: m_data)
+            Vec vec;
+            for (auto& e: vec)
                 e = value_cast;
+            return vec;
         }
 
-        // Explicit conversion constructor.
-        template<typename T, typename = std::enable_if_t<!std::is_same_v<T, value_type>>>
-        NOA_HD constexpr explicit Vec(const Vec<T, N>& vector) noexcept {
+        template<typename T, typename = std::enable_if_t<nt::is_numeric_v<T>>>
+        [[nodiscard]] NOA_HD static constexpr Vec filled_with(T value) noexcept {
+            return from_value(value); // filled_with has a better name but keep from_value for consistency
+        }
+
+        template<typename... Args, typename = std::enable_if_t<sizeof...(Args) == SIZE && nt::are_numeric_v<Args...>>>
+        [[nodiscard]] NOA_HD static constexpr Vec from_values(Args... values) noexcept {
+            NOA_ASSERT(is_safe_cast<value_type>(value) && ...);
+            return {static_cast<value_type>(values)...};
+        }
+
+        template<typename T>
+        [[nodiscard]] NOA_HD static constexpr Vec from_vector(const Vec<T, SIZE>& vector) noexcept {
+            Vec vec;
             for (int64_t i = 0; i < SSIZE; ++i) {
                 NOA_ASSERT(is_safe_cast<value_type>(vector[i]));
-                m_data[i] = static_cast<value_type>(vector[i]);
+                vec[i] = static_cast<value_type>(vector[i]);
             }
+            return vec;
         }
 
-        // Explicit construction from a pointer.
-        // This is not ideal (because this can segfault), but is truly useful in some cases.
-        NOA_HD constexpr explicit Vec(const value_type* values) noexcept {
+        template<typename T, typename = std::enable_if_t<nt::are_numeric_v<T>>>
+        [[nodiscard]] NOA_HD static constexpr Vec from_pointer(const T* values) noexcept {
+            Vec vec;
             for (int64_t i = 0; i < SSIZE; ++i)
-                m_data[i] = values[i];
+                vec[i] = static_cast<value_type>(values[i]);
+            return vec;
+        }
+
+    public:
+        // Allow explicit conversion constructor (while still being an aggregate)
+        // and add support for static_cast<Vec<U>>(Vec<T>{}).
+        template<typename U>
+        [[nodiscard]] NOA_HD constexpr explicit operator Vec<U, SIZE>() const noexcept {
+            return Vec<U, SIZE>::from_vector(*this);
+        }
+
+        template<typename Void = void,
+                 typename = std::enable_if_t<std::is_void_v<Void> && std::is_same_v<bool, value_type>>>
+        [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept {
+            for (size_t i = 0; i < N; ++i)
+                if (array[i] == false)
+                    return false;
+            return true;
         }
 
     public: // Accessor operators and functions
@@ -90,7 +108,7 @@ namespace noa {
             if constexpr (std::is_signed_v<Int>) {
                 NOA_ASSERT(i >= 0);
             }
-            return m_data[i];
+            return array[i];
         }
 
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
@@ -99,28 +117,30 @@ namespace noa {
             if constexpr (std::is_signed_v<Int>) {
                 NOA_ASSERT(i >= 0);
             }
-            return m_data[i];
+            return array[i];
         }
 
         // Structure binding support.
-        template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return m_data[I]; }
-        template<int I> [[nodiscard]] NOA_HD constexpr value_type& get() noexcept { return m_data[I]; }
+        // Note that this relies on the tuple-like binding, which appears to not be supported by nvrtc.
+        template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return array[I]; }
+        template<int I> [[nodiscard]] NOA_HD constexpr value_type& get() noexcept { return array[I]; }
 
-        [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return m_data; }
-        [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return m_data; }
+        [[nodiscard]] NOA_HD constexpr const value_type* data() const noexcept { return array; }
+        [[nodiscard]] NOA_HD constexpr value_type* data() noexcept { return array; }
         [[nodiscard]] NOA_HD constexpr size_t size() const noexcept { return SIZE; };
+        [[nodiscard]] NOA_HD constexpr int64_t ssize() const noexcept { return SSIZE; };
 
     public: // Iterators -- support for range loops
-        [[nodiscard]] NOA_HD constexpr value_type* begin() noexcept { return m_data; }
-        [[nodiscard]] NOA_HD constexpr const value_type* begin() const noexcept { return m_data; }
-        [[nodiscard]] NOA_HD constexpr const value_type* cbegin() const noexcept { return m_data; }
-        [[nodiscard]] NOA_HD constexpr value_type* end() noexcept { return m_data + SSIZE; }
-        [[nodiscard]] NOA_HD constexpr const value_type* end() const noexcept { return m_data + SSIZE; }
-        [[nodiscard]] NOA_HD constexpr const value_type* cend() const noexcept { return m_data + SSIZE; }
+        [[nodiscard]] NOA_HD constexpr value_type* begin() noexcept { return data(); }
+        [[nodiscard]] NOA_HD constexpr const value_type* begin() const noexcept { return data(); }
+        [[nodiscard]] NOA_HD constexpr const value_type* cbegin() const noexcept { return data(); }
+        [[nodiscard]] NOA_HD constexpr value_type* end() noexcept { return data() + SSIZE; }
+        [[nodiscard]] NOA_HD constexpr const value_type* end() const noexcept { return data() + SSIZE; }
+        [[nodiscard]] NOA_HD constexpr const value_type* cend() const noexcept { return data() + SSIZE; }
 
     public: // Assignment operators
         NOA_HD constexpr Vec& operator=(value_type value) noexcept {
-            *this = Vec(value);
+            *this = Vec::filled_with(value);
             return *this;
         }
 
@@ -201,11 +221,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator+(const Vec& lhs, value_type rhs) noexcept {
-            return lhs + Vec(rhs);
+            return lhs + Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator+(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) + rhs;
+            return Vec::filled_with(lhs) + rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator-(Vec lhs, Vec rhs) noexcept {
@@ -224,11 +244,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator-(const Vec& lhs, value_type rhs) noexcept {
-            return lhs - Vec(rhs);
+            return lhs - Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator-(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) - rhs;
+            return Vec::filled_with(lhs) - rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator*(Vec lhs, Vec rhs) noexcept {
@@ -247,11 +267,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator*(const Vec& lhs, value_type rhs) noexcept {
-            return lhs * Vec(rhs);
+            return lhs * Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator*(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) * rhs;
+            return Vec::filled_with(lhs) * rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator/(Vec lhs, Vec rhs) noexcept {
@@ -270,11 +290,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator/(const Vec& lhs, value_type rhs) noexcept {
-            return lhs / Vec(rhs);
+            return lhs / Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator/(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) / rhs;
+            return Vec::filled_with(lhs) / rhs;
         }
 
         // -- Comparison Operators --
@@ -300,11 +320,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>(const Vec& lhs, value_type rhs) noexcept {
-            return lhs > Vec(rhs);
+            return lhs > Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) > rhs;
+            return Vec::filled_with(lhs) > rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<(Vec lhs, Vec rhs) noexcept {
@@ -329,11 +349,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<(const Vec& lhs, value_type rhs) noexcept {
-            return lhs < Vec(rhs);
+            return lhs < Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) < rhs;
+            return Vec::filled_with(lhs) < rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>=(Vec lhs, Vec rhs) noexcept {
@@ -358,11 +378,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>=(const Vec& lhs, value_type rhs) noexcept {
-            return lhs >= Vec(rhs);
+            return lhs >= Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>=(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) >= rhs;
+            return Vec::filled_with(lhs) >= rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<=(Vec lhs, Vec rhs) noexcept {
@@ -387,11 +407,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<=(const Vec& lhs, value_type rhs) noexcept {
-            return lhs <= Vec(rhs);
+            return lhs <= Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<=(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) <= rhs;
+            return Vec::filled_with(lhs) <= rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator==(Vec lhs, Vec rhs) noexcept {
@@ -416,11 +436,11 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator==(const Vec& lhs, value_type rhs) noexcept {
-            return lhs == Vec(rhs);
+            return lhs == Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator==(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) == rhs;
+            return Vec::filled_with(lhs) == rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator!=(Vec lhs, Vec rhs) noexcept {
@@ -445,61 +465,54 @@ namespace noa {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator!=(const Vec& lhs, value_type rhs) noexcept {
-            return lhs != Vec(rhs);
+            return lhs != Vec::filled_with(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator!=(value_type lhs, const Vec& rhs) noexcept {
-            return Vec(lhs) != rhs;
+            return Vec::filled_with(lhs) != rhs;
         }
 
     public: // Type casts
-        template<typename T, std::enable_if_t<nt::is_numeric_v<T>, bool> = true>
+        template<typename T, nt::enable_if_bool_t<nt::is_numeric_v<T>> = true>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
-            Vec<T, SIZE> output;
-            for (size_t i = 0; i < SIZE; ++i)
-                output[i] = static_cast<T>(m_data[i]);
-            return output;
+            return static_cast<Vec<T, SIZE>>(*this);
         }
 
-        template<typename T, std::enable_if_t<nt::is_numeric_v<T>, bool> = true>
+        template<typename T, nt::enable_if_bool_t<nt::is_numeric_v<T>> = true>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
-            Vec<T, SIZE> output;
-            for (size_t i = 0; i < SIZE; ++i)
-                output[i] = clamp_cast<T>(m_data[i]);
-            return output;
+            return clamp_cast<Vec<T, SIZE>>(*this);
         }
 
-        template<typename T, std::enable_if_t<nt::is_numeric_v<T>, bool> = true>
+#if defined(NOA_IS_OFFLINE)
+        template<typename T, nt::enable_if_bool_t<nt::is_numeric_v<T>> = true>
         [[nodiscard]] constexpr auto as_safe() const {
-            Vec<T, SIZE> output;
-            for (size_t i = 0; i < SIZE; ++i)
-                output[i] = safe_cast<T>(m_data[i]); // can throw
-            return output;
+            return safe_cast<Vec<T, SIZE>>(*this);
         }
+#endif
 
     public:
         template<size_t S = 1, typename = std::enable_if_t<(N > S)>>
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
-            return Vec<value_type, N - S>(data() + S);
+            return Vec<value_type, N - S>::from_pointer(data() + S);
         }
 
         template<size_t S = 1, typename = std::enable_if_t<(N > S)>>
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
-            return Vec<value_type, N - S>(data());
+            return Vec<value_type, N - S>::from_pointer(data());
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
             Vec<value_type, N + 1> output;
             output[0] = value;
             for (size_t i = 0; i < N; ++i)
-                output[i + 1] = m_data[i];
+                output[i + 1] = array[i];
             return output;
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
             Vec<value_type, N + 1> output;
             for (size_t i = 0; i < N; ++i)
-                output[i] = m_data[i];
+                output[i] = array[i];
             output[N] = value;
             return output;
         }
@@ -510,7 +523,7 @@ namespace noa {
             for (size_t i = 0; i < S; ++i)
                 output[i] = vector[i];
             for (size_t i = 0; i < N; ++i)
-                output[i + S] = m_data[i];
+                output[i + S] = array[i];
             return output;
         }
 
@@ -518,7 +531,7 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
             Vec<value_type, N + S> output;
             for (size_t i = 0; i < N; ++i)
-                output[i] = m_data[i];
+                output[i] = array[i];
             for (size_t i = 0; i < S; ++i)
                 output[i + N] = vector[i];
             return output;
@@ -526,14 +539,14 @@ namespace noa {
 
         template<typename... Indexes, typename = std::enable_if_t<nt::are_restricted_int_v<Indexes...>>>
         [[nodiscard]] NOA_HD constexpr auto filter(Indexes... indexes) const noexcept {
-            // TODO This can do a lot more than "filter" based on indexes. Rename?
-            return Vec<value_type, sizeof...(Indexes)>((*this)[indexes]...);
+            // TODO This can do a lot more than "filter". Rename?
+            return Vec<value_type, sizeof...(Indexes)>{(*this)[indexes]...};
         }
 
         [[nodiscard]] NOA_HD constexpr Vec flip() const noexcept {
             Vec output;
             for (size_t i = 0; i < SIZE; ++i)
-                output[i] = m_data[(N - 1) - i];
+                output[i] = array[(N - 1) - i];
             return output;
         }
 
@@ -542,7 +555,7 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr Vec reorder(const Vec<Int, SIZE>& order) const noexcept {
             Vec output;
             for (size_t i = 0; i < SIZE; ++i)
-                output[i] = m_data[order[i]];
+                output[i] = array[order[i]];
             return output;
         }
 
@@ -558,7 +571,7 @@ namespace noa {
                 count *= -1;
             for (int64_t i = 0; i < SSIZE; ++i) {
                 const int64_t idx = (i + count) % SSIZE;
-                out[idx * right + (1 - right) * i] = m_data[i * right + (1 - right) * idx];
+                out[idx * right + (1 - right) * i] = array[i * right + (1 - right) * idx];
             }
             return out;
         }
@@ -575,41 +588,109 @@ namespace noa {
             return output;
         }
 
+#if defined(NOA_IS_OFFLINE)
     public:
-        // Support for noa::string::human<Vec>();
         [[nodiscard]] static std::string name() {
-            return noa::string::format("Vec<{},{}>", noa::string::human<value_type>(), SIZE);
+            return fmt::format("Vec<{},{}>", to_human_readable<value_type>(), SIZE);
         }
-
-    private:
-        Value m_data[N]{};
+#endif
     };
 }
+
+#if defined(NOA_IS_OFFLINE)
+// Support for output stream:
+namespace noa {
+    template<typename T, size_t N>
+    inline std::ostream& operator<<(std::ostream& os, const Vec<T, N>& v) {
+        if constexpr (nt::is_real_or_complex_v<T>)
+            os << fmt::format("{::.3f}", v); // {fmt} ranges
+        else
+            os << fmt::format("{}", v);
+        return os;
+    }
+}
+#endif
 
 // Support for structure bindings:
 namespace std {
     template<typename T, size_t N>
     struct tuple_size<noa::Vec<T, N>> : std::integral_constant<size_t, N> {};
 
+    template<typename T, size_t N>
+    struct tuple_size<const noa::Vec<T, N>> : std::integral_constant<size_t, N> {};
+
     template<size_t I, size_t N, typename T>
     struct tuple_element<I, noa::Vec<T, N>> { using type = T; };
+
+    template<size_t I, size_t N, typename T>
+    struct tuple_element<I, const noa::Vec<T, N>> { using type = const T; };
 }
 
-// Support for output stream:
-namespace noa {
-    template<typename T, size_t N>
-    inline std::ostream& operator<<(std::ostream& os, const Vec<T, N>& v) {
-        if constexpr (nt::is_real_or_complex_v<T>)
-            os << string::format("{::.3f}", v); // {fmt} ranges
-        else
-            os << string::format("{}", v);
-        return os;
-    }
-}
-
-// Type traits:
 namespace noa::traits {
-    static_assert(nt::is_detected_convertible_v<std::string, has_name, Vec<bool, 1>>);
+    #if defined(NOA_IS_OFFLINE)
+    static_assert(nt::is_detected_convertible_v<std::string, nt::has_name, Vec<bool, 1>>);
+    #endif
+
+    template<typename T> struct proclaim_is_vec : std::false_type {};
+    template<typename T> using is_vec = std::bool_constant<proclaim_is_vec<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_vec_v = is_vec<T>::value;
+    template<typename T> constexpr bool is_vecX_v = is_vec<T>::value;
+
+    template<typename, typename> struct proclaim_is_vec_of_type : std::false_type {};
+    template<typename T, typename V> using is_vec_of_type = std::bool_constant<proclaim_is_vec_of_type<remove_ref_cv_t<T>, V>::value>;
+    template<typename T, typename V> constexpr bool is_vec_of_type_v = is_vec_of_type<T, V>::value;
+    template<typename T, typename V> constexpr bool is_vecT_v = is_vec_of_type<T, V>::value;
+
+    template<typename, size_t> struct proclaim_is_vec_of_size : std::false_type {};
+    template<typename T, size_t N> using is_vec_of_size = std::bool_constant<proclaim_is_vec_of_size<remove_ref_cv_t<T>, N>::value>;
+    template<typename T, size_t N> constexpr bool is_vec_of_size_v = is_vec_of_size<T, N>::value;
+    template<typename T, size_t N> constexpr bool is_vecN_v = is_vec_of_size<T, N>::value;
+
+    template<typename T> constexpr bool is_vec1_v = is_vecN_v<T, 1>;
+    template<typename T> constexpr bool is_vec2_v = is_vecN_v<T, 2>;
+    template<typename T> constexpr bool is_vec3_v = is_vecN_v<T, 3>;
+    template<typename T> constexpr bool is_vec4_v = is_vecN_v<T, 4>;
+
+    // Vector of integers:
+    template<typename T> constexpr bool is_intX_v = is_vecX_v<T> && is_int_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_intN_v = is_vecN_v<T, N> && is_int_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_int1_v = is_intN_v<T, 1>;
+    template<typename T> constexpr bool is_int2_v = is_intN_v<T, 2>;
+    template<typename T> constexpr bool is_int3_v = is_intN_v<T, 3>;
+    template<typename T> constexpr bool is_int4_v = is_intN_v<T, 4>;
+
+    // Vector of bool:
+    template<typename T> constexpr bool is_boolX_v = is_vecX_v<T> && is_bool_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_boolN_v = is_vecN_v<T, N> && is_bool_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_bool1_v = is_boolN_v<T, 1>;
+    template<typename T> constexpr bool is_bool2_v = is_boolN_v<T, 2>;
+    template<typename T> constexpr bool is_bool3_v = is_boolN_v<T, 3>;
+    template<typename T> constexpr bool is_bool4_v = is_boolN_v<T, 4>;
+
+    // Vector of signed integers:
+    template<typename T> constexpr bool is_sintX_v = is_vecX_v<T> && is_sint_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_sintN_v = is_vecN_v<T, N> && is_sint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_sint1_v = is_sintN_v<T, 1>;
+    template<typename T> constexpr bool is_sint2_v = is_sintN_v<T, 2>;
+    template<typename T> constexpr bool is_sint3_v = is_sintN_v<T, 3>;
+    template<typename T> constexpr bool is_sint4_v = is_sintN_v<T, 4>;
+
+    // Vector of unsigned integers:
+    template<typename T> constexpr bool is_uintX_v = is_vecX_v<T> && is_uint_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_uintN_v = is_vecN_v<T, N> && is_uint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_uint1_v = is_uintN_v<T, 1>;
+    template<typename T> constexpr bool is_uint2_v = is_uintN_v<T, 2>;
+    template<typename T> constexpr bool is_uint3_v = is_uintN_v<T, 3>;
+    template<typename T> constexpr bool is_uint4_v = is_uintN_v<T, 4>;
+
+    // Vector of real (= floating-points):
+    template<typename T> constexpr bool is_realX_v = is_vecX_v<T> && is_real_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_realN_v = is_vecN_v<T, N> && is_real_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_real1_v = is_realN_v<T, 1>;
+    template<typename T> constexpr bool is_real2_v = is_realN_v<T, 2>;
+    template<typename T> constexpr bool is_real3_v = is_realN_v<T, 3>;
+    template<typename T> constexpr bool is_real4_v = is_realN_v<T, 4>;
+
     template<typename T, size_t N> struct proclaim_is_vec<Vec<T, N>> : std::true_type {};
     template<typename V1, size_t N, typename V2> struct proclaim_is_vec_of_type<Vec<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
     template<typename V, size_t N1, size_t N2> struct proclaim_is_vec_of_size<Vec<V, N1>, N2> : std::bool_constant<N1 == N2> {};
@@ -648,10 +729,7 @@ namespace noa {
 
     template<size_t N>
     [[nodiscard]] NOA_FHD constexpr bool all(const Vec<bool, N>& vector) noexcept {
-        bool output = vector[0];
-        for (size_t i = 1; i < N; ++i)
-            output = output && vector[i];
-        return output;
+        return static_cast<bool>(vector);
     }
 
     [[nodiscard]] NOA_FHD constexpr bool any(bool v) noexcept { return v; }
@@ -660,27 +738,25 @@ namespace noa {
 
 namespace noa {
     // -- Modulo Operator --
-    template<typename Vec, typename std::enable_if_t<nt::is_intX_v<Vec>, bool> = true>
+    template<typename Vec, nt::enable_if_bool_t<nt::is_intX_v<Vec>> = true>
     [[nodiscard]] NOA_HD constexpr Vec operator%(Vec lhs, const Vec& rhs) noexcept {
         for (int64_t i = 0; i < Vec::SSIZE; ++i)
             lhs[i] %= rhs[i];
         return lhs;
     }
 
-    template<typename Vec, typename Int,
-             typename std::enable_if_t<nt::is_intX_v<Vec> && nt::is_int_v<Int>, bool> = true>
+    template<typename Vec, typename Int, nt::enable_if_bool_t<nt::is_intX_v<Vec> && nt::is_int_v<Int>> = true>
     [[nodiscard]] NOA_HD constexpr Vec operator%(const Vec& lhs, Int rhs) noexcept {
-        return lhs % Vec(rhs);
+        return lhs % Vec::filled_with(rhs);
     }
 
-    template<typename Vec, typename Int,
-             typename std::enable_if_t<nt::is_intX_v<Vec> && nt::is_int_v<Int>, bool> = true>
+    template<typename Vec, typename Int, nt::enable_if_bool_t<nt::is_intX_v<Vec> && nt::is_int_v<Int>> = true>
     [[nodiscard]] NOA_HD constexpr Vec operator%(Int lhs, const Vec& rhs) noexcept {
-        return Vec(lhs) % rhs;
+        return Vec::filled_with(lhs) % rhs;
     }
 
     // -- Cast--
-    template<typename TTo, typename TFrom, size_t N, std::enable_if_t<nt::is_vecN_v<TTo, N>, bool> = true>
+    template<typename TTo, typename TFrom, size_t N, nt::enable_if_bool_t<nt::is_vecN_v<TTo, N>> = true>
     [[nodiscard]] NOA_HD constexpr bool is_safe_cast(const Vec<TFrom, N>& src) noexcept {
         bool output = is_safe_cast<typename TTo::value_type>(src[0]);
         for (size_t i = 1; i < N; ++i)
@@ -688,7 +764,7 @@ namespace noa {
         return output;
     }
 
-    template<typename TTo, typename TFrom, size_t N, std::enable_if_t<nt::is_vecN_v<TTo, N>, bool> = true>
+    template<typename TTo, typename TFrom, size_t N, nt::enable_if_bool_t<nt::is_vecN_v<TTo, N>> = true>
     [[nodiscard]] NOA_HD constexpr TTo clamp_cast(const Vec<TFrom, N>& src) noexcept {
         TTo output;
         for (size_t i = 0; i < N; ++i)
@@ -705,7 +781,7 @@ namespace noa {
     template<typename T> using Vec4 = Vec<T, 4>;
 }
 
-namespace noa::math {
+namespace noa {
     template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
     [[nodiscard]] NOA_FHD constexpr auto cos(Vec<T, N> vector) noexcept {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
@@ -717,7 +793,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::cos(vector[i]);
+            vector[i] = cos(vector[i]);
         return vector;
     }
 
@@ -732,15 +808,15 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::sin(vector[i]);
+            vector[i] = sin(vector[i]);
         return vector;
     }
 
-    template<typename T, typename = std::enable_if_t<nt::is_real_v<T>>>
+    template<typename T, nt::enable_if_bool_t<nt::is_real_v<T>> = true>
     [[nodiscard]] NOA_FHD Vec<T, 2> sincos(T x) {
         Vec<T, 2> sin_cos;
-        noa::math::sincos(x, sin_cos.data(), sin_cos.data() + 1);
-        return sin_cos; // auto [sin, cos] = noa::math::sincos(x);
+        sincos(x, sin_cos.data(), sin_cos.data() + 1);
+        return sin_cos; // auto [sin, cos] = sincos(x);
     }
 
     template<typename T, size_t N, typename = std::enable_if_t<nt::is_real_v<T>>>
@@ -749,7 +825,7 @@ namespace noa::math {
             return sinc(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::sinc(vector[i]);
+            vector[i] = sinc(vector[i]);
         return vector;
     }
 
@@ -759,7 +835,7 @@ namespace noa::math {
             return tan(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::tan(vector[i]);
+            vector[i] = tan(vector[i]);
         return vector;
     }
 
@@ -769,7 +845,7 @@ namespace noa::math {
             return acos(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::acos(vector[i]);
+            vector[i] = acos(vector[i]);
         return vector;
     }
 
@@ -779,7 +855,7 @@ namespace noa::math {
             return asin(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::asin(vector[i]);
+            vector[i] = asin(vector[i]);
         return vector;
     }
 
@@ -789,7 +865,7 @@ namespace noa::math {
             return atan(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::atan(vector[i]);
+            vector[i] = atan(vector[i]);
         return vector;
     }
 
@@ -799,7 +875,7 @@ namespace noa::math {
             return rad2deg(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::rad2deg(vector[i]);
+            vector[i] = rad2deg(vector[i]);
         return vector;
     }
 
@@ -809,7 +885,7 @@ namespace noa::math {
             return deg2rad(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::deg2rad(vector[i]);
+            vector[i] = deg2rad(vector[i]);
         return vector;
     }
 
@@ -819,7 +895,7 @@ namespace noa::math {
             return cosh(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::cosh(vector[i]);
+            vector[i] = cosh(vector[i]);
         return vector;
     }
 
@@ -829,7 +905,7 @@ namespace noa::math {
             return sinh(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::sinh(vector[i]);
+            vector[i] = sinh(vector[i]);
         return vector;
     }
 
@@ -839,7 +915,7 @@ namespace noa::math {
             return tanh(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::tanh(vector[i]);
+            vector[i] = tanh(vector[i]);
         return vector;
     }
 
@@ -849,7 +925,7 @@ namespace noa::math {
             return acosh(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::acosh(vector[i]);
+            vector[i] = acosh(vector[i]);
         return vector;
     }
 
@@ -859,7 +935,7 @@ namespace noa::math {
             return asinh(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::asinh(vector[i]);
+            vector[i] = asinh(vector[i]);
         return vector;
     }
 
@@ -869,7 +945,7 @@ namespace noa::math {
             return atanh(vector.template as<typename T::arithmetic_type>()).template as<T>();
         }
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::atanh(vector[i]);
+            vector[i] = atanh(vector[i]);
         return vector;
     }
 
@@ -884,7 +960,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::exp(vector[i]);
+            vector[i] = exp(vector[i]);
         return vector;
     }
 
@@ -899,7 +975,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::log(vector[i]);
+            vector[i] = log(vector[i]);
         return vector;
     }
 
@@ -914,7 +990,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::log10(vector[i]);
+            vector[i] = log10(vector[i]);
         return vector;
     }
 
@@ -924,7 +1000,7 @@ namespace noa::math {
             return log1p(vector.template as<typename T::arithmetic_type>()).template as<T>();
 
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::log1p(vector[i]);
+            vector[i] = log1p(vector[i]);
         return vector;
     }
 
@@ -939,7 +1015,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::sqrt(vector[i]);
+            vector[i] = sqrt(vector[i]);
         return vector;
     }
 
@@ -954,7 +1030,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::rsqrt(vector[i]);
+            vector[i] = rsqrt(vector[i]);
         return vector;
     }
 
@@ -969,7 +1045,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::round(vector[i]);
+            vector[i] = round(vector[i]);
         return vector;
     }
 
@@ -980,7 +1056,7 @@ namespace noa::math {
             return round(vector);
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::rint(vector[i]);
+            vector[i] = rint(vector[i]);
         return vector;
     }
 
@@ -995,7 +1071,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::ceil(vector[i]);
+            vector[i] = ceil(vector[i]);
         return vector;
     }
 
@@ -1010,7 +1086,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::floor(vector[i]);
+            vector[i] = floor(vector[i]);
         return vector;
     }
 
@@ -1025,7 +1101,7 @@ namespace noa::math {
         }
         #endif
         for (size_t i = 0; i < N; ++i)
-            vector[i] = noa::math::abs(vector[i]);
+            vector[i] = abs(vector[i]);
         return vector;
     }
 
@@ -1038,6 +1114,13 @@ namespace noa::math {
         for (size_t i = 1; i < N; ++i)
             output += vector[i];
         return output;
+    }
+
+    template<typename T, size_t N>
+    [[nodiscard]] NOA_FHD constexpr auto mean(const Vec<T, N>& vector) noexcept {
+        if constexpr (std::is_same_v<T, Half>)
+            return mean(vector.template as<typename T::arithmetic_type>()).template as<T>();
+        return sum(vector) / 2;
     }
 
     template<typename T, size_t N>
@@ -1106,19 +1189,19 @@ namespace noa::math {
         if constexpr (std::is_same_v<T, Half> && N == 4) {
             auto* alias = reinterpret_cast<__half2*>(&vector);
             const __half2 tmp = __hmin2(alias[0], alias[1]);
-            return noa::math::min(tmp.x, tmp.y);
+            return min(tmp.x, tmp.y);
         } else if constexpr (std::is_same_v<T, Half> && N == 8) {
             auto* alias = reinterpret_cast<__half2*>(&vector);
             const __half2 tmp0 = __hmin2(alias[0], alias[1]);
             const __half2 tmp1 = __hmin2(alias[2], alias[3]);
             const __half2 tmp2 = __hmin2(tmp0, tmp1);
-            return noa::math::min(tmp2.x, tmp2.y);
+            return min(tmp2.x, tmp2.y);
         } // TODO Refactor for generic reduction for multiple of 4
         #endif
 
-        auto min_element = noa::math::min(vector[0], vector[1]);
+        auto min_element = min(vector[0], vector[1]);
         for (size_t i = 2; i < N; ++i)
-            min_element = noa::math::min(min_element, vector[i]);
+            min_element = min(min_element, vector[i]);
         return min_element;
     }
 
@@ -1135,7 +1218,7 @@ namespace noa::math {
         #endif
 
         for (size_t i = 0; i < N; ++i)
-            lhs[i] = noa::math::min(lhs[i], rhs[i]);
+            lhs[i] = min(lhs[i], rhs[i]);
         return lhs;
     }
 
@@ -1158,19 +1241,19 @@ namespace noa::math {
         if constexpr (std::is_same_v<T, Half> && N == 4) {
             auto* alias = reinterpret_cast<__half2*>(&vector);
             const __half2 tmp = __hmax2(alias[0], alias[1]);
-            return noa::math::max(tmp.x, tmp.y);
+            return max(tmp.x, tmp.y);
         } else if constexpr (std::is_same_v<T, Half> && N == 8) {
             auto* alias = reinterpret_cast<__half2*>(&vector);
             const __half2 tmp0 = __hmax2(alias[0], alias[1]);
             const __half2 tmp1 = __hmax2(alias[2], alias[3]);
             const __half2 tmp2 = __hmax2(tmp0, tmp1);
-            return noa::math::max(tmp2.x, tmp2.y);
+            return max(tmp2.x, tmp2.y);
         } // TODO Refactor for generic reduction for multiple of 4
         #endif
 
-        auto max_element = noa::math::max(vector[0], vector[1]);
+        auto max_element = max(vector[0], vector[1]);
         for (size_t i = 2; i < N; ++i)
-            max_element = noa::math::max(max_element, vector[i]);
+            max_element = max(max_element, vector[i]);
         return max_element;
     }
 
@@ -1187,24 +1270,26 @@ namespace noa::math {
         #endif
 
         for (size_t i = 0; i < N; ++i)
-            lhs[i] = noa::math::max(lhs[i], rhs[i]);
+            lhs[i] = max(lhs[i], rhs[i]);
         return lhs;
     }
 
     template<typename T, size_t N>
     [[nodiscard]] NOA_FHD constexpr auto max(const Vec<T, N>& lhs, T rhs) noexcept {
-        return max(lhs, Vec<T, N>(rhs));
+        return max(lhs, Vec<T, N>::filled_with(rhs));
     }
 
     template<typename T, size_t N>
     [[nodiscard]] NOA_FHD constexpr auto max(T lhs, const Vec<T, N>& rhs) noexcept {
-        return max(Vec<T, N>(lhs), rhs);
+        return max(Vec<T, N>::filled_with(lhs), rhs);
     }
 
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr auto clamp(const Vec<T, N>& lhs,
-                                               const Vec<T, N>& low,
-                                               const Vec<T, N>& high) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto clamp(
+            const Vec<T, N>& lhs,
+            const Vec<T, N>& low,
+            const Vec<T, N>& high
+    ) noexcept {
         return min(max(lhs, low), high);
     }
 
@@ -1213,86 +1298,86 @@ namespace noa::math {
         return min(max(lhs, low), high);
     }
 
-    template<int32_t ULP = 2, typename Real, size_t N,
-             typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr auto
-    are_almost_equal(const Vec<Real, N>& lhs,
-                     const Vec<Real, N>& rhs,
-                     Real epsilon = static_cast<Real>(1e-6)) {
+    template<int32_t ULP = 2, typename Real, size_t N, typename = std::enable_if_t<nt::is_real_v<Real>>>
+    [[nodiscard]] NOA_IHD constexpr auto are_almost_equal(
+            const Vec<Real, N>& lhs,
+            const Vec<Real, N>& rhs,
+            Real epsilon = static_cast<Real>(1e-6)
+    ) {
         Vec<bool, N> output;
         for (size_t i = 0; i < N; ++i)
             output[i] = are_almost_equal<ULP>(lhs[i], rhs[i], epsilon);
         return output;
     }
 
-    template<int32_t ULP = 2, typename Real, size_t N,
-             typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr auto
-    are_almost_equal(const Vec<Real, N>& lhs,
-                     Real rhs,
-                     Real epsilon = static_cast<Real>(1e-6)) {
-        return are_almost_equal<ULP>(lhs, Vec<Real, N>(rhs), epsilon);
+    template<int32_t ULP = 2, typename Real, size_t N, typename = std::enable_if_t<nt::is_real_v<Real>>>
+    [[nodiscard]] NOA_IHD constexpr auto are_almost_equal(
+            const Vec<Real, N>& lhs,
+            Real rhs,
+            Real epsilon = static_cast<Real>(1e-6)
+    ) {
+        return are_almost_equal<ULP>(lhs, Vec<Real, N>::filled_with(rhs), epsilon);
     }
 
-    template<int32_t ULP = 2, typename Real, size_t N,
-             typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr auto
-    are_almost_equal(Real lhs,
-                     const Vec<Real, N>& rhs,
-                     Real epsilon = static_cast<Real>(1e-6)) {
-        return are_almost_equal<ULP>(Vec<Real, N>(lhs), rhs, epsilon);
+    template<int32_t ULP = 2, typename Real, size_t N, typename = std::enable_if_t<nt::is_real_v<Real>>>
+    [[nodiscard]] NOA_IHD constexpr auto are_almost_equal(
+            Real lhs,
+            const Vec<Real, N>& rhs,
+            Real epsilon = static_cast<Real>(1e-6)
+    ) {
+        return are_almost_equal<ULP>(Vec<Real, N>::filled_with(lhs), rhs, epsilon);
     }
 }
 
 // Sort:
 namespace noa {
-    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, nt::enable_if_bool_t<(N <= 4)> = true>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         small_stable_sort<N>(vector.data(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, nt::enable_if_bool_t<(N <= 4)> = true>
     [[nodiscard]] NOA_IHD constexpr auto sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         small_stable_sort<N>(vector.data(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, nt::enable_if_bool_t<(N <= 4)> = true>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Vec<T, N> vector) noexcept {
-        small_stable_sort<N>(vector.data(), [](const T& a, const T& b) { return a < b; });
+        small_stable_sort<N>(vector.data(), less_t{});
         return vector;
     }
 
-    template<typename T, size_t N, std::enable_if_t<(N <= 4), bool> = true>
+    template<typename T, size_t N, nt::enable_if_bool_t<(N <= 4)> = true>
     [[nodiscard]] NOA_IHD constexpr auto sort(Vec<T, N> vector) noexcept {
-        small_stable_sort<N>(vector.data(), [](const T& a, const T& b) { return a < b; });
+        small_stable_sort<N>(vector.data(), less_t{});
         return vector;
     }
 
-    // -- CPU only --
-
-    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N > 4), bool> = true>
+#if defined(NOA_IS_OFFLINE)
+    template<typename T, size_t N, typename Comparison, nt::enable_if_bool_t<(N > 4)> = true>
     [[nodiscard]] auto stable_sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         std::stable_sort(vector.begin(), vector.end(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, typename Comparison, std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, typename Comparison, nt::enable_if_bool_t<(N > 4)> = true>
     [[nodiscard]] auto sort(Vec<T, N> vector, Comparison&& comp) noexcept {
         std::sort(vector.begin(), vector.end(), std::forward<Comparison>(comp));
         return vector;
     }
 
-    template<typename T, size_t N, std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, nt::enable_if_bool_t<(N > 4)> = true>
     [[nodiscard]] auto stable_sort(Vec<T, N> vector) noexcept {
         std::stable_sort(vector.begin(), vector.end());
         return vector;
     }
 
-    template<typename T, size_t N, std::enable_if_t<(N > 4), bool> = true>
+    template<typename T, size_t N, nt::enable_if_bool_t<(N > 4)> = true>
     [[nodiscard]] auto sort(Vec<T, N> vector) noexcept {
         std::sort(vector.begin(), vector.end());
         return vector;
     }
+#endif
 }

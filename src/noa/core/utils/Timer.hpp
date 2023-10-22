@@ -1,8 +1,12 @@
 #pragma once
 
-#include <chrono>
+#include "noa/core/Config.hpp"
 
-#include "noa/core/Definitions.hpp"
+#if defined(NOA_IS_OFFLINE)
+#include <chrono>
+#else
+#include <cuda/std/chrono>
+#endif
 
 namespace noa {
     class Timer {

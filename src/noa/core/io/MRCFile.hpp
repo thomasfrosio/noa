@@ -1,10 +1,14 @@
 #pragma once
 
-#include <fstream>
-#include "noa/core/Types.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/Stats.hpp"
 #include "noa/core/io/ImageFile.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <fstream>
 
 namespace noa::io {
     // File supporting the MRC format.
@@ -29,7 +33,7 @@ namespace noa::io {
     //
     // see      https://bio3d.colorado.edu/imod/doc/mrc_format.txt or
     //          https://www.ccpem.ac.uk/mrc_format/mrc2014.php
-    class MRCFile : public details::ImageFile {
+    class MRCFile : public guts::ImageFile {
     public:
         MRCFile() = default;
         MRCFile(const Path& path, open_mode_t open_mode) { open_(path, open_mode); }
@@ -92,7 +96,7 @@ namespace noa::io {
             return m_header.data_type;
         }
 
-        void set_dtype(io::DataType data_type) override;
+        void set_dtype(DataType data_type) override;
 
     public:
         void read_elements(void* output, DataType data_type, i64 start, i64 end, bool clamp) override;
@@ -110,27 +114,27 @@ namespace noa::io {
     public:
         template<typename T>
         void read_elements(T* output, i64 start, i64 end, bool clamp = false) {
-            read_elements(output, io::dtype<T>(), start, end, clamp);
+            read_elements(output, noa::io::dtype<T>(), start, end, clamp);
         }
 
         template<typename T>
         void read_all(T* output, bool clamp = false) {
-            read_all(output, io::dtype<T>(), clamp);
+            read_all(output, noa::io::dtype<T>(), clamp);
         }
 
         template<typename T>
         void read_slice(T* output, i64 start, i64 end, bool clamp = false) {
-            read_slice(output, io::dtype<T>(), start, end, clamp);
+            read_slice(output, noa::io::dtype<T>(), start, end, clamp);
         }
 
         template<typename T>
         void write_all(T* output, bool clamp = false) {
-            write_all(output, io::dtype<T>(), clamp);
+            write_all(output, noa::io::dtype<T>(), clamp);
         }
 
         template<typename T>
         void write_slice(T* output, i64 start, i64 end, bool clamp = false) {
-            write_slice(output, io::dtype<T>(), start, end, clamp);
+            write_slice(output, noa::io::dtype<T>(), start, end, clamp);
         }
 
         [[nodiscard]] explicit operator bool() const noexcept { return is_open(); }
@@ -141,7 +145,7 @@ namespace noa::io {
         // Reads and checks the header of an existing file.
         // Throws if the header doesn't look like a MRC header or if the MRC file is not supported.
         // If read|write mode, the header is saved in m_header.buffer. This will be used before closing the file.
-        void readHeader_(const Path& filename);
+        void read_header_(const Path& filename);
 
         // Swap the endianness of the header.
         // The buffer is at least the first 224 bytes of the MRC header.
@@ -150,9 +154,9 @@ namespace noa::io {
         // swapped. This function should be called just after reading the header AND just before writing it.
         // All used flags are swapped. Some unused flags are left unchanged.
         static void swap_header_(Byte* buffer) {
-            io::swap_endian(buffer, 24, 4); // from 0 (nx) to 96 (next, included).
-            io::swap_endian(buffer + 152, 2, 4); // imodStamp, imodFlags
-            io::swap_endian(buffer + 216, 2, 4); // rms, nlabl
+            swap_endian(buffer, 24, 4); // from 0 (nx) to 96 (next, included).
+            swap_endian(buffer + 152, 2, 4); // imodStamp, imodFlags
+            swap_endian(buffer + 216, 2, 4); // rms, nlabl
         }
 
         // Closes the stream. Separate function so that the destructor can call close().
@@ -189,7 +193,7 @@ namespace noa::io {
             std::unique_ptr<Byte[]> buffer{nullptr};
             DataType data_type{DataType::UNKNOWN};
 
-            Shape4<i64> shape{0};           // BDHW order.
+            Shape4<i64> shape{};            // BDHW order.
             Vec3<f32> pixel_size{0.f};      // Pixel spacing (DHW order) = cell_size / shape.
 
             f32 min{0};                     // Minimum pixel value.
@@ -204,3 +208,4 @@ namespace noa::io {
         } m_header{};
     };
 }
+#endif

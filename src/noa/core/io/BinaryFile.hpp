@@ -1,15 +1,14 @@
 #pragma once
 
-#include <type_traits>
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/io/OS.hpp"
+#include "noa/core/string/Format.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <filesystem>
 #include <fstream>
-#include <utility>
-
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Exception.hpp"
-#include "noa/core/Types.hpp"
-#include "noa/core/string/Format.hpp"
-#include "noa/core/OS.hpp"
 
 namespace noa::io {
     /// Binary file. This is also meant to be used as a temporary file.
@@ -95,12 +94,12 @@ namespace noa::io {
             if (m_fstream.fail())
                 NOA_THROW("File: {}. File stream error. Could not close the file", m_path);
             if (m_delete)
-                os::remove(m_path);
+                noa::io::remove(m_path);
         }
 
         void flush() { m_fstream.flush(); }
-        bool exists() { return os::is_file(m_path); }
-        i64 size() { return os::file_size(m_path); }
+        bool exists() { return noa::io::is_file(m_path); }
+        i64 size() { return noa::io::file_size(m_path); }
         void clear_flags() { m_fstream.clear(); }
 
         [[nodiscard]] std::fstream& fstream() noexcept { return m_fstream; }
@@ -124,11 +123,11 @@ namespace noa::io {
     private:
         // Generate an unused filename.
         static Path generate_filename_() {
-            Path out(os::temp_directory() / "");
+            Path out(noa::io::temporary_directory() / "");
             while (true) {
                 const int tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits
-                out.replace_filename(string::format("tmp_{}.bin", tag));
-                if (!os::is_file(out))
+                out.replace_filename(fmt::format("tmp_{}.bin", tag));
+                if (!noa::io::is_file(out))
                     break;
             }
             return out;
@@ -142,3 +141,4 @@ namespace noa::io {
         bool m_delete{false};
     };
 }
+#endif

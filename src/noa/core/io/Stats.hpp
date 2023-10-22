@@ -1,8 +1,7 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/traits/Numerics.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 
 namespace noa::io {
     /// Statistics of an image file's data.
@@ -68,6 +67,6 @@ namespace noa::io {
         value_type m_mean{};
         real_type m_var{};
         real_type m_std{};
-        u8 m_has_value{}; // bitfield, one per stat, same order as in the structure
+        uint8_t m_has_value{}; // bitfield, one per stat, same order as in the structure
     };
 }

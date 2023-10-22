@@ -1,8 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/Math.hpp"
-#include "noa/core/traits/Numerics.hpp"
 #include "noa/core/types/Complex.hpp"
 
 // -- Unary operators -- //
@@ -19,12 +19,12 @@ namespace noa {
 
     struct one_minus_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return T(1) - lhs; }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return T{1} - lhs; }
     };
 
     struct inverse_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return T(1) / lhs; }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return T{1} / lhs; }
     };
 
     struct square_t {
@@ -34,27 +34,27 @@ namespace noa {
 
     struct round_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::round(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return round(lhs); }
     };
 
     struct rint_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::rint(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return rint(lhs); }
     };
 
     struct ceil_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::ceil(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return ceil(lhs); }
     };
 
     struct floor_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::floor(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return floor(lhs); }
     };
 
     struct trunc_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs) const { return ::noa::math::trunc(lhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs) const { return trunc(lhs); }
     };
 
     struct nonzero_t {
@@ -69,66 +69,66 @@ namespace noa {
 
     struct sqrt_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::sqrt(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return sqrt(x); }
     };
 
     struct rsqrt_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::rsqrt(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return rsqrt(x); }
     };
 
     struct exp_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::exp(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return exp(x); }
     };
 
     struct log_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::log(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return log(x); }
     };
 
     struct abs_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::abs(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return abs(x); }
     };
 
     struct cos_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::cos(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return cos(x); }
     };
 
     struct sin_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::sin(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return sin(x); }
     };
 
     struct normalize_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::normalize(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return normalize(x); }
     };
 
     struct real_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::real(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return real(x); }
     };
 
     struct imag_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::imag(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return imag(x); }
     };
 
     struct conj_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x) const { return ::noa::math::conj(x); }
+        NOA_FHD constexpr auto operator()(const T& x) const { return conj(x); }
     };
 
     struct abs_squared_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
             if constexpr (nt::is_complex_v<T>) {
-                return ::noa::math::abs_squared(x);
+                return abs_squared(x);
             } else {
-                auto tmp = ::noa::math::abs(x);
+                auto tmp = abs(x);
                 return tmp * tmp;
             }
         }
@@ -138,7 +138,7 @@ namespace noa {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
             using value_t = nt::value_type_t<T>;
-            return ::noa::math::log(value_t{1} + ::noa::math::abs(x));
+            return log(value_t{1} + abs(x));
         }
     };
 
@@ -146,7 +146,7 @@ namespace noa {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
             using value_t = nt::value_type_t<T>;
-            return ::noa::math::log(value_t{1} + x);
+            return log(value_t{1} + x);
         }
     };
 
@@ -184,7 +184,7 @@ namespace noa {
 
     struct multiply_conj_t {
         template<typename T, typename U>
-        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * ::noa::math::conj(rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * conj(rhs); }
     };
 
     struct divide_t {
@@ -209,11 +209,11 @@ namespace noa {
             if constexpr (nt::are_real_or_complex_v<T, U>) {
                 using epsilon_t = nt::value_type_t<U>;
                 #if defined(__CUDA_ARCH__)
-                const epsilon_t epsilon = ::noa::math::Limits<epsilon_t>::epsilon();
+                const epsilon_t epsilon = std::numeric_limits<epsilon_t>::epsilon();
                 #else
-                constexpr epsilon_t epsilon = ::noa::math::Limits<epsilon_t>::epsilon();
+                constexpr epsilon_t epsilon = std::numeric_limits<epsilon_t>::epsilon();
                 #endif
-                return ::noa::math::abs(rhs) < epsilon ? T{0} : lhs / rhs;
+                return abs(rhs) < epsilon ? T{0} : lhs / rhs;
             } else if constexpr (nt::are_int_v<T, U>) {
                 return rhs == 0 ? T{0} : T(lhs / rhs); // short is implicitly promoted to int so cast it back
             } else {
@@ -232,7 +232,7 @@ namespace noa {
 
     struct pow_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& x, const T& e) const { return ::noa::math::pow(x, e); }
+        NOA_FHD constexpr auto operator()(const T& x, const T& e) const { return pow(x, e); }
     };
 
     struct equal_t {
@@ -277,12 +277,12 @@ namespace noa {
 
     struct min_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return ::noa::math::min(lhs, rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return min(lhs, rhs); }
     };
 
     struct max_t {
         template<typename T>
-        NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return ::noa::math::max(lhs, rhs); }
+        NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return max(lhs, rhs); }
     };
 
     // -- Trinary operators -- //
@@ -397,7 +397,7 @@ namespace noa {
     struct clamp_t {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& low, const T& high) const {
-            return ::noa::math::clamp(lhs, low, high);
+            return clamp(lhs, low, high);
         }
     };
 
@@ -406,8 +406,8 @@ namespace noa {
     struct first_min_t {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
-                const noa::Pair<Value, Offset>& current,
-                const noa::Pair<Value, Offset>& candidate
+                const Pair<Value, Offset>& current,
+                const Pair<Value, Offset>& candidate
         ) const noexcept {
             if (candidate.first < current.first ||
                 (current.first == candidate.first && candidate.second < current.second))
@@ -419,8 +419,8 @@ namespace noa {
     struct first_max_t {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
-                const noa::Pair<Value, Offset>& current,
-                const noa::Pair<Value, Offset>& candidate
+                const Pair<Value, Offset>& current,
+                const Pair<Value, Offset>& candidate
         ) const noexcept {
             if (candidate.first > current.first ||
                 (current.first == candidate.first && candidate.second < current.second))
@@ -432,8 +432,8 @@ namespace noa {
     struct last_min_t {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
-                const noa::Pair<Value, Offset>& current,
-                const noa::Pair<Value, Offset>& candidate
+                const Pair<Value, Offset>& current,
+                const Pair<Value, Offset>& candidate
         ) const noexcept {
             if (candidate.first < current.first ||
                 (current.first == candidate.first && candidate.second > current.second))
@@ -445,13 +445,58 @@ namespace noa {
     struct last_max_t {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
-                const noa::Pair<Value, Offset>& current,
-                const noa::Pair<Value, Offset>& candidate
+                const Pair<Value, Offset>& current,
+                const Pair<Value, Offset>& candidate
         ) const noexcept {
             if (candidate.first > current.first ||
                 (current.first == candidate.first && candidate.second > current.second))
                 return candidate;
             return current;
+        }
+    };
+}
+
+namespace noa {
+    template<typename Value>
+    struct arange_t {
+        Value start{0};
+        Value step{1};
+
+        template<typename Index, typename = std::enable_if_t<std::is_integral_v<Index>>>
+        [[nodiscard]] NOA_HD constexpr Value operator()(Index index) const noexcept {
+            return start + static_cast<Value>(index) * step;
+        }
+    };
+
+    template<typename Value, typename Index>
+    struct linspace_t {
+        Value start;
+        Value step;
+        Value stop;
+        Index index_end;
+        bool endpoint;
+
+        NOA_HD static constexpr auto from_range(
+                Value start,
+                Value stop,
+                const Index& size,
+                bool endpoint = true
+        ) -> linspace_t {
+            linspace_t linspace;
+            linspace.start = start;
+            linspace.stop = stop;
+            linspace.start = start;
+            linspace.index_end = min(Index{0}, size - 1);
+            linspace.endpoint = endpoint;
+
+            const auto count = size - static_cast<Index>(endpoint);
+            const auto delta = stop - start;
+            linspace.step = delta / static_cast<Value>(count);
+            return linspace;
+        }
+
+        [[nodiscard]] NOA_HD constexpr Value operator()(Index i) const noexcept {
+            return endpoint && i == index_end ? stop : start + static_cast<Value>(i) * step;
         }
     };
 }

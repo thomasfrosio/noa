@@ -1,12 +1,14 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/traits/Numerics.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Half.hpp"
 
-#if defined(__CUDA_ARCH__)
-namespace noa::cuda::details {
+// TODO Eventually, std::atomic_ref will replace everything...
+
+#if defined(NOA_IS_GPU_CODE)
+namespace noa::cuda::guts {
     NOA_FD int32_t atomic_add(int32_t* address, int32_t val) {
         return ::atomicAdd(address, val);
     }
@@ -55,7 +57,7 @@ namespace noa::cuda::details {
     }
 }
 #else
-namespace noa::cpu::details {
+namespace noa::cpu::guts {
     // FIXME C++20 atomic_ref
     template<typename Pointer, typename Value>
     NOA_FD void atomic_add(Pointer pointer, Value value) {
@@ -72,28 +74,27 @@ namespace noa::cpu::details {
 }
 #endif
 
-namespace noa::details {
+namespace noa::guts {
     // Atomic add for CUDA and OpenMP.
     template<typename Pointer, typename Value,
-             typename = std::enable_if_t<
+             nt::enable_if_bool_t<
                      std::is_pointer_v<Pointer> && nt::is_numeric_v<Value> &&
-                     nt::is_almost_same_v<std::remove_pointer_t<Pointer>, Value>>>
+                     nt::is_almost_same_v<std::remove_pointer_t<Pointer>, Value>> = true>
     NOA_FHD void atomic_add(Pointer pointer, Value value) {
-        #if defined(__CUDA_ARCH__)
-        ::noa::cuda::details::atomic_add(pointer, value);
+        #if defined(NOA_IS_GPU_CODE)
+        ::noa::cuda::guts::atomic_add(pointer, value);
         #else
-        ::noa::cpu::details::atomic_add(pointer, value);
+        ::noa::cpu::guts::atomic_add(pointer, value);
         #endif
     }
 
-    template<size_t N, typename Value, typename Offset, typename... Indexes,
-             PointerTraits PointerTrait, StridesTraits StridesTrait,
-             typename = std::enable_if_t<
-                sizeof...(Indexes) == N &&
-                nt::are_int_v<Indexes...> &&
-                nt::is_numeric_v<Value>>>
-    NOA_FHD void atomic_add(const Accessor<Value, N, Offset, PointerTrait, StridesTrait>& accessor,
-                            Value value, Indexes... indexes) {
+    template<size_t N, typename Accessor, typename Value, typename... Indexes,
+             nt::enable_if_bool_t<
+                     nt::is_accessor_nd_v<Accessor, sizeof...(Indexes)> &&
+                     std::is_same_v<nt::value_type_t<Accessor>, Value> &&
+                     nt::are_int_v<Indexes...> &&
+                     nt::is_numeric_v<Value>> = true>
+    NOA_FHD void atomic_add(const Accessor& accessor, Value value, Indexes... indexes) {
         auto pointer = accessor.offset_pointer(accessor.get(), indexes...);
         atomic_add(pointer, value);
     }

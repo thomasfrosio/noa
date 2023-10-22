@@ -1,7 +1,33 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/types/Half.hpp"
+#include "noa/core/types/Complex.hpp"
+#include "noa/core/types/Shape.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <algorithm> // std::reverse
+#include <filesystem>
+#include <ios>
+#include <ostream>
+
+namespace noa {
+    namespace fs = std::filesystem;
+    using Path = fs::path;
+}
+
+namespace noa::io::guts {
+    template<i64 BYTES_IN_ELEMENTS>
+    inline void reverse(Byte* element) noexcept {
+        std::reverse(element, element + BYTES_IN_ELEMENTS);
+    }
+
+    template<i64 BYTES_PER_ELEMENTS>
+    inline void swap_endian(Byte* ptr, i64 elements) noexcept {
+        for (i64 i{0}; i < elements * BYTES_PER_ELEMENTS; i += BYTES_PER_ELEMENTS)
+            reverse<BYTES_PER_ELEMENTS>(ptr + i);
+    }
+}
 
 /// Enumerators and bit masks related to IO.
 namespace noa::io {
@@ -13,7 +39,6 @@ namespace noa::io {
         JPEG,
         PNG
     };
-    inline std::ostream& operator<<(std::ostream& os, Format format);
 
     /// Bit masks to control file openings.
     using open_mode_t = u32;
@@ -25,13 +50,6 @@ namespace noa::io {
         APP = 1U << 4,
         ATE = 1U << 5
     };
-    struct OpenModeStream { open_mode_t mode; };
-    inline std::ostream& operator<<(std::ostream& os, OpenModeStream open_mode);
-
-    inline constexpr bool is_valid_open_mode(open_mode_t open_mode) noexcept;
-
-    /// Switches from an OpenMode to a \c std::ios_base::openmode flag.
-    inline constexpr std::ios_base::openmode to_ios_base(open_mode_t open_mode) noexcept;
 
     /// Data type used for (de)serialization.
     enum class DataType {
@@ -53,12 +71,11 @@ namespace noa::io {
         U4, // not "real" type
         CI16 // not "real" type
     };
-    inline std::ostream& operator<<(std::ostream& os, DataType data_type);
 
-    /// Returns the DataType corresponding to the type \p T.
-    /// \tparam T Any data type.
-    template<typename T>
-    inline constexpr DataType dtype() noexcept;
+    inline constexpr bool is_valid_open_mode(open_mode_t open_mode) noexcept {
+        constexpr open_mode_t MASK = 0xFFFFFFC0;
+        return !(open_mode & MASK);
+    }
 
     /// Returns the range that \T values, about to be converted to \p data_type, should be in.
     /// \details (De)Serialization functions can clamp the values to fit the destination types. However, if
@@ -69,22 +86,90 @@ namespace noa::io {
     /// \param DataType     Data type. If DataType::UNKNOWN, return 0.
     /// \return             Minimum and maximum \p T values in the range of \p data_type.
     template<typename Numeric>
-    inline constexpr auto type_range(DataType data_type) noexcept -> std::pair<Numeric, Numeric>;
+    constexpr auto type_range(DataType data_type) noexcept -> std::pair<Numeric, Numeric> {
+        if constexpr (nt::is_scalar_v<Numeric>) {
+            switch (data_type) {
+                case DataType::U4:
+                    return {Numeric{0}, Numeric{15}};
+                case DataType::I8:
+                    return {clamp_cast<Numeric>(std::numeric_limits<i8>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<i8>::max())};
+                case DataType::U8:
+                    return {clamp_cast<Numeric>(std::numeric_limits<u8>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<u8>::max())};
+                case DataType::I16:
+                    return {clamp_cast<Numeric>(std::numeric_limits<i16>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<i16>::max())};
+                case DataType::U16:
+                    return {clamp_cast<Numeric>(std::numeric_limits<u16>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<u16>::max())};
+                case DataType::I32:
+                    return {clamp_cast<Numeric>(std::numeric_limits<i32>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<i32>::max())};
+                case DataType::U32:
+                    return {clamp_cast<Numeric>(std::numeric_limits<u32>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<u32>::max())};
+                case DataType::I64:
+                    return {clamp_cast<Numeric>(std::numeric_limits<i64>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<i64>::max())};
+                case DataType::U64:
+                    return {clamp_cast<Numeric>(std::numeric_limits<u64>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<u64>::max())};
+                case DataType::CI16:
+                    return {clamp_cast<Numeric>(std::numeric_limits<i16>::min()),
+                            clamp_cast<Numeric>(std::numeric_limits<i16>::max())};
+                case DataType::F16:
+                case DataType::C16:
+                    return {clamp_cast<Numeric>(std::numeric_limits<f16>::lowest()),
+                            clamp_cast<Numeric>(std::numeric_limits<f16>::max())};
+                case DataType::F32:
+                case DataType::C32:
+                    return {clamp_cast<Numeric>(std::numeric_limits<f32>::lowest()),
+                            clamp_cast<Numeric>(std::numeric_limits<f32>::max())};
+                case DataType::F64:
+                case DataType::C64:
+                    return {clamp_cast<Numeric>(std::numeric_limits<f64>::lowest()),
+                            clamp_cast<Numeric>(std::numeric_limits<f64>::max())};
+                default:
+                    break;
+            }
+        } else if constexpr (nt::is_complex_v<Numeric>) {
+            using real_t = nt::value_type_t<Numeric>;
+            auto[min, max] = type_range<real_t>(data_type);
+            return {Numeric{min, min}, Numeric{max, max}};
+        } else {
+            static_assert(nt::always_false_v<Numeric>);
+        }
+        return {}; // unreachable
+    }
 
     /// Whether this code was compiled for big-endian.
-    inline bool is_big_endian() noexcept;
+    inline bool is_big_endian() noexcept {
+        i16 number = 1;
+        return *reinterpret_cast<unsigned char*>(&number) == 0; // char[0] == 0
+    }
 
     /// Changes the endianness of the elements in an array, in-place.
     /// \param[in] ptr              Array of bytes to swap. Should contain at least (elements * bytes_per_element).
     /// \param elements             How many elements to swap.
     /// \param bytes_per_element    Size, in bytes, of one element. If not 2, 4, or 8, do nothing.
-    inline void swap_endian(Byte* ptr, i64 elements, i64 bytes_per_elements) noexcept;
+    inline void swap_endian(Byte* ptr, i64 elements, i64 bytes_per_elements) noexcept {
+        if (bytes_per_elements == 2) {
+            guts::swap_endian<2>(ptr, elements);
+        } else if (bytes_per_elements == 4) {
+            guts::swap_endian<4>(ptr, elements);
+        } else if (bytes_per_elements == 8) {
+            guts::swap_endian<8>(ptr, elements);
+        }
+    }
 
     /// Changes the endianness of the elements in an array, in-place.
     /// \param[in] ptr  Array of bytes to swap.
     /// \param elements How many elements to swap.
     template<typename T>
-    inline void swap_endian(T* ptr, i64 elements) noexcept;
+    inline void swap_endian(T* ptr, i64 elements) noexcept {
+        swap_endian(reinterpret_cast<Byte*>(ptr), elements, sizeof(T));
+    }
 
     /// Returns the number of bytes necessary to hold a number of \p elements formatted with a given \p data_type.
     /// \param data_type        Data type used for serialization. If DataType::UNKNOWN, returns 0.
@@ -94,7 +179,43 @@ namespace noa::io {
     ///                         This is to account for the half-byte padding at the end of odd rows with U4.
     ///                         If 0, the number of elements per row is assumed to be even.
     ///                         Otherwise, \p elements should be a multiple of \p elements_per_row.
-    inline i64 serialized_size(DataType data_type, i64 elements, i64 elements_per_row = 0) noexcept;
+    inline i64 serialized_size(DataType data_type, i64 elements, i64 elements_per_row = 0) noexcept {
+        switch (data_type) {
+            case DataType::U4: {
+                if (elements_per_row == 0 || !(elements_per_row % 2)) {
+                    return elements / 2;
+                } else {
+                    NOA_ASSERT(!(elements % elements_per_row)); // otherwise, last partial row is ignored
+                    const auto rows = elements / elements_per_row;
+                    const auto bytes_per_row = (elements_per_row + 1) / 2;
+                    return bytes_per_row * rows;
+                }
+            }
+            case DataType::I8:
+            case DataType::U8:
+                return elements;
+            case DataType::I16:
+            case DataType::U16:
+            case DataType::F16:
+                return elements * 2;
+            case DataType::I32:
+            case DataType::U32:
+            case DataType::F32:
+            case DataType::CI16:
+            case DataType::C16:
+                return elements * 4;
+            case DataType::I64:
+            case DataType::U64:
+            case DataType::F64:
+            case DataType::C32:
+                return elements * 8;
+            case DataType::C64:
+                return elements * 16;
+            case DataType::UNKNOWN:
+                return 0;
+        }
+        return 0;
+    }
 }
 
 namespace noa::io {
@@ -192,6 +313,157 @@ namespace noa::io {
                      bool clamp = false, bool swap_endian = false);
 }
 
-#define NOA_IO_INL_
-#include "noa/core/io/IO.inl"
-#undef NOA_IO_INL_
+namespace noa::io {
+    inline std::ostream& operator<<(std::ostream& os, Format format) {
+        switch (format) {
+            case Format::UNKNOWN:
+                return os << "Format::UNKNOWN";
+            case Format::MRC:
+                return os << "Format::MRC";
+            case Format::TIFF:
+                return os << "Format::TIFF";
+            case Format::EER:
+                return os << "Format::EER";
+            case Format::JPEG:
+                return os << "Format::JPEG";
+            case Format::PNG:
+                return os << "Format::PNG";
+        }
+        return os;
+    }
+
+    struct OpenModeStream { open_mode_t mode; };
+    inline std::ostream& operator<<(std::ostream& os, OpenModeStream open_mode) {
+        // If any other than the first 6 bits are set, this is an invalid mode.
+        if (!is_valid_open_mode(open_mode.mode)) {
+            os << "OpenMode::UNKNOWN";
+            return os;
+        }
+
+        struct Modes { OpenMode mode{}; const char* string{}; };
+        constexpr std::array<Modes, 6> MODES{
+                Modes{OpenMode::READ, "READ"},
+                Modes{OpenMode::WRITE, "WRITE"},
+                Modes{OpenMode::BINARY, "BINARY"},
+                Modes{OpenMode::TRUNC, "TRUNC"},
+                Modes{OpenMode::APP, "APP"},
+                Modes{OpenMode::ATE, "ATE"}
+        };
+
+        bool add{false};
+        os << "OpenMode::(";
+        for (size_t i = 0; i < 6; ++i) {
+            if (open_mode.mode & MODES[i].mode) {
+                if (add)
+                    os << '|';
+                os << MODES[i].string;
+                add = true;
+            }
+        }
+        os << ')';
+        return os;
+    }
+
+    /// Switches from an OpenMode to a \c std::ios_base::openmode flag.
+    inline constexpr std::ios_base::openmode to_ios_base(open_mode_t open_mode) noexcept {
+        std::ios_base::openmode mode{};
+        if (open_mode & OpenMode::READ)
+            mode |= std::ios::in;
+        if (open_mode & OpenMode::WRITE)
+            mode |= std::ios::out;
+        if (open_mode & OpenMode::BINARY)
+            mode |= std::ios::binary;
+        if (open_mode & OpenMode::TRUNC)
+            mode |= std::ios::trunc;
+        if (open_mode & OpenMode::APP)
+            mode |= std::ios::app;
+        if (open_mode & OpenMode::ATE)
+            mode |= std::ios::ate;
+        return mode;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, DataType data_type) {
+        switch (data_type) {
+            case DataType::UNKNOWN:
+                return os << "DataType::UNKNOWN";
+            case DataType::U4:
+                return os << "DataType::U4";
+            case DataType::I8:
+                return os << "DataType::I8";
+            case DataType::U8:
+                return os << "DataType::U8";
+            case DataType::I16:
+                return os << "DataType::I16";
+            case DataType::U16:
+                return os << "DataType::U16";
+            case DataType::I32:
+                return os << "DataType::I32";
+            case DataType::U32:
+                return os << "DataType::U32";
+            case DataType::I64:
+                return os << "DataType::I64";
+            case DataType::U64:
+                return os << "DataType::U64";
+            case DataType::F16:
+                return os << "DataType::F16";
+            case DataType::F32:
+                return os << "DataType::F32";
+            case DataType::F64:
+                return os << "DataType::F64";
+            case DataType::CI16:
+                return os << "DataType::CI16";
+            case DataType::C16:
+                return os << "DataType::C16";
+            case DataType::C32:
+                return os << "DataType::C32";
+            case DataType::C64:
+                return os << "DataType::C64";
+        }
+        return os;
+    }
+
+    /// Returns the DataType corresponding to the type \p T.
+    /// \tparam T Any data type.
+    template<typename T>
+    constexpr DataType dtype() noexcept {
+        if constexpr (nt::is_almost_same_v<T, i8>) {
+            return DataType::I8;
+        } else if constexpr (nt::is_almost_same_v<T, u8>) {
+            return DataType::U8;
+        } else if constexpr (nt::is_almost_same_v<T, i16>) {
+            return DataType::I16;
+        } else if constexpr (nt::is_almost_same_v<T, u16>) {
+            return DataType::U16;
+        } else if constexpr (nt::is_almost_same_v<T, i32>) {
+            return DataType::I32;
+        } else if constexpr (nt::is_almost_same_v<T, u32>) {
+            return DataType::U32;
+        } else if constexpr (nt::is_almost_same_v<T, i64>) {
+            return DataType::I64;
+        } else if constexpr (nt::is_almost_same_v<T, u64>) {
+            return DataType::U64;
+        } else if constexpr (nt::is_almost_same_v<T, f16>) {
+            return DataType::F16;
+        } else if constexpr (nt::is_almost_same_v<T, f32>) {
+            return DataType::F32;
+        } else if constexpr (nt::is_almost_same_v<T, f64>) {
+            return DataType::F64;
+        } else if constexpr (nt::is_almost_same_v<T, c16>) {
+            return DataType::C16;
+        } else if constexpr (nt::is_almost_same_v<T, c32>) {
+            return DataType::C32;
+        } else if constexpr (nt::is_almost_same_v<T, c64>) {
+            return DataType::C64;
+        } else {
+            static_assert(nt::always_false_v<T>);
+        }
+    }
+}
+
+// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
+namespace fmt {
+    template<> struct formatter<noa::io::Format> : ostream_formatter {};
+    template<> struct formatter<noa::io::OpenModeStream> : ostream_formatter {};
+    template<> struct formatter<noa::io::DataType> : ostream_formatter {};
+}
+#endif

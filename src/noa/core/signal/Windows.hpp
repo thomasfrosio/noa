@@ -1,11 +1,9 @@
 #pragma once
 
-#include <numeric>
-
 #include "noa/core/Types.hpp"
 #include "noa/core/Math.hpp"
 
-namespace noa::signal::details {
+namespace noa::signal::guts {
     template<typename Derived> // CRTP
     class Window {
     public:
@@ -64,7 +62,7 @@ namespace noa::signal::details {
 
         [[nodiscard]] f64 window(f64 i, f64 center) const noexcept {
             i -= center;
-            return noa::math::exp(-(i * i) / sig2);
+            return exp(-(i * i) / sig2);
         }
     };
 
@@ -73,11 +71,11 @@ namespace noa::signal::details {
                 : Window(elements, half_window) {}
 
         [[nodiscard]] f64 window(f64 i, f64) const noexcept {
-            constexpr auto PI = noa::math::Constant<f64>::PI;
+            constexpr auto PI = Constant<f64>::PI;
             const auto norm = static_cast<f64>(elements() - 1);
             return 0.42 -
-                   0.5 * noa::math::cos(2 * PI * i / norm) +
-                   0.08 * noa::math::cos(4 * PI * i / norm);
+                   0.5 * cos(2 * PI * i / norm) +
+                   0.08 * cos(4 * PI * i / norm);
         }
     };
 
@@ -87,9 +85,9 @@ namespace noa::signal::details {
                 : Window(elements, half_window), constant(constant_) {}
 
         [[nodiscard]] f64 window(f64 i, f64 center) const noexcept {
-            constexpr auto PI = noa::math::Constant<f64>::PI;
+            constexpr auto PI = Constant<f64>::PI;
             i -= center;
-            return i == 0 ? constant : noa::math::sin(PI * i * constant) / (PI * i);
+            return i == 0 ? constant : sin(PI * i * constant) / (PI * i);
         }
     };
 }
@@ -109,7 +107,7 @@ namespace noa::signal {
     ) {
         if (elements <= 0)
             return;
-        details::WindowGaussian(elements, half_window, stddev).generate(output, normalize);
+        guts::WindowGaussian(elements, half_window, stddev).generate(output, normalize);
     }
 
     /// Samples the gaussian window at a particular index.
@@ -120,7 +118,7 @@ namespace noa::signal {
     [[nodiscard]] constexpr f64 window_gaussian(i64 index, i64 elements, f64 stddev, bool half_window = false) {
         if (elements <= 0)
             return 0.;
-        return details::WindowGaussian(elements, half_window, stddev).sample(index);
+        return guts::WindowGaussian(elements, half_window, stddev).sample(index);
     }
 
     /// Computes the blackman window.
@@ -133,7 +131,7 @@ namespace noa::signal {
     constexpr void window_blackman(Real* output, i64 elements, bool normalize = false, bool half_window = false) {
         if (elements <= 0)
             return;
-        details::WindowBlackman(elements, half_window).generate(output, normalize);
+        guts::WindowBlackman(elements, half_window).generate(output, normalize);
     }
 
     /// Samples the blackman window at a particular index.
@@ -143,7 +141,7 @@ namespace noa::signal {
     [[nodiscard]] constexpr f64 window_blackman(i64 index, i64 elements, bool half_window = false) {
         if (elements <= 0)
             return 0;
-        return details::WindowBlackman(elements, half_window).sample(index);
+        return guts::WindowBlackman(elements, half_window).sample(index);
     }
 
     /// Computes the sinc window.
@@ -160,7 +158,7 @@ namespace noa::signal {
     ) {
         if (elements <= 0)
             return;
-        details::WindowSinc(elements, half_window, constant).generate(output, normalize);
+        guts::WindowSinc(elements, half_window, constant).generate(output, normalize);
     }
 
     /// Samples the sinc window at a particular index.
@@ -171,6 +169,6 @@ namespace noa::signal {
     [[nodiscard]] constexpr f64 window_sinc(i64 index, i64 elements, f64 constant, bool half_window = false) {
         if (elements <= 0)
             return 0;
-        return details::WindowSinc(elements, half_window, constant).sample(index);
+        return guts::WindowSinc(elements, half_window, constant).sample(index);
     }
 }

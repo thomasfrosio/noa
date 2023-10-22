@@ -1,16 +1,9 @@
 #pragma once
 
-#include <type_traits>
-#include <cstdint>
-#include <cstddef>
-#include <algorithm>
-#include <cmath>
-#include <limits>
-
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/Math.hpp"
-#include "noa/core/traits/Numerics.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/types/Complex.hpp"
 #include "noa/core/types/Half.hpp"
 
@@ -23,8 +16,7 @@ namespace noa {
     ///       accounting for the fact that some integral values cannot be represented in the IEEE 754 format
     ///       and will be rounded, usually to the nearest integral value, because there is no a loss of range.
     template<typename TTo, typename TFrom,
-             std::enable_if_t<nt::is_numeric_v<TTo> &&
-                              nt::is_numeric_v<TFrom>, bool> = true>
+             nt::enable_if_bool_t<nt::is_numeric_v<TTo> && nt::is_numeric_v<TFrom>> = true>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const TFrom& src) noexcept {
         // See clamp_cast for more details.
         if constexpr (std::is_same_v<TTo, TFrom>) {
@@ -43,23 +35,21 @@ namespace noa {
                 if constexpr (sizeof(TFrom) == 1 || (sizeof(TFrom) == 2 && std::is_signed_v<TFrom>)) {
                     return true; // (u)int8_t/int16_t -> Half
                 } else if constexpr (std::is_unsigned_v<TFrom>) {
-                    return src <= TFrom(noa::math::Limits<TTo>::max()); // uint(16|32|64)_t -> Half
+                    return src <= TFrom(std::numeric_limits<TTo>::max()); // uint(16|32|64)_t -> Half
                 } else { // int(32|64)_t -> Half, float/double -> Half
-                    return TFrom(noa::math::Limits<TTo>::lowest()) <= src &&
-                           src <= TFrom(noa::math::Limits<TTo>::max());
+                    return TFrom(std::numeric_limits<TTo>::lowest()) <= src && src <= TFrom(std::numeric_limits<TTo>::max());
                 }
             } else if constexpr (std::is_integral_v<TFrom> || (sizeof(TFrom) < sizeof(TTo))) {
                 return true; // implicit integral/Half->float/double conversion or float->double
             } else { // double->float
-                return TFrom(noa::math::Limits<TTo>::lowest()) <= src &&
-                       src <= TFrom(noa::math::Limits<TTo>::max());
+                return TFrom(std::numeric_limits<TTo>::lowest()) <= src && src <= TFrom(std::numeric_limits<TTo>::max());
             }
 
         } else if constexpr (std::is_integral_v<TTo> && nt::is_real_v<TFrom>) {
-            using int_limits = noa::math::Limits<TTo>;
+            using int_limits = std::numeric_limits<TTo>;
             constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>);
             if constexpr (std::is_same_v<TFrom, Half> && IS_WIDER_THAN_HALF) {
-                if (noa::math::is_nan(src) ||
+                if (is_nan(src) ||
                     src == Half(Half::Mode::BINARY, 0x7C00) ||
                     src == Half(Half::Mode::BINARY, 0xFC00)) {
                     return false;
@@ -70,13 +60,13 @@ namespace noa {
                         return true;
                 }
             } else {
-                return !noa::math::is_nan(src) &&
+                return !is_nan(src) &&
                        static_cast<TFrom>(int_limits::min()) <= src &&
                        src <= (static_cast<TFrom>(int_limits::max()) + static_cast<TFrom>(1));
             }
 
         } else {
-            using to_limits = noa::math::Limits<TTo>;
+            using to_limits = std::numeric_limits<TTo>;
 
             if constexpr (std::is_unsigned_v<TFrom>) {
                 // Source is unsigned, we only need to check the upper bound.
@@ -98,14 +88,16 @@ namespace noa {
         return false;
     }
 
-    // Casts src to type TTo, with bound-checks. Throws if there is a loss of range.
-    // This should be very similar to boost::numeric_cast.
-    // If the output type has a wider range than the input type, this function should have no runtime
-    // overhead compared to static_cast.
+#if defined(NOA_IS_OFFLINE)
+    /// Casts src to type TTo, with bound-checks. Throws if there is a loss of range.
+    /// This should be very similar to boost::numeric_cast.
+    /// If the output type has a wider range than the input type, this function should have no runtime
+    /// overhead compared to static_cast.
     template<typename TTo, typename TFrom>
     [[nodiscard]] constexpr TTo safe_cast(const TFrom& src) {
         if (is_safe_cast<TTo>(src))
             return static_cast<TTo>(src);
-        NOA_THROW("Cannot safely cast {} to {} type", src, noa::string::human<TTo>());
+        NOA_THROW("Cannot safely cast {} to {} type", src, to_human_readable<TTo>());
     }
+#endif
 }

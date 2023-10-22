@@ -1,10 +1,10 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/traits/Numerics.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/fft/Enums.hpp"
+#include "noa/core/Enums.hpp"
 
 namespace noa::fft {
     /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
@@ -14,6 +14,12 @@ namespace noa::fft {
         // odd: Nyquist cannot be reached. Eg. size=63, 31/63 = 0.49206
         const auto max_index = size / 2; // integer division
         return static_cast<Real>(max_index) / static_cast<Real>(size);
+    }
+
+    /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
+    template<typename Real = float, typename Int, typename std::enable_if_t<std::is_integral_v<Int>, bool> = true>
+    [[nodiscard]] NOA_FHD constexpr Real highest_fftfreq(Int size) noexcept {
+        return highest_normalized_frequency(size);
     }
 
     /// Returns the fft centered index of the corresponding fft non-centered index.
@@ -147,9 +153,7 @@ namespace noa::fft {
             if constexpr (IS_CENTERED) {
                 out[i] = indexes[i];
             } else {
-                out[i] = (IS_RFFT && i == N0 - 1) ?
-                        indexes[i] :
-                        fftshift(indexes[i], shape[i]);
+                out[i] = (IS_RFFT && i == N0 - 1) ? indexes[i] : fftshift(indexes[i], shape[i]);
             }
         }
         return out;
@@ -175,7 +179,7 @@ namespace noa::fft {
     /// This function is limited to input/output being both rffts or both ffts.
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<Remap REMAP, bool FLIP_REMAP = false, typename Int, size_t N0, size_t N1,
-             typename std::enable_if_t<nt::is_int_v<Int>, bool> = true>
+             nt::enable_if_bool_t<nt::is_int_v<Int>> = true>
     NOA_FHD constexpr auto remap_indexes(
             const Vec<Int, N0>& indexes,
             const Shape<Int, N1>& shape
@@ -193,30 +197,26 @@ namespace noa::fft {
             if constexpr (IS_SRC_CENTERED == IS_DST_CENTERED) {
                 out[i] = indexes[i];
             } else if constexpr (IS_SRC_CENTERED) {
-                out[i] = (IS_DST_RFFT && i == N0 - 1) ?
-                         indexes[i] :
-                         ifftshift(indexes[i], shape[i]);
+                out[i] = (IS_DST_RFFT && i == N0 - 1) ? indexes[i] : ifftshift(indexes[i], shape[i]);
             } else {
-                out[i] = (IS_DST_RFFT && i == N0 - 1) ?
-                         indexes[i] :
-                         fftshift(indexes[i], shape[i]);
+                out[i] = (IS_DST_RFFT && i == N0 - 1) ? indexes[i] : fftshift(indexes[i], shape[i]);
             }
         }
         return out;
     }
 
     /// Computes the phase shift at a given normalized-frequency.
-    /// \warning \p shift should already be pre-multiplied;
-    template<typename Complex, typename Coord, size_t N, typename std::enable_if_t<
-            nt::is_complex_v<Complex> && (N == 2 || N == 3), bool> = true>
+    /// \warning \p shift should already be pre-multiplied.
+    template<typename Complex, typename Coord, size_t N,
+             nt::enable_if_bool_t<nt::is_complex_v<Complex> && (N == 2 || N == 3)> = true>
     [[nodiscard]] NOA_FHD Complex phase_shift(
             const Vec<Coord, N>& shift,
-            const Vec<Coord, N>& normalized_frequency
+            const Vec<Coord, N>& fftfreq
     ) {
         using real_t = typename Complex::value_type;
-        const auto factor = static_cast<real_t>(-math::dot(shift, normalized_frequency));
+        const auto factor = static_cast<real_t>(-dot(shift, fftfreq));
         Complex phase_shift;
-        noa::math::sincos(factor, &phase_shift.imag, &phase_shift.real);
+        sincos(factor, &phase_shift.imag, &phase_shift.real);
         return phase_shift;
     }
 
@@ -224,10 +224,10 @@ namespace noa::fft {
     template<typename Complex, typename Coord, typename Index, size_t N>
     [[nodiscard]] NOA_FHD Complex phase_shift(
             const Vec<Coord, N>& shift,
-            const Vec<Coord, N>& normalized_frequency,
+            const Vec<Coord, N>& fftfreq,
             const Shape<Index, N>& shape
     ) noexcept {
-        const auto pre_multiply = 2 * noa::math::Constant<Coord>::PI / shape.vec().template as<Coord>();
-        return phase_shift(shift * pre_multiply, normalized_frequency);
+        const auto pre_multiply = 2 * Constant<Coord>::PI / shape.vec.template as<Coord>();
+        return phase_shift(shift * pre_multiply, fftfreq);
     }
 }

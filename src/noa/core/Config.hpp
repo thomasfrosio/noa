@@ -1,9 +1,8 @@
 #pragma once
 
-// --- Platform detection ----------------------------------------------------------------------------------------------
-
-#ifdef _WIN32
-    #ifdef _WIN64
+// --- Platform detection ---
+#if defined(_WIN32)
+    #if defined(_WIN64)
         #define NOA_PLATFORM_WINDOWS
         #error "Windows x64 is not supported yet!"
     #else // _WIN32
@@ -32,76 +31,103 @@
     #error "Unknown platform!"
 #endif
 
-// --- Device/Host declarations ----------------------------------------------------------------------------------------
+#if defined(__CUDA_ARCH__)
+    // Code is compiled for the GPU (by nvcc, nvc++ or nvrtc)
+    #define NOA_IS_GPU_CODE
+#else
+    // Code is compiled for the CPU
+    #define NOA_IS_CPU_CODE
+#endif
 
-// If the compilation is not steered by nvcc, these attributes should not be used
+#if defined(__CUDACC_RTC__)
+    // Code is JIT-compiled by nvrtc
+    #define NOA_IS_JIT
+#else
+    // Code is compiled offline by a C++ compiler (which includes nvcc and nvc++)
+    #define NOA_IS_OFFLINE
+#endif
+
+// --- Assertions ---
+// CUDA device code supports the assert macro, but the code bloat is really not worth it.
+#if defined(NOA_ENABLE_ASSERTS) && !defined(NOA_IS_GPU_CODE)
+    #include <cassert>
+    #define NOA_ASSERT(check) assert(check)
+#else
+    #define NOA_ASSERT(check)
+#endif
+
+// --- Device/Host declarations ---
+// If the compilation is not steered by nvcc/nvrtc, these attributes should not be used
 // since the CUDA runtime might not be included in the translation unit.
-#ifdef __CUDACC__
-    #ifndef NOA_FD
+#if defined(__CUDACC__)
+    #if !defined(NOA_FD)
         #define NOA_FD __forceinline__ __device__
     #endif
-    #ifndef NOA_FH
+    #if !defined(NOA_FH)
         #define NOA_FH __forceinline__ __host__
     #endif
-    #ifndef NOA_FHD
+    #if !defined(NOA_FHD)
         #define NOA_FHD __forceinline__ __host__ __device__
     #endif
-    #ifndef NOA_ID
+    #if !defined(NOA_ID)
         #define NOA_ID inline __device__
     #endif
-    #ifndef NOA_IH
+    #if !defined(NOA_IH)
         #define NOA_IH inline __host__
     #endif
-    #ifndef NOA_IHD
+    #if !defined(NOA_IHD)
         #define NOA_IHD inline __host__ __device__
     #endif
-    #ifndef NOA_HD
+    #if !defined(NOA_HD)
         #define NOA_HD __host__ __device__
     #endif
-    #ifndef NOA_DEVICE
+    #if !defined(NOA_DEVICE)
         #define NOA_DEVICE __device__
     #endif
-    #ifndef NOA_HOST
+    #if !defined(NOA_HOST)
         #define NOA_HOST __host__
     #endif
 #else // __CUDACC__
-    #ifndef NOA_FD
+    #if !defined(NOA_FD)
         #define NOA_FD inline
     #endif
-    #ifndef NOA_FH
+    #if !defined(NOA_FH)
         #define NOA_FH inline
     #endif
-    #ifndef NOA_FHD
+    #if !defined(NOA_FHD)
         #define NOA_FHD inline
     #endif
-    #ifndef NOA_ID
+    #if !defined(NOA_ID)
         #define NOA_ID inline
     #endif
-    #ifndef NOA_IH
+    #if !defined(NOA_IH)
         #define NOA_IH inline
     #endif
-    #ifndef NOA_IHD
+    #if !defined(NOA_IHD)
         #define NOA_IHD inline
     #endif
-    #ifndef NOA_HD
+    #if !defined(NOA_HD)
         #define NOA_HD
     #endif
-    #ifndef NOA_DEVICE
+    #if !defined(NOA_DEVICE)
         #define NOA_DEVICE
     #endif
-    #ifndef NOA_HOST
+    #if !defined(NOA_HOST)
         #define NOA_HOST
     #endif
 #endif // __CUDACC__
 
-// --- Debug break -----------------------------------------------------------------------------------------------------
-
+// --- Debug break ---
 #if defined(NOA_DEBUG)
-    #ifdef NOA_PLATFORM_WINDOWS
+    #if defined(NOA_PLATFORM_WINDOWS)
         #define NOA_DEBUG_BREAK() __debugbreak()
     #elif defined(NOA_PLATFORM_LINUX)
-        #include <csignal>
-        #define NOA_DEBUG_BREAK() raise(SIGTRAP)
+        #if !defined(__CUDACC__)
+            #include <csignal>
+            #define NOA_DEBUG_BREAK() raise(SIGTRAP)
+        #else
+            #define NOA_DEBUG_BREAK()
+        #endif
     #else
         #error "Platform doesn't support debugbreak yet!"
     #endif
@@ -110,26 +136,22 @@
     #define NOA_DEBUGBREAK()
 #endif
 
-// --- Detect host compiler --------------------------------------------------------------------------------------------
-// Even in C++ 17, [[no_unique_address]] works for G++/Clang 9 or later.
-
+// Detect host compiler
 #if defined(__clang__)
-    #define NOA_COMPILER_CLANG
-    #if __clang_major__ > 9
-        #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
-    #else
-        #define NOA_NO_UNIQUE_ADDRESS
-    #endif
+#define NOA_COMPILER_CLANG
 #elif defined(__GNUG__)
-    #define NOA_COMPILER_GCC
-    #if __GNUC__ > 9
-    #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
-    #else
-    #define NOA_NO_UNIQUE_ADDRESS
-    #endif
+#define NOA_COMPILER_GCC
 #elif defined(_MSC_VER)
-    #define NOA_COMPILER_MSVC
-    #define NOA_NO_UNIQUE_ADDRESS
-#else
-    #error "C++ compiler isn't recognized"
+#define NOA_COMPILER_MSVC
 #endif
+
+// Even in C++ 17, [[no_unique_address]] works for G++/Clang 9 or later.
+// However, nvrtc doesn't support it and sometimes nvcc outputs internal errors because of it.
+// So to keep the layouts the same between CPU and GPU, keep it to C++20.
+#if __cplusplus >= 202002L
+    #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+    #define NOA_NO_UNIQUE_ADDRESS
+#endif
+
+

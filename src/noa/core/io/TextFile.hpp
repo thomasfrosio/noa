@@ -1,19 +1,18 @@
 #pragma once
 
-#include <cstddef>
+#include "noa/core/Config.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/io/IO.hpp"
+#include "noa/core/io/OS.hpp"
+#include "noa/core/Traits.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <ios> // std::streamsize
 #include <fstream>
 #include <memory>
-#include <utility>
 #include <type_traits>
 #include <thread>
 #include <string>
-
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Exception.hpp"
-#include "noa/core/OS.hpp"
-#include "noa/core/Types.hpp"
-#include "noa/core/io/IO.hpp"
 
 namespace noa::io {
     /// Read from and write to text files.
@@ -115,7 +114,7 @@ namespace noa::io {
         std::string read_all() {
             std::string buffer;
 
-            // FIXME use os::file_size(m_path) instead?
+            // FIXME use file_size(m_path) instead?
             m_fstream.seekg(0, std::ios::end);
             const std::streampos size = m_fstream.tellg();
             if (!size)
@@ -166,7 +165,7 @@ namespace noa::io {
         [[nodiscard]] Stream& fstream() noexcept { return m_fstream; }
 
         /// Gets the size (in bytes) of the file. Symlinks are followed.
-        i64 size() { return os::file_size(m_path); }
+        i64 size() { return noa::io::file_size(m_path); }
 
         [[nodiscard]] const Path& path() const noexcept { return m_path; }
         [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
@@ -191,12 +190,12 @@ namespace noa::io {
             if constexpr (!std::is_same_v<Stream, std::ifstream>) {
                 if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
                     const bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
-                    const bool exists = os::is_file(m_path);
+                    const bool exists = is_file(m_path);
                     try {
                         if (exists)
-                            os::backup(m_path, overwrite);
+                            backup(m_path, overwrite);
                         else if (overwrite || mode & io::APP) /* all except case 2 */
-                            os::mkdir(m_path.parent_path());
+                            mkdir(m_path.parent_path());
                     } catch (...) {
                         NOA_THROW("File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
                                   m_path, OpenModeStream{mode});
@@ -212,7 +211,7 @@ namespace noa::io {
             }
 
             for (int it{0}; it < 5; ++it) {
-                m_fstream.open(m_path, io::toIOSBase(mode));
+                m_fstream.open(m_path, io::to_ios_base(mode));
                 if (m_fstream.is_open())
                     return;
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -220,7 +219,7 @@ namespace noa::io {
             m_fstream.clear();
 
             if (read_only || read_write_only) { // case 1|2
-                NOA_CHECK(os::is_file(m_path),
+                NOA_CHECK(is_file(m_path),
                           "File: {}. Mode: {}. Trying to open a file that does not exist",
                           m_path, OpenModeStream{mode});
             }
@@ -229,15 +228,19 @@ namespace noa::io {
         }
     };
 
+    using InputTextFile = TextFile<std::ifstream>;
+    using OutputTextFile = TextFile<std::ofstream>;
+
     /// Reads the entire text file.
     inline std::string read_text(const Path& path) {
-        TextFile<std::ifstream> text_file(path, noa::io::READ);
+        InputTextFile text_file(path, noa::io::READ);
         return text_file.read_all();
     }
 
     /// Saves the entire text file.
     inline void save_text(std::string_view string, const Path& path) {
-        TextFile<std::ofstream> text_file(path, noa::io::WRITE);
+        OutputTextFile text_file(path, noa::io::WRITE);
         text_file.write(string);
     }
 }
+#endif

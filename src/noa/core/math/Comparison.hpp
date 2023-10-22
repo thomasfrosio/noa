@@ -1,22 +1,22 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
-#include "noa/core/traits/Numerics.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 
-namespace noa::math {
-    [[nodiscard]] NOA_FHD constexpr bool is_nan(double x) { return ::isnan(x); }
-    [[nodiscard]] NOA_FHD constexpr bool is_nan(float x) { return ::isnan(x); }
+namespace noa {
+    [[nodiscard]] NOA_FHD constexpr bool is_nan(double x) { return std::isnan(x); }
+    [[nodiscard]] NOA_FHD constexpr bool is_nan(float x) { return std::isnan(x); }
 
-    [[nodiscard]] NOA_FHD constexpr bool is_inf(double x) { return ::isinf(x); }
-    [[nodiscard]] NOA_FHD constexpr bool is_inf(float x) { return ::isinf(x); }
+    [[nodiscard]] NOA_FHD constexpr bool is_inf(double x) { return std::isinf(x); }
+    [[nodiscard]] NOA_FHD constexpr bool is_inf(float x) { return std::isinf(x); }
 
-    [[nodiscard]] NOA_FHD constexpr bool is_finite(double x) { return ::isfinite(x); }
-    [[nodiscard]] NOA_FHD constexpr bool is_finite(float x) { return ::isfinite(x); }
+    [[nodiscard]] NOA_FHD constexpr bool is_finite(double x) { return std::isfinite(x); }
+    [[nodiscard]] NOA_FHD constexpr bool is_finite(float x) { return std::isfinite(x); }
 
-    [[nodiscard]] NOA_FH constexpr bool is_normal(double x) { return ::isnormal(x); }
-    [[nodiscard]] NOA_FH constexpr bool is_normal(float x) { return ::isnormal(x); }
+    [[nodiscard]] NOA_FH constexpr bool is_normal(double x) { return std::isnormal(x); }
+    [[nodiscard]] NOA_FH constexpr bool is_normal(float x) { return std::isnormal(x); }
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
     // Since it is not currently used, remove it from device code.
 
@@ -54,12 +54,12 @@ namespace noa::math {
     // If one or both values are NaN and|or +/-Inf, returns false.
     template<int32_t ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(Real x, Real y, Real epsilon) {
-        const Real diff(math::abs(x - y));
-        if (!math::is_finite(diff))
+        const Real diff(abs(x - y));
+        if (!is_finite(diff))
             return false;
 
-        constexpr auto THRESHOLD = Limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff <= epsilon || diff <= (math::max(math::abs(x), math::abs(y)) * THRESHOLD);
+        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
+        return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
     }
 
     template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
@@ -72,11 +72,11 @@ namespace noa::math {
     template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr bool is_almost_leq(Real x, Real y, Real epsilon) noexcept {
         const Real diff(x - y);
-        if (!math::is_finite(diff))
+        if (!is_finite(diff))
             return false;
 
-        constexpr auto THRESHOLD = Limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff <= epsilon || diff <= (math::max(math::abs(x), math::abs(y)) * THRESHOLD);
+        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
+        return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
     }
 
     template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
@@ -89,11 +89,11 @@ namespace noa::math {
     template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr bool is_almost_geq(Real x, Real y, Real epsilon) noexcept {
         const Real diff(y - x);
-        if (!math::is_finite(diff))
+        if (!is_finite(diff))
             return false;
 
-        constexpr auto THRESHOLD = Limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff <= epsilon || diff <= (math::max(math::abs(x), math::abs(y)) * THRESHOLD);
+        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
+        return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
     }
 
     template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
@@ -118,11 +118,11 @@ namespace noa::math {
     template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr bool is_almost_less(Real x, Real y, Real epsilon) noexcept {
         const Real diff(y - x);
-        if (!math::is_finite(diff))
+        if (!is_finite(diff))
             return false;
 
-        constexpr auto THRESHOLD = Limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff > epsilon || diff > (math::max(math::abs(x), math::abs(y)) * THRESHOLD);
+        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
+        return diff > epsilon || diff > (max(abs(x), abs(y)) * THRESHOLD);
     }
 
     template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
@@ -135,11 +135,11 @@ namespace noa::math {
     template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
     [[nodiscard]] NOA_IHD constexpr bool is_almost_greater(Real x, Real y, Real epsilon) noexcept {
         const Real diff(x - y);
-        if (!math::is_finite(diff))
+        if (!is_finite(diff))
             return false;
 
-        constexpr auto THRESHOLD = Limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff > epsilon || diff > (math::max(math::abs(x), math::abs(y)) * THRESHOLD);
+        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
+        return diff > epsilon || diff > (max(abs(x), abs(y)) * THRESHOLD);
     }
 
     template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>

@@ -1,6 +1,15 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+
+namespace noa::traits {
+    template<typename> struct proclaim_is_string : std::false_type {};
+    template<typename T> using is_string = std::bool_constant<proclaim_is_string<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_string_v = is_string<T>::value;
+}
+
+#if defined(NOA_IS_OFFLINE)
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic push
@@ -28,16 +37,20 @@
 #endif
 
 #include <algorithm>
-#include <cstdlib>
+#include <complex>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <typeinfo>
 
-#include "noa/core/Traits.hpp"
+namespace noa::traits {
+    template<> struct proclaim_is_string<std::string> : std::true_type {};
+    template<> struct proclaim_is_string<std::string_view> : std::true_type {};
+}
 
-namespace noa::string {
+namespace noa {
     // Left trims str.
     [[nodiscard]] inline std::string_view trim_left(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
@@ -59,13 +72,13 @@ namespace noa::string {
 
     // Converts the string str, in-place, to lowercase.
     // Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    inline void lower_(std::string& str) {
+    inline void to_lower_(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
     }
 
     // Returns the lowercase version of str.
     // Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    inline std::string lower(std::string_view str) {
+    inline std::string to_lower(std::string_view str) {
         std::string out(str);
         std::transform(str.begin(), str.end(), out.begin(), [](unsigned char c) { return std::tolower(c); });
         return out;
@@ -73,13 +86,13 @@ namespace noa::string {
 
     // Converts the string str, in-place, to uppercase.
     // Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    inline void upper_(std::string& str) {
+    inline void to_upper_(std::string& str) {
         std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
     }
 
     // Returns the uppercase version of str.
     // Undefined behavior if the characters are neither representable as unsigned char nor equal to EOF.
-    inline std::string upper(std::string_view str) {
+    inline std::string to_upper(std::string_view str) {
         std::string out(str);
         std::transform(str.begin(), str.end(), out.begin(), [](unsigned char c) { return std::toupper(c); });
         return out;
@@ -102,18 +115,13 @@ namespace noa::string {
         return str.rfind(prefix, 0) == 0;
     }
 
-    // Formats a string, using {fmt}. Equivalent to ::fmt::format().
-    template<typename... Args>
-    inline std::string format(Args&& ...args) { return ::fmt::format(std::forward<Args>(args)...); }
-
     // Gets a human-readable type name. Other types can then add their specializations.
     template<typename T>
-    inline std::string human() {
+    inline std::string to_human_readable() {
         if constexpr (nt::is_almost_same_v<float, T>) {
             return "f32";
         } else if constexpr (nt::is_almost_same_v<double, T>) {
             return "f64";
-
         } else if constexpr (nt::is_almost_same_v<uint8_t, T>) {
             return "u8";
         } else if constexpr (nt::is_almost_same_v<unsigned short, T>) {
@@ -134,7 +142,6 @@ namespace noa::string {
             return sizeof(unsigned long) == 4 ? "i32" : "i64";
         } else if constexpr (nt::is_almost_same_v<long long, T>) {
             return "i64";
-
         } else if constexpr (nt::is_bool_v<T>) {
             return "bool";
         } else if constexpr (nt::is_almost_same_v<char, T>) {
@@ -143,17 +150,16 @@ namespace noa::string {
             return "uchar";
         } else if constexpr (nt::is_almost_same_v<std::byte, T>) {
             return "byte";
-
         } else if constexpr (nt::is_almost_same_v<std::complex<float>, T>) {
             return "std::complex<f32>";
         } else if constexpr (nt::is_almost_same_v<std::complex<double>, T>) {
             return "std::complex<f64>";
-
         } else if constexpr (nt::is_detected_convertible_v<std::string, nt::has_name, T>) {
             return T::name();
         } else {
             return typeid(T).name(); // implementation defined, no guarantee to be human-readable.
         }
-        return ""; // unreachable
     }
 }
+
+#endif

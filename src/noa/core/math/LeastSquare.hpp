@@ -1,18 +1,15 @@
 #pragma once
 
-#include <tuple>
-#include <cstddef>
-
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/math/Comparison.hpp"
-#include "noa/core/types/Pair.hpp"
+#include "noa/core/types/Tuple.hpp"
 
 // More details at: https://www.codeproject.com/Articles/63170/Least-Squares-Regression-for-Quadratic-Curve-Fitti
 
-namespace noa::math {
+namespace noa {
     /// Least squares regression for quadratic curve fitting.
     /// Returns {a, b, c}, as in ``y = ax^2 + bx + c``, where x is an integral number from 0 to size-1.
-    /// For large sizes, prefer to use the more stable math::lstsq().
+    /// For large sizes, prefer to use the more stable lstsq().
     template<bool ACCURATE_SUM = true, typename Real, typename Int>
     constexpr NOA_HD void lstsq_fit_quadratic(const Real* y, Int size, double* a, double* b, double* c) {
         static_assert(nt::is_real_v<Real> && nt::is_int_v<Int>);
@@ -30,7 +27,7 @@ namespace noa::math {
         auto sum_ = [](double& s, double& e, double value) {
             if constexpr (ACCURATE_SUM) {
                 auto t = s + value;
-                e += noa::math::abs(s) >= noa::math::abs(value) ? (s - t) + value : (value - t) + s;
+                e += abs(s) >= abs(value) ? (s - t) + value : (value - t) + s;
                 s = t;
             } else {
                 s += value;
@@ -79,10 +76,10 @@ namespace noa::math {
     auto lstsq_fit_quadratic(const Real* y, Int size) {
         double a{}, b{}, c{};
         lstsq_fit_quadratic<ACCURATE_SUM>(y, size, &a, &b, &c);
-        return std::tuple{a, b, c};
+        return Tuple{a, b, c};
     }
 
-    /// This is equivalent to math::lstsqFitQuadratic() if one wants to get the vertex for three points.
+    /// This is equivalent to lstsq_fit_quadratic() if one wants to get the vertex for three points.
     template<typename Real>
     constexpr NOA_IHD auto lstsq_fit_quadratic_vertex_3points(Real y0, Real y1, Real y2) noexcept {
         // https://stackoverflow.com/a/717791
@@ -90,10 +87,10 @@ namespace noa::math {
         const Real b = y0 - y2; // * -0.5
         const Real c = y1;
 
-        if (noa::math::abs(a) < static_cast<Real>(1e-8)) {
+        if (abs(a) < static_cast<Real>(1e-8)) {
             return Pair{Real{0}, y1};
         } else {
-            const Real x = noa::math::clamp(-b / (2 * a), Real{-0.5}, Real{0.5});
+            const Real x = clamp(-b / (2 * a), Real{-0.5}, Real{0.5});
             const Real y = c + b * b / (8 * a);
             return Pair{x, y};
         }
