@@ -1,9 +1,10 @@
 #pragma once
 
-#include "noa/common/Definitions.h"
-#include "noa/common/Exception.h"
+#include "noa/core/Config.hpp"
+#include "noa/core/Exception.hpp"
 #include "noa/cpu/Stream.hpp"
 
+#if defined(NOA_IS_OFFLINE)
 namespace noa::cpu {
     // Simple event, that can be enqueued in streams.
     // Elapsed time can be measured between events.
@@ -62,3 +63,4 @@ namespace noa::cpu {
         std::chrono::time_point<std::chrono::steady_clock> m_time;
     };
 }
+#endif

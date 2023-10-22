@@ -1,8 +1,9 @@
 #pragma once
 
-#include <fftw3.h>
-
 #include "noa/core/Types.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <fftw3.h>
 
 namespace noa::cpu::fft {
     // Returns the optimum even size, greater or equal than "size".
@@ -13,7 +14,7 @@ namespace noa::cpu::fft {
 
     // Returns the optimum BDHW logical shape.
     template<typename T, size_t N>
-    Shape<T, N> fast_shape(Shape<T, N> shape) noexcept {
+    auto fast_shape(Shape<T, N> shape) noexcept -> Shape<T, N> {
         for (size_t i = 1; i < N; ++i) // ignore batch dimension
             if (shape[i] > 1)
                 shape[i] = static_cast<T>(fast_size(static_cast<i64>(shape[i])));
@@ -128,3 +129,4 @@ namespace noa::cpu::fft {
         return n;
     }
 }
+#endif

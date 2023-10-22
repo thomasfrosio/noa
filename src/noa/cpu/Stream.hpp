@@ -1,20 +1,19 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/Types.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <future>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-
 #include <queue>
 #include <tuple>
 #include <functional>
 
-#include "noa/core/Assert.hpp"
-#include "noa/core/Definitions.hpp"
-#include "noa/core/Exception.hpp"
-#include "noa/core/Types.hpp"
-
-namespace noa::cpu::details {
+namespace noa::cpu::guts {
     // Asynchronous dispatch queue. Enqueued tasks are executed in order.
     struct AsyncDispatchQueue {
         AsyncDispatchQueue() {
@@ -165,7 +164,7 @@ namespace noa::cpu {
     // (A)synchronous dispatch queue.
     class Stream {
     public:
-        using async_queue = details::AsyncDispatchQueue;
+        using async_queue = guts::AsyncDispatchQueue;
 
     public:
         // Synchronous stream, without multithreading enabled.
@@ -242,3 +241,4 @@ namespace noa::cpu {
         i64 m_omp_thread_limit{1};
     };
 }
+#endif

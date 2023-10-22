@@ -1,6 +1,5 @@
 #pragma once
 
-#include <omp.h>
 #include "noa/core/Types.hpp"
 #include "noa/cpu/utils/ReduceUnary.hpp"
 
@@ -9,8 +8,10 @@
 // offset to the preprocess-operator as third argument is currently not supported.
 // (Lhs, Rhs) -> PreProcessOp(Lhs, Rhs) -> Reduced -> PostprocessOp(Reduced) -> Output
 
-// Parallel reductions:
-namespace noa::cpu::utils::details {
+#if defined(NOA_IS_OFFLINE)
+#include <omp.h>
+
+namespace noa::cpu::guts {
     template<typename Lhs, typename Rhs, typename Reduced, typename Index,
              typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     auto reduce_binary_4d_parallel(
@@ -18,10 +19,11 @@ namespace noa::cpu::utils::details {
             Accessor<Rhs, 4, Index> rhs,
             Shape4<Index> shape,
             Reduced initial_reduce,
-            PreProcessOp pre_process_op,
-            ReduceOp reduce_op,
+            PreProcessOp&& pre_process_op,
+            ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op,
-            i64 threads) {
+            i64 threads
+    ) {
         auto final_reduce = initial_reduce;
 
         #pragma omp parallel default(none) num_threads(threads) \
@@ -62,7 +64,8 @@ namespace noa::cpu::utils::details {
             PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
             PostProcessOp&& post_process_op,
-            i64 threads) {
+            i64 threads
+    ) {
         auto final_reduce = initial_reduce;
 
         #pragma omp parallel default(none) num_threads(threads) \
@@ -89,8 +92,7 @@ namespace noa::cpu::utils::details {
     }
 }
 
-// Serial reductions:
-namespace noa::cpu::utils::details {
+namespace noa::cpu::guts {
     template<typename Lhs, typename Rhs, typename Reduced, typename Index,
              typename PreProcessOp, typename ReduceOp, typename PostProcessOp>
     auto reduce_binary_4d_serial(
@@ -100,7 +102,8 @@ namespace noa::cpu::utils::details {
             Reduced initial_reduce,
             PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
-            PostProcessOp&& post_process_op) {
+            PostProcessOp&& post_process_op
+    ) {
         auto reduce = initial_reduce;
         if constexpr (nt::is_detected_v<nt::has_initialize, ReduceOp>)
             reduce_op.initialize(0);
@@ -121,7 +124,8 @@ namespace noa::cpu::utils::details {
             Reduced initial_reduce,
             PreProcessOp&& pre_process_op,
             ReduceOp&& reduce_op,
-            PostProcessOp&& post_process_op) {
+            PostProcessOp&& post_process_op
+    ) {
         auto reduce = initial_reduce;
         if constexpr (nt::is_detected_v<nt::has_initialize, ReduceOp>)
             reduce_op.initialize(0);
@@ -133,7 +137,7 @@ namespace noa::cpu::utils::details {
     }
 }
 
-namespace noa::cpu::utils {
+namespace noa::cpu {
     // Generic element-wise 4D reduction.
     template<typename Lhs, typename Rhs, typename Reduced, typename Output, typename Index,
              typename PreProcessOp = noa::copy_t,
@@ -151,11 +155,11 @@ namespace noa::cpu::utils {
             PostProcessOp&& post_process_op,
             i64 threads = 1,
             bool reduce_batch = true,
-            bool swap_layout = true) {
-
-        static_assert(traits::is_detected_exact_v<Reduced, traits::has_binary_operator, PreProcessOp, Lhs, Rhs>);
-        static_assert(traits::is_detected_exact_v<Reduced, traits::has_binary_operator, ReduceOp, Reduced, Reduced>);
-        static_assert(traits::is_detected_convertible_v<Output, traits::has_unary_operator, PostProcessOp, Reduced>);
+            bool swap_layout = true
+    ) {
+        static_assert(nt::is_detected_exact_v<Reduced, nt::has_binary_operator, PreProcessOp, Lhs, Rhs>);
+        static_assert(nt::is_detected_exact_v<Reduced, nt::has_binary_operator, ReduceOp, Reduced, Reduced>);
+        static_assert(nt::is_detected_convertible_v<Output, nt::has_unary_operator, PostProcessOp, Reduced>);
 
         if (noa::any(shape <= 0))
             return;
@@ -164,47 +168,52 @@ namespace noa::cpu::utils {
         // Rearrange to rightmost order.
         if (swap_layout) {
             if (reduce_batch) {
-                const auto lhs_order = noa::indexing::order(lhs_strides, shape);
-                const auto rhs_order = noa::indexing::order(rhs_strides, shape);
+                const auto lhs_order = noa::order(lhs_strides, shape);
+                const auto rhs_order = noa::order(rhs_strides, shape);
                 if (noa::all(lhs_order == rhs_order) && noa::any(lhs_order != Vec4<i64>{0, 1, 2, 3})) {
-                    shape = noa::indexing::reorder(shape, lhs_order);
-                    lhs_strides = noa::indexing::reorder(lhs_strides, lhs_order);
-                    rhs_strides = noa::indexing::reorder(rhs_strides, lhs_order);
+                    shape = shape.reorder(lhs_order);
+                    lhs_strides = lhs_strides.reorder(lhs_order);
+                    rhs_strides = rhs_strides.reorder(lhs_order);
                 }
             } else {
-                const auto lhs_order_3d = noa::indexing::order(lhs_strides.pop_front(), shape.pop_front()) + 1;
-                const auto rhs_order_3d = noa::indexing::order(rhs_strides.pop_front(), shape.pop_front()) + 1;
+                const auto lhs_order_3d = noa::order(lhs_strides.pop_front(), shape.pop_front()) + 1;
+                const auto rhs_order_3d = noa::order(rhs_strides.pop_front(), shape.pop_front()) + 1;
                 if (noa::all(lhs_order_3d == rhs_order_3d) && noa::any(lhs_order_3d != Vec3<i64>{1, 2, 3})) {
                     const auto order = lhs_order_3d.push_front(0);
-                    shape = noa::indexing::reorder(shape, order);
-                    lhs_strides = noa::indexing::reorder(lhs_strides, order);
-                    rhs_strides = noa::indexing::reorder(rhs_strides, order);
+                    shape = shape.reorder(order);
+                    lhs_strides = lhs_strides.reorder(order);
+                    rhs_strides = rhs_strides.reorder(order);
                 }
             }
         }
 
         const Index batches_to_reduce = reduce_batch ? 1 : shape[0];
         const Index elements = reduce_batch ? shape.elements() : shape.pop_front().elements();
-        const Vec4<bool> is_contiguous = noa::indexing::is_contiguous(lhs_strides, shape) &&
-                                         noa::indexing::is_contiguous(rhs_strides, shape);
-        const bool parallel = threads > 1 && elements > details::REDUCTION_PARALLEL_THRESHOLD;
+        const Vec4<bool> is_contiguous = noa::is_contiguous(lhs_strides, shape) &&
+                                         noa::is_contiguous(rhs_strides, shape);
+        const bool parallel = threads > 1 && elements > guts::REDUCTION_PARALLEL_THRESHOLD;
 
         if ((reduce_batch || is_contiguous[0]) && noa::all(is_contiguous.pop_front())) {
             for (i64 i = 0; i < batches_to_reduce; ++i) {
-                Lhs* lhs_ptr = lhs + noa::indexing::at(i, lhs_strides);
-                Rhs* rhs_ptr = rhs + noa::indexing::at(i, rhs_strides);
-                Output* output_ptr = output + noa::indexing::at(i, output_stride);
+                Lhs* lhs_ptr = lhs + noa::offset_at(i, lhs_strides);
+                Rhs* rhs_ptr = rhs + noa::offset_at(i, rhs_strides);
+                Output* output_ptr = output + noa::offset_at(i, output_stride);
                 if (parallel) {
                     *output_ptr = static_cast<Output>(
-                            noa::cpu::utils::details::reduce_binary_1d_parallel(
+                            guts::reduce_binary_1d_parallel(
                                     lhs_ptr, rhs_ptr, elements, initial_reduce,
-                                    pre_process_op, reduce_op, post_process_op, threads
+                                    std::forward<PreProcessOp>(pre_process_op),
+                                    std::forward<ReduceOp>(reduce_op),
+                                    std::forward<PostProcessOp>(post_process_op),
+                                    threads
                             ));
                 } else {
                     *output_ptr = static_cast<Output>(
-                            noa::cpu::utils::details::reduce_binary_1d_serial(
+                            guts::reduce_binary_1d_serial(
                                     lhs_ptr, rhs_ptr, elements, initial_reduce,
-                                    pre_process_op, reduce_op, post_process_op
+                                    std::forward<PreProcessOp>(pre_process_op),
+                                    std::forward<ReduceOp>(reduce_op),
+                                    std::forward<PostProcessOp>(post_process_op)
                             ));
                 }
             }
@@ -212,25 +221,31 @@ namespace noa::cpu::utils {
             if (!reduce_batch)
                 shape[0] = 1;
             for (i64 i = 0; i < batches_to_reduce; ++i) {
-                Lhs* lhs_ptr = lhs + noa::indexing::at(i, lhs_strides);
-                Rhs* rhs_ptr = rhs + noa::indexing::at(i, rhs_strides);
-                Output* output_ptr = output + noa::indexing::at(i, output_stride);
+                Lhs* lhs_ptr = lhs + noa::offset_at(i, lhs_strides);
+                Rhs* rhs_ptr = rhs + noa::offset_at(i, rhs_strides);
+                Output* output_ptr = output + noa::offset_at(i, output_stride);
                 const auto lhs_accessor = Accessor<Lhs, 4, Index>(lhs_ptr, lhs_strides);
                 const auto rhs_accessor = Accessor<Rhs, 4, Index>(rhs_ptr, rhs_strides);
                 if (parallel) {
                     *output_ptr = static_cast<Output>(
-                            noa::cpu::utils::details::reduce_binary_4d_parallel(
+                            guts::reduce_binary_4d_parallel(
                                     lhs_accessor, rhs_accessor, shape, initial_reduce,
-                                    pre_process_op, reduce_op, post_process_op, threads
+                                    std::forward<PreProcessOp>(pre_process_op),
+                                    std::forward<ReduceOp>(reduce_op),
+                                    std::forward<PostProcessOp>(post_process_op),
+                                    threads
                             ));
                 } else {
                     *output_ptr = static_cast<Output>(
-                            noa::cpu::utils::details::reduce_binary_4d_serial(
+                            guts::reduce_binary_4d_serial(
                                     lhs_accessor, rhs_accessor, shape, initial_reduce,
-                                    pre_process_op, reduce_op, post_process_op
+                                    std::forward<PreProcessOp>(pre_process_op),
+                                    std::forward<ReduceOp>(reduce_op),
+                                    std::forward<PostProcessOp>(post_process_op)
                             ));
                 }
             }
         }
     }
 }
+#endif

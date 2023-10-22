@@ -1,15 +1,11 @@
 #pragma once
 
-#include <string>
-#include <type_traits>
-#include <utility>
-
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/core/traits/Numerics.hpp"
 
-namespace noa::cpu::memory {
+#if defined(NOA_IS_OFFLINE)
+namespace noa::cpu {
     template<typename T>
     struct AllocatorHeapDeleter {
         void operator()(T* ptr) noexcept {
@@ -41,11 +37,11 @@ namespace noa::cpu::memory {
                 nt::is_int_v<Value> ? 64 : alignof(Value);
 
         using value_type = Value;
-        using shared_type = Shared<value_type[]>;
+        using shared_type = std::shared_ptr<value_type[]>;
         using alloc_deleter_type = AllocatorHeapDeleter<value_type>;
         using calloc_deleter_type = AllocatorHeapDeleterCalloc<value_type>;
-        using alloc_unique_type = Unique<value_type[], alloc_deleter_type>;
-        using calloc_unique_type = Unique<value_type[], calloc_deleter_type>;
+        using alloc_unique_type = std::unique_ptr<value_type[], alloc_deleter_type>;
+        using calloc_unique_type = std::unique_ptr<value_type[], calloc_deleter_type>;
 
     public:
         // Allocates some elements of uninitialized storage. Throws if the allocation fails.
@@ -59,7 +55,7 @@ namespace noa::cpu::memory {
             } else {
                 out = new(std::nothrow) value_type[static_cast<size_t>(elements)];
             }
-            NOA_CHECK(out, "Failed to allocate {} {} on the heap", elements, string::human<value_type>());
+            NOA_CHECK(out, "Failed to allocate {} {} on the heap", elements, to_human_readable<value_type>());
             return {out, alloc_deleter_type{}};
         }
 
@@ -72,8 +68,7 @@ namespace noa::cpu::memory {
             const size_t offset = ALIGNMENT - 1 + sizeof(void*);
 
             void* calloc_ptr = std::calloc(static_cast<size_t>(elements) * sizeof(value_type) + offset, 1);
-            if (!calloc_ptr)
-                NOA_THROW("Failed to allocate {} {} on the heap", elements, string::human<value_type>());
+            NOA_CHECK(calloc_ptr, "Failed to allocate {} {} on the heap", elements, to_human_readable<value_type>());
 
             // Align to the requested value, leaving room for the original calloc value.
             void* aligned_ptr = reinterpret_cast<void*>(((uintptr_t)calloc_ptr + offset) & ~(ALIGNMENT - 1));
@@ -82,3 +77,4 @@ namespace noa::cpu::memory {
         }
     };
 }
+#endif

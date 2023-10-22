@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
 #include "noa/core/Types.hpp"
 
 namespace noa::cpu {

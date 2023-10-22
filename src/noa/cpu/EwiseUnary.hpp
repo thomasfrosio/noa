@@ -1,7 +1,10 @@
 #pragma once
 
-#include <omp.h>
 #include "noa/core/Types.hpp"
+#include "noa/core/Indexing.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <omp.h>
 
 /// Unary: Operator(Input)->Output
 
@@ -29,10 +32,10 @@
 /// GCC and Clang are able to see and optimize through these function. The operators are correctly
 /// inlined and the 1D cases can be strongly optimized using SIMD or memset/memcopy/memmove calls.
 /// Parallelization turns most of these optimizations off, as well as non-contiguous arrays.
-/// Note that passing 1 (the default value) to the "threads" parameter should reduce the amount of
+/// Note that passing a literal 1 (the default value) to the "threads" parameter should reduce the amount of
 /// generated code because the parallel version can be omitted.
 
-namespace noa::cpu::utils::details {
+namespace noa::cpu::guts {
     // Parallelization is expensive. Turn it on only for large arrays.
     // TODO Parallelization is even more expensive for the 1D case where it prevents a lot of inner-loop
     //      optimizations. We could have another, more stringent, heuristic here for the 1D case.
@@ -42,8 +45,8 @@ namespace noa::cpu::utils::details {
     void ewise_unary_4d_parallel(
             Accessor<Input, 4, Index> input,
             Accessor<Output, 4, Index> output,
-            Shape4<Index> shape, Operator op, i64 threads) {
-
+            Shape4<Index> shape, Operator&& op, i64 threads
+    ) {
         // We could use shared(op), but:
         // - We assume op is cheap to copy (often, it is empty), so the one-per-thread call to
         //   the copy constructor with firstprivate(op) is assumed to be non-significant.
@@ -147,7 +150,8 @@ namespace noa::cpu::utils::details {
     void ewise_unary_1d_restrict_parallel(
             Input* __restrict input,
             Output* __restrict output,
-            Index size, Operator&& op, i64 threads) {
+            Index size, Operator&& op, i64 threads
+    ) {
         #pragma omp parallel default(none) num_threads(threads) shared(input, output, size) firstprivate(op)
         {
             if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
@@ -166,7 +170,8 @@ namespace noa::cpu::utils::details {
     void ewise_unary_1d_restrict_serial(
             Input* __restrict input,
             Output* __restrict output,
-            Index size, Operator&& op) {
+            Index size, Operator&& op
+    ) {
         if constexpr (nt::is_detected_v<nt::has_initialize, Operator>)
             op.initialize(0);
         for (Index i = 0; i < size; ++i)
@@ -176,21 +181,22 @@ namespace noa::cpu::utils::details {
     }
 }
 
-namespace noa::cpu::utils {
+namespace noa::cpu {
     template<typename Input, typename Output,
              typename Index, typename Operator, typename Int = i64,
              typename = std::enable_if_t<std::is_integral_v<Int> && !std::is_const_v<Output>>>
     constexpr void ewise_unary(
             Input* input, Strides4<Index> input_strides,
             Output* output, Strides4<Index> output_strides,
-            Shape4<Index> shape, Operator&& op, Int threads = Int{1}) {
+            Shape4<Index> shape, Operator&& op, Int threads = Int{1}
+    ) {
         // Rearrange to rightmost order.
-        shape = noa::indexing::effective_shape(shape, output_strides);
-        const auto order = noa::indexing::order(output_strides, shape);
+        shape = noa::effective_shape(shape, output_strides);
+        const auto order = noa::order(output_strides, shape);
         if (noa::any(order != Vec4<Index>{0, 1, 2, 3})) {
-            shape = noa::indexing::reorder(shape, order);
-            input_strides = noa::indexing::reorder(input_strides, order);
-            output_strides = noa::indexing::reorder(output_strides, order);
+            shape = shape.reorder(order);
+            input_strides = input_strides.reorder(order);
+            output_strides = output_strides.reorder(order);
         }
 
         const Index elements = shape.elements();
@@ -201,7 +207,7 @@ namespace noa::cpu::utils {
         // Serial vs Parallel. We must instantiate both versions here, otherwise it seems that
         // the compiler is more inclined to simplify and only generate the parallel version.
         const i64 threads_omp =
-                elements <= details::EWISE_UNARY_PARALLEL_THRESHOLD ?
+                elements <= guts::EWISE_UNARY_PARALLEL_THRESHOLD ?
                 1 : clamp_cast<i64>(threads);
         const bool serial = threads_omp <= 1;
 
@@ -210,8 +216,8 @@ namespace noa::cpu::utils {
         // better code for the in-place case, and 2) it generates better code for the
         // out-of-place case since we can guarantee there's no aliasing.
         const bool is_contiguous =
-                noa::indexing::are_contiguous(input_strides, shape) &&
-                noa::indexing::are_contiguous(output_strides, shape);
+                noa::are_contiguous(input_strides, shape) &&
+                noa::are_contiguous(output_strides, shape);
         if (is_contiguous) {
             // Input and output can be of the same type, meaning that the input is not const.
             // In this case, we can simplify the ewise operation to a single array.
@@ -219,27 +225,27 @@ namespace noa::cpu::utils {
                 const bool are_equal = static_cast<const void*>(input) == static_cast<const void*>(output);
                 if (are_equal) {
                     if (serial) {
-                        details::ewise_unary_1d_serial(
+                        guts::ewise_unary_1d_serial(
                                 output, elements, std::forward<Operator>(op));
                     } else {
-                        details::ewise_unary_1d_parallel(
+                        guts::ewise_unary_1d_parallel(
                                 output, elements, std::forward<Operator>(op), threads_omp);
                     }
                 } else {
                     if (serial) {
-                        details::ewise_unary_1d_restrict_serial(
+                        guts::ewise_unary_1d_restrict_serial(
                                 input, output, elements, std::forward<Operator>(op));
                     } else {
-                        details::ewise_unary_1d_restrict_parallel(
+                        guts::ewise_unary_1d_restrict_parallel(
                                 input, output, elements, std::forward<Operator>(op), threads_omp);
                     }
                 }
             } else {
                 if (serial) {
-                    details::ewise_unary_1d_serial(
+                    guts::ewise_unary_1d_serial(
                             input, output, elements, std::forward<Operator>(op));
                 } else {
-                    details::ewise_unary_1d_parallel(
+                    guts::ewise_unary_1d_parallel(
                             input, output, elements, std::forward<Operator>(op), threads_omp);
                 }
             }
@@ -249,11 +255,11 @@ namespace noa::cpu::utils {
             const auto input_accessor = Accessor<Input, 4, Index>(input, input_strides);
             const auto output_accessor = Accessor<Output, 4, Index>(output, output_strides);
             if (serial) {
-                details::ewise_unary_4d_serial(
+                guts::ewise_unary_4d_serial(
                         input_accessor, output_accessor, shape,
                         std::forward<Operator>(op));
             } else {
-                details::ewise_unary_4d_parallel(
+                guts::ewise_unary_4d_parallel(
                         input_accessor, output_accessor, shape,
                         std::forward<Operator>(op), threads_omp);
             }
@@ -265,7 +271,9 @@ namespace noa::cpu::utils {
              typename = std::enable_if_t<std::is_integral_v<Int> && !std::is_const_v<Value>>>
     constexpr void ewise_unary(
             Value* array, const Strides4<Index>& strides,
-            Shape4<Index> shape, Operator&& op, Int threads = Int{1}) {
+            Shape4<Index> shape, Operator&& op, Int threads = Int{1}
+    ) {
         ewise_unary(array, strides, array, strides, shape, std::forward<Operator>(op), threads);
     }
 }
+#endif

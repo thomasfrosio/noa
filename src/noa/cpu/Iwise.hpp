@@ -1,9 +1,11 @@
 #pragma once
 
-#include <omp.h>
 #include "noa/core/Types.hpp"
 
-namespace noa::cpu::utils::details {
+#if defined(NOA_IS_OFFLINE)
+#include <omp.h>
+
+namespace noa::cpu::guts {
     constexpr i64 IWISE_PARALLEL_THRESHOLD = 1'048'576; // 1024x1024
 
     template<typename Index, typename Operator>
@@ -163,7 +165,7 @@ namespace noa::cpu::utils::details {
     }
 }
 
-namespace noa::cpu::utils {
+namespace noa::cpu {
     // Dispatches the operator across 4 dimensions, in the rightmost order (innermost loop is the rightmost dimension).
     // The operator will be called with every (i,j,k,l) combination. If multiple threads are passed, the order of these
     // combinations is undefined (although the rightmost order is still respected within a thread), and the operator
@@ -173,80 +175,81 @@ namespace noa::cpu::utils {
     template<typename Index, typename Operator>
     void iwise_4d(const Vec4<Index>& start, const Vec4<Index>& end, Operator&& op, i64 threads = 1) {
         const i64 elements = Shape4<i64>(end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_4d_serial(start, end, std::forward<Operator>(op));
+            guts::iwise_4d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_4d_parallel(start, end, std::forward<Operator>(op), actual_threads);
+            guts::iwise_4d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_4d(const Shape4<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_4d_serial(shape, std::forward<Operator>(op));
+            guts::iwise_4d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_4d_parallel(shape, std::forward<Operator>(op), actual_threads);
+            guts::iwise_4d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_3d(const Vec3<Index>& start, const Vec3<Index>& end, Operator&& op, i64 threads = 1) {
         const i64 elements = Shape3<i64>(end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_3d_serial(start, end, std::forward<Operator>(op));
+            guts::iwise_3d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_3d_parallel(start, end, std::forward<Operator>(op), actual_threads);
+            guts::iwise_3d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_3d(const Shape3<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_3d_serial(shape, std::forward<Operator>(op));
+            guts::iwise_3d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_3d_parallel(shape, std::forward<Operator>(op), actual_threads);
+            guts::iwise_3d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_2d(const Vec2<Index>& start, const Vec2<Index>& end, Operator&& op, i64 threads = 1) {
         const i64 elements = Shape2<i64>(end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_2d_serial(start, end, std::forward<Operator>(op));
+            guts::iwise_2d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_2d_parallel(start, end, std::forward<Operator>(op), actual_threads);
+            guts::iwise_2d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_2d(const Shape2<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_2d_serial(shape, std::forward<Operator>(op));
+            guts::iwise_2d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_2d_parallel(shape, std::forward<Operator>(op), actual_threads);
+            guts::iwise_2d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_1d(const Vec1<Index>& start, const Vec1<Index>& end, Operator&& op, i64 threads = 1) {
         const i64 elements = Shape1<i64>(end.template as<i64>() - start.template as<i64>()).elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_1d_serial(start, end, std::forward<Operator>(op));
+            guts::iwise_1d_serial(start, end, std::forward<Operator>(op));
         else
-            details::iwise_1d_parallel(start, end, std::forward<Operator>(op), actual_threads);
+            guts::iwise_1d_parallel(start, end, std::forward<Operator>(op), actual_threads);
     }
 
     template<typename Index, typename Operator>
     void iwise_1d(const Shape1<Index>& shape, Operator&& op, i64 threads = 1) {
         const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_threads = elements <= details::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
+        const i64 actual_threads = elements <= guts::IWISE_PARALLEL_THRESHOLD ? 1 : threads;
         if (actual_threads <= 1)
-            details::iwise_1d_serial(shape, std::forward<Operator>(op));
+            guts::iwise_1d_serial(shape, std::forward<Operator>(op));
         else
-            details::iwise_1d_parallel(shape, std::forward<Operator>(op), actual_threads);
+            guts::iwise_1d_parallel(shape, std::forward<Operator>(op), actual_threads);
     }
 }
+#endif

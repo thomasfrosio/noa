@@ -1,31 +1,33 @@
 #pragma once
 
-#include <fftw3.h>
-
 #include "noa/core/Types.hpp"
+#include "noa/cpu/EwiseBinary.hpp"
 #include "noa/cpu/fft/Plan.hpp"
-#include "noa/cpu/utils/EwiseBinary.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <fftw3.h>
 
 namespace noa::cpu::fft {
     using Norm = noa::fft::Norm;
+    using Sign = noa::fft::Sign;
 }
 
-namespace noa::cpu::fft::details {
+namespace noa::cpu::fft::guts {
     template<bool HALF, typename T>
-    void normalize(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape,
-                   noa::fft::Sign sign, Norm norm, i64 threads) {
+    void normalize(
+            T* array, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            Sign sign, Norm norm, i64 threads
+    ) {
         using real_t = nt::value_type_t<T>;
-        const auto count = static_cast<real_t>(noa::math::product(shape.pop_front()));
-        const auto scale = norm == noa::fft::Norm::ORTHO ? noa::math::sqrt(count) : count;
+        const auto count = static_cast<real_t>(noa::product(shape.pop_front()));
+        const auto scale = norm == Norm::ORTHO ? noa::sqrt(count) : count;
 
-        if (sign == noa::fft::Sign::FORWARD &&
-            (norm == noa::fft::Norm::FORWARD || norm == noa::fft::Norm::ORTHO)) {
-            noa::cpu::utils::ewise_binary(
+        if (sign == Sign::FORWARD and (norm == Norm::FORWARD or norm == Norm::ORTHO)) {
+            noa::cpu::ewise_binary(
                     array, strides, 1 / scale, array, strides,
                     HALF ? shape.rfft() : shape, noa::multiply_t{}, threads);
-        } else if (sign == noa::fft::Sign::BACKWARD &&
-                   (norm == noa::fft::Norm::BACKWARD || norm == noa::fft::Norm::ORTHO)) {
-            noa::cpu::utils::ewise_binary(
+        } else if (sign == Sign::BACKWARD and (norm == Norm::BACKWARD or norm == Norm::ORTHO)) {
+            noa::cpu::ewise_binary(
                     array, strides, 1 / scale, array, strides,
                     shape, noa::multiply_t{}, threads);
         }
@@ -93,7 +95,7 @@ namespace noa::cpu::fft {
     void r2c(T* input, Complex<T>* output, const Shape4<i64>& shape, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, output, shape, flag, threads);
         execute(fast_plan);
-        details::normalize<true>(output, shape.rfft().strides(), shape, noa::fft::Sign::FORWARD, norm, threads);
+        guts::normalize<true>(output, shape.rfft().strides(), shape, Sign::FORWARD, norm, threads);
     }
 
     template<typename T>
@@ -102,7 +104,7 @@ namespace noa::cpu::fft {
              const Shape4<i64>& shape, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, input_strides, output, output_strides, shape, flag, threads);
         execute(fast_plan);
-        details::normalize<true>(output, output_strides, shape, noa::fft::Sign::FORWARD, norm, threads);
+        guts::normalize<true>(output, output_strides, shape, Sign::FORWARD, norm, threads);
     }
 
     template<typename T>
@@ -127,7 +129,7 @@ namespace noa::cpu::fft {
     void c2r(Complex<T>* input, T* output, const Shape4<i64>& shape, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, output, shape, flag, threads);
         execute(fast_plan);
-        details::normalize<false>(output, shape.strides(), shape, noa::fft::Sign::BACKWARD, norm, threads);
+        guts::normalize<false>(output, shape.strides(), shape, Sign::BACKWARD, norm, threads);
     }
 
     template<typename T>
@@ -136,7 +138,7 @@ namespace noa::cpu::fft {
              const Shape4<i64>& shape, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, input_strides, output, output_strides, shape, flag, threads);
         execute(fast_plan);
-        details::normalize<false>(output, output_strides, shape, noa::fft::Sign::BACKWARD, norm, threads);
+        guts::normalize<false>(output, output_strides, shape, Sign::BACKWARD, norm, threads);
     }
 
     template<typename T>
@@ -153,30 +155,31 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void c2c(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
-             noa::fft::Sign sign, u32 flag, Norm norm, i64 threads) {
+             Sign sign, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, output, shape, sign, flag, threads);
         execute(fast_plan);
-        details::normalize<false>(output, shape.strides(), shape, sign, norm, threads);
+        guts::normalize<false>(output, shape.strides(), shape, sign, norm, threads);
     }
 
     template<typename T>
     void c2c(Complex<T>* input, const Strides4<i64>& input_strides,
              Complex<T>* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, Norm norm, i64 threads) {
+             const Shape4<i64>& shape, Sign sign, u32 flag, Norm norm, i64 threads) {
         const Plan fast_plan(input, input_strides, output, output_strides, shape, sign, flag, threads);
         execute(fast_plan);
-        details::normalize<false>(output, output_strides, shape, sign, norm, threads);
+        guts::normalize<false>(output, output_strides, shape, sign, norm, threads);
     }
 
     template<typename T>
     void c2c(Complex<T>* data, const Shape4<i64>& shape,
-             noa::fft::Sign sign, u32 flag, Norm norm, i64 threads) {
+             Sign sign, u32 flag, Norm norm, i64 threads) {
         c2c(data, data, shape, sign, flag, norm, threads);
     }
 
     template<typename T>
     void c2c(Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
-             noa::fft::Sign sign, u32 flag, Norm norm, i64 threads) {
+             Sign sign, u32 flag, Norm norm, i64 threads) {
         c2c(data, strides, data, strides, shape, sign, flag, norm, threads);
     }
 }
+#endif

@@ -1,9 +1,10 @@
 #include <mutex>
 
 #include "noa/core/Exception.hpp"
+#include "noa/core/Indexing.hpp"
 #include "noa/cpu/fft/Plan.hpp"
 
-#ifdef NOA_ENABLE_OPENMP
+#if defined(NOA_ENABLE_OPENMP)
 #include "omp.h"
 #endif
 
@@ -61,11 +62,9 @@ namespace {
         if (is_initialized)
             return;
         if constexpr (IS_SINGLE_PRECISION) {
-            if (!fftwf_init_threads())
-                NOA_THROW("Failed to initialize the single precision FFTW-threads");
+            NOA_CHECK(fftwf_init_threads(), "Failed to initialize the single precision FFTW-threads");
         } else {
-            if (!fftw_init_threads())
-                NOA_THROW("Failed to initialize the double precision FFTW-threads");
+            NOA_CHECK(fftw_init_threads(), "Failed to initialize the double precision FFTW-threads");
         }
     }
 
@@ -74,11 +73,11 @@ namespace {
     i32 get_threads_(const Shape3<i32>& shape, i32 batches, i32 rank) {
         const f64 geom_size =
                 rank == 1 ?
-                (noa::math::sqrt(static_cast<f64>(shape[2] * batches)) + static_cast<f64>(batches)) / 2. :
-                noa::math::pow(static_cast<f64>(shape.elements()), 1. / static_cast<f64>(rank));
+                (noa::sqrt(static_cast<f64>(shape[2] * batches)) + static_cast<f64>(batches)) / 2. :
+                noa::pow(static_cast<f64>(shape.elements()), 1. / static_cast<f64>(rank));
 
-        const auto threads = static_cast<i32>((noa::math::log(geom_size) / noa::math::log(2.) - 5.95) * 2.);
-        return noa::math::clamp(threads, 1, noa::all(noa::cpu::fft::fast_shape(shape) == shape) ? 8 : 4);
+        const auto threads = static_cast<i32>((noa::log(geom_size) / noa::log(2.) - 5.95) * 2.);
+        return noa::clamp(threads, 1, noa::all(noa::cpu::fft::fast_shape(shape) == shape) ? 8 : 4);
     }
 
     // All subsequent plans will use this number of threads.
@@ -183,17 +182,18 @@ namespace {
 
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms.
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}", shape_3d);
+        NOA_CHECK(plan, "Failed to create the R2C plan, with shape:{}", shape_3d);
         return plan;
     }
 
     template<typename T>
-    auto get_r2c_(T* input, Strides4<i64> input_strides,
-                  Complex<T>* output, Strides4<i64> output_strides,
-                  const Shape4<i64>& shape, u32 flag,
-                  [[maybe_unused]] i64 threads) {
-        auto shape_3d = shape.pop_front().as_safe<i32>();
+    auto get_r2c_(
+            T* input, Strides4<i64> input_strides,
+            Complex<T>* output, Strides4<i64> output_strides,
+            const Shape4<i64>& shape, u32 flag,
+            [[maybe_unused]] i64 threads
+    ) {
+        auto [how_many, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
         NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) { // column vector -> row vector
@@ -206,7 +206,6 @@ namespace {
         const auto o_strides = output_strides.as_safe<i32>();
         const auto inembed = i_strides.physical_shape();
         const auto onembed = o_strides.physical_shape();
-        const auto how_many = static_cast<i32>(shape[0]);
         const i32 off = 3 - rank;
 
         constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
@@ -228,24 +227,24 @@ namespace {
                         reinterpret_cast<fftw_complex*>(output), onembed.data() + off, o_strides[3], o_strides[0], flag);
             }
         }
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
-                      shape_3d, input_strides, output_strides);
+        NOA_CHECK(plan, "Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                  shape_3d, input_strides, output_strides);
         return plan;
     }
 
     template<typename T>
-    auto get_c2r_(Complex<T>* input, T* output,
-                  const Shape4<i64>& shape, u32 flag,
-                  [[maybe_unused]] i64 threads) {
-        auto shape_3d = shape.pop_front().as_safe<i32>();
+    auto get_c2r_(
+            Complex<T>* input, T* output,
+            const Shape4<i64>& shape, u32 flag,
+            [[maybe_unused]] i64 threads
+    ) {
+        auto [how_many, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
         NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
         const i32 idist = shape_3d.rfft().elements();
         const i32 odist = reinterpret_cast<T*>(input) == output ? idist * 2 : shape_3d.elements();
-        const auto how_many = static_cast<i32>(shape[0]);
 
         constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
         using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
@@ -267,17 +266,18 @@ namespace {
                         output, nullptr, 1, odist, flag);
             }
         }
-        if (!plan)
-            NOA_THROW("Failed to create the C2R plan, with shape:{}", shape_3d);
+        NOA_CHECK(plan, "Failed to create the C2R plan, with shape:{}", shape_3d);
         return plan;
     }
 
     template<typename T>
-    auto get_c2r_(Complex<T>* input, Strides4<i64> input_strides,
-                  T* output, Strides4<i64> output_strides,
-                  const Shape4<i64>& shape, u32 flag,
-                  [[maybe_unused]] i64 threads) {
-        auto shape_3d = shape.pop_front().as_safe<i32>();
+    auto get_c2r_(
+            Complex<T>* input, Strides4<i64> input_strides,
+            T* output, Strides4<i64> output_strides,
+            const Shape4<i64>& shape, u32 flag,
+            [[maybe_unused]] i64 threads
+    ) {
+        auto [how_many, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
         NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) { // column vector -> row vector
@@ -291,7 +291,6 @@ namespace {
         const auto inembed = i_strides.physical_shape();
         const auto onembed = o_strides.physical_shape();
         const i32 off = 3 - rank;
-        const auto how_many = static_cast<i32>(shape[0]);
 
         constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
         using plan_t = std::conditional_t<IS_SINGLE_PRECISION, fftwf_plan, fftw_plan>;
@@ -316,25 +315,25 @@ namespace {
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms or with the PRESERVE_INPUT flag
         // with a multidimensional out-of-place c2r transform.
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
-                      shape_3d, input_strides, output_strides);
+        NOA_CHECK(plan, "Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                  shape_3d, input_strides, output_strides);
         return plan;
     }
 
     template<typename T>
-    auto get_c2c_(Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
-                  noa::fft::Sign sign, u32 flag,
-                  [[maybe_unused]] i64 threads) {
+    auto get_c2c_(
+            Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
+            noa::fft::Sign sign, u32 flag,
+            [[maybe_unused]] i64 threads
+    ) {
         static_assert(noa::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
         static_assert(noa::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
 
-        auto shape_3d = shape.pop_front().as_safe<i32>();
+        auto [how_many, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
         NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
-        const auto how_many = static_cast<i32>(shape[0]);
         const i32 dist = shape_3d.elements();
 
         constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
@@ -362,21 +361,22 @@ namespace {
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms.
-        if (!plan)
-            NOA_THROW("Failed to create the C2C plan, with shape:{}", shape_3d);
+        NOA_CHECK(plan, "Failed to create the C2C plan, with shape:{}", shape_3d);
         return plan;
     }
 
     template<typename T>
-    auto get_c2c_(Complex<T>* input, Strides4<i64> input_strides,
-                  Complex<T>* output, Strides4<i64> output_strides,
-                  const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag,
-                  [[maybe_unused]] i64 threads) {
+    auto get_c2c_(
+            Complex<T>* input, Strides4<i64> input_strides,
+            Complex<T>* output, Strides4<i64> output_strides,
+            const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag,
+            [[maybe_unused]] i64 threads
+    ) {
         static_assert(noa::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
         static_assert(noa::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
 
-        auto shape_3d = shape.pop_front().as_safe<i32>();
-        if (indexing::is_column_major(input_strides) && indexing::is_column_major(output_strides)) {
+        auto [how_many, shape_3d] = shape.as_safe<i32>().split_batch();
+        if (noa::is_column_major(input_strides) && noa::is_column_major(output_strides)) {
             // column major -> row major
             std::swap(shape_3d[1], shape_3d[2]);
             std::swap(input_strides[2], input_strides[3]);
@@ -389,7 +389,6 @@ namespace {
         const auto onembed = o_strides.physical_shape();
         const i32 rank = shape_3d.ndim();
         NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
-        const auto how_many = static_cast<i32>(shape[0]);
         const i32 off = 3 - rank;
 
         constexpr bool IS_SINGLE_PRECISION = std::is_same_v<T, f32>;
@@ -417,9 +416,8 @@ namespace {
         }
         // A non-NULL plan is always returned by the basic interface unless using a customized FFTW
         // configuration supporting a restricted set of transforms.
-        if (!plan)
-            NOA_THROW("Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
-                      shape_3d, input_strides, output_strides);
+        NOA_CHECK(plan, "Failed to create the R2C plan, with shape:{}, istrides:{}, ostrides:{}",
+                  shape_3d, input_strides, output_strides);
         return plan;
     }
 }

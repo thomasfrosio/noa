@@ -1,8 +1,8 @@
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/TextFile.hpp"
-#include "noa/core/OS.hpp"
+#include "noa/core/io/OS.hpp"
 #include "noa/core/string/Format.hpp"
 #include "noa/core/string/Parse.hpp"
 #include "noa/cpu/Device.hpp"
@@ -16,9 +16,10 @@
 #if defined(NOA_PLATFORM_WINDOWS)
 #include <windows.h>
 #include <bitset>
-using namespace noa;
 // From https://github.dev/ThePhD/infoware/tree/main/include/infoware
 namespace {
+    using namespace noa;
+
     cpu::DeviceMemory get_memory_info_windows() {
         cpu::DeviceMemory out{};
         MEMORYSTATUSEX mem;
@@ -87,18 +88,18 @@ namespace {
     size_t parse_size_from_line(const std::string& line) {
         const size_t colon_id = line.find_first_of(':');
         std::string value{line.c_str() + colon_id + 1};
-        return string::parse<size_t>(value);
+        return parse<size_t>(value);
     }
 
     cpu::DeviceMemory get_memory_info_linux() {
         cpu::DeviceMemory ret{};
 
         std::string line;
-        io::TextFile<std::ifstream> mem_info("/proc/meminfo", io::READ);
+        io::InputTextFile mem_info("/proc/meminfo", io::READ);
         while (mem_info.get_line(line)) {
-            if (string::starts_with(line, "MemTotal"))
+            if (starts_with(line, "MemTotal"))
                 ret.total = parse_size_from_line(line) * 1024; // in bytes
-            else if (string::starts_with(line, "MemAvailable"))
+            else if (starts_with(line, "MemAvailable"))
                 ret.free = parse_size_from_line(line) * 1024; // in bytes
         }
         if (mem_info.bad())
@@ -107,10 +108,10 @@ namespace {
     }
 
     std::string get_cpu_name_linux() {
-        io::TextFile<std::ifstream> cpu_info("/proc/cpuinfo", io::READ);
+        io::InputTextFile cpu_info("/proc/cpuinfo", io::READ);
         std::string line;
         while (cpu_info.get_line(line)) {
-            if (string::starts_with(line, "model name")) {
+            if (starts_with(line, "model name")) {
                 const size_t colon_id = line.find_first_of(':');
                 const size_t nonspace_id = line.find_first_not_of(" \t", colon_id + 1);
                 return line.c_str() + nonspace_id; // assume right trimmed
@@ -123,13 +124,13 @@ namespace {
         cpu::DeviceCore out{};
         bool got_logical{}, got_physical{};
 
-        io::TextFile<std::ifstream> cpu_info("/proc/cpuinfo", io::READ);
+        io::InputTextFile cpu_info("/proc/cpuinfo", io::READ);
         std::string line;
         while (cpu_info.get_line(line)) {
-            if (!got_logical && string::starts_with(line, "siblings")) {
+            if (!got_logical && starts_with(line, "siblings")) {
                 out.logical = parse_size_from_line(line);
                 got_logical = true;
-            } else if (!got_physical && string::starts_with(line, "cpu cores")) {
+            } else if (!got_physical && starts_with(line, "cpu cores")) {
                 out.physical = parse_size_from_line(line);
                 got_physical = true;
             }
@@ -145,11 +146,11 @@ namespace {
     cpu::DeviceCache get_cpu_cache_linux(int level) {
         cpu::DeviceCache out{};
         io::TextFile<std::ifstream> cache_info;
-        const Path prefix = string::format("/sys/devices/system/cpu/cpu0/cache/index{}", level);
+        const Path prefix = fmt::format("/sys/devices/system/cpu/cpu0/cache/index{}", level);
         // FIXME index1 is the instruction L1 cache on my machine...
 
         Path cache_size_path = prefix / "size";
-        if (os::is_file(cache_size_path)) {
+        if (io::is_file(cache_size_path)) {
             cache_info.open(cache_size_path, io::READ);
             char suffix;
             cache_info.fstream() >> out.size >> suffix;
@@ -166,7 +167,7 @@ namespace {
         }
 
         cache_size_path = prefix / "coherency_line_size";
-        if (os::is_file(cache_size_path)) {
+        if (io::is_file(cache_size_path)) {
             cache_info.open(cache_size_path, io::READ);
             cache_info.fstream() >> out.line_size;
         }
@@ -209,9 +210,9 @@ namespace noa::cpu {
 
     std::string Device::name() {
         #if defined(NOA_PLATFORM_LINUX)
-        return std::string(string::trim(get_cpu_name_linux()));
+        return std::string(trim(get_cpu_name_linux()));
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return std::string{string::trim(get_cpu_name_windows())};
+        return std::string{trim(get_cpu_name_windows())};
         #else
         return {};
         #endif
@@ -225,20 +226,20 @@ namespace noa::cpu {
         const DeviceCache cache3 = Device::cache(3);
         const DeviceMemory sysmem = Device::memory();
 
-        return string::format("cpu:\n"
-                              "    Name: {}\n"
-                              "    Cores: {}t, {}c\n"
-                              "    L1 cache: {}KB, line:{}\n"
-                              "    L2 cache: {}KB, line:{}\n"
-                              "    L3 cache: {}KB, line:{}\n"
-                              "    Memory: {}MB / {}MB\n"
-                              "    Endianness: {}\n",
-                              name, core_count.logical, core_count.physical,
-                              cache1.size / 1024, cache1.line_size,
-                              cache2.size / 1024, cache2.line_size,
-                              cache3.size / 1024, cache3.line_size,
-                              (sysmem.total - sysmem.free) / 1048576, sysmem.total / 1048576,
-                              io::is_big_endian() ? "big" : "little");
+        return fmt::format("cpu:\n"
+                           "    Name: {}\n"
+                           "    Cores: {}t, {}c\n"
+                           "    L1 cache: {}KB, line:{}\n"
+                           "    L2 cache: {}KB, line:{}\n"
+                           "    L3 cache: {}KB, line:{}\n"
+                           "    Memory: {}MB / {}MB\n"
+                           "    Endianness: {}\n",
+                           name, core_count.logical, core_count.physical,
+                           cache1.size / 1024, cache1.line_size,
+                           cache2.size / 1024, cache2.line_size,
+                           cache3.size / 1024, cache3.line_size,
+                           (sysmem.total - sysmem.free) / 1048576, sysmem.total / 1048576,
+                           io::is_big_endian() ? "big" : "little");
     }
 
     void Device::reset() {
