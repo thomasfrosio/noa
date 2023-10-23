@@ -1,13 +1,15 @@
 #include <cblas.h>
+
+#include "noa/core/indexing/Layout.hpp"
+#include "noa/core/math/ReduceOps.hpp"
+#include "noa/cpu/ReduceBinary.hpp"
 #include "noa/cpu/math/Blas.hpp"
-#include "noa/cpu/utils/ReduceBinary.hpp"
-#include "noa/algorithms/math/AccurateSum.hpp"
 
 namespace {
     using namespace ::noa;
 
     // Extract size and strides from a column or row vector.
-    std::pair<i64, i64> extract_vector_dim_(Strides2<i64> strides, Shape2<i64> shape) {
+    Pair<i64, i64> extract_vector_dim_(Strides2<i64> strides, Shape2<i64> shape) {
         NOA_ASSERT(shape.ndim() == 1);
         const bool is_column = shape[1] == 1;
         const i64 n = shape[1 - is_column];
@@ -16,7 +18,11 @@ namespace {
     }
 
     template<typename T>
-    T cblas_dot_(i64 n, const T* lhs, i64 lhs_strides, const T* rhs, i64 rhs_strides, i64 threads = 1) {
+    T cblas_dot_(
+            i64 n, const T* lhs, i64 lhs_strides,
+            const T* rhs, i64 rhs_strides,
+            i64 threads = 1
+    ) {
         // Trust that cblas uses a relatively accurate sum algorithm.
         // It is likely doing the sum in double-precision, but that's it.
         if constexpr (std::is_same_v<f32, T>) {
@@ -33,20 +39,20 @@ namespace {
             const auto shape = Shape4<i64>{1, 1, 1, n};
             const auto lhs_strides_4d = shape.strides() * lhs_strides;
             const auto rhs_strides_4d = shape.strides() * rhs_strides;
-            c64 error{0};
+            c64 error{};
             c64 sum{};
-            noa::cpu::utils::reduce_binary(
+            noa::cpu::reduce_binary(
                     lhs, lhs_strides_4d, rhs, rhs_strides_4d, shape,
-                    &sum, Strides1<i64>{1}, c64{0},
+                    &sum, Strides1<i64>{1}, c64{},
                     [](T lhs_value, T rhs_value) { return static_cast<c64>(lhs_value * rhs_value); },
-                    noa::algorithm::math::AccuratePlusComplex{&error}, {}, threads);
+                    noa::math::KahanOp<c64>{&error}, {}, threads);
             return static_cast<T>(sum + error);
         } else {
             const auto shape = Shape4<i64>{1, 1, 1, n};
             const auto lhs_strides_4d = shape.strides() * lhs_strides;
             const auto rhs_strides_4d = shape.strides() * rhs_strides;
             T sum{};
-            noa::cpu::utils::reduce_binary(
+            noa::cpu::reduce_binary(
                     lhs, lhs_strides_4d, rhs, rhs_strides_4d, shape,
                     &sum, Strides1<i64>{1}, T{0},
                     [](T lhs_value, T rhs_value) { return lhs_value * rhs_value; },
@@ -56,9 +62,11 @@ namespace {
     }
 
     template<typename T>
-    void cblas_gemm_(CBLAS_ORDER order, bool lhs_transpose, bool rhs_transpose,
-                     Vec3<blasint> mnk, Vec3<blasint> lb, T alpha, T beta,
-                     const T* lhs, const T* rhs, T* output) {
+    void cblas_gemm_(
+            CBLAS_ORDER order, bool lhs_transpose, bool rhs_transpose,
+            Vec3<blasint> mnk, Vec3<blasint> lb, T alpha, T beta,
+            const T* lhs, const T* rhs, T* output
+    ) {
         const auto lhs_op = lhs_transpose ? CblasTrans : CblasNoTrans;
         const auto rhs_op = rhs_transpose ? CblasTrans : CblasNoTrans;
 
@@ -97,17 +105,18 @@ namespace noa::cpu::math {
     }
 
     template<typename T, typename>
-    void dot(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-             const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-             T* output, i64 threads) {
+    void dot(
+            const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+            const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+            T* output, i64 threads
+    ) {
         NOA_ASSERT(lhs && rhs && output && all(lhs_shape > 0) && all(rhs_shape > 0));
         NOA_ASSERT(lhs_shape[0] == rhs_shape[0] && lhs_shape[1] == 1 && rhs_shape[1] == 1);
         const auto batches = lhs_shape[0];
 
         // Get vector shape: lhs should be a row vector, rhs can be a column or row vector
-        i64 lhs_n{}, lhs_s{}, rhs_n{}, rhs_s{};
-        std::tie(lhs_n, lhs_s) = extract_vector_dim_(lhs_strides.filter(2, 3), lhs_shape.filter(2, 3));
-        std::tie(rhs_n, rhs_s) = extract_vector_dim_(rhs_strides.filter(2, 3), rhs_shape.filter(2, 3));
+        const auto& [lhs_n, lhs_s] = extract_vector_dim_(lhs_strides.filter(2, 3), lhs_shape.filter(2, 3));
+        const auto& [rhs_n, rhs_s] = extract_vector_dim_(rhs_strides.filter(2, 3), rhs_shape.filter(2, 3));
         NOA_ASSERT(lhs_n == rhs_n);
         (void) rhs_n;
 
@@ -145,20 +154,22 @@ namespace noa::cpu::math {
 
 namespace noa::cpu::math {
     template<typename T, typename>
-    void matmul(const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-                const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-                T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-                T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-                i64 threads) {
+    void matmul(
+            const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+            const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+            T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
+            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+            i64 threads
+    ) {
         NOA_ASSERT(lhs && rhs && output && all(lhs_shape > 0) && all(rhs_shape > 0));
 
-        const auto [mnk, secondmost_strides, are_column_major] = noa::indexing::extract_matmul_layout(
+        const auto [mnk, secondmost_strides, are_column_major] = noa::extract_matmul_layout(
                 lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
                 lhs_transpose, rhs_transpose);
 
         // dot is faster than gemm with OpenBLAS:
         if (mnk[0] == 1 && mnk[1] == 1 && alpha == T{1} && beta == T{0} &&
-            noa::indexing::is_contiguous(output_strides, output_shape)[0]) {
+            noa::is_contiguous(output_strides, output_shape)[0]) {
             return dot(lhs, lhs_strides, lhs_shape, rhs, rhs_strides, rhs_shape, output, threads);
         }
 
@@ -166,8 +177,8 @@ namespace noa::cpu::math {
         for (i64 batch = 0; batch < output_shape[0]; ++batch) {
             cblas_gemm_(are_column_major ? CblasColMajor : CblasRowMajor,
                         lhs_transpose, rhs_transpose,
-                        mnk.vec().as_safe<blasint>(),
-                        secondmost_strides.vec().as_safe<blasint>(),
+                        mnk.vec.as_safe<blasint>(),
+                        secondmost_strides.vec.as_safe<blasint>(),
                         alpha, beta,
                         lhs + lhs_strides[0] * batch,
                         rhs + rhs_strides[0] * batch,

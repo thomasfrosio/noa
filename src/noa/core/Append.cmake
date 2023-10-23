@@ -13,6 +13,7 @@ set(NOA_CORE_HEADERS
     core/math/Generic.hpp
     core/math/LeastSquare.hpp
     core/math/Ops.hpp
+    core/math/ReduceOps.hpp
 
     core/Indexing.hpp
     core/indexing/Offset.hpp

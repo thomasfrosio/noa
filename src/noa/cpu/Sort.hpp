@@ -2,7 +2,7 @@
 
 #include "noa/core/Types.hpp"
 #include "noa/cpu/Stream.hpp"
-#include "noa/cpu/memory/AllocatorHeap.hpp"
+#include "noa/cpu/AllocatorHeap.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <algorithm>

@@ -96,22 +96,26 @@ namespace noa {
 
         // Creates a strided or contiguous accessor.
         NOA_HD constexpr Accessor(pointer_type pointer, const Strides<index_type, SIZE>& strides) noexcept
-                : m_ptr(pointer), m_strides(strides.data()) {}
+                : m_ptr(pointer),
+                  m_strides(strides_type::from_pointer(strides.data())) {}
 
         // Creates an accessor from an accessor reference.
         NOA_HD constexpr explicit Accessor(accessor_reference_type accessor_reference) noexcept
-                : m_ptr(accessor_reference.get()), m_strides(accessor_reference.strides()) {}
+                : m_ptr(accessor_reference.get()),
+                  m_strides(strides_type::from_pointer(accessor_reference.strides())) {}
 
         // Creates a contiguous 1D accessor, assuming the stride is 1.
         template<typename Void = void, typename = std::enable_if_t<(SIZE == 1) && IS_CONTIGUOUS && std::is_void_v<Void>>>
         NOA_HD constexpr explicit Accessor(pointer_type pointer) noexcept
-                : m_ptr(pointer), m_strides(nullptr) {}
+                : m_ptr(pointer),
+                  m_strides(strides_type::from_pointer(nullptr)) {}
 
         // Creates a const accessor from an existing non-const accessor.
         template<typename U,
                  typename = std::enable_if_t<nt::is_mutable_value_type_v<U, value_type>>>
         NOA_HD constexpr /* implicit */ Accessor(const Accessor<U, N, I, PointerTrait, StridesTrait>& accessor)
-                : m_ptr(accessor.get()), m_strides(accessor.strides().data()) {}
+                : m_ptr(accessor.get()),
+                  m_strides(strides_type::from_pointer(accessor.strides().data())) {}
 
     public: // Accessing strides
         template<size_t INDEX>

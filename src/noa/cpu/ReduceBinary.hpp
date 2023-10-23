@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/cpu/utils/ReduceUnary.hpp"
+#include "noa/cpu/ReduceUnary.hpp"
 
 // This is very similar than the reduce_unary functions, except that the preprocess-operator
 // has to take two input values, combine them and return a Reduced value. Also, passing an

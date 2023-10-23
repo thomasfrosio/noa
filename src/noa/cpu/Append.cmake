@@ -26,12 +26,12 @@ set(NOA_CPU_HEADERS
     #    cpu/fft/Resize.hpp
 
 #    # noa::cpu::math
-#    cpu/math/Blas.hpp
+    cpu/math/Blas.hpp
 #    cpu/math/Complex.hpp
 #    cpu/math/LinAlg.hpp
 #    cpu/math/Random.hpp
 #    cpu/math/Reduce.hpp
-#
+
 #    # noa::cpu::signal
 #    cpu/signal/fft/Bandpass.hpp
 #    cpu/signal/fft/Correlate.hpp
@@ -71,9 +71,9 @@ set(NOA_CPU_SOURCES
     cpu/fft/Plan.cpp
 #    cpu/fft/Remap.cpp
 #    cpu/fft/Resize.cpp
-#
-#    # noa::cpu::math
-#    cpu/math/Blas.cpp
+
+    # noa::cpu::math
+    cpu/math/Blas.cpp
 #    cpu/math/Random.cpp
 #    cpu/math/Reduce.cpp
 #    cpu/math/LinAlg.cpp

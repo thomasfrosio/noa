@@ -1,7 +1,7 @@
 #pragma once
 
-#include "noa/cpu/utils/EwiseUnary.hpp"
-#include "noa/cpu/utils/EwiseBinary.hpp"
+#include "noa/cpu/EwiseUnary.hpp"
+#include "noa/cpu/EwiseBinary.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 namespace noa::cpu::guts {
