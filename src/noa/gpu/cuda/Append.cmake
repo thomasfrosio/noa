@@ -1,4 +1,4 @@
-set(NOA_CUDA_PUBLIC_HEADERS
+set(NOA_CUDA_HEADERS
     # noa::cuda
     gpu/cuda/Device.hpp
     gpu/cuda/Event.hpp

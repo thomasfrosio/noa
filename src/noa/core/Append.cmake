@@ -1,4 +1,4 @@
-set(NOA_CORE_PUBLIC_HEADERS
+set(NOA_CORE_HEADERS
     core/Config.hpp
     core/Exception.hpp
     core/Enums.hpp

@@ -1,4 +1,4 @@
-set(NOA_CPU_PUBLIC_HEADERS
+set(NOA_CPU_HEADERS
     # noa::cpu
     cpu/AllocatorHeap.hpp
     cpu/Copy.hpp

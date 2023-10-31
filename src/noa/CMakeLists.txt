@@ -19,14 +19,14 @@ set(NOA_SOURCES
     ${NOA_UNIFIED_SOURCES}
 )
 
-# Library headers that should also be installed.
-# Note: The entire project directory is already included for the build,
-#       so these are to explicitly specify the headers that should be installed.
-set(NOA_PUBLIC_HEADERS
-    ${NOA_CORE_PUBLIC_HEADERS}
-    ${NOA_CPU_PUBLIC_HEADERS}
-    ${NOA_CUDA_PUBLIC_HEADERS}
-    ${NOA_UNIFIED_PUBLIC_HEADERS}
+# Library headers.
+# Note: The entire project directory is already included.
+#       These are for tools to easily see the dependencies and for installation.
+set(NOA_HEADERS
+    ${NOA_CORE_HEADERS}
+    ${NOA_CPU_HEADERS}
+    ${NOA_CUDA_HEADERS}
+    ${NOA_UNIFIED_HEADERS}
 
     #    Array.hpp
     #    FFT.hpp

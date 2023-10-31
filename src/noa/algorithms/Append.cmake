@@ -9,8 +9,6 @@ set(NOA_ALGO_HEADERS
     algorithms/memory/Linspace.hpp
     algorithms/memory/Resize.hpp
 
-    algorithms/math/AccurateSum.hpp
-
     algorithms/fft/Remap.hpp
     algorithms/fft/Resize.hpp
 

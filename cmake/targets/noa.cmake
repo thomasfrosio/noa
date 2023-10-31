@@ -112,7 +112,7 @@ if (NOA_ENABLE_CUDA)
         # rerun this command for nothing, but it's better than missing a dependency.
         # Note: we don't have private headers atm, so while named "public",
                 these are all the headers we have.
-        DEPENDS cuda_rtc::preprocess ${NOA_CORE_PUBLIC_HEADERS} ${NOA_CUDA_PUBLIC_HEADERS}
+        DEPENDS cuda_rtc::preprocess ${NOA_CORE_HEADERS} ${NOA_CUDA_HEADERS}
 
         # The input sources are relative to this path.
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/src/noa"
@@ -135,7 +135,7 @@ configure_file(
 # ---------------------------------------------------------------------------------------
 # Creating the target and set up the build
 # ---------------------------------------------------------------------------------------
-add_library(noa STATIC ${NOA_SOURCES})
+add_library(noa STATIC ${NOA_SOURCES} ${NOA_HEADERS})
 add_library(noa::noa ALIAS noa)
 
 target_include_directories(noa
@@ -243,7 +243,7 @@ install(
     )
 
 # Install public headers:
-foreach (FILE ${NOA_PUBLIC_HEADERS})
+foreach (FILE ${NOA_HEADERS})
     get_filename_component(DIR ${FILE} DIRECTORY)
     install(FILES ${FILE} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/noa/${DIR}")
 endforeach ()
