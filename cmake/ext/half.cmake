@@ -4,7 +4,7 @@ list(APPEND CMAKE_MESSAGE_INDENT "   ")
 if (TARGET half::half)
     message(STATUS "Target already exists: half::half")
 else ()
-    set(half_REPOSITORY https://github.com/ffyr2w/half-ieee754.git)
+    set(half_REPOSITORY https://github.com/thomasfrosio/half-ieee754.git)
     set(half_TAG master)
 
     message(STATUS "Repository: ${half_REPOSITORY}")

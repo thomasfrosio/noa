@@ -1,6 +1,4 @@
-# Included files for noa/core:
-
-set(NOA_CORE_HEADERS
+set(NOA_CORE_PUBLIC_HEADERS
     core/Config.hpp
     core/Exception.hpp
     core/Enums.hpp
@@ -31,6 +29,7 @@ set(NOA_CORE_HEADERS
 
     core/string/Format.hpp
     core/string/Parse.hpp
+    core/string/Reflect.hpp
     core/string/Split.hpp
 
     core/Types.hpp
@@ -81,6 +80,3 @@ set(NOA_CORE_SOURCES
     core/io/MRCFile.cpp
     core/io/TIFFFile.cpp
     )
-
-set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CORE_HEADERS})
-set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CORE_SOURCES})

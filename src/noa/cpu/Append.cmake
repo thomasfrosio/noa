@@ -1,9 +1,4 @@
-# Included files for noa/cpu:
-if (NOT NOA_ENABLE_CPU)
-    return()
-endif ()
-
-set(NOA_CPU_HEADERS
+set(NOA_CPU_PUBLIC_HEADERS
     # noa::cpu
     cpu/AllocatorHeap.hpp
     cpu/Copy.hpp
@@ -108,6 +103,3 @@ set(NOA_CPU_SOURCES
 #    cpu/geometry/Prefilter.cpp
 #    cpu/geometry/Transform.cpp
     )
-
-set(NOA_HEADERS ${NOA_HEADERS} ${NOA_CPU_HEADERS})
-set(NOA_SOURCES ${NOA_SOURCES} ${NOA_CPU_SOURCES})

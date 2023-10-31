@@ -4,7 +4,7 @@ list(APPEND CMAKE_MESSAGE_INDENT "   ")
 if (TARGET yaml-cpp::yaml-cpp)
     message(STATUS "Target already exists: yaml-cpp::yaml-cpp")
 else ()
-    set(yaml-cpp_REPOSITORY https://github.com/ffyr2w/yaml-cpp)
+    set(yaml-cpp_REPOSITORY https://github.com/thomasfrosio/yaml-cpp)
     set(yaml-cpp_TAG master)
 
     message(STATUS "Repository: ${yaml-cpp_REPOSITORY}")
