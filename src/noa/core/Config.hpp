@@ -1,13 +1,9 @@
 #pragma once
 
 // --- Platform detection ---
-#if defined(_WIN32)
-    #if defined(_WIN64)
-        #define NOA_PLATFORM_WINDOWS
-        #error "Windows x64 is not supported yet!"
-    #else // _WIN32
-        #error "Windows x86 is not supported!"
-    #endif
+#if defined(_WIN64)
+    // TODO Improve this
+    #define NOA_PLATFORM_WINDOWS
 #elif defined(__APPLE__) || defined(__MACH__)
     #include <TargetConditionals.h>
     // TARGET_OS_MAC exists on all the platforms so we must check all of them (in this order)
@@ -25,7 +21,9 @@
     // We also have to check __ANDROID__ before __linux__ since android is based on the linux kernel
     // it has __linux__ defined
     #error "Android is not supported!"
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__CUDACC_RTC__)
+    // If windows, nvrtc defines _WIN64 on windows,
+    // so if we read this point with nvrtc we are on linux
     #define NOA_PLATFORM_LINUX
 #else
     #error "Unknown platform!"

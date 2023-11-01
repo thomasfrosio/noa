@@ -1,15 +1,15 @@
 #pragma once
 
-#include <cuda_runtime.h>
+#include "noa/core/Config.hpp"
 
+#if defined(NOA_IS_OFFLINE)
+#include <cuda_runtime.h>
 #include <cstddef>
 #include <string>
 #include <vector>
 
-#include "noa/core/Definitions.hpp"
 #include "noa/core/string/Format.hpp"
 #include "noa/core/string/Parse.hpp"
-
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/utils/Version.hpp"
@@ -123,7 +123,7 @@ namespace noa::cuda {
             const auto[runtime_major, runtime_minor] = version_formatter(version_runtime());
             const auto[driver_major, driver_minor] = version_formatter(version_driver());
 
-            return noa::string::format(
+            return fmt::format(
                     "cuda:{}:\n"
                     "    Name: {}\n"
                     "    Memory: {}MB / {}MB\n"
@@ -209,9 +209,9 @@ namespace noa::cuda {
 
     private:
         static i32 parse_id_(std::string_view name) {
-            std::string str_ = noa::string::lower(noa::string::trim(name));
+            std::string str_ = to_lower(trim(name));
 
-            if (!noa::string::starts_with(str_, "cuda"))
+            if (!starts_with(str_, "cuda"))
                 NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
 
             i32 id{};
@@ -220,10 +220,10 @@ namespace noa::cuda {
                 id = 0;
             } else if (length >= 6 && str_[4] == ':') {
                 i32 error{};
-                id = noa::string::parse<i32>(std::string{str_.data() + 5}, error);
+                id = parse<i32>(std::string{str_.data() + 5}, error);
                 if (error)
                     NOA_THROW("Failed to parse the CUDA device ID. {}",
-                              noa::string::parse_error_message<i32>(str_, error));
+                              parse_error_message<i32>(str_, error));
             } else {
                 NOA_THROW("Failed to parse CUDA device \"{}\"", str_);
             }
@@ -269,3 +269,4 @@ namespace noa::cuda {
     inline bool operator!=(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() != rhs.id(); }
     inline bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 }
+#endif

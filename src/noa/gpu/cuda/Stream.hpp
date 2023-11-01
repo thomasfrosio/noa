@@ -1,21 +1,22 @@
 #pragma once
 
-#include <cuda_runtime.h>
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Device.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <list>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
 
-#include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
-#include "noa/gpu/cuda/Device.hpp"
-
 // TODO cudaFree(Async) is synchronizing the device/stream or is stream-ordered, so this shouldn't be necessary
 //      for CUDA-managed memory. For unregistered memory that the stream depends on (e.g. CPU<->GPU copies), this
 //      should be useful. Update the documentation to reflect that?
 
-namespace noa::cuda::details {
+namespace noa::cuda::guts {
     template<typename T> struct proclaim_is_shared_ptr : std::false_type {};
     template<typename T> struct proclaim_is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
     template<typename T> constexpr bool is_shared_ptr_v = std::bool_constant<proclaim_is_shared_ptr<nt::remove_ref_cv_t<T>>::value>::value;
@@ -174,7 +175,7 @@ namespace noa::cuda {
     class Stream {
     public:
         struct Core {
-            details::StreamResourceRegistry registry{};
+            guts::StreamResourceRegistry registry{};
             cudaStream_t handle{};
 
             ~Core() {
@@ -324,7 +325,7 @@ namespace noa::cuda {
         // As such, if the StreamResourceRegistry calls the CUDA API as part of insert() or clear(), since these
         // function lock, the CUDA host thread can deadlock...
         static void CUDART_CB updateRegistryCallback_(void* object) {
-            auto* registry = static_cast<details::StreamResourceRegistry*>(object);
+            auto* registry = static_cast<guts::StreamResourceRegistry*>(object);
             ++(registry->callback_count);
         }
 
@@ -333,3 +334,4 @@ namespace noa::cuda {
         Device m_device{0, Device::DeviceUnchecked{}};
     };
 }
+#endif

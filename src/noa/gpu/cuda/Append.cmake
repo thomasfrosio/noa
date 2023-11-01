@@ -56,7 +56,7 @@ set(NOA_CUDA_SOURCES
 
 # Files to be preprocessed and runtime-compiled.
 set(NOA_CUDA_PREPROCESS_SOURCES
-    utils/EwiseBinary.cuh
-    utils/EwiseTrinary.cuh
-    utils/EwiseUnary.cuh
+    gpu/cuda/utils/EwiseBinary.cuh
+    gpu/cuda/utils/EwiseTrinary.cuh
+    gpu/cuda/utils/EwiseUnary.cuh
 )

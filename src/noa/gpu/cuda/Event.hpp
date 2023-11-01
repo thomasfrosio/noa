@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cuda_runtime.h>
+#include "noa/core/Config.hpp"
 
-#include "noa/core/Definitions.hpp"
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
@@ -105,3 +105,4 @@ namespace noa::cuda {
         Device m_device{};
     };
 }
+#endif
