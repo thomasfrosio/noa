@@ -72,23 +72,23 @@ if (NOA_ENABLE_CUDA)
         )
 
     # Preprocess CUDA kernels.
-    string(REPLACE ";" " " noa_jit_sources_to_preprocess "${NOA_CUDA_PREPROCESS_SOURCES}")
-
     set(noa_jit_include_directories ${CUDAToolkit_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/src)
     list(TRANSFORM noa_jit_include_directories PREPEND -I)
-    string(REPLACE ";" " " noa_jit_include_directories "${noa_jit_include_directories}")
 
     set(noa_jit_generated_shared_headers_source ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa_shared_headers.jit.cpp)
     set(noa_jit_generated_sources_headers ${NOA_CUDA_PREPROCESS_SOURCES})
-    list(TRANSFORM noa_jit_generated_sources_headers PREPEND ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa)
+    list(TRANSFORM noa_jit_generated_sources_headers PREPEND ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa/)
     list(TRANSFORM noa_jit_generated_sources_headers APPEND .jit.hpp)
 
+    # TODO If cuda is linked statically, let jitify parse and include the cuda headers (current behavior).
+    #      Otherwise, pass the include dir to nvrtc and check for the path at runtime e.g. using an env variable.
+    # FIXME cuda_f16.h, cuda.h, cuda_runtime.h should not be patched, or anything in the cuda toolkit include dir.
     add_custom_command(
         OUTPUT
         ${noa_jit_generated_shared_headers_source}
         ${noa_jit_generated_sources_headers}
 
-        COMMAND cuda_rtc::preprocess ${noa_jit_sources_to_preprocess}
+        COMMAND cuda_rtc::preprocess ${NOA_CUDA_PREPROCESS_SOURCES}
         # preprocess
         --output-directory "${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa"
         --shared-headers shared_headers
@@ -100,12 +100,10 @@ if (NOA_ENABLE_CUDA)
         --cuda-std
         --minify
         --no-replace-pragma-once
-        --no-system-headers-workaround
-        --no-preinclude-workarounds
         --no-builtin-headers
 
         # nvrtc options
-        --no-source-include  # make sure every header is caught by jitify2
+        --include-path=${CUDAToolkit_INCLUDE_DIRS}
 
         # Make it depends on the core headers and the cuda headers.
         # Some of these headers are not actually passed to nvrtc, so we might
@@ -114,7 +112,16 @@ if (NOA_ENABLE_CUDA)
                 these are all the headers we have.
         DEPENDS cuda_rtc::preprocess ${NOA_CORE_HEADERS} ${NOA_CUDA_HEADERS}
 
-        # The input sources are relative to this path.
+        # The working directory is quite important because nvrtc includes it to resolve quoted
+        # #includes. This is a problem because we want jitify to intercept every #include statement
+        # so an implicitly included directory is not great. We could use the --no-source-include
+        # options from nvrtc, but this break transitive includes with quotes (cuda/std/type_traits
+        # doesn't compile with that option for example). The solution is to make sure the cwd cannot
+        # be used by nvrtc to resolve quoted #include statements. In noa, all of our quoted includes
+        # are to include our headers and all of them are relative to src/, eg #include "noa/Array.hpp",
+        # so we need to make sure that the working directory is not src/. Using src/noa/ is actually
+        # perfect as long as we don't do eg #include "Array.hpp", which we don't. src/noa/ also
+        # preserves the include structure in the output directory, so all good!
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/src/noa"
         VERBATIM
     )
