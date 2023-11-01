@@ -60,15 +60,8 @@ if (NOA_ENABLE_WARNINGS)
     noa_set_cuda_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
 endif ()
 
-# Directories to store generated files.
-#   - NOA_GENERATED_HEADERS_PUBLIC_DIR:     Generated headers that should be included in the build and installed.
-#   - NOA_GENERATED_HEADERS_PRIVATE_DIR:    Same as NOA_GENERATED_HEADERS_PUBLIC_DIR, but headers are not installed.
-#   - NOA_GENERATED_SOURCES_DIR:            Generated sources that should be built and linked with the library.
-#   - NOA_GENERATED_DIR:                    Any other generated file. These should be treated individually.
-set(NOA_GENERATED_HEADERS_PUBLIC_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_headers_public")
-set(NOA_GENERATED_HEADERS_PRIVATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_headers_private")
-set(NOA_GENERATED_SOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_sources")
-set(NOA_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated")
+# Save the current binary directory, so that we can easily refer to it even within subdirectories.
+set(NOA_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
 # CMAKE_INSTALL_PREFIX is the path of the install directory, which is often specified in the command line.
 # Then, we need the paths (relative to CMAKE_INSTALL_PREFIX) to know where to install things.

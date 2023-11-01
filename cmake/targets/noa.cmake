@@ -2,8 +2,8 @@ message(STATUS "--------------------------------------")
 message(STATUS "-> noa::noa: configuring public target...")
 
 # Directories to store generated source files (that include headers, hence the public/private).
-set(NOA_GENERATED_SOURCES_PUBLIC_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_sources_public")
-set(NOA_GENERATED_SOURCES_PRIVATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_sources_private")
+set(NOA_GENERATED_SOURCES_PUBLIC_DIR "${NOA_BINARY_DIR}/noa_generated_sources_public")
+set(NOA_GENERATED_SOURCES_PRIVATE_DIR "${NOA_BINARY_DIR}/noa_generated_sources_private")
 
 # ---------------------------------------------------------------------------------------
 # Linking options and libraries
