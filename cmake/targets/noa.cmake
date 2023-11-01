@@ -75,24 +75,24 @@ if (NOA_ENABLE_CUDA)
     set(noa_jit_include_directories ${CUDAToolkit_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/src)
     list(TRANSFORM noa_jit_include_directories PREPEND -I)
 
-    set(noa_jit_generated_shared_headers_source ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa_shared_headers.jit.cpp)
-    set(noa_jit_generated_sources_headers ${NOA_CUDA_PREPROCESS_SOURCES})
-    list(TRANSFORM noa_jit_generated_sources_headers PREPEND ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa/)
-    list(TRANSFORM noa_jit_generated_sources_headers APPEND .jit.hpp)
+    set(noa_jit_generated_dir ${NOA_GENERATED_SOURCES_PRIVATE_DIR})
+    set(noa_jit_generated_sources ${NOA_CUDA_PREPROCESS_SOURCES})
+    list(TRANSFORM noa_jit_generated_sources PREPEND ${noa_jit_generated_dir}/)
+    list(TRANSFORM noa_jit_generated_sources APPEND .jit.cpp)
+    list(APPEND noa_jit_generated_sources ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa_shared_headers.jit.cpp)
 
     # TODO If cuda is linked statically, let jitify parse and include the cuda headers (current behavior).
     #      Otherwise, pass the include dir to nvrtc and check for the path at runtime e.g. using an env variable.
     # FIXME cuda_f16.h, cuda.h, cuda_runtime.h should not be patched, or anything in the cuda toolkit include dir.
     add_custom_command(
         OUTPUT
-        ${noa_jit_generated_shared_headers_source}
-        ${noa_jit_generated_sources_headers}
+        ${noa_jit_generated_sources}
 
         COMMAND cuda_rtc::preprocess ${NOA_CUDA_PREPROCESS_SOURCES}
         # preprocess
-        --output-directory "${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa"
+        --output-directory ${noa_jit_generated_dir}
         --shared-headers shared_headers
-        --variable-prefix noa_
+        --namespace noa
 
         # jitify2
         ${noa_jit_include_directories}
@@ -126,10 +126,8 @@ if (NOA_ENABLE_CUDA)
         VERBATIM
     )
 
-    # The generated private headers will be available at build time, but will not be installed.
-    # By then, they should already be compiled and embedded in the library. On the other hand,
-    # we need to add the generated source (the shared-headers) to the list of sources for the
-    # library. We have it as an absolute path, so we can just add it to the list.
+    # We need to add the generated sources to the list of sources for the library.
+    # These are absolute paths, so we can just add them to the list.
     list(APPEND NOA_SOURCES ${noa_jit_generated_shared_headers_source})
 endif ()
 
