@@ -1,32 +1,24 @@
 set(TEST_COMMON_SOURCES
-
-    noa/core/utils/TestCommonClampCast.cpp
-    noa/core/utils/TestCommonIndexing.cpp
-    noa/core/utils/TestCommonIRange.cpp
-    noa/core/utils/TestCommonSafeCast.cpp
-
-    noa/core/string/TestCommonString.cpp
-
+    noa/core/geometry/TestCoreEuler.cpp
+    noa/core/geometry/TestCoreInterpolator.cpp
+    noa/core/geometry/TestCoreQuaternion.cpp
+    noa/core/indexing/TestCoreIndexing.cpp
+    noa/core/io/TestCoreIO.cpp
+    noa/core/io/TestCoreOS.cpp
+    noa/core/io/TestCoreMRCFile.cpp
+    noa/core/io/TestCoreTextFile.cpp
     noa/core/signal/TestCoreWindows.cpp
-
-    noa/core/traits/TestCommonTraitsVectors.cpp
-
-    noa/core/types/TestCommonAccessor.cpp
-    noa/core/types/TestCommonComplex.cpp
-    noa/core/types/TestCommonHalf.cpp
-    noa/core/types/TestCommonMatrices.cpp
-    noa/core/types/TestCommonVectors.cpp
+    noa/core/string/TestCoreString.cpp
+    noa/core/types/TestCoreAccessor.cpp
+    noa/core/types/TestCoreComplex.cpp
+    noa/core/types/TestCoreHalf.cpp
+    noa/core/types/TestCoreMat.cpp
     noa/core/types/TestCoreSpan.cpp
-
-    noa/core/geometry/TestCommonGeometryEuler.cpp
-    noa/core/geometry/TestCommonInterpolator.cpp
-    noa/core/geometry/TestCoreGeometryQuaternion.cpp
-
-    noa/core/io/TestCommonOS.cpp
-    noa/core/io/TestCommonIO.cpp
-    noa/core/io/TestMRCFile.cpp
-    noa/core/io/TestTextFile.cpp
-
+    noa/core/types/TestCoreVec.cpp
+    noa/core/types/TestCoreVecTraits.cpp
+    noa/core/utils/TestCoreClampCast.cpp
+    noa/core/utils/TestCoreIRange.cpp
+    noa/core/utils/TestCoreSafeCast.cpp
     )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_COMMON_SOURCES})
