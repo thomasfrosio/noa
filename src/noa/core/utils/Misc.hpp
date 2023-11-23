@@ -11,6 +11,19 @@ namespace noa {
     }
 }
 
+// Static for each
+namespace noa {
+    template<size_t... I, typename Integer = size_t, typename Op, typename... Args>
+    void static_for_each(std::integer_sequence<Integer, I...>, Op&& op, Args&&... args) {
+        (op.template operator()<I>(std::forward<Args>(args)...), ...);
+    }
+
+    template<size_t N, typename Integer = size_t, typename Op, typename... Args>
+    void static_for_each(Op&& op, Args&&... args) {
+        static_for_each(std::make_integer_sequence<Integer, N>{}, std::forward<Op>(op), std::forward<Args>(args)...);
+    }
+}
+
 #if defined(NOA_IS_OFFLINE)
 #include <algorithm>
 

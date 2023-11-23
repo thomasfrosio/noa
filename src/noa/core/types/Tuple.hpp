@@ -17,6 +17,17 @@
 /// - Type names, namespaces and code-format are changed, just to have this code fully integrated into noa.
 /// - Comparisons, concepts, and MSVC-support are removed to simplify the code (because we don't need that).
 /// - tuple_base_t implementation was changed to support nvrtc (weird bug?).
+///
+/// Why not std::tuple?
+/// - std::tuple (or cuda::std::tuple) could absolutely be used, but this Tuple is significantly more efficient,
+///   likely because Tuple is an aggregate and aggregate are (apparently) easier to optimize.
+/// - Controlling the layout of the tuple and being able to easily manipulate the internals is very useful to
+///   add efficient functions to manipulate the tuple elements.
+/// - One issue with the Tuple implementation is that aggregate initialization triggers the pedantic warning
+///   -Wmissing-braces. Braces can be added to acknowledge the fact that each tuple element is from a separate
+///   base class, but this is a bit annoying. This warning could be useful in other places so it's probably
+///   best to keep it. If adding the extra braces is unacceptable, the make_tuple() template function can
+///   be an alternative solution.
 
 namespace noa {
     template<typename... T>
@@ -26,6 +37,12 @@ namespace noa {
     inline constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
         return TypeList<Ls..., Rs...>{};
     }
+
+    template<size_t I>
+    using Tag = std::integral_constant<size_t, I>;
+
+    template<class... T>
+    struct Tuple;
 }
 
 namespace noa::traits {
@@ -52,43 +69,48 @@ namespace noa::traits {
     template<typename Tup>
     using element_list_t = typename std::decay_t<Tup>::element_list;
 
-    template<class Tup, class = typename Tup::base_list>
+    template<typename Tup>
+    using decay_list_t = typename std::decay_t<Tup>::decay_list;
+
+    template<typename Tup, typename = typename Tup::base_list>
     constexpr bool has_base_list(int) {
         return true;
     }
 
-    template<class Tup>
+    template<typename Tup>
     constexpr bool has_base_list(long long) {
         return false;
     }
 
-    template <class Tuple>
-    constexpr auto has_base_list_v = has_base_list<Tuple>(0);
+    template<typename Tup>
+    constexpr auto has_base_list_v = has_base_list<Tup>(0);
 }
 
 namespace noa::guts {
-    template<size_t I>
-    using tag = std::integral_constant<size_t, I>;
-
+    // Stores an element from the tuple.
+    // The index is stored in the type, so that each tuple element is unique.
     template<size_t I, typename T>
     struct TupleElement {
         using type = T;
+        static constexpr size_t INDEX = I;
         NOA_NO_UNIQUE_ADDRESS T value;
 
-        inline constexpr decltype(auto) operator[](tag<I>) & {
+        inline constexpr decltype(auto) operator[](Tag<I>) & {
             return (value);
         }
-        inline constexpr decltype(auto) operator[](tag<I>) const& {
+        inline constexpr decltype(auto) operator[](Tag<I>) const& {
             return (value);
         }
-        inline constexpr decltype(auto) operator[](tag<I>) && {
+        inline constexpr decltype(auto) operator[](Tag<I>) && {
             return (static_cast<TupleElement&&>(*this).value);
         }
 
         // Used to extract the type for the Ith element.
-        static auto declval(tag<I>) -> T;
+        static auto declval(Tag<I>) -> T;
     };
 
+    // The nested type that stores the TupleElements.
+    // The Tuple directly (and only) inherits from this type.
     template<typename... Bases>
     struct TypeMap : Bases... {
         using base_list = TypeList<Bases...>;
@@ -111,19 +133,18 @@ namespace noa::guts {
     // Instead, use a variadic template function (no specialization involved) and retrieve the return type.
     // Actually, wrap this in a non-template type with a template operator() to easily retrieve the return type
     // while using type deduction. Note that there's no need to define this function; the declaration is all we need.
-    struct GetTupleType {
+    struct GetTypeMap {
         template<size_t... I, class... T>
         auto operator()(std::index_sequence<I...>, T...) -> TypeMap<TupleElement<I, T>...>;
     };
+
+    // Constructs the tuple base type.
+    // This alias is simply here to create the index sequence.
+    template<typename... T>
+    using TupleBase = typename std::invoke_result_t<guts::GetTypeMap, std::make_index_sequence<sizeof...(T)>, T...>;
 }
 
-namespace noa {
-    template<typename... T>
-    using TupleBase = typename std::invoke_result_t<guts::GetTupleType, std::make_index_sequence<sizeof...(T)>, T...>;
-
-    template<class... T>
-    struct Tuple;
-
+namespace noa::guts {
     template<typename Tup, typename F, typename... B>
     inline constexpr void tuple_for_each(Tup&& tup, F&& func, TypeList<B...>) {
         (void(func(tup.::noa::traits::identity_t<B>::value)), ...);
@@ -154,167 +175,187 @@ namespace noa {
     inline constexpr U tuple_convert(Tup&& t, TypeList<B...>) {
         return U{t.::noa::traits::identity_t<B>::value...};
     }
+}
 
+namespace noa {
+    /// Efficient tuple aggregate-type.
     template<class... T>
-    struct Tuple : TupleBase<T...> {
-        constexpr static size_t N = sizeof...(T);
+    struct Tuple : guts::TupleBase<T...> {
+        constexpr static size_t SIZE = sizeof...(T);
         constexpr static bool nothrow_swappable = (std::is_nothrow_swappable_v<T> && ...);
 
-        using super = TupleBase<T...>;
+        using super = guts::TupleBase<T...>;
         using super::operator[];
         using base_list = typename super::base_list;
         using element_list = TypeList<T...>;
+        using decay_list = TypeList<std::decay_t<T>...>;
+        using decayed_tuple = Tuple<std::decay_t<T>...>;
         using super::declval;
 
+    public: // Additional element access
         template<size_t I>
         inline constexpr decltype(auto) get() & {
-            return ((*this)[guts::tag<I>{}]);
+            return ((*this)[Tag<I>{}]);
         }
 
         template<size_t I>
         inline constexpr decltype(auto) get() const& {
-            return ((*this)[guts::tag<I>{}]);
+            return ((*this)[Tag<I>{}]);
         }
 
         template<size_t I>
         inline constexpr decltype(auto) get() && {
-            return (static_cast<Tuple&&>(*this)[guts::tag<I>{}]);
+            return (static_cast<Tuple&&>(*this)[Tag<I>{}]);
         }
 
-        template<typename U, typename = std::enable_if_t<!std::is_same_v<std::decay_t<Tuple>, std::decay_t<U>>>> // Preserves default assignments
+    public: // Whole tuple assignment
+        template<typename U, typename = std::enable_if_t<
+                 !std::is_same_v<std::decay_t<Tuple>, std::decay_t<U>>>> // Preserves default assignments
         inline constexpr auto& operator=(U&& tup) {
             using tuple_t = std::decay_t<U>;
             if constexpr (nt::has_base_list_v<tuple_t>) {
                 assign_tup_(static_cast<U&&>(tup), base_list{}, typename tuple_t::base_list{});
             } else {
-                assign_index_tup_(static_cast<U&&>(tup), std::make_index_sequence<N>());
+                assign_index_tup_(static_cast<U&&>(tup), std::make_index_sequence<SIZE>());
             }
             return *this;
         }
 
         template<class... U>
-        constexpr auto& assign(U&&... values) {
-            _assign(base_list {}, static_cast<U&&>(values)...);
+        constexpr auto& assign(U&& ... values) {
+            assign_(base_list{}, static_cast<U&&>(values)...);
             return *this;
         }
 
         inline constexpr void swap(Tuple& other) noexcept(nothrow_swappable) {
-            _swap(other, base_list {});
+            swap_(other, base_list {});
         }
 
+    public: // Utility functions
         /// Applies a function to every element of the tuple. The order is the
         /// declaration order, so first the function will be applied to element
         /// 0, then element 1, then element 2, and so on, where element N is
         /// identified by get<N>
         template<class F>
         inline constexpr void for_each(F&& func)& {
-            tuple_for_each(*this, static_cast<F&&>(func), base_list{});
+            guts::tuple_for_each(*this, static_cast<F&&>(func), base_list{});
         }
         template<class F>
         inline constexpr void for_each(F&& func) const& {
-            tuple_for_each(*this, static_cast<F&&>(func), base_list{});
+            guts::tuple_for_each(*this, static_cast<F&&>(func), base_list{});
         }
         template<class F>
         inline constexpr void for_each(F&& func)&& {
-            tuple_for_each(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+            guts::tuple_for_each(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
         /// Applies a function to each element successively, until one returns true.
         /// Returns true if any application returned true, otherwise returns false.
         template<typename F>
         inline constexpr bool any(F&& func)& {
-            return tuple_any(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_any(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr bool any(F&& func) const& {
-            return tuple_any(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_any(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr bool any(F&& func)&& {
-            return tuple_any(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+            return guts::tuple_any(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
         /// Applies a function to each element successively, until one returns false.
         /// Returns true if every application returned true, otherwise returns false.
         template<typename F>
         inline constexpr bool all(F&& func)& {
-            return tuple_all(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_all(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr bool all(F&& func) const& {
-            return tuple_all(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_all(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr bool all(F&& func)&& {
-            return tuple_all(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+            return guts::tuple_all(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
         /// Map a function over every element in the tuple, using the returned values to construct a new tuple.
         template<typename F>
         inline constexpr auto map(F&& func)& {
-            return tuple_map(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_map(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr auto map(F&& func) const& {
-            return tuple_map(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_map(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr auto map(F&& func)&& {
-            return tuple_map(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+            return guts::tuple_map(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
         template<typename F>
         inline constexpr decltype(auto) apply(F&& func)& {
-            return tuple_apply(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_apply(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr decltype(auto) apply(F&& func) const& {
-            return tuple_apply(*this, static_cast<F&&>(func), base_list{});
+            return guts::tuple_apply(*this, static_cast<F&&>(func), base_list{});
         }
         template<typename F>
         inline constexpr decltype(auto) apply(F&& func)&& {
-            return tuple_apply(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+            return guts::tuple_apply(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
+    public: // Type conversion
         template<typename... U>
         constexpr explicit operator Tuple<U...>()& {
-            static_assert(sizeof...(U) == N, "Can only convert to tuples with the same number of items");
-            return tuple_convert<Tuple<U...>>(*this, base_list{});
+            static_assert(sizeof...(U) == SIZE, "Can only convert to tuples with the same number of items");
+            return guts::tuple_convert<Tuple<U...>>(*this, base_list{});
         }
         template<typename... U>
         constexpr explicit operator Tuple<U...>() const& {
-            static_assert(sizeof...(U) == N, "Can only convert to tuples with the same number of items");
-            return tuple_convert<Tuple<U...>>(*this, base_list{});
+            static_assert(sizeof...(U) == SIZE, "Can only convert to tuples with the same number of items");
+            return guts::tuple_convert<Tuple<U...>>(*this, base_list{});
         }
         template<typename... U>
         constexpr explicit operator Tuple<U...>()&& {
-            static_assert(sizeof...(U) == N, "Can only convert to tuples with the same number of items");
-            return tuple_convert<Tuple<U...>>(static_cast<Tuple&&>(*this), base_list{});
+            static_assert(sizeof...(U) == SIZE, "Can only convert to tuples with the same number of items");
+            return guts::tuple_convert<Tuple<U...>>(static_cast<Tuple&&>(*this), base_list{});
         }
 
         /// Instantiate the given type using list initialization
         template<typename U>
         inline constexpr U as()& {
-            return tuple_convert<U>(*this, base_list{});
+            return guts::tuple_convert<U>(*this, base_list{});
         }
         template<typename U>
         inline constexpr U as() const& {
-            return tuple_convert<U>(*this, base_list{});
+            return guts::tuple_convert<U>(*this, base_list{});
         }
         template<typename U>
         inline constexpr U as()&& {
-            return tuple_convert<U>(static_cast<Tuple&&>(*this), base_list{});
+            return guts::tuple_convert<U>(static_cast<Tuple&&>(*this), base_list{});
+        }
+
+        inline constexpr auto decay()& {
+            return guts::tuple_convert<decayed_tuple>(*this, base_list{});
+        }
+        inline constexpr auto decay() const& {
+            return guts::tuple_convert<decayed_tuple>(*this, base_list{});
+        }
+        inline constexpr auto decay()&& {
+            return guts::tuple_convert<decayed_tuple>(static_cast<Tuple&&>(*this), base_list{});
         }
 
     private:
         template<class... B>
-        inline constexpr void _swap(Tuple& other, TypeList<B...>) noexcept(nothrow_swappable) {
+        inline constexpr void swap_(Tuple& other, TypeList<B...>) noexcept(nothrow_swappable) {
             using std::swap;
             (swap(B::value, other.::noa::traits::identity_t<B>::value), ...);
         }
 
-        template <class U, class... B1, class... B2>
-        inline constexpr void assign_tup_(U&& u,TypeList<B1...>,TypeList<B2...>) {
+        template<class U, class... B1, class... B2>
+        inline constexpr void assign_tup_(U&& u, TypeList<B1...>, TypeList<B2...>) {
             (void(B1::value = static_cast<U&&>(u).::noa::traits::identity_t<B2>::value), ...);
         }
         template<class U, size_t... I>
@@ -322,19 +363,21 @@ namespace noa {
             using std::get;
             (void(guts::TupleElement<I, T>::value = get<I>(static_cast<U&&>(u))), ...);
         }
-        template <class... U, class... B>
-        inline constexpr void _assign(TypeList<B...>, U&&... u) {
+        template<class... U, class... B>
+        inline constexpr void assign_(TypeList<B...>, U&& ... u) {
             (void(B::value = static_cast<U&&>(u)), ...);
         }
     };
 
     template<>
-    struct Tuple<> : TupleBase<> {
-        constexpr static size_t N = 0;
+    struct Tuple<> : guts::TupleBase<> {
+        constexpr static size_t SIZE = 0;
         constexpr static bool nothrow_swappable = true;
-        using super = TupleBase<>;
+        using super = guts::TupleBase<>;
         using base_list = TypeList<>;
         using element_list = TypeList<>;
+        using decay_list = TypeList<>;
+        using decayed_tuple = Tuple<>;
 
         template<size_t>
         inline constexpr void get() {}
@@ -347,27 +390,31 @@ namespace noa {
         constexpr void swap(Tuple) noexcept {}
         constexpr auto& assign() noexcept { return *this; }
 
-        template <class F>
+        template<class F>
         constexpr void for_each(F&&) const noexcept {}
 
-        template <class F>
+        template<class F>
         constexpr bool any(F&&) const noexcept { return false; }
 
-        template <class F>
+        template<class F>
         constexpr bool all(F&&) const noexcept { return true; }
 
-        template <class F>
+        template<class F>
         constexpr auto map(F&&) const noexcept { return Tuple{}; }
 
-        template <class F>
+        template<class F>
         constexpr decltype(auto) apply(F&& func) const noexcept { return func(); }
 
-        template <class U>
-        constexpr U as() const noexcept { return U {}; }
+        template<class U>
+        constexpr U as() const noexcept { return U{}; }
+
+        constexpr Tuple decay() const noexcept {
+            return {};
+        }
     };
 
     // Deduction guide.
-    template <class... Ts>
+    template<typename... Ts>
     Tuple(Ts...) -> Tuple<nt::unwrap_ref_decay_t<Ts>...>;
 }
 
@@ -447,7 +494,7 @@ namespace noa {
 
         template<typename U>
         constexpr operator U()&& {
-            return tuple_convert<U>(static_cast<Tuple&&>(tuple), base_list{});
+            return guts::tuple_convert<U>(static_cast<Tuple&&>(tuple), base_list{});
         }
     };
 
@@ -497,13 +544,13 @@ namespace noa {
     }
 
     template<typename... Ts>
-    inline constexpr auto make_tuple(Ts&& ... args) {
+    inline constexpr auto make_tuple(Ts&&... args) {
         return Tuple<nt::unwrap_ref_decay_t<Ts>...>{static_cast<Ts&&>(args)...};
     }
 
     template<typename... T>
-    inline constexpr auto forward_as_tuple(T&& ... a) noexcept {
-        return Tuple<T&& ...>{static_cast<T&&>(a)...};
+    inline constexpr auto forward_as_tuple(T&&... a) noexcept {
+        return Tuple<T&&...>{static_cast<T&&>(a)...};
     }
 }
 
@@ -576,12 +623,12 @@ namespace std {
 
     template<size_t I, typename... T>
     struct tuple_element<I, noa::Tuple<T...>> {
-        using type = decltype(noa::Tuple<T...>::declval(noa::guts::tag<I>()));
+        using type = decltype(noa::Tuple<T...>::declval(noa::Tag<I>()));
     };
 
     template<size_t I, typename... T>
     struct tuple_element<I, const noa::Tuple<T...>> {
-        using type = const decltype(noa::Tuple<T...>::declval(noa::guts::tag<I>()));
+        using type = const decltype(noa::Tuple<T...>::declval(noa::Tag<I>()));
     };
 
     template<size_t I, typename A, typename B>

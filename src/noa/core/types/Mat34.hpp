@@ -60,6 +60,16 @@ namespace noa {
                     row_type::from_values(0, 0, diagonal[2], 0)};
         }
 
+        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        [[nodiscard]] NOA_HD static constexpr Mat34 eye(U s) noexcept {
+            return from_diagonal(s);
+        }
+
+        template<typename U>
+        [[nodiscard]] NOA_HD static constexpr Mat34 eye(const Vec3<U>& diagonal) noexcept {
+            return from_diagonal(diagonal);
+        }
+
         template<typename U>
         [[nodiscard]] NOA_HD static constexpr Mat34 from_matrix(const Mat34<U>& m) noexcept {
             return {m[0].template as<value_type>(),
@@ -93,7 +103,9 @@ namespace noa {
                 const Vec4<V1>& r1,
                 const Vec4<V2>& r2
         ) noexcept {
-            return {r0, r1, r2};
+            return {r0.template as<value_type>(),
+                    r1.template as<value_type>(),
+                    r2.template as<value_type>()};
         }
 
         template<typename V0, typename V1, typename V2, typename V3>

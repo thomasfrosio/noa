@@ -13,7 +13,7 @@ namespace noa {
     template<typename Int, size_t N>
     class Shape {
     public:
-        static_assert(nt::is_restricted_int_v<Int>);
+        static_assert(nt::is_int_v<Int>);
         static_assert(N <= 4);
         using vector_type = Vec<Int, N>;
         using value_type = typename vector_type::value_type;
@@ -40,13 +40,13 @@ namespace noa {
             return {vector_type::from_values(values...)};
         }
 
-        template<typename T, typename = std::enable_if_t<nt::is_int_v<T>>>
-        [[nodiscard]] NOA_HD static constexpr Shape from_vec(const Vec<T, N>& vector) noexcept {
+        template<typename T, size_t A, typename = std::enable_if_t<nt::is_int_v<T>>>
+        [[nodiscard]] NOA_HD static constexpr Shape from_vec(const Vec<T, SIZE, A>& vector) noexcept {
             return {vector_type::from_vector(vector)};
         }
 
         template<typename T>
-        [[nodiscard]] NOA_HD static constexpr Shape from_shape(const Shape<T, N>& shape) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Shape from_shape(const Shape<T, SIZE>& shape) noexcept {
             return from_vec(shape.vec);
         }
 
@@ -70,26 +70,29 @@ namespace noa {
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         [[nodiscard]] NOA_HD constexpr const value_type& operator[](I i) const noexcept { return vec[i]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N == 4) && std::is_void_v<Void>>>
+        template<typename Void = void, typename = std::enable_if_t<(SIZE == 4) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr value_type& batch() noexcept { return vec[0]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N == 4) && std::is_void_v<Void>>>
+        template<typename Void = void, typename = std::enable_if_t<(SIZE == 4) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr const value_type& batch() const noexcept { return vec[0]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 3) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr value_type& depth() noexcept { return vec[N - 1]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 3) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr value_type& depth() noexcept { return vec[SIZE - 1]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 3) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr const value_type& depth() const noexcept { return vec[N - 1]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 3) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr const value_type& depth() const noexcept { return vec[SIZE - 1]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 2) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr value_type& height() noexcept { return vec[N - 2]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr value_type& height() noexcept { return vec[SIZE - 2]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 2) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr const value_type& height() const noexcept { return vec[N - 2]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr const value_type& height() const noexcept { return vec[SIZE - 2]; }
 
-        [[nodiscard]] NOA_HD constexpr value_type& width() noexcept { return vec[N - 1]; }
-        [[nodiscard]] NOA_HD constexpr const value_type& width() const noexcept { return vec[N - 1]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 1) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr value_type& width() noexcept { return vec[SIZE - 1]; }
+
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 1) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr const value_type& width() const noexcept { return vec[SIZE - 1]; }
 
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return vec[I]; }
@@ -287,55 +290,55 @@ namespace noa {
         }
 
     public: // Type casts
-        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return static_cast<Shape<TTo, SIZE>>(*this);
         }
 
-        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             return clamp_cast<Shape<TTo, SIZE>>(*this);
         }
 
 #if defined(NOA_IS_OFFLINE)
-        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_int_v<TTo>>>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Shape<TTo, SIZE>>(*this);
         }
 #endif
 
     public:
-        template<size_t S = 1, typename = std::enable_if_t<(N > S)>>
+        template<size_t S = 1, typename = std::enable_if_t<(SIZE >= S)>>
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
-            return Shape<value_type, N - S>::from_pointer(data() + S);
+            return Shape<value_type, SIZE - S>::from_pointer(data() + S);
         }
 
-        template<size_t S = 1, typename = std::enable_if_t<(N > S)>>
+        template<size_t S = 1, typename = std::enable_if_t<(SIZE >= S)>>
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
-            return Shape<value_type, N - S>::from_pointer(data());
+            return Shape<value_type, SIZE - S>::from_pointer(data());
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            return Shape<value_type, N + 1>{vec.push_front(value)};
+            return Shape<value_type, SIZE + 1>{vec.push_front(value)};
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            return Shape<value_type, N + 1>{vec.push_back(value)};
+            return Shape<value_type, SIZE + 1>{vec.push_back(value)};
         }
 
-        template<size_t S>
-        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = (N + S);
+        template<size_t S, size_t A>
+        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, A>& vector) const noexcept {
+            constexpr size_t NEW_SIZE = SIZE + S;
             return Shape<value_type, NEW_SIZE>{vec.push_front(vector)};
         }
 
-        template<size_t S>
-        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = N + S;
+        template<size_t S, size_t A>
+        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, A>& vector) const noexcept {
+            constexpr size_t NEW_SIZE = SIZE + S;
             return Shape<value_type, NEW_SIZE>{vec.push_back(vector)};
         }
 
-        template<typename... Ts, typename = std::enable_if_t<nt::are_restricted_int_v<Ts...>>>
+        template<typename... Ts, typename = std::enable_if_t<nt::are_int_v<Ts...>>>
         [[nodiscard]] NOA_HD constexpr auto filter(Ts... ts) const noexcept {
             return Shape<value_type, sizeof...(Ts)>{(*this)[ts]...};
         }
@@ -344,8 +347,8 @@ namespace noa {
             return {vec.flip()};
         }
 
-        template<typename I = value_type, typename = std::enable_if_t<nt::is_restricted_int_v<I>>>
-        [[nodiscard]] NOA_HD constexpr Shape reorder(const Vec<I, SIZE>& order) const noexcept {
+        template<typename I = value_type, size_t A, typename = std::enable_if_t<nt::is_int_v<I>>>
+        [[nodiscard]] NOA_HD constexpr Shape reorder(const Vec<I, SIZE, A>& order) const noexcept {
             return {vec.reorder(order)};
         }
 
@@ -367,10 +370,14 @@ namespace noa {
 
     public:
         [[nodiscard]] NOA_HD constexpr value_type elements() const noexcept {
-            auto output = vec[0];
-            for (size_t i = 1; i < N; ++i)
-                output *= vec[i];
-            return output;
+            if constexpr (SIZE == 0) {
+                return 0;
+            } else {
+                auto output = vec[0];
+                for (size_t i = 1; i < SIZE; ++i)
+                    output *= vec[i];
+                return output;
+            }
         }
 
         // Whether the shape has at least one dimension equal to 0.
@@ -378,19 +385,19 @@ namespace noa {
             return any(vec == 0);
         }
 
-        // Returns the logical number of dimensions in the BDHW convention.
-        // This returns a value from 1 to 3. The batch dimension is ignored,
-        // and is_batched() should be used to know whether the array is batched.
-        // Note that both row and column vectors are considered to be 1D, but
-        // if the depth dimension is greater than 1, ndim() == 3 even if both the
-        // height and width are 1.
+        /// Returns the logical number of dimensions in the BDHW convention.
+        /// This returns a value from 0 to 3. The batch dimension is ignored,
+        /// and is_batched() should be used to know whether the array is batched.
+        /// Note that both row and column vectors are considered to be 1d, but
+        /// if the depth dimension is greater than 1, ndim() == 3 even if both the
+        /// height and width are 1.
         [[nodiscard]] NOA_HD constexpr value_type ndim() const noexcept {
             NOA_ASSERT(!is_empty());
-            if constexpr (N == 1) {
-                return 1;
-            } else if constexpr (N == 2) {
+            if constexpr (SIZE <= 1) {
+                return static_cast<value_type>(SIZE);
+            } else if constexpr (SIZE == 2) {
                 return vec[0] > 1 && vec[1] > 1 ? 2 : 1;
-            } else if constexpr (N == 3) {
+            } else if constexpr (SIZE == 3) {
                 return vec[0] > 1 ? 3 :
                        vec[1] > 1 && vec[2] > 1 ? 2 : 1;
             } else {
@@ -399,9 +406,9 @@ namespace noa {
             }
         }
 
-        // Computes the strides, in elements, in C- or F-order.
-        // Note that if the height and width dimensions are empty, 'C' and 'F' returns the same strides.
-        template<char ORDER = 'C', typename void_ = void>
+        /// Computes the strides, in elements, in C- or F-order.
+        /// Note that if the height and width dimensions are empty, 'C' and 'F' returns the same strides.
+        template<char ORDER = 'C', typename Void = void, nt::enable_if_bool_t<std::is_void_v<Void> && (SIZE > 0)> = true>
         [[nodiscard]] NOA_HD constexpr auto strides() const noexcept {
             using output_strides = Strides<value_type, SIZE>;
 
@@ -436,14 +443,15 @@ namespace noa {
                     return output_strides{1};
                 }
             } else {
-                static_assert(nt::always_false_v<void_>);
+                static_assert(nt::always_false_v<Void>);
             }
         }
 
         // Returns the shape of the non-redundant FFT, in elements,
         [[nodiscard]] NOA_HD constexpr Shape rfft() const noexcept {
             Shape output = *this;
-            output[SIZE - 1] = output[SIZE - 1] / 2 + 1;
+            if constexpr (SIZE > 0)
+                output[SIZE - 1] = output[SIZE - 1] / 2 + 1;
             return output;
         }
 
@@ -467,7 +475,7 @@ namespace noa {
         // Whether the shape describes vector.
         // A vector has one dimension with a size >= 1 and all the other dimensions empty (i.e. size == 1).
         // By this definition, the shapes {1,1,1}, {5,1,1} and {1,1,5} are all vectors.
-        template<typename Void = void, nt::enable_if_bool_t<(SIZE <= 3) && std::is_void_v<Void>> = true>
+        template<typename Void = void, nt::enable_if_bool_t<(SIZE > 0 && SIZE <= 3) && std::is_void_v<Void>> = true>
         [[nodiscard]] NOA_FHD constexpr bool is_vector() const noexcept {
             int non_empty_dimension = 0;
             for (size_t i = 0; i < SIZE; ++i) {
@@ -482,13 +490,13 @@ namespace noa {
         // Whether this is a (batched) column vector.
         template<typename Void = void, typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr bool is_column() const noexcept {
-            return vec[N - 2] >= 1 && vec[N - 1] == 1;
+            return vec[SIZE - 2] >= 1 && vec[SIZE - 1] == 1;
         }
 
         // Whether this is a (batched) row vector.
         template<typename Void = void, typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr bool is_row() const noexcept {
-            return vec[N - 2] == 1 && vec[N - 1] >= 1;
+            return vec[SIZE - 2] == 1 && vec[SIZE - 1] >= 1;
         }
 
         // Whether this is a (batched) column vector.
@@ -523,13 +531,17 @@ namespace noa {
         }
 #endif
     };
+
+    /// Deduction guide.
+    template<typename T, typename... U>
+    Shape(T, U...) -> Shape<std::enable_if_t<(std::is_same_v<T, U> && ...), T>, 1 + sizeof...(U)>;
 }
 
 namespace noa {
     template<typename Int, size_t N>
     class Strides {
     public:
-        static_assert(nt::is_restricted_int_v<Int>);
+        static_assert(nt::is_int_v<Int>);
         static_assert(N <= 4);
         using vector_type = Vec<Int, N>;
         using value_type = typename vector_type::value_type;
@@ -556,13 +568,13 @@ namespace noa {
             return {vector_type::from_values(values...)};
         }
 
-        template<typename T, typename = std::enable_if_t<nt::is_int_v<T>>>
-        [[nodiscard]] NOA_HD static constexpr Strides from_vec(const Vec<T, N>& vector) noexcept {
+        template<typename T, size_t A, typename = std::enable_if_t<nt::is_int_v<T>>>
+        [[nodiscard]] NOA_HD static constexpr Strides from_vec(const Vec<T, SIZE, A>& vector) noexcept {
             return {vector_type::from_vector(vector)};
         }
 
         template<typename T>
-        [[nodiscard]] NOA_HD static constexpr Strides from_strides(const Strides<T, N>& strides) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Strides from_strides(const Strides<T, SIZE>& strides) noexcept {
             return from_vec(strides.vec);
         }
 
@@ -586,26 +598,29 @@ namespace noa {
         template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
         [[nodiscard]] NOA_HD constexpr const value_type& operator[](I i) const noexcept { return vec[i]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N == 4) && std::is_void_v<Void>>>
+        template<typename Void = void, typename = std::enable_if_t<(SIZE == 4) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr value_type& batch() noexcept { return vec[0]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N == 4) && std::is_void_v<Void>>>
+        template<typename Void = void, typename = std::enable_if_t<(SIZE == 4) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr const value_type& batch() const noexcept { return vec[0]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 3) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr value_type& depth() noexcept { return vec[N - 1]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 3) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr value_type& depth() noexcept { return vec[SIZE - 1]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 3) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr const value_type& depth() const noexcept { return vec[N - 1]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 3) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr const value_type& depth() const noexcept { return vec[SIZE - 1]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 2) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr value_type& height() noexcept { return vec[N - 2]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr value_type& height() noexcept { return vec[SIZE - 2]; }
 
-        template<typename Void = void, typename = std::enable_if_t<(N >= 2) && std::is_void_v<Void>>>
-        [[nodiscard]] NOA_HD constexpr const value_type& height() const noexcept { return vec[N - 2]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr const value_type& height() const noexcept { return vec[SIZE - 2]; }
 
-        [[nodiscard]] NOA_HD constexpr value_type& width() noexcept { return vec[N - 1]; }
-        [[nodiscard]] NOA_HD constexpr const value_type& width() const noexcept { return vec[N - 1]; }
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 1) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr value_type& width() noexcept { return vec[SIZE - 1]; }
+
+        template<typename Void = void, typename = std::enable_if_t<(SIZE >= 1) && std::is_void_v<Void>>>
+        [[nodiscard]] NOA_HD constexpr const value_type& width() const noexcept { return vec[SIZE - 1]; }
 
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return vec[I]; }
@@ -803,55 +818,55 @@ namespace noa {
         }
 
     public: // Type casts
-        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return static_cast<Strides<TTo, SIZE>>(*this);
         }
 
-        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_int_v<TTo>>>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             return clamp_cast<Strides<TTo, SIZE>>(*this);
         }
 
 #if defined(NOA_IS_OFFLINE)
-        template<typename TTo, typename = std::enable_if_t<nt::is_restricted_int_v<TTo>>>
+        template<typename TTo, typename = std::enable_if_t<nt::is_int_v<TTo>>>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Strides<TTo, SIZE>>(*this);
         }
 #endif
 
     public:
-        template<size_t S = 1, typename = std::enable_if_t<(N > S)>>
+        template<size_t S = 1, typename = std::enable_if_t<(SIZE >= S)>>
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
-            return Strides<value_type, N - S>::from_pointer(data() + S);
+            return Strides<value_type, SIZE - S>::from_pointer(data() + S);
         }
 
-        template<size_t S = 1, typename = std::enable_if_t<(N > S)>>
+        template<size_t S = 1, typename = std::enable_if_t<(SIZE >= S)>>
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
-            return Strides<value_type, N - S>::from_pointer(data());
+            return Strides<value_type, SIZE - S>::from_pointer(data());
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            return Strides<value_type, N + 1>{vec.push_front(value)};
+            return Strides<value_type, SIZE + 1>{vec.push_front(value)};
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            return Strides<value_type, N + 1>{vec.push_back(value)};
+            return Strides<value_type, SIZE + 1>{vec.push_back(value)};
         }
 
-        template<size_t S>
-        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = N + S;
+        template<size_t S, size_t A>
+        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, A>& vector) const noexcept {
+            constexpr size_t NEW_SIZE = SIZE + S;
             return Strides<value_type, NEW_SIZE>{vec.push_front(vector)};
         }
 
-        template<size_t S>
-        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = N + S;
+        template<size_t S, size_t A>
+        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, A>& vector) const noexcept {
+            constexpr size_t NEW_SIZE = SIZE + S;
             return Strides<value_type, NEW_SIZE>{vec.push_back(vector)};
         }
 
-        template<typename... Ts, typename = std::enable_if_t<nt::are_restricted_int_v<Ts...>>>
+        template<typename... Ts, typename = std::enable_if_t<nt::are_int_v<Ts...>>>
         [[nodiscard]] NOA_HD constexpr auto filter(Ts... ts) const noexcept {
             return Strides<value_type, sizeof...(Ts)>{(*this)[ts]...};
         }
@@ -860,8 +875,8 @@ namespace noa {
             return {vec.flip()};
         }
 
-        template<typename I = value_type, typename = std::enable_if_t<nt::is_restricted_int_v<I>>>
-        [[nodiscard]] NOA_HD constexpr Strides reorder(const Vec<I, SIZE>& order) const noexcept {
+        template<typename I = value_type, size_t A, typename = std::enable_if_t<nt::is_int_v<I>>>
+        [[nodiscard]] NOA_HD constexpr Strides reorder(const Vec<I, SIZE, A>& order) const noexcept {
             return {vec.reorder(order)};
         }
 
@@ -890,6 +905,7 @@ namespace noa {
         // Whether the strides are in the rightmost order.
         // Rightmost order is when the innermost stride (i.e. the dimension with the smallest stride)
         // is on the right, and strides increase right-to-left.
+        template<typename Void = void, nt::enable_if_bool_t<std::is_void_v<Void> && (SIZE > 0)> = true>
         [[nodiscard]] NOA_HD constexpr bool is_rightmost() const noexcept {
             for (size_t i = 0; i < SIZE - 1; ++i)
                 if (vec[i] < vec[i + 1])
@@ -903,7 +919,7 @@ namespace noa {
                  typename = std::enable_if_t<(SIZE >= 2) && std::is_void_v<Void>>>
         [[nodiscard]] NOA_HD constexpr auto physical_shape() const noexcept {
             NOA_ASSERT(!is_broadcast() && "Cannot recover the physical shape from broadcast strides");
-            using output_shape = Shape<value_type, N - 1>;
+            using output_shape = Shape<value_type, SIZE - 1>;
 
             if constexpr (ORDER == 'C' || ORDER == 'c') {
                 if constexpr (SIZE == 4) {
@@ -944,6 +960,10 @@ namespace noa {
         }
 #endif
     };
+
+    /// Deduction guide.
+    template<typename T, typename... U>
+    Strides(T, U...) -> Strides<std::enable_if_t<(std::is_same_v<T, U> && ...), T>, 1 + sizeof...(U)>;
 }
 
 // Support for structure bindings:
@@ -1011,19 +1031,19 @@ namespace noa::traits {
 #endif
 
     template<typename T> struct proclaim_is_shape : std::false_type {};
-    template<typename T> using is_shape = std::bool_constant<proclaim_is_shape<remove_ref_cv_t<T>>::value>;
-    template<typename T> constexpr bool is_shape_v = is_shape<T>::value;
-    template<typename T> constexpr bool is_shapeX_v = is_shape<T>::value;
+    template<typename T> using is_shape = std::bool_constant<proclaim_is_shape<T>::value>;
+    template<typename T> constexpr bool is_shape_v = is_shape<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_shapeX_v = is_shape<std::decay_t<T>>::value;
 
     template<typename, typename> struct proclaim_is_shape_of_type : std::false_type {};
-    template<typename T, typename V> using is_shape_of_type = std::bool_constant<proclaim_is_shape_of_type<remove_ref_cv_t<T>, V>::value>;
-    template<typename T, typename V> constexpr bool is_shape_of_type_v = is_shape_of_type<T, V>::value;
-    template<typename T, typename V> constexpr bool is_shapeT_v = is_shape_of_type<T, V>::value;
+    template<typename T, typename V> using is_shape_of_type = std::bool_constant<proclaim_is_shape_of_type<T, V>::value>;
+    template<typename T, typename V> constexpr bool is_shape_of_type_v = is_shape_of_type<std::decay_t<T>, V>::value;
+    template<typename T, typename V> constexpr bool is_shapeT_v = is_shape_of_type<std::decay_t<T>, V>::value;
 
     template<typename, size_t> struct proclaim_is_shape_of_size : std::false_type {};
-    template<typename T, size_t N> using is_shape_of_size = std::bool_constant<proclaim_is_shape_of_size<remove_ref_cv_t<T>, N>::value>;
-    template<typename T, size_t N> constexpr bool is_shape_of_size_v = is_shape_of_size<T, N>::value;
-    template<typename T, size_t N> constexpr bool is_shapeN_v = is_shape_of_size<T, N>::value;
+    template<typename T, size_t N> using is_shape_of_size = std::bool_constant<proclaim_is_shape_of_size<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_shape_of_size_v = is_shape_of_size<std::decay_t<T>, N>::value;
+    template<typename T, size_t N> constexpr bool is_shapeN_v = is_shape_of_size<std::decay_t<T>, N>::value;
 
     template<typename T> constexpr bool is_shape1_v = is_shapeN_v<T, 1>;
     template<typename T> constexpr bool is_shape2_v = is_shapeN_v<T, 2>;
@@ -1031,19 +1051,19 @@ namespace noa::traits {
     template<typename T> constexpr bool is_shape4_v = is_shapeN_v<T, 4>;
 
     template<typename T> struct proclaim_is_strides : std::false_type {};
-    template<typename T> using is_strides = std::bool_constant<proclaim_is_strides<remove_ref_cv_t<T>>::value>;
-    template<typename T> constexpr bool is_strides_v = is_strides<T>::value;
-    template<typename T> constexpr bool is_stridesX_v = is_strides<T>::value;
+    template<typename T> using is_strides = std::bool_constant<proclaim_is_strides<T>::value>;
+    template<typename T> constexpr bool is_strides_v = is_strides<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_stridesX_v = is_strides<std::decay_t<T>>::value;
 
     template<typename, typename> struct proclaim_is_strides_of_type : std::false_type {};
-    template<typename T, typename V> using is_strides_of_type = std::bool_constant<proclaim_is_strides_of_type<remove_ref_cv_t<T>, V>::value>;
-    template<typename T, typename V> constexpr bool is_strides_of_type_v = is_strides_of_type<T, V>::value;
-    template<typename T, typename V> constexpr bool is_stridesT_v = is_strides_of_type<T, V>::value;
+    template<typename T, typename V> using is_strides_of_type = std::bool_constant<proclaim_is_strides_of_type<T, V>::value>;
+    template<typename T, typename V> constexpr bool is_strides_of_type_v = is_strides_of_type<std::decay_t<T>, V>::value;
+    template<typename T, typename V> constexpr bool is_stridesT_v = is_strides_of_type<std::decay_t<T>, V>::value;
 
     template<typename, size_t> struct proclaim_is_strides_of_size : std::false_type {};
-    template<typename T, size_t N> using is_strides_of_size = std::bool_constant<proclaim_is_strides_of_size<remove_ref_cv_t<T>, N>::value>;
-    template<typename T, size_t N> constexpr bool is_strides_of_size_v = is_strides_of_size<T, N>::value;
-    template<typename T, size_t N> constexpr bool is_stridesN_v = is_strides_of_size<T, N>::value;
+    template<typename T, size_t N> using is_strides_of_size = std::bool_constant<proclaim_is_strides_of_size<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_strides_of_size_v = is_strides_of_size<std::decay_t<T>, N>::value;
+    template<typename T, size_t N> constexpr bool is_stridesN_v = is_strides_of_size<std::decay_t<T>, N>::value;
 
     template<typename T> constexpr bool is_strides1_v = is_stridesN_v<T, 1>;
     template<typename T> constexpr bool is_strides2_v = is_stridesN_v<T, 2>;
@@ -1064,7 +1084,7 @@ namespace noa::traits {
 
 namespace noa {
     // -- Modulo Operator --
-    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T>> = true>
+    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_HD constexpr T operator%(T lhs, const T& rhs) noexcept {
         for (int64_t i = 0; i < T::SSIZE; ++i)
             lhs[i] %= rhs[i];
@@ -1072,13 +1092,13 @@ namespace noa {
     }
 
     template<typename T, typename Int,
-             nt::enable_if_bool_t<nt::is_restricted_int_v<Int> && nt::is_shape_or_strides_v<T>> = true>
+             nt::enable_if_bool_t<nt::is_int_v<Int> && nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_HD constexpr T operator%(const T& lhs, Int rhs) noexcept {
         return lhs % T::filled_with(rhs);
     }
 
     template<typename T, typename Int,
-             nt::enable_if_bool_t<nt::is_restricted_int_v<Int> && nt::is_shape_or_strides_v<T>> = true>
+             nt::enable_if_bool_t<nt::is_int_v<Int> && nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_HD constexpr T operator%(Int lhs, const T& rhs) noexcept {
         return T::filled_with(lhs) % rhs;
     }
@@ -1112,17 +1132,17 @@ namespace noa {
         return {abs(shape.vec)};
     }
 
-    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T>> = true>
+    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_FHD constexpr auto sum(const T& shape) noexcept {
         return sum(shape.vec);
     }
 
-    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T>> = true>
+    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_FHD constexpr auto product(const T& shape) noexcept {
         return product(shape.vec);
     }
 
-    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T>> = true>
+    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_FHD constexpr auto min(const T& shape) noexcept {
         return min(shape.vec);
     }
@@ -1153,7 +1173,7 @@ namespace noa {
         return max(shape.vec);
     }
 
-    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T>> = true>
+    template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_FHD constexpr T max(const T& lhs, const T& rhs) noexcept {
         return {max(lhs.vec, rhs.vec)};
     }

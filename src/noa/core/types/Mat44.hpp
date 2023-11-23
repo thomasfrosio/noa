@@ -72,6 +72,16 @@ namespace noa {
                     row_type::from_values(0, 0, 0, diagonal[3])};
         }
 
+        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        [[nodiscard]] NOA_HD static constexpr Mat44 eye(U s) noexcept {
+            return from_diagonal(s);
+        }
+
+        template<typename U>
+        [[nodiscard]] NOA_HD static constexpr Mat44 eye(const Vec4<U>& diagonal) noexcept {
+            return from_diagonal(diagonal);
+        }
+
         template<typename U>
         [[nodiscard]] NOA_HD static constexpr Mat44 from_matrix(const Mat44<U>& m) noexcept {
             return {m[0].template as<value_type>(),
@@ -111,7 +121,10 @@ namespace noa {
                 const Vec4<V2>& r2,
                 const Vec4<V3>& r3
         ) noexcept {
-            return {r0, r1, r2, r3};
+            return {r0.template as<value_type>(),
+                    r1.template as<value_type>(),
+                    r2.template as<value_type>(),
+                    r3.template as<value_type>()};
         }
 
         template<typename V0, typename V1, typename V2, typename V3>
@@ -336,7 +349,7 @@ namespace noa::traits {
     template<typename T> constexpr bool is_mat44_v = is_mat44<T>::value;
 }
 
-namespace noa::math {
+namespace noa {
     template<typename T>
     [[nodiscard]] NOA_IHD constexpr Mat44<T> ewise_multiply(Mat44<T> m1, const Mat44<T>& m2) noexcept {
         for (size_t i = 0; i < Mat44<T>::ROWS; ++i)

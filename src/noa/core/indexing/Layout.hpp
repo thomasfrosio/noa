@@ -147,9 +147,9 @@ namespace noa {
         int idx = N - 1;
         for (int i = idx; i >= 0; --i) {
             if (shape[i] > 1)
-                order[idx--] = i;
+                order[idx--] = static_cast<Int>(i);
             else
-                order[idx - i] = i;
+                order[idx - i] = static_cast<Int>(i);
         }
         // The empty dimensions are entered in descending order.
         // To put them back to the original ascending order, we can do:
@@ -166,10 +166,10 @@ namespace noa {
 
     /// Reorder (i.e. sort) \p vector according to the indexes in \p order.
     template<typename T, typename Int, size_t N,
-            nt::enable_if_bool_t<nt::is_int_v<Int> &&
-                                 (nt::is_vecN_v<T, N> ||
-                                  nt::is_shapeN_v<T, N> ||
-                                  nt::is_stridesN_v<T, N>)> = true>
+             nt::enable_if_bool_t<nt::is_int_v<Int> &&
+                                  (nt::is_vecN_v<T, N> ||
+                                   nt::is_shapeN_v<T, N> ||
+                                   nt::is_stridesN_v<T, N>)> = true>
     [[nodiscard]] NOA_FHD constexpr auto reorder(T vector, const Vec<Int, N>& order) {
         return vector.reorder(order);
     }
@@ -179,7 +179,7 @@ namespace noa {
     /// \param[in] matrix   Square and (truncated) affine matrix to reorder.
     /// \param[in] order    Order of indexes. Should have the same number of elements as the matrices are rows.
     template<typename T, typename Int, size_t N,
-            nt::enable_if_bool_t<nt::is_matXX_v<T> && T::ROWS == N> = true>
+             nt::enable_if_bool_t<nt::is_matXX_v<T> && T::ROWS == N> = true>
     [[nodiscard]] NOA_FHD constexpr T reorder(const T& matrix, const Vec<Int, N>& order) {
         T reordered_matrix;
         for (size_t row = 0; row < N; ++row) {

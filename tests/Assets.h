@@ -87,35 +87,35 @@ namespace YAML {
     };
 
     template<>
-    struct convert<noa::InterpMode> {
-        static Node encode(const noa::InterpMode& rhs) {
+    struct convert<noa::Interp> {
+        static Node encode(const noa::Interp& rhs) {
             std::ostringstream stream;
             stream << rhs;
             return convert<std::string>::encode(stream.str());
         }
 
-        static bool decode(const Node& node, noa::InterpMode& rhs) {
+        static bool decode(const Node& node, noa::Interp& rhs) {
             if (!node.IsScalar())
                 return false;
             const std::string& buffer = node.Scalar();
 
             using namespace ::noa;
             if (buffer == "INTERP_NEAREST")
-                rhs = InterpMode::NEAREST;
+                rhs = Interp::NEAREST;
             else if (buffer == "INTERP_LINEAR")
-                rhs = InterpMode::LINEAR;
+                rhs = Interp::LINEAR;
             else if (buffer == "INTERP_COSINE")
-                rhs = InterpMode::COSINE;
+                rhs = Interp::COSINE;
             else if (buffer == "INTERP_CUBIC")
-                rhs = InterpMode::CUBIC;
+                rhs = Interp::CUBIC;
             else if (buffer == "INTERP_CUBIC_BSPLINE")
-                rhs = InterpMode::CUBIC_BSPLINE;
+                rhs = Interp::CUBIC_BSPLINE;
             else if (buffer == "INTERP_LINEAR_FAST")
-                rhs = InterpMode::LINEAR_FAST;
+                rhs = Interp::LINEAR_FAST;
             else if (buffer == "INTERP_COSINE_FAST")
-                rhs = InterpMode::COSINE_FAST;
+                rhs = Interp::COSINE_FAST;
             else if (buffer == "INTERP_CUBIC_BSPLINE_FAST")
-                rhs = InterpMode::CUBIC_BSPLINE_FAST;
+                rhs = Interp::CUBIC_BSPLINE_FAST;
             else
                 return false;
             return true;
@@ -123,33 +123,33 @@ namespace YAML {
     };
 
     template<>
-    struct convert<noa::BorderMode> {
-        static Node encode(const noa::BorderMode& rhs) {
+    struct convert<noa::Border> {
+        static Node encode(const noa::Border& rhs) {
             std::ostringstream stream;
             stream << rhs;
             return convert<std::string>::encode(stream.str());
         }
 
-        static bool decode(const Node& node, noa::BorderMode& rhs) {
+        static bool decode(const Node& node, noa::Border& rhs) {
             if (!node.IsScalar())
                 return false;
             const std::string& buffer = node.Scalar();
 
             using namespace ::noa;
             if (buffer == "BORDER_NOTHING")
-                rhs = BorderMode::NOTHING;
+                rhs = Border::NOTHING;
             else if (buffer == "BORDER_ZERO")
-                rhs = BorderMode::ZERO;
+                rhs = Border::ZERO;
             else if (buffer == "BORDER_VALUE")
-                rhs = BorderMode::VALUE;
+                rhs = Border::VALUE;
             else if (buffer == "BORDER_CLAMP")
-                rhs = BorderMode::CLAMP;
+                rhs = Border::CLAMP;
             else if (buffer == "BORDER_REFLECT")
-                rhs = BorderMode::REFLECT;
+                rhs = Border::REFLECT;
             else if (buffer == "BORDER_MIRROR")
-                rhs = BorderMode::MIRROR;
+                rhs = Border::MIRROR;
             else if (buffer == "BORDER_PERIODIC")
-                rhs = BorderMode::PERIODIC;
+                rhs = Border::PERIODIC;
             else
                 return false;
             return true;

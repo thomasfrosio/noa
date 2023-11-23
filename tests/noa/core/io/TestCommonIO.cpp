@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE("core::io::(de)serialize - real types", "[noa][core]",
         // Serialized data was clamped to fit the data type, so clamp input data as well.
         auto[min, max] = io::type_range<TestType>(dtype);
         for (size_t i = 0; i < size; ++i)
-            data[i] = math::clamp(data[i], min, max);
+            data[i] = noa::clamp(data[i], min, max);
     }
 
     REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), static_cast<i64>(size), 1e-6));
@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE("core::io::(de)serialize - uint4", "[noa][core]", u8, i16, i3
         // Serialized data was clamped to fit the data type, so clamp input data as well.
         auto[min, max] = io::type_range<TestType>(dtype);
         for (size_t i = 0; i < size; ++i)
-            data[i] = math::clamp(data[i], min, max);
+            data[i] = noa::clamp(data[i], min, max);
     }
 
     REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, data.get(), read_data.get(), static_cast<i64>(size), 1e-6));
@@ -127,7 +127,7 @@ TEMPLATE_TEST_CASE("core::io::(de)serialize - complex", "[noa][core]", c16, c32,
     // Randomize data.
     test::Randomizer<float> randomizer(-10000, 10000);
     for (size_t i = 0; i < size; ++i)
-        data[i] = static_cast<TestType>(randomizer.get());
+        data[i] = TestType::from_real(randomizer.get());
 
     // Serialize:
     std::fstream file(test_file, std::ios::out | std::ios::trunc);

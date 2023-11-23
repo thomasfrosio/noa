@@ -5,6 +5,10 @@
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 
+#if defined(NOA_IS_OFFLINE)
+#include <algorithm> // clamp
+#endif
+
 namespace noa {
     [[nodiscard]] NOA_FHD constexpr bool is_nan(double x) { return std::isnan(x); }
     [[nodiscard]] NOA_FHD constexpr bool is_nan(float x) { return std::isnan(x); }

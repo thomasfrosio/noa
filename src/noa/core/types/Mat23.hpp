@@ -54,8 +54,18 @@ namespace noa {
 
         template<typename U>
         [[nodiscard]] NOA_HD static constexpr Mat23 from_diagonal(const Vec2<U>& diagonal) noexcept {
-            return {row_type::from_values(diagonal[0], 0),
-                    row_type::from_values(0, diagonal[1])};
+            return {row_type::from_values(diagonal[0], 0, 0),
+                    row_type::from_values(0, diagonal[1], 0)};
+        }
+
+        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        [[nodiscard]] NOA_HD static constexpr Mat23 eye(U s) noexcept {
+            return from_diagonal(s);
+        }
+
+        template<typename U>
+        [[nodiscard]] NOA_HD static constexpr Mat23 eye(const Vec2<U>& diagonal) noexcept {
+            return from_diagonal(diagonal);
         }
 
         template<typename U>
@@ -85,7 +95,8 @@ namespace noa {
                 const Vec3<V0>& r0,
                 const Vec3<V1>& r1
         ) noexcept {
-            return {r0, r1};
+            return {r0.template as<value_type>(),
+                    r1.template as<value_type>()};
         }
 
         template<typename V0, typename V1, typename V2>
@@ -190,10 +201,10 @@ namespace noa {
             return {dot(m[0], column), dot(m[1], column)};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr vec3_type operator*(const vec2_type& row, const Mat23& m) noexcept {
-            return {dot(vec2_type{m[0][0], m[1][0]}, row),
-                    dot(vec2_type{m[0][1], m[1][1]}, row),
-                    dot(vec2_type{m[0][2], m[1][2]}, row)};
+        [[nodiscard]] friend NOA_HD constexpr vec3_type operator*(const vec2_type& r, const Mat23& m) noexcept {
+            return {dot(vec2_type{m[0][0], m[1][0]}, r),
+                    dot(vec2_type{m[0][1], m[1][1]}, r),
+                    dot(vec2_type{m[0][2], m[1][2]}, r)};
         }
 
         [[nodiscard]] friend NOA_HD constexpr Mat23 operator/(value_type s, const Mat23& m) noexcept {

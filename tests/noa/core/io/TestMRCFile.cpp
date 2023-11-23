@@ -1,5 +1,5 @@
-#include <noa/core/OS.hpp>
-#include "noa/core/io/IO.hpp"
+#include <noa/core/io/IO.hpp>
+#include <noa/core/io/OS.hpp>
 #include <noa/core/io/MRCFile.hpp>
 
 #include <iostream>
@@ -191,21 +191,21 @@ TEST_CASE("core::io::MRCFile: real dtype", "[noa][core]") {
 
     AND_THEN("reading files") {
         const Path fixture_copy = test_dir / "file2.mrc";
-        os::mkdir(test_dir);
-        REQUIRE(os::copy_file(data_file, fixture_copy));
+        io::mkdir(test_dir);
+        REQUIRE(io::copy_file(data_file, fixture_copy));
 
         // Writing permissions should not be necessary.
         fs::permissions(fixture_copy, fs::perms::owner_write | fs::perms::group_write |
                                       fs::perms::others_write, fs::perm_options::remove);
         io::MRCFile file;
         REQUIRE_THROWS_AS(file.open(fixture_copy, io::READ | io::WRITE), noa::Exception);
-        os::remove(fixture_copy.string() + "~"); // Remove backup copy from this attempt.
+        io::remove(fixture_copy.string() + "~"); // Remove backup copy from this attempt.
         REQUIRE_FALSE(file.is_open());
 
         // There should be no backup since it is read only.
         file.open(fixture_copy, io::READ);
         REQUIRE(file.is_open());
-        REQUIRE_FALSE(os::is_file(fixture_copy.string() + "~"));
+        REQUIRE_FALSE(io::is_file(fixture_copy.string() + "~"));
 
         // Any writing operation should fail.
         const auto elements_per_slice = static_cast<size_t>(file.shape()[2] * file.shape()[3]);
@@ -218,14 +218,14 @@ TEST_CASE("core::io::MRCFile: real dtype", "[noa][core]") {
 
     AND_THEN("writing to an existing file") {
         const Path fixture_copy = test_dir / "file2.mrc";
-        os::mkdir(test_dir);
-        REQUIRE(os::copy_file(data_file, fixture_copy));
+        io::mkdir(test_dir);
+        REQUIRE(io::copy_file(data_file, fixture_copy));
 
         io::MRCFile image_file(fixture_copy, io::READ | io::WRITE);
         REQUIRE(image_file.is_open());
 
         // Check backup copy.
-        REQUIRE(os::is_file(fixture_copy.string() + "~"));
+        REQUIRE(io::is_file(fixture_copy.string() + "~"));
         REQUIRE(image_file.info_string(false) == fixture_expected_header);
 
         const auto elements_per_slice = static_cast<size_t>(image_file.shape()[2] * image_file.shape()[3]);

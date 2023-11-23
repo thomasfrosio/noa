@@ -5,8 +5,10 @@
 #include "noa/core/math/Constant.hpp"
 
 #if defined(NOA_IS_OFFLINE)
+#include <cstdlib>
 #include <cmath>
 #else
+#include <cuda/std/cstdlib>
 #include <cuda/std/cmath>
 #endif
 

@@ -23,9 +23,8 @@ TEMPLATE_TEST_CASE("core::safe_cast, floating-point to signed integer", "[noa][c
     REQUIRE(static_cast<TestType>(Half(123.354f)) == safe_cast<TestType>(Half(123.354f)));
     REQUIRE(static_cast<TestType>(Half(-123.354f)) == safe_cast<TestType>(Half(-123.354f)));
 
-    REQUIRE_THROWS_AS(safe_cast<TestType>(::sqrtf(-1)), noa::Exception);
     REQUIRE_THROWS_AS(safe_cast<TestType>(::sqrt(-1)), noa::Exception);
-    REQUIRE_THROWS_AS(safe_cast<TestType>(math::sqrt(Half(-1))), noa::Exception);
+    REQUIRE_THROWS_AS(safe_cast<TestType>(sqrt(Half(-1))), noa::Exception);
 
     REQUIRE_THROWS_AS(safe_cast<TestType>(float(int_limit::max()) * 2), noa::Exception);
     REQUIRE_THROWS_AS(safe_cast<TestType>(float(int_limit::min()) * 2), noa::Exception);
@@ -61,9 +60,8 @@ TEMPLATE_TEST_CASE("core::safe_cast, floating-point to unsigned integer", "[noa]
     REQUIRE(static_cast<TestType>(123.354f) == safe_cast<TestType>(123.354f));
     REQUIRE(static_cast<TestType>(123.845) == safe_cast<TestType>(123.845));
     REQUIRE(static_cast<TestType>(Half(123.5f)) == safe_cast<TestType>(Half(123.5f)));
-    REQUIRE_THROWS_AS(safe_cast<TestType>(::sqrtf(-1)), noa::Exception);
     REQUIRE_THROWS_AS(safe_cast<TestType>(::sqrt(-1)), noa::Exception);
-    REQUIRE_THROWS_AS(safe_cast<TestType>(math::sqrt(Half(-1))), noa::Exception);
+    REQUIRE_THROWS_AS(safe_cast<TestType>(sqrt(Half(-1))), noa::Exception);
 }
 
 TEMPLATE_TEST_CASE("core::safe_cast, integer to floating-point", "[noa][core]",
@@ -77,7 +75,7 @@ TEMPLATE_TEST_CASE("core::safe_cast, integer to floating-point", "[noa][core]",
 
 TEMPLATE_TEST_CASE("core::safe_cast, Half to float/double", "[noa][core]",
                    float, double) {
-    test::Randomizer<Half> randomizer(math::Limits<Half>::lowest(), math::Limits<Half>::max());
+    test::Randomizer<Half> randomizer(std::numeric_limits<Half>::lowest(), std::numeric_limits<Half>::max());
     for (size_t i = 0; i < 1000; ++i) {
         Half v = randomizer.get();
         if (static_cast<TestType>(v) != safe_cast<TestType>(v))

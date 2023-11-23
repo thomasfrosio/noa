@@ -1,6 +1,8 @@
 // This is the entry point to ALL tests.
 
-#include "noa/unified/Session.hpp"
+//#include "noa/unified/Session.hpp"
+#include <noa/core/Types.hpp>
+#include <noa/core/io/IO.hpp>
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
@@ -25,8 +27,8 @@ int main(int argc, char* argv[]) {
     if (returnCode != 0) // Indicates a command line error
         return returnCode;
 
-    noa::Session::set_cuda_lazy_loading();
-    noa::Session::set_thread_limit(8);
+//    noa::Session::set_cuda_lazy_loading();
+//    noa::Session::set_thread_limit(8);
 
     const int numFailed = catch_session.run();
     return numFailed;

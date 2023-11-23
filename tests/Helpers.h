@@ -2,8 +2,8 @@
 
 #include <noa/core/Types.hpp>
 #include <noa/core/Math.hpp>
-#include <noa/core/traits/Numerics.hpp>
-#include <noa/unified/Array.hpp>
+#include <noa/core/io/IO.hpp>
+//#include <noa/unified/Array.hpp>
 
 #include <random>
 #include <cstdlib>
@@ -90,15 +90,15 @@ namespace test {
 
     inline noa::Shape4<noa::i64> get_random_shape4(noa::i64 ndim, bool even) { // if even is false, return odd only
         noa::Shape4<noa::i64> shape = get_random_shape4(ndim);
-        shape += noa::Shape4<noa::i64>{shape != 1} * // ignore empty dimensions
-                 ((shape % 2) * even + !even * noa::Shape4<noa::i64>{(shape % 2) == 0});
+        shape += noa::Shape4<noa::i64>::from_vec(shape != 1) * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::Shape4<noa::i64>::from_vec((shape % 2) == 0));
         return shape;
     }
 
     inline noa::Shape4<noa::i64> get_random_shape4_batched(noa::i64 ndim, bool even) {
         noa::Shape4<noa::i64> shape = get_random_shape4_batched(ndim);
-        shape += noa::Shape4<noa::i64>{shape != 1} * // ignore empty dimensions
-                 ((shape % 2) * even + !even * noa::Shape4<noa::i64>{(shape % 2) == 0});
+        shape += noa::Shape4<noa::i64>::from_vec(shape != 1) * // ignore empty dimensions
+                 ((shape % 2) * even + !even * noa::Shape4<noa::i64>::from_vec((shape % 2) == 0));
         return shape;
     }
 }
@@ -155,7 +155,7 @@ namespace test {
         } else if constexpr (std::is_integral_v<T>) {
             int64_t diff{0};
             for (noa::i64 idx{0}; idx < elements; ++idx)
-                diff += std::abs(static_cast<int64_t>(out[idx] - in[idx]));
+                diff += noa::abs(static_cast<int64_t>(out[idx] - in[idx]));
             return noa::clamp_cast<T>(diff);
         } else {
             T diff{0}, tmp;
@@ -185,7 +185,7 @@ namespace test {
         using strides_type = noa::Strides4<index_type>;
         using shape_type = noa::Shape4<index_type>;
         using index4_type = noa::Vec4<index_type>;
-        using array_type = noa::Array<value_type>;
+//        using array_type = noa::Array<value_type>;
 
     public:
         Matcher() = default;
@@ -235,31 +235,31 @@ namespace test {
                           rhs,
                           shape_type{1, 1, 1, elements}, epsilon) {}
 
-        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
-        Matcher(CompType comparison, const array_type& lhs, const array_type& rhs, Epsilon epsilon) noexcept
-                : m_shape(lhs.shape()),
-                  m_lhs_strides(lhs.strides()),
-                  m_rhs_strides(rhs.strides()),
-                  m_lhs(lhs.eval().get()),
-                  m_rhs(rhs.eval().get()),
-                  m_comparison(comparison) {
-            NOA_ASSERT(noa::all(lhs.shape() == rhs.shape()));
-            NOA_ASSERT(lhs.is_dereferenceable() && rhs.is_dereferenceable());
-            set_epsilon_(epsilon);
-            check_();
-        }
-
-        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
-        Matcher(CompType comparison, const array_type& lhs, const value_type& rhs, Epsilon epsilon) noexcept
-                : m_shape(lhs.shape()),
-                  m_lhs_strides(lhs.strides()),
-                  m_lhs(lhs.eval().get()),
-                  m_rhs(&rhs),
-                  m_comparison(comparison) {
-            NOA_ASSERT(lhs.is_dereferenceable());
-            set_epsilon_(epsilon);
-            check_();
-        }
+//        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
+//        Matcher(CompType comparison, const array_type& lhs, const array_type& rhs, Epsilon epsilon) noexcept
+//                : m_shape(lhs.shape()),
+//                  m_lhs_strides(lhs.strides()),
+//                  m_rhs_strides(rhs.strides()),
+//                  m_lhs(lhs.eval().get()),
+//                  m_rhs(rhs.eval().get()),
+//                  m_comparison(comparison) {
+//            NOA_ASSERT(noa::all(lhs.shape() == rhs.shape()));
+//            NOA_ASSERT(lhs.is_dereferenceable() && rhs.is_dereferenceable());
+//            set_epsilon_(epsilon);
+//            check_();
+//        }
+//
+//        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
+//        Matcher(CompType comparison, const array_type& lhs, const value_type& rhs, Epsilon epsilon) noexcept
+//                : m_shape(lhs.shape()),
+//                  m_lhs_strides(lhs.strides()),
+//                  m_lhs(lhs.eval().get()),
+//                  m_rhs(&rhs),
+//                  m_comparison(comparison) {
+//            NOA_ASSERT(lhs.is_dereferenceable());
+//            set_epsilon_(epsilon);
+//            check_();
+//        }
 
         explicit operator bool() const noexcept {
             return m_match;
@@ -269,28 +269,28 @@ namespace test {
             if (matcher)
                 return os << "Matcher: all checks are within the expected value(s)";
             else {
-                os << noa::string::format("Matcher: check failed at index={}", matcher.m_index_failed);
+                os << fmt::format("Matcher: check failed at index={}", matcher.m_index_failed);
                 if (matcher.m_shape.ndim() > 1)
-                    os << noa::string::format(", shape={}", matcher.m_index_failed, matcher.m_shape);
+                    os << fmt::format(", shape={}", matcher.m_index_failed, matcher.m_shape);
 
-                T lhs_value = matcher.m_lhs[noa::indexing::at(matcher.m_index_failed, matcher.m_lhs_strides)];
-                T rhs_value = matcher.m_rhs[noa::indexing::at(matcher.m_index_failed, matcher.m_rhs_strides)];
+                T lhs_value = matcher.m_lhs[noa::offset_at(matcher.m_index_failed, matcher.m_lhs_strides)];
+                T rhs_value = matcher.m_rhs[noa::offset_at(matcher.m_index_failed, matcher.m_rhs_strides)];
                 if constexpr (std::is_integral_v<T>) {
-                    os << noa::string::format(
+                    os << fmt::format(
                             ", lhs={}, rhs={}, epsilon={}, total_abs_diff={}, max_abs_diff={}",
                             lhs_value, rhs_value, matcher.m_epsilon,
                             matcher.m_total_abs_diff, matcher.m_max_abs_diff);
                 } else {
                     int dyn_precision{};
                     if constexpr (noa::traits::is_complex_v<T>) {
-                        dyn_precision = noa::math::max(
-                                static_cast<int>(-noa::math::log10(noa::math::abs(matcher.m_epsilon.real))),
-                                static_cast<int>(-noa::math::log10(noa::math::abs(matcher.m_epsilon.imag)))) + 2;
+                        dyn_precision = noa::max(
+                                static_cast<int>(-noa::log10(noa::abs(matcher.m_epsilon.real))),
+                                static_cast<int>(-noa::log10(noa::abs(matcher.m_epsilon.imag)))) + 2;
                     } else {
-                        dyn_precision = static_cast<int>(-noa::math::log10(noa::math::abs(matcher.m_epsilon))) + 2;
+                        dyn_precision = static_cast<int>(-noa::log10(noa::abs(matcher.m_epsilon))) + 2;
                     }
 
-                    os << noa::string::format(
+                    os << fmt::format(
                             ", lhs={:.{}}, rhs={:.{}}, epsilon={:.{}}, total_abs_diff={}, max_abs_diff={}",
                             lhs_value, dyn_precision, rhs_value, dyn_precision,
                             matcher.m_epsilon, dyn_precision, matcher.m_total_abs_diff, matcher.m_max_abs_diff);
@@ -329,24 +329,24 @@ namespace test {
 
         template<typename F>
         void check_(F&& value_checker) noexcept {
-            m_total_abs_diff = value_type{0};
-            m_max_abs_diff = value_type{0};
+            m_total_abs_diff = value_type{};
+            m_max_abs_diff = value_type{};
             m_match = true;
             for (index_type i = 0; i < m_shape[0]; ++i) {
                 for (index_type j = 0; j < m_shape[1]; ++j) {
                     for (index_type k = 0; k < m_shape[2]; ++k) {
                         for (index_type l = 0; l < m_shape[3]; ++l) {
                             const auto [passed, abs_diff] = value_checker(
-                                    m_lhs[noa::indexing::at(i, j, k, l, m_lhs_strides)],
-                                    m_rhs[noa::indexing::at(i, j, k, l, m_rhs_strides)],
+                                    m_lhs[noa::offset_at(i, j, k, l, m_lhs_strides)],
+                                    m_rhs[noa::offset_at(i, j, k, l, m_rhs_strides)],
                                     m_epsilon);
 
                             m_total_abs_diff += abs_diff;
                             if constexpr (noa::traits::is_complex_v<value_type>) {
-                                m_max_abs_diff.real = noa::math::max(m_max_abs_diff.real, abs_diff.real);
-                                m_max_abs_diff.imag = noa::math::max(m_max_abs_diff.imag, abs_diff.imag);
+                                m_max_abs_diff.real = noa::max(m_max_abs_diff.real, abs_diff.real);
+                                m_max_abs_diff.imag = noa::max(m_max_abs_diff.imag, abs_diff.imag);
                             } else {
-                                m_max_abs_diff = noa::math::max(m_max_abs_diff, abs_diff);
+                                m_max_abs_diff = noa::max(m_max_abs_diff, abs_diff);
                             }
                             if (m_match && !passed) {
                                 m_index_failed = {i, j, k, l};
@@ -374,9 +374,9 @@ namespace test {
                 if constexpr (noa::traits::is_uint_v<value_type>)
                     return {is_passed, diff};
                 else
-                    return {is_passed, noa::math::abs(diff)};
+                    return {is_passed, noa::abs(diff)};
             } else {
-                value_type diff = noa::math::abs(input - expected);
+                value_type diff = noa::abs(input - expected);
                 return {diff <= epsilon, diff};
             }
         }
@@ -397,17 +397,17 @@ namespace test {
                 if constexpr (noa::traits::is_uint_v<value_type>)
                     return {is_passed, diff};
                 else
-                    return {is_passed, noa::math::abs(diff)};
+                    return {is_passed, noa::abs(diff)};
 
             } else {
                 // Relative epsilons comparisons are usually meaningless for close-to-zero numbers,
                 // hence the absolute comparison first, acting as a safety net.
-                value_type diff = noa::math::abs(input - expected);
-                if (!noa::math::is_finite(diff))
+                value_type diff = noa::abs(input - expected);
+                if (!noa::is_finite(diff))
                     return {false, diff};
                 const bool is_passed =
                         diff <= epsilon ||
-                        diff <= noa::math::max(noa::math::abs(input), noa::math::abs(expected)) * epsilon;
+                        diff <= noa::max(noa::abs(input), noa::abs(expected)) * epsilon;
                 return {is_passed, diff};
             }
         }
@@ -429,16 +429,16 @@ namespace test {
                 if constexpr (noa::traits::is_uint_v<value_type>)
                     return {is_passed, diff};
                 else
-                    return {is_passed, noa::math::abs(diff)};
+                    return {is_passed, noa::abs(diff)};
 
             } else {
-                auto margin = epsilon * noa::math::max(noa::math::abs(input), noa::math::abs(expected));
-                if (noa::math::is_inf(margin))
+                auto margin = epsilon * noa::max(noa::abs(input), noa::abs(expected));
+                if (noa::is_inf(margin))
                     margin = value_type{0};
                 const bool is_passed =
                         (input + margin >= expected) &&
                         (expected + margin >= input); // abs(a-b) <= epsilon
-                return {is_passed, noa::math::abs(input - expected)};
+                return {is_passed, noa::abs(input - expected)};
             }
         }
 

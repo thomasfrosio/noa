@@ -6,10 +6,6 @@ TEST_CASE("core::Half", "[noa][core]") {
 
     static_assert(sizeof(Half) == 2);
     static_assert(traits::is_numeric_v<Half>);
-    REQUIRE(math::Limits<Half>::epsilon() == std::numeric_limits<Half>::epsilon());
-    REQUIRE(math::Limits<Half>::lowest() == std::numeric_limits<Half>::lowest());
-    REQUIRE(math::Limits<Half>::min() == std::numeric_limits<Half>::min());
-    REQUIRE(math::Limits<Half>::max() == std::numeric_limits<Half>::max());
 
     Half ha;
     REQUIRE(ha == Half{0});
@@ -35,7 +31,7 @@ TEST_CASE("core::Half", "[noa][core]") {
     REQUIRE(Half(std::numeric_limits<int32_t>::min()) == Half(double(std::numeric_limits<int32_t>::min())));
     REQUIRE(Half(std::numeric_limits<int64_t>::min()) == Half(double(std::numeric_limits<int64_t>::min())));
 
-    REQUIRE((Half(2000), math::clamp(Half(3000), Half(0), Half(2000))));
+    REQUIRE((Half(2000), noa::clamp(Half(3000), Half(0), Half(2000))));
 
     Half hb(4);
     REQUIRE(true == static_cast<bool>(hb));
@@ -49,5 +45,5 @@ TEST_CASE("core::Half", "[noa][core]") {
     REQUIRE(double{4} == static_cast<double>(hb));
 
     Half hc(2.5);
-    REQUIRE(string::format("{:.2}", hc) == "2.5");
+    REQUIRE(fmt::format("{:.2}", hc) == "2.5");
 }

@@ -1,5 +1,4 @@
 set(TEST_COMMON_SOURCES
-    noa/core/TestCommonOS.cpp
 
     noa/core/utils/TestCommonClampCast.cpp
     noa/core/utils/TestCommonIndexing.cpp
@@ -23,6 +22,7 @@ set(TEST_COMMON_SOURCES
     noa/core/geometry/TestCommonInterpolator.cpp
     noa/core/geometry/TestCoreGeometryQuaternion.cpp
 
+    noa/core/io/TestCommonOS.cpp
     noa/core/io/TestCommonIO.cpp
     noa/core/io/TestMRCFile.cpp
     noa/core/io/TestTextFile.cpp

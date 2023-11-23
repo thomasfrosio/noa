@@ -22,9 +22,8 @@ TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to signed integer", "[noa][
     REQUIRE(static_cast<TestType>(Half(123.354f)) == clamp_cast<TestType>(Half(123.354f)));
     REQUIRE(static_cast<TestType>(Half(-123.354f)) == clamp_cast<TestType>(Half(-123.354f)));
 
-    REQUIRE(0 == clamp_cast<TestType>(::sqrtf(-1)));
-    REQUIRE(0 == clamp_cast<TestType>(::sqrt(-1)));
-    REQUIRE(0 == clamp_cast<TestType>(math::sqrt(Half(-1))));
+    REQUIRE(0 == clamp_cast<TestType>(std::sqrt(-1)));
+    REQUIRE(0 == clamp_cast<TestType>(noa::sqrt(Half(-1))));
 
     REQUIRE(int_limit::max() == clamp_cast<TestType>(float(int_limit::max()) * 2));
     REQUIRE(int_limit::min() == clamp_cast<TestType>(float(int_limit::min()) * 2));
@@ -41,8 +40,8 @@ TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to signed integer", "[noa][
     REQUIRE(int_limit::max() == clamp_cast<TestType>(Half(int_limit::max())));
     REQUIRE(int_limit::min() == clamp_cast<TestType>(Half(int_limit::min())));
     if constexpr (sizeof(TestType) > 2) {
-        REQUIRE(TestType(math::Limits<Half>::max()) == clamp_cast<TestType>(math::Limits<Half>::max()));
-        REQUIRE(TestType(math::Limits<Half>::lowest()) == clamp_cast<TestType>(math::Limits<Half>::lowest()));
+        REQUIRE(TestType(std::numeric_limits<Half>::max()) == clamp_cast<TestType>(std::numeric_limits<Half>::max()));
+        REQUIRE(TestType(std::numeric_limits<Half>::lowest()) == clamp_cast<TestType>(std::numeric_limits<Half>::lowest()));
     } else {
         REQUIRE(int_limit::max() == clamp_cast<TestType>(std::numeric_limits<Half>::max()));
         REQUIRE(int_limit::min() == clamp_cast<TestType>(std::numeric_limits<Half>::lowest()));
@@ -63,9 +62,8 @@ TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to unsigned integer", "[noa
     REQUIRE(static_cast<TestType>(123.354f) == clamp_cast<TestType>(123.354f));
     REQUIRE(static_cast<TestType>(123.845) == clamp_cast<TestType>(123.845));
     REQUIRE(static_cast<TestType>(Half(123.5f)) == clamp_cast<TestType>(Half(123.5f)));
-    REQUIRE(0 == clamp_cast<TestType>(::sqrtf(-1)));
     REQUIRE(0 == clamp_cast<TestType>(::sqrt(-1)));
-    REQUIRE(0 == clamp_cast<TestType>(math::sqrt(Half(-1))));
+    REQUIRE(0 == clamp_cast<TestType>(noa::sqrt(Half(-1))));
     REQUIRE(int_limit::max() == clamp_cast<TestType>(float(int_limit::max())));
     REQUIRE(int_limit::min() == clamp_cast<TestType>(float(int_limit::min())));
     REQUIRE(int_limit::max() == clamp_cast<TestType>(double(int_limit::max())));
@@ -85,7 +83,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, integer to floating-point", "[noa][core]",
 
 TEMPLATE_TEST_CASE("core::clamp_cast, Half to float/double", "[noa][core]",
                    float, double) {
-    test::Randomizer<Half> randomizer(math::Limits<Half>::lowest(), math::Limits<Half>::max());
+    test::Randomizer<Half> randomizer(std::numeric_limits<Half>::lowest(), std::numeric_limits<Half>::max());
     for (size_t i = 0; i < 1000; ++i) {
         Half v = randomizer.get();
         if (static_cast<TestType>(v) != clamp_cast<TestType>(v))
@@ -104,11 +102,11 @@ TEMPLATE_TEST_CASE("core::clamp_cast, large integer to Half", "[noa][core]",
                    int32_t, int64_t, uint16_t, uint32_t, uint64_t) {
     using int_limit = std::numeric_limits<TestType>;
     if constexpr (std::is_signed_v<TestType>) {
-        REQUIRE(math::Limits<Half>::lowest() == clamp_cast<Half>(int_limit::min()));
-        REQUIRE(math::Limits<Half>::max() == clamp_cast<Half>(int_limit::max()));
+        REQUIRE(std::numeric_limits<Half>::lowest() == clamp_cast<Half>(int_limit::min()));
+        REQUIRE(std::numeric_limits<Half>::max() == clamp_cast<Half>(int_limit::max()));
     } else {
         REQUIRE(Half(0) == clamp_cast<Half>(int_limit::min()));
-        REQUIRE(math::Limits<Half>::max() == clamp_cast<Half>(int_limit::max()));
+        REQUIRE(std::numeric_limits<Half>::max() == clamp_cast<Half>(int_limit::max()));
     }
 }
 

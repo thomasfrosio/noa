@@ -21,9 +21,9 @@ TEST_CASE("core::string::trim_left", "[noa][core]") {
     std::vector<std::string> expected =
             {"", "", "foo ", "foo", "foo", "foo", "foo bar ", "123; \n", ", 123 "};
     for (size_t i = 0; i < tests.size(); ++i) {
-        result = noa::string::trim_left(tests[i]);
+        result = trim_left(tests[i]);
         REQUIRE(result == expected[i]);
-        result = noa::string::trim_left(std::move(tests[i]));
+        result = trim_left(std::move(tests[i]));
         REQUIRE(result == expected[i]);
     }
 }
@@ -37,9 +37,9 @@ TEST_CASE("core::string::trim_right", "[noa][core]") {
             {"", "", "  foo", "  \tfoo", " \n foo", "foo",
              " foo bar", "\t  \n 123;", " , 123"};
     for (size_t i = 0; i < tests.size(); ++i) {
-        result = noa::string::trim_right(tests[i]);
+        result = trim_right(tests[i]);
         REQUIRE(result == expected[i]);
-        result = noa::string::trim_right(std::move(tests[i]));
+        result = trim_right(std::move(tests[i]));
         REQUIRE(result == expected[i]);
     }
 }
@@ -53,9 +53,9 @@ TEST_CASE("core::string::trim", "[noa][core]") {
             {"", "", "foo", "foo", "foo", "foo", "foo bar",
              "123;", ", 123", "foo", "foo bar \n foo"};
     for (size_t i = 0; i < tests.size(); ++i) {
-        result = noa::string::trim(tests[i]);
+        result = trim(tests[i]);
         REQUIRE(result == expected[i]);
-        result = noa::string::trim(std::move(tests[i]));
+        result = trim(std::move(tests[i]));
         REQUIRE(result == expected[i]);
     }
 }
@@ -74,39 +74,39 @@ TEMPLATE_TEST_CASE("core::string::parse(), to integer", "[noa][core]", u8, u16, 
                 {1, 6, 7, 9, 56, 11, 0, 10, 10, 123, 123, 0, min, max};
 
         for (size_t i{0}; i < tests.size(); ++i) {
-            result = noa::string::parse<TestType>(tests[i]);
+            result = parse<TestType>(tests[i]);
             REQUIRE(result == expected[i]);
         }
 
-        auto test1 = noa::string::parse<i8>(" -43");
+        auto test1 = parse<i8>(" -43");
         REQUIRE(test1 == -43);
-        auto test2 = noa::string::parse<i16>("\t  -194");
+        auto test2 = parse<i16>("\t  -194");
         REQUIRE(test2 == -194);
-        int test3 = noa::string::parse<i32>("-54052");
+        int test3 = parse<i32>("-54052");
         REQUIRE(test3 == -54052);
-        auto test4 = noa::string::parse<i64>("   -525107745");
+        auto test4 = parse<i64>("   -525107745");
         REQUIRE(test4 == -525107745);
-        auto test5 = noa::string::parse<u64>("11111111155488");
+        auto test5 = parse<u64>("11111111155488");
         REQUIRE(test5 == 11111111155488);
     }
 
     GIVEN("a string that cannot be converted to an integer") {
         auto to_test = GENERATE("     ", "", ".", " n10", "--10", "e10");
-        REQUIRE_THROWS_AS(noa::string::parse<TestType>(to_test), noa::Exception);
+        REQUIRE_THROWS_AS(parse<TestType>(to_test), noa::Exception);
     }
 
     GIVEN("a string that falls out of range") {
         std::string tmp;
         if (std::is_signed_v<TestType>)
-            REQUIRE_THROWS_AS(noa::string::parse<TestType>(fmt::format("  {}1,,", min)), noa::Exception);
+            REQUIRE_THROWS_AS(parse<TestType>(fmt::format("  {}1,,", min)), noa::Exception);
         else
-            REQUIRE_THROWS_AS(noa::string::parse<TestType>(fmt::format("  -{}1,,", min)), noa::Exception);
+            REQUIRE_THROWS_AS(parse<TestType>(fmt::format("  -{}1,,", min)), noa::Exception);
 
-        REQUIRE_THROWS_AS(noa::string::parse<TestType>(fmt::format("  {}1  ", max)), noa::Exception);
-        REQUIRE_THROWS_AS(noa::string::parse<u8>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(noa::string::parse<u16>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(noa::string::parse<u32>("-1"), noa::Exception);
-        REQUIRE_THROWS_AS(noa::string::parse<u64>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(parse<TestType>(fmt::format("  {}1  ", max)), noa::Exception);
+        REQUIRE_THROWS_AS(parse<u8>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(parse<u16>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(parse<u32>("-1"), noa::Exception);
+        REQUIRE_THROWS_AS(parse<u64>("-1"), noa::Exception);
     }
 }
 
@@ -123,25 +123,25 @@ TEMPLATE_TEST_CASE("core::string::parse(), to floating-point", "[noa][core]", f3
                     {1, 6, 7, 9, .5, 11, -1, 123.123f, 0, 10, -10.3f,
                      10e3, 10e-04f, 0e-12f, 9999910., 4723., -4723.};
             for (size_t i{0}; i < tests.size(); ++i) {
-                result = noa::string::parse<TestType>(tests[i]);
+                result = parse<TestType>(tests[i]);
                 REQUIRE_THAT(result, Catch::WithinULP(expected[i], 2));
             }
         }
 
         WHEN("should return NaN") {
             auto tests = GENERATE("nan", "Nan", "-NaN" "-nan");
-            REQUIRE(std::isnan(noa::string::parse<TestType>(tests)) == true);
+            REQUIRE(std::isnan(parse<TestType>(tests)) == true);
         }
 
         WHEN("should return Inf") {
             auto tests = GENERATE("inf", "-inf", "INFINITY" "-INFINITY", "-Inf");
-            REQUIRE(std::isinf(noa::string::parse<TestType>(tests)) == true);
+            REQUIRE(std::isinf(parse<TestType>(tests)) == true);
         }
     }
 
     GIVEN("a string that can be converted to a floating point") {
         auto tests = GENERATE("     ", "", ".", " n10", "--10", "e10");
-        REQUIRE_THROWS_AS(noa::string::parse<TestType>(tests), noa::Exception);
+        REQUIRE_THROWS_AS(parse<TestType>(tests), noa::Exception);
     }
 
     GIVEN("a string that falls out of the floating point range") {
@@ -152,7 +152,7 @@ TEMPLATE_TEST_CASE("core::string::parse(), to floating-point", "[noa][core]", f3
                                           fmt::format("  {}1  ", max),
                                           fmt::format("  {}1  ", lowest)};
         for (auto& test: tests)
-            REQUIRE_THROWS_AS(string::parse<TestType>(test), noa::Exception);
+            REQUIRE_THROWS_AS(parse<TestType>(test), noa::Exception);
     }
 }
 
@@ -160,18 +160,18 @@ TEST_CASE("core::string::parse(), to boolean", "[noa][core]") {
     GIVEN("a string that can be converted to a bool") {
         WHEN("should return true") {
             const auto* to_test = GENERATE("1", "true", "TRUE", "y", "yes", "YES", "on", "ON");
-            REQUIRE(noa::string::parse<bool>(to_test) == true);
+            REQUIRE(parse<bool>(to_test) == true);
         }
 
         WHEN("should return false") {
             const auto* to_test = GENERATE("0", "false", "FALSE", "n", "no", "NO", "off", "OFF");
-            REQUIRE(noa::string::parse<bool>(to_test) == false);
+            REQUIRE(parse<bool>(to_test) == false);
         }
     }
 
     GIVEN("a string that cannot be converted to a bool") {
         const auto* to_test = GENERATE(" y", "yes please", ".", "", " 0", "wrong");
-        REQUIRE_THROWS_AS(noa::string::parse<bool>(to_test), noa::Exception);
+        REQUIRE_THROWS_AS(parse<bool>(to_test), noa::Exception);
     }
 }
 
@@ -201,50 +201,50 @@ TEST_CASE("core::string::split(), to strings", "[noa][core]") {
 
     WHEN("output is a vector") {
         for (size_t i = 0; i < tests.size(); ++i)
-            REQUIRE_THAT(noa::string::split<std::string>(tests[i]), Catch::Equals(expected[i]));
-        REQUIRE(noa::string::split<std::string>("123,foo,,dd2").size() == 4);
+            REQUIRE_THAT(split<std::string>(tests[i]), Catch::Equals(expected[i]));
+        REQUIRE(split<std::string>("123,foo,,dd2").size() == 4);
     }
 
     WHEN("output is an array") {
-        auto result_0 = noa::string::split<std::string, 7>(tests[0]);
+        auto result_0 = split<std::string, 7>(tests[0]);
         REQUIRE_THAT(test::array2vector(result_0), Catch::Equals(expected[0]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 6>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 6>(tests[0])), noa::Exception);
 
-        auto result_1 = noa::string::split<std::string, 5>(tests[1]);
+        auto result_1 = split<std::string, 5>(tests[1]);
         REQUIRE_THAT(test::array2vector(result_1), Catch::Equals(expected[1]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 6>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 6>(tests[0])), noa::Exception);
 
-        auto result_2 = noa::string::split<std::string, 6>(tests[2]);
+        auto result_2 = split<std::string, 6>(tests[2]);
         REQUIRE_THAT(test::array2vector(result_2), Catch::Equals(expected[2]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 1>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 1>(tests[0])), noa::Exception);
 
-        auto result_3 = noa::string::split<std::string, 5>(tests[3]);
+        auto result_3 = split<std::string, 5>(tests[3]);
         REQUIRE_THAT(test::array2vector(result_3), Catch::Equals(expected[3]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 6>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 6>(tests[0])), noa::Exception);
 
-        auto result_4 = noa::string::split<std::string, 4>(tests[4]);
+        auto result_4 = split<std::string, 4>(tests[4]);
         REQUIRE_THAT(test::array2vector(result_4), Catch::Equals(expected[4]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 10>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 10>(tests[0])), noa::Exception);
 
-        auto result_5 = noa::string::split<std::string, 1>(tests[5]);
+        auto result_5 = split<std::string, 1>(tests[5]);
         REQUIRE_THAT(test::array2vector(result_5), Catch::Equals(expected[5]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 2>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 2>(tests[0])), noa::Exception);
 
-        auto result_6 = noa::string::split<std::string, 1>(tests[6]);
+        auto result_6 = split<std::string, 1>(tests[6]);
         REQUIRE_THAT(test::array2vector(result_6), Catch::Equals(expected[6]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 0>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 0>(tests[0])), noa::Exception);
 
-        auto result_7 = noa::string::split<std::string, 2>(tests[7]);
+        auto result_7 = split<std::string, 2>(tests[7]);
         REQUIRE_THAT(test::array2vector(result_7), Catch::Equals(expected[7]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 0>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 0>(tests[0])), noa::Exception);
 
-        auto result_8 = noa::string::split<std::string, 3>(tests[8]);
+        auto result_8 = split<std::string, 3>(tests[8]);
         REQUIRE_THAT(test::array2vector(result_8), Catch::Equals(expected[8]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 6>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 6>(tests[0])), noa::Exception);
 
-        auto result_9 = noa::string::split<std::string, 4>(tests[9]);
+        auto result_9 = split<std::string, 4>(tests[9]);
         REQUIRE_THAT(test::array2vector(result_9), Catch::Equals(expected[9]));
-        REQUIRE_THROWS_AS((noa::string::split<std::string, 1>(tests[0])), noa::Exception);
+        REQUIRE_THROWS_AS((split<std::string, 1>(tests[0])), noa::Exception);
     }
 }
 
@@ -267,32 +267,32 @@ TEMPLATE_TEST_CASE("core::string::split(), to integers", "[noa][core]", u8, u16,
 
         WHEN("the input string can be converted") {
             for (size_t i{0}; i < tests_valid.size(); ++i)
-                REQUIRE_THAT(noa::string::split<TestType>(tests_valid[i]), Catch::Equals(expected_valid[i]));
+                REQUIRE_THAT(split<TestType>(tests_valid[i]), Catch::Equals(expected_valid[i]));
         }
 
         WHEN("the input string cannot be converted") {
             for (size_t i{0}; i < tests_invalid.size(); ++i)
-                REQUIRE_THROWS_AS(noa::string::split<TestType>(tests_invalid[i]), noa::Exception);
+                REQUIRE_THROWS_AS(split<TestType>(tests_invalid[i]), noa::Exception);
         }
     }
 
     GIVEN("an array") {
         WHEN("the input string can be converted") {
-            auto result_0 = noa::string::split<TestType, 9>(tests_valid[0]);
+            auto result_0 = split<TestType, 9>(tests_valid[0]);
             REQUIRE_THAT(test::array2vector(result_0), Catch::Equals(expected_valid[0]));
 
-            auto result_1 = noa::string::split<TestType, 4>(tests_valid[1]);
+            auto result_1 = split<TestType, 4>(tests_valid[1]);
             REQUIRE_THAT(test::array2vector(result_1), Catch::Equals(expected_valid[1]));
 
-            auto result_2 = noa::string::split<TestType, 2>(tests_valid[2]);
+            auto result_2 = split<TestType, 2>(tests_valid[2]);
             REQUIRE_THAT(test::array2vector(result_2), Catch::Equals(expected_valid[2]));
         }
 
         WHEN("the input string cannot be converted") {
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 1>(tests_invalid[0])), noa::Exception);
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 3>(tests_invalid[1])), noa::Exception);
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 4>(tests_invalid[2])), noa::Exception);
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 5>(tests_invalid[3])), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 1>(tests_invalid[0])), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 3>(tests_invalid[1])), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 4>(tests_invalid[2])), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 5>(tests_invalid[3])), noa::Exception);
         }
     }
 }
@@ -309,7 +309,7 @@ TEMPLATE_TEST_CASE("core::string::split(), to floating-points", "[noa][core]", f
         std::vector<TestType> result{};
         WHEN("the input string can be converted") {
             for (size_t nb{0}; nb < tests.size(); ++nb) {
-                result = noa::string::split<TestType>(tests[nb]);
+                result = split<TestType>(tests[nb]);
                 REQUIRE(result.size() == expected[nb].size());
                 for (size_t idx = 0; idx < expected[nb].size(); ++idx)
                     REQUIRE_THAT(result[idx], Catch::WithinULP(expected[nb][idx], 2));
@@ -317,14 +317,14 @@ TEMPLATE_TEST_CASE("core::string::split(), to floating-points", "[noa][core]", f
 
             WHEN("should return NaN") {
                 std::string test = {"nan, Nan  , -NaN,-nan"};
-                result = noa::string::split<TestType>(test);
+                result = split<TestType>(test);
                 REQUIRE(result.size() == 4);
                 REQUIRE_FOR_ALL(result, std::isnan);
             }
 
             WHEN("should return Inf") {
                 std::string test = {"inf, -inf , INFINITY ,-INFINITY,-Inf"};
-                result = noa::string::split<TestType>(test);
+                result = split<TestType>(test);
                 REQUIRE(result.size() == 5);
                 REQUIRE_FOR_ALL(result, std::isinf);
             }
@@ -332,39 +332,39 @@ TEMPLATE_TEST_CASE("core::string::split(), to floating-points", "[noa][core]", f
 
         WHEN("the input cannot be converted") {
             auto test = GENERATE("", "  ", ". ,10", "1, 2., n10", "3, --10", "0, e10");
-            REQUIRE_THROWS_AS(noa::string::split<TestType>(test), noa::Exception);
+            REQUIRE_THROWS_AS(split<TestType>(test), noa::Exception);
         }
     }
 
     GIVEN("an array") {
         WHEN("the input string can be converted") {
-            auto result_0 = noa::string::split<TestType, 9>(tests[0]);
+            auto result_0 = split<TestType, 9>(tests[0]);
             for (size_t idx = 0; idx < expected[0].size(); ++idx)
                 REQUIRE_THAT(result_0[idx], Catch::WithinULP(expected[0][idx], 2));
 
-            auto result_1 = noa::string::split<TestType, 6>(tests[1]);
+            auto result_1 = split<TestType, 6>(tests[1]);
             for (size_t idx = 0; idx < expected[1].size(); ++idx)
                 REQUIRE_THAT(result_1[idx], Catch::WithinULP(expected[1][idx], 2));
 
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 3>(tests[0])), noa::Exception);
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 7>(tests[1])), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 3>(tests[0])), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 7>(tests[1])), noa::Exception);
 
             WHEN("should return NaN") {
                 std::string test = {"nan, Nan  , -NaN,-nan"};
-                auto result = noa::string::split<TestType, 4>(test);
+                auto result = split<TestType, 4>(test);
                 REQUIRE_FOR_ALL(result, std::isnan);
             }
 
             WHEN("should return Inf") {
                 std::string test = {"inf, -inf , INFINITY ,-INFINITY,-Inf"};
-                auto result = noa::string::split<TestType, 5>(test);
+                auto result = split<TestType, 5>(test);
                 REQUIRE_FOR_ALL(result, std::isinf);
             }
         }
 
         WHEN("the input cannot be converted") {
             auto test = GENERATE("", "  ", ". ", "n10", "--10", "e10");
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 1>(test)), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 1>(test)), noa::Exception);
         }
     }
 }
@@ -375,11 +375,11 @@ TEST_CASE("core::string::split(), to boolean", "[noa][core]") {
                                   false, false, false, false, false, false, false, false};
 
     GIVEN("a vector") {
-        REQUIRE_THAT(noa::string::split<bool>(test), Catch::Equals(expected));
+        REQUIRE_THAT(split<bool>(test), Catch::Equals(expected));
     }
 
     GIVEN("an array") {
-        REQUIRE_THAT(test::array2vector(noa::string::split<bool, 16>(test)), Catch::Equals(expected));
+        REQUIRE_THAT(test::array2vector(split<bool, 16>(test)), Catch::Equals(expected));
     }
 }
 
@@ -390,28 +390,28 @@ TEMPLATE_TEST_CASE("core::string::split(), with default values", "[noa][core]",
     GIVEN("a vector") {
         std::string test1 = "123,,12, 0, \t,, 8";
         std::string test2 = ",1,2,3,4,5,";
-        REQUIRE_THAT(noa::string::split<TestType>(test1, test2),
+        REQUIRE_THAT(split<TestType>(test1, test2),
                      Catch::Equals(vector{123, 1, 12, 0, 4, 5, 8}));
 
         test1 = "12,,12, 0, \t,, 8";
         test2 = ",1,2,3,4,5,";
-        REQUIRE_THAT(noa::string::split<std::string>(test1, test2),
+        REQUIRE_THAT(split<std::string>(test1, test2),
                      Catch::Equals(std::vector<std::string>{"12", "1", "12", "0", "4", "5", "8"}));
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1,1,12";
-        REQUIRE_THAT(noa::string::split<bool>(test1, test2),
+        REQUIRE_THAT(split<bool>(test1, test2),
                      Catch::Equals(std::vector<bool>{1, 1, 0, 0, 1, 1, 1}));
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1,  ,12";
-        REQUIRE_THROWS_AS(noa::string::split<TestType>(test1, test2), noa::Exception);
+        REQUIRE_THROWS_AS(split<TestType>(test1, test2), noa::Exception);
     }
 
     GIVEN("an array") {
         std::string test1 = "123,,12, 0, \t,, 8";
         std::string test2 = ",1,2,3,4,5,";
-        auto result1 = noa::string::split<TestType, 7>(test1, test2);
+        auto result1 = split<TestType, 7>(test1, test2);
         std::vector<double> expected1 = {123, 1, 12, 0, 4, 5, 8};
         REQUIRE(expected1.size() == result1.size());
         for (size_t idx = 0; idx < expected1.size(); ++idx)
@@ -419,25 +419,25 @@ TEMPLATE_TEST_CASE("core::string::split(), with default values", "[noa][core]",
 
         test1 = "123,,12, 0, \t,, 8";
         test2 = ",1,2,3,4,5,";
-        auto result2 = noa::string::split<std::string, 7>(test1, test2);
+        auto result2 = split<std::string, 7>(test1, test2);
         std::vector<std::string> expected2{"123", "1", "12", "0", "4", "5", "8"};
         REQUIRE_THAT(test::array2vector(result2), Catch::Equals(expected2));
 
         test1 = "1,,0, 0, \t,, 1";
         test2 = ",1,1,3,1,1,12";
-        auto result3 = noa::string::split<bool, 7>(test1, test2);
+        auto result3 = split<bool, 7>(test1, test2);
         std::vector<bool> expected3{true, true, false, false, true, true, true};
         REQUIRE_THAT(test::array2vector(result3), Catch::Equals(expected3));
 
         WHEN("the inputs are invalid") {
             test1 = "1,,0, 0, \t,, 1";
             test2 = ",1,1,3,1,  ,12";
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 7>(test1, test2)), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 7>(test1, test2)), noa::Exception);
 
             test1 = "1,,0, 0, \t,, 1";
             test2 = ",1,1,3,1, 1 ,12";
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 10>(test1, test2)), noa::Exception);
-            REQUIRE_THROWS_AS((noa::string::split<TestType, 4>(test1, test2)), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 10>(test1, test2)), noa::Exception);
+            REQUIRE_THROWS_AS((split<TestType, 4>(test1, test2)), noa::Exception);
         }
     }
 }

@@ -236,7 +236,7 @@ namespace noa::io {
     /// \param clamp        Whether the input values should be clamped to the range of the desired data type.
     ///                     If false, out-of-range values are undefined.
     /// \param swap_endian  Whether the endianness of the serialized data should be swapped.
-    template<typename Input, typename = std::enable_if_t<nt::is_restricted_numeric_v<Input>>>
+    template<typename Input, typename = std::enable_if_t<nt::is_numeric_v<Input>>>
     void serialize(const Input* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
                    Byte* output, DataType data_type,
                    bool clamp = false, bool swap_endian = false);

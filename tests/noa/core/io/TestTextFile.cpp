@@ -9,7 +9,7 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
     const fs::path test_dir = "test_TextFile";
     const fs::path test_file1 = test_dir / "file1.txt";
     const fs::path test_file2 = test_dir / "subdir/file2.txt";
-    os::remove_all(test_dir);
+    io::remove_all(test_dir);
 
     AND_WHEN("file should exists") {
         io::TextFile<std::ifstream> file;
@@ -26,11 +26,11 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
 
     AND_WHEN("creating a file and its parent path") {
         io::TextFile<std::ofstream> file;
-        REQUIRE(!os::is_file(test_file2));
+        REQUIRE(!io::is_file(test_file2));
         file.open(test_file2, io::WRITE | io::APP);
         REQUIRE(file);
         REQUIRE(file.is_open());
-        REQUIRE(os::is_file(test_file2));
+        REQUIRE(io::is_file(test_file2));
         file.close();
         REQUIRE(!file.is_open());
     }
@@ -38,7 +38,7 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
     AND_WHEN("write and read") {
         io::TextFile file;
         file.open(test_file1, io::APP);
-        file.write(string::format("Here are some arguments: {}, {} ", 123, 124));
+        file.write(fmt::format("Here are some arguments: {}, {} ", 123, 124));
         file.write("I'm about to close the file...");
         file.close();
         REQUIRE(file);
@@ -69,16 +69,16 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
         file.open(test_file2, io::WRITE | io::READ);
         REQUIRE(file.is_open());
         REQUIRE(file.read_all() == "number: 2");
-        REQUIRE(os::file_size(test_file2_backup) == file.size());
+        REQUIRE(io::file_size(test_file2_backup) == file.size());
 
-        os::remove(test_file2_backup);
+        io::remove(test_file2_backup);
 
         // Backup move:  open an existing file in overwriting mode.
         file.open(test_file2, io::WRITE);
         REQUIRE(file.is_open());
-        REQUIRE(os::is_file(test_file2_backup));
+        REQUIRE(io::is_file(test_file2_backup));
         REQUIRE(file.read_all().empty());
-        REQUIRE(os::file_size(test_file2_backup) == 9);
+        REQUIRE(io::file_size(test_file2_backup) == 9);
     }
 
     AND_THEN("get_line and fstream") {
@@ -122,5 +122,5 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
         REQUIRE(file.read_all() == "01");
     }
 
-    os::remove_all(test_dir);
+    io::remove_all(test_dir);
 }
