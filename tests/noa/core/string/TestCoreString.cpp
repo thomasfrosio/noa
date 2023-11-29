@@ -7,6 +7,7 @@
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
+using namespace ::noa::string;
 
 #define REQUIRE_FOR_ALL(range, predicate) for (auto& e: (range)) REQUIRE((predicate(e)))
 

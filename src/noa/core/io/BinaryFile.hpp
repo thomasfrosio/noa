@@ -71,28 +71,28 @@ namespace noa::io {
         void read(T* output, i64 offset, i64 elements) {
             m_fstream.seekg(offset);
             if (m_fstream.fail())
-                NOA_THROW("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
+                panic("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
             const i64 bytes = elements * sizeof(T);
             m_fstream.read(reinterpret_cast<char*>(output), bytes);
             if (m_fstream.fail())
-                NOA_THROW("File stream error. Failed while reading {} bytes from {}", bytes, m_path);
+                panic("File stream error. Failed while reading {} bytes from {}", bytes, m_path);
         }
 
         template<typename T>
         void write(T* output, i64 offset, i64 elements) {
             m_fstream.seekp(offset);
             if (m_fstream.fail())
-                NOA_THROW("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
+                panic("File: {}. Could not seek to the desired offset ({} bytes)", m_path, offset);
             const i64 bytes = elements * sizeof(T);
             m_fstream.write(reinterpret_cast<char*>(output), bytes);
             if (m_fstream.fail())
-                NOA_THROW("File stream error. Failed while writing {} bytes from {}", bytes, m_path);
+                panic("File stream error. Failed while writing {} bytes from {}", bytes, m_path);
         }
 
         void close() {
             m_fstream.close();
             if (m_fstream.fail())
-                NOA_THROW("File: {}. File stream error. Could not close the file", m_path);
+                panic("File: {}. File stream error. Could not close the file", m_path);
             if (m_delete)
                 noa::io::remove(m_path);
         }
@@ -133,7 +133,7 @@ namespace noa::io {
             return out;
         }
 
-        void open_(open_mode_t open_mode);
+        void open_(open_mode_t open_mode, const std::source_location& location = std::source_location::current());
 
     private:
         std::fstream m_fstream{};

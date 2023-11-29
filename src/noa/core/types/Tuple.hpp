@@ -29,15 +29,7 @@
 ///   best to keep it. If adding the extra braces is unacceptable, the make_tuple() template function can
 ///   be an alternative solution.
 
-namespace noa {
-    template<typename... T>
-    struct TypeList {};
-
-    template<typename... Ls, typename... Rs>
-    inline constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
-        return TypeList<Ls..., Rs...>{};
-    }
-
+namespace noa::inline types {
     template<size_t I>
     using Tag = std::integral_constant<size_t, I>;
 
@@ -87,13 +79,21 @@ namespace noa::traits {
 }
 
 namespace noa::guts {
+    template<typename... T>
+    struct TypeList {};
+
+    template<typename... Ls, typename... Rs>
+    inline constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
+        return TypeList<Ls..., Rs...>{};
+    }
+
     // Stores an element from the tuple.
     // The index is stored in the type, so that each tuple element is unique.
     template<size_t I, typename T>
     struct TupleElement {
         using type = T;
         static constexpr size_t INDEX = I;
-        NOA_NO_UNIQUE_ADDRESS T value;
+        [[no_unique_address]] T value;
 
         inline constexpr decltype(auto) operator[](Tag<I>) & {
             return (value);
@@ -177,7 +177,7 @@ namespace noa::guts {
     }
 }
 
-namespace noa {
+namespace noa::inline types {
     /// Efficient tuple aggregate-type.
     template<class... T>
     struct Tuple : guts::TupleBase<T...> {
@@ -187,8 +187,8 @@ namespace noa {
         using super = guts::TupleBase<T...>;
         using super::operator[];
         using base_list = typename super::base_list;
-        using element_list = TypeList<T...>;
-        using decay_list = TypeList<std::decay_t<T>...>;
+        using element_list = guts::TypeList<T...>;
+        using decay_list = guts::TypeList<std::decay_t<T>...>;
         using decayed_tuple = Tuple<std::decay_t<T>...>;
         using super::declval;
 
@@ -349,13 +349,13 @@ namespace noa {
 
     private:
         template<class... B>
-        inline constexpr void swap_(Tuple& other, TypeList<B...>) noexcept(nothrow_swappable) {
+        inline constexpr void swap_(Tuple& other, guts::TypeList<B...>) noexcept(nothrow_swappable) {
             using std::swap;
             (swap(B::value, other.::noa::traits::identity_t<B>::value), ...);
         }
 
         template<class U, class... B1, class... B2>
-        inline constexpr void assign_tup_(U&& u, TypeList<B1...>, TypeList<B2...>) {
+        inline constexpr void assign_tup_(U&& u, guts::TypeList<B1...>, guts::TypeList<B2...>) {
             (void(B1::value = static_cast<U&&>(u).::noa::traits::identity_t<B2>::value), ...);
         }
         template<class U, size_t... I>
@@ -364,7 +364,7 @@ namespace noa {
             (void(guts::TupleElement<I, T>::value = get<I>(static_cast<U&&>(u))), ...);
         }
         template<class... U, class... B>
-        inline constexpr void assign_(TypeList<B...>, U&& ... u) {
+        inline constexpr void assign_(guts::TypeList<B...>, U&& ... u) {
             (void(B::value = static_cast<U&&>(u)), ...);
         }
     };
@@ -374,9 +374,9 @@ namespace noa {
         constexpr static size_t SIZE = 0;
         constexpr static bool nothrow_swappable = true;
         using super = guts::TupleBase<>;
-        using base_list = TypeList<>;
-        using element_list = TypeList<>;
-        using decay_list = TypeList<>;
+        using base_list = guts::TypeList<>;
+        using element_list = guts::TypeList<>;
+        using decay_list = guts::TypeList<>;
         using decayed_tuple = Tuple<>;
 
         template<size_t>
@@ -418,7 +418,7 @@ namespace noa {
     Tuple(Ts...) -> Tuple<nt::unwrap_ref_decay_t<Ts>...>;
 }
 
-namespace noa {
+namespace noa::inline types {
     template<typename First, typename Second>
     struct Pair {
         constexpr static size_t N = 2;
@@ -426,8 +426,8 @@ namespace noa {
                 std::is_nothrow_swappable_v<First>
                 && std::is_nothrow_swappable_v<Second>;
 
-        NOA_NO_UNIQUE_ADDRESS First first;
-        NOA_NO_UNIQUE_ADDRESS Second second;
+        [[no_unique_address]] First first;
+        [[no_unique_address]] Second second;
 
         template<size_t I>
         NOA_HD constexpr decltype(auto) get()& {

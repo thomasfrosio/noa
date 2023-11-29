@@ -310,7 +310,7 @@ namespace noa::geometry {
     private:
         accessor_type m_accessor{};
         index2_type m_shape{};
-        NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue{};
+        [[no_unique_address]] value_or_empty_type m_cvalue{};
     };
 
     template<Border BORDER, Interp INTERP, typename Coord = float,
@@ -648,7 +648,7 @@ namespace noa::geometry {
     private:
         accessor_type m_accessor{};
         index3_type m_shape{};
-        NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue{};
+        [[no_unique_address]] value_or_empty_type m_cvalue{};
     };
 
     template<Border BORDER, Interp INTERP, typename Coord = float,

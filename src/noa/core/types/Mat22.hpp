@@ -13,8 +13,10 @@ namespace noa::guts {
 
 // A few necessary forward declarations:
 namespace noa {
-    template<typename T>
-    class alignas(guts::MAT22_ALIGNMENT) Mat22;
+    inline namespace types {
+        template<typename T>
+        class alignas(guts::MAT22_ALIGNMENT) Mat22;
+    }
 
     template<typename T>
     NOA_IHD constexpr Mat22<T> transpose(const Mat22<T>& m) noexcept;
@@ -23,7 +25,7 @@ namespace noa {
     NOA_IHD constexpr Mat22<T> inverse(const Mat22<T>& m) noexcept;
 }
 
-namespace noa {
+namespace noa::inline types {
     /// A 2x2 geometric matrix.
     template<typename Real>
     class alignas(guts::MAT22_ALIGNMENT) Mat22 {
@@ -342,19 +344,19 @@ namespace noa {
     template<typename T>
     [[nodiscard]] NOA_IHD constexpr Mat22<T> inverse(const Mat22<T>& m) noexcept {
         const auto det = determinant(m);
-        NOA_ASSERT(!are_almost_equal(det, T{0})); // non singular
+        NOA_ASSERT(!allclose(det, T{0})); // non singular
         const auto one_over_determinant = 1 / det;
         return {{{+m[1][1] * one_over_determinant, -m[0][1] * one_over_determinant},
                  {-m[1][0] * one_over_determinant, +m[0][0] * one_over_determinant}}};
     }
 
     template<int32_t ULP = 2, typename T>
-    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(
+    [[nodiscard]] NOA_IHD constexpr bool allclose(
             const Mat22<T>& m1,
             const Mat22<T>& m2,
             T epsilon = 1e-6f
     ) noexcept {
-        return all(are_almost_equal<ULP>(m1[0], m2[0], epsilon)) &&
-               all(are_almost_equal<ULP>(m1[1], m2[1], epsilon));
+        return all(allclose<ULP>(m1[0], m2[0], epsilon)) &&
+               all(allclose<ULP>(m1[1], m2[1], epsilon));
     }
 }

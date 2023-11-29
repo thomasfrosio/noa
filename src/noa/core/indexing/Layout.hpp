@@ -10,7 +10,7 @@
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 
-namespace noa {
+namespace noa::indexing {
     template<typename T, size_t N>
     [[nodiscard]] NOA_FHD constexpr bool is_rightmost(const Strides<T, N>& strides) {
         return strides.is_rightmost();
@@ -379,25 +379,25 @@ namespace noa {
         const auto m = lhs_shape[2 + lhs_transpose];
         const auto n = rhs_shape[3 - rhs_transpose];
         const auto k = lhs_shape[3 - lhs_transpose];
-        NOA_CHECK(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1,
-                  "Only 2D matrices are supported, but got shape lhs={}, rhs={} and output={}",
-                  lhs_shape, rhs_shape, output_shape);
-        NOA_CHECK(m == output_shape[2] && n == output_shape[3] &&
-                  k == rhs_shape[2 + rhs_transpose],
-                  "The matrix multiplication (MxK * KxN = MxN) is invalid. "
-                  "Got shape lhs={}, rhs={} and output={}",
-                  lhs_shape.filter(2, 3), rhs_shape.filter(2, 3), output_shape.filter(2, 3));
+        check(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1,
+              "Only 2D matrices are supported, but got shape lhs={}, rhs={} and output={}",
+              lhs_shape, rhs_shape, output_shape);
+        check(m == output_shape[2] && n == output_shape[3] &&
+              k == rhs_shape[2 + rhs_transpose],
+              "The matrix multiplication (MxK * KxN = MxN) is invalid. "
+              "Got shape lhs={}, rhs={} and output={}",
+              lhs_shape.filter(2, 3), rhs_shape.filter(2, 3), output_shape.filter(2, 3));
 
         const std::array strides{&lhs_strides, &rhs_strides, &output_strides};
         const std::array shapes{&lhs_shape, &rhs_shape, &output_shape};
         const auto is_vector = Vec3<bool>{
-                noa::is_vector(lhs_shape, true),
-                noa::is_vector(rhs_shape, true),
-                noa::is_vector(output_shape, true)};
+                ni::is_vector(lhs_shape, true),
+                ni::is_vector(rhs_shape, true),
+                ni::is_vector(output_shape, true)};
         const auto is_column_major = Vec3<bool>{
-                noa::is_column_major(lhs_strides),
-                noa::is_column_major(rhs_strides),
-                noa::is_column_major(output_strides)};
+                ni::is_column_major(lhs_strides),
+                ni::is_column_major(rhs_strides),
+                ni::is_column_major(output_strides)};
 
         // Enforce common order and extract the pitch, aka secondmost stride
         bool are_column_major{true};
@@ -413,19 +413,19 @@ namespace noa {
                 //  2) the innermost stride should be 1, i.e. contiguous
                 //  3) the secondmost stride should be >= than the innermost extent.
 
-                NOA_CHECK(!is_order_found || are_column_major == is_column_major[i],
-                          "All matrices should either be row-major or column-major");
+                check(!is_order_found || are_column_major == is_column_major[i],
+                      "All matrices should either be row-major or column-major");
                 if (!is_order_found)
                     are_column_major = is_column_major[i];
                 is_order_found = true;
 
                 secondmost_strides[i] = stride[2 + are_column_major];
-                NOA_CHECK(stride[3 - are_column_major] == 1 &&
-                          secondmost_strides[i] >= shape[3 - are_column_major],
-                          "The innermost dimension of the matrices (before the optional transposition) "
-                          "should be contiguous and the second-most dimension cannot be broadcast. "
-                          "Got shape={}, strides={}, layout={}",
-                          shape, stride, are_column_major ? "column" : "row");
+                check(stride[3 - are_column_major] == 1 &&
+                      secondmost_strides[i] >= shape[3 - are_column_major],
+                      "The innermost dimension of the matrices (before the optional transposition) "
+                      "should be contiguous and the second-most dimension cannot be broadcast. "
+                      "Got shape={}, strides={}, layout={}",
+                      shape, stride, are_column_major ? "column" : "row");
             }
         }
 
@@ -436,9 +436,9 @@ namespace noa {
                 const auto& shape = *shapes[i];
 
                 // For vectors, it is more difficult here, so for now enforce contiguity.
-                NOA_CHECK(are_contiguous(stride, shape),
-                          "Only contiguous vectors are currently supported, but got shape={} and strides={}",
-                          shape, stride);
+                check(are_contiguous(stride, shape),
+                      "Only contiguous vectors are currently supported, but got shape={} and strides={}",
+                      shape, stride);
 
                 const bool is_column_vector = shape[2] >= shape[3];
                 if (is_column_vector == are_column_major) {
@@ -560,9 +560,9 @@ namespace noa {
 
             if constexpr (sizeof(old_type) > sizeof(New)) { // downsize
                 constexpr index_type ratio = sizeof(old_type) / sizeof(New);
-                NOA_CHECK(strides[rightmost_order[3]] == 1,
-                          "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                          to_human_readable<old_type>(), to_human_readable<New>());
+                check(strides[rightmost_order[3]] == 1,
+                      "The stride of the innermost dimension must be 1 to view a {} as a {}",
+                      ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
                 out.strides[rightmost_order[0]] *= ratio;
                 out.strides[rightmost_order[1]] *= ratio;
                 out.strides[rightmost_order[2]] *= ratio;
@@ -571,21 +571,22 @@ namespace noa {
 
             } else if constexpr (sizeof(old_type) < sizeof(New)) { // upsize
                 constexpr index_type ratio = sizeof(New) / sizeof(old_type);
-                NOA_CHECK(out.shape[rightmost_order[3]] % ratio == 0,
-                          "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
-                          ratio, to_human_readable<old_type>(), to_human_readable<New>());
+                check(out.shape[rightmost_order[3]] % ratio == 0,
+                      "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
+                      ratio, ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
 
-                NOA_CHECK(!(reinterpret_cast<std::uintptr_t>(ptr) % alignof(New)),
-                          "The memory offset should be at least aligned to {} bytes to be viewed as a {}, but got {}",
-                          alignof(New), to_human_readable<New>(), static_cast<const void*>(ptr));
+                check(!(reinterpret_cast<std::uintptr_t>(ptr) % alignof(New)),
+                      "The memory offset should be at least aligned to {} bytes to be viewed as a {}, but got {}",
+                      alignof(New), ns::to_human_readable<New>(), static_cast<const void*>(ptr));
 
-                NOA_CHECK(out.strides[rightmost_order[3]] == 1,
-                          "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                          to_human_readable<old_type>(), to_human_readable<New>());
+                check(out.strides[rightmost_order[3]] == 1,
+                      "The stride of the innermost dimension must be 1 to view a {} as a {}",
+                      ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
 
                 for (int i = 0; i < 3; ++i) {
-                    NOA_CHECK(!(out.strides[i] % ratio), "The strides must be divisible by {} to view a {} as a {}",
-                              ratio, to_human_readable<old_type>(), to_human_readable<New>());
+                    check(!(out.strides[i] % ratio),
+                          "The strides must be divisible by {} to view a {} as a {}",
+                          ratio, ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
                     out.strides[i] /= ratio;
                 }
                 out.strides[rightmost_order[3]] = 1;

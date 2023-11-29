@@ -4,12 +4,12 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/math/Ops.hpp"
 
-namespace noa {
+namespace noa::inline types {
     template<typename Int, size_t N>
     class Strides;
 }
 
-namespace noa {
+namespace noa::inline types {
     template<typename Int, size_t N>
     class Shape {
     public:
@@ -527,7 +527,7 @@ namespace noa {
 #if defined(NOA_IS_OFFLINE)
     public:
         [[nodiscard]] static std::string name() {
-            return fmt::format("Shape<{},{}>", to_human_readable<value_type>(), SIZE);
+            return fmt::format("Shape<{},{}>", ns::to_human_readable<value_type>(), SIZE);
         }
 #endif
     };
@@ -535,9 +535,7 @@ namespace noa {
     /// Deduction guide.
     template<typename T, typename... U>
     Shape(T, U...) -> Shape<std::enable_if_t<(std::is_same_v<T, U> && ...), T>, 1 + sizeof...(U)>;
-}
 
-namespace noa {
     template<typename Int, size_t N>
     class Strides {
     public:
@@ -956,7 +954,7 @@ namespace noa {
 #if defined(NOA_IS_OFFLINE)
     public:
         [[nodiscard]] static std::string name() {
-            return fmt::format("Strides<{},{}>", to_human_readable<value_type>(), SIZE);
+            return fmt::format("Strides<{},{}>", ns::to_human_readable<value_type>(), SIZE);
         }
 #endif
     };
@@ -995,7 +993,7 @@ namespace std {
 
 #if defined(NOA_IS_OFFLINE)
 // Support for output stream:
-namespace noa {
+namespace noa::inline types {
     template<typename T, size_t N>
     NOA_IH std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
         os << fmt::format("{}", v.vec);
@@ -1011,7 +1009,7 @@ namespace noa {
 #endif
 
 // Type aliases:
-namespace noa {
+namespace noa::inline types {
     template<typename T> using Shape1 = Shape<T, 1>;
     template<typename T> using Shape2 = Shape<T, 2>;
     template<typename T> using Shape3 = Shape<T, 3>;
@@ -1082,7 +1080,7 @@ namespace noa::traits {
     template<typename V, size_t N1, size_t N2> struct proclaim_is_strides_of_size<Strides<V, N1>, N2> : std::bool_constant<N1 == N2> {};
 }
 
-namespace noa {
+namespace noa::inline types {
     // -- Modulo Operator --
     template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T> && (T::SIZE > 0)> = true>
     [[nodiscard]] NOA_HD constexpr T operator%(T lhs, const T& rhs) noexcept {
@@ -1102,7 +1100,9 @@ namespace noa {
     [[nodiscard]] NOA_HD constexpr T operator%(Int lhs, const T& rhs) noexcept {
         return T::filled_with(lhs) % rhs;
     }
+}
 
+namespace noa {
     // Cast Shape->Shape
     template<typename TTo, typename TFrom, size_t N, nt::enable_if_bool_t<nt::is_shapeN_v<TTo, N>> = true>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Shape<TFrom, N>& src) noexcept {
@@ -1124,9 +1124,7 @@ namespace noa {
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Strides<TFrom, N>& src) noexcept {
         return TTo{clamp_cast<typename TTo::vector_type>(src.vec)};
     }
-}
 
-namespace noa {
     template<typename T, nt::enable_if_bool_t<nt::is_shape_or_strides_v<T>> = true>
     [[nodiscard]] NOA_FHD constexpr T abs(T shape) noexcept {
         return {abs(shape.vec)};
@@ -1206,10 +1204,7 @@ namespace noa {
     [[nodiscard]] NOA_FHD constexpr auto clamp(const T& lhs, Int low, Int high) noexcept {
         return min(max(lhs, low), high);
     }
-}
 
-// Sort:
-namespace noa {
     template<typename T, size_t N, typename Comparison>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Shape<T, N> shape, Comparison&& comp) noexcept {
         small_stable_sort<N>(shape.data(), std::forward<Comparison>(comp));
@@ -1224,13 +1219,13 @@ namespace noa {
 
     template<typename T, size_t N>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Shape<T, N> shape) noexcept {
-        small_stable_sort<N>(shape.data(), less_t{});
+        small_stable_sort<N>(shape.data(), Less{});
         return shape;
     }
 
     template<typename T, size_t N>
     [[nodiscard]] NOA_IHD constexpr auto sort(Shape<T, N> shape) noexcept {
-        small_stable_sort<N>(shape.data(), less_t{});
+        small_stable_sort<N>(shape.data(), Less{});
         return shape;
     }
 
@@ -1248,13 +1243,13 @@ namespace noa {
 
     template<typename T, size_t N>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(Strides<T, N> shape) noexcept {
-        small_stable_sort<N>(shape.data(), less_t{});
+        small_stable_sort<N>(shape.data(), Less{});
         return shape;
     }
 
     template<typename T, size_t N>
     [[nodiscard]] NOA_IHD constexpr auto sort(Strides<T, N> shape) noexcept {
-        small_stable_sort<N>(shape.data(), less_t{});
+        small_stable_sort<N>(shape.data(), Less{});
         return shape;
     }
 }

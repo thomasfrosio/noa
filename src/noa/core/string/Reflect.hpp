@@ -10,13 +10,13 @@
 #include <vector>
 #include <cxxabi.h> // abi::__cxa_demangle
 
-namespace noa {
+namespace noa::string {
     // Forward declaration.
     template<typename T>
     inline std::string reflect(const T& value);
 }
 
-namespace noa::guts {
+namespace noa::string::guts {
     template<typename T>
     inline std::string value_string(const T& x) {
         return std::to_string(x);
@@ -73,18 +73,25 @@ namespace noa::guts {
     template<typename T>
     struct ReflectType {
         const std::string& operator()() const {
-            // Storing this statically means it is cached after the first call.
-            static const std::string type_name = Demangler::demangle<T>();
+            static const std::string type_name = Demangler::demangle<T>(); // cache the result
             return type_name;
         }
     };
 }
 
-namespace noa {
+namespace noa::string {
+    template<typename T>
+    struct TypeWrapper {};
+
     /// Generate a code-string for a type, such as: \c reflect<float>()->"float".
     template<typename T>
     inline std::string reflect() {
         return guts::ReflectType<T>{}();
+    }
+
+    template<typename T>
+    inline std::string reflect(const TypeWrapper<T>&) {
+        return reflect<T>();
     }
 
     /// Generate a code-string for a value, such as \c reflect(3.14f)->"(float)3.14".
@@ -100,7 +107,7 @@ namespace noa {
     }
 
     /// Create an Instance object that contains a const reference to the
-    /// value.  We use this to wrap abstract objects from which we want to extract
+    /// value. We use this to wrap abstract objects from which we want to extract
     /// their type at runtime (e.g., derived type). This is used to facilitate
     /// templating on derived type when all we know at compile time is abstract type.
     template<typename T>
@@ -133,12 +140,12 @@ namespace noa {
     inline std::string_view reflect(std::string_view s) { return s; }
 
     /// Convenience class for generating code-strings for template instantiations.
-    class Template {
+    class ReflectedTemplate {
         std::string m_name;
 
     public:
         /// Construct the class.
-        explicit Template(std::string_view name) : m_name(name) {}
+        explicit ReflectedTemplate(std::string_view name) : m_name(name) {}
 
     public:
         /// Generate a code-string for a template instantiation.

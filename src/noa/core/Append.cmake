@@ -1,7 +1,8 @@
 set(NOA_CORE_HEADERS
     core/Config.hpp
-    core/Exception.hpp
     core/Enums.hpp
+    core/Exception.hpp
+    core/Namespace.hpp
     core/Traits.hpp
 
     core/Math.hpp
@@ -20,6 +21,7 @@ set(NOA_CORE_HEADERS
 
     core/utils/Atomic.hpp
     core/utils/ClampCast.hpp
+    core/utils/EwiseVariadic.hpp
     core/utils/Irange.hpp
     core/utils/Misc.hpp
     core/utils/SafeCast.hpp
@@ -60,14 +62,14 @@ set(NOA_CORE_HEADERS
     core/signal/fft/CTF.hpp
     core/signal/Windows.hpp
 
-    core/io/BinaryFile.hpp
-    core/io/ImageFile.hpp
-    core/io/IO.hpp
-    core/io/MRCFile.hpp
-    core/io/OS.hpp
-    core/io/Stats.hpp
-    core/io/TextFile.hpp
-    core/io/TIFFFile.hpp
+#    core/io/BinaryFile.hpp
+#    core/io/ImageFile.hpp
+#    core/io/IO.hpp
+#    core/io/MRCFile.hpp
+#    core/io/OS.hpp
+#    core/io/Stats.hpp
+#    core/io/TextFile.hpp
+#    core/io/TIFFFile.hpp
 
     core/fft/Frequency.hpp
     )

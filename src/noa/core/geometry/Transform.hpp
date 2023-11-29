@@ -121,7 +121,7 @@ namespace noa::geometry {
     template<typename T>
     NOA_IHD constexpr Mat33<T> rotate(Vec3<T> axis, T angle) noexcept {
         // see https://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToMatrix/index.htm
-        NOA_ASSERT(noa::are_almost_equal(noa::norm(axis), static_cast<T>(1))); // axis should be normalized.
+        NOA_ASSERT(noa::allclose(noa::norm(axis), static_cast<T>(1))); // axis should be normalized.
 
         T c = noa::cos(static_cast<T>(angle));
         T s = noa::sin(static_cast<T>(angle));

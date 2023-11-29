@@ -47,7 +47,7 @@ namespace noa::geometry {
             bool intrinsic = true,
             bool right_handed = true
     ) {
-        NOA_CHECK(angles.size() == matrices.size(), "angles and matrices don't have the same size");
+        check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
         for (size_t batch = 0; batch < angles.size(); ++batch)
             matrices[batch] = euler2matrix(angles[batch], axes, intrinsic, right_handed);
     }
@@ -68,7 +68,7 @@ namespace noa::geometry {
             bool intrinsic = true,
             bool right_handed = true
     ) {
-        NOA_CHECK(angles.size() == matrices.size(), "angles and matrices don't have the same size");
+        check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
         for (size_t batch = 0; batch < angles.size(); ++batch)
             angles[batch] = matrix2euler(matrices[batch], axes, intrinsic, right_handed);
     }

@@ -47,7 +47,7 @@
 
 // --- Assertions ---
 // CUDA device code supports the assert macro, but the code bloat is really not worth it.
-#if defined(NOA_ENABLE_ASSERTS) && !defined(NOA_IS_GPU_CODE)
+#if defined(NOA_DEBUG) && !defined(NOA_IS_GPU_CODE)
     #include <cassert>
     #define NOA_ASSERT(check) assert(check)
 #else
@@ -115,25 +115,6 @@
     #endif
 #endif // __CUDACC__
 
-// --- Debug break ---
-#if defined(NOA_DEBUG)
-    #if defined(NOA_PLATFORM_WINDOWS)
-        #define NOA_DEBUG_BREAK() __debugbreak()
-    #elif defined(NOA_PLATFORM_LINUX)
-        #if !defined(__CUDACC__)
-            #include <csignal>
-            #define NOA_DEBUG_BREAK() raise(SIGTRAP)
-        #else
-            #define NOA_DEBUG_BREAK()
-        #endif
-    #else
-        #error "Platform doesn't support debugbreak yet!"
-    #endif
-    #define NOA_ENABLE_ASSERTS
-#else
-    #define NOA_DEBUGBREAK()
-#endif
-
 // Detect host compiler
 #if defined(__clang__)
 #define NOA_COMPILER_CLANG
@@ -142,14 +123,4 @@
 #elif defined(_MSC_VER)
 #define NOA_COMPILER_MSVC
 #endif
-
-// Even in C++ 17, [[no_unique_address]] works for G++/Clang 9 or later.
-// However, nvrtc doesn't support it and sometimes nvcc outputs internal errors because of it.
-// So to keep the layouts the same between CPU and GPU, keep it to C++20.
-#if __cplusplus >= 202002L
-    #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
-#else
-    #define NOA_NO_UNIQUE_ADDRESS
-#endif
-
 

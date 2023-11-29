@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+#include "noa/core/Namespace.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <climits>
@@ -29,9 +30,7 @@ static_assert(std::is_same_v<uint16_t, unsigned short>);
 static_assert(std::is_same_v<int32_t, signed int>);
 static_assert(std::is_same_v<uint32_t, unsigned int>);
 
-namespace noa::traits {}
-namespace noa {
-    namespace nt = ::noa::traits;
+namespace noa::inline types {
     struct Empty {};
     using Byte = std::byte;
 

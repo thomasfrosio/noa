@@ -5,124 +5,125 @@
 #include "noa/core/Math.hpp"
 #include "noa/core/types/Complex.hpp"
 
-// -- Unary operators -- //
 namespace noa {
-    struct copy_t {
+    // -- Unary operators -- //
+
+    struct Copy {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return lhs; }
     };
 
-    struct negate_t {
+    struct Negate {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return -lhs; }
     };
 
-    struct one_minus_t {
+    struct OneMinus {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return T{1} - lhs; }
     };
 
-    struct inverse_t {
+    struct Inverse {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return T{1} / lhs; }
     };
 
-    struct square_t {
+    struct Square {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return lhs * lhs; }
     };
 
-    struct round_t {
+    struct Round {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return round(lhs); }
     };
 
-    struct rint_t {
+    struct Rint {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return rint(lhs); }
     };
 
-    struct ceil_t {
+    struct Ceil {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return ceil(lhs); }
     };
 
-    struct floor_t {
+    struct Floor {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return floor(lhs); }
     };
 
-    struct trunc_t {
+    struct Trunc {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return trunc(lhs); }
     };
 
-    struct nonzero_t {
+    struct NonZero {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return lhs != T(0); }
     };
 
-    struct logical_not_t {
+    struct LogicalNot {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs) const { return !lhs; }
     };
 
-    struct sqrt_t {
+    struct Sqrt {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return sqrt(x); }
     };
 
-    struct rsqrt_t {
+    struct Rsqrt {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return rsqrt(x); }
     };
 
-    struct exp_t {
+    struct Exp {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return exp(x); }
     };
 
-    struct log_t {
+    struct Log {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return log(x); }
     };
 
-    struct abs_t {
+    struct Abs {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return abs(x); }
     };
 
-    struct cos_t {
+    struct Cos {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return cos(x); }
     };
 
-    struct sin_t {
+    struct Sin {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return sin(x); }
     };
 
-    struct normalize_t {
+    struct Normalize {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return normalize(x); }
     };
 
-    struct real_t {
+    struct Real {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return real(x); }
     };
 
-    struct imag_t {
+    struct Imag {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return imag(x); }
     };
 
-    struct conj_t {
+    struct Conj {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const { return conj(x); }
     };
 
-    struct abs_squared_t {
+    struct AbsSquared {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
             if constexpr (nt::is_complex_v<T>) {
@@ -134,7 +135,7 @@ namespace noa {
         }
     };
 
-    struct abs_one_log_t {
+    struct AbsOneLog {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
             using value_t = nt::value_type_t<T>;
@@ -142,7 +143,7 @@ namespace noa {
         }
     };
 
-    struct one_log_t {
+    struct OneLog {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x) const {
             using value_t = nt::value_type_t<T>;
@@ -152,7 +153,7 @@ namespace noa {
 
     // -- Binary operators -- //
 
-    struct plus_t {
+    struct Plus {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs + rhs; }
 
@@ -162,7 +163,7 @@ namespace noa {
         }
     };
 
-    struct minus_t {
+    struct Minus {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs - rhs; }
 
@@ -172,7 +173,7 @@ namespace noa {
         }
     };
 
-    struct multiply_t {
+    struct Multiply {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * rhs; }
 
@@ -182,12 +183,12 @@ namespace noa {
         }
     };
 
-    struct multiply_conj_t {
+    struct MultiplyConjugate {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs * conj(rhs); }
     };
 
-    struct divide_t {
+    struct Divide {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs / rhs; }
 
@@ -197,13 +198,13 @@ namespace noa {
         }
     };
 
-    struct modulo_t {
+    struct Modulo {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs % rhs; }
     };
 
     // If divisor is too close to zero, do not divide and set the output to zero instead.
-    struct divide_safe_t {
+    struct DivideSafe {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const {
             if constexpr (nt::are_real_or_complex_v<T, U>) {
@@ -222,7 +223,7 @@ namespace noa {
         }
     };
 
-    struct dist2_t {
+    struct DistanceSquared {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const {
             const auto tmp = lhs - rhs;
@@ -230,171 +231,169 @@ namespace noa {
         }
     };
 
-    struct pow_t {
+    struct Pow {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& x, const T& e) const { return pow(x, e); }
     };
 
-    struct equal_t {
+    struct Equal {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs == rhs; }
     };
 
-    struct not_equal_t {
+    struct NotEqual {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs != rhs; }
     };
 
-    struct less_t {
+    struct Less {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs < rhs; }
     };
 
-    struct less_equal_t {
+    struct LessEqual {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs <= rhs; }
     };
 
-    struct greater_t {
+    struct Greater {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs > rhs; }
     };
 
-    struct greater_equal_t {
+    struct GreaterEqual {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const { return lhs >= rhs; }
     };
 
-    struct logical_and_t {
+    struct LogicalAnd {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return lhs && rhs; }
     };
 
-    struct logical_or_t {
+    struct LogicalOr {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return lhs || rhs; }
     };
 
-    struct min_t {
+    struct Min {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return min(lhs, rhs); }
     };
 
-    struct max_t {
+    struct Max {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& rhs) const { return max(lhs, rhs); }
     };
 
     // -- Trinary operators -- //
 
-    struct plus_minus_t {
+    struct PlusMinus {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs + mhs - rhs;
         }
     };
 
-    struct plus_multiply_t {
+    struct PlusMultiply {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return (lhs + mhs) * rhs;
         }
     };
 
-    struct plus_divide_t {
+    struct PlusDivide {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return (lhs + mhs) / rhs;
         }
     };
 
-    struct minus_plus_t {
+    struct MinusPlus {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs - mhs + rhs;
         }
     };
 
-    struct minus_multiply_t {
+    struct MinusMultiply {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return (lhs - mhs) * rhs;
         }
     };
 
-    struct minus_divide_t {
+    struct MinusDivide {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return (lhs - mhs) / rhs;
         }
     };
 
-    struct multiply_plus_t {
+    struct MultiplyPlus {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs * mhs + rhs;
         }
     };
 
-    using fma_t = multiply_plus_t;
-
-    struct multiply_minus_t {
+    struct MultiplyMinus {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs * mhs - rhs;
         }
     };
 
-    struct multiply_divide_t {
+    struct MultiplyDivide {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return (lhs * mhs) / rhs;
         }
     };
 
-    struct divide_plus_t {
+    struct DividePlus {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs / mhs + rhs;
         }
     };
 
-    struct divide_minus_t {
+    struct DivideMinus {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs / mhs - rhs;
         }
     };
 
-    struct divide_multiply_t {
+    struct DivideMultiply {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {
             return lhs / mhs * rhs;
         }
     };
 
-    struct divide_epsilon_t {
+    struct DivideEpsilon {
         template<typename T, typename U, typename V>
         NOA_FHD constexpr auto operator()(const T& input, const U& div, const V& epsilon) const {
             return input / (div + epsilon);
         }
     };
 
-    struct within_t {
+    struct Within {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& low, const U& high) const {
             return low < lhs && lhs < high;
         }
     };
 
-    struct within_equal_t {
+    struct WithinEqual {
         template<typename T, typename U>
         NOA_FHD constexpr auto operator()(const T& lhs, const U& low, const U& high) const {
             return low <= lhs && lhs <= high;
         }
     };
 
-    struct clamp_t {
+    struct Clamp {
         template<typename T>
         NOA_FHD constexpr auto operator()(const T& lhs, const T& low, const T& high) const {
             return clamp(lhs, low, high);
@@ -403,7 +402,7 @@ namespace noa {
 
     // -- Find offset --
 
-    struct first_min_t {
+    struct FirstMin {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
                 const Pair<Value, Offset>& current,
@@ -416,7 +415,7 @@ namespace noa {
         }
     };
 
-    struct first_max_t {
+    struct FirstMax {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
                 const Pair<Value, Offset>& current,
@@ -429,7 +428,7 @@ namespace noa {
         }
     };
 
-    struct last_min_t {
+    struct LastMin {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
                 const Pair<Value, Offset>& current,
@@ -442,7 +441,7 @@ namespace noa {
         }
     };
 
-    struct last_max_t {
+    struct LastMax {
         template<typename Value, typename Offset>
         NOA_FHD constexpr auto operator()(
                 const Pair<Value, Offset>& current,
@@ -454,11 +453,9 @@ namespace noa {
             return current;
         }
     };
-}
 
-namespace noa {
     template<typename Value>
-    struct arange_t {
+    struct Arange {
         Value start{0};
         Value step{1};
 
@@ -469,7 +466,7 @@ namespace noa {
     };
 
     template<typename Value, typename Index>
-    struct linspace_t {
+    struct Linspace {
         Value start;
         Value step;
         Value stop;
@@ -481,8 +478,8 @@ namespace noa {
                 Value stop,
                 const Index& size,
                 bool endpoint = true
-        ) -> linspace_t {
-            linspace_t linspace;
+        ) -> Linspace {
+            Linspace linspace;
             linspace.start = start;
             linspace.stop = stop;
             linspace.start = start;

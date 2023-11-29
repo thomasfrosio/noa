@@ -2,10 +2,10 @@
 #include "noa/core/io/BinaryFile.hpp"
 
 namespace noa::io {
-    void BinaryFile::open_(open_mode_t open_mode) {
+    void BinaryFile::open_(open_mode_t open_mode, const std::source_location& location) {
         close();
 
-        NOA_CHECK(is_valid_open_mode(open_mode), "File: {}. Invalid open mode", m_path);
+        check(is_valid_open_mode(open_mode), "File: {}. Invalid open mode", m_path);
         const bool overwrite = open_mode & io::TRUNC || !(open_mode & (io::READ | io::APP));
         bool exists;
         try {
@@ -17,8 +17,9 @@ namespace noa::io {
                     mkdir(m_path.parent_path());
             }
         } catch (...) {
-            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
-                           m_path, OpenModeStream{open_mode});
+            panic_at_location(
+                    location, "File: {}. Mode: {}. Could not open the file because of an OS failure",
+                    m_path, OpenModeStream{open_mode});
         }
 
         open_mode |= io::BINARY;
@@ -31,10 +32,12 @@ namespace noa::io {
         m_fstream.clear();
 
         if (open_mode & io::READ && !overwrite && !exists) {
-            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. The file does not exist",
-                           m_path, OpenModeStream{open_mode});
+            panic_at_location(
+                    location, "File: {}. Mode: {}. Failed to open the file. The file does not exist",
+                    m_path, OpenModeStream{open_mode});
         }
-        NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
-                       m_path, OpenModeStream{open_mode});
+        panic_at_location(
+                location, "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                m_path, OpenModeStream{open_mode});
     }
 }

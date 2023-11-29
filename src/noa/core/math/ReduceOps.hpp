@@ -8,7 +8,7 @@ namespace noa::math {
     // It accumulates a local (per-thread) error, which should then be safely added to the global
     // error thanks to the closure() function.
     template<typename T>
-    struct KahanOp {
+    struct Kahan {
         using value_type = std::conditional_t<nt::is_real_v<T>, f64, c64>;
         value_type* global_error{};
         value_type local_error{};
@@ -34,10 +34,10 @@ namespace noa::math {
             *global_error += local_error;
         }
     };
-    static_assert(nt::is_detected_v<nt::has_closure, KahanOp<f32>>);
-    static_assert(nt::is_detected_v<nt::has_closure, KahanOp<f64>>);
-    static_assert(nt::is_detected_v<nt::has_closure, KahanOp<c32>>);
-    static_assert(nt::is_detected_v<nt::has_closure, KahanOp<c64>>);
+    static_assert(nt::is_detected_v<nt::has_closure, Kahan<f32>>);
+    static_assert(nt::is_detected_v<nt::has_closure, Kahan<f64>>);
+    static_assert(nt::is_detected_v<nt::has_closure, Kahan<c32>>);
+    static_assert(nt::is_detected_v<nt::has_closure, Kahan<c64>>);
 
     // This is used as preprocessing operator to compute the variance.
     // The actual reduction operator is just noa::plus_t{}.

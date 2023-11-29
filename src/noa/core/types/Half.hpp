@@ -43,7 +43,7 @@
 #pragma warning(pop)
 #endif
 
-namespace noa {
+namespace noa::inline types {
     /// 16-bit precision float (IEEE-754-2008).
     /// \details This structure implements the datatype for storing half-precision floating-point numbers. Compared to
     ///          bfloat16, this type treads range for precision. There are 15361 representable numbers within the
@@ -388,7 +388,9 @@ namespace noa {
     using f16 = Half;
     static_assert(sizeof(f16) == 2);
     static_assert(alignof(f16) == 2);
+}
 
+namespace noa {
     template<>
     struct nt::proclaim_is_real<Half> : std::true_type {};
 
@@ -722,7 +724,7 @@ namespace std {
 }
 
 #if defined(NOA_IS_OFFLINE)
-namespace noa {
+namespace noa::string {
     template<>
     [[nodiscard]] NOA_IH std::string to_human_readable<Half>() { return "f16"; }
 }

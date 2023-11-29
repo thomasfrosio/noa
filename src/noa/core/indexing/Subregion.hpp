@@ -8,7 +8,7 @@
 #include "noa/core/utils/SafeCast.hpp"
 
 #if defined(NOA_IS_OFFLINE)
-namespace noa {
+namespace noa::indexing {
     /// Ellipsis or "..." operator, which selects the full extent of the remaining outermost dimension(s).
     struct Ellipsis {};
 
@@ -114,9 +114,9 @@ namespace noa {
         ) {
             if constexpr (nt::is_int_v<IndexMode>) {
                 auto index = clamp_cast<int64_t>(idx_mode);
-                NOA_CHECK(!(index < -old_size || index >= old_size),
-                          "Index {} is out of range for a size of {} at dimension {}",
-                          index, old_size, dim);
+                check(!(index < -old_size || index >= old_size),
+                      "Index {} is out of range for a size of {} at dimension {}",
+                      index, old_size, dim);
 
                 if (index < 0)
                     index += old_size;
@@ -132,7 +132,7 @@ namespace noa {
                 (void) dim;
 
             } else if constexpr(std::is_same_v<Slice, IndexMode>) {
-                NOA_CHECK(idx_mode.step > 0, "Slice step must be positive, got {}", idx_mode.step);
+                check(idx_mode.step > 0, "Slice step must be positive, got {}", idx_mode.step);
 
                 if (idx_mode.start < 0)
                     idx_mode.start += old_size;

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/unified/Allocator.hpp"
 #include "noa/unified/Device.hpp"
 
@@ -50,3 +53,5 @@ namespace noa {
         // TODO Switch to uint32_t bitset?
     };
 }
+
+#endif

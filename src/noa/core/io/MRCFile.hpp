@@ -140,7 +140,8 @@ namespace noa::io {
         [[nodiscard]] explicit operator bool() const noexcept { return is_open(); }
 
     private:
-        void open_(const Path& filename, open_mode_t mode);
+        void open_(const Path& filename, open_mode_t mode,
+                   const std::source_location& location = std::source_location::current());
 
         // Reads and checks the header of an existing file.
         // Throws if the header doesn't look like a MRC header or if the MRC file is not supported.

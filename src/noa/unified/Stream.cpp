@@ -1,6 +1,5 @@
 #include <forward_list>
-
-#include "Stream.hpp"
+#include "noa/unified/Stream.hpp"
 
 namespace {
     // Adding, removing and moving the elements within the list does not invalidate

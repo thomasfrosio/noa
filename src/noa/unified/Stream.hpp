@@ -1,9 +1,10 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/unified/Device.hpp"
 #include "noa/unified/Session.hpp"
-
 #include "noa/cpu/Stream.hpp"
 
 #ifdef NOA_ENABLE_CUDA
@@ -11,7 +12,11 @@
 #include "noa/gpu/Backend.hpp"
 #else
 namespace noa::cuda {
-    class Stream {};
+    class Stream {
+    public:
+        void synchronize() const {}
+        [[nodiscard]] bool is_busy() const {}
+    };
 }
 #endif
 
@@ -63,7 +68,7 @@ namespace noa {
                         noa::cuda::StreamMode::ASYNC :
                         noa::cuda::StreamMode::DEFAULT);
                 #else
-                NOA_THROW("No GPU backend detected");
+                noa::panic("No GPU backend detected");
                 #endif
             }
         }
@@ -115,7 +120,7 @@ namespace noa {
         /// Otherwise, throws an exception.
         [[nodiscard]] cpu_stream& cpu() {
             auto* stream = std::get_if<cpu_stream>(&m_stream);
-            NOA_CHECK(stream != nullptr, "The stream is not a CPU stream");
+            noa::check(stream != nullptr, "The stream is not a CPU stream");
             return *stream;
         }
 
@@ -125,7 +130,7 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             return cuda();
             #else
-            NOA_THROW("No GPU backend detected");
+            noa::panic("No GPU backend detected");
             #endif
         }
 
@@ -137,7 +142,7 @@ namespace noa {
             NOA_CHECK(stream != nullptr, "The stream is not a GPU stream");
             return *stream;
             #else
-            NOA_THROW("No GPU backend detected");
+            noa::panic("No GPU backend detected");
             #endif
         }
 
@@ -166,3 +171,5 @@ namespace noa {
         Stream m_previous_current;
     };
 }
+
+#endif

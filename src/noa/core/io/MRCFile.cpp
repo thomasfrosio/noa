@@ -7,17 +7,17 @@
 
 namespace noa::io {
     void MRCFile::set_shape(const Shape4<i64>& new_shape) {
-        NOA_CHECK(m_open_mode & OpenMode::WRITE,
-                  "Trying to change the shape of the data in read mode is not allowed. "
-                  "Hint: to fix the header of a file, open it in READ|WRITE mode");
-        NOA_CHECK(new_shape > 0, "The shape should be non-zero positive, but got {}", new_shape);
+        check(m_open_mode & OpenMode::WRITE,
+              "Trying to change the shape of the data in read mode is not allowed. "
+              "Hint: to fix the header of a file, open it in READ|WRITE mode");
+        check(new_shape > 0, "The shape should be non-zero positive, but got {}", new_shape);
         m_header.shape = new_shape;
     }
 
     void MRCFile::set_dtype(io::DataType data_type) {
-        NOA_CHECK(m_open_mode & OpenMode::WRITE,
-                  "Trying to change the data type of the file in read mode is not allowed. "
-                  "Hint: to fix the header of a file, open it in READ|WRITE mode");
+        check(m_open_mode & OpenMode::WRITE,
+              "Trying to change the data type of the file in read mode is not allowed. "
+              "Hint: to fix the header of a file, open it in READ|WRITE mode");
         switch (data_type) {
             case DataType::U4:
             case DataType::I8:
@@ -31,15 +31,15 @@ namespace noa::io {
                 m_header.data_type = data_type;
                 break;
             default:
-                NOA_THROW("Data type {} is not supported", data_type);
+                panic("Data type {} is not supported", data_type);
         }
     }
 
     void MRCFile::set_pixel_size(Vec3<f32> new_pixel_size) {
-        NOA_CHECK(m_open_mode & OpenMode::WRITE,
-                  "Trying to change the pixel size of the file in read mode is not allowed. "
-                  "Hint: to fix the header of a file, open it in READ|WRITE mode");
-        NOA_CHECK(new_pixel_size >= 0, "The pixel size should be positive, got {}", new_pixel_size);
+        check(m_open_mode & OpenMode::WRITE,
+              "Trying to change the pixel size of the file in read mode is not allowed. "
+              "Hint: to fix the header of a file, open it in READ|WRITE mode");
+        check(new_pixel_size >= 0, "The pixel size should be positive, got {}", new_pixel_size);
         m_header.pixel_size = new_pixel_size;
     }
 
@@ -60,10 +60,10 @@ namespace noa::io {
                            m_header.extended_bytes_nb);
     }
 
-    void MRCFile::open_(const Path& filename, open_mode_t open_mode) {
+    void MRCFile::open_(const Path& filename, open_mode_t open_mode, const std::source_location& location) {
         close_();
 
-        NOA_CHECK(is_valid_open_mode(open_mode), "File: {}. Invalid open mode", filename);
+        check(is_valid_open_mode(open_mode), "File: {}. Invalid open mode", filename);
         const bool overwrite = open_mode & io::TRUNC || !(open_mode & io::READ);
         bool exists;
         try {
@@ -75,8 +75,9 @@ namespace noa::io {
                     mkdir(filename.parent_path());
             }
         } catch (...) {
-            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
-                           filename, OpenModeStream{open_mode});
+            panic_at_location(
+                    location, "File: {}. Mode: {}. Could not open the file because of an OS failure",
+                    filename, OpenModeStream{open_mode});
         }
 
         m_open_mode = open_mode | io::BINARY;
@@ -95,11 +96,12 @@ namespace noa::io {
         m_fstream.clear();
 
         if (open_mode & io::READ && !overwrite && !exists) {
-            NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. The file does not exist",
-                           filename, OpenModeStream{open_mode});
+            panic_at_location(location, "File: {}. Mode: {}. Failed to open the file. The file does not exist",
+                              filename, OpenModeStream{open_mode});
         }
-        NOA_THROW_FUNC("open", "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
-                       filename, OpenModeStream{open_mode});
+        panic_at_location(
+                location, "File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                filename, OpenModeStream{open_mode});
     }
 
     void MRCFile::read_header_(const Path& filename) {
@@ -108,7 +110,7 @@ namespace noa::io {
         m_fstream.read(reinterpret_cast<char*>(buffer), 1024);
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. File stream error. Could not read the header", filename);
+            panic("File: {}. File stream error. Could not read the header", filename);
         }
 
         // Endianness.
@@ -116,14 +118,15 @@ namespace noa::io {
         char stamp[4];
         std::memcpy(&stamp, buffer + 212, 4);
         if ((stamp[0] == 68 && stamp[1] == 65 && stamp[2] == 0 && stamp[3] == 0) ||
-            (stamp[0] == 68 && stamp[1] == 68 && stamp[2] == 0 && stamp[3] == 0)) /* little */
+            (stamp[0] == 68 && stamp[1] == 68 && stamp[2] == 0 && stamp[3] == 0)) { /* little */
             m_header.is_endian_swapped = is_big_endian();
-        else if (stamp[0] == 17 && stamp[1] == 17 && stamp[2] == 0 && stamp[3] == 0) /* big */
+        } else if (stamp[0] == 17 && stamp[1] == 17 && stamp[2] == 0 && stamp[3] == 0) {/* big */
             m_header.is_endian_swapped = !is_big_endian();
-        else
-            NOA_THROW("File: {}. Invalid data. Endianness was not recognized."
-                      "Should be [68,65,0,0], [68,68,0,0] or [17,17,0,0], got [{},{},{},{}]",
-                      filename, stamp[0], stamp[1], stamp[2], stamp[3]);
+        } else {
+            panic("File: {}. Invalid data. Endianness was not recognized."
+                  "Should be [68,65,0,0], [68,68,0,0] or [17,17,0,0], got [{},{},{},{}]",
+                  filename, stamp[0], stamp[1], stamp[2], stamp[3]);
+        }
 
         // If data is swapped, some parts of the buffer need to be swapped as well.
         if (m_header.is_endian_swapped)
@@ -169,13 +172,13 @@ namespace noa::io {
         // Set the BDHW shape:
         const auto ndim = shape.flip().ndim();
         if (any(shape < 1)) {
-            NOA_THROW("File: {}. Invalid data. Logical shape should be "
-                      "greater than zero, got nx,ny,nz:{}", filename, shape);
+            panic("File: {}. Invalid data. Logical shape should be "
+                  "greater than zero, got nx,ny,nz:{}", filename, shape);
         }
 
         if (ndim <= 2) {
             if (any(grid_size != shape)) {
-                NOA_THROW("File: {}. 1D or 2D data detected. "
+                panic("File: {}. 1D or 2D data detected. "
                           "The logical shape should be equal to the grid size. "
                           "Got nx,ny,nz:{}, mx,my,mz:{}", filename, shape, grid_size);
             }
@@ -184,7 +187,7 @@ namespace noa::io {
             if (space_group == 0) { // stack of 2D images
                 // FIXME We should check grid_size[2] == 1, but some packages ignore this, so do nothing for now.
                 if (shape[0] != grid_size[0] || shape[1] != grid_size[1]) {
-                    NOA_THROW("File: {}. 2D stack of images detected (ndim=3, group=0). "
+                    panic("File: {}. 2D stack of images detected (ndim=3, group=0). "
                               "The two innermost dimensions of the logical shape and "
                               "the grid size should be equal. Got nx,ny,nz:{}, mx,my,mz:{}",
                               filename, shape, grid_size);
@@ -192,7 +195,7 @@ namespace noa::io {
                 m_header.shape = {shape[2], 1, shape[1], shape[0]};
             } else if (space_group == 1) { // volume
                 if (any(grid_size != shape)) {
-                    NOA_THROW("File: {}. 3D volume detected (ndim=3, group=1). "
+                    panic("File: {}. 3D volume detected (ndim=3, group=1). "
                               "The logical shape should be equal to the grid size. "
                               "Got nx,ny,nz:{}, mx,my,mz:{}", filename, shape, grid_size);
                 }
@@ -200,21 +203,21 @@ namespace noa::io {
             } else if (space_group >= 401 && space_group <= 630) { // stack of volume
                 // grid_size[2] = sections per vol, shape[2] = total number of sections
                 if (shape[2] % grid_size[2]) {
-                    NOA_THROW("File: {}. Stack of 3D volumes detected. "
-                              "The total sections (nz:{}) should be divisible "
-                              "by the number of sections per volume (mz:{})",
-                              filename, shape[2], grid_size[2]);
+                    panic("File: {}. Stack of 3D volumes detected. "
+                          "The total sections (nz:{}) should be divisible "
+                          "by the number of sections per volume (mz:{})",
+                          filename, shape[2], grid_size[2]);
                 } else if (shape[0] != grid_size[0] || shape[1] != grid_size[1]) {
-                    NOA_THROW("File: {}. Stack of 3D volumes detected. "
-                              "The first two dimensions of the shape and the grid size "
-                              "should be equal. Got nx,ny,nz:{}, mx,my,mz:{}",
-                              filename, shape, grid_size);
+                    panic("File: {}. Stack of 3D volumes detected. "
+                          "The first two dimensions of the shape and the grid size "
+                          "should be equal. Got nx,ny,nz:{}, mx,my,mz:{}",
+                          filename, shape, grid_size);
                 }
                 m_header.shape = {shape[2] / grid_size[2], grid_size[2], shape[1], shape[0]};
             } else {
-                NOA_THROW("File: {}. Data shape is not recognized. "
-                          "Got nx,ny,nz:{}, mx,my,mz:{}, group:",
-                          filename, shape, grid_size, space_group);
+                panic("File: {}. Data shape is not recognized. "
+                      "Got nx,ny,nz:{}, mx,my,mz:{}, group:",
+                      filename, shape, grid_size, space_group);
             }
         }
 
@@ -222,12 +225,12 @@ namespace noa::io {
         m_header.pixel_size = cell_size / grid_size.vec.as<f32>();
         m_header.pixel_size = m_header.pixel_size.flip();
         if (any(m_header.pixel_size < 0)) {
-            NOA_THROW("File: {}. Invalid data. Pixel size should not be negative, got {}",
-                      filename, m_header.pixel_size);
+            panic("File: {}. Invalid data. Pixel size should not be negative, got {}",
+                  filename, m_header.pixel_size);
         }
         if (m_header.extended_bytes_nb < 0) {
-            NOA_THROW("File: {}. Invalid data. Extended header size should be positive, got {}",
-                      filename, m_header.extended_bytes_nb);
+            panic("File: {}. Invalid data. Extended header size should be positive, got {}",
+                  filename, m_header.extended_bytes_nb);
         }
 
         // Convert mode to data type:
@@ -257,19 +260,19 @@ namespace noa::io {
                 m_header.data_type = DataType::F16;
                 break;
             case 16:
-                NOA_THROW("File: {}. MRC mode 16 is not currently supported", filename);
+                panic("File: {}. MRC mode 16 is not currently supported", filename);
             case 101:
                 m_header.data_type = DataType::U4;
                 break;
             default:
-                NOA_THROW("File: {}. Invalid data. MRC mode not recognized, got {}", filename, mode);
+                panic("File: {}. Invalid data. MRC mode not recognized, got {}", filename, mode);
         }
 
         // Map order: enforce row-major ordering, i.e. x=1, y=2, z=3.
         if (any(order != Vec3<i32>{1, 2, 3})) {
             if (any(order < 1) || any(order > 3) || sum(order) != 6)
-                NOA_THROW("File: {}. Invalid data. Map order should be (1,2,3), got {}", filename, order);
-            NOA_THROW("File: {}. Map order {} is not supported. Only (1,2,3) is supported", filename, order);
+                panic("File: {}. Invalid data. Map order should be (1,2,3), got {}", filename, order);
+            panic("File: {}. Map order {} is not supported. Only (1,2,3) is supported", filename, order);
         }
     }
 
@@ -292,7 +295,7 @@ namespace noa::io {
         m_fstream.close();
         if (m_fstream.fail() && !m_fstream.eof()) {
             m_fstream.clear();
-            NOA_THROW("File stream error. Could not close the file");
+            panic("File stream error. Could not close the file");
         }
         m_filename.clear();
     }
@@ -365,7 +368,7 @@ namespace noa::io {
                 mode = 101;
                 break;
             default:
-                NOA_THROW("File: {}. The data type {} is not supported", m_filename, m_header.data_type);
+                panic("File: {}. The data type {} is not supported", m_filename, m_header.data_type);
         }
 
         i32 space_group{};
@@ -435,13 +438,13 @@ namespace noa::io {
         m_fstream.write(reinterpret_cast<char*>(buffer), 1024);
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. File stream error. Could not write the header before closing the file", m_filename);
+            panic("File: {}. File stream error. Could not write the header before closing the file", m_filename);
         }
     }
 
     void MRCFile::read_elements(void* output, DataType data_type, i64 start, i64 end, bool clamp) {
-        NOA_CHECK(is_open(), "The file should be opened");
-        NOA_CHECK(m_header.data_type != DataType::U4,
+        check(is_open(), "The file should be opened");
+        check(m_header.data_type != DataType::U4,
                   "File: {}. The 4bits format (mode 101) is not supported. Use read_slice or readAll instead",
                   m_filename);
 
@@ -450,7 +453,7 @@ namespace noa::io {
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. Could not seek to the desired offset ({})", m_filename, offset);
+            panic("File: {}. Could not seek to the desired offset ({})", m_filename, offset);
         }
         NOA_ASSERT(end >= start);
         const i64 elements_to_read = end - start;
@@ -460,7 +463,7 @@ namespace noa::io {
                         output, data_type, shape_to_read.strides(),
                         shape_to_read, clamp, m_header.is_endian_swapped);
         } catch (...) {
-            NOA_THROW("File {}. Failed to read {} elements from the file stream. Deserialize from dtype {} to {}",
+            panic("File {}. Failed to read {} elements from the file stream. Deserialize from dtype {} to {}",
                       m_filename, elements_to_read, m_header.data_type, data_type);
         }
     }
@@ -473,25 +476,25 @@ namespace noa::io {
             i64 start,
             bool clamp
     ) {
-        NOA_CHECK(is_open(), "The file should be opened");
+        check(is_open(), "The file should be opened");
 
         // Read either a 2D slice from a stack of 2D images or from a 3D volume.
-        NOA_CHECK(m_header.shape[1] == 1 || m_header.shape[0] == 1,
-                  "File {}. This function only supports stack of 2D image(s) "
-                  "or a single 3D volume, but got file shape {}",
-                  m_filename, m_header.shape);
-        NOA_CHECK(shape[1] == 1,
-                  "File {}. Can only read 2D slice(s), but asked to read shape {}",
-                  m_filename, shape);
-        NOA_CHECK(m_header.shape[2] == shape[2] && m_header.shape[3] == shape[3],
-                  "File: {}. Cannot read a 2D slice of shape {} from a file with 2D slices of shape {}",
-                  m_filename, shape.filter(2, 3), m_header.shape.filter(2, 3));
+        check(m_header.shape[1] == 1 || m_header.shape[0] == 1,
+              "File {}. This function only supports stack of 2D image(s) "
+              "or a single 3D volume, but got file shape {}",
+              m_filename, m_header.shape);
+        check(shape[1] == 1,
+              "File {}. Can only read 2D slice(s), but asked to read shape {}",
+              m_filename, shape);
+        check(m_header.shape[2] == shape[2] && m_header.shape[3] == shape[3],
+              "File: {}. Cannot read a 2D slice of shape {} from a file with 2D slices of shape {}",
+              m_filename, shape.filter(2, 3), m_header.shape.filter(2, 3));
 
         // Make sure it doesn't go out of bound.
         const bool file_is_volume = m_header.shape[0] == 1 && m_header.shape[1] > 1;
-        NOA_CHECK(m_header.shape[file_is_volume] >= start + shape[0],
-                  "File: {}. The file has less slices ({}) that what is about to be read (start:{}, count:{})",
-                  m_filename, m_header.shape[file_is_volume], start, shape[0]);
+        check(m_header.shape[file_is_volume] >= start + shape[0],
+              "File: {}. The file has less slices ({}) that what is about to be read (start:{}, count:{})",
+              m_filename, m_header.shape[file_is_volume], start, shape[0]);
 
         const auto elements_per_slice = m_header.shape[2] * m_header.shape[3];
         const i64 bytes_per_slice = serialized_size(
@@ -500,17 +503,17 @@ namespace noa::io {
         m_fstream.seekg(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. Could not seek to the desired offset ({})",
-                      m_filename, offset);
+            panic("File: {}. Could not seek to the desired offset ({})",
+                  m_filename, offset);
         }
         try {
             deserialize(m_fstream, m_header.data_type,
                         output, data_type, strides,
                         shape, clamp, m_header.is_endian_swapped);
         } catch (...) {
-            NOA_THROW("File {}. Failed to read shape {} from the file stream. "
-                      "Deserialize from dtype {} to {}",
-                      m_filename, shape, m_header.data_type, data_type);
+            panic("File {}. Failed to read shape {} from the file stream. "
+                  "Deserialize from dtype {} to {}",
+                  m_filename, shape, m_header.data_type, data_type);
         }
     }
 
@@ -527,25 +530,25 @@ namespace noa::io {
             DataType data_type,
             bool clamp
     ) {
-        NOA_CHECK(is_open(), "The file should be opened");
-        NOA_CHECK(all(shape == m_header.shape),
-                  "File: {}. The file shape {} is not compatible with the output shape {}",
-                  m_filename, m_header.shape, shape);
+        check(is_open(), "The file should be opened");
+        check(all(shape == m_header.shape),
+              "File: {}. The file shape {} is not compatible with the output shape {}",
+              m_filename, m_header.shape, shape);
 
         m_fstream.seekg(header_offset_());
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. Could not seek to the desired offset ({})",
-                      m_filename, header_offset_());
+            panic("File: {}. Could not seek to the desired offset ({})",
+                  m_filename, header_offset_());
         }
         try {
             deserialize(m_fstream, m_header.data_type,
                         output, data_type, strides,
                         shape, clamp, m_header.is_endian_swapped);
         } catch (...) {
-            NOA_THROW("File {}. Failed to read shape {} from the file stream. "
-                      "Deserialize from dtype {} to {}",
-                      m_filename, shape, m_header.data_type, data_type);
+            panic("File {}. Failed to read shape {} from the file stream. "
+                  "Deserialize from dtype {} to {}",
+                  m_filename, shape, m_header.data_type, data_type);
         }
     }
 
@@ -554,21 +557,21 @@ namespace noa::io {
     }
 
     void MRCFile::write_elements(const void* input, DataType data_type, i64 start, i64 end, bool clamp) {
-        NOA_CHECK(is_open(), "The file should be opened");
+        check(is_open(), "The file should be opened");
 
         if (m_header.data_type == DataType::UNKNOWN)
             m_header.data_type = closest_supported_dtype_(data_type);
 
-        NOA_CHECK(m_header.data_type != DataType::U4,
-                  "File: {}. The 4bits format (mode 101) is not supported. "
-                  "Use write_slice or writeAll instead", m_filename);
+        check(m_header.data_type != DataType::U4,
+              "File: {}. The 4bits format (mode 101) is not supported. "
+              "Use write_slice or writeAll instead", m_filename);
 
         const i64 bytes_offset = serialized_size(m_header.data_type, start);
         const auto offset = header_offset_() + bytes_offset;
         m_fstream.seekp(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. Could not seek to the desired offset ({})", m_filename, offset);
+            panic("File: {}. Could not seek to the desired offset ({})", m_filename, offset);
         }
         NOA_ASSERT(end >= start);
         const i64 elements_to_write = end - start;
@@ -578,8 +581,8 @@ namespace noa::io {
                       m_fstream, m_header.data_type,
                       clamp, m_header.is_endian_swapped);
         } catch (...) {
-            NOA_THROW("File {}. Failed to write {} elements from the file stream. Serialize from dtype {} to {}",
-                      m_filename, elements_to_write, data_type, m_header.data_type);
+            panic("File {}. Failed to write {} elements from the file stream. Serialize from dtype {} to {}",
+                  m_filename, elements_to_write, data_type, m_header.data_type);
         }
     }
 
@@ -590,31 +593,31 @@ namespace noa::io {
             DataType data_type,
             i64 start,
             bool clamp) {
-        NOA_CHECK(is_open(), "The file should be opened");
+        check(is_open(), "The file should be opened");
 
         // For writing a slice, it's best if we require the shape to be already set.
-        NOA_CHECK(all(m_header.shape > 0),
+        check(all(m_header.shape > 0),
                   "File: {}. The shape of the file is not set or is empty. "
                   "Set the shape first, and then write a slice to the file",
                   m_filename);
 
         // Write a 2D slice into either a stack of 2D images or into a 3D volume.
-        NOA_CHECK(m_header.shape[1] == 1 || m_header.shape[0] == 1,
-                  "File {}. This function only supports stack of 2D image(s) "
-                  "or a single 3D volume, but got file shape {}",
-                  m_filename, m_header.shape);
-        NOA_CHECK(shape[1] == 1,
-                  "File {}. Can only write 2D slice(s), but asked to write a shape of {}",
-                  m_filename, shape);
-        NOA_CHECK(m_header.shape[2] == shape[2] && m_header.shape[3] == shape[3],
-                  "File: {}. Cannot write a 2D slice of shape {} into a file with 2D slices of shape {}",
-                  m_filename, shape.filter(2, 3), m_header.shape.filter(2, 3));
+        check(m_header.shape[1] == 1 || m_header.shape[0] == 1,
+              "File {}. This function only supports stack of 2D image(s) "
+              "or a single 3D volume, but got file shape {}",
+              m_filename, m_header.shape);
+        check(shape[1] == 1,
+              "File {}. Can only write 2D slice(s), but asked to write a shape of {}",
+              m_filename, shape);
+        check(m_header.shape[2] == shape[2] && m_header.shape[3] == shape[3],
+              "File: {}. Cannot write a 2D slice of shape {} into a file with 2D slices of shape {}",
+              m_filename, shape.filter(2, 3), m_header.shape.filter(2, 3));
 
         // Make sure it doesn't go out of bound.
         const bool file_is_volume = m_header.shape[0] == 1 && m_header.shape[1] > 1;
-        NOA_CHECK(m_header.shape[file_is_volume] >= start + shape[0],
-                  "File: {}. The file has less slices ({}) that what is about to be written (start:{}, count:{})",
-                  m_filename, m_header.shape[file_is_volume], start, shape[0]);
+        check(m_header.shape[file_is_volume] >= start + shape[0],
+              "File: {}. The file has less slices ({}) that what is about to be written (start:{}, count:{})",
+              m_filename, m_header.shape[file_is_volume], start, shape[0]);
 
         if (m_header.data_type == DataType::UNKNOWN) // first write, set the data type
             m_header.data_type = closest_supported_dtype_(data_type);
@@ -626,16 +629,16 @@ namespace noa::io {
         m_fstream.seekp(offset);
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File {}. Could not seek to the desired offset ({})", m_filename, offset);
+            panic("File {}. Could not seek to the desired offset ({})", m_filename, offset);
         }
         try {
             serialize(input, data_type, strides, shape,
                       m_fstream, m_header.data_type,
                       clamp, m_header.is_endian_swapped);
         } catch (...) {
-            NOA_THROW("File {}. Failed to write shape {} from the file stream. "
-                      "Serialize from dtype {} to {}",
-                      m_filename, shape, data_type, m_header.data_type);
+            panic("File {}. Failed to write shape {} from the file stream. "
+                  "Serialize from dtype {} to {}",
+                  m_filename, shape, data_type, m_header.data_type);
         }
     }
 
@@ -652,7 +655,7 @@ namespace noa::io {
             DataType data_type,
             bool clamp
     ) {
-        NOA_CHECK(is_open(), "The file should be opened");
+        check(is_open(), "The file should be opened");
 
         if (m_header.data_type == DataType::UNKNOWN) // first write, set the data type
             m_header.data_type = closest_supported_dtype_(data_type);
@@ -660,33 +663,33 @@ namespace noa::io {
         if (all(m_header.shape == 0)) { // first write, set the shape
             m_header.shape = shape;
         } else {
-            NOA_CHECK(all(shape == m_header.shape),
-                      "File: {}. The file shape {} is not compatible with the input shape {}",
-                      m_filename, m_header.shape, shape);
+            check(all(shape == m_header.shape),
+                  "File: {}. The file shape {} is not compatible with the input shape {}",
+                  m_filename, m_header.shape, shape);
         }
 
         m_fstream.seekp(header_offset_());
         if (m_fstream.fail()) {
             m_fstream.clear();
-            NOA_THROW("File: {}. Could not seek to the desired offset ({})",
-                      m_filename, header_offset_());
+            panic("File: {}. Could not seek to the desired offset ({})",
+                  m_filename, header_offset_());
         }
         try {
             io::serialize(input, data_type, strides, shape,
                           m_fstream, m_header.data_type,
                           clamp, m_header.is_endian_swapped);
         } catch (...) {
-            NOA_THROW("File {}. Failed to write shape {} from the file stream. "
-                      "Serialize from dtype {} to {}",
-                      m_filename, shape, data_type, m_header.data_type);
+            panic("File {}. Failed to write shape {} from the file stream. "
+                  "Serialize from dtype {} to {}",
+                  m_filename, shape, data_type, m_header.data_type);
         }
     }
 
     void MRCFile::write_all(const void* input, DataType data_type, bool clamp) {
-        NOA_CHECK(is_open(), "The file should be opened");
-        NOA_CHECK(m_header.shape > 0,
-                  "The shape of the file is not set or is empty. "
-                  "Set the shape first, and then write something to the file");
+        check(is_open(), "The file should be opened");
+        check(m_header.shape > 0,
+              "The shape of the file is not set or is empty. "
+              "Set the shape first, and then write something to the file");
         return write_all(input, m_header.shape.strides(), m_header.shape, data_type, clamp);
     }
 

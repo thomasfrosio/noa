@@ -50,7 +50,7 @@ namespace noa::traits {
     template<> struct proclaim_is_string<std::string_view> : std::true_type {};
 }
 
-namespace noa {
+namespace noa::string {
     // Left trims str.
     [[nodiscard]] inline std::string_view trim_left(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };

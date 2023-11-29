@@ -14,7 +14,7 @@ namespace noa::guts {
             std::index_sequence<Is...>,
             Indexes&&... indexes
     ) noexcept {
-        ((pointer += offset_at(indexes, accessor.template stride<Is>())), ...);
+        ((pointer += ni::offset_at(indexes, accessor.template stride<Is>())), ...);
         return pointer;
     }
 
@@ -24,14 +24,14 @@ namespace noa::guts {
             std::index_sequence<Is...>,
             const Vec<Integer, sizeof...(Is)>& indexes
     ) noexcept {
-        ((pointer += offset_at(indexes[Is], accessor.template stride<Is>())), ...);
+        ((pointer += ni::offset_at(indexes[Is], accessor.template stride<Is>())), ...);
         return pointer;
     }
 }
 
-namespace noa {
+namespace noa::inline types {
     enum class PointerTraits { DEFAULT, RESTRICT }; // TODO ATOMIC?
-    enum class StridesTraits { STRIDED, CONTIGUOUS }; // TODO EMPTY?
+    enum class StridesTraits { STRIDED, CONTIGUOUS };
 
     template<typename T, size_t N, typename I,
              PointerTraits PointerTrait,
@@ -137,7 +137,7 @@ namespace noa {
         template<typename Int0, typename Int1,
                  typename = std::enable_if_t<StridesTraits::STRIDED == StridesTrait && nt::are_int_v<Int0, Int1>>>
         NOA_HD constexpr Accessor& swap_dimensions(Int0 d0, Int1 d1) noexcept {
-            noa::guts::swap(strides()[d0], strides()[d1]);
+            std::swap(strides()[d0], strides()[d1]);
             return *this;
         }
 
@@ -147,7 +147,7 @@ namespace noa {
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         NOA_HD constexpr Accessor& offset_accessor(Int index) noexcept {
             NOA_ASSERT(!is_empty());
-            m_ptr += offset_at(index, stride<0>());
+            m_ptr += ni::offset_at(index, stride<0>());
             return *this;
         }
 
@@ -156,7 +156,7 @@ namespace noa {
         [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             using output_type = AccessorReference<value_type, (SIZE - 1), index_type, PointerTrait, StridesTrait>;
-            return output_type(m_ptr + offset_at(index, stride<0>()), strides().data() + 1);
+            return output_type(m_ptr + ni::offset_at(index, stride<0>()), strides().data() + 1);
         }
 
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
@@ -164,7 +164,7 @@ namespace noa {
         template<typename Int, nt::enable_if_bool_t<(SIZE == 1) && std::is_integral_v<Int>> = true>
         [[nodiscard]] NOA_HD value_type& operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
-            return m_ptr[offset_at(index, stride<0>())];
+            return m_ptr[ni::offset_at(index, stride<0>())];
         }
 
     public:
@@ -193,7 +193,7 @@ namespace noa {
 
     private:
         pointer_type m_ptr{};
-        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
+        [[no_unique_address]] strides_type m_strides{};
     };
 
     /// Reference to Accessor.
@@ -264,7 +264,7 @@ namespace noa {
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         NOA_HD AccessorReference& offset_accessor(Int index) noexcept {
             NOA_ASSERT(!is_empty());
-            m_ptr += noa::offset_at(index, stride<0>());
+            m_ptr += ni::offset_at(index, stride<0>());
             return *this;
         }
 
@@ -272,7 +272,7 @@ namespace noa {
         template<typename Int, std::enable_if_t<SIZE == 1 && std::is_integral_v<Int>, bool> = true>
         [[nodiscard]] NOA_HD value_type& operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
-            return m_ptr[noa::offset_at(index, stride<0>())];
+            return m_ptr[ni::offset_at(index, stride<0>())];
         }
 
         // Indexing operator, multidimensional accessor. ND -> ND-1
@@ -280,7 +280,7 @@ namespace noa {
         [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             using output_type = AccessorReference<value_type, SIZE - 1, index_type, PointerTrait, StridesTrait>;
-            return output_type(m_ptr + noa::offset_at(index, stride<0>()), m_strides + 1);
+            return output_type(m_ptr + ni::offset_at(index, stride<0>()), m_strides + 1);
         }
 
     public:
@@ -310,7 +310,7 @@ namespace noa {
 
     private:
         pointer_type m_ptr{};
-        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
+        [[no_unique_address]] strides_type m_strides{};
     };
 
     /// Stores a value and provide an nd-accessor interface of that value.
@@ -371,7 +371,7 @@ namespace noa {
     public: // Accessing strides
         template<size_t>
         [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept { return 0; }
-        [[nodiscard]] NOA_HD constexpr strides_type strides() const noexcept { return {}; } // TODO C++20
+        [[nodiscard]] NOA_HD constexpr const strides_type& strides() const noexcept { return m_strides; }
 
     public:
         // Note: restrict is a type qualifier and is ignored in the return type? -Wignored-qualifiers
@@ -429,7 +429,7 @@ namespace noa {
 
     private:
         mutable_value_type m_value;
-        // TODO C++20 Add strides_type (which is empty) here with [[no_unique_address]]
+        [[no_unique_address]] strides_type m_strides;
     };
 
     template<typename T, size_t N>

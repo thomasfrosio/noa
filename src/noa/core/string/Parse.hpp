@@ -12,7 +12,7 @@
 #include <string>
 #include <type_traits>
 
-namespace noa {
+namespace noa::string {
     namespace guts {
         template<typename T>
         constexpr bool is_parsable_from_string_v = std::bool_constant<nt::is_string_v<T> || nt::is_numeric_v<T>>::value;
@@ -23,18 +23,18 @@ namespace noa {
     std::string parse_error_message(const std::string& str, int error) {
         switch (error) {
             case 1:
-                return fmt::format("Failed to convert \"{}\" to {}", str, to_human_readable<T>());
+                return fmt::format("Failed to convert \"{}\" to {}", str, ns::to_human_readable<T>());
             case 2:
-                return fmt::format("Out of range. \"{}\" is out of {} range", str, to_human_readable<T>());
+                return fmt::format("Out of range. \"{}\" is out of {} range", str, ns::to_human_readable<T>());
             case 3:
-                return fmt::format("Out of range. Cannot convert negative number \"{}\" to {}", str, to_human_readable<T>());
+                return fmt::format("Out of range. Cannot convert negative number \"{}\" to {}", str, ns::to_human_readable<T>());
             default:
                 return "";
         }
     }
 }
 
-namespace noa::guts {
+namespace noa::string::guts {
     template<typename T = int, typename nt::enable_if_bool_t<nt::is_int_v<T>> = true>
     T to_int(const std::string& str, int& error) noexcept {
         errno = 0;
@@ -92,8 +92,7 @@ namespace noa::guts {
     T to_int(const std::string& str) {
         int error{};
         T out = to_int<T>(str, error);
-        if (error)
-            NOA_THROW(parse_error_message<T>(str, error));
+        check_runtime(!error, parse_error_message<T>(str, error));
         return out;
     }
 
@@ -122,8 +121,7 @@ namespace noa::guts {
     T to_real(const std::string& str) {
         int error{};
         T out = to_real<T>(str, error);
-        if (error)
-            NOA_THROW(parse_error_message<T>(str, error));
+        check_runtime(!error, parse_error_message<T>(str, error));
         return out;
     }
 
@@ -148,13 +146,12 @@ namespace noa::guts {
     inline bool to_bool(const std::string& str) {
         int error{};
         bool out = to_bool(str, error);
-        if (error)
-            NOA_THROW(parse_error_message<bool>(str, error));
+        check_runtime(!error, parse_error_message<bool>(str, error));
         return out;
     }
 }
 
-namespace noa {
+namespace noa::string {
     // Parses a null-terminated string into a T.
     // error is set to non-zero if the parsing fails, otherwise it is set to 0.
     template<typename T, typename nt::enable_if_bool_t<guts::is_parsable_from_string_v<T>> = true>
@@ -178,8 +175,7 @@ namespace noa {
     T parse(const std::string& string) {
         int error{};
         T out = parse<T>(string, error);
-        if (error)
-            NOA_THROW(parse_error_message<T>(string, error));
+        check_runtime(!error, parse_error_message<T>(string, error));
         return out;
     }
 
@@ -218,8 +214,7 @@ namespace noa {
     std::vector<T> parse(const std::vector<std::string>& vector) {
         int error{};
         std::vector<T> out = parse<T>(vector, error);
-        if (error)
-            NOA_THROW(parse_error_message<T>(vector[out.size()], error));
+        check_runtime(!error, parse_error_message<T>(vector[out.size()], error));
         return out;
     }
 }

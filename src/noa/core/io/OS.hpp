@@ -18,9 +18,9 @@ namespace noa::io {
         try {
             return fs::is_regular_file(path);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {}. {}", path, e.what());
+            panic("File: {}. {}", path, e.what());
         }
     }
 
@@ -34,9 +34,9 @@ namespace noa::io {
         try {
             return fs::is_directory(path);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("Path: {}. {}", path, e.what());
+            panic("Path: {}. {}", path, e.what());
         }
     }
 
@@ -50,9 +50,9 @@ namespace noa::io {
         try {
             return fs::exists(path);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {}. {}", path, e.what());
+            panic("File: {}. {}", path, e.what());
         }
     }
 
@@ -68,9 +68,9 @@ namespace noa::io {
         try {
             return clamp_cast<int64_t>(fs::file_size(path));
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {}. {}", path, e.what());
+            panic("File: {}. {}", path, e.what());
         }
     }
 
@@ -81,9 +81,9 @@ namespace noa::io {
         try {
             fs::remove(path);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {}. {}", path, e.what());
+            panic("File: {}. {}", path, e.what());
         }
     }
 
@@ -96,9 +96,9 @@ namespace noa::io {
         try {
             fs::remove_all(path);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {}. {}", path, e.what());
+            panic("File: {}. {}", path, e.what());
         }
     }
 
@@ -119,9 +119,9 @@ namespace noa::io {
         try {
             fs::rename(from, to);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {} to {}. {}", from, to, e.what());
+            panic("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -148,9 +148,9 @@ namespace noa::io {
         try {
             return fs::copy_file(from, to, options);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {} to {}. {}", from, to, e.what());
+            panic("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -162,9 +162,9 @@ namespace noa::io {
         try {
             fs::copy_symlink(from, to);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {} to {}. {}", from, to, e.what());
+            panic("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -208,9 +208,9 @@ namespace noa::io {
         try {
             fs::copy(from, to, options);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {} to {}. {}", from, to, e.what());
+            panic("File: {} to {}. {}", from, to, e.what());
         }
     }
 
@@ -226,7 +226,7 @@ namespace noa::io {
             else
                 noa::io::copy_file(from, to);
         } catch (...) {
-            NOA_THROW("File: {}. Could not backup the file", from);
+            panic("File: {}. Could not backup the file", from);
         }
     }
 
@@ -239,9 +239,9 @@ namespace noa::io {
         try {
             fs::create_directories(path);
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW("File: {}. {}", e.what());
+            panic("File: {}. {}", path, e.what());
         }
     }
 
@@ -250,9 +250,9 @@ namespace noa::io {
         try {
             return fs::temp_directory_path();
         } catch (const fs::filesystem_error& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         } catch (const std::exception& e) {
-            NOA_THROW(e.what());
+            panic_runtime(e.what());
         }
     }
 }

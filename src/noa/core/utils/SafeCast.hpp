@@ -97,7 +97,7 @@ namespace noa {
     [[nodiscard]] constexpr TTo safe_cast(const TFrom& src) {
         if (is_safe_cast<TTo>(src))
             return static_cast<TTo>(src);
-        NOA_THROW("Cannot safely cast {} to {} type", src, to_human_readable<TTo>());
+        panic("Cannot safely cast {} to {} type", src, ns::to_human_readable<TTo>());
     }
 #endif
 }

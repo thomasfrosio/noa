@@ -57,7 +57,7 @@ namespace noa {
     // numbers, hence the absolute comparison with epsilon, acting as a safety net.
     // If one or both values are NaN and|or +/-Inf, returns false.
     template<int32_t ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(Real x, Real y, Real epsilon) {
+    [[nodiscard]] NOA_IHD constexpr bool allclose(Real x, Real y, Real epsilon) {
         const Real diff(abs(x - y));
         if (!is_finite(diff))
             return false;
@@ -67,87 +67,7 @@ namespace noa {
     }
 
     template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(Real x, Real y) {
-        return are_almost_equal<4>(x, y, static_cast<Real>(1e-6));
-    }
-
-    // Whether x is less or "significantly" equal than y.
-    // If one or both values are NaN and|or +/-Inf, returns false.
-    template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool is_almost_leq(Real x, Real y, Real epsilon) noexcept {
-        const Real diff(x - y);
-        if (!is_finite(diff))
-            return false;
-
-        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
-    }
-
-    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool is_almost_leq(Real x, Real y) {
-        return is_almost_leq<4>(x, y, static_cast<Real>(1e-6));
-    }
-
-    // Whether x is greater or "significantly" equal than y.
-    // If one or both values are NaN and|or +/-Inf, returns false.
-    template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool is_almost_geq(Real x, Real y, Real epsilon) noexcept {
-        const Real diff(y - x);
-        if (!is_finite(diff))
-            return false;
-
-        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
-    }
-
-    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool is_almost_geq(Real x, Real y) {
-        return is_almost_geq<4>(x, y, static_cast<Real>(1e-6));
-    }
-
-    // Whether x is "significantly" withing min and max.
-    // If one or all values are NaN and|or +/-Inf, returns false.
-    template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_FHD constexpr bool is_almost_within(Real x, Real min, Real max, Real epsilon) noexcept {
-        return is_almost_geq<ULP>(x, min, epsilon) && is_almost_leq<ULP>(x, max, epsilon);
-    }
-
-    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_FHD constexpr bool is_almost_within(Real x, Real min, Real max) noexcept {
-        return is_almost_within<4>(x, min, max, static_cast<Real>(1e-6));
-    }
-
-    // Whether x is "significantly" less than y.
-    // If one or both values are NaN and|or +/-Inf, returns false.
-    template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool is_almost_less(Real x, Real y, Real epsilon) noexcept {
-        const Real diff(y - x);
-        if (!is_finite(diff))
-            return false;
-
-        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff > epsilon || diff > (max(abs(x), abs(y)) * THRESHOLD);
-    }
-
-    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_FHD constexpr bool is_almost_less(Real x, Real y) noexcept {
-        return is_almost_less<4>(x, y, static_cast<Real>(1e-6));
-    }
-
-    // Whether x is "significantly" greater than y.
-    // If one or both values are NaN and|or +/-Inf, returns false.
-    template<uint ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_IHD constexpr bool is_almost_greater(Real x, Real y, Real epsilon) noexcept {
-        const Real diff(x - y);
-        if (!is_finite(diff))
-            return false;
-
-        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff > epsilon || diff > (max(abs(x), abs(y)) * THRESHOLD);
-    }
-
-    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
-    [[nodiscard]] NOA_FHD constexpr bool is_almost_greater(Real x, Real y) noexcept {
-        return is_almost_greater<4>(x, y, static_cast<Real>(1e-6));
+    [[nodiscard]] NOA_IHD constexpr bool allclose(Real x, Real y) {
+        return allclose<4>(x, y, static_cast<Real>(1e-6));
     }
 }

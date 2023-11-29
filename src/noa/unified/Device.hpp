@@ -1,14 +1,13 @@
 #pragma once
 
-#include <string_view>
+#include "noa/core/Config.hpp"
 
-#include "noa/core/Assert.hpp"
-#include "noa/core/Definitions.hpp"
+#if defined(NOA_IS_OFFLINE)
+#include <string_view>
 #include "noa/core/Exception.hpp"
 #include "noa/core/utils/Irange.hpp"
 #include "noa/core/string/Format.hpp"
 #include "noa/core/string/Parse.hpp"
-
 #include "noa/cpu/Device.hpp"
 
 #ifdef NOA_ENABLE_CUDA
@@ -153,7 +152,7 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             return Device(DeviceType::GPU, cuda::Device::current().id(), DeviceUnchecked{});
             #else
-            NOA_THROW("No GPU backend detected");
+            noa::panic("No GPU backend detected");
             #endif
         }
 
@@ -166,7 +165,7 @@ namespace noa {
                 #ifdef NOA_ENABLE_CUDA
                 cuda::Device::set_current(cuda::Device(device.id(), cuda::Device::DeviceUnchecked{}));
                 #else
-                NOA_THROW("No GPU backend detected");
+                noa::panic("No GPU backend detected");
                 #endif
             }
         }
@@ -218,73 +217,73 @@ namespace noa {
                 #ifdef NOA_ENABLE_CUDA
                 return Device(DeviceType::GPU, cuda::Device::most_free().id(), DeviceUnchecked{});
                 #else
-                NOA_THROW("GPU backend is not detected");
+                noa::panic("GPU backend is not detected");
                 #endif
             }
         }
 
     private:
         static std::pair<DeviceType, i32> parse_type_and_id_(std::string_view name) {
-            std::string str_ = string::lower(string::trim(name));
+            std::string str_ = ns::to_lower(ns::trim(name));
             const size_t length = name.length();
 
             i32 id{};
             DeviceType type{};
             i32 error{0};
-            if (string::starts_with(str_, "cpu")) {
+            if (ns::starts_with(str_, "cpu")) {
                 if (length == 3) {
                     id = -1;
                     type = DeviceType::CPU;
                 } else {
-                    NOA_THROW("CPU device name \"{}\" is not supported", str_);
+                    noa::panic("CPU device name \"{}\" is not supported", str_);
                 }
 
-            } else if (string::starts_with(str_, "gpu")) {
+            } else if (ns::starts_with(str_, "gpu")) {
                 if (length == 3) {
                     id = 0;
                 } else if (length >= 5 && str_[3] == ':') {
-                    id = string::parse<i32>(std::string(str_.data() + 4), error);
+                    id = ns::parse<i32>(std::string(str_.data() + 4), error);
                 } else {
-                    NOA_THROW("GPU device name \"{}\" is not supported", str_);
+                    noa::panic("GPU device name \"{}\" is not supported", str_);
                 }
                 type = DeviceType::GPU;
 
-            } else if (string::starts_with(str_, "cuda")) {
+            } else if (ns::starts_with(str_, "cuda")) {
                 if (length == 4) {
                     id = 0;
                 } else if (length >= 6 && str_[4] == ':') {
-                    id = string::parse<i32>(std::string(str_.data() + 5), error);
+                    id = ns::parse<i32>(std::string(str_.data() + 5), error);
                 } else {
-                    NOA_THROW("CUDA device name \"{}\" is not supported", str_);
+                    noa::panic("CUDA device name \"{}\" is not supported", str_);
                 }
                 type = DeviceType::GPU;
             } else {
-                NOA_THROW("Failed to parse \"{}\" as a valid device name", str_);
+                noa::panic("Failed to parse \"{}\" as a valid device name", str_);
             }
 
             if (error)
-                NOA_THROW("Failed to parse the device ID. {}", string::parse_error_message<i32>(str_, error));
+                noa::panic("Failed to parse the device ID. {}", ns::parse_error_message<i32>(str_, error));
             return {type, id};
         }
 
         static void validate_(DeviceType type, i32 id) {
             if (type == DeviceType::CPU) {
                 if (id != -1)
-                    NOA_THROW("The device ID for the CPU should be -1, but got {}", id);
+                    noa::panic("The device ID for the CPU should be -1, but got {}", id);
                 return;
             } else if (type == DeviceType::GPU) {
                 if (id < 0)
-                    NOA_THROW("GPU device ID should be positive, but got {}", id);
+                    noa::panic("GPU device ID should be positive, but got {}", id);
 
                 #ifdef NOA_ENABLE_CUDA
                 const i32 count = cuda::Device::count();
                 if (id + 1 > count)
-                    NOA_THROW("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
+                    noa::panic("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
                 #else
-                NOA_THROW("GPU backend is not detected");
+                noa::panic("GPU backend is not detected");
                 #endif
             } else {
-                NOA_THROW("DEV: Missing type");
+                noa::panic("DEV: Missing type");
             }
         }
 
@@ -346,3 +345,5 @@ namespace fmt {
     template<> struct formatter<noa::Device> : ostream_formatter {};
     template<> struct formatter<noa::DeviceGuard> : ostream_formatter {};
 }
+
+#endif

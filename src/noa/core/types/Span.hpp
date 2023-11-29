@@ -7,7 +7,7 @@
 
 // TODO C++20 std::span could replace this
 
-namespace noa {
+namespace noa::inline types {
     /// One dimensional (contiguous) span.
     /// If SIZE==-1, the span is dynamic. Otherwise, it is the static size of the span.
     template<typename Value, int64_t SIZE = -1, typename Index = int64_t>
@@ -111,24 +111,23 @@ namespace noa {
         // Guaranteed bound-check. Throws if out-of-bound.
         template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
         [[nodiscard]] constexpr reference at(Int index) const {
-            NOA_CHECK(!is_empty() && index >= 0 && index < ssize(),
-                      "Out-of-bound access. Size={}, index={}", ssize(), index);
+            check(!is_empty() && index >= 0 && index < ssize(),
+                  "Out-of-bound access. Size={}, index={}", ssize(), index);
             return m_data[index];
         }
 
         [[nodiscard]] static std::string name() {
-            return fmt::format("Span<{},{},{}>", to_human_readable<value_type>(), SIZE, to_human_readable<index_type>());
+            return fmt::format("Span<{},{},{}>",
+                               ns::to_human_readable<value_type>(), SIZE, ns::to_human_readable<index_type>());
         }
 #endif
 
     private:
         pointer m_data{};
-        NOA_NO_UNIQUE_ADDRESS index_type_or_empty m_ssize{};
+        [[no_unique_address]] index_type_or_empty m_ssize{};
     };
-}
 
 #if defined(NOA_IS_OFFLINE)
-namespace noa {
     template<typename T>
     inline std::ostream& operator<<(std::ostream& os, const Span<T>& v) {
         if constexpr (nt::is_real_or_complex_v<T>)
@@ -137,8 +136,8 @@ namespace noa {
             os << fmt::format("{}", v);
         return os;
     }
-}
 #endif
+}
 
 // Support for structure bindings:
 namespace std {

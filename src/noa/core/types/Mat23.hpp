@@ -5,7 +5,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Vec.hpp"
 
-namespace noa {
+namespace noa::inline types {
     /// A 2x3 floating-point matrix.
     template<typename Real>
     class alignas(sizeof(Real) * 2) Mat23 {
@@ -260,12 +260,12 @@ namespace noa {
     }
 
     template<int32_t ULP = 2, typename T>
-    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(
+    [[nodiscard]] NOA_IHD constexpr bool allclose(
             const Mat23<T>& m1,
             const Mat23<T>& m2,
             T epsilon = 1e-6f
     ) noexcept {
-        return noa::all(are_almost_equal<ULP>(m1[0], m2[0], epsilon)) &&
-               noa::all(are_almost_equal<ULP>(m1[1], m2[1], epsilon));
+        return noa::all(allclose<ULP>(m1[0], m2[0], epsilon)) &&
+               noa::all(allclose<ULP>(m1[1], m2[1], epsilon));
     }
 }

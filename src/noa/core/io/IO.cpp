@@ -43,7 +43,7 @@ namespace {
             const Input* input, const Strides4<int64_t>& strides, const Shape4<int64_t>& shape,
             std::byte* output, bool clamp, bool swap_endian
     ) {
-        if (are_contiguous(strides, shape))
+        if (ni::are_contiguous(strides, shape))
             return serialize_<Output>(input, output, shape.elements(), clamp, swap_endian);
 
         constexpr int64_t OUTPUT_SIZE = sizeof(Output);
@@ -57,7 +57,7 @@ namespace {
                 for (int64_t j = 0; j < shape[1]; ++j) {
                     for (int64_t k = 0; k < shape[2]; ++k) {
                         for (int64_t l = 0; l < shape[3]; ++l, ++idx) {
-                            tmp = clamp_cast<Output>(input[offset_at(i, j, k, l, strides)]);
+                            tmp = clamp_cast<Output>(input[ni::offset_at(i, j, k, l, strides)]);
                             std::memcpy(output + idx * OUTPUT_SIZE, &tmp, sizeof(Output));
                         }
                     }
@@ -68,7 +68,7 @@ namespace {
                 for (int64_t j = 0; j < shape[1]; ++j) {
                     for (int64_t k = 0; k < shape[2]; ++k) {
                         for (int64_t l = 0; l < shape[3]; ++l, ++idx) {
-                            tmp = static_cast<Output>(input[offset_at(i, j, k, l, strides)]);
+                            tmp = static_cast<Output>(input[ni::offset_at(i, j, k, l, strides)]);
                             std::memcpy(output + idx * OUTPUT_SIZE, &tmp, sizeof(Output));
                         }
                     }
@@ -111,7 +111,7 @@ namespace {
             const Strides4<int64_t>& strides, const Shape4<int64_t>& shape,
             bool clamp, bool swap_endian
     ) {
-        if (are_contiguous(strides, shape))
+        if (ni::are_contiguous(strides, shape))
             return deserialize_<Input>(input, output, shape.elements(), clamp, swap_endian);
 
         constexpr int64_t INPUT_SIZE = sizeof(Input);
@@ -124,7 +124,7 @@ namespace {
                         std::memcpy(&tmp, input + idx * INPUT_SIZE, sizeof(Input));
                         if (swap_endian)
                             io::guts::reverse<sizeof(Input)>(reinterpret_cast<std::byte*>(&tmp));
-                        output[offset_at(i, j, k, l, strides)] =
+                        output[ni::offset_at(i, j, k, l, strides)] =
                                 clamp ? clamp_cast<Output>(tmp) : static_cast<Output>(tmp);
                     }
                 }
@@ -197,7 +197,7 @@ namespace noa::io {
             case DataType::U4:
                 if constexpr (nt::is_scalar_v<Input>) {
                     NOA_ASSERT(noa::all(shape > 0));
-                    NOA_ASSERT(noa::indexing::are_contiguous(strides, shape));
+                    NOA_ASSERT(ni::are_contiguous(strides, shape));
                     if (!(shape[3] % 2)) { // if even, data can be serialized contiguously
                         serialize_row_4bits_(input, output, elements, false, clamp);
                     } else { // otherwise, there's a "padding" of 4bits at the end of each row
@@ -258,7 +258,7 @@ namespace noa::io {
             case DataType::CI16:
                 if constexpr (nt::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, input).template as<const real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, input).template as<const real_t>();
                     return serialize(real.ptr, real.strides, real.shape,
                                      output, DataType::I16,
                                      clamp, swap_endian);
@@ -267,7 +267,7 @@ namespace noa::io {
             case DataType::C16:
                 if constexpr (nt::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, input).template as<const real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, input).template as<const real_t>();
                     return serialize(real.ptr, real.strides, real.shape,
                                      output, DataType::F16,
                                      clamp, swap_endian);
@@ -276,7 +276,7 @@ namespace noa::io {
             case DataType::C32:
                 if constexpr (nt::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, input).template as<const real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, input).template as<const real_t>();
                     return serialize(real.ptr, real.strides, real.shape,
                                      output, DataType::F32,
                                      clamp, swap_endian);
@@ -285,7 +285,7 @@ namespace noa::io {
             case DataType::C64:
                 if constexpr (nt::is_complex_v<Input>) {
                     using real_t = typename Input::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, input).template as<const real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, input).template as<const real_t>();
                     return serialize(real.ptr, real.strides, real.shape,
                                      output, DataType::F64,
                                      clamp, swap_endian);
@@ -294,7 +294,7 @@ namespace noa::io {
             case DataType::UNKNOWN:
                 break;
         }
-        NOA_THROW("{} cannot be serialized into the data type {}", to_human_readable<Input>(), data_type);
+        panic("{} cannot be serialized into the data type {}", ns::to_human_readable<Input>(), data_type);
     }
 
     void serialize(
@@ -361,7 +361,7 @@ namespace noa::io {
                                  output, output_data_type,
                                  clamp, swap_endian);
             default:
-                NOA_THROW("Data type {} cannot be converted into a real type", input_data_type);
+                panic("Data type {} cannot be converted into a real type", input_data_type);
         }
     }
 
@@ -375,7 +375,7 @@ namespace noa::io {
         // the failbit will be reset by write() anyway and an exception will be thrown.
         output.clear();
 
-        const bool are_contiguous = noa::are_contiguous(strides, shape);
+        const bool are_contiguous = ni::are_contiguous(strides, shape);
         const int64_t elements = shape.elements();
         constexpr int64_t SIZEOF_T = sizeof(T);
 
@@ -383,7 +383,7 @@ namespace noa::io {
             output.write(reinterpret_cast<const char*>(input), SIZEOF_T * elements);
             if (output.fail()) {
                 output.clear();
-                NOA_THROW("Stream error. Failed while writing {} bytes", SIZEOF_T * elements);
+                panic("Stream error. Failed while writing {} bytes", SIZEOF_T * elements);
             }
             return;
 
@@ -394,7 +394,7 @@ namespace noa::io {
             output.write(reinterpret_cast<const char*>(buffer.get()), bytes);
             if (output.fail()) {
                 output.clear();
-                NOA_THROW("Stream error. Failed while writing {} bytes", bytes);
+                panic("Stream error. Failed while writing {} bytes", bytes);
             }
 
         } else if (are_contiguous) {
@@ -418,7 +418,7 @@ namespace noa::io {
                 output.write(buffer_ptr, bytes_buffer);
                 if (output.fail()) {
                     output.clear();
-                    NOA_THROW("Stream error. Failed while writing {} bytes", bytes_buffer);
+                    panic("Stream error. Failed while writing {} bytes", bytes_buffer);
                 }
 
                 input += elements_buffer;
@@ -434,14 +434,14 @@ namespace noa::io {
 
             for (int64_t i = 0; i < shape[0]; ++i) {
                 for (int64_t j = 0; j < shape[1]; ++j) {
-                    const T* input_ptr = input + offset_at(i, j, strides);
+                    const T* input_ptr = input + ni::offset_at(i, j, strides);
                     serialize(input_ptr, slice_strides, slice_shape,
                               buffer.get(), data_type,
                               clamp, swap_endian);
                     output.write(buffer_ptr, bytes_per_slice);
                     if (output.fail()) {
                         output.clear();
-                        NOA_THROW("Stream error. Failed while writing {} bytes", bytes_per_slice);
+                        panic("Stream error. Failed while writing {} bytes", bytes_per_slice);
                     }
                 }
             }
@@ -510,7 +510,7 @@ namespace noa::io {
                                  output, output_data_type,
                                  clamp, swap_endian);
             default:
-                NOA_THROW("data type {} cannot be converted into a supported real type", input_data_type);
+                panic("data type {} cannot be converted into a supported real type", input_data_type);
         }
     }
 }
@@ -588,7 +588,7 @@ namespace noa::io {
             case DataType::CI16:
                 if constexpr (nt::is_complex_v<T>) {
                     using real_t = typename T::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, output).template as<real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, output).template as<real_t>();
                     return deserialize(input, DataType::I16,
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
@@ -597,7 +597,7 @@ namespace noa::io {
             case DataType::C16:
                 if constexpr (nt::is_complex_v<T>) {
                     using real_t = typename T::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, output).template as<real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, output).template as<real_t>();
                     return deserialize(input, DataType::F16,
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
@@ -606,7 +606,7 @@ namespace noa::io {
             case DataType::C32:
                 if constexpr (nt::is_complex_v<T>) {
                     using real_t = typename T::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, output).template as<real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, output).template as<real_t>();
                     return deserialize(input, DataType::F32,
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
@@ -615,7 +615,7 @@ namespace noa::io {
             case DataType::C64:
                 if constexpr (nt::is_complex_v<T>) {
                     using real_t = typename T::value_type;
-                    const auto real = ReinterpretLayout(shape, strides, output).template as<real_t>();
+                    const auto real = ni::ReinterpretLayout(shape, strides, output).template as<real_t>();
                     return deserialize(input, DataType::F64,
                                        real.ptr, real.strides,
                                        real.shape, clamp, swap_endian);
@@ -624,7 +624,7 @@ namespace noa::io {
             case DataType::UNKNOWN:
                 break;
         }
-        NOA_THROW("data type {} cannot be deserialized into {}", data_type, to_human_readable<T>());
+        panic("data type {} cannot be deserialized into {}", data_type, ns::to_human_readable<T>());
     }
 
     void deserialize(
@@ -691,7 +691,7 @@ namespace noa::io {
                                    static_cast<c64*>(output), strides,
                                    shape, clamp, swap_endian);
             default:
-                NOA_THROW("data type {} cannot be converted into a supported real type", output_data_type);
+                panic("data type {} cannot be converted into a supported real type", output_data_type);
         }
     }
 
@@ -702,7 +702,7 @@ namespace noa::io {
             bool clamp, bool swap_endian
     ) {
         input.clear();
-        const bool are_contiguous = noa::are_contiguous(strides, shape);
+        const bool are_contiguous = ni::are_contiguous(strides, shape);
         const int64_t elements = shape.elements();
         constexpr int64_t SIZEOF_T = sizeof(T);
 
@@ -710,7 +710,7 @@ namespace noa::io {
             input.read(reinterpret_cast<char*>(output), SIZEOF_T * elements);
             if (input.fail()) {
                 input.clear();
-                NOA_THROW("Stream error. Failed while reading {} bytes", SIZEOF_T * elements);
+                panic("Stream error. Failed while reading {} bytes", SIZEOF_T * elements);
             } else if (swap_endian) {
                 if constexpr (nt::is_complex_v<T>)
                     noa::io::swap_endian(reinterpret_cast<std::byte*>(output), elements * 2, SIZEOF_T / 2);
@@ -725,7 +725,7 @@ namespace noa::io {
             input.read(reinterpret_cast<char*>(buffer.get()), bytes);
             if (input.fail()) {
                 input.clear();
-                NOA_THROW("Stream error. Failed while reading {} bytes", bytes);
+                panic("Stream error. Failed while reading {} bytes", bytes);
             }
             deserialize(buffer.get(), DataType::U4,
                         output, strides,
@@ -749,7 +749,7 @@ namespace noa::io {
                 input.read(buffer_ptr, bytes_buffer);
                 if (input.fail()) {
                     input.clear();
-                    NOA_THROW("Stream error. Failed while reading {} bytes", bytes_buffer);
+                    panic("Stream error. Failed while reading {} bytes", bytes_buffer);
                 }
                 deserialize(buffer.get(), data_type,
                             output, buffer_shape.strides(),
@@ -770,9 +770,9 @@ namespace noa::io {
                     input.read(buffer_ptr, bytes_per_slice);
                     if (input.fail()) {
                         input.clear();
-                        NOA_THROW("Stream error. Failed while reading {} bytes", bytes_per_slice);
+                        panic("Stream error. Failed while reading {} bytes", bytes_per_slice);
                     }
-                    T* output_ptr = output + offset_at(i, j, strides);
+                    T* output_ptr = output + ni::offset_at(i, j, strides);
                     deserialize(buffer.get(), data_type,
                                 output_ptr, slice_strides,
                                 slice_shape, clamp, swap_endian);
@@ -845,7 +845,7 @@ namespace noa::io {
                                    static_cast<c64*>(output), strides,
                                    shape, clamp, swap_endian);
             default:
-                NOA_THROW("data type {} cannot be converted into a supported real type", output_data_type);
+                panic("data type {} cannot be converted into a supported real type", output_data_type);
         }
     }
 }

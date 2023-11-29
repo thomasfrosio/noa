@@ -1,15 +1,16 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Exception.hpp"
 #include "noa/core/Enums.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/indexing/Layout.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 
-namespace noa {
+namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 4D indexes.
     /// \param i0,i1,i2,i3  Multi-dimensional indexes.
     /// \param strides      Strides associated with these indexes.

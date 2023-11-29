@@ -273,8 +273,8 @@ namespace test {
                 if (matcher.m_shape.ndim() > 1)
                     os << fmt::format(", shape={}", matcher.m_index_failed, matcher.m_shape);
 
-                T lhs_value = matcher.m_lhs[noa::offset_at(matcher.m_index_failed, matcher.m_lhs_strides)];
-                T rhs_value = matcher.m_rhs[noa::offset_at(matcher.m_index_failed, matcher.m_rhs_strides)];
+                T lhs_value = matcher.m_lhs[noa::indexing::offset_at(matcher.m_index_failed, matcher.m_lhs_strides)];
+                T rhs_value = matcher.m_rhs[noa::indexing::offset_at(matcher.m_index_failed, matcher.m_rhs_strides)];
                 if constexpr (std::is_integral_v<T>) {
                     os << fmt::format(
                             ", lhs={}, rhs={}, epsilon={}, total_abs_diff={}, max_abs_diff={}",
@@ -337,8 +337,8 @@ namespace test {
                     for (index_type k = 0; k < m_shape[2]; ++k) {
                         for (index_type l = 0; l < m_shape[3]; ++l) {
                             const auto [passed, abs_diff] = value_checker(
-                                    m_lhs[noa::offset_at(i, j, k, l, m_lhs_strides)],
-                                    m_rhs[noa::offset_at(i, j, k, l, m_rhs_strides)],
+                                    m_lhs[noa::indexing::offset_at(i, j, k, l, m_lhs_strides)],
+                                    m_rhs[noa::indexing::offset_at(i, j, k, l, m_rhs_strides)],
                                     m_epsilon);
 
                             m_total_abs_diff += abs_diff;

@@ -56,7 +56,7 @@ macro(noa_set_options)
         noa_set_options_cpu()
     endif ()
 
-    option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires a CUDA compiler and a CUDA Toolkit" ON)
+    option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires a CUDA compiler and a CUDA Toolkit" OFF)
     if (NOA_ENABLE_CUDA)
         noa_set_options_cuda()
     endif ()

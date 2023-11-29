@@ -35,7 +35,7 @@ TEST_CASE("core::geometry::euler2matrix()", "[noa][core]") {
 
     // Switch the axes. In Python, I use xyz matrices...
     for (u64 i = 0; i < matrices; ++i)
-        buffer[i] = noa::reorder(buffer[i], Vec3<i64>{2, 1, 0}); // zyx -> xyz
+        buffer[i] = noa::indexing::reorder(buffer[i], Vec3<i64>{2, 1, 0}); // zyx -> xyz
 
     REQUIRE(test::Matcher(test::MATCH_ABS, expected.get(), result, static_cast<i64>(elements), 1e-6));
 }

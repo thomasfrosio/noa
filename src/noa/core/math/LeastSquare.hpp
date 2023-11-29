@@ -76,7 +76,7 @@ namespace noa {
     auto lstsq_fit_quadratic(const Real* y, Int size) {
         double a{}, b{}, c{};
         lstsq_fit_quadratic<ACCURATE_SUM>(y, size, &a, &b, &c);
-        return Tuple{a, b, c};
+        return make_tuple(a, b, c);
     }
 
     /// This is equivalent to lstsq_fit_quadratic() if one wants to get the vertex for three points.

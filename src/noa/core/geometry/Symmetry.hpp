@@ -74,7 +74,7 @@ namespace noa::geometry {
     private:
         // Parses the symbol but doesn't check if it is recognized.
         static auto parse_symbol_(std::string_view symbol) -> std::optional<SymmetrySymbol> {
-            symbol = noa::trim(symbol);
+            symbol = ns::trim(symbol);
             if (symbol.empty())
                 return std::nullopt;
 
@@ -84,7 +84,7 @@ namespace noa::geometry {
             if (symbol.size() > 1) {
                 const std::string number(symbol, 1, symbol.length()); // offset by 1
                 int error{};
-                out.order = noa::parse<int32_t>(number, error);
+                out.order = ns::parse<int32_t>(number, error);
                 if (error)
                     return std::nullopt;
             } else {
@@ -97,10 +97,10 @@ namespace noa::geometry {
         // The string should be left trimmed.
         void parse_and_set_matrices_(std::string_view symbol) {
             auto parsed_symbol = parse_symbol_(symbol);
-            NOA_CHECK(parsed_symbol.has_value(), "Failed to parse \"{}\" to a valid symmetry", symbol);
+            check(parsed_symbol.has_value(), "Failed to parse \"{}\" to a valid symmetry", symbol);
             m_symbol = parsed_symbol.value();
 
-            NOA_CHECK(m_symbol.type == 'C' and m_symbol.order > 0, "{} symmetry is not supported", m_symbol.to_string());
+            check(m_symbol.type == 'C' and m_symbol.order > 0, "{} symmetry is not supported", m_symbol.to_string());
             m_count = m_symbol.order - 1; // remove the identity from the matrices
             m_data = std::make_unique<matrix_type[]>(static_cast<size_t>(m_count)); // TODO C++20 make_shared
             set_cx_matrices_(m_data.get(), m_symbol.order);

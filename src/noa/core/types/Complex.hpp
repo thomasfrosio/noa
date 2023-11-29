@@ -14,7 +14,7 @@
 #include <cuda/std/cfloat>
 #endif
 
-namespace noa {
+namespace noa::inline types {
     template<typename, size_t, size_t>
     class Vec;
 
@@ -446,7 +446,7 @@ namespace fmt {
     };
 }
 
-namespace noa {
+namespace noa::inline types {
     template<typename T>
     std::ostream& operator<<(std::ostream& os, Complex<T> z) {
         os << fmt::format("({:.3f},{:.3f})", z.real, z.imag);

@@ -7,8 +7,10 @@
 
 // A few necessary forward declarations:
 namespace noa {
-    template<typename T>
-    class Mat44;
+    inline namespace types {
+        template<typename T>
+        class Mat44;
+    }
 
     template<typename T>
     NOA_IHD constexpr Mat44<T> transpose(const Mat44<T>& m) noexcept;
@@ -17,7 +19,7 @@ namespace noa {
     NOA_IHD constexpr Mat44<T> inverse(const Mat44<T>& m) noexcept;
 }
 
-namespace noa {
+namespace noa::inline types {
     /// A 4x4 floating-point matrix.
     template<typename Real>
     class Mat44 {
@@ -417,7 +419,7 @@ namespace noa {
                    m[0][1] * (m[1][0] * A2323 - m[1][2] * A0323 + m[1][3] * A0223) +
                    m[0][2] * (m[1][0] * A1323 - m[1][1] * A0323 + m[1][3] * A0123) -
                    m[0][3] * (m[1][0] * A1223 - m[1][1] * A0223 + m[1][2] * A0123);
-        NOA_ASSERT(!are_almost_equal(det, T{0})); // non singular
+        NOA_ASSERT(!allclose(det, T{0})); // non singular
         det = 1 / det;
 
         return Mat44<T>::from_values(
@@ -440,14 +442,14 @@ namespace noa {
     }
 
     template<int32_t ULP = 2, typename T>
-    [[nodiscard]] NOA_IHD constexpr bool are_almost_equal(
+    [[nodiscard]] NOA_IHD constexpr bool allclose(
             const Mat44<T>& m1,
             const Mat44<T>& m2,
             T epsilon = 1e-6f
     ) noexcept {
-        return noa::all(are_almost_equal<ULP>(m1[0], m2[0], epsilon)) &&
-               noa::all(are_almost_equal<ULP>(m1[1], m2[1], epsilon)) &&
-               noa::all(are_almost_equal<ULP>(m1[2], m2[2], epsilon)) &&
-               noa::all(are_almost_equal<ULP>(m1[3], m2[3], epsilon));
+        return noa::all(allclose<ULP>(m1[0], m2[0], epsilon)) &&
+               noa::all(allclose<ULP>(m1[1], m2[1], epsilon)) &&
+               noa::all(allclose<ULP>(m1[2], m2[2], epsilon)) &&
+               noa::all(allclose<ULP>(m1[3], m2[3], epsilon));
     }
 }

@@ -22,14 +22,14 @@ TEST_CASE("core::geometry::Quaternion") {
         auto v = Vec3<f64>{0, 0, 1};
 
         auto a0 = m * v;
-        REQUIRE(noa::all(are_almost_equal(a0, Vec3<f64>{0, 1, 0})));
+        REQUIRE(noa::all(allclose(a0, Vec3<f64>{0, 1, 0})));
 
         auto q1 = Quaternion<f64>::from_matrix(m);
         auto a1 = q1 * Quaternion<f64>::from_coefficients(v.push_back(0)) * q1.conj();
         auto a2 = q1.rotate(v);
 
-        REQUIRE(noa::all(are_almost_equal(a1.coefficients, Vec4<f64>{0, 1, 0, 0})));
-        REQUIRE(noa::all(are_almost_equal(a2, Vec3<f64>{0, 1, 0})));
+        REQUIRE(noa::all(allclose(a1.coefficients, Vec4<f64>{0, 1, 0, 0})));
+        REQUIRE(noa::all(allclose(a2, Vec3<f64>{0, 1, 0})));
     }
 
     AND_THEN("rotations") {
@@ -48,9 +48,9 @@ TEST_CASE("core::geometry::Quaternion") {
             const auto v2 = (quaternion * Quaternion<f64>{v.push_back(0)} * quaternion.conj()).coefficients.pop_back();
             const auto v3 = quaternion.to_matrix() * v;
 
-            REQUIRE(noa::all(are_almost_equal(v0, v1)));
-            REQUIRE(noa::all(are_almost_equal(v0, v2)));
-            REQUIRE(noa::all(are_almost_equal(v0, v3)));
+            REQUIRE(noa::all(allclose(v0, v1)));
+            REQUIRE(noa::all(allclose(v0, v2)));
+            REQUIRE(noa::all(allclose(v0, v3)));
         }
     }
 }

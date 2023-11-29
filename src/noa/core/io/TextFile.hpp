@@ -58,7 +58,7 @@ namespace noa::io {
             if (m_fstream.is_open()) {
                 m_fstream.close();
                 if (m_fstream.fail() && !m_fstream.eof())
-                    NOA_THROW("File: {}. File stream error", m_path);
+                    panic("File: {}. File stream error", m_path);
             }
         }
 
@@ -67,8 +67,8 @@ namespace noa::io {
             m_fstream.write(string.data(), static_cast<std::streamsize>(string.size()));
             if (m_fstream.fail()) {
                 if (m_fstream.is_open())
-                    NOA_THROW("File: {}. File stream error while writing", m_path);
-                NOA_THROW("File: {}. File stream error. File is closed file", m_path);
+                    panic("File: {}. File stream error while writing", m_path);
+                panic("File: {}. File stream error. File is closed file", m_path);
             }
         }
 
@@ -106,7 +106,7 @@ namespace noa::io {
         bool get_line_or_throw(std::string& line) {
             const bool success = get_line(line);
             if (!success && !this->eof())
-                NOA_THROW("File: {}. Failed to read a line", m_path);
+                panic("File: {}. Failed to read a line", m_path);
             return success;
         }
 
@@ -120,19 +120,19 @@ namespace noa::io {
             if (!size)
                 return buffer;
             else if (size < 0)
-                NOA_THROW("File: {}. File stream error. Could not get the input position indicator", m_path);
+                panic("File: {}. File stream error. Could not get the input position indicator", m_path);
 
             try {
                 buffer.resize(static_cast<size_t>(size));
             } catch (std::length_error& e) {
-                NOA_THROW("File: {}. Passed the maximum permitted size while try to load file. Got {} bytes",
+                panic("File: {}. Passed the maximum permitted size while try to load file. Got {} bytes",
                           m_path, size);
             }
 
             m_fstream.seekg(0);
             m_fstream.read(buffer.data(), size);
             if (m_fstream.fail())
-                NOA_THROW("File: {}. File stream error. Could not read the entire file", m_path);
+                panic("File: {}. File stream error. Could not read the entire file", m_path);
             return buffer;
         }
 
@@ -186,7 +186,7 @@ namespace noa::io {
         void open_(open_mode_t mode) {
             close();
 
-            NOA_CHECK(io::is_valid_open_mode(mode), "File: {}. Invalid open mode", m_path);
+            check(io::is_valid_open_mode(mode), "File: {}. Invalid open mode", m_path);
             if constexpr (!std::is_same_v<Stream, std::ifstream>) {
                 if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
                     const bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
@@ -197,17 +197,17 @@ namespace noa::io {
                         else if (overwrite || mode & io::APP) /* all except case 2 */
                             mkdir(m_path.parent_path());
                     } catch (...) {
-                        NOA_THROW("File: {}. Mode: {}. Could not open the file because of an OS failure. {}",
-                                  m_path, OpenModeStream{mode});
+                        panic("File: {}. Mode: {}. Could not open the file because of an OS failure",
+                              m_path, OpenModeStream{mode});
                     }
                 }
             }
             const bool read_only = !(mode & (io::WRITE | io::TRUNC | io::APP));
             const bool read_write_only = mode & io::WRITE && mode & io::READ && !(mode & (io::TRUNC | io::APP));
             if constexpr (std::is_same_v<Stream, std::ifstream>) {
-                NOA_CHECK(read_only,
-                          "File: {}. Mode {} is not allowed for read-only TextFile",
-                          m_path, OpenModeStream{mode});
+                check(read_only,
+                      "File: {}. Mode {} is not allowed for read-only TextFile",
+                      m_path, OpenModeStream{mode});
             }
 
             for (int it{0}; it < 5; ++it) {
@@ -219,12 +219,12 @@ namespace noa::io {
             m_fstream.clear();
 
             if (read_only || read_write_only) { // case 1|2
-                NOA_CHECK(is_file(m_path),
-                          "File: {}. Mode: {}. Trying to open a file that does not exist",
-                          m_path, OpenModeStream{mode});
-            }
-            NOA_THROW("File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                check(is_file(m_path),
+                      "File: {}. Mode: {}. Trying to open a file that does not exist",
                       m_path, OpenModeStream{mode});
+            }
+            panic("File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
+                  m_path, OpenModeStream{mode});
         }
     };
 

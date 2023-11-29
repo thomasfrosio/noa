@@ -1,7 +1,9 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <ostream>
-#include "noa/core/Definitions.hpp"
 #include "noa/core/string/Format.hpp"
 
 namespace noa {
@@ -102,3 +104,5 @@ namespace noa {
 namespace fmt {
     template<> struct formatter<noa::Allocator> : ostream_formatter {};
 }
+
+#endif

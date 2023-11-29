@@ -20,7 +20,7 @@
 namespace noa::geometry {
     /// Line/Ray/Window defined by a center and radius, possibly with a smooth raised-cosine edge.
     template<typename Value, bool SMOOTH, bool INVERT = false, typename Coord = f32>
-    class LineOp {
+    class Line {
     public:
         static constexpr bool IS_INVERTED = INVERT;
         static constexpr bool IS_SMOOTH = SMOOTH;
@@ -30,14 +30,14 @@ namespace noa::geometry {
 
     public:
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr LineOp(
+        NOA_HD constexpr Line(
                 coord_type center,
                 coord_type radius,
                 value_type cvalue
         ) noexcept : m_cvalue(cvalue), m_center(center), m_radius(radius) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_SMOOTH>>
-        NOA_HD constexpr LineOp(
+        NOA_HD constexpr Line(
                 coord_type center,
                 coord_type radius,
                 coord_type edge_size,
@@ -78,12 +78,12 @@ namespace noa::geometry {
         value_type m_cvalue;
         coord_type m_center;
         coord_type m_radius;
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_edge_size{};
+        [[no_unique_address]] coord_or_empty_type m_edge_size{};
     };
 
     /// Sphere defined by a center and radius, possibly with a smooth raised-cosine edge.
     template<size_t NDIM, typename Value, bool SMOOTH, bool INVERT = false, typename Coord = f32>
-    class SphereOp {
+    class Sphere {
     public:
         static constexpr bool IS_INVERTED = INVERT;
         static constexpr bool IS_SMOOTH = SMOOTH;
@@ -95,7 +95,7 @@ namespace noa::geometry {
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr SphereOp(
+        NOA_HD constexpr Sphere(
                 vector_type center,
                 coord_type radius,
                 value_type cvalue
@@ -103,7 +103,7 @@ namespace noa::geometry {
                 : m_center(center), m_radius_sqd(radius * radius), m_cvalue(cvalue) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_SMOOTH>>
-        constexpr NOA_HD SphereOp(
+        constexpr NOA_HD Sphere(
                 vector_type center,
                 coord_type radius,
                 coord_type edge_size,
@@ -169,14 +169,14 @@ namespace noa::geometry {
         vector_type m_center;
         coord_type m_radius_sqd;
         value_type m_cvalue;
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_radius{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_edge_size{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_radius_edge_sqd{};
+        [[no_unique_address]] coord_or_empty_type m_radius{};
+        [[no_unique_address]] coord_or_empty_type m_edge_size{};
+        [[no_unique_address]] coord_or_empty_type m_radius_edge_sqd{};
     };
 
     /// Cylinder defined by a center, radius and length, possibly with a smooth raised-cosine edge.
     template<typename Value, bool SMOOTH, bool INVERT = false, typename Coord = f32>
-    class CylinderOp {
+    class Cylinder {
     public:
         static constexpr bool IS_INVERTED = INVERT;
         static constexpr bool IS_SMOOTH = SMOOTH;
@@ -189,7 +189,7 @@ namespace noa::geometry {
         using affine_type = Mat34<coord_type>;
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr CylinderOp(
+        NOA_HD constexpr Cylinder(
                 vector3_type center,
                 coord_type radius,
                 coord_type length,
@@ -201,7 +201,7 @@ namespace noa::geometry {
                   m_cvalue(cvalue) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_SMOOTH>>
-        NOA_HD constexpr CylinderOp(
+        NOA_HD constexpr Cylinder(
                 vector3_type center,
                 coord_type radius,
                 coord_type length,
@@ -218,24 +218,24 @@ namespace noa::geometry {
                   m_length_edge(length + edge_size) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr CylinderOp(vector3_type center, vector2_type length_radius, value_type cvalue) noexcept
-                : CylinderOp(center, length_radius[1], length_radius[0], cvalue) {}
+        NOA_HD constexpr Cylinder(vector3_type center, vector2_type length_radius, value_type cvalue) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0], cvalue) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr CylinderOp(vector3_type center, vector3_type length_radius, value_type cvalue) noexcept
-                : CylinderOp(center, length_radius[1], length_radius[0], cvalue) {
+        NOA_HD constexpr Cylinder(vector3_type center, vector3_type length_radius, value_type cvalue) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0], cvalue) {
             NOA_ASSERT(length_radius[1] == length_radius[2]);
         }
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_SMOOTH>>
-        NOA_HD constexpr CylinderOp(vector3_type center, vector2_type length_radius,
-                                    coord_type edge_size, value_type cvalue) noexcept
-                : CylinderOp(center, length_radius[1], length_radius[0], edge_size, cvalue) {}
+        NOA_HD constexpr Cylinder(vector3_type center, vector2_type length_radius,
+                                  coord_type edge_size, value_type cvalue) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0], edge_size, cvalue) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_SMOOTH>>
-        NOA_HD constexpr CylinderOp(vector3_type center, vector3_type length_radius,
-                                    coord_type edge_size, value_type cvalue) noexcept
-                : CylinderOp(center, length_radius[1], length_radius[0], edge_size, cvalue) {
+        NOA_HD constexpr Cylinder(vector3_type center, vector3_type length_radius,
+                                  coord_type edge_size, value_type cvalue) noexcept
+                : Cylinder(center, length_radius[1], length_radius[0], edge_size, cvalue) {
             NOA_ASSERT(length_radius[1] == length_radius[2]);
         }
 
@@ -304,15 +304,15 @@ namespace noa::geometry {
         coord_type m_radius_sqd;
         coord_type m_length;
         value_type m_cvalue;
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_radius{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_radius_edge_sqd{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_edge_size{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_length_edge{};
+        [[no_unique_address]] coord_or_empty_type m_radius{};
+        [[no_unique_address]] coord_or_empty_type m_radius_edge_sqd{};
+        [[no_unique_address]] coord_or_empty_type m_edge_size{};
+        [[no_unique_address]] coord_or_empty_type m_length_edge{};
     };
 
     /// Rectangle defined by a center and radius, possibly with a smooth raised-cosine edge.
     template<size_t NDIM, typename Value, bool SMOOTH, bool INVERT = false, typename Coord = f32>
-    class RectangleOp {
+    class Rectangle {
     public:
         static constexpr bool IS_INVERTED = INVERT;
         static constexpr bool IS_SMOOTH = SMOOTH;
@@ -325,11 +325,11 @@ namespace noa::geometry {
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr RectangleOp(vector_type center, vector_type radius, value_type cvalue) noexcept
+        NOA_HD constexpr Rectangle(vector_type center, vector_type radius, value_type cvalue) noexcept
                 : m_center(center), m_radius(radius), m_cvalue(cvalue) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_SMOOTH>>
-        NOA_HD constexpr RectangleOp(
+        NOA_HD constexpr Rectangle(
                 vector_type center,
                 vector_type radius,
                 coord_type edge_size,
@@ -399,13 +399,13 @@ namespace noa::geometry {
         vector_type m_center;
         vector_type m_radius;
         value_type m_cvalue;
-        NOA_NO_UNIQUE_ADDRESS vector_or_empty_type m_radius_edge{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_edge_size{};
+        [[no_unique_address]] vector_or_empty_type m_radius_edge{};
+        [[no_unique_address]] coord_or_empty_type m_edge_size{};
     };
 
     /// Ellipse defined by a center and radius, possibly with a smooth raised-cosine edge.
     template<size_t NDIM, typename Value, bool SMOOTH = true, bool INVERT = false, typename Coord = f32>
-    class EllipseOp {
+    class Ellipse {
     public:
         static constexpr bool IS_INVERTED = INVERT;
         static constexpr bool IS_SMOOTH = SMOOTH;
@@ -417,11 +417,11 @@ namespace noa::geometry {
         using affine_type = std::conditional_t<NDIM == 2, Mat23<coord_type>, Mat34<coord_type>>;
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr EllipseOp(vector_type center, vector_type radius, value_type cvalue) noexcept
+        NOA_HD constexpr Ellipse(vector_type center, vector_type radius, value_type cvalue) noexcept
                 : m_center(center), m_radius(radius), m_cvalue(cvalue) {}
 
         template<typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && !IS_SMOOTH>>
-        NOA_HD constexpr EllipseOp(
+        NOA_HD constexpr Ellipse(
                 vector_type center,
                 vector_type radius,
                 coord_type edge_size,
@@ -508,6 +508,6 @@ namespace noa::geometry {
         vector_type m_center;
         vector_type m_radius;
         value_type m_cvalue;
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_edge_size{};
+        [[no_unique_address]] coord_or_empty_type m_edge_size{};
     };
 }

@@ -116,44 +116,44 @@ TEMPLATE_TEST_CASE("core::Vec2<T>", "[noa][common][types]", i32, i64, u32, u64, 
             v0 = 2;
             REQUIRE(all(v0 == TestType{2}));
             v0 += static_cast<TestType>(1.34);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(3.34))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(3.34))));
             v0 -= static_cast<TestType>(23.134);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(-19.794))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(-19.794))));
             v0 *= static_cast<TestType>(-2.45);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(48.4953))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(48.4953))));
             v0 /= static_cast<TestType>(567.234);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(0.085494))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(0.085494))));
 
             v0 = static_cast<TestType>(3.30);
             auto tmp = v0 + static_cast<TestType>(3.234534);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(6.534534))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(6.534534))));
             tmp = v0 - static_cast<TestType>(-234.2);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(237.5))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(237.5))));
             tmp = v0 * static_cast<TestType>(3);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(9.90))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(9.90))));
             tmp = v0 / static_cast<TestType>(0.001);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(3299.999f), static_cast<TestType>(1e-3))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(3299.999f), static_cast<TestType>(1e-3))));
 
             v0 = {0, 2};
             v0 += {35, 20};
-            REQUIRE(all(noa::are_almost_equal(v0, Vec2Test::from_values(35, 22))));
+            REQUIRE(all(noa::allclose(v0, Vec2Test::from_values(35, 22))));
             v0 -= Vec2Test::from_values(-0.12, 23.2123);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec2Test::from_values(35.12, -1.2123))));
+            REQUIRE(all(noa::allclose(v0, Vec2Test::from_values(35.12, -1.2123))));
             v0 *= Vec2Test::from_values(0, 10);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec2Test::from_values(0, -12.123), static_cast<TestType>(1e-5))));
+            REQUIRE(all(noa::allclose(v0, Vec2Test::from_values(0, -12.123), static_cast<TestType>(1e-5))));
             v0 /= Vec2Test::from_values(2, 9);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec2Test::from_values(0, -1.347))));
+            REQUIRE(all(noa::allclose(v0, Vec2Test::from_values(0, -1.347))));
 
             v0[0] = 20;
             v0[1] = 50;
             tmp = v0 + Vec2Test::from_values(10, 12);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec2Test::from_values(30, 62))));
+            REQUIRE(all(noa::allclose(tmp, Vec2Test::from_values(30, 62))));
             tmp = v0 - Vec2Test::from_values(10.32, -112.001);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec2Test::from_values(9.68, 162.001))));
+            REQUIRE(all(noa::allclose(tmp, Vec2Test::from_values(9.68, 162.001))));
             tmp = v0 * Vec2Test::from_values(2.5, 3.234);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec2Test::from_values(50, 161.7))));
+            REQUIRE(all(noa::allclose(tmp, Vec2Test::from_values(50, 161.7))));
             tmp = v0 / Vec2Test::from_values(10, -12);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec2Test::from_values(2, -4.166667))));
+            REQUIRE(all(noa::allclose(tmp, Vec2Test::from_values(2, -4.166667))));
         }
     }
 
@@ -166,15 +166,15 @@ TEMPLATE_TEST_CASE("core::Vec2<T>", "[noa][common][types]", i32, i64, u32, u64, 
             const auto x = static_cast<TestType>(5.2);
             const auto y = static_cast<TestType>(12.3);
             auto b = Vec2Test::from_values(x, y);
-            REQUIRE(all(noa::are_almost_equal(noa::cos(b), Vec2Test::from_values(noa::cos(x), noa::cos(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::sin(b), Vec2Test::from_values(noa::sin(x), noa::sin(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::tan(b), Vec2Test::from_values(noa::tan(x), noa::tan(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::log(b), Vec2Test::from_values(noa::log(x), noa::log(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::exp(b), Vec2Test::from_values(noa::exp(x), noa::exp(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::round(b), Vec2Test::from_values(noa::round(x), noa::round(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::ceil(b), Vec2Test::from_values(noa::ceil(x), noa::ceil(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::abs(b), Vec2Test::from_values(noa::abs(x), noa::abs(y)))));
-            REQUIRE(all(noa::are_almost_equal(noa::sqrt(b), Vec2Test::from_values(noa::sqrt(x), noa::sqrt(y)))));
+            REQUIRE(all(noa::allclose(noa::cos(b), Vec2Test::from_values(noa::cos(x), noa::cos(y)))));
+            REQUIRE(all(noa::allclose(noa::sin(b), Vec2Test::from_values(noa::sin(x), noa::sin(y)))));
+            REQUIRE(all(noa::allclose(noa::tan(b), Vec2Test::from_values(noa::tan(x), noa::tan(y)))));
+            REQUIRE(all(noa::allclose(noa::log(b), Vec2Test::from_values(noa::log(x), noa::log(y)))));
+            REQUIRE(all(noa::allclose(noa::exp(b), Vec2Test::from_values(noa::exp(x), noa::exp(y)))));
+            REQUIRE(all(noa::allclose(noa::round(b), Vec2Test::from_values(noa::round(x), noa::round(y)))));
+            REQUIRE(all(noa::allclose(noa::ceil(b), Vec2Test::from_values(noa::ceil(x), noa::ceil(y)))));
+            REQUIRE(all(noa::allclose(noa::abs(b), Vec2Test::from_values(noa::abs(x), noa::abs(y)))));
+            REQUIRE(all(noa::allclose(noa::sqrt(b), Vec2Test::from_values(noa::sqrt(x), noa::sqrt(y)))));
 
             b = Vec2Test::from_values(23.23, -12.252);
             auto dot = static_cast<double>(b[0] * b[0] + b[1] * b[1]);
@@ -316,45 +316,45 @@ TEMPLATE_TEST_CASE("core::Vec3<T>", "[noa][common][types]", i32, i64, u32, u64, 
             v0 = 2;
             REQUIRE(all(v0 == TestType{2}));
             v0 += static_cast<TestType>(1.34);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(3.34))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(3.34))));
             v0 -= static_cast<TestType>(23.134);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(-19.794))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(-19.794))));
             v0 *= static_cast<TestType>(-2.45);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(48.4953))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(48.4953))));
             v0 /= static_cast<TestType>(567.234);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(0.085494))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(0.085494))));
 
             v0 = static_cast<TestType>(3.30);
             auto tmp = v0 + static_cast<TestType>(3.234534);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(6.534534))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(6.534534))));
             tmp = v0 - static_cast<TestType>(-234.2);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(237.5))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(237.5))));
             tmp = v0 * static_cast<TestType>(3);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(9.90))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(9.90))));
             tmp = v0 / static_cast<TestType>(0.001);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(3299.999f), static_cast<TestType>(1e-3))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(3299.999f), static_cast<TestType>(1e-3))));
 
             v0 = Vec3Test{0, 2, 123};
             v0 += Vec3Test::from_values(35, 20, -12);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec3Test::from_values(35, 22, 111))));
+            REQUIRE(all(noa::allclose(v0, Vec3Test::from_values(35, 22, 111))));
             v0 -= Vec3Test::from_values(-0.12, 23.2123, 0.23);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec3Test::from_values(35.12, -1.2123, 110.77))));
+            REQUIRE(all(noa::allclose(v0, Vec3Test::from_values(35.12, -1.2123, 110.77))));
             v0 *= Vec3Test::from_values(0, 10, -3.2);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec3Test::from_values(0, -12.123, -354.464), static_cast<TestType>(1e-5))));
+            REQUIRE(all(noa::allclose(v0, Vec3Test::from_values(0, -12.123, -354.464), static_cast<TestType>(1e-5))));
             v0 /= Vec3Test::from_values(2, 9, 2);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec3Test::from_values(0, -1.347, -177.232))));
+            REQUIRE(all(noa::allclose(v0, Vec3Test::from_values(0, -1.347, -177.232))));
 
             v0[0] = 20;
             v0[1] = 50;
             v0[2] = 33;
             tmp = v0 + Vec3Test::from_values(10, 12, -1232);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec3Test::from_values(30, 62, -1199))));
+            REQUIRE(all(noa::allclose(tmp, Vec3Test::from_values(30, 62, -1199))));
             tmp = v0 - Vec3Test::from_values(10.32, -112.001, 0.5541);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec3Test::from_values(9.68, 162.001, 32.4459))));
+            REQUIRE(all(noa::allclose(tmp, Vec3Test::from_values(9.68, 162.001, 32.4459))));
             tmp = v0 * Vec3Test::from_values(2.5, 3.234, 58.12);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec3Test::from_values(50, 161.7, 1917.959999))));
+            REQUIRE(all(noa::allclose(tmp, Vec3Test::from_values(50, 161.7, 1917.959999))));
             tmp = v0 / Vec3Test::from_values(10, -12, -2.3);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec3Test::from_values(2, -4.166667, -14.3478261))));
+            REQUIRE(all(noa::allclose(tmp, Vec3Test::from_values(2, -4.166667, -14.3478261))));
         }
 
         SECTION("Maths") {
@@ -367,16 +367,16 @@ TEMPLATE_TEST_CASE("core::Vec3<T>", "[noa][common][types]", i32, i64, u32, u64, 
                 const auto y = static_cast<TestType>(3.14);
                 const auto z = static_cast<TestType>(1.34);
                 auto b = Vec3Test::from_values(x, y, z);
-                REQUIRE(all(noa::are_almost_equal(noa::cos(b), Vec3Test::from_values(noa::cos(x), noa::cos(y), noa::cos(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::sin(b), Vec3Test::from_values(noa::sin(x), noa::sin(y), noa::sin(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::tan(b), Vec3Test::from_values(noa::tan(x), noa::tan(y), noa::tan(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::sinh(b), Vec3Test::from_values(noa::sinh(x), noa::sinh(y), noa::sinh(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::log(b), Vec3Test::from_values(noa::log(x), noa::log(y), noa::log(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::exp(b), Vec3Test::from_values(noa::exp(x), noa::exp(y), noa::exp(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::round(b), Vec3Test::from_values(noa::round(x), noa::round(y), noa::round(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::ceil(b), Vec3Test::from_values(noa::ceil(x), noa::ceil(y), noa::ceil(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::abs(b), Vec3Test::from_values(noa::abs(x), noa::abs(y), noa::abs(z)))));
-                REQUIRE(all(noa::are_almost_equal(noa::sqrt(b), Vec3Test::from_values(noa::sqrt(x), noa::sqrt(y), noa::sqrt(z)))));
+                REQUIRE(all(noa::allclose(noa::cos(b), Vec3Test::from_values(noa::cos(x), noa::cos(y), noa::cos(z)))));
+                REQUIRE(all(noa::allclose(noa::sin(b), Vec3Test::from_values(noa::sin(x), noa::sin(y), noa::sin(z)))));
+                REQUIRE(all(noa::allclose(noa::tan(b), Vec3Test::from_values(noa::tan(x), noa::tan(y), noa::tan(z)))));
+                REQUIRE(all(noa::allclose(noa::sinh(b), Vec3Test::from_values(noa::sinh(x), noa::sinh(y), noa::sinh(z)))));
+                REQUIRE(all(noa::allclose(noa::log(b), Vec3Test::from_values(noa::log(x), noa::log(y), noa::log(z)))));
+                REQUIRE(all(noa::allclose(noa::exp(b), Vec3Test::from_values(noa::exp(x), noa::exp(y), noa::exp(z)))));
+                REQUIRE(all(noa::allclose(noa::round(b), Vec3Test::from_values(noa::round(x), noa::round(y), noa::round(z)))));
+                REQUIRE(all(noa::allclose(noa::ceil(b), Vec3Test::from_values(noa::ceil(x), noa::ceil(y), noa::ceil(z)))));
+                REQUIRE(all(noa::allclose(noa::abs(b), Vec3Test::from_values(noa::abs(x), noa::abs(y), noa::abs(z)))));
+                REQUIRE(all(noa::allclose(noa::sqrt(b), Vec3Test::from_values(noa::sqrt(x), noa::sqrt(y), noa::sqrt(z)))));
 
                 b = Vec3Test::from_values(23.23, -12.252, 1.246);
                 auto dot = static_cast<double>(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
@@ -514,43 +514,43 @@ TEMPLATE_TEST_CASE("core::Vec1<T>", "[noa][common][types]", i32, i64, u32, u64, 
             v0 = 2;
             REQUIRE(all(v0 == TestType{2}));
             v0 += static_cast<TestType>(1.34);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(3.34))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(3.34))));
             v0 -= static_cast<TestType>(23.134);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(-19.794))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(-19.794))));
             v0 *= static_cast<TestType>(-2.45);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(48.4953))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(48.4953))));
             v0 /= static_cast<TestType>(567.234);
-            REQUIRE(all(noa::are_almost_equal(v0, static_cast<TestType>(0.085494))));
+            REQUIRE(all(noa::allclose(v0, static_cast<TestType>(0.085494))));
 
             v0 = static_cast<TestType>(3.30);
             auto tmp = v0 + static_cast<TestType>(3.234534);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(6.534534))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(6.534534))));
             tmp = v0 - static_cast<TestType>(-234.2);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(237.5))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(237.5))));
             tmp = v0 * static_cast<TestType>(3);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(9.90))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(9.90))));
             tmp = v0 / static_cast<TestType>(0.001);
-            REQUIRE(all(noa::are_almost_equal(tmp, static_cast<TestType>(3299.999f), static_cast<TestType>(1e-3))));
+            REQUIRE(all(noa::allclose(tmp, static_cast<TestType>(3299.999f), static_cast<TestType>(1e-3))));
 
             v0 = {0};
             v0 += {35};
-            REQUIRE(all(noa::are_almost_equal(v0, Vec1Test::from_value(35))));
+            REQUIRE(all(noa::allclose(v0, Vec1Test::from_value(35))));
             v0 -= Vec1Test::from_value(-0.12);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec1Test::from_value(35.12))));
+            REQUIRE(all(noa::allclose(v0, Vec1Test::from_value(35.12))));
             v0 *= Vec1Test::from_value(2);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec1Test::from_value(70.24), static_cast<TestType>(1e-5))));
+            REQUIRE(all(noa::allclose(v0, Vec1Test::from_value(70.24), static_cast<TestType>(1e-5))));
             v0 /= Vec1Test::from_value(9);
-            REQUIRE(all(noa::are_almost_equal(v0, Vec1Test::from_value(7.804444444))));
+            REQUIRE(all(noa::allclose(v0, Vec1Test::from_value(7.804444444))));
 
             v0[0] = 20;
             tmp = v0 + Vec1Test::from_value(10);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec1Test::from_value(30))));
+            REQUIRE(all(noa::allclose(tmp, Vec1Test::from_value(30))));
             tmp = v0 - Vec1Test::from_value(10.32);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec1Test::from_value(9.68))));
+            REQUIRE(all(noa::allclose(tmp, Vec1Test::from_value(9.68))));
             tmp = v0 * Vec1Test::from_value(2.5);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec1Test::from_value(50))));
+            REQUIRE(all(noa::allclose(tmp, Vec1Test::from_value(50))));
             tmp = v0 / Vec1Test::from_value(10);
-            REQUIRE(all(noa::are_almost_equal(tmp, Vec1Test::from_value(2))));
+            REQUIRE(all(noa::allclose(tmp, Vec1Test::from_value(2))));
         }
     }
 
@@ -562,16 +562,16 @@ TEMPLATE_TEST_CASE("core::Vec1<T>", "[noa][common][types]", i32, i64, u32, u64, 
         if constexpr (std::is_floating_point_v<TestType>) {
             const auto x = static_cast<TestType>(2.35);
             auto b = Vec1Test{x};
-            REQUIRE(all(noa::are_almost_equal(noa::cos(b), Vec1Test{noa::cos(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::sin(b), Vec1Test{noa::sin(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::tan(b), Vec1Test{noa::tan(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::sinh(b), Vec1Test{noa::sinh(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::log(b), Vec1Test{noa::log(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::exp(b), Vec1Test{noa::exp(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::round(b), Vec1Test{noa::round(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::ceil(b), Vec1Test{noa::ceil(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::abs(b), Vec1Test{noa::abs(x)})));
-            REQUIRE(all(noa::are_almost_equal(noa::sqrt(b), Vec1Test{noa::sqrt(x)})));
+            REQUIRE(all(noa::allclose(noa::cos(b), Vec1Test{noa::cos(x)})));
+            REQUIRE(all(noa::allclose(noa::sin(b), Vec1Test{noa::sin(x)})));
+            REQUIRE(all(noa::allclose(noa::tan(b), Vec1Test{noa::tan(x)})));
+            REQUIRE(all(noa::allclose(noa::sinh(b), Vec1Test{noa::sinh(x)})));
+            REQUIRE(all(noa::allclose(noa::log(b), Vec1Test{noa::log(x)})));
+            REQUIRE(all(noa::allclose(noa::exp(b), Vec1Test{noa::exp(x)})));
+            REQUIRE(all(noa::allclose(noa::round(b), Vec1Test{noa::round(x)})));
+            REQUIRE(all(noa::allclose(noa::ceil(b), Vec1Test{noa::ceil(x)})));
+            REQUIRE(all(noa::allclose(noa::abs(b), Vec1Test{noa::abs(x)})));
+            REQUIRE(all(noa::allclose(noa::sqrt(b), Vec1Test{noa::sqrt(x)})));
 
             b = Vec1Test::from_value(-12.252);
             auto dot = static_cast<double>(b[0] * b[0]);

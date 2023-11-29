@@ -60,9 +60,10 @@ TEMPLATE_TEST_CASE("core:: Accessor", "[noa]", i32, i64, u32, u64) {
         Accessor<int, 4, TestType> d(raw_data.get(), strides);
         const Vec4<TestType> idx{1, 3, 4, 2};
 
-        int av = a[noa::offset_at(idx, strides)];
-        int bv = b[idx[0]][noa::offset_at(idx[1], idx[2], idx[3], strides.pop_front())];
-        int cv = c[idx[0]][idx[1]][noa::offset_at(idx[2], idx[3], strides.filter(2, 3))];
+        using namespace noa::indexing;
+        int av = a[offset_at(idx, strides)];
+        int bv = b[idx[0]][offset_at(idx[1], idx[2], idx[3], strides.pop_front())];
+        int cv = c[idx[0]][idx[1]][offset_at(idx[2], idx[3], strides.filter(2, 3))];
         int dv = d[idx[0]][idx[1]][idx[2]][idx[3]];
         int ev = d(idx);
         int fv = d(idx[0], idx[1], idx[2], idx[3]);

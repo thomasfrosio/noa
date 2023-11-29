@@ -14,7 +14,7 @@ endif ()
 # Only set the cxx_standard if it is not set by someone else.
 # noa doesn't use this, but it is useful to set a default for fetch dependencies.
 if (NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
 endif()
 
 # Add the local modules.
@@ -50,14 +50,16 @@ noa_set_toolchain(
 # Targets should not directly modify these since they're common to multiple targets.
 add_library(prj_common_option INTERFACE)
 add_library(prj_compiler_warnings INTERFACE)
-target_compile_features(prj_common_option INTERFACE cxx_std_17)
+target_compile_features(prj_common_option INTERFACE cxx_std_20)
 target_compile_options(prj_common_option INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
 
 # Add the warnings to the compiler(s).
 if (NOA_ENABLE_WARNINGS)
     include(cmake/utils/CompilerWarnings.cmake)
     noa_set_cxx_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
-    noa_set_cuda_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
+    if (NOA_ENABLE_CUDA)
+        noa_set_cuda_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
+    endif ()
 endif ()
 
 # Save the current binary directory, so that we can easily refer to it even within subdirectories.
@@ -78,11 +80,11 @@ include(GNUInstallDirs)
 # ---------------------------------------------------------------------------------------
 add_subdirectory(src/noa)
 
-#if (NOA_BUILD_TESTS)
-#    add_subdirectory(tests)
-#else ()
-#    message(STATUS "Skipping target: noa::noa_tests")
-#endif ()
+if (NOA_BUILD_TESTS)
+    add_subdirectory(tests)
+else ()
+    message(STATUS "Skipping target: noa::noa_tests")
+endif ()
 
 #if (NOA_BUILD_BENCHMARKS)
 #    add_subdirectory(benchmarks)

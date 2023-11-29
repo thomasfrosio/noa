@@ -5,25 +5,24 @@
 
 #if defined(NOA_IS_OFFLINE)
 #include <string>
+#include <string_view>
 #include <exception>
 #include <filesystem>
+#include <source_location>
 
 namespace noa {
     /// Global (within ::noa) exception.
     class Exception : public std::exception {
     public:
         /// Format the error message, which is then accessible with what().
-        /// \tparam Args         Any types supported by string::format.
         /// \param[in] file      File name.
         /// \param[in] function  Function name.
         /// \param[in] line      Line number.
-        /// \param[in] args      Error message or arguments to format.
-        /// \note "Zero" try-catch overhead: https://godbolt.org/z/v43Pzq
-        template<typename... Args>
-        Exception(const char* file, const char* function, int line, Args&& ... args)
-                : m_buffer(format_(file, function, line, fmt::format(args...))) {}
+        /// \param[in] message   Error message.
+        Exception(const char* file, const char* function, std::uint_least32_t line, std::string_view message)
+                : m_buffer(format_(file, function, line, message)) {}
 
-        /// Returns the formatted error message of this (and only this) exception.
+        /// Returns the formatted error message of this exception.
         [[nodiscard]] const char* what() const noexcept override {
             return m_buffer.data();
         }
@@ -42,58 +41,126 @@ namespace noa {
 
     protected:
         static std::string format_(
-                const char* file, const char* function, int line,
-                const std::string& message
-        ) {
-            namespace fs = std::filesystem;
-            size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
-            return fmt::format("ERROR:{}:{}:{}: {}",
-                               idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
-                               function, line, message);
-        }
+                const char* file,
+                const char* function,
+                std::uint_least32_t line,
+                const std::string_view& message
+        );
 
-        static void backtrace_(std::vector<std::string>& message,
-                               const std::exception_ptr& exception_ptr = std::current_exception());
+        static void backtrace_(
+                std::vector<std::string>& message,
+                const std::exception_ptr& exception_ptr = std::current_exception()
+        );
 
     protected:
         std::string m_buffer{};
     };
 
-    /// Throw a nested noa::Exception if result evaluates to false.
-    template<typename T>
-    void throw_if(T&& result, const char* file, const char* function, int line) {
-        if (result)
-            std::throw_with_nested(noa::Exception(file, function, line, fmt::format("{}", std::forward<T>(result))));
+    namespace guts {
+        template<typename... Ts>
+        struct FormatWithLocationImp {
+            fmt::format_string<Ts...> fmt;
+            std::source_location location;
+
+            template<typename T>
+            consteval /*implicit*/ FormatWithLocationImp(
+                    const T& s,
+                    const std::source_location& l = std::source_location::current()
+            ) : fmt(s), location(l) {} // check at compile time that "s" is compatible with "Ts"
+
+            /*implicit*/ FormatWithLocationImp(
+                    const fmt::basic_runtime<char>& s,
+                    const std::source_location& l = std::source_location::current()
+            ) : fmt(s), location(l) {}// no checks
+        };
+    }
+
+    // TODO Honestly, I'm not sure why we need to wrap the variadic in the identity type here...
+    template<typename... Args>
+    using FormatWithLocation = guts::FormatWithLocationImp<nt::type_t<Args>...>;
+
+    /// Throws an Exception with an error message and a specific, i.e. non-defaulted, source location.
+    /// The format string is checked at compile time by default, except if a fmt::basic_runtime
+    /// (the return type of fmt::runtime) is passed.
+    template<typename... Ts>
+    [[noreturn]] constexpr void panic_at_location(
+            const std::source_location& location,
+            fmt::format_string<Ts...> fmt,
+            Ts&&... args
+    ) {
+        std::throw_with_nested(
+                Exception(location.file_name(), location.function_name(), location.line(),
+                          fmt::format(fmt::runtime(fmt), std::forward<Ts>(args)...))
+        );
+    }
+
+    /// Throws an Exception with an error message already formatted.
+    /// This is be equivalent to panic(fmt::runtime(message));
+    [[noreturn]] inline void panic_runtime(
+            std::string_view message,
+            const std::source_location& location = std::source_location::current()
+    ) {
+        panic_at_location(location, fmt::runtime(message));
+    }
+
+    /// Throws an Exception with no error message other than the source location.
+    [[noreturn]] inline void panic(const std::source_location& location = std::source_location::current()) {
+        panic_at_location(location, "");
+    }
+
+    /// Throws an Exception with an error message and the current source location.
+    template<typename... Ts>
+    [[noreturn]] constexpr void panic(FormatWithLocation<Ts...> fmt, Ts&&... args) {
+        panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
+    }
+
+    template<typename C, typename... Ts>
+    constexpr void check_at_location(
+            const std::source_location& location,
+            C&& expression,
+            fmt::format_string<Ts...> fmt,
+            Ts&&... args
+    ) {
+        if (expression) {
+            /*do nothing*/
+        } else {
+            panic_at_location(location, fmt, std::forward<Ts>(args)...);
+        }
+    }
+
+    /// Throws an Exception with an error message already formatted.
+    /// This is be equivalent to panic(fmt::runtime(message));
+    inline void check_runtime(
+            auto&& expression,
+            std::string_view message,
+            const std::source_location& location = std::source_location::current()
+    ) {
+        if (expression) {
+            /*do nothing*/
+        } else {
+            panic_at_location(location, fmt::runtime(message));
+        }
+    }
+
+    /// If the expression evaluates to false, throw an exception with no error message. Otherwise, do nothing.
+    template<typename C, typename... Ts>
+    constexpr void check(C&& expression, const std::source_location& location = std::source_location::current()) {
+        if (expression) {
+            /*do nothing*/
+        } else {
+            panic_at_location(location, "");
+        }
+    }
+
+    /// Throws an Exception if the expression evaluates to false.
+    template<typename C, typename... Ts>
+    constexpr void check(C&& expression, FormatWithLocation<Ts...> fmt, Ts&&... args) {
+        if (expression) {
+            /*do nothing*/
+        } else {
+            panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
+        }
     }
 }
-
-/// Throws a nested noa::Exception.
-#define NOA_THROW(...) std::throw_with_nested(::noa::Exception(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__))
-
-/// Throws a nested noa::Exception. Allows to modify the function name.
-#define NOA_THROW_FUNC(func, ...) std::throw_with_nested(::noa::Exception(__FILE__, func, __LINE__, __VA_ARGS__))
-
-/// Throws a nested exception if \a result is an error. \see the throw_if() overload for the current namespace.
-#define NOA_THROW_IF(result) throw_if(result, __FILE__, __FUNCTION__, __LINE__)
-
-#if defined(NOA_DEBUG) || defined(NOA_ENABLE_CHECKS_AT_RELEASE)
-/// Checks vs assertions:\n
-/// - \b Assertions called via \e NOA_ASSERT are turned off when NOA_ENABLE_ASSERTS is not defined (see Config.hpp).
-///   They are using the C assert macro and calls abort() when the condition is not satisfied. They can be used
-///   in noexcept(true) contexts.\n
-/// - \b "Checks" are throwing noa::Exception when the condition is not satisfied. As such, the \e NOA_CHECK macro
-///   should not be used in noexcept(true) contexts. They indicate an error and should really be seen as a way to
-///   enforce/check the pre- or post-conditions of a function. The caller then has some flexibility on how to react
-///   to this error, including 1) not catching the exception and let the program terminate, 2) log the exception and
-///   the state of the program before exiting, or in the very rare case 3) catch the exception and try to recover
-///   from it... These checks can be very useful even in Release builds, hence the CMake option and macro
-///   NOA_ENABLE_CHECKS_AT_RELEASE. Since they add a "throw" statement, they cannot be used in "device" code and is best
-///   to not use them in performance critical scopes (e.g. hot loop).
-#define NOA_CHECK(cond, ...) do { if (cond) /*nothing*/; else NOA_THROW(__VA_ARGS__); } while(0)
-#define NOA_CHECK_FUNC(func, cond, ...) do { if (cond) /*nothing*/; else NOA_THROW_FUNC(func, __VA_ARGS__); } while(0)
-#else
-#define NOA_CHECK(cond, ...)
-#define NOA_CHECK_FUNC(func, cond, ...)
-#endif
 
 #endif // NOA_IS_CPU_CODE

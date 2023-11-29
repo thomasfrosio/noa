@@ -5,6 +5,7 @@
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
+using namespace ::noa::indexing;
 
 TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
     AND_THEN("Border::PERIODIC") {

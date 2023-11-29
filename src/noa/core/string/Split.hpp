@@ -14,7 +14,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace noa {
+namespace noa::string {
     /// Splits (and parses) \p str.
     /// \details Splits a string using \p separator as delimiter. Then, trim each token (empty strings are kept).
     ///          If \p T is an integer, floating-point or boolean, the strings are parsed.
@@ -85,9 +85,10 @@ namespace noa {
                 }
             }
         }
-        if (idx + 1 != N)
-            NOA_THROW("The number of value(s) ({}) does not match the number of "
-                      "expected value(s) ({}). Input string: \"{}\"", idx + 1, N, string);
+        check(idx + 1 == N,
+              "The number of value(s) ({}) does not match the number of "
+              "expected value(s) ({}). Input string: \"{}\"",
+              idx + 1, N, string);
         out[idx] = parse<T>({string.data() + idx_start, idx_end - idx_start});
         return out;
     }
@@ -101,8 +102,7 @@ namespace noa {
         auto v2 = split<std::string>(fallback, separator);
 
         size_t size = v1.size();
-        if (size != v2.size())
-            NOA_THROW("The input string \"{}\" and fallback string \"{}\" do not match", str, fallback);
+        check(size == v2.size(), "The input string \"{}\" and fallback string \"{}\" do not match", str, fallback);
 
         std::vector<T> out;
         for (size_t i{0}; i < size; ++i)
@@ -118,9 +118,9 @@ namespace noa {
         auto v1 = split<std::string>(str, separator);
         auto v2 = split<std::string>(fallback, separator);
 
-        if (N != v1.size() || N != v2.size())
-            NOA_THROW("The input string \"{}\" and/or fallback string \"{}\" do not match the expected "
-                      "number of field(s) ({})", str, fallback, N);
+        check(N == v1.size() && N == v2.size(),
+              "The input string \"{}\" and/or fallback string \"{}\" do not match the expected "
+              "number of field(s) ({})", str, fallback, N);
 
         std::array<T, N> out;
         for (size_t i{0}; i < N; ++i)
