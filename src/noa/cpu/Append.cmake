@@ -4,12 +4,10 @@ set(NOA_CPU_HEADERS
     cpu/Copy.hpp
     cpu/Device.hpp
     cpu/Event.hpp
-    cpu/EwiseBinary.hpp
-    cpu/EwiseTrinary.hpp
-    cpu/EwiseUnary.hpp
+    cpu/Ewise.hpp
     cpu/Iwise.hpp
-    cpu/ReduceBinary.hpp
-    cpu/ReduceUnary.hpp
+    cpu/ReduceEwise.hpp
+    cpu/ReduceIwise.hpp
     cpu/Set.hpp
     cpu/Sort.hpp
     cpu/Stream.hpp
