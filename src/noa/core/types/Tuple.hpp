@@ -79,14 +79,6 @@ namespace noa::traits {
 }
 
 namespace noa::guts {
-    template<typename... T>
-    struct TypeList {};
-
-    template<typename... Ls, typename... Rs>
-    inline constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
-        return TypeList<Ls..., Rs...>{};
-    }
-
     // Stores an element from the tuple.
     // The index is stored in the type, so that each tuple element is unique.
     template<size_t I, typename T>
@@ -113,7 +105,7 @@ namespace noa::guts {
     // The Tuple directly (and only) inherits from this type.
     template<typename... Bases>
     struct TypeMap : Bases... {
-        using base_list = TypeList<Bases...>;
+        using base_list = nt::TypeList<Bases...>;
         using Bases::operator[]...;
         using Bases::declval...;
     };
@@ -146,33 +138,33 @@ namespace noa::guts {
 
 namespace noa::guts {
     template<typename Tup, typename F, typename... B>
-    inline constexpr void tuple_for_each(Tup&& tup, F&& func, TypeList<B...>) {
+    inline constexpr void tuple_for_each(Tup&& tup, F&& func, nt::TypeList<B...>) {
         (void(func(tup.::noa::traits::identity_t<B>::value)), ...);
     }
 
     template<typename Tup, typename F, typename... B>
-    inline constexpr bool tuple_any(Tup&& tup, F&& func, TypeList<B...>) {
+    inline constexpr bool tuple_any(Tup&& tup, F&& func, nt::TypeList<B...>) {
         return (bool(func(tup.::noa::traits::identity_t<B>::value)) || ...);
     }
 
     template<typename Tup, typename F, typename... B>
-    inline constexpr bool tuple_all(Tup&& tup, F&& func, TypeList<B...>) {
+    inline constexpr bool tuple_all(Tup&& tup, F&& func, nt::TypeList<B...>) {
         return (bool(func(tup.::noa::traits::identity_t<B>::value)) && ...);
     }
 
     template<typename Tup, typename F, typename... B>
-    inline constexpr auto tuple_map(Tup&& tup, F&& func, TypeList<B...>)
+    inline constexpr auto tuple_map(Tup&& tup, F&& func, nt::TypeList<B...>)
     -> Tuple<decltype(func(tup.::noa::traits::identity_t<B>::value))...> {
         return {func(tup.::noa::traits::identity_t<B>::value)...};
     }
 
     template<typename Tup, typename F, typename... B>
-    inline constexpr decltype(auto) tuple_apply(Tup&& t, F&& f, TypeList<B...>) {
+    inline constexpr decltype(auto) tuple_apply(Tup&& t, F&& f, nt::TypeList<B...>) {
         return static_cast<F&&>(f)(t.::noa::traits::identity_t<B>::value...);
     }
 
     template<typename U, typename Tup, typename... B>
-    inline constexpr U tuple_convert(Tup&& t, TypeList<B...>) {
+    inline constexpr U tuple_convert(Tup&& t, nt::TypeList<B...>) {
         return U{t.::noa::traits::identity_t<B>::value...};
     }
 }
@@ -187,8 +179,8 @@ namespace noa::inline types {
         using super = guts::TupleBase<T...>;
         using super::operator[];
         using base_list = typename super::base_list;
-        using element_list = guts::TypeList<T...>;
-        using decay_list = guts::TypeList<std::decay_t<T>...>;
+        using element_list = nt::TypeList<T...>;
+        using decay_list = nt::TypeList<std::decay_t<T>...>;
         using decayed_tuple = Tuple<std::decay_t<T>...>;
         using super::declval;
 
@@ -349,13 +341,13 @@ namespace noa::inline types {
 
     private:
         template<class... B>
-        inline constexpr void swap_(Tuple& other, guts::TypeList<B...>) noexcept(nothrow_swappable) {
+        inline constexpr void swap_(Tuple& other, nt::TypeList<B...>) noexcept(nothrow_swappable) {
             using std::swap;
             (swap(B::value, other.::noa::traits::identity_t<B>::value), ...);
         }
 
         template<class U, class... B1, class... B2>
-        inline constexpr void assign_tup_(U&& u, guts::TypeList<B1...>, guts::TypeList<B2...>) {
+        inline constexpr void assign_tup_(U&& u, nt::TypeList<B1...>, nt::TypeList<B2...>) {
             (void(B1::value = static_cast<U&&>(u).::noa::traits::identity_t<B2>::value), ...);
         }
         template<class U, size_t... I>
@@ -364,7 +356,7 @@ namespace noa::inline types {
             (void(guts::TupleElement<I, T>::value = get<I>(static_cast<U&&>(u))), ...);
         }
         template<class... U, class... B>
-        inline constexpr void assign_(guts::TypeList<B...>, U&& ... u) {
+        inline constexpr void assign_(nt::TypeList<B...>, U&& ... u) {
             (void(B::value = static_cast<U&&>(u)), ...);
         }
     };
@@ -374,9 +366,9 @@ namespace noa::inline types {
         constexpr static size_t SIZE = 0;
         constexpr static bool nothrow_swappable = true;
         using super = guts::TupleBase<>;
-        using base_list = guts::TypeList<>;
-        using element_list = guts::TypeList<>;
-        using decay_list = guts::TypeList<>;
+        using base_list = nt::TypeList<>;
+        using element_list = nt::TypeList<>;
+        using decay_list = nt::TypeList<>;
         using decayed_tuple = Tuple<>;
 
         template<size_t>
@@ -545,27 +537,27 @@ namespace noa {
 
     template<typename... Ts>
     inline constexpr auto make_tuple(Ts&&... args) {
-        return Tuple<nt::unwrap_ref_decay_t<Ts>...>{static_cast<Ts&&>(args)...};
+        return Tuple<nt::unwrap_ref_decay_t<Ts>...>{static_cast<Ts&&>(args)...}; // FIXME remove warning
     }
 
     template<typename... T>
     inline constexpr auto forward_as_tuple(T&&... a) noexcept {
-        return Tuple<T&&...>{static_cast<T&&>(a)...};
+        return Tuple<T&&...>{static_cast<T&&>(a)...}; // FIXME remove warning
     }
 }
 
 namespace noa {
     namespace guts {
         template<typename T, typename... Q>
-        inline constexpr auto tuple_repeat_type(TypeList<Q...>) {
-            return TypeList<nt::first_t<T, Q>...>{};
+        inline constexpr auto tuple_repeat_type(nt::TypeList<Q...>) {
+            return nt::TypeList<nt::first_t<T, Q>...>{};
         }
         template<class... Outer>
-        inline constexpr auto tuple_get_outer_bases(TypeList<Outer...>) {
+        inline constexpr auto tuple_get_outer_bases(nt::TypeList<Outer...>) {
             return (tuple_repeat_type<Outer>(nt::base_list_t<nt::type_t<Outer>>{}) + ...);
         }
         template<class... Outer>
-        inline constexpr auto tuple_get_inner_bases(TypeList<Outer...>) {
+        inline constexpr auto tuple_get_inner_bases(nt::TypeList<Outer...>) {
             return (nt::base_list_t<nt::type_t<Outer>>{} + ...);
         }
 
@@ -574,8 +566,8 @@ namespace noa {
         template<class T, class... Outer, class... Inner>
         inline constexpr auto tuple_cat(
                 T tup,
-                TypeList<Outer...>,
-                TypeList<Inner...>
+                nt::TypeList<Outer...>,
+                nt::TypeList<Inner...>
         ) -> Tuple<nt::type_t<Inner>...> {
             return {static_cast<nt::type_t<Outer>&&>(
                             tup.::noa::traits::identity_t<Outer>::value
@@ -642,4 +634,12 @@ namespace std {
         static_assert(I < 2);
         using type = std::conditional_t<I == 0, const A, const B>;
     };
+}
+
+namespace noa::traits {
+    template<typename... Ts>
+    struct proclaim_is_tuple<noa::Tuple<Ts...>> : std::true_type {};
+
+    template<typename... Ts>
+    struct proclaim_is_tuple_of_accessor<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
 }

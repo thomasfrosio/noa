@@ -339,10 +339,7 @@ namespace noa::inline types {
 }
 
 namespace noa::traits {
-    template<typename> struct proclaim_is_mat33 : std::false_type {};
     template<typename T> struct proclaim_is_mat33<Mat33<T>> : std::true_type {};
-    template<typename T> using is_mat33 = std::bool_constant<proclaim_is_mat33<remove_ref_cv_t<T>>::value>;
-    template<typename T> constexpr bool is_mat33_v = is_mat33<T>::value;
 }
 
 namespace noa {

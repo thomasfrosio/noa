@@ -72,6 +72,34 @@ namespace noa::traits {
 
     template<typename First, typename...>
     using first_t = First;
+
+    template<typename... T>
+    struct TypeList {};
+
+    template<typename... Ls, typename... Rs>
+    inline constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
+        return TypeList<Ls..., Rs...>{};
+    }
+
+    namespace guts {
+        template<typename, typename>
+        struct append_to_type_seq {};
+
+        template<typename T, typename... Ts, template<typename...> class TT>
+        struct append_to_type_seq<T, TT<Ts...>> {
+            using type = TT<Ts..., T>;
+        };
+    }
+
+    template<typename T, size_t N, template<typename...> class TT>
+    struct repeat {
+        using type = guts::append_to_type_seq<T, typename repeat<T, N - 1, TT>::type>::type;
+    };
+
+    template<typename T, template<typename...> class TT>
+    struct repeat<T, 0, TT> {
+        using type = TT<>;
+    };
 }
 
 namespace noa::traits {
@@ -136,77 +164,6 @@ namespace noa::traits {
 
     template<typename T, typename... Ts> struct are_same_value_type : std::bool_constant<(std::is_same_v<value_type_t<T>, value_type_t<Ts>> && ...)> {};
     template<typename T, typename... Ts> constexpr bool are_same_value_type_v = are_same_value_type<T, Ts...>::value;
-}
-
-// From https://en.cppreference.com/w/cpp/experimental/is_detected
-// And https://stackoverflow.com/a/41936999
-namespace noa::traits {
-    namespace guts {
-        struct nonesuch {
-            nonesuch() = delete;
-            ~nonesuch() = delete;
-            nonesuch(nonesuch const&) = delete;
-            void operator=(nonesuch const&) = delete;
-        };
-
-        template<typename Default, typename AlwaysVoid, template<typename...> typename Op, typename... Args>
-        struct detector {
-            using value_t = std::false_type;
-            using type = Default;
-        };
-        template<typename Default, template<typename...> typename Op, typename... Args>
-        struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
-            using value_t = std::true_type;
-            using type = Op<Args...>;
-        };
-    }
-
-    template<template<typename...> typename Op, typename... Args>
-    using is_detected = typename guts::detector<guts::nonesuch, void, Op, Args...>::value_t;
-
-    template<template<typename...> typename Op, typename... Args>
-    using detected_t = typename guts::detector<guts::nonesuch, void, Op, Args...>::type;
-
-    template<typename Default, template<typename...> typename Op, typename... Args>
-    using detected_or = guts::detector<Default, void, Op, Args...>;
-
-    template< template<typename...> typename Op, typename... Args>
-    constexpr inline bool is_detected_v = is_detected<Op, Args...>::value;
-
-    template< typename Default, template<typename...> typename Op, typename... Args>
-    using detected_or_t = typename detected_or<Default, Op, Args...>::type;
-
-    template <typename Expected, template<typename...> typename Op, typename... Args>
-    using is_detected_exact = std::is_same<Expected, detected_t<Op, Args...>>;
-
-    template <typename Expected, template<typename...> typename Op, typename... Args>
-    constexpr inline bool is_detected_exact_v =
-            is_detected_exact<Expected, Op, Args...>::value;
-
-    template <typename To, template<typename...> typename Op, typename... Args>
-    using is_detected_convertible =
-            std::is_convertible<detected_t<Op, Args...>, To>;
-
-    template <typename To, template<typename...> typename Op, typename... Args>
-    constexpr inline bool is_detected_convertible_v =
-            is_detected_convertible<To, Op, Args...>::value;
-
-    // Predefined detection traits.
-    template<class T> using has_name = decltype(T::name());
-    template<class T> using has_initialize = decltype(std::declval<T&>().initialize(std::declval<int64_t>()));
-    template<class T> using has_closure = decltype(std::declval<T&>().closure(std::declval<int64_t>()));
-
-    template<typename Op, typename Lhs>
-    using has_unary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>()));
-
-    template<typename Op, typename Lhs, typename Rhs>
-    using has_binary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>(), std::declval<Rhs>()));
-
-    template<typename Op, typename Lhs, typename Mhs, typename Rhs>
-    using has_trinary_operator = decltype(std::declval<Op&>().operator()(std::declval<Lhs>(), std::declval<Mhs>(), std::declval<Rhs>()));
-
-    template<typename T> using has_greater_operator = decltype(operator>(std::declval<const T&>(), std::declval<const T&>()));
-    template<typename T> using has_less_operator = decltype(operator<(std::declval<const T&>(), std::declval<const T&>()));
 }
 
 namespace noa::traits {
@@ -297,4 +254,188 @@ namespace noa::traits {
     template<typename T> constexpr bool is_numeric_v = is_numeric<std::decay_t<T>>::value;
     template<typename... Ts> using are_numeric = bool_and<is_numeric<Ts>::value...>;
     template<typename... Ts> constexpr bool are_numeric_v = are_numeric<std::decay_t<Ts>...>::value;
+}
+
+namespace noa::traits {
+    // -- Accessor --
+    template<typename T> struct proclaim_is_accessor : std::false_type {};
+    template<typename T> using is_accessor = std::bool_constant<proclaim_is_accessor<T>::value>;
+    template<typename T> constexpr bool is_accessor_v = is_accessor<std::decay_t<T>>::value;
+    template<typename... Ts> using are_accessor = bool_and<is_accessor<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_accessor_v = are_accessor<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_accessor_restrict : std::false_type {};
+    template<typename T> using is_accessor_restrict = std::bool_constant<proclaim_is_accessor_restrict<T>::value>;
+    template<typename T> constexpr bool is_accessor_restrict_v = is_accessor_restrict<std::decay_t<T>>::value;
+    template<typename... Ts> using are_accessor_restrict = bool_and<is_accessor_restrict<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_accessor_restrict_v = are_accessor_restrict<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_accessor_contiguous : std::false_type {};
+    template<typename T> using is_accessor_contiguous = std::bool_constant<proclaim_is_accessor_contiguous<T>::value>;
+    template<typename T> constexpr bool is_accessor_contiguous_v = is_accessor_contiguous<std::decay_t<T>>::value;
+    template<typename... Ts> using are_accessor_contiguous = bool_and<is_accessor_contiguous<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_accessor_contiguous_v = are_accessor_contiguous<std::decay_t<Ts>...>::value;
+
+    template<typename T, size_t N> struct proclaim_is_accessor_nd : std::false_type {};
+    template<typename T, size_t N> using is_accessor_nd = std::bool_constant<proclaim_is_accessor_nd<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_accessor_nd_v = is_accessor_nd<std::decay_t<T>, N>::value;
+    template<size_t N, typename... Ts> using are_accessor_nd = bool_and<is_accessor_nd<Ts, N>::value...>::value;
+    template<size_t N, typename... Ts> constexpr bool are_accessor_nd_v = are_accessor_nd<N, std::decay_t<Ts>...>::value;
+
+    template<typename T> constexpr bool is_accessor_1d_v = is_accessor_nd_v<T, 1>;
+    template<typename T> constexpr bool is_accessor_2d_v = is_accessor_nd_v<T, 2>;
+    template<typename T> constexpr bool is_accessor_3d_v = is_accessor_nd_v<T, 3>;
+    template<typename T> constexpr bool is_accessor_4d_v = is_accessor_nd_v<T, 4>;
+
+    template<typename T> struct proclaim_is_accessor_reference : std::false_type {};
+    template<typename T> using is_accessor_reference = std::bool_constant<proclaim_is_accessor_reference<T>::value>;
+    template<typename T> constexpr bool is_accessor_reference_v = is_accessor_reference<std::decay_t<T>>::value;
+    template<typename... Ts> using are_accessor_reference = bool_and<is_accessor_reference<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_accessor_reference_v = are_accessor_reference<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_accessor_value : std::false_type {};
+    template<typename T> using is_accessor_value = std::bool_constant<proclaim_is_accessor_value<T>::value>;
+    template<typename T> constexpr bool is_accessor_value_v = is_accessor_value<std::decay_t<T>>::value;
+    template<typename... Ts> using are_accessor_value = bool_and<is_accessor_value<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_accessor_value_v = are_accessor_value<std::decay_t<Ts>...>::value;
+
+    template<typename T> constexpr bool is_accessor_1d_restrict_contiguous_v =
+            is_accessor_nd_v<T, 1> && is_accessor_restrict_v<T> && is_accessor_contiguous_v<T>;
+
+    // -- Matrices --
+    template<typename> struct proclaim_is_mat22 : std::false_type {};
+    template<typename T> using is_mat22 = std::bool_constant<proclaim_is_mat22<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_mat22_v = is_mat22<T>::value;
+
+    template<typename> struct proclaim_is_mat23 : std::false_type {};
+    template<typename T> using is_mat23 = std::bool_constant<proclaim_is_mat23<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_mat23_v = is_mat23<T>::value;
+
+    template<typename> struct proclaim_is_mat33 : std::false_type {};
+    template<typename T> using is_mat33 = std::bool_constant<proclaim_is_mat33<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_mat33_v = is_mat33<T>::value;
+
+    template<typename> struct proclaim_is_mat34 : std::false_type {};
+    template<typename T> using is_mat34 = std::bool_constant<proclaim_is_mat34<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_mat34_v = is_mat34<T>::value;
+
+    template<typename> struct proclaim_is_mat44 : std::false_type {};
+    template<typename T> using is_mat44 = std::bool_constant<proclaim_is_mat44<remove_ref_cv_t<T>>::value>;
+    template<typename T> constexpr bool is_mat44_v = is_mat44<T>::value;
+
+    template<typename T> using is_matXX = std::bool_constant<is_mat22_v<T> || is_mat23_v<T> || is_mat33_v<T> || is_mat34_v<T> || is_mat44_v<T>>;
+    template<typename T> constexpr bool is_matXX_v = is_matXX<T>::value;
+
+    // -- Vec --
+    template<typename T> struct proclaim_is_vec : std::false_type {};
+    template<typename T> using is_vec = std::bool_constant<proclaim_is_vec<T>::value>;
+    template<typename T> constexpr bool is_vec_v = is_vec<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_vecX_v = is_vec<std::decay_t<T>>::value;
+
+    template<typename, typename> struct proclaim_is_vec_of_type : std::false_type {};
+    template<typename T, typename V> using is_vec_of_type = std::bool_constant<proclaim_is_vec_of_type<T, V>::value>;
+    template<typename T, typename V> constexpr bool is_vec_of_type_v = is_vec_of_type<std::decay_t<T>, V>::value;
+    template<typename T, typename V> constexpr bool is_vecT_v = is_vec_of_type<std::decay_t<T>, V>::value;
+
+    template<typename, size_t> struct proclaim_is_vec_of_size : std::false_type {};
+    template<typename T, size_t N> using is_vec_of_size = std::bool_constant<proclaim_is_vec_of_size<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_vec_of_size_v = is_vec_of_size<std::decay_t<T>, N>::value;
+    template<typename T, size_t N> constexpr bool is_vecN_v = is_vec_of_size<std::decay_t<T>, N>::value;
+
+    template<typename T> constexpr bool is_vec1_v = is_vecN_v<T, 1>;
+    template<typename T> constexpr bool is_vec2_v = is_vecN_v<T, 2>;
+    template<typename T> constexpr bool is_vec3_v = is_vecN_v<T, 3>;
+    template<typename T> constexpr bool is_vec4_v = is_vecN_v<T, 4>;
+
+    template<typename T> constexpr bool is_intX_v = is_vecX_v<T> && is_int_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_intN_v = is_vecN_v<T, N> && is_int_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_int1_v = is_intN_v<T, 1>;
+    template<typename T> constexpr bool is_int2_v = is_intN_v<T, 2>;
+    template<typename T> constexpr bool is_int3_v = is_intN_v<T, 3>;
+    template<typename T> constexpr bool is_int4_v = is_intN_v<T, 4>;
+
+    template<typename T> constexpr bool is_boolX_v = is_vecX_v<T> && is_bool_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_boolN_v = is_vecN_v<T, N> && is_bool_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_bool1_v = is_boolN_v<T, 1>;
+    template<typename T> constexpr bool is_bool2_v = is_boolN_v<T, 2>;
+    template<typename T> constexpr bool is_bool3_v = is_boolN_v<T, 3>;
+    template<typename T> constexpr bool is_bool4_v = is_boolN_v<T, 4>;
+
+    template<typename T> constexpr bool is_sintX_v = is_vecX_v<T> && is_sint_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_sintN_v = is_vecN_v<T, N> && is_sint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_sint1_v = is_sintN_v<T, 1>;
+    template<typename T> constexpr bool is_sint2_v = is_sintN_v<T, 2>;
+    template<typename T> constexpr bool is_sint3_v = is_sintN_v<T, 3>;
+    template<typename T> constexpr bool is_sint4_v = is_sintN_v<T, 4>;
+
+    template<typename T> constexpr bool is_uintX_v = is_vecX_v<T> && is_uint_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_uintN_v = is_vecN_v<T, N> && is_uint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_uint1_v = is_uintN_v<T, 1>;
+    template<typename T> constexpr bool is_uint2_v = is_uintN_v<T, 2>;
+    template<typename T> constexpr bool is_uint3_v = is_uintN_v<T, 3>;
+    template<typename T> constexpr bool is_uint4_v = is_uintN_v<T, 4>;
+
+    template<typename T> constexpr bool is_realX_v = is_vecX_v<T> && is_real_v<value_type_t<T>>;
+    template<typename T, size_t N> constexpr bool is_realN_v = is_vecN_v<T, N> && is_real_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_real1_v = is_realN_v<T, 1>;
+    template<typename T> constexpr bool is_real2_v = is_realN_v<T, 2>;
+    template<typename T> constexpr bool is_real3_v = is_realN_v<T, 3>;
+    template<typename T> constexpr bool is_real4_v = is_realN_v<T, 4>;
+
+    // -- Shape and Strides --
+    template<typename T> struct proclaim_is_shape : std::false_type {};
+    template<typename T> using is_shape = std::bool_constant<proclaim_is_shape<T>::value>;
+    template<typename T> constexpr bool is_shape_v = is_shape<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_shapeX_v = is_shape<std::decay_t<T>>::value;
+
+    template<typename, typename> struct proclaim_is_shape_of_type : std::false_type {};
+    template<typename T, typename V> using is_shape_of_type = std::bool_constant<proclaim_is_shape_of_type<T, V>::value>;
+    template<typename T, typename V> constexpr bool is_shape_of_type_v = is_shape_of_type<std::decay_t<T>, V>::value;
+    template<typename T, typename V> constexpr bool is_shapeT_v = is_shape_of_type<std::decay_t<T>, V>::value;
+
+    template<typename, size_t> struct proclaim_is_shape_of_size : std::false_type {};
+    template<typename T, size_t N> using is_shape_of_size = std::bool_constant<proclaim_is_shape_of_size<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_shape_of_size_v = is_shape_of_size<std::decay_t<T>, N>::value;
+    template<typename T, size_t N> constexpr bool is_shapeN_v = is_shape_of_size<std::decay_t<T>, N>::value;
+
+    template<typename T> constexpr bool is_shape1_v = is_shapeN_v<T, 1>;
+    template<typename T> constexpr bool is_shape2_v = is_shapeN_v<T, 2>;
+    template<typename T> constexpr bool is_shape3_v = is_shapeN_v<T, 3>;
+    template<typename T> constexpr bool is_shape4_v = is_shapeN_v<T, 4>;
+
+    template<typename T> struct proclaim_is_strides : std::false_type {};
+    template<typename T> using is_strides = std::bool_constant<proclaim_is_strides<T>::value>;
+    template<typename T> constexpr bool is_strides_v = is_strides<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_stridesX_v = is_strides<std::decay_t<T>>::value;
+
+    template<typename, typename> struct proclaim_is_strides_of_type : std::false_type {};
+    template<typename T, typename V> using is_strides_of_type = std::bool_constant<proclaim_is_strides_of_type<T, V>::value>;
+    template<typename T, typename V> constexpr bool is_strides_of_type_v = is_strides_of_type<std::decay_t<T>, V>::value;
+    template<typename T, typename V> constexpr bool is_stridesT_v = is_strides_of_type<std::decay_t<T>, V>::value;
+
+    template<typename, size_t> struct proclaim_is_strides_of_size : std::false_type {};
+    template<typename T, size_t N> using is_strides_of_size = std::bool_constant<proclaim_is_strides_of_size<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_strides_of_size_v = is_strides_of_size<std::decay_t<T>, N>::value;
+    template<typename T, size_t N> constexpr bool is_stridesN_v = is_strides_of_size<std::decay_t<T>, N>::value;
+
+    template<typename T> constexpr bool is_strides1_v = is_stridesN_v<T, 1>;
+    template<typename T> constexpr bool is_strides2_v = is_stridesN_v<T, 2>;
+    template<typename T> constexpr bool is_strides3_v = is_stridesN_v<T, 3>;
+    template<typename T> constexpr bool is_strides4_v = is_stridesN_v<T, 4>;
+
+    template<typename T> constexpr bool is_shape_or_strides_v = is_strides_v<T> || is_shape_v<T>;
+    template<typename T, size_t N> constexpr bool is_shapeN_or_stridesN_v = is_stridesN_v<T, N> || is_shapeN_v<T, N>;
+
+    // -- Tuple --
+    template<typename T> struct proclaim_is_tuple : std::false_type {};
+    template<typename T> using is_tuple = std::bool_constant<proclaim_is_tuple<T>::value>;
+    template<typename T> constexpr bool is_tuple_v = is_tuple<std::decay_t<T>>::value;
+    template<typename... Ts> using are_tuple = bool_and<is_tuple<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_tuple_v = are_tuple<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_tuple_of_accessor : std::false_type {};
+    template<typename T> using is_tuple_of_accessor = std::bool_constant<proclaim_is_tuple_of_accessor<T>::value>;
+    template<typename T> constexpr bool is_tuple_of_accessor_v = is_tuple_of_accessor<std::decay_t<T>>::value;
+    template<typename... Ts> using are_tuple_of_accessor = bool_and<is_tuple_of_accessor<Ts>::value...>::value;
+    template<typename... Ts> constexpr bool are_tuple_of_accessor_v = are_tuple_of_accessor<std::decay_t<Ts>...>::value;
 }

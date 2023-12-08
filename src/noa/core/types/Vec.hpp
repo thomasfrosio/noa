@@ -17,7 +17,7 @@ namespace noa::guts {
     struct VecAlignment {
     private:
         static_assert(is_power_of_2(A));
-        static constexpr size_t required = max(A, alignof(T));
+        static constexpr size_t required = std::max(A, alignof(T));
         static constexpr size_t max_alignment = 16;
         static constexpr size_t size_of = sizeof(T) * N;
         static constexpr size_t align_of = alignof(T);
@@ -28,7 +28,7 @@ namespace noa::guts {
         // E.g. alignof(Vec4<f32>) == 16
         static constexpr size_t value =
                 A != 0 ? required :
-                is_power_of_2(size_of) ? min(size_of, max_alignment) :
+                is_power_of_2(size_of) ? std::min(size_of, max_alignment) :
                 align_of;
     };
 
@@ -667,75 +667,6 @@ namespace std {
 }
 
 namespace noa::traits {
-    #if defined(NOA_IS_OFFLINE)
-    static_assert(nt::is_detected_convertible_v<std::string, nt::has_name, Vec<bool, 1>>);
-    #endif
-    static_assert(std::is_aggregate_v<Vec<f64, 4>>);
-    static_assert(alignof(Vec<f64, 4>) == 16);
-    static_assert(alignof(Vec<f32, 2>) == 8);
-    static_assert(alignof(Vec<f32, 6>) == 4);
-    static_assert(alignof(Vec<f64, 4, 32>) == 32);
-
-    template<typename T> struct proclaim_is_vec : std::false_type {};
-    template<typename T> using is_vec = std::bool_constant<proclaim_is_vec<T>::value>;
-    template<typename T> constexpr bool is_vec_v = is_vec<std::decay_t<T>>::value;
-    template<typename T> constexpr bool is_vecX_v = is_vec<std::decay_t<T>>::value;
-
-    template<typename, typename> struct proclaim_is_vec_of_type : std::false_type {};
-    template<typename T, typename V> using is_vec_of_type = std::bool_constant<proclaim_is_vec_of_type<T, V>::value>;
-    template<typename T, typename V> constexpr bool is_vec_of_type_v = is_vec_of_type<std::decay_t<T>, V>::value;
-    template<typename T, typename V> constexpr bool is_vecT_v = is_vec_of_type<std::decay_t<T>, V>::value;
-
-    template<typename, size_t> struct proclaim_is_vec_of_size : std::false_type {};
-    template<typename T, size_t N> using is_vec_of_size = std::bool_constant<proclaim_is_vec_of_size<T, N>::value>;
-    template<typename T, size_t N> constexpr bool is_vec_of_size_v = is_vec_of_size<std::decay_t<T>, N>::value;
-    template<typename T, size_t N> constexpr bool is_vecN_v = is_vec_of_size<std::decay_t<T>, N>::value;
-
-    template<typename T> constexpr bool is_vec1_v = is_vecN_v<T, 1>;
-    template<typename T> constexpr bool is_vec2_v = is_vecN_v<T, 2>;
-    template<typename T> constexpr bool is_vec3_v = is_vecN_v<T, 3>;
-    template<typename T> constexpr bool is_vec4_v = is_vecN_v<T, 4>;
-
-    // Vector of integers:
-    template<typename T> constexpr bool is_intX_v = is_vecX_v<T> && is_int_v<value_type_t<T>>;
-    template<typename T, size_t N> constexpr bool is_intN_v = is_vecN_v<T, N> && is_int_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_int1_v = is_intN_v<T, 1>;
-    template<typename T> constexpr bool is_int2_v = is_intN_v<T, 2>;
-    template<typename T> constexpr bool is_int3_v = is_intN_v<T, 3>;
-    template<typename T> constexpr bool is_int4_v = is_intN_v<T, 4>;
-
-    // Vector of bool:
-    template<typename T> constexpr bool is_boolX_v = is_vecX_v<T> && is_bool_v<value_type_t<T>>;
-    template<typename T, size_t N> constexpr bool is_boolN_v = is_vecN_v<T, N> && is_bool_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_bool1_v = is_boolN_v<T, 1>;
-    template<typename T> constexpr bool is_bool2_v = is_boolN_v<T, 2>;
-    template<typename T> constexpr bool is_bool3_v = is_boolN_v<T, 3>;
-    template<typename T> constexpr bool is_bool4_v = is_boolN_v<T, 4>;
-
-    // Vector of signed integers:
-    template<typename T> constexpr bool is_sintX_v = is_vecX_v<T> && is_sint_v<value_type_t<T>>;
-    template<typename T, size_t N> constexpr bool is_sintN_v = is_vecN_v<T, N> && is_sint_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_sint1_v = is_sintN_v<T, 1>;
-    template<typename T> constexpr bool is_sint2_v = is_sintN_v<T, 2>;
-    template<typename T> constexpr bool is_sint3_v = is_sintN_v<T, 3>;
-    template<typename T> constexpr bool is_sint4_v = is_sintN_v<T, 4>;
-
-    // Vector of unsigned integers:
-    template<typename T> constexpr bool is_uintX_v = is_vecX_v<T> && is_uint_v<value_type_t<T>>;
-    template<typename T, size_t N> constexpr bool is_uintN_v = is_vecN_v<T, N> && is_uint_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_uint1_v = is_uintN_v<T, 1>;
-    template<typename T> constexpr bool is_uint2_v = is_uintN_v<T, 2>;
-    template<typename T> constexpr bool is_uint3_v = is_uintN_v<T, 3>;
-    template<typename T> constexpr bool is_uint4_v = is_uintN_v<T, 4>;
-
-    // Vector of real (= floating-points):
-    template<typename T> constexpr bool is_realX_v = is_vecX_v<T> && is_real_v<value_type_t<T>>;
-    template<typename T, size_t N> constexpr bool is_realN_v = is_vecN_v<T, N> && is_real_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_real1_v = is_realN_v<T, 1>;
-    template<typename T> constexpr bool is_real2_v = is_realN_v<T, 2>;
-    template<typename T> constexpr bool is_real3_v = is_realN_v<T, 3>;
-    template<typename T> constexpr bool is_real4_v = is_realN_v<T, 4>;
-
     template<typename T, size_t N, size_t A> struct proclaim_is_vec<Vec<T, N, A>> : std::true_type {};
     template<typename V1, size_t N, size_t A, typename V2> struct proclaim_is_vec_of_type<Vec<V1, N, A>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
     template<typename V, size_t N1, size_t A, size_t N2> struct proclaim_is_vec_of_size<Vec<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};

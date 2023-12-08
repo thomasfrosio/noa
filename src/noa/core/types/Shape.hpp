@@ -1021,56 +1021,7 @@ namespace noa::inline types {
     template<typename T> using Strides4 = Strides<T, 4>;
 }
 
-// Type traits:
 namespace noa::traits {
-#if defined(NOA_IS_OFFLINE)
-    static_assert(nt::is_detected_convertible_v<std::string, has_name, Shape<int, 1>>);
-    static_assert(nt::is_detected_convertible_v<std::string, has_name, Strides<int, 1>>);
-#endif
-
-    template<typename T> struct proclaim_is_shape : std::false_type {};
-    template<typename T> using is_shape = std::bool_constant<proclaim_is_shape<T>::value>;
-    template<typename T> constexpr bool is_shape_v = is_shape<std::decay_t<T>>::value;
-    template<typename T> constexpr bool is_shapeX_v = is_shape<std::decay_t<T>>::value;
-
-    template<typename, typename> struct proclaim_is_shape_of_type : std::false_type {};
-    template<typename T, typename V> using is_shape_of_type = std::bool_constant<proclaim_is_shape_of_type<T, V>::value>;
-    template<typename T, typename V> constexpr bool is_shape_of_type_v = is_shape_of_type<std::decay_t<T>, V>::value;
-    template<typename T, typename V> constexpr bool is_shapeT_v = is_shape_of_type<std::decay_t<T>, V>::value;
-
-    template<typename, size_t> struct proclaim_is_shape_of_size : std::false_type {};
-    template<typename T, size_t N> using is_shape_of_size = std::bool_constant<proclaim_is_shape_of_size<T, N>::value>;
-    template<typename T, size_t N> constexpr bool is_shape_of_size_v = is_shape_of_size<std::decay_t<T>, N>::value;
-    template<typename T, size_t N> constexpr bool is_shapeN_v = is_shape_of_size<std::decay_t<T>, N>::value;
-
-    template<typename T> constexpr bool is_shape1_v = is_shapeN_v<T, 1>;
-    template<typename T> constexpr bool is_shape2_v = is_shapeN_v<T, 2>;
-    template<typename T> constexpr bool is_shape3_v = is_shapeN_v<T, 3>;
-    template<typename T> constexpr bool is_shape4_v = is_shapeN_v<T, 4>;
-
-    template<typename T> struct proclaim_is_strides : std::false_type {};
-    template<typename T> using is_strides = std::bool_constant<proclaim_is_strides<T>::value>;
-    template<typename T> constexpr bool is_strides_v = is_strides<std::decay_t<T>>::value;
-    template<typename T> constexpr bool is_stridesX_v = is_strides<std::decay_t<T>>::value;
-
-    template<typename, typename> struct proclaim_is_strides_of_type : std::false_type {};
-    template<typename T, typename V> using is_strides_of_type = std::bool_constant<proclaim_is_strides_of_type<T, V>::value>;
-    template<typename T, typename V> constexpr bool is_strides_of_type_v = is_strides_of_type<std::decay_t<T>, V>::value;
-    template<typename T, typename V> constexpr bool is_stridesT_v = is_strides_of_type<std::decay_t<T>, V>::value;
-
-    template<typename, size_t> struct proclaim_is_strides_of_size : std::false_type {};
-    template<typename T, size_t N> using is_strides_of_size = std::bool_constant<proclaim_is_strides_of_size<T, N>::value>;
-    template<typename T, size_t N> constexpr bool is_strides_of_size_v = is_strides_of_size<std::decay_t<T>, N>::value;
-    template<typename T, size_t N> constexpr bool is_stridesN_v = is_strides_of_size<std::decay_t<T>, N>::value;
-
-    template<typename T> constexpr bool is_strides1_v = is_stridesN_v<T, 1>;
-    template<typename T> constexpr bool is_strides2_v = is_stridesN_v<T, 2>;
-    template<typename T> constexpr bool is_strides3_v = is_stridesN_v<T, 3>;
-    template<typename T> constexpr bool is_strides4_v = is_stridesN_v<T, 4>;
-
-    template<typename T> constexpr bool is_shape_or_strides_v = is_strides_v<T> || is_shape_v<T>;
-    template<typename T, size_t N> constexpr bool is_shapeN_or_stridesN_v = is_stridesN_v<T, N> || is_shapeN_v<T, N>;
-
     template<typename T, size_t N> struct proclaim_is_shape<Shape<T, N>> : std::true_type {};
     template<typename V1, size_t N, typename V2> struct proclaim_is_shape_of_type<Shape<V1, N>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
     template<typename V, size_t N1, size_t N2> struct proclaim_is_shape_of_size<Shape<V, N1>, N2> : std::bool_constant<N1 == N2> {};
