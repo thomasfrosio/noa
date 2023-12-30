@@ -1,5 +1,3 @@
-#pragma once
-
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 
@@ -7,10 +5,18 @@
 #include <cstddef>
 #include <utility>
 #include <functional> // reference_wrapper
+#include "noa/core/string/Format.hpp"
 #else
 #include <cuda/std/cstddef>
 #include <cuda/std/utility>
 #include <cuda/std/functional> // reference_wrapper
+#endif
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmissing-braces"
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(push, 0)
 #endif
 
 /// Original implementation: https://github.com/codeinred/tuplet
@@ -125,47 +131,69 @@ namespace noa::guts {
     // Instead, use a variadic template function (no specialization involved) and retrieve the return type.
     // Actually, wrap this in a non-template type with a template operator() to easily retrieve the return type
     // while using type deduction. Note that there's no need to define this function; the declaration is all we need.
+    template<typename... T>
     struct GetTypeMap {
-        template<size_t... I, class... T>
-        auto operator()(std::index_sequence<I...>, T...) -> TypeMap<TupleElement<I, T>...>;
+        template<size_t... I>
+        auto operator()(std::index_sequence<I...>) -> TypeMap<TupleElement<I, T>...>;
     };
 
     // Constructs the tuple base type.
     // This alias is simply here to create the index sequence.
     template<typename... T>
-    using TupleBase = typename std::invoke_result_t<guts::GetTypeMap, std::make_index_sequence<sizeof...(T)>, T...>;
+    using TupleBase = typename std::invoke_result_t<guts::GetTypeMap<T...>, std::make_index_sequence<sizeof...(T)>>;
 }
 
 namespace noa::guts {
     template<typename Tup, typename F, typename... B>
     inline constexpr void tuple_for_each(Tup&& tup, F&& func, nt::TypeList<B...>) {
-        (void(func(tup.::noa::traits::identity_t<B>::value)), ...);
+        (void(func(tup.::std::type_identity_t<B>::value)), ...);
+    }
+
+    template<typename Tup, typename F, typename... B>
+    inline constexpr void tuple_for_each_enumerate(Tup&& tup, F&& func, nt::TypeList<B...>) {
+        (void(func<B::SIZE>(tup.::std::type_identity_t<B>::value)), ...);
     }
 
     template<typename Tup, typename F, typename... B>
     inline constexpr bool tuple_any(Tup&& tup, F&& func, nt::TypeList<B...>) {
-        return (bool(func(tup.::noa::traits::identity_t<B>::value)) || ...);
+        return (bool(func(tup.::std::type_identity_t<B>::value)) || ...);
+    }
+
+    template<typename Tup, typename F, typename... B>
+    inline constexpr bool tuple_any_enumerate(Tup&& tup, F&& func, nt::TypeList<B...>) {
+        return (bool(func<B::SIZE>(tup.::std::type_identity_t<B>::value)) || ...);
     }
 
     template<typename Tup, typename F, typename... B>
     inline constexpr bool tuple_all(Tup&& tup, F&& func, nt::TypeList<B...>) {
-        return (bool(func(tup.::noa::traits::identity_t<B>::value)) && ...);
+        return (bool(func(tup.::std::type_identity_t<B>::value)) && ...);
+    }
+
+    template<typename Tup, typename F, typename... B>
+    inline constexpr bool tuple_all_enumerate(Tup&& tup, F&& func, nt::TypeList<B...>) {
+        return (bool(func<B::SIZE>(tup.::std::type_identity_t<B>::value)) && ...);
     }
 
     template<typename Tup, typename F, typename... B>
     inline constexpr auto tuple_map(Tup&& tup, F&& func, nt::TypeList<B...>)
-    -> Tuple<decltype(func(tup.::noa::traits::identity_t<B>::value))...> {
-        return {func(tup.::noa::traits::identity_t<B>::value)...};
+    -> Tuple<decltype(func(tup.::std::type_identity_t<B>::value))...> {
+        return {func(tup.::std::type_identity_t<B>::value)...};
+    }
+
+    template<typename Tup, typename F, typename... B>
+    inline constexpr auto tuple_map_enumerate(Tup&& tup, F&& func, nt::TypeList<B...>)
+    -> Tuple<decltype(func<B::SIZE>(tup.::std::type_identity_t<B>::value))...> {
+        return {func<B::SIZE>(tup.::std::type_identity_t<B>::value)...};
     }
 
     template<typename Tup, typename F, typename... B>
     inline constexpr decltype(auto) tuple_apply(Tup&& t, F&& f, nt::TypeList<B...>) {
-        return static_cast<F&&>(f)(t.::noa::traits::identity_t<B>::value...);
+        return static_cast<F&&>(f)(t.::std::type_identity_t<B>::value...);
     }
 
     template<typename U, typename Tup, typename... B>
     inline constexpr U tuple_convert(Tup&& t, nt::TypeList<B...>) {
-        return U{t.::noa::traits::identity_t<B>::value...};
+        return U{t.::std::type_identity_t<B>::value...};
     }
 }
 
@@ -241,6 +269,20 @@ namespace noa::inline types {
             guts::tuple_for_each(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
+        /// Same as for_each, but passes the index of the current tuple element to func as its first template parameter.
+        template<class F>
+        inline constexpr void for_each_enumerate(F&& func)& {
+            guts::tuple_for_each_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<class F>
+        inline constexpr void for_each_enumerate(F&& func) const& {
+            guts::tuple_for_each_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<class F>
+        inline constexpr void for_each_enumerate(F&& func)&& {
+            guts::tuple_for_each_enumerate(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+        }
+
         /// Applies a function to each element successively, until one returns true.
         /// Returns true if any application returned true, otherwise returns false.
         template<typename F>
@@ -254,6 +296,20 @@ namespace noa::inline types {
         template<typename F>
         inline constexpr bool any(F&& func)&& {
             return guts::tuple_any(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+        }
+
+        /// Same as any, but passes the index of the current tuple element to func as its first template parameter.
+        template<typename F>
+        inline constexpr bool any_enumerate(F&& func)& {
+            return guts::tuple_any_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<typename F>
+        inline constexpr bool any_enumerate(F&& func) const& {
+            return guts::tuple_any_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<typename F>
+        inline constexpr bool any_enumerate(F&& func)&& {
+            return guts::tuple_any_enumerate(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
         /// Applies a function to each element successively, until one returns false.
@@ -271,6 +327,20 @@ namespace noa::inline types {
             return guts::tuple_all(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
+        /// Same as all, but passes the index of the current tuple element to func as its first template parameter.
+        template<typename F>
+        inline constexpr bool all_enumerate(F&& func)& {
+            return guts::tuple_all_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<typename F>
+        inline constexpr bool all_enumerate(F&& func) const& {
+            return guts::tuple_all_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<typename F>
+        inline constexpr bool all_enumerate(F&& func)&& {
+            return guts::tuple_all_enumerate(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+        }
+
         /// Map a function over every element in the tuple, using the returned values to construct a new tuple.
         template<typename F>
         inline constexpr auto map(F&& func)& {
@@ -285,6 +355,21 @@ namespace noa::inline types {
             return guts::tuple_map(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
         }
 
+        /// Same as map, but passes the index of the current tuple element to func as its first template parameter.
+        template<typename F>
+        inline constexpr auto map_enumerate(F&& func)& {
+            return guts::tuple_map_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<typename F>
+        inline constexpr auto map_enumerate(F&& func) const& {
+            return guts::tuple_map_enumerate(*this, static_cast<F&&>(func), base_list{});
+        }
+        template<typename F>
+        inline constexpr auto map_enumerate(F&& func)&& {
+            return guts::tuple_map_enumerate(static_cast<Tuple&&>(*this), static_cast<F&&>(func), base_list{});
+        }
+
+        /// See apply.
         template<typename F>
         inline constexpr decltype(auto) apply(F&& func)& {
             return guts::tuple_apply(*this, static_cast<F&&>(func), base_list{});
@@ -343,12 +428,12 @@ namespace noa::inline types {
         template<class... B>
         inline constexpr void swap_(Tuple& other, nt::TypeList<B...>) noexcept(nothrow_swappable) {
             using std::swap;
-            (swap(B::value, other.::noa::traits::identity_t<B>::value), ...);
+            (swap(B::value, other.::std::type_identity_t<B>::value), ...);
         }
 
         template<class U, class... B1, class... B2>
         inline constexpr void assign_tup_(U&& u, nt::TypeList<B1...>, nt::TypeList<B2...>) {
-            (void(B1::value = static_cast<U&&>(u).::noa::traits::identity_t<B2>::value), ...);
+            (void(B1::value = static_cast<U&&>(u).::std::type_identity_t<B2>::value), ...);
         }
         template<class U, size_t... I>
         inline constexpr void assign_index_tup_(U&& u, std::index_sequence<I...>) {
@@ -382,25 +467,20 @@ namespace noa::inline types {
         constexpr void swap(Tuple) noexcept {}
         constexpr auto& assign() noexcept { return *this; }
 
-        template<class F>
-        constexpr void for_each(F&&) const noexcept {}
-
-        template<class F>
-        constexpr bool any(F&&) const noexcept { return false; }
-
-        template<class F>
-        constexpr bool all(F&&) const noexcept { return true; }
-
-        template<class F>
-        constexpr auto map(F&&) const noexcept { return Tuple{}; }
-
-        template<class F>
-        constexpr decltype(auto) apply(F&& func) const noexcept { return func(); }
+        constexpr void for_each(auto&&) const noexcept {}
+        constexpr bool any(auto&&) const noexcept { return false; }
+        constexpr bool all(auto&&) const noexcept { return true; }
+        constexpr auto map(auto&&) const noexcept { return Tuple{}; }
+        constexpr void for_each_enumerate(auto&&) const noexcept {}
+        constexpr bool any_enumerate(auto&&) const noexcept { return false; }
+        constexpr bool all_enumerate(auto&&) const noexcept { return true; }
+        constexpr auto map_enumerate(auto&&) const noexcept { return Tuple{}; }
+        constexpr decltype(auto) apply(auto&& func) const noexcept { return func(); }
 
         template<class U>
         constexpr U as() const noexcept { return U{}; }
 
-        constexpr Tuple decay() const noexcept {
+        [[nodiscard]] constexpr Tuple decay() const noexcept {
             return {};
         }
     };
@@ -535,14 +615,19 @@ namespace noa {
         a.swap(b);
     }
 
+    /// Copies the arguments in a tuple.
+    /// Use move(arg) to move it into the tuple.
+    /// Use ref(arg) to save a reference instead.
     template<typename... Ts>
     inline constexpr auto make_tuple(Ts&&... args) {
-        return Tuple<nt::unwrap_ref_decay_t<Ts>...>{static_cast<Ts&&>(args)...}; // FIXME remove warning
+        return Tuple<nt::unwrap_ref_decay_t<Ts>...>{static_cast<Ts&&>(args)...};
     }
 
+    /// Saves references of arguments in a tuple.
+    /// Use rvalues have their lifetime extended.
     template<typename... T>
     inline constexpr auto forward_as_tuple(T&&... a) noexcept {
-        return Tuple<T&&...>{static_cast<T&&>(a)...}; // FIXME remove warning
+        return Tuple<T&&...>{static_cast<T&&>(a)...};
     }
 }
 
@@ -554,11 +639,11 @@ namespace noa {
         }
         template<class... Outer>
         inline constexpr auto tuple_get_outer_bases(nt::TypeList<Outer...>) {
-            return (tuple_repeat_type<Outer>(nt::base_list_t<nt::type_t<Outer>>{}) + ...);
+            return (tuple_repeat_type<Outer>(nt::base_list_t<nt::type_type_t<Outer>>{}) + ...);
         }
         template<class... Outer>
         inline constexpr auto tuple_get_inner_bases(nt::TypeList<Outer...>) {
-            return (nt::base_list_t<nt::type_t<Outer>>{} + ...);
+            return (nt::base_list_t<nt::type_type_t<Outer>>{} + ...);
         }
 
         // This takes a forwarding tuple as a parameter. The forwarding tuple only
@@ -568,10 +653,10 @@ namespace noa {
                 T tup,
                 nt::TypeList<Outer...>,
                 nt::TypeList<Inner...>
-        ) -> Tuple<nt::type_t<Inner>...> {
-            return {static_cast<nt::type_t<Outer>&&>(
-                            tup.::noa::traits::identity_t<Outer>::value
-                    ).::noa::traits::identity_t<Inner>::value...};
+        ) -> Tuple<nt::type_type_t<Inner>...> {
+            return {static_cast<nt::type_type_t<Outer>&&>(
+                            tup.::std::type_identity_t<Outer>::value
+                    ).::std::type_identity_t<Inner>::value...};
         }
     }
 
@@ -598,20 +683,38 @@ namespace noa {
             return guts::tuple_cat(big_tuple{static_cast<T&&>(ts)...}, outer, inner);
         }
     }
+
+    /// Filters the tuple based on a predicate.
+    /// The predicate should be a constant expression; if it returns true, keep the tuple argument, otherwise discard.
+    /// Transform is an optional operator used to transform the argument before saving it into the new tuple.
+    /// FIXME T will be S if tuple is moved and contains S, otherwise T is S&
+    /// FIXME https://godbolt.org/z/fx3Kh3rs8
+    template<typename Predicate, typename Transform, typename T> requires nt::is_tuple_v<T>
+    auto tuple_filter(T&& tuple) {
+        return apply(
+                []<typename F, typename...R>(F&& first, R&& ... rest) {
+                    auto filtered_rest = [&] {
+                        if constexpr (sizeof...(rest)) {
+                            return tuple_filter<Predicate, Transform>(forward_as_tuple(std::forward<R>(rest)...));
+                        } else {
+                            return Tuple{};
+                        }
+                    }();
+
+                    if constexpr (Predicate{}.template operator()<T>()) { // FIXME loop through TupleElement to pass exact type
+                        return tuple_cat(Transform{}(std::forward<T>(first)), std::move(filtered_rest));
+                    } else {
+                        return filtered_rest;
+                    }
+                }, std::forward<T>(tuple));
+    }
 }
 
 namespace std {
-    template<class... T>
-    struct tuple_size<noa::Tuple<T...>> : std::integral_constant<size_t, sizeof...(T)> {};
-
-    template<class... T>
-    struct tuple_size<const noa::Tuple<T...>> : std::integral_constant<size_t, sizeof...(T)> {};
-
-    template<typename A, typename B>
-    struct tuple_size<noa::Pair<A, B>> : std::integral_constant<size_t, 2> {};
-
-    template<typename A, typename B>
-    struct tuple_size<const noa::Pair<A, B>> : std::integral_constant<size_t, 2> {};
+    template<class... T> struct tuple_size<noa::Tuple<T...>> : std::integral_constant<size_t, sizeof...(T)> {};
+    template<class... T> struct tuple_size<const noa::Tuple<T...>> : std::integral_constant<size_t, sizeof...(T)> {};
+    template<typename A, typename B> struct tuple_size<noa::Pair<A, B>> : std::integral_constant<size_t, 2> {};
+    template<typename A, typename B> struct tuple_size<const noa::Pair<A, B>> : std::integral_constant<size_t, 2> {};
 
     template<size_t I, typename... T>
     struct tuple_element<I, noa::Tuple<T...>> {
@@ -643,3 +746,60 @@ namespace noa::traits {
     template<typename... Ts>
     struct proclaim_is_tuple_of_accessor<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
 }
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(pop)
+#endif
+
+#if defined(NOA_IS_OFFLINE)
+namespace fmt {
+    template<typename... T>
+    struct fmt::formatter<noa::Tuple<T...>> {
+        char open_char = '(';
+        char separator = ',';
+        char close_char = ')';
+        constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+            constexpr auto npos = std::string_view::npos;
+            std::string_view view(ctx.begin(), static_cast<size_t>(ctx.end() - ctx.begin()));
+            if (view.empty()) {
+                return ctx.begin();
+            } else if (view.size() == 3) {
+                open_char = view[0];
+                close_char = view[1];
+            } else if (view.size() == 4) {
+                open_char = view[0];
+                separator = view[1];
+                close_char = view[2];
+            } else {
+                throw fmt::format_error(fmt::format(
+                        "Format specification {} is currently unsupported",
+                        view));
+            }
+            if (std::string_view("<{[(").find(open_char) == npos) {
+                throw fmt::format_error(
+                        fmt::format("Enable to interpret open char {}", open_char));
+            }
+            if (std::string_view(">}])").find(close_char) == npos) {
+                throw fmt::format_error(
+                        fmt::format("Unable to interpret close char {}", close_char));
+            }
+            return ctx.begin() + view.size() - 1;
+        }
+        template<typename FormatContext>
+        constexpr auto format(const noa::Tuple<T...>& p, FormatContext& ctx) -> decltype(ctx.out()) {
+            if constexpr (sizeof...(T) >= 1) {
+                auto print_elems = [&](auto const& first, auto const& ... rest) {
+                    auto out = fmt::format_to(ctx.out(), "{}{}", open_char, first);
+                    ((out = fmt::format_to(out, "{} {}", separator, rest)), ...);
+                    return fmt::format_to(out, "{}", close_char);
+                };
+                return p.apply(print_elems);
+            } else {
+                return fmt::format_to(ctx.out(), "{}{}", open_char, close_char);
+            }
+        }
+    };
+}
+#endif
