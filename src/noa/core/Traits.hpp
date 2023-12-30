@@ -67,9 +67,6 @@ namespace noa::traits {
     template<bool B>
     using enable_if_bool_t = std::enable_if_t<B, bool>;
 
-    template<typename T>
-    using identity_t = T;
-
     template<typename First, typename...>
     using first_t = First;
 
@@ -112,7 +109,7 @@ namespace noa::traits {
         template<typename T, typename = void> struct shared_type { using type = T; };
         template<typename T, typename = void> struct pointer_type { using type = T; };
 
-        template<typename T> struct type_type<T, std::void_t<typename T::type_type>> { using type = typename T::type; };
+        template<typename T> struct type_type<T, std::void_t<typename T::type>> { using type = typename T::type; };
         template<typename T> struct value_type<T, std::void_t<typename T::value_type>> { using type = typename T::value_type; };
         template<typename T> struct mutable_value_type<T, std::void_t<typename T::mutable_value_type>> { using type = typename T::mutable_value_type; };
         template<typename T> struct element_type<T, std::void_t<typename T::element_type>> { using type = typename T::element_type; };
@@ -121,6 +118,7 @@ namespace noa::traits {
         template<typename T> struct shared_type<T, std::void_t<typename T::shared_type>> { using type = typename T::shared_type; };
     }
 
+    template<typename T> struct type_type { using type = typename guts::type_type<T>::type; };
     template<typename T> struct value_type { using type = typename guts::value_type<T>::type; };
     template<typename T> struct mutable_value_type { using type = typename guts::mutable_value_type<T>::type; };
     template<typename T> struct element_type { using type = typename guts::element_type<T>::type; };
@@ -128,7 +126,7 @@ namespace noa::traits {
     template<typename T> struct pointer_type { using type = typename guts::pointer_type<T>::type; };
     template<typename T> struct shared_type { using type = typename guts::shared_type<T>::type; };
 
-    template<typename T> using type_t = typename guts::type_type<T>::type;
+    template<typename T> using type_type_t = typename type_type<std::decay_t<T>>::type;
     template<typename T> using value_type_t = typename value_type<std::decay_t<T>>::type;
     template<typename T> using value_type_twice_t = value_type_t<value_type_t<T>>;
     template<typename T> using mutable_value_type_t = typename mutable_value_type<std::decay_t<T>>::type;
