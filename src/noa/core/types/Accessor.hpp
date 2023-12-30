@@ -2,10 +2,11 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/indexing/Offset.hpp"
+#include "noa/core/types/Tuple.hpp"
+#include "noa/core/types/Vec.hpp"
 #include "noa/core/utils/Misc.hpp"
+#include "noa/core/indexing/Offset.hpp"
 
 namespace noa::guts {
     template<typename A, size_t... Is, typename Pointer, typename... Indexes>
@@ -72,6 +73,8 @@ namespace noa::inline types {
         static_assert(std::is_integral_v<I>);
         static_assert(N <= 4);
 
+        static constexpr PointerTraits pointer_trait = PointerTrait;
+        static constexpr StridesTraits strides_trait = StridesTrait;
         static constexpr bool IS_RESTRICT = PointerTrait == PointerTraits::RESTRICT;
         static constexpr bool IS_CONTIGUOUS = StridesTrait == StridesTraits::CONTIGUOUS;
         static constexpr size_t SIZE = N;
@@ -141,6 +144,12 @@ namespace noa::inline types {
             return *this;
         }
 
+        template<std::integral Int>
+        NOA_FHD constexpr Accessor& reorder(const Vec<Int, N>& order) noexcept {
+            strides() = strides().reorder(order);
+            return *this;
+        }
+
     public:
         /// Offsets the pointer at dimension 0, in-place.
         /// This is often used to offset the starting batch when working in chunks.
@@ -207,6 +216,8 @@ namespace noa::inline types {
              StridesTraits StridesTrait = StridesTraits::STRIDED>
     class AccessorReference {
     public:
+        static constexpr PointerTraits pointer_trait = PointerTrait;
+        static constexpr StridesTraits strides_trait = StridesTrait;
         static constexpr bool IS_RESTRICT = PointerTrait == PointerTraits::RESTRICT;
         static constexpr bool IS_CONTIGUOUS = StridesTrait == StridesTraits::CONTIGUOUS;
         static constexpr size_t SIZE = N;
@@ -342,6 +353,8 @@ namespace noa::inline types {
         static_assert(!std::is_pointer_v<T>);
         static_assert(!std::is_reference_v<T>);
 
+        static constexpr PointerTraits pointer_trait = PointerTraits::RESTRICT;
+        static constexpr StridesTraits strides_trait = StridesTraits::CONTIGUOUS;
         static constexpr bool IS_RESTRICT = true;
         static constexpr bool IS_CONTIGUOUS = true;
         static constexpr size_t SIZE = 1;
@@ -384,6 +397,11 @@ namespace noa::inline types {
 
         template<typename Int0, typename Int1, typename = std::enable_if_t<nt::are_int_v<Int0, Int1>>>
         NOA_HD constexpr AccessorValue& swap_dimensions(Int0, Int1) noexcept {
+            return *this;
+        }
+
+        template<std::integral Int, size_t N>
+        NOA_FHD constexpr AccessorValue& reorder(const Vec<Int, N>&) noexcept {
             return *this;
         }
 
@@ -529,4 +547,47 @@ namespace noa::traits {
 
     template<typename T, typename I>
     struct proclaim_is_accessor_value<AccessorValue<T, I>> : std::true_type {};
+}
+
+namespace noa {
+    /// Converts to 1d accessors.
+    template<bool ENFORCE_RESTRICT = false, typename TupleOfAccessors>
+    requires nt::is_tuple_of_accessor_v<TupleOfAccessors>
+    auto to_1d_accessors(TupleOfAccessors&& accessors) {
+        return std::forward<TupleOfAccessors>(accessors).map(
+                []<typename T>(T&& accessor) -> decltype(auto) {
+                    using accessor_t = decltype(accessor);
+                    if constexpr (nt::is_accessor_value_v<accessor_t>) {
+                        // Forward the value into the new tuple, ie the caller decides whether we copy or move.
+                        return std::forward<T>(accessor);
+                    } else {
+                        using value_t = typename accessor_t::value_type;
+                        using index_t = typename accessor_t::index_type;
+                        constexpr auto pointer_trait =
+                                ENFORCE_RESTRICT ? PointerTraits::RESTRICT : accessor_t::pointer_trait;
+                        using accessor_1d = AccessorContiguous<value_t, 1, index_t, pointer_trait>;
+                        return accessor_1d(accessor.get());
+                    }
+                });
+    }
+
+    /// Whether the accessors are aliases of each others.
+    template<typename... TuplesOfAccessors>
+    requires nt::are_tuple_of_accessor_v<TuplesOfAccessors...>
+    auto are_accessors_aliased(const TuplesOfAccessors&... tuples_of_accessors) -> bool {
+        auto tuple_of_pointers_or_empty = tuple_cat(tuples_of_accessors.map([](const auto& accessor) {
+            if constexpr (nt::is_accessor_value_v<decltype(accessor)>)
+                return Empty{};
+            else
+                return accessor.get();
+        })...);
+
+        return tuple_of_pointers_or_empty.any_enumerate([&]<size_t I, typename T>(T ei) {
+            return tuple_of_pointers_or_empty.any_enumerate([&]<size_t J, typename U>(U ej) {
+                if constexpr (I != J && (!std::is_empty_v<T> && !std::is_empty_v<U>))
+                    return static_cast<const void*>(ei) == static_cast<const void*>(ej);
+                return false;
+            });
+        });
+    }
 }
