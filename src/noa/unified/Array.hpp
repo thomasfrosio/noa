@@ -3,9 +3,9 @@
 #include "noa/core/Exception.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/core/utils/Indexing.hpp"
+#include "noa/core/Indexing.hpp"
 
-#include "noa/cpu/memory/AllocatorHeap.hpp"
+#include "noa/cpu/AllocatorHeap.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/memory/Permute.hpp"
@@ -19,8 +19,6 @@
 #include "noa/unified/ArrayOption.hpp"
 #include "noa/unified/Stream.hpp"
 #include "noa/unified/View.hpp"
-#include "noa/unified/memory/Copy.hpp"
-#include "noa/unified/memory/Permute.hpp"
 
 namespace noa {
     /// 4-dimensional owning array.
@@ -68,7 +66,7 @@ namespace noa {
         using mutable_value_type = value_type;
         using index_type = typename accessor_type::index_type;
         using strides_type = typename accessor_type::strides_type;
-        using shared_type = Shared<value_type[]>;
+        using shared_type = std::shared_ptr<value_type[]>;
 
         static_assert(!std::is_const_v<value_type>);
         static_assert(!std::is_pointer_v<value_type>);
@@ -168,12 +166,12 @@ namespace noa {
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
         [[nodiscard]] constexpr bool are_contiguous() const noexcept {
-            return noa::indexing::are_contiguous<ORDER>(strides(), shape());
+            return ni::are_contiguous<ORDER>(strides(), shape());
         }
 
         template<char ORDER = 'C'>
         [[nodiscard]] constexpr auto is_contiguous() const noexcept {
-            return noa::indexing::is_contiguous<ORDER>(strides(), shape());
+            return ni::is_contiguous<ORDER>(strides(), shape());
         }
 
         /// Whether the array is empty. An array is empty if not initialized or if one of its dimension is 0.
@@ -268,7 +266,7 @@ namespace noa {
                  nt::is_varray_v<Output> &&
                  nt::are_almost_same_value_type_v<Array, Output>>>
         void to(const Output& output) const {
-            noa::memory::copy(*this, output);
+            copy(*this, output);
         }
 
         /// Performs a deep copy of the array according \p option.
@@ -302,7 +300,7 @@ namespace noa {
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
         [[nodiscard]] Array<U> as() const {
-            const auto out = noa::indexing::Reinterpret(shape(), strides(), get()).template as<U>();
+            const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options());
         }
 
@@ -334,7 +332,7 @@ namespace noa {
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
         [[nodiscard]] Array flat(i32 axis = 3) const {
-            shape_type output_shape(1);
+            auto output_shape = shape_type::filled_with(1);
             output_shape[axis] = shape().elements();
             return reshape(output_shape);
         }
@@ -343,15 +341,15 @@ namespace noa {
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
         [[nodiscard]] constexpr Array permute(const Vec4<i64>& permutation) const {
             return Array(share(),
-                         noa::indexing::reorder(shape(), permutation),
-                         noa::indexing::reorder(strides(), permutation),
+                         ni::reorder(shape(), permutation),
+                         ni::reorder(strides(), permutation),
                          options());
         }
 
         /// Permutes the array by performing a deep-copy. The returned Array is a new C-contiguous array.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
         [[nodiscard]] Array permute_copy(const Vec4<i64>& permutation) const {
-            return memory::permute_copy(*this, permutation);
+            return permute_copy(*this, permutation);
         }
 
     public: // Assignment operators
@@ -377,7 +375,7 @@ namespace noa {
         /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
         template<typename... Ts>
         [[nodiscard]] constexpr Array subregion(Ts&&... indexes) const {
-            const auto indexer = noa::indexing::SubregionIndexer(shape(), strides())
+            const auto indexer = ni::SubregionIndexer(shape(), strides())
                     .extract_subregion(std::forward<Ts>(indexes)...);
             return Array(shared_type(share(), get() + indexer.offset), indexer.shape, indexer.strides, options());
         }
@@ -391,18 +389,13 @@ namespace noa {
                 return;
             }
 
-            using namespace noa::cpu::memory;
-            #ifdef NOA_ENABLE_CUDA
-            using namespace noa::cuda::memory;
-            #endif
-
             const Device device = m_options.device();
             switch (m_options.allocator()) {
                 case Allocator::NONE:
                     break;
                 case Allocator::DEFAULT:
                     if (device.is_cpu()) {
-                        m_shared = AllocatorHeap<value_type>::allocate(elements);
+                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
@@ -412,7 +405,7 @@ namespace noa {
                     break;
                 case Allocator::DEFAULT_ASYNC:
                     if (device.is_cpu()) {
-                        m_shared = AllocatorHeap<value_type>::allocate(elements);
+                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         m_shared = AllocatorDevice<value_type>::allocate_async(
@@ -422,7 +415,7 @@ namespace noa {
                     break;
                 case Allocator::PITCHED:
                     if (device.is_cpu()) {
-                        m_shared = AllocatorHeap<value_type>::allocate(elements);
+                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
@@ -439,7 +432,7 @@ namespace noa {
                     break;
                 case Allocator::PINNED: {
                     if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
-                        m_shared = AllocatorHeap<value_type>::allocate(elements);
+                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
@@ -450,7 +443,7 @@ namespace noa {
                 }
                 case Allocator::MANAGED: {
                     if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
-                        m_shared = AllocatorHeap<value_type>::allocate(elements);
+                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const Device gpu = device.is_gpu() ? device : Device::current(DeviceType::GPU);
@@ -463,7 +456,7 @@ namespace noa {
                 }
                 case Allocator::MANAGED_GLOBAL: {
                     if (device.is_cpu() && !Device::is_any(DeviceType::GPU)) {
-                        m_shared = AllocatorHeap<value_type>::allocate(elements);
+                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
@@ -473,17 +466,17 @@ namespace noa {
                     break;
                 }
                 case Allocator::CUDA_ARRAY:
-                    NOA_THROW("CUDA arrays are not supported by the Array's allocator. Use Texture instead");
+                    panic("CUDA arrays are not supported by the Array's allocator. Use Texture instead");
                 default:
-                    NOA_THROW("Allocator {} is not supported by the Array's allocator", m_options.allocator());
+                    panic("Allocator {} is not supported by the Array's allocator", m_options.allocator());
             }
         }
 
         static void validate_(void* ptr, ArrayOption option) {
             const Allocator alloc = option.allocator();
-            NOA_CHECK(alloc != Allocator::CUDA_ARRAY,
+            check(alloc != Allocator::CUDA_ARRAY,
                       "CUDA arrays are not supported by the Array class. See Texture instead");
-            NOA_CHECK(alloc != Allocator::NONE || ptr == nullptr, "{} is for nullptr only", Allocator::NONE);
+            check(alloc != Allocator::NONE || ptr == nullptr, "{} is for nullptr only", Allocator::NONE);
 
             if (option.device().is_cpu()) {
                 if (!Device::is_any(DeviceType::GPU))

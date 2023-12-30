@@ -27,7 +27,10 @@ namespace noa::cpu {
         constexpr void init(Indexes... indexes, Reduced&... reduced) {
             using base_list = typename std::remove_reference_t<InputAccessors>::base_list;
             [&, this]<typename... I>(nt::TypeList<I...>) {
-                m_reduce_ewise_op.init(m_inputs.::noa::traits::identity_t<I>::value(indexes...)..., reduced...);
+                m_reduce_ewise_op.init(m_inputs.::std::type_identity_t<I>::value(indexes...)..., reduced...);
+
+                // FIXME
+                m_reduce_ewise_op(m_inputs.::std::type_identity_t<I>::value(indexes...)..., reduced...);
             }(base_list{});
         }
 

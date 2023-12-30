@@ -162,9 +162,9 @@ namespace noa::cpu {
             using base_list = std::remove_reference_t<ReducedAccessors>::base_list;
             [&]<typename... R>(nt::TypeList<R...>) {
                 if constexpr (checker::is_init_packed()) {
-                    reduce_iwise_op.init(vec_type{indices...}, reduced.::noa::traits::identity_t<R>::value(0)...);
+                    reduce_iwise_op.init(vec_type{indices...}, reduced.::std::type_identity_t<R>::value(0)...);
                 } else {
-                    reduce_iwise_op.init(indices..., reduced.::noa::traits::identity_t<R>::value(0)...);
+                    reduce_iwise_op.init(indices..., reduced.::std::type_identity_t<R>::value(0)...);
                 }
             }(base_list{});
         }
@@ -177,8 +177,8 @@ namespace noa::cpu {
         ) {
             using base_list = std::remove_reference_t<ReducedAccessors>::base_list;
             [&]<typename... R>(nt::TypeList<R...>) {
-                reduce_iwise_op.join(local_reduced_accessors.::noa::traits::identity_t<R>::value(0)...,
-                                     global_reduced_accessors.::noa::traits::identity_t<R>::value(0)...);
+                reduce_iwise_op.join(local_reduced_accessors.::std::type_identity_t<R>::value(0)...,
+                                     global_reduced_accessors.::std::type_identity_t<R>::value(0)...);
             }(base_list{});
         }
 
@@ -192,12 +192,12 @@ namespace noa::cpu {
             using output_base_list = std::remove_reference_t<OutputAccessors>::base_list;
             [&]<typename... R, typename... O>(nt::TypeList<R...>, nt::TypeList<O...>) {
                 if constexpr (!checker::is_final_defaulted()) {
-                    reduce_iwise_op.final(reduced_accessors.::noa::traits::identity_t<R>::value(0)...,
-                                          output_accessors.::noa::traits::identity_t<O>::value(0)...);
+                    reduce_iwise_op.final(reduced_accessors.::std::type_identity_t<R>::value(0)...,
+                                          output_accessors.::std::type_identity_t<O>::value(0)...);
                 } else {
-                    ((reduced_accessors.::noa::traits::identity_t<R>::value(0) =
-                              static_cast<nt::TypeList<R...>::value_type>(
-                                      output_accessors.::noa::traits::identity_t<O>::value(0))), ...);
+                    ((output_accessors.::std::type_identity_t<O>::value(0) =
+                              static_cast<nt::TypeList<O...>::value_type>(
+                                      reduced_accessors.::std::type_identity_t<R>::value(0))), ...);
                 }
             }(reduced_base_list{}, output_base_list{});
         }

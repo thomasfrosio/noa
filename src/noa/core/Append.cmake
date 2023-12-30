@@ -21,6 +21,7 @@ set(NOA_CORE_HEADERS
 
     core/utils/Atomic.hpp
     core/utils/ClampCast.hpp
+    core/utils/EwiseAdaptor.hpp
     core/utils/Irange.hpp
     core/utils/Misc.hpp
     core/utils/ReduceChecker.hpp

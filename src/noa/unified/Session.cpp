@@ -25,12 +25,12 @@ namespace noa {
             try {
                 str = std::getenv("NOA_THREADS");
                 if (str) {
-                    max_threads = noa::string::parse<i64>(str);
+                    max_threads = ns::parse<i64>(str);
                 } else {
                     #ifdef NOA_ENABLE_OPENMP
                     str = std::getenv("OMP_NUM_THREADS");
                     if (str)
-                        max_threads = noa::string::parse<i64>(str);
+                        max_threads = ns::parse<i64>(str);
                     else
                         max_threads = static_cast<i64>(omp_get_max_threads());
                     #else

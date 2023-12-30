@@ -235,7 +235,7 @@ namespace noa {
                     id = -1;
                     type = DeviceType::CPU;
                 } else {
-                    noa::panic("CPU device name \"{}\" is not supported", str_);
+                    panic("CPU device name \"{}\" is not supported", str_);
                 }
 
             } else if (ns::starts_with(str_, "gpu")) {
@@ -244,7 +244,7 @@ namespace noa {
                 } else if (length >= 5 && str_[3] == ':') {
                     id = ns::parse<i32>(std::string(str_.data() + 4), error);
                 } else {
-                    noa::panic("GPU device name \"{}\" is not supported", str_);
+                    panic("GPU device name \"{}\" is not supported", str_);
                 }
                 type = DeviceType::GPU;
 
@@ -254,36 +254,36 @@ namespace noa {
                 } else if (length >= 6 && str_[4] == ':') {
                     id = ns::parse<i32>(std::string(str_.data() + 5), error);
                 } else {
-                    noa::panic("CUDA device name \"{}\" is not supported", str_);
+                    panic("CUDA device name \"{}\" is not supported", str_);
                 }
                 type = DeviceType::GPU;
             } else {
-                noa::panic("Failed to parse \"{}\" as a valid device name", str_);
+                panic("Failed to parse \"{}\" as a valid device name", str_);
             }
 
             if (error)
-                noa::panic("Failed to parse the device ID. {}", ns::parse_error_message<i32>(str_, error));
+                panic("Failed to parse the device ID. {}", ns::parse_error_message<i32>(str_, error));
             return {type, id};
         }
 
         static void validate_(DeviceType type, i32 id) {
             if (type == DeviceType::CPU) {
                 if (id != -1)
-                    noa::panic("The device ID for the CPU should be -1, but got {}", id);
+                    panic("The device ID for the CPU should be -1, but got {}", id);
                 return;
             } else if (type == DeviceType::GPU) {
                 if (id < 0)
-                    noa::panic("GPU device ID should be positive, but got {}", id);
+                    panic("GPU device ID should be positive, but got {}", id);
 
                 #ifdef NOA_ENABLE_CUDA
                 const i32 count = cuda::Device::count();
                 if (id + 1 > count)
-                    noa::panic("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
+                    panic("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
                 #else
-                noa::panic("GPU backend is not detected");
+                panic("GPU backend is not detected");
                 #endif
             } else {
-                noa::panic("DEV: Missing type");
+                panic("DEV: Missing type");
             }
         }
 

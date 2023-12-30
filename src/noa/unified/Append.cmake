@@ -15,6 +15,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Traits.hpp
 #    unified/Texture.hpp
     unified/View.hpp
+    unified/Utils.hpp
 
 #    # noa::io
 #    unified/io/ImageFile.hpp

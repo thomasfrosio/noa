@@ -1,10 +1,9 @@
 #pragma once
 
 namespace noa {
-    // This is to import core types while still referring to them
-    // as if they were in namespace noa.
     inline namespace types {}
 
+    namespace guts {}
     namespace traits {}
     namespace string {}
     namespace indexing {}
@@ -17,4 +16,5 @@ namespace noa {
     namespace nt = ::noa::traits;
     namespace ni = ::noa::indexing;
     namespace ns = ::noa::string;
+    namespace ng = ::noa::guts;
 }

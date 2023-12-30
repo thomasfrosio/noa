@@ -1,5 +1,8 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/Version.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/unified/Device.hpp"
@@ -98,3 +101,5 @@ namespace noa {
         static i64 m_thread_limit;
     };
 }
+
+#endif

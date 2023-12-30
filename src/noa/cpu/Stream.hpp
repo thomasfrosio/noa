@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/Traits.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <future>
@@ -35,22 +35,25 @@ namespace noa::cpu::guts {
             // Because of this, it is best to synchronize the stream before calling the dtor.
         }
 
-        template<class Functor, class... Args>
-        void enqueue(Functor&& functor, Args&&... args) {
-            auto no_arg_functor =
-                    [functor_ = std::forward<Functor>(functor),
-                     args_ = std::make_tuple(std::forward<Args>(args)...)]()
-                     mutable { std::apply(std::move(functor_), std::move(args_)); };
-            {
-                const std::scoped_lock lock(m_mutex);
-                if (m_exception) {
-                    while (!m_queue.empty())
-                        m_queue.pop();
-                    std::rethrow_exception(std::exchange(m_exception, nullptr));
-                }
-                m_queue.emplace(std::move(no_arg_functor));
-                m_condition_work.notify_one();
+        template<typename F, typename... Args>
+        void enqueue(F&& func, Args&&... args) {
+            check(thread_id() == std::this_thread::get_id(),
+                  "The asynchronous stream was captured by an enqueued task, which is now trying to "
+                  "enqueue another task. This is currently not supported and it is usually better to create "
+                  "a new synchronous stream inside the original task and use this new stream instead");
+
+            // Copy/Move both the func and args into this lambda, thereby ensuring
+            // that these objects will stay alive until the task is completed.
+            auto no_args_func = [f = std::forward<F>(func), ...a = std::forward<Args>(args)]() mutable { f(a...); };
+
+            const std::scoped_lock lock(m_mutex);
+            if (m_exception) {
+                while (!m_queue.empty())
+                    m_queue.pop();
+                std::rethrow_exception(std::exchange(m_exception, nullptr));
             }
+            m_queue.emplace(std::move(no_args_func));
+            m_condition_work.notify_one();
         }
 
         bool is_busy() {
@@ -70,7 +73,7 @@ namespace noa::cpu::guts {
                 std::rethrow_exception(std::exchange(m_exception, nullptr));
         }
 
-        [[nodiscard]] auto thread_id() const noexcept {
+        [[nodiscard]] std::thread::id thread_id() const noexcept {
             return m_thread.get_id();
         }
 
@@ -192,18 +195,29 @@ namespace noa::cpu {
         // useful is when the functor needs to call a function taking a stream. In this case, the best solution
         // is to create a new StreamMode::CURRENT stream in the functor and use this stream instead. This has no
         // overhead and has also a clearer intent.
-        template<class Functor, class... Args>
-        constexpr void enqueue(Functor&& functor, Args&&... args) {
+        template<typename F, typename... Args>
+        constexpr void enqueue(F&& func, Args&&... args) {
             if (!m_worker) {
-                functor(std::forward<Args>(args)...);
-            } else if (m_worker->thread_id() == std::this_thread::get_id()) {
-                NOA_THROW("The asynchronous stream was captured by an enqueued task, which is now trying to "
-                          "enqueue another task. This is currently not supported and it is usually better to create "
-                          "a new synchronous stream inside the original task and use this new stream instead");
+                func(std::forward<Args>(args)...);
             } else {
-                m_worker->enqueue(std::forward<Functor>(functor), std::forward<Args>(args)...);
+                m_worker->enqueue(std::forward<F>(func), std::forward<Args>(args)...);
             }
         }
+
+        template<typename F, typename... Args>
+        constexpr void enqueue_only_if_sync(F&& func, Args&&... args) {
+            if (!m_worker)
+                func(std::forward<Args>(args)...);
+        }
+
+        template<typename F, typename... Args>
+        constexpr void enqueue_only_if_async(F&& func, Args&&... args) {
+            if (m_worker)
+                m_worker->enqueue(std::forward<F>(func), std::forward<Args>(args)...);
+        }
+
+        [[nodiscard]] auto is_sync() -> bool { return m_worker == nullptr; }
+        [[nodiscard]] auto is_async() -> bool { return !is_sync(); }
 
         // Whether the stream is busy running tasks.
         // This function may also throw an exception from previous asynchronous tasks.

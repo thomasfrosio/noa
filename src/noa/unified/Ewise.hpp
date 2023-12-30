@@ -3,6 +3,7 @@
 #include "noa/unified/Traits.hpp"
 #include "noa/unified/Stream.hpp"
 #include "noa/unified/Indexing.hpp"
+#include "noa/unified/Utils.hpp"
 
 #include "noa/cpu/Ewise.hpp"
 #ifdef NOA_ENABLE_CUDA
@@ -11,93 +12,125 @@
 
 #include <optional>
 
-namespace noa {
-    template<typename T>
-    class Array;
+namespace noa::guts {
+    template<EwiseAdaptorTags tags, typename Inputs, typename Outputs, typename EwiseOp>
+    requires nt::are_tuple_v<Inputs, Outputs>
+    void ewise(Inputs&& inputs, Outputs&& outputs, EwiseOp&& ewise_op) {
+        constexpr size_t N_INPUTS = std::tuple_size_v<Inputs>();
+        constexpr size_t N_OUTPUTS = std::tuple_size_v<Outputs>();
+        if constexpr (N_INPUTS == 0 && N_OUTPUTS == 0)
+            return; // valid, do nothing
 
-//    /// Element-wise transformation using a unary \c operator()(input)->output.
-//    /// \param[in] input    Input array to transform.
-//    /// \param[out] output  Transformed array.
-//    /// \param unary_op     Unary operator. The output is explicitly cast to the \p output value type.
-//    template<typename Input, typename Output, typename UnaryOp,
-//             typename nt::enable_if_bool_t<nt::are_varray_v<Input, Output>> = true>
-//    void ewise(const Input& input, const Output& output, UnaryOp&& unary_op) {
-//        using input_value_t = nt::value_type_t<Input>;
-//        using output_value_t = nt::value_type_t<Output>;
-//        using mutable_input_value_t = std::remove_const_t<input_value_t>;
-//        static_assert(nt::is_detected_convertible_v<
-//                output_value_t, nt::has_unary_operator, UnaryOp, input_value_t>);
-//
-//        NOA_CHECK(!input.is_empty() && !output.is_empty(), "Empty array detected");
-//
-//        auto input_strides = input.strides();
-//        if (!noa::broadcast(input.shape(), input_strides, output.shape())) {
-//            NOA_THROW("Cannot broadcast an array of shape {} into an array of shape {}",
-//                      input.shape(), output.shape());
-//        }
-//
-//        const Device device = output.device();
-//        NOA_CHECK(device == input.device(),
-//                  "The input and output arrays must be on the same device, but got input:{} and output:{}",
-//                  input.device(), device);
-//
-//        //
-//        //        // Rearrange to rightmost order.
-//        //        shape = noa::indexing::effective_shape(shape, output_strides);
-//        //        const auto order = noa::indexing::order(output_strides, shape);
-//        //        if (noa::any(order != Vec4<Index>{0, 1, 2, 3})) {
-//        //            shape = noa::indexing::reorder(shape, order);
-//        //            lhs_strides = noa::indexing::reorder(lhs_strides, order);
-//        //            mhs_strides = noa::indexing::reorder(mhs_strides, order);
-//        //            rhs_strides = noa::indexing::reorder(rhs_strides, order);
-//        //            output_strides = noa::indexing::reorder(output_strides, order);
-//        //        }
-//        //
-//        //        const Index elements = shape.elements();
-//
-//        Stream& stream = Stream::current(device);
-//        if (device.is_cpu()) {
-//            auto& cpu_stream = stream.cpu();
-//            const auto threads = cpu_stream.thread_limit();
-//            cpu_stream.enqueue([=, op = std::forward<UnaryOp>(unary_op)]() {
-//                cpu::ewise_unary(input.get(), input_strides,
-//                                 output.get(), output.strides(), output.shape(),
-//                                 op, threads);
-//            });
-//        } else {
-//            #ifdef NOA_ENABLE_CUDA
-//            if constexpr (cuda::details::is_valid_ewise_unary_v<
-//                    mutable_input_value_t, output_value_t,
-//                    nt::remove_ref_cv_t<UnaryOp>>) {
-//                auto& cuda_stream = stream.cuda();
-//                cuda::ewise_unary(input.get(), input_strides,
-//                                  output.get(), output.strides(), output.shape(),
-//                                  unary_op, cuda_stream);
-//                cuda_stream.enqueue_attach(input, output);
-//            } else {
-//                NOA_THROW("These types of operands are not supported by the CUDA backend. "
-//                          "See documentation or noa::cuda::ewise_unary(...) for more details");
-//            }
-//            #else
-//            NOA_THROW("No GPU backend detected");
-//            #endif
-//        }
-//    }
-//
-//    /// Element-wise transformation using a unary \c operator()(input)->output.
-//    /// The output is allocated and returned. By default, the output value type is deduced from the operator.
-//    /// \note On the GPU, the same operators and types are supported as in the overload above.
-//    template<typename Output = void, typename Input, typename UnaryOp,
-//             typename = std::enable_if_t<nt::is_varray_v<Input> &&
-//                                         (std::is_void_v<Output> || nt::is_numeric_v<Output>)>>
-//    [[nodiscard]] auto ewise_unary(const Input& input, UnaryOp&& unary_op) {
-//        using input_value_t = nt::value_type_t<Input>;
-//        using return_value_t = std::conditional_t<
-//                std::is_void_v<Output>, std::invoke_result_t<UnaryOp, input_value_t>, Output>;
-//        Array<return_value_t> output(input.shape(), input.options());
-//        ewise_unary(input, output, std::forward<UnaryOp>(unary_op));
-//        return output;
-//    }
+        constexpr i64 INDEX_FIRST_INPUT_VARRAY = guts::index_of_first_varray(inputs);
+        constexpr bool OUTPUTS_ARE_ALL_VARRAYS = inputs.all([&](const auto& v) {
+            if constexpr (nt::is_varray_v<decltype(v)>)
+                return true;
+            return false;
+        });
+
+        Tuple input_accessors = guts::to_tuple_of_accessors(inputs);
+        Tuple output_accessors = guts::to_tuple_of_accessors(outputs);
+
+        Shape4<i64> shape;
+        Device device;
+        Vec4<i64> order;
+        bool do_reorder;
+
+        if constexpr (N_OUTPUTS >= 1) {
+            if constexpr (OUTPUTS_ARE_ALL_VARRAYS) {
+                noa::check(guts::are_all_same_device(output_accessors),
+                           "The output arrays should have the same device, but got devices={}",
+                           guts::forward_as_tuple_of_devices(output_accessors));
+                noa::check(guts::are_all_same_device(input_accessors), // FIXME
+                           "The input arrays should have the same device, but got devices={}",
+                           guts::forward_as_tuple_of_devices(input_accessors));
+
+                noa::check(guts::are_all_same_shape(outputs),
+                           "The output arrays should have the same shape, but got shapes={}",
+                           guts::forward_as_tuple_of_shapes(outputs));
+                noa::check(guts::are_all_same_order(outputs),
+                           "The output arrays should have the same stride order, but got strides={}",
+                           guts::forward_as_tuple_of_strides(outputs));
+
+                // TODO Do we allow strides of 0 on the outputs?
+                //      If not, check there's no non-empty dimensions with a stride of 0.
+
+                // The outputs are varrays, so we can index the tuple and safely expect a varray.
+                shape = outputs[Tag<0>{}].shape();
+                device = outputs[Tag<0>{}].device();
+                order = ni::order(outputs[Tag<0>{}].strides(), shape); // outputs have the same order
+                do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
+
+                // Automatic broadcasting of the inputs.
+                input_accessors.for_each_enumerate([&inputs, &shape]<size_t I, typename T>(T& accessor) {
+                    if constexpr (!nt::is_accessor_value_v<T>) {
+                        const auto& input_shape = inputs[Tag<I>{}].shape();
+                        if (!ni::broadcast(input_shape.shape(), accessor.strides(), shape)) {
+                            panic("Cannot broadcast an array of shape {} into an array of shape {}",
+                                  input_shape.shape(), shape);
+                        }
+                    }
+                });
+            } else {
+                static_assert(nt::always_false_v<Outputs>, "Outputs should be varrays");
+            }
+        } else if constexpr (N_INPUTS >= 1) {
+            if constexpr (INDEX_FIRST_INPUT_VARRAY >= 0) {
+                check(guts::are_all_same_device(inputs),
+                      "The input arrays should have the same device, but got devices={}",
+                      guts::forward_as_tuple_of_devices(inputs));
+                check(guts::are_all_same_shape(inputs), // no automatic broadcasting of the inputs.
+                      "The input arrays should have the same shape, but got shapes={}",
+                      guts::forward_as_tuple_of_shapes(inputs));
+
+                // TODO  make take the order of the input with the largest effective shape as reference?
+                //       ni::order moves empty dimensions to the left.
+                //       I think that forcing the same order is okay, but a bit too restrictive:
+                //       it effectively prevents broadcasting
+
+                const auto& first_input_array = inputs[Tag<INDEX_FIRST_INPUT_VARRAY>{}];
+                shape = first_input_array.shape();
+                device = first_input_array.device();
+                order = ni::order(first_input_array.strides(), shape);
+
+                // Get order of the inputs and reorder.
+                // Only reorder if all the inputs have the same order.
+                do_reorder = any(order != Vec4<i64>{0, 1, 2, 3}) &&
+                             guts::are_all_same_order(input_accessors, order);
+            } else {
+                static_assert(nt::always_false_v<Inputs>,
+                              "For cases with inputs but without outputs, there should be at least one input varray");
+            }
+        }
+
+        if (do_reorder) {
+            shape = shape.reorder(order);
+            guts::reorder_accessors(order, input_accessors, output_accessors);
+        }
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            auto n_threads = cpu_stream.thread_limit();
+            if (cpu_stream.is_sync()) {
+                noa::cpu::ewise<tags>(
+                        input_accessors, output_accessors, shape,
+                        std::forward<EwiseOp>(ewise_op), n_threads);
+            } else {
+                auto input_handles = guts::extract_shared_handles(inputs);
+                auto output_handles = guts::extract_shared_handles(outputs);
+                cpu_stream.enqueue(
+                        [=,
+                         op = std::forward<EwiseOp>(ewise_op),
+                         i = std::move(input_handles),
+                         o = std::move(output_handles)]() {
+                            noa::cpu::ewise<tags>(input_accessors, output_accessors, shape, op, n_threads);
+                        });
+            }
+        } else {
+            // reduce dimensions
+        }
+    }
 }
 
 namespace noa {
@@ -147,120 +180,29 @@ namespace noa {
     ///       is that it can analyse the inputs and outputs to deduce the most efficient way to traverse
     ///       these arrays, by reordering the dimensions, collapsing contiguous dimensions together (up to 1d),
     ///       and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
-    template<typename... Inputs, typename... Outputs, typename UnaryOp,
-             typename nt::enable_if_bool_t<nt::are_varray_v<Outputs...>> = true> // FIXME at least one varray between outputs and inputs
-    void ewise(
-            const Tuple<const Inputs&...>& inputs,
-            const Tuple<const Outputs&...>& outputs,
-            UnaryOp&& ewise_op
-    ) {
-        // Check operator is valid
-        // Check output shapes are the same and order, do we allow stride=0 on the outputs?
-
-        constexpr size_t N_INPUTS = sizeof...(Inputs);
-        constexpr size_t N_OUTPUTS = sizeof...(Outputs);
-        if constexpr (N_INPUTS == 0 && N_OUTPUTS == 0)
-            return;
-
-        Tuple input_accessors = make_tuple_of_accessors(inputs);
-        Tuple output_accessors = make_tuple_of_accessors(outputs);
-
-        Shape4<i64> shape;
-        Device device;
-        if constexpr (N_OUTPUTS >= 1) {
-            constexpr bool all_varrays = inputs.all([&](const auto& v) {
-                if constexpr (nt::is_varray_v<decltype(v)>)
-                    return true;
-                return false;
-            });
-            noa::check(all_varrays, "The outputs should be arrays"); // FIXME this should be a compile time check
-
-            noa::check(ni::are_all_same_device(output_accessors), // FIXME
-                       "The output arrays should have the same shape, but got shapes: {}",
-                       forward_as_tuple_of_shapes(output_accessors));
-            noa::check(are_all_same_shape(outputs),
-                       "The output arrays should have the same shape, but got shapes: {}",
-                       forward_as_tuple_of_shapes(outputs));
-            noa::check(are_all_same_order(outputs),
-                       "The output arrays should have the same stride order, but got strides={}",
-                       forward_as_tuple_of_strides(outputs));
-
-            // FIXME do we allow strides of 0 on the outputs?
-
-            shape = outputs[Tag<0>{}].shape();
-            device = outputs[Tag<0>{}].device();
-
-            // Get order of the output and reorder.
-            auto order = ni::order(outputs[Tag<0>{}].strides(), shape);
-            if (noa::any(order != Vec4<i64>{0, 1, 2, 3})) {
-                const auto reorder_strides = [&order](auto& accessor) { accessor.reorder(order); };
-                input_accessors.for_each(reorder_strides);
-                output_accessors.for_each(reorder_strides);
-            }
-
-            // Automatic broadcasting of the inputs.
-            input_accessors.for_each([&shape](auto& input) {
-                if (!ni::broadcast(input.shape(), input.strides(), shape)) {
-                    noa::panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                               input.shape(), shape);
-                }
-            });
-
-        } else if constexpr (N_INPUTS >= 1) {
-            Vec4<i64> order;
-            bool found = inputs.any([&](const auto& v) {
-                if constexpr (nt::is_varray_v<decltype(v)>) {
-                    shape = v.shape();
-                    device = v.device();
-                    order = ni::order(v.strides(), shape);
-                    return true;
-                }
-                return false;
-            });
-            noa::check(found, "There should be at least one input array");
-
-            // No automatic broadcasting of the inputs.
-            noa::check(ni::are_all_same_shape(inputs),
-                       "The input arrays should have the same shape, but got shapes={}",
-                       ni::forward_as_tuple_of_shapes(inputs));
-            noa::check(ni::are_all_same_device(inputs),
-                       "The input arrays should have the same device, but got devices={}",
-                       ni::forward_as_tuple_of_devices(inputs));
-
-            // FIXME make take the order of the input with the largest effective shape as reference?
-            //       ni::order moves empty dimensions to the left.
-            //       I think that forcing the same order is okay, but a bit too restrictive: it effectively prevents broadcasting
-
-            // Get order of the inputs and reorder.
-            // Only reorder if all the inputs have the same order.
-            const bool do_reorder =
-                    noa::any(order != Vec4<i64>{0, 1, 2, 3}) &&
-                    input_accessors.all([&order, &shape](const auto& input) {
-                        return noa::all(order == ni::order(input.strides(), shape)); // FIXME AccessorValue
-                    });
-            if (do_reorder) {
-                const auto reorder_strides = [&order](auto& accessor) { accessor.reorder(order); };
-                input_accessors.for_each(reorder_strides);
-                output_accessors.for_each(reorder_strides);
-            }
-        }
-
-        // FIXME If last 3 dimensions are contiguous, we can
-        const bool is_contiguous =
-                noa::indexing::are_contiguous(input_strides, shape) &&
-                noa::indexing::are_contiguous(output_strides, shape);
-
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            // reduce dimensions
-            // check for parallel
-            // check for aliasing
+    template<typename Input, typename Output, typename EwiseOp>
+    void ewise(Input&& inputs, Output&& outputs, EwiseOp&& ewise_op) {
+        if constexpr (guts::are_ewise_adaptor_v<Input, Output>) {
+            guts::ewise<guts::ewise_adaptor_tags<Input, Output>()>(
+                    std::forward<Input>(inputs).tuple,
+                    std::forward<Output>(outputs).tuple,
+                    std::forward<EwiseOp>(ewise_op));
+        } else if constexpr (guts::is_ewise_adaptor_v<Input>) {
+            guts::ewise<guts::ewise_adaptor_tags<Input, guts::EwiseAdaptorUnzip<>>()>(
+                    std::forward<Input>(inputs).tuple,
+                    forward_as_tuple(std::forward<Output>(outputs)), // wrap
+                    std::forward<EwiseOp>(ewise_op));
+        } else if constexpr (guts::is_ewise_adaptor_v<Output>) {
+            guts::ewise<guts::ewise_adaptor_tags<guts::EwiseAdaptorUnzip<>, Output>()>(
+                    forward_as_tuple(std::forward<Input>(inputs)), // wrap
+                    std::forward<Output>(outputs).tuple,
+                    std::forward<EwiseOp>(ewise_op));
         } else {
-            // reduce dimensions
+            guts::ewise<guts::ewise_adaptor_tags<guts::EwiseAdaptorUnzip<>, guts::EwiseAdaptorUnzip<>>()>(
+                    forward_as_tuple(std::forward<Input>(inputs)), // wrap
+                    forward_as_tuple(std::forward<Output>(outputs)), // wrap
+                    std::forward<EwiseOp>(ewise_op));
         }
-
-        // Reorder inputs to the output order.
-
     }
 }
 
