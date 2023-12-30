@@ -5,6 +5,12 @@
 
 using namespace ::noa;
 
+static_assert(std::is_aggregate_v<Vec<f64, 4>>);
+static_assert(alignof(Vec<f64, 4>) == 16);
+static_assert(alignof(Vec<f32, 2>) == 8);
+static_assert(alignof(Vec<f32, 6>) == 4);
+static_assert(alignof(Vec<f64, 4, 32>) == 32);
+
 TEMPLATE_TEST_CASE("core::Vec2<T>", "[noa][common][types]", i32, i64, u32, u64, f32, f64) {
     using Vec2Test = noa::Vec<TestType, 2>;
 
