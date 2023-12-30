@@ -4,11 +4,12 @@
 #include "noa/core/string/Format.hpp"
 
 #if defined(NOA_IS_OFFLINE)
-#include <string>
-#include <string_view>
 #include <exception>
 #include <filesystem>
 #include <source_location>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace noa {
     /// Global (within ::noa) exception.
@@ -73,11 +74,11 @@ namespace noa {
                     const std::source_location& l = std::source_location::current()
             ) : fmt(s), location(l) {}// no checks
         };
-    }
 
-    // TODO Honestly, I'm not sure why we need to wrap the variadic in the identity type here...
-    template<typename... Args>
-    using FormatWithLocation = guts::FormatWithLocationImp<nt::type_t<Args>...>;
+        // std::type_identity is used to establish non-deduced contexts in template argument deduction.
+        template<typename... Args>
+        using FormatWithLocation = guts::FormatWithLocationImp<std::type_identity_t<Args>...>;
+    }
 
     /// Throws an Exception with an error message and a specific, i.e. non-defaulted, source location.
     /// The format string is checked at compile time by default, except if a fmt::basic_runtime
@@ -110,7 +111,7 @@ namespace noa {
 
     /// Throws an Exception with an error message and the current source location.
     template<typename... Ts>
-    [[noreturn]] constexpr void panic(FormatWithLocation<Ts...> fmt, Ts&&... args) {
+    [[noreturn]] constexpr void panic(guts::FormatWithLocation<Ts...> fmt, Ts&&... args) {
         panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
     }
 
@@ -154,7 +155,7 @@ namespace noa {
 
     /// Throws an Exception if the expression evaluates to false.
     template<typename C, typename... Ts>
-    constexpr void check(C&& expression, FormatWithLocation<Ts...> fmt, Ts&&... args) {
+    constexpr void check(C&& expression, guts::FormatWithLocation<Ts...> fmt, Ts&&... args) {
         if (expression) {
             /*do nothing*/
         } else {
