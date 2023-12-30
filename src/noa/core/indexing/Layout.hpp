@@ -41,6 +41,22 @@ namespace noa::indexing {
         }
     }
 
+    /// Checks whether all of the 4d accessors are contiguous.
+    template<char ORDER = 'C', typename... Accessors, typename Integer>
+    requires nt::are_accessor_nd_v<4, Accessors...>
+    auto are_contiguous(
+            const Tuple<Accessors...>& accessors,
+            const Shape4<Integer>& shape
+    ) -> bool {
+        return accessors.all([&shape]<typename T>(const T& accessor) {
+            if constexpr (nt::is_accessor_value_v<T>) {
+                return true;
+            } else {
+                return are_contiguous<ORDER>(accessor.strides(), shape);
+            }
+        });
+    }
+
     /// For each dimension, check if it is contiguous.
     /// \details If one wants to know in which dimension the contiguity is broken or if the contiguity is only
     ///          required in a particular dimension, this function can be useful. It supports broadcasting and
